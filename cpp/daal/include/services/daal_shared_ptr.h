@@ -70,7 +70,7 @@ template <class T>
 class ObjectDeleter : public DeleterIface
 {
 public:
-    void operator()(const void * ptr) DAAL_C11_OVERRIDE { delete (const T *)(ptr); }
+    void operator()(const void * ptr) override { delete (const T *)(ptr); }
 };
 
 /**
@@ -82,7 +82,7 @@ public:
 class ServiceDeleter : public DeleterIface
 {
 public:
-    void operator()(const void * ptr) DAAL_C11_OVERRIDE { daal::services::daal_free((void *)ptr); }
+    void operator()(const void * ptr) override { daal::services::daal_free((void *)ptr); }
 };
 
 /**
@@ -94,7 +94,7 @@ public:
 class EmptyDeleter : public DeleterIface
 {
 public:
-    void operator()(const void * /*ptr*/) DAAL_C11_OVERRIDE {}
+    void operator()(const void * /*ptr*/) override {}
 };
 
 /**
@@ -131,7 +131,7 @@ public:
     RefCounterImp(const Deleter & d) : _deleter(d) {}
     /** Destructor */
     virtual ~RefCounterImp() {}
-    void operator()(const void * ptr) DAAL_C11_OVERRIDE { _deleter(ptr); }
+    void operator()(const void * ptr) override { _deleter(ptr); }
 
 protected:
     Deleter _deleter;

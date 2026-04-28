@@ -111,9 +111,7 @@ services::Status Input::check(const daal::algorithms::Parameter * parameter, int
     services::Status s;
     if (method == defaultDense)
     {
-        const int unexpectedLayouts = (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix
-                                      | (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix;
-        DAAL_CHECK_STATUS(s, checkNumericTable(get(data).get(), dataStr(), unexpectedLayouts));
+        DAAL_CHECK_STATUS(s, checkNumericTable(get(data).get(), dataStr()));
     }
     else
     {

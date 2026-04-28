@@ -17,55 +17,94 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect daal::internal namespace
+; deselect daal::internal namespaces
+
 [suppress_type]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
 
-; deselect tbb::* namespaces
-[suppress_type]
-  name_regexp = tbb::.*
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; DAAL 2026.0 REMOVALS ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; deselect the removed daal symbols
 
-[suppress_variable]
-  name_regexp = tbb::.*
+;[suppress_type]
+;symbol_name_regexp = _Z+N4daal[[:digit:]].*
+;change_kind = deleted-type
+;drop = yes
 
-[suppress_function]
-  name_regexp = tbb::.*
+;[suppress_variable]
+;symbol_name_regexp = _Z+N4daal[[:digit:]].*
+;change_kind = deleted-variable
+;drop = yes
+
+;[suppress_function]
+;symbol_name_regexp = _Z+N4daal[[:digit:]].*
+;change_kind = deleted-function
+;drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect oneapi::dal backend namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::.*backend::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = oneapi::dal::.*backend::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = oneapi::dal::.*backend::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
 
 ; deselect oneapi::dal detail namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::.*detail::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = oneapi::dal::.*detail::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = oneapi::dal::.*detail::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
 
 ; deselect oneapi::dal preview namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
+
+; deselect oneapi::dal newly added symbols
+[suppress_type]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-type
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-variable
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-function
+drop = yes

@@ -38,14 +38,13 @@ namespace training
 {
 namespace init
 {
-namespace interface1
-{
-template class DistributedContainer<step1Local, DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class DistributedContainer<step1Local, DAAL_FPTYPE, fastCSR, DAAL_CPU>;
+
 template class ImplicitALSInitDistrKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace init
 } // namespace training
 } // namespace implicit_als

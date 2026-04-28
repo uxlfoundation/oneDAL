@@ -159,14 +159,9 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     size_t * const indexes = static_cast<data_management::HomogenNumericTable<size_t> *>(r->impl()->getIndices().get())->getArray();
 
     Queue<BuildNode, cpu> q;
-    BBox * bboxQ    = nullptr;
-    auto oldThreads = services::Environment::getInstance()->getNumberOfThreads();
+    BBox * bboxQ = nullptr;
     DAAL_CHECK_STATUS(status, buildFirstPartOfKDTree(q, bboxQ, *x, *r, indexes, engine));
-    // Temporary workaround for threading issues in `buildSecondPartOfKDTree()`
-    // Fix to be provided in https://github.com/uxlfoundation/oneDAL/pull/2925
-    services::Environment::getInstance()->setNumberOfThreads(1);
     DAAL_CHECK_STATUS(status, buildSecondPartOfKDTree(q, bboxQ, *x, *r, indexes, engine));
-    services::Environment::getInstance()->setNumberOfThreads(oldThreads);
     DAAL_CHECK_STATUS(status, rearrangePoints(*x, indexes));
     if (y)
     {
@@ -416,7 +411,6 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
             const_cast<NumericTable &>(x).getBlockOfColumnValues(j, 0, xRowCount, readOnly, columnBD);
             const algorithmFpType * const dx = columnBD.getBlockPtr();
 
-            PRAGMA_FORCE_SIMD
             for (size_t i = 0; i < elementCount; ++i)
             {
                 sampleValues[i] = dx[indexes[start + i]];
@@ -458,7 +452,6 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
             const_cast<NumericTable &>(x).getBlockOfColumnValues(j, 0, xRowCount, readOnly, columnBD);
             const algorithmFpType * const dx = columnBD.getBlockPtr();
 
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < elementCount; ++i)
             {
                 sampleValues[i] = dx[indexes[sampleIndexes[i]]];
@@ -580,7 +573,7 @@ algorithmFpType KNNClassificationTrainBatchKernel<algorithmFpType, training::def
     histTLS.reduce([=, &masterHist](Hist * v) -> void {
         if (v)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < sampleCount; ++j)
             {
@@ -1070,7 +1063,8 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                     {
                         bn = local->buildStack.pop();
                         --local->bboxPos;
-                        bboxCur = &(local->bboxes[local->bboxPos * xColumnCount]);
+                        const size_t bboxCurIndex = local->bboxPos * xColumnCount;
+                        bboxCur                   = &(local->bboxes[bboxCurIndex]);
                         curNode = (bn.nodePos < firstExtraNodeIndex) ? static_cast<KDTreeNode *>(kdTreeTable.getArray()) + bn.nodePos :
                                                                        &(local->extraKDTreeNodes[bn.nodePos - firstExtraNodeIndex]);
 
@@ -1141,6 +1135,11 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                                         local->extraKDTreeNodesCapacity = newCapacity;
                                         daal_free(oldNodes);
                                         oldNodes = nullptr;
+
+                                        if (bn.nodePos >= firstExtraNodeIndex)
+                                        {
+                                            curNode = &(local->extraKDTreeNodes[bn.nodePos - firstExtraNodeIndex]);
+                                        }
                                     }
                                 }
                                 else
@@ -1183,6 +1182,8 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                                 local->bboxes          = newBboxes;
                                 local->bboxesCapacity  = newCapacity;
                                 service_scalable_free<BBox, cpu>(oldBboxes);
+
+                                bboxCur = &local->bboxes[bboxCurIndex];
                             }
                             bboxLeft = &local->bboxes[bnLeft.queueOrStackPos * xColumnCount];
                             this->copyBBox(bboxLeft, bboxCur, xColumnCount);

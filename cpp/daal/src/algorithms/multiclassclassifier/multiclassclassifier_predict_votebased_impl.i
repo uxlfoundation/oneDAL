@@ -47,8 +47,8 @@ using namespace daal::services::internal;
 template <typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
 {
-    Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
-                   const daal::algorithms::Parameter * par);
+    Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
+                   NumericTable * df, const daal::algorithms::Parameter * par);
 };
 
 /** Base class for threading subtask */
@@ -112,14 +112,13 @@ public:
             if (!s) return Status(ErrorMultiClassFailedToComputeTwoClassPrediction).add(s);
 
             /* Compute votes for the block of input observations */
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nRows; ++i)
             {
-                if (y[i] >= 0)
-                    votes[i * _nClasses + iClass]++;
-                else
-                    votes[i * _nClasses + jClass]++;
+                const int isIClass(y[i] >= 0); // isIClass == 1 if y[i] >= 0; isIClass == 0 if y[i] < 0
+                votes[i * _nClasses + iClass] += isIClass;
+                votes[i * _nClasses + jClass] += (1 - isIClass);
             }
         }
 
@@ -233,7 +232,7 @@ public:
     }
 
 protected:
-    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) DAAL_C11_OVERRIDE
+    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) override
     {
         _xRows.set(const_cast<NumericTable *>(a), startRow, nRows);
         DAAL_CHECK_BLOCK_STATUS(_xRows);
@@ -278,7 +277,7 @@ public:
     }
 
 protected:
-    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) DAAL_C11_OVERRIDE
+    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) override
     {
         const bool toOneBaseRowIndices = true;
         _xRows.set(dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(a)), startRow, nRows, toOneBaseRowIndices);
@@ -304,8 +303,8 @@ private:
 template <typename algorithmFPType, CpuType cpu>
 Status MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * a,
                                                                                                             const daal::algorithms::Model * m,
-                                                                                                            SvmModel * svmModel, NumericTable * pred,
-                                                                                                            NumericTable * df,
+                                                                                                            svm::internal::ModelImpl * svmModel,
+                                                                                                            NumericTable * pred, NumericTable * df,
                                                                                                             const daal::algorithms::Parameter * par)
 {
     Model * model                              = static_cast<Model *>(const_cast<daal::algorithms::Model *>(m));

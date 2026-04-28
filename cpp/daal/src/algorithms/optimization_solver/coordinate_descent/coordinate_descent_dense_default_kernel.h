@@ -46,8 +46,8 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class CoordinateDescentKernel : public Kernel
 {
 public:
-    services::Status compute(HostAppIface * pHost, NumericTable * inputArgument, NumericTable * minimum, NumericTable * nIterations,
-                             Parameter * parameter, engines::BatchBase & engine, optimization_solver::objective_function::ResultPtr & hesGr,
+    services::Status compute(NumericTable * inputArgument, NumericTable * minimum, NumericTable * nIterations, Parameter * parameter,
+                             engines::BatchBase & engine, optimization_solver::objective_function::ResultPtr & hesGr,
                              optimization_solver::objective_function::ResultPtr & prox);
 };
 

@@ -1,4 +1,18 @@
-# Copyright contributors to the oneDAL project
+#===============================================================================
+# Copyright Contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
 # C/C++ with GCC
 # Build your C/C++ project with GCC using make.
 # Add steps that publish test results, save build artifacts, deploy, and more:
@@ -29,13 +43,13 @@ variables:
   VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
-  PY_VERSION: '3.11'
-  SKL_VERSION: '1.5'
+  PY_VERSION: '3.14'
+  SKL_VERSION: '1.8'
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/09a8acaf-265f-4460-866c-a3375ed5b4ff/intel-oneapi-base-toolkit-2025.2.0.591_offline.exe'
-  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
+  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/076e961b-2c29-48a8-9203-c96f00e7051b/intel-oneapi-base-toolkit-2025.3.1.35_offline.exe'
+  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.cpp-dpcpp-common:intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
   repositories:
@@ -73,7 +87,7 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
+    displayName: 'apt-get install'
   - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
@@ -83,7 +97,7 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -110,6 +124,9 @@ jobs:
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples'
   - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'conda install'
+  - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
@@ -126,6 +143,148 @@ jobs:
     condition: failed()
     continueOnError: true
 
+- job: 'LinuxMakeIntel_MKL'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx'
+    platform.type : 'lnx32e'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get install'
+  - script: |
+      .ci/env/apt.sh dpcpp
+    displayName: 'dpcpp installation'
+  - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
+  - script: |
+      # The issue has been solved in 2026.0 release. Remove after updating to MKL 2026.0.
+      # Use custom patched MKLConfig.cmake: fixes TBB target detection and includes gnu_thread support.
+      if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sudo cp .ci/env/MKLConfig.cmake /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
+          echo "Replaced oneAPI MKLConfig.cmake with patched version from .ci/env/"
+      fi
+    displayName: 'Replace MKLConfig.cmake with patched version'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
+    displayName: 'make daal'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc
+    displayName: 'make onedal_dpc'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
+    displayName: 'oneapi/dpc examples'
+  - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'conda install'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples'
+
+- job: 'LinuxMakeGNU_MKL_Conda'
+  timeoutInMinutes: 300
+  variables:
+    release.dir: '__release_lnx_gnu_conda'
+    platform.type: 'lnx32e'
+    CONDA_ENV: 'onedal_env'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'apt-get install'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda create -y -n $(CONDA_ENV)
+      conda activate $(CONDA_ENV)
+      conda install -y -c conda-forge \
+          make \
+          tbb tbb-devel \
+          mkl mkl-devel mkl-static \
+          cmake \
+          impi-devel impi_rt
+    displayName: 'Create conda environment'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
+    displayName: 'make daal'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
+    displayName: 'make onedal_c'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      conda install -y -c conda-forge \
+          mkl-dpcpp mkl-devel-dpcpp \
+          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+          onedpl-devel
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
+      mv __release_lnx_gnu __release_lnx_gnu_conda
+    displayName: 'make onedal_dpc'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      # The issue has been solved in 2026.0 release. Remove after updating conda packages.
+      # Use custom patched MKLConfig.cmake: fixes TBB target detection and includes gnu_thread support.
+      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          cp .ci/env/MKLConfig.cmake "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+          echo "Replaced MKLConfig.cmake with patched version from .ci/env/"
+      fi
+    displayName: 'Replace MKLConfig.cmake with patched version'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
+    displayName: 'oneapi/dpc examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples'
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
   timeoutInMinutes: 0
@@ -142,7 +301,7 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
+    displayName: 'apt-get install'
   - script: |
       .ci/env/apt.sh gnu-cross-compilers riscv64
     displayName: 'riscv64-compiler installation'
@@ -184,7 +343,7 @@ jobs:
     displayName: 'Build oneTBB'
     condition: ne(variables.TBB_RESTORED, 'true')
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make daal'
   - script: |
       .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
@@ -231,11 +390,13 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh opencl
+    displayName: 'install opencl'
   - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
     displayName: 'install-bazel'
+
   - script: |
       .ci/scripts/describe_system.sh
     displayName: 'System info'
@@ -268,19 +429,54 @@ jobs:
       cat bazel-bin/external/+_repo_rules+config/config.json
       echo
     displayName: 'bazel-configure'
+
   - script: |
       bazel build :release
     displayName: 'release'
+
+  - script: |
+      echo "Move Bazel release output to standalone directory"
+      rm -rf standalone_release
+      mkdir -p standalone_release
+
+      # Move instead of copy to save disk
+      mv bazel-bin/release/* standalone_release/
+
+      # Expose DALROOT for subsequent tasks
+      echo "##vso[task.setvariable variable=DALROOT]$(pwd)/standalone_release/daal/latest"
+    displayName: 'Prepare standalone release directory'
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
-      targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
+      targetPath: '$(DALROOT)'
     displayName: 'Upload build artifacts'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
+      bazel test //cpp/daal:mkl_linkage_test \
+                  --test_env DALROOT
+    displayName: 'Check mkl symbols'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-dev'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //examples/oneapi/cpp:all \
@@ -289,36 +485,67 @@ jobs:
     displayName: 'cpp-examples-thread-dev'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
     displayName: 'daal-cpp-examples-thread-release-static'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --config=host \
+                 --test_thread_mode=par \
+                 --test_env DALROOT
     displayName: 'cpp-examples-thread-release-static'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
     displayName: 'cpp-examples-thread-release-dynamic'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //cpp/daal:tests
     displayName: 'daal-tests-algorithms'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //cpp/oneapi/dal:tests \
@@ -326,6 +553,11 @@ jobs:
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-tests-thread-dev'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       # Clear cache if its size exceeds some predefined value
@@ -457,6 +689,51 @@ jobs:
     continueOnError: true
 
   
+- job: 'WindowsMakeIntel'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_win'
+    platform.type : 'win32e'
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+  steps:
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: Install oneAPI Base Toolkit
+  - script: |
+      set PATH=C:\msys64\usr\bin;%PATH%
+      pip install cpufeature
+      pacman -S -y --noconfirm zip tree
+    displayName: 'pacman'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      bash .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\build.bat daal icx avx2
+    displayName: 'make daal'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\build.bat onedal_dpc icx avx2
+    displayName: 'make onedal_dpc'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\test.bat daal\cpp lib icx cmake
+      .\.ci\scripts\test.bat daal\cpp dll icx cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\test.bat oneapi\cpp lib icx cmake
+      .\.ci\scripts\test.bat oneapi\cpp dll icx cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      set PATH=C:\msys64\usr\bin;%PATH%
+      bash deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
+      tree -h -I include __nuget/inteldal*/
+      ls -lh __nuget/inteldal*.nupkg
+    displayName: 'nuget pkg'
+
+
 - job: WindowsSklearnex
   dependsOn: WindowsMakeVC
   timeoutInMinutes: 0

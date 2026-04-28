@@ -44,29 +44,6 @@ namespace interface1
  * @ingroup bf_knn_classification_prediction
  * @{
  */
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
- *  \brief Class containing computation methods for BF kNN model-based prediction
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for BF kNN model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-
-    ~BatchContainer();
-
-    /**
-     *  Computes the result of BF kNN model-based prediction
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__PREDICTION__BATCH"></a>
  * \brief Provides methods to run implementations of the BF kNN model-based prediction
@@ -93,7 +70,9 @@ public:
     typedef algorithms::bf_knn_classification::Parameter ParameterType;
     typedef algorithms::bf_knn_classification::prediction::Result ResultType;
 
-    /** Default constructor */
+    /**
+     * Default constructor
+     */
     Batch();
 
     /**
@@ -107,15 +86,14 @@ public:
     /**
      * Constructs a BF kNN prediction algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-    */
+     */
     Batch(size_t nClasses);
 
-    /** Destructor */
-    ~Batch()
-    {
-        delete _par;
-        _par = NULL;
-    }
+    /**
+     * Destructor.
+     * Releases dynamically allocated resources held by the object.
+     */
+    ~Batch() { delete _par; }
 
     /**
     * Gets parameter of the algorithm
@@ -151,13 +129,13 @@ public:
      * Get input objects for the BF kNN prediction algorithm
      * \return %Input objects for the BF kNN prediction algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return static_cast<InputType *>(_in); }
+    InputType * getInput() override { return static_cast<InputType *>(_in); }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated BF kNN prediction algorithm with a copy of input objects
@@ -170,21 +148,16 @@ public:
     InputType input; /*!< %Input objects of the algorithm */
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())->allocate<algorithmFPType>(&input, _par, (int)method);
         _res               = _result.get();
         return s;
     }
 
-    void initialize()
-    {
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -193,7 +166,6 @@ private:
 /** @} */
 } // namespace interface1
 
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace prediction

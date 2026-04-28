@@ -53,11 +53,11 @@ struct to_daal_method<method::dense> : daal_method_constant<daal_lom::defaultDen
 template <>
 struct to_daal_method<method::sparse> : daal_method_constant<daal_lom::fastCSR> {};
 
-template <typename Float, daal::CpuType Cpu, typename Method>
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using batch_kernel_t =
     daal_lom::internal::LowOrderMomentsBatchKernel<Float, to_daal_method<Method>::value, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_lom_online_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
 

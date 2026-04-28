@@ -123,8 +123,8 @@ For more details, see :ref:`algorithms`.
     the respective element of the result contains a NULL pointer.
 
   - By default, each numeric table specified by the collection elements is an object of the HomogenNumericTable class,
-    but you can define the result as an object of any class derived from NumericTable,
-    except for PackedSymmetricMatrix, PackedTriangularMatrix, and CSRNumericTable.
+    but you can define the result as an object of any class derived from ``NumericTable``,
+    except for ``CSRNumericTable``.
 
   - Hessian matrix is computed for the objective function :math:`F(\theta) \in C^2`.
     For the objective functions :math:`F(\theta) \in C^p` with :math:`p < 2` the library

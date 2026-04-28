@@ -25,6 +25,7 @@
 #define __SERVICE_BLAS_MKL_H__
 
 #include "services/daal_defines.h"
+#include "src/services/cpu_type.h"
 #include <mkl.h>
 
 #define __DAAL_MKLFN_CALL_BLAS(f_name, f_args) f_name f_args;
@@ -37,6 +38,8 @@ namespace internal
 {
 namespace mkl
 {
+using namespace daal::internal;
+
 template <typename fpType, CpuType cpu>
 struct MklBlas
 {};

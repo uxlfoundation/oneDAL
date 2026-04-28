@@ -23,24 +23,6 @@ namespace data_management
 {
 namespace interface1
 {
-SOANumericTable::SOANumericTable(NumericTableDictionary * ddict, size_t nRows, AllocationFlag memoryAllocationFlag)
-    : NumericTable(NumericTableDictionaryPtr(ddict, services::EmptyDeleter())), _arraysInitialized(0), _partialMemStatus(notAllocated)
-{
-    _layout = soa;
-    _index  = 0;
-
-    this->_status |= setNumberOfRowsImpl(nRows);
-    if (!resizePointersArray(getNumberOfColumns()))
-    {
-        this->_status.add(services::ErrorMemoryAllocationFailed);
-        return;
-    }
-    if (memoryAllocationFlag == doAllocate)
-    {
-        this->_status |= allocateDataMemoryImpl();
-    }
-}
-
 SOANumericTable::SOANumericTable(size_t nColumns, size_t nRows, DictionaryIface::FeaturesEqual featuresEqual)
     : NumericTable(nColumns, nRows, featuresEqual), _arrays(nColumns), _arraysInitialized(0), _partialMemStatus(notAllocated)
 {

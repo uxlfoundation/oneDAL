@@ -1,0 +1,100 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: Coverity Scan
+
+on:
+  schedule:
+    - cron: '0 21 * * *'
+  # allows to reuse this workflow
+  workflow_call:
+
+permissions: read-all
+
+env:
+  COVERITY_PROJECT: uxlfoundation%2FoneDAL
+  COVERITY_PROJECT_ID: 32342
+
+jobs:
+  coverity_linux:
+    name: Coverity Linux (AVX2)
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download Coverity Build Tool (linux64)
+        run: |
+          curl --fail https://scan.coverity.com/download/cxx/linux64 --output ${GITHUB_WORKSPACE}/cov-linux64-tool.tar.gz \
+            --data "token=${{secrets.COVERITY_TOKEN}}&project=${{env.COVERITY_PROJECT}}" || { echo "::error:: Download failed"; exit 1; }
+          mkdir cov-linux64-tool
+          tar -xzf cov-linux64-tool.tar.gz --strip 1 -C cov-linux64-tool
+          cd cov-linux64-tool/config
+          git apply --check ${GITHUB_WORKSPACE}/.github/patches/coverity/fix.coverity-2024.12.patch
+          patch -p1 < ${GITHUB_WORKSPACE}/.github/patches/coverity/fix.coverity-2024.12.patch
+
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+
+      - name: Make daal (Coverity)
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          export PATH="${PWD}/cov-linux64-tool/bin:${PATH}"
+          cov-configure --template --compiler icx --comptype intel_icx:linux
+          cov-configure --template --compiler icpx --comptype intel_icpx:linux
+          cov-build --dir cov-int .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
+
+      - name: Make onedal (Coverity)
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          export PATH="${PWD}/cov-linux64-tool/bin:${PATH}"
+          cov-configure --template --compiler icx --comptype intel_icx:linux
+          cov-configure --template --compiler icpx --comptype intel_icpx:linux
+          cov-build --dir cov-int .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal
+
+      - name: Archive Coverity build results
+        id: check_size
+        run: |
+          tar -czf cov-int.tgz cov-int
+          size=$(du -m cov-int.tgz | cut -f1)
+          echo "Artifact size: $size MB"
+          echo "size=$size" >> $GITHUB_OUTPUT
+
+      - name: Submit Coverity results for analysis
+        if: github.ref == 'refs/heads/main'
+        run: |
+          curl -X POST \
+            -d version="${GITHUB_SHA}" \
+            -d description="" \
+            -d email="${{secrets.COVERITY_EMAIL}}" \
+            -d token="${{secrets.COVERITY_TOKEN}}" \
+            -d file_name=@cov-int.tgz \
+            https://scan.coverity.com/projects/${{env.COVERITY_PROJECT_ID}}/builds/init \
+            | tee response
+          upload_url=$(jq -r '.url' response)
+          if [ -z "$upload_url" ] || [ "$upload_url" == "null" ]; then
+            echo "Error: Failed to extract 'url' from API response." >&2
+            cat response >&2
+            exit 1
+          fi
+          build_id=$(jq -r '.build_id' response)
+          curl -X PUT \
+            --header 'Content-Type: application/json' \
+            --upload-file cov-int.tgz \
+            $upload_url

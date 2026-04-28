@@ -50,24 +50,24 @@ public:
     ModelImpl(size_t nFeatures = 0) : RegressionImplType(nFeatures) {}
     ~ModelImpl() {}
 
-    virtual size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return RegressionImplType::getNumberOfFeatures(); }
+    size_t getNumberOfFeatures() const override { return RegressionImplType::getNumberOfFeatures(); }
 
     //Implementation of decision_forest::regression::Model
-    virtual size_t numberOfTrees() const DAAL_C11_OVERRIDE;
-    virtual void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
-    virtual void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
-    virtual void clear() DAAL_C11_OVERRIDE { ImplType::clear(); }
+    size_t numberOfTrees() const override;
+    void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
+    void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
+    void clear() override { ImplType::clear(); }
 
-    virtual void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
-    virtual void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
+    void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
+    void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
 
-    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
-    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
     void copyModelReg(const ModelImpl & other, size_t idx, size_t global_count);
     bool add(const TreeType & tree, size_t nClasses, size_t iTree);
 
-    virtual size_t getNumberOfTrees() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfTrees() const override;
 };
 
 } // namespace internal

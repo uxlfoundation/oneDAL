@@ -131,11 +131,11 @@ public:
         : _a(a), _b(b), _squared(squared), _isSqrtNorm(isSqrtNorm)
     {}
 
-    virtual ~EuclideanDistances() DAAL_C11_OVERRIDE {}
+    ~EuclideanDistances() override {}
 
-    PairwiseDistanceType getType() DAAL_C11_OVERRIDE { return PairwiseDistanceType::euclidean; }
+    PairwiseDistanceType getType() override { return PairwiseDistanceType::euclidean; }
 
-    services::Status init() DAAL_C11_OVERRIDE
+    services::Status init() override
     {
         services::Status s;
 
@@ -155,7 +155,7 @@ public:
 
     // output:  Row-major matrix of size { aSize x bSize }
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
-                                  FPType * const res) DAAL_C11_OVERRIDE
+                                  FPType * const res) override
     {
         const size_t nRowsA = aSize;
         const size_t nColsA = _a.getNumberOfColumns();
@@ -169,10 +169,10 @@ public:
         const FPType * const aa = normBufferA.get() + aOffset;
         const FPType * const bb = (&_a == &_b) ? normBufferA.get() + bOffset : normBufferB.get() + bOffset;
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nRowsC; i++)
         {
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
                 res[i * nColsC + j] = aa[i] + bb[j] - 2 * res[i * nColsC + j];
@@ -192,7 +192,7 @@ public:
         return services::Status();
     }
 
-    services::Status finalize(const size_t n, FPType * a) DAAL_C11_OVERRIDE
+    services::Status finalize(const size_t n, FPType * a) override
     {
         const size_t blockSize = 512;
         const size_t nBlocks   = n / blockSize + !!(n % blockSize);
@@ -276,8 +276,7 @@ protected:
             for (size_t i = 0; i < end - begin; i++)
             {
                 FPType sum = FPType(0);
-                PRAGMA_FORCE_SIMD
-                PRAGMA_ICC_NO16(omp simd reduction(+ : sum))
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t j = 0; j < nCols; j++)
                 {
                     sum += data[i * nCols + j] * data[i * nCols + j];
@@ -330,15 +329,15 @@ private:
 public:
     CosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b, true, true) {}
 
-    virtual ~CosineDistances() DAAL_C11_OVERRIDE {}
+    ~CosineDistances() override {}
 
-    PairwiseDistanceType getType() DAAL_C11_OVERRIDE { return PairwiseDistanceType::cosine; }
+    PairwiseDistanceType getType() override { return PairwiseDistanceType::cosine; }
 
-    services::Status finalize(const size_t n, FPType * a) DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status finalize(const size_t n, FPType * a) override { return services::Status(); }
 
     // output:  Row-major matrix of size { aSize x bSize }
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
-                                  FPType * const res) DAAL_C11_OVERRIDE
+                                  FPType * const res) override
     {
         const size_t nRowsA = aSize;
         const size_t nColsA = super::_a.getNumberOfColumns();
@@ -354,7 +353,7 @@ public:
 
         for (size_t i = 0; i < nRowsC; i++)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
@@ -373,25 +372,25 @@ public:
         : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
-    virtual ~MinkowskiDistances() DAAL_C11_OVERRIDE {}
+    ~MinkowskiDistances() override {}
 
-    PairwiseDistanceType getType() DAAL_C11_OVERRIDE { return PairwiseDistanceType::minkowski; }
+    PairwiseDistanceType getType() override { return PairwiseDistanceType::minkowski; }
 
-    services::Status init() DAAL_C11_OVERRIDE
+    services::Status init() override
     {
         services::Status s;
         return s;
     }
 
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
-                                  FPType * const res) DAAL_C11_OVERRIDE
+                                  FPType * const res) override
     {
         computeBatchImpl(a, b, aOffset, aSize, bOffset, bSize, res);
 
         return services::Status();
     }
 
-    services::Status finalize(const size_t n, FPType * a) DAAL_C11_OVERRIDE
+    services::Status finalize(const size_t n, FPType * a) override
     {
         if (_p != 1.0)
         {
@@ -472,25 +471,25 @@ class ChebyshevDistances : public PairwiseDistances<FPType, cpu>
 public:
     ChebyshevDistances(const NumericTable & a, const NumericTable & b) : _a(a), _b(b) {}
 
-    virtual ~ChebyshevDistances() DAAL_C11_OVERRIDE {}
+    ~ChebyshevDistances() override {}
 
-    PairwiseDistanceType getType() DAAL_C11_OVERRIDE { return PairwiseDistanceType::chebyshev; }
+    PairwiseDistanceType getType() override { return PairwiseDistanceType::chebyshev; }
 
-    services::Status init() DAAL_C11_OVERRIDE
+    services::Status init() override
     {
         services::Status s;
         return s;
     }
 
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
-                                  FPType * const res) DAAL_C11_OVERRIDE
+                                  FPType * const res) override
     {
         computeBatchImpl(a, b, aOffset, aSize, bOffset, bSize, res);
 
         return services::Status();
     }
 
-    services::Status finalize(const size_t n, FPType * a) DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status finalize(const size_t n, FPType * a) override { return services::Status(); }
 
 protected:
     FPType computeDistance(const FPType * x, const FPType * y, const size_t n)
@@ -775,7 +774,6 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     DAAL_INT num_taken = static_cast<DAAL_INT>(n) - num_discarded;
     daal::internal::MathInst<FPType, cpu>::vSqrt(num_taken, eigenvalues.get() + num_discarded, eigenvalues.get() + num_discarded);
     DAAL_INT one = 1;
-    PRAGMA_FORCE_SIMD
     for (size_t col = num_discarded; col < n; col++)
     {
         const FPType scale = eigenvalues[col];

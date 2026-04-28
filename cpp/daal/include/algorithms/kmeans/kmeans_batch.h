@@ -44,33 +44,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of K-Means algorithm.
- *        This class is associated with the daal::algorithms::kmeans::Batch class
- *        and supports the method of K-Means computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
- * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for K-Means algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-     * Computes the result of K-Means algorithm in the batch processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__BATCH"></a>
  * \brief Computes the results of K-Means algorithm in the batch processing mode
  * <!-- \n<a href="DAAL-REF-KMEANS-ALGORITHM">K-Means algorithm description and usage models</a> -->
@@ -106,11 +79,13 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
+    ~Batch() { delete _par; }
+
     /**
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of K-Means algorithm
@@ -150,9 +125,9 @@ public:
     const ParameterType & parameter() const { return *static_cast<const ParameterType *>(_par); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_in, _par, (int)method);
@@ -160,11 +135,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -177,7 +148,6 @@ private:
 /** @} */
 } // namespace interface2
 
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace kmeans

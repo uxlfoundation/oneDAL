@@ -55,6 +55,8 @@ namespace interface1
  * \par References
  *      - Input class
  *      - Result class
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
 {
@@ -66,7 +68,7 @@ public:
     /**
      *  Main constructor
      */
-    Batch() { initialize(); }
+    DAAL_DEPRECATED Batch() { initialize(); }
 
     /**
      * Constructs an Objective function by copying input objects and parameters
@@ -107,7 +109,7 @@ public:
     services::SharedPtr<Batch> clone() const { return services::SharedPtr<Batch>(cloneImpl()); }
 
 protected:
-    virtual Batch * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    Batch * cloneImpl() const override = 0;
 
     void initialize() { _result = objective_function::ResultPtr(new ResultType()); }
 

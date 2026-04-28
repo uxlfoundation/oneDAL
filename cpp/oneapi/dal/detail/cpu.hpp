@@ -22,19 +22,6 @@
 #include <map>
 #include <string>
 
-// TODO: Clean up this redefinition and import the defines globally.
-#if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
-#define TARGET_X86_64
-#endif
-
-#if defined(__ARM_ARCH) || defined(__aarch64__)
-#define TARGET_ARM
-#endif
-
-#if defined(__riscv) && (__riscv_xlen == 64)
-#define TARGET_RISCV64
-#endif
-
 namespace oneapi::dal::detail {
 namespace v1 {
 
@@ -48,11 +35,10 @@ enum class cpu_extension : uint64_t {
 #if defined(TARGET_X86_64)
     ,
     sse2 = 1U << 0, /// Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
-    sse42 = 1U << 2, /// Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
-    avx2 = 1U << 4, /// Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
+    avx2 = 1U << 1, /// Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
     avx512 =
         1U
-        << 5 /// Intel(R) Xeon(R) processors based on Intel(R) Advanced Vector Extensions 512 (Intel(R) AVX-512)
+        << 2 /// Intel(R) Xeon(R) processors based on Intel(R) Advanced Vector Extensions 512 (Intel(R) AVX-512)
 #elif defined(TARGET_ARM)
     ,
     sve = 1U << 0 /// Arm(R) processors based on Arm's Scalable Vector Extension (SVE)

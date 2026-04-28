@@ -93,6 +93,11 @@ public:
     Input & operator=(const Input & other);
 
     /**
+     * NOTE: Coverity's rule-of-three violation cannot be fixed here as adding a destructor
+     * adds a new virtual function and breaks the ABI
+     */
+
+    /**
      * Returns an input object for making the regression model-based prediction
      * \param[in] id    Identifier of the input object
      * \return          %Input object that corresponds to the given identifier
@@ -125,7 +130,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -160,7 +165,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::Result::check;

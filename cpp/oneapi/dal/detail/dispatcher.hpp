@@ -24,7 +24,6 @@ namespace v1 {
 
 #if defined(TARGET_X86_64)
 struct cpu_dispatch_sse2 {};
-struct cpu_dispatch_sse42 {};
 struct cpu_dispatch_avx2 {};
 struct cpu_dispatch_avx512 {};
 using cpu_dispatch_default = cpu_dispatch_sse2;
@@ -40,7 +39,6 @@ using cpu_dispatch_default = cpu_dispatch_rv64;
 
 #if defined(TARGET_X86_64)
 using v1::cpu_dispatch_sse2;
-using v1::cpu_dispatch_sse42;
 using v1::cpu_dispatch_avx2;
 using v1::cpu_dispatch_avx512;
 #elif defined(TARGET_ARM)

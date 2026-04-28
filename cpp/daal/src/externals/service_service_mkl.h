@@ -29,6 +29,9 @@
 #include <mkl.h>
 #include <mkl_service.h>
 #include <string.h>
+#ifdef USE_STD_ALLOC
+    #include <cstdlib>
+#endif
 
 namespace daal
 {
@@ -38,11 +41,31 @@ namespace mkl
 {
 struct MklService
 {
-    static void * serv_malloc(size_t size, size_t alignment) { return MKL_malloc(size, alignment); }
+    static void * serv_malloc(size_t size, size_t alignment)
+    {
+#ifndef USE_STD_ALLOC
+        return MKL_malloc(size, alignment);
+#else
+        if (size < alignment) size = alignment;
+        const size_t mod = size % alignment;
+        if (mod) size += alignment - mod;
+        return std::aligned_alloc(alignment, size);
+#endif
+    }
 
-    static void serv_free(void * ptr) { MKL_free(ptr); }
+    static void serv_free(void * ptr)
+    {
+#ifndef USE_STD_ALLOC
+        MKL_free(ptr);
+#else
+        std::free(ptr);
+#endif
+    }
 
-    static void serv_free_buffers() { MKL_Free_Buffers(); }
+    static void serv_free_buffers()
+    {
+        MKL_Free_Buffers();
+    }
 
     static int serv_memcpy_s(void * dest, size_t destSize, const void * src, size_t srcSize)
     {
@@ -62,25 +85,52 @@ struct MklService
         // return memmove_s(dest, destSize, src, smax);
     }
 
-    static int serv_get_ht() { return (serv_get_ncorespercpu() > 1 ? 1 : 0); }
+    static int serv_get_ht()
+    {
+        const int ncorespercpu = serv_get_ncorespercpu();
+        if (ncorespercpu < 0)
+        {
+            // Failed to get the number of cores per CPU.
+            return -1;
+        }
+        return (ncorespercpu > 1 ? 1 : 0);
+    }
 
     static int serv_get_ncpus()
     {
-        unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
+        if (daal::services::internal::_internal_daal_GetStatus() != 0)
+        {
+            // CPU topology initialization failed;
+            return -1;
+        }
+        const unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
         return (ncores ? ncores : 1);
     }
 
     static int serv_get_ncorespercpu()
     {
-        unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetProcessorCoreCount();
-        unsigned int ncpus       = serv_get_ncpus();
-        return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? nlogicalcpu / ncpus : 1);
+        if (daal::services::internal::_internal_daal_GetStatus() != 0)
+        {
+            // CPU topology initialization failed;
+            return -1;
+        }
+        const unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetSysLogicalProcessorCount();
+        const unsigned int ncpus       = serv_get_ncpus();
+        // On hybrid systems, return 2 in case of hyper-threading enabled at least on some cores,
+        // 1 otherwise
+        return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? (nlogicalcpu - ncpus + 1) / ncpus : 1);
     }
 
     // TODO: The real call should be delegated to a backend library if the option is supported
-    static int serv_set_memory_limit(int type, size_t limit) { return MKL_Set_Memory_Limit(type, limit); }
+    static int serv_set_memory_limit(int type, size_t limit)
+    {
+        return MKL_Set_Memory_Limit(type, limit);
+    }
     // Added for interface compatibility - not expected to be called
-    static size_t serv_strnlen_s(const char * src, size_t slen) { return strnlen(src, slen); }
+    static size_t serv_strnlen_s(const char * src, size_t slen)
+    {
+        return strnlen(src, slen);
+    }
 
     static int serv_strncpy_s(char * dest, size_t dmax, const char * src, size_t slen)
     {
@@ -113,7 +163,10 @@ struct MklService
         return val;
     }
 
-    static float serv_string_to_float(const char * nptr, char ** endptr) { return static_cast<float>(serv_string_to_double(nptr, endptr)); }
+    static float serv_string_to_float(const char * nptr, char ** endptr)
+    {
+        return static_cast<float>(serv_string_to_double(nptr, endptr));
+    }
 
     // TODO: not a safe function - no control for the input buffer end
     static int serv_string_to_int(const char * nptr, char ** endptr)
@@ -132,9 +185,15 @@ struct MklService
         return val;
     }
 
-    static int serv_int_to_string(char * buffer, size_t n, int value) { return snprintf(buffer, n, "%d", value); }
+    static int serv_int_to_string(char * buffer, size_t n, int value)
+    {
+        return snprintf(buffer, n, "%d", value);
+    }
 
-    static int serv_double_to_string(char * buffer, size_t n, double value) { return snprintf(buffer, n, "%E", value); }
+    static int serv_double_to_string(char * buffer, size_t n, double value)
+    {
+        return snprintf(buffer, n, "%E", value);
+    }
 };
 
 } // namespace mkl

@@ -95,7 +95,6 @@ inline auto& split_table_inplace(sycl::queue& queue,
     uniform_blocking blocking{ row_count, block };
     const auto blk_count = blocking.get_block_count();
 
-    event_vector events(blk_count);
     for (std::int64_t b = 0; b < blk_count; ++b) {
         const auto f_row = blocking.get_block_start_index(b);
         const auto l_row = blocking.get_block_end_index(b);
@@ -109,12 +108,11 @@ inline auto& split_table_inplace(sycl::queue& queue,
 
         auto fevent = len != block ? fill(queue, tmp, default_value) : sycl::event{};
 
-        events.at(b) = copy(queue, tmp_slice, raw_view, { fevent });
-
+        // Small hotfix to call wait_and_throw inside the loop
+        // Investigation issue with creating an event_vector and calling wait_and_throw outside loop is needed
+        copy(queue, tmp_slice, raw_view, { fevent }).wait_and_throw();
         container.push_back(std::move(tmp));
     }
-
-    sycl::event::wait_and_throw(events);
 
     return container;
 }

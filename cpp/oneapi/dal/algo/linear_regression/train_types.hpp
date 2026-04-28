@@ -119,6 +119,17 @@ public:
 
     train_input(const table& data);
 
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
+    ~train_input() override;
+
+    // Rule of five methods defined here due to the definition of the destructor.
+    train_input(const train_input&);
+    train_input(train_input&&) noexcept;
+    train_input& operator=(const train_input&);
+    train_input& operator=(train_input&&) noexcept;
+
     /// The training set X
     /// @remark default = table{}
     const table& get_data() const;
@@ -140,6 +151,7 @@ public:
 protected:
     void set_data_impl(const table& data);
     void set_responses_impl(const table& responses);
+    static void swap(train_input<Task>& a, train_input<Task>& b) noexcept;
 
 private:
     dal::detail::pimpl<detail::train_input_impl<Task>> impl_;
@@ -266,6 +278,17 @@ public:
     partial_train_input(const partial_train_result<Task>& prev,
                         const partial_train_input<Task>& input);
 
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
+    ~partial_train_input() override;
+
+    // Rule of five methods defined here due to the definition of the destructor.
+    partial_train_input(const partial_train_input&);
+    partial_train_input(partial_train_input&&) noexcept;
+    partial_train_input& operator=(const partial_train_input&);
+    partial_train_input& operator=(partial_train_input&&) noexcept;
+
     const table& get_data() const {
         return train_input<Task>::get_data();
     }
@@ -294,6 +317,9 @@ public:
         prev_ = value;
         return *this;
     }
+
+protected:
+    static void swap(partial_train_input<Task>& a, partial_train_input<Task>& b) noexcept;
 
 private:
     partial_train_result<Task> prev_;

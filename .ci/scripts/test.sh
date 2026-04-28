@@ -178,6 +178,11 @@ else
 fi
 
 interface=${interface:-daal/cpp}
+if [[ "${interface}" == "oneapi/dpc" ]]; then
+    echo "Interface oneapi/dpc detected — forcing dynamic linking only"
+    link_modes=(dynamic)
+fi
+
 pushd "${BUILD_DIR}/daal/latest/${TEST_KIND}/${interface}" || exit 1
 
 for link_mode in "${link_modes[@]}"; do
@@ -294,6 +299,14 @@ for link_mode in "${link_modes[@]}"; do
         done
         # Go back from "Build" directory in case of samples testing
         [ "$TEST_KIND" = "samples" ] && cd ..
+
+        # ==========================
+        # Clean cache after each run
+        # ==========================
+        echo "Cleaning test cache..."
+        rm -rf Build CMakeCache.txt CMakeFiles _cmake_results
+        echo "Cache cleaned."
+
     else
         build_command="make ${make_op} ${l}${full_arch} mode=build compiler=${compiler}"
         echo "Building ${TEST_KIND} ${build_command}"

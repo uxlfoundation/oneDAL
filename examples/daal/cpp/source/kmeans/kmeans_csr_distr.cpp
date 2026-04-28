@@ -38,23 +38,23 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
 const size_t nBlocks = 4;
-const size_t nVectorsInBlock = 8000;
 
-const std::string dataFileNames[] = { "../data/distributed/kmeans_csr_1.csv",
-                                      "../data/distributed/kmeans_csr_2.csv",
-                                      "../data/distributed/kmeans_csr_3.csv",
-                                      "../data/distributed/kmeans_csr_4.csv" };
+const std::string datasetFileName = { "data/kmeans_csr.csv" };
 
 CSRNumericTablePtr dataTable[nBlocks];
-
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
+
+    for (size_t i = 0; i < nBlocks; ++i) {
+        size_t rowStart = i * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+        dataTable[i] = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+    }
 
     kmeans::Distributed<step2Master, algorithmFPType, kmeans::lloydCSR> masterAlgorithm(nClusters);
 
@@ -64,15 +64,15 @@ int main(int argc, char* argv[]) {
 
     kmeans::init::Distributed<step2Master, algorithmFPType, kmeans::init::randomCSR> masterInit(
         nClusters);
-    for (size_t i = 0; i < nBlocks; i++) {
-        /* Read dataFileNames and create a numeric table to store the input data */
-        dataTable[i] = CSRNumericTablePtr(createSparseTable<float>(dataFileNames[i]));
 
-        /* Create an algorithm object for the K-Means algorithm */
+    for (size_t i = 0; i < nBlocks; ++i) {
+        if (!dataTable[i])
+            continue;
+
         kmeans::init::Distributed<step1Local, algorithmFPType, kmeans::init::randomCSR> localInit(
             nClusters,
-            nBlocks * nVectorsInBlock,
-            i * nVectorsInBlock);
+            totalRows,
+            i * rowsPerBlock);
 
         localInit.input.set(kmeans::init::data, dataTable[i]);
         localInit.compute();
@@ -83,15 +83,15 @@ int main(int argc, char* argv[]) {
     masterInit.finalizeCompute();
     centroids = masterInit.getResult()->get(kmeans::init::centroids);
 
-    /* Calculate centroids */
-    for (size_t it = 0; it < nIterations; it++) {
-        for (size_t i = 0; i < nBlocks; i++) {
-            /* Create an algorithm object for the K-Means algorithm */
+    for (size_t it = 0; it < nIterations; ++it) {
+        for (size_t i = 0; i < nBlocks; ++i) {
+            if (!dataTable[i])
+                continue;
+
             kmeans::Distributed<step1Local, algorithmFPType, kmeans::lloydCSR> localAlgorithm(
                 nClusters,
                 false);
 
-            /* Set the input data to the algorithm */
             localAlgorithm.input.set(kmeans::data, dataTable[i]);
             localAlgorithm.input.set(kmeans::inputCentroids, centroids);
 
@@ -107,9 +107,7 @@ int main(int argc, char* argv[]) {
         objectiveFunction = masterAlgorithm.getResult()->get(kmeans::objectiveFunction);
     }
 
-    /* Calculate assignments */
-    for (size_t i = 0; i < nBlocks; i++) {
-        /* Create an algorithm object for the K-Means algorithm */
+    for (size_t i = 0; i < nBlocks; ++i) {
         kmeans::Batch<algorithmFPType, kmeans::lloydCSR> localAlgorithm(nClusters, 0);
 
         /* Set the input data to the algorithm */

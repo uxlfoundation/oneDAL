@@ -49,8 +49,8 @@ namespace interface2
 Parameter::Parameter(size_t numberOfTerms, data_management::NumericTablePtr batchIndices, const DAAL_UINT64 resultsToCompute)
     : sum_of_functions::Parameter(numberOfTerms, batchIndices, resultsToCompute),
       interceptFlag(true),
-      penaltyL1(new HomogenNumericTable<float>(1, 1, NumericTableIface::doAllocate, 0)),
-      penaltyL2(new HomogenNumericTable<float>(1, 1, NumericTableIface::doAllocate, 0))
+      penaltyL1(HomogenNumericTable<float>::create(1, 1, NumericTableIface::doAllocate, 0.0f)),
+      penaltyL2(HomogenNumericTable<float>::create(1, 1, NumericTableIface::doAllocate, 0.0f))
 {}
 
 /**
@@ -67,6 +67,7 @@ Parameter::Parameter(const Parameter & other)
  */
 Parameter & Parameter::operator=(const Parameter & other)
 {
+    if (this == &other) return *this;
     sum_of_functions::Parameter::operator=(other);
     this->interceptFlag = other.interceptFlag;
     this->penaltyL1     = other.penaltyL1;

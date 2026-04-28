@@ -44,55 +44,11 @@ namespace interface3
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public AnalysisContainerIface<batch>
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
- * \brief Class containing methods to compute the results of the PCA algorithm */
-template <typename algorithmFPType, CpuType cpu>
-class BatchContainer<algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the PCA algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the PCA algorithm in the batch processing mode
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
 /**
  * @defgroup pca_batch Batch
  * @ingroup pca
  * @{
  */
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
- * \brief Class containing methods to compute the results of the PCA algorithm */
-template <typename algorithmFPType, CpuType cpu>
-class BatchContainer<algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the PCA algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the PCA algorithm in the batch processing mode
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCH"></a>
  * \brief Computes the results of the PCA algorithm
@@ -112,7 +68,9 @@ public:
     typedef algorithms::pca::BatchParameter<algorithmFPType, method> ParameterType;
     typedef algorithms::pca::Result ResultType;
 
-    /** Default constructor */
+    /**
+     * Default constructor
+     */
     Batch();
 
     /**
@@ -128,7 +86,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return method; };
+    int getMethod() const override { return method; };
 
     /**
      * Registers user-allocated memory to store the results of the PCA algorithm
@@ -161,22 +119,16 @@ public:
 protected:
     ResultPtr _result;
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, method);
         _res               = _result.get();
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -184,7 +136,6 @@ private:
 
 /** @} */
 } // namespace interface3
-using interface3::BatchContainer;
 using interface3::Batch;
 
 } // namespace pca

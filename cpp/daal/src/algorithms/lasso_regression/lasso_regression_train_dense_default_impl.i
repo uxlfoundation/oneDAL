@@ -28,7 +28,6 @@
 #include "src/algorithms/lasso_regression/lasso_regression_train_kernel.h"
 #include "src/algorithms/lasso_regression/lasso_regression_model_impl.h"
 #include "src/algorithms/service_error_handling.h"
-#include "src/services/service_algo_utils.h"
 #include "algorithms/optimization_solver/objective_function/mse_batch.h"
 #include "algorithms/optimization_solver/coordinate_descent/coordinate_descent_batch.h"
 
@@ -56,8 +55,8 @@ namespace internal
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, lasso_regression::training::Method method, CpuType cpu>
 services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
-    const HostAppIfacePtr & pHost, const NumericTablePtr & x, const NumericTablePtr & y, lasso_regression::Model & m, Result & res,
-    const Parameter & par, services::SharedPtr<daal::algorithms::optimization_solver::mse::Batch<algorithmFPType> > & objFunc)
+    const NumericTablePtr & x, const NumericTablePtr & y, lasso_regression::Model & m, Result & res, const Parameter & par,
+    services::SharedPtr<daal::algorithms::optimization_solver::mse::Batch<algorithmFPType> > & objFunc)
 {
     services::Status s;
     SafeStatus safeStat;
@@ -132,7 +131,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
             for (size_t i = 0; i < numRowsInBlock; ++i)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t id = 0; id < nDependentVariables; ++id)
                 {
@@ -142,7 +141,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
         });
         yTlsData.reduceTo(yMeansPtr, nDependentVariables);
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nDependentVariables; ++i)
         {
@@ -160,7 +159,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
             for (size_t i = 0; i < numRowsInBlock; ++i)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t id = 0; id < nDependentVariables; ++id)
                 {
@@ -188,7 +187,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
             for (size_t i = 0; i < numRowsInBlock; ++i)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; ++j)
                 {

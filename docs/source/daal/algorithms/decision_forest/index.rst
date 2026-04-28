@@ -27,7 +27,7 @@ which are known as decision trees.
 Decision forest is built using the general technique of bagging, a **b**\ ootstrap
 **agg**\ regation, and a random choice of features.
 
-:ref:`decision_tree` is a binary tree graph. Its internal (split) nodes represent a
+Decision tree is a binary tree graph. Its internal (split) nodes represent a
 *decision function* used to select the child node at the
 prediction stage. Its leaf, or terminal, nodes represent the
 corresponding response values, which are the result of the prediction

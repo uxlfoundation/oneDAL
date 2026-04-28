@@ -14,14 +14,14 @@
 # limitations under the License.
 #===============================================================================
 
-MAJOR   =       2025
-MINOR   =       9
+MAJOR   =       2026
+MINOR   =       1
 UPDATE  =       0
 BUILD   =       $(shell date +'%Y%m%d')
 STATUS  =       P
 BUILDREV ?=     work
 
-MAJORBINARY = 3
+MAJORBINARY = 4
 MINORBINARY = 0
 
 #-------------------------------------------------------------------------------

@@ -34,20 +34,17 @@ using namespace daal;
 using namespace daal::algorithms;
 
 /* Input data set parameters */
-const size_t nBlocks = 4;
+size_t nBlocks;
 
-const std::string datasetFileNames[] = { "./data/distributed/qr_1.csv",
-                                         "./data/distributed/qr_2.csv",
-                                         "./data/distributed/qr_3.csv",
-                                         "./data/distributed/qr_4.csv" };
+const std::string datasetFileName = "data/qr.csv";
 
 void computestep1Local();
 void computeOnMasterNode();
 void finalizeComputestep1Local();
 
 int rankId;
-int commSize;
-#define mpiRoot 0
+int comm_size;
+#define mpi_root 0
 
 data_management::DataCollectionPtr dataFromStep1ForStep3;
 NumericTablePtr R;
@@ -57,21 +54,15 @@ services::SharedPtr<byte> serializedData;
 size_t perNodeArchLength;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
-
-    if (nBlocks != commSize) {
-        if (rankId == mpiRoot) {
-            std::cout << commSize << " MPI ranks != " << nBlocks
+    nBlocks = comm_size;
+    if (nBlocks != comm_size) {
+        if (rankId == mpi_root) {
+            std::cout << comm_size << " MPI ranks != " << nBlocks
                       << " datasets available, so please start exactly " << nBlocks << " ranks."
                       << std::endl;
         }
@@ -81,14 +72,14 @@ int main(int argc, char* argv[]) {
 
     computestep1Local();
 
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         computeOnMasterNode();
     }
 
     finalizeComputestep1Local();
 
     /* Print the results */
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         printNumericTable(Qi, "Part of orthogonal matrix Q from 1st node:", 10);
         printNumericTable(R, "Triangular matrix R:");
     }
@@ -99,18 +90,41 @@ int main(int argc, char* argv[]) {
 }
 
 void computestep1Local() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileNames[rankId],
+    /* 1. Count total rows (only root needed, broadcast later) */
+    size_t totalRows = 0;
+    if (rankId == mpi_root) {
+        totalRows = countRowsCSV(datasetFileName);
+    }
+    MPI_Bcast(&totalRows, 1, MPI_UNSIGNED_LONG, mpi_root, MPI_COMM_WORLD);
+
+    size_t blockSize = (totalRows + comm_size - 1) / comm_size;
+    size_t rowOffset = rankId * blockSize;
+
+    size_t rowsToRead = 0;
+    if (rowOffset < totalRows) {
+        rowsToRead = std::min(blockSize, totalRows - rowOffset);
+    }
+
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    /* Retrieve the input data */
-    dataSource.loadDataBlock();
+    size_t skipRows = rowOffset;
+    while (skipRows > 0) {
+        size_t skipped = dataSource.loadDataBlock(skipRows);
+        if (skipped == 0)
+            break;
+        skipRows -= skipped;
+    }
 
+    NumericTablePtr localData;
+
+    dataSource.loadDataBlock(rowsToRead);
+    localData = dataSource.getNumericTable();
     /* Create an algorithm to compute QR decomposition on local nodes */
     qr::Distributed<step1Local> alg;
 
-    alg.input.set(qr::data, dataSource.getNumericTable());
+    alg.input.set(qr::data, localData);
 
     /* Compute QR decomposition */
     alg.compute();
@@ -125,7 +139,7 @@ void computestep1Local() {
     perNodeArchLength = dataArch.getSizeOfArchive();
 
     /* Serialized data is of equal size on each node if each node called compute() equal number of times */
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
     }
 
@@ -140,7 +154,7 @@ void computestep1Local() {
                serializedData.get(),
                perNodeArchLength,
                MPI_CHAR,
-               mpiRoot,
+               mpi_root,
                MPI_COMM_WORLD);
 
     delete[] nodeResults;
@@ -189,7 +203,7 @@ void computeOnMasterNode() {
 
 void finalizeComputestep1Local() {
     /* Get the size of the serialized input */
-    MPI_Bcast(&perNodeArchLength, sizeof(size_t), MPI_CHAR, mpiRoot, MPI_COMM_WORLD);
+    MPI_Bcast(&perNodeArchLength, sizeof(size_t), MPI_CHAR, mpi_root, MPI_COMM_WORLD);
 
     byte* nodeResults = new byte[perNodeArchLength];
 
@@ -201,7 +215,7 @@ void finalizeComputestep1Local() {
                 nodeResults,
                 perNodeArchLength,
                 MPI_CHAR,
-                mpiRoot,
+                mpi_root,
                 MPI_COMM_WORLD);
 
     /* Deserialize partial results from step 2 */

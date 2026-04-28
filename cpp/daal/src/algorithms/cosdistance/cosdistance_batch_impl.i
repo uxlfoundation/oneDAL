@@ -29,11 +29,8 @@
 #include "src/data_management/service_numeric_table.h"
 
 static const int blockSizeDefault = 128;
+#include "src/algorithms/cosdistance/cosdistance_impl.i"
 #include "src/algorithms/cosdistance/cosdistance_full_impl.i"
-#include "src/algorithms/cosdistance/cosdistance_up_impl.i"
-#include "src/algorithms/cosdistance/cosdistance_lp_impl.i"
-
-using namespace daal::internal;
 
 namespace daal
 {
@@ -43,12 +40,9 @@ namespace cosine_distance
 {
 namespace internal
 {
+using namespace daal::internal;
 template <typename algorithmFPType, CpuType cpu>
 bool isFull(NumericTableIface::StorageLayout layout);
-template <typename algorithmFPType, CpuType cpu>
-bool isUpper(NumericTableIface::StorageLayout layout);
-template <typename algorithmFPType, CpuType cpu>
-bool isLower(NumericTableIface::StorageLayout layout);
 
 /**
  *  \brief Kernel for Cosine distances calculation
@@ -79,18 +73,7 @@ services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const siz
     }
     else
     {
-        if (isLower<algorithmFPType, cpu>(rLayout))
-        {
-            return cosDistanceLowerPacked<algorithmFPType, cpu>(xTable, rTable);
-        }
-        else if (isUpper<algorithmFPType, cpu>(rLayout))
-        {
-            return cosDistanceUpperPacked<algorithmFPType, cpu>(xTable, rTable);
-        }
-        else
-        {
-            return services::Status(services::ErrorIncorrectTypeOfOutputNumericTable);
-        }
+        return services::Status(services::ErrorIncorrectTypeOfOutputNumericTable);
     }
 }
 
@@ -103,26 +86,6 @@ bool isFull(NumericTableIface::StorageLayout layout)
         return false;
     }
     return true;
-}
-
-template <typename algorithmFPType, CpuType cpu>
-bool isUpper(NumericTableIface::StorageLayout layout)
-{
-    if (layout == NumericTableIface::upperPackedSymmetricMatrix || layout == NumericTableIface::upperPackedTriangularMatrix)
-    {
-        return true;
-    }
-    return false;
-}
-
-template <typename algorithmFPType, CpuType cpu>
-bool isLower(NumericTableIface::StorageLayout layout)
-{
-    if (layout == NumericTableIface::lowerPackedSymmetricMatrix || layout == NumericTableIface::lowerPackedTriangularMatrix)
-    {
-        return true;
-    }
-    return false;
 }
 
 } // namespace internal

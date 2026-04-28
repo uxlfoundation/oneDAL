@@ -18,7 +18,7 @@
 ## Install Bazel on Linux
 1. Download Bazelisk
    ```sh
-   wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.18.0/bazelisk-linux-amd64
+   wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.28.1/bazelisk-linux-amd64
    ```
    > Note: If you are using proxy don't forget to set
    `http_proxy` and `https_proxy` environment variables
@@ -166,7 +166,6 @@ The most used Bazel commands are `build`, `test` and `run`.
   - `all` Compiles for all instruction sets listed below.
   - Any comma-separated combination of the following values:
     - `sse2`
-    - `sse42`
     - `avx2`
     - `avx512`
 

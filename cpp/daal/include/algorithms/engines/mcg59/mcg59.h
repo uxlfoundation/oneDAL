@@ -43,35 +43,6 @@ namespace mcg59
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the mcg59 engine.
- *        This class is associated with the \ref mcg59::interface1::Batch "mcg59::Batch" class
- *        and supports the method of mcg59 engine computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float
- * \tparam method           Computation method of the engine, mcg59::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the mcg59 engine with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     * Computes the result of the mcg59 engine in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCH"></a>
  * \brief Provides methods for mcg59 engine computations in the batch processing mode
  *
@@ -84,6 +55,8 @@ public:
  * \par References
  *      - \ref engines::interface1::Input  "engines::Input" class
  *      - \ref engines::interface1::Result "engines::Result" class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public engines::BatchBase
@@ -100,13 +73,13 @@ public:
      *
      * \return Pointer to mcg59 engine
      */
-    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
      * \return Method of the engine
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of mcg59 engine
@@ -140,7 +113,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = this->_result->template allocate<algorithmFPType>(&(this->input), NULL, (int)method);
         this->_res         = this->_result.get();
@@ -152,14 +125,9 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -170,7 +138,6 @@ typedef services::SharedPtr<Batch<> > mcg59Ptr;
 typedef services::SharedPtr<const Batch<> > mcg59ConstPtr;
 
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 using interface1::mcg59Ptr;
 using interface1::mcg59ConstPtr;

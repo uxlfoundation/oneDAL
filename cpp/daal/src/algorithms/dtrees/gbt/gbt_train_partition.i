@@ -160,9 +160,9 @@ protected:
     {
         DAAL_INT iRowSplitVal = -1;
 
-        const size_t maxNBlocks = 56;
-        size_t sizeOfBlock      = 2048;
-        size_t nBlocks          = n / sizeOfBlock;
+        constexpr size_t maxNBlocks = 56;
+        size_t sizeOfBlock          = 2048;
+        size_t nBlocks              = n / sizeOfBlock;
         nBlocks += !!(n - nBlocks * sizeOfBlock);
 
         if (nBlocks > maxNBlocks)
@@ -175,18 +175,15 @@ protected:
         RowIndexType part_high_right[maxNBlocks];
 
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t iBlock) {
-            RowIndexType iLeft  = 0;
-            RowIndexType iRight = 0;
-            const size_t iStart = iBlock * sizeOfBlock;
-            const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > n) ? n : iStart + sizeOfBlock);
-
+            RowIndexType iLeft               = 0;
+            RowIndexType iRight              = 0;
+            const size_t iStart              = iBlock * sizeOfBlock;
+            const size_t iEnd                = (((iBlock + 1) * sizeOfBlock > n) ? n : iStart + sizeOfBlock);
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 
             if (featureUnordered)
             {
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
                     if (indexedFeature[aIdx[i]] != idxFeatureValueBestSplit)
@@ -197,8 +194,6 @@ protected:
             }
             else
             {
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
                     if (indexedFeature[aIdx[i]] > idxFeatureValueBestSplit)
@@ -227,7 +222,6 @@ protected:
                 offsetLeft += part_high_left[i];
                 offsetRight += part_high_right[i];
             }
-
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 

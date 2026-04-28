@@ -21,11 +21,11 @@
 
 #if   defined(_DAAL_THR_TBB)
   #define FILE_COMMENT "Parallel version.\0"
-  #define ORIG_FILE_NAME "onedal_thread.3.dll \0"
+  #define ORIG_FILE_NAME "onedal_thread.4.dll \0"
   #define INTERNAL_FILE_NAME "onedal_thread\0"
 #else
   #define FILE_COMMENT "Analitics algorithms optimized for IA.\0"
-  #define ORIG_FILE_NAME "onedal_core.3.dll\0"
+  #define ORIG_FILE_NAME "onedal_core.4.dll\0"
   #define INTERNAL_FILE_NAME "onedal_core\0"
 #endif
 

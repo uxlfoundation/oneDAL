@@ -55,7 +55,7 @@ namespace internal
 {
 template <typename algorithmFPType, CpuType cpu>
 services::Status MultiClassClassifierPredictKernel<multiClassClassifierWu, training::oneAgainstOne, algorithmFPType, cpu>::compute(
-    const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
+    const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred, NumericTable * df,
     const daal::algorithms::Parameter * par)
 {
     Model * model                              = static_cast<Model *>(const_cast<daal::algorithms::Model *>(m));

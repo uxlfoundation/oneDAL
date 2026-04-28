@@ -29,7 +29,7 @@
 #include "algorithms/model.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/multi_class_classifier/multi_class_classifier_predict_types.h"
-#include "src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h"
+#include "src/algorithms/svm/svm_model_impl.h"
 #include "src/services/service_defines.h"
 #include "src/services/service_arrays.h"
 
@@ -44,14 +44,14 @@ namespace prediction
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 using namespace daal::services::internal;
-using namespace multi_class_classifier::internal;
 
 template <prediction::Method pmethod, training::Method tmethod, typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel : public Kernel
 {
-    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
-                             const daal::algorithms::Parameter * par);
+    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
+                             NumericTable * df, const daal::algorithms::Parameter * par);
 };
 
 template <typename algorithmFPType, CpuType cpu>

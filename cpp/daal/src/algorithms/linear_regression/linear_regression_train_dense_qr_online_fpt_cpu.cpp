@@ -33,14 +33,13 @@ namespace linear_regression
 {
 namespace training
 {
-namespace interface1
-{
-template class OnlineContainer<DAAL_FPTYPE, qrDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class OnlineContainer<DAAL_FPTYPE, qrDense, DAAL_CPU>;
+
 template class OnlineKernel<DAAL_FPTYPE, qrDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace linear_regression
 } // namespace algorithms

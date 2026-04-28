@@ -109,7 +109,7 @@ public:
 
     virtual ~UpdaterBase() {}
 
-    virtual GbtTask * execute() DAAL_C11_OVERRIDE
+    virtual GbtTask * execute() override
     {
         DAAL_INT idxFeatureValueBestSplit = -1; //when sorted feature is used
         findBestSplit(_bestSplit, _iFeature, idxFeatureValueBestSplit);
@@ -123,7 +123,7 @@ public:
         return nullptr;
     }
 
-    virtual void getNextTasks(GbtTask ** newTasks, size_t & nTasks) DAAL_C11_OVERRIDE
+    virtual void getNextTasks(GbtTask ** newTasks, size_t & nTasks) override
     {
         NodesCreatorType kidsCreator(_data, _bestSplit, _node, _result);
         kidsCreator.create(_iFeature, newTasks, nTasks);
@@ -184,11 +184,11 @@ public:
     UpdaterByColumns(typename super::DataType & data, typename super::NodeInfoType & node) : super(data, node) {}
 
 protected:
-    virtual void findSplit(const RowIndexType * featureSample, typename super::BestSplitType & bestSplit) DAAL_C11_OVERRIDE
+    virtual void findSplit(const RowIndexType * featureSample, typename super::BestSplitType & bestSplit) override
     {
         LoopHelper<cpu>::run(true, this->_data.ctx.nFeaturesPerNode(), [&](size_t i) {
             const DAAL_INT iFeature = featureSample ? featureSample[i] : i;
-            DAAL_TYPENAME super::SplitTaskType task(iFeature, this->_data, this->_node, bestSplit, this->_result->res[i]);
+            typename super::SplitTaskType task(iFeature, this->_data, this->_node, bestSplit, this->_result->res[i]);
             task.execute();
         });
     }
@@ -204,7 +204,7 @@ public:
     UpdaterByRows(typename super::DataType & data, typename super::NodeInfoType & node) : super(data, node) {}
 
 protected:
-    virtual void findSplit(const RowIndexType * featureSample, typename super::BestSplitType & bestSplit) DAAL_C11_OVERRIDE
+    virtual void findSplit(const RowIndexType * featureSample, typename super::BestSplitType & bestSplit) override
     {
         const size_t nRows       = this->_node.n;
         const size_t sizeOfBlock = 2048;
@@ -214,7 +214,7 @@ protected:
         TlsGHSumMerge<GHSumForTLS<GHSumType, cpu>, algorithmFPType, cpu> * tls = this->_data.GH_SUMS_BUF->GHForCols.getBlockFromStorage();
 
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t i) {
-            DAAL_TYPENAME SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, this->_data, this->_node, tls);
+            typename SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, this->_data, this->_node, tls);
             task.execute();
         });
 
@@ -224,8 +224,7 @@ protected:
 
         LoopHelper<cpu>::run(true, this->_data.ctx.nFeaturesPerNode(), [&](size_t i) {
             const DAAL_INT iFeature = featureSample ? featureSample[i] : i;
-            DAAL_TYPENAME SplitMode::FindBestSplitTask task(iFeature, nBlocks, this->_data, this->_node, bestSplit, this->_result->res[i], ptrs,
-                                                            size);
+            typename SplitMode::FindBestSplitTask task(iFeature, nBlocks, this->_data, this->_node, bestSplit, this->_result->res[i], ptrs, size);
             task.execute();
         });
 
@@ -255,9 +254,9 @@ public:
         : super(data, node1), _node2(node2), _prevRes(_prevResult)
     {}
 
-    virtual void findSplit(const RowIndexType * featureSample, BestSplitType & bestSplit) DAAL_C11_OVERRIDE {}
+    virtual void findSplit(const RowIndexType * featureSample, BestSplitType & bestSplit) override {}
 
-    virtual GbtTask * execute() DAAL_C11_OVERRIDE
+    virtual GbtTask * execute() override
     {
         _result1 = new (services::internal::service_scalable_calloc<MergedResult<ResultType, cpu>, cpu>(1))
             MergedResult<ResultType, cpu>(_data.ctx.nFeaturesPerNode());
@@ -290,7 +289,7 @@ public:
         return nullptr;
     }
 
-    virtual void getNextTasks(GbtTask ** newTasks, size_t & nTasks) DAAL_C11_OVERRIDE
+    virtual void getNextTasks(GbtTask ** newTasks, size_t & nTasks) override
     {
         NodesCreatorType kidsCreatorLeft(_data, _bestSplit1, _node1, _result1); // spawns 0 or 1 tasks
         kidsCreatorLeft.create(_iFeature1, newTasks, nTasks);
@@ -341,7 +340,7 @@ protected:
         TlsGHSumMerge<GHSumForTLS<GHSumType, cpu>, algorithmFPType, cpu> * tls = _data.GH_SUMS_BUF->GHForCols.getBlockFromStorage();
 
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t i) {
-            DAAL_TYPENAME SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, _data, node1, tls);
+            typename SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, _data, node1, tls);
             task.execute();
         });
 
@@ -351,8 +350,8 @@ protected:
 
         LoopHelper<cpu>::run(true, _data.ctx.nFeaturesPerNode(), [&](size_t i) {
             const DAAL_INT iFeature = featureSample ? featureSample[i] : i;
-            DAAL_TYPENAME SplitMode::FindBestSplitMergedTask task(iFeature, nBlocks, _data, node1, node2, bestSplit1, bestSplit2, _prevRes->res[i],
-                                                                  result1->res[i], result2->res[i], ptrs, size);
+            typename SplitMode::FindBestSplitMergedTask task(iFeature, nBlocks, _data, node1, node2, bestSplit1, bestSplit2, _prevRes->res[i],
+                                                             result1->res[i], result2->res[i], ptrs, size);
             task.execute();
         });
 
@@ -361,8 +360,7 @@ protected:
         services::internal::service_scalable_free<algorithmFPType *, cpu>(ptrs);
     }
 
-    virtual void findBestSplit(SplitDataType & split, DAAL_INT & iFeature, DAAL_INT & idxFeatureValueBestSplit) DAAL_C11_OVERRIDE {
-    } // TODO: rework to remove
+    virtual void findBestSplit(SplitDataType & split, DAAL_INT & iFeature, DAAL_INT & idxFeatureValueBestSplit) override {} // TODO: rework to remove
 
 protected:
     using super::_data;

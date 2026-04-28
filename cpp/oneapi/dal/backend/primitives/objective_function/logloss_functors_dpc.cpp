@@ -37,7 +37,7 @@ void logloss_hessian_product<Float>::reserve_memory() {
     tmp_gpu_ = ndarray<Float, 1>::empty(q_, { p_ + 1 }, sycl::usm::alloc::device);
     if (data_.get_kind() == dal::csr_table::kind()) {
         sp_handle_.reset(new sparse_matrix_handle(q_));
-        set_csr_data(q_, *sp_handle_, static_cast<const csr_table&>(data_));
+        set_csr_data(q_, *sp_handle_, static_cast<const csr_table&>(data_)).wait_and_throw();
     }
 }
 
@@ -328,7 +328,7 @@ void logloss_function<Float>::reserve_memory() {
     buffer_ = ndarray<Float, 1>::empty(q_, { p_ + 2 }, sycl::usm::alloc::device);
     if (data_.get_kind() == dal::csr_table::kind()) {
         sp_handle_.reset(new sparse_matrix_handle(q_));
-        set_csr_data(q_, *sp_handle_, static_cast<const csr_table&>(data_));
+        set_csr_data(q_, *sp_handle_, static_cast<const csr_table&>(data_)).wait_and_throw();
     }
 }
 

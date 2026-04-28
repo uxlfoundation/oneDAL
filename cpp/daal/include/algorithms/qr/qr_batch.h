@@ -44,32 +44,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__QR__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the QR decomposition algorithm in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of the QR decomposition algorithm, double or float
- * \tparam method           Computation method of the QR decomposition algorithm, \ref daal::algorithms::qr::Method
- *
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the QR decomposition algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-     * Computes the result of the QR decomposition algorithm in the batch processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__QR__BATCH"></a>
  * \brief Computes the results of the QR decomposition algorithm in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-QR-ALGORITHM">QR decomposition algorithm description and usage models</a> -->
@@ -105,7 +79,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of the QR decomposition algorithm
@@ -133,9 +107,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(&input, 0, 0);
@@ -143,12 +117,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -157,7 +126,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace qr

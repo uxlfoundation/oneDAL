@@ -11,9 +11,11 @@ load("@onedal//dev/bazel:daal.bzl",
     "daal_generate_version",
     "daal_patch_kernel_defines",
 )
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 daal_module(
     name = "microvmlipp",
+    lib_tag = "mkl_embed",
     override_deps_lib_tag = True,
     deps = select({
         "@config//:backend_ref": [ ],
@@ -25,7 +27,14 @@ daal_module(
 
 daal_module(
     name = "mathbackend_thread",
-    override_deps_lib_tag = True,
+    lib_tag = select({
+        "@config//:backend_ref": "daal",
+        "//conditions:default": "mkl_embed",
+    }),
+    override_deps_lib_tag = select({
+        "@config//:backend_ref": False,
+        "//conditions:default": True,
+    }),
     deps = select({
         "@config//:backend_ref": [ "@openblas//:openblas",
                                  ],
@@ -41,7 +50,12 @@ daal_patch_kernel_defines(
 
 daal_module(
     name = "public_includes",
-    hdrs = glob(["include/**/*.h"], exclude=["**/daal_kernel_defines.h"]),
+    hdrs = glob([
+        "include/**/*.h",
+    ], exclude = [
+        "**/daal_kernel_defines.h",
+        "**/daal_win.h",
+    ]),
     includes = [ "include" ],
 )
 
@@ -161,16 +175,12 @@ daal_module(
 daal_algorithms(
     name = "all_algorithms",
     algorithms = [
-        "adaboost",
-        "assocrules",
-        "brownboost",
         "cholesky",
         "classifier",
         "cordistance",
         "cosdistance",
         "covariance",
         "dbscan",
-        "decision_tree",
         "distributions",
         "dtrees",
         "dtrees/forest/classification",
@@ -188,10 +198,8 @@ daal_algorithms(
         "linear_model",
         "linear_regression",
         "logistic_regression",
-        "logitboost",
         "low_order_moments",
         "multiclassclassifier",
-        "naivebayes",
         "normalization/minmax",
         "normalization/zscore",
         "objective_function",
@@ -199,27 +207,16 @@ daal_algorithms(
         "objective_function/logistic_loss",
         "objective_function/mse",
         "optimization_solver",
-        "optimization_solver/sgd",
         "optimization_solver/lbfgs",
-        "optimization_solver/adagrad",
-        "optimization_solver/saga",
         "optimization_solver/coordinate_descent",
-        "outlierdetection_bacon",
-        "outlierdetection_multivariate",
-        "outlierdetection_univariate",
         "pca",
-        "pca/metrics",
         "pca/transform",
         "pivoted_qr",
         "qr",
-        "quantiles",
         "regression",
         "ridge_regression",
-        "sorting",
-        "stump",
         "svd",
         "svm",
-        "weak_learner/inner",
     ],
 )
 
@@ -309,3 +306,19 @@ dal_collect_test_suites(
         "dtrees/gbt/regression"
     ],
 )
+
+sh_test(
+    name = "mkl_linkage_test",
+    srcs = ["//dev/bazel/tests:mkl_linkage_test.sh"],
+    data = [
+        ":core_static",
+        ":core_dynamic",
+    ],
+    # Only meaningful with MKL backend; skip for OpenBLAS/reference backend.
+    # Also Linux-only: uses GNU nm -D and .so outputs.
+    target_compatible_with = select({
+        "@config//:backend_ref": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }) + ["@platforms//os:linux"],
+)
+

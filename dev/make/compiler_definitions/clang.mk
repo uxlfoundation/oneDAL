@@ -43,7 +43,7 @@ endif
 
 -Zl.clang =
 
--DEBC.clang = -g
+-DEBC.clang = -g -Wno-pass-failed
 
 -asanstatic.clang = -static-libasan
 -asanshared.clang = -shared-libasan

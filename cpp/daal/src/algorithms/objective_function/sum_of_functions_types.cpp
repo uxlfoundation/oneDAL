@@ -51,6 +51,7 @@ Parameter::Parameter(const Parameter & other)
 
 Parameter & Parameter::operator=(const Parameter & other)
 {
+    if (this == &other) return *this;
     objective_function::Parameter::operator=(other.resultsToCompute);
     this->numberOfTerms = other.numberOfTerms;
     this->batchIndices  = other.batchIndices;

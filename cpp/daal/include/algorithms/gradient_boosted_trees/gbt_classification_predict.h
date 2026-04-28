@@ -53,33 +53,6 @@ namespace prediction
 namespace interface2
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__GBT__CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the gradient boosted trees algorithm.
- *        This class is associated with daal::algorithms::gbt::prediction::interface1::Batch class
- *        and supports method to compute gbt prediction
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
- * \tparam method           gradient boosted trees computation method, \ref Method
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for gradient boosted trees model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of gbt model-based prediction
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__GBT__CLASSIFICATION__PREDICTION__BATCH"></a>
  * \brief Predicts gradient boosted trees classification results
  * <!-- \n<a href="DAAL-REF-gbt-ALGORITHM">gbt algorithm description and usage models</a> -->
@@ -144,13 +117,13 @@ public:
      * Gets input objects for the gradient boosted trees prediction algorithm
      * \return %Input objects for the Gradient Boosted Trees prediction algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of model-based prediction
@@ -166,28 +139,22 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(&input, _par, 0);
         _res               = _result.get();
         return s;
     }
 
-    void initialize()
-    {
-        _in = &input;
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace prediction

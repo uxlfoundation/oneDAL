@@ -21,7 +21,6 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     # type automatically as does not support wheels out-of-the-box.
     filename = url.split("/")[-1]
     downloaded_path = repo_ctx.path(filename)
-
     repo_ctx.download(
         url = url,
         output = downloaded_path,
@@ -30,17 +29,16 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
 
     if filename.endswith(".conda"):
         repo_ctx.execute(["unzip", downloaded_path, "-d", output])
-
         for entry in repo_ctx.path(output).readdir():
             if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
-                repo_ctx.execute(["bash", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
+                repo_ctx.execute(["sh", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
 
     elif filename.endswith(".whl") or filename.endswith(".zip"):
         repo_ctx.download_and_extract(
             url = url,
             sha256 = sha256,
             output = output,
-            stripPrefix = strip_prefix,
+            strip_prefix = strip_prefix,
             type = "zip",
         )
 
@@ -49,7 +47,7 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
             url = url,
             sha256 = sha256,
             output = output,
-            stripPrefix = strip_prefix,
+            strip_prefix = strip_prefix,
         )
 
 
@@ -93,12 +91,49 @@ def _normalize_download_info(repo_ctx):
         ))
     return result
 
-def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
+def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
+    substitutions = substitutions or {}
+    mapping = mapping or {}
+
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
-        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
-        dst_entry_path = entry_fmt
-        repo_ctx.symlink(src_entry_path, dst_entry_path)
+        if "*" in entry_fmt:
+            pattern = entry_fmt.split("/")[-1]
+            dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
+            root_with_dir = utils.substitute(
+                paths.join(root, dir_part) if dir_part else root,
+                mapping
+            )
+            matched = False
+            for fs_entry in repo_ctx.path(root_with_dir).readdir():
+                if _matches_glob(fs_entry.basename, pattern):
+                    matched = True
+                    dst = (paths.join(dir_part, fs_entry.basename)
+                           if dir_part else fs_entry.basename)
+                    repo_ctx.symlink(str(fs_entry), dst)
+            if not matched:
+                fail("No files matched pattern '%s' in directory '%s' while creating symlinks for entry '%s'" %
+                     (pattern, root_with_dir, entry_fmt))
+        else:
+            src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
+            dst_entry_path = entry_fmt
+            repo_ctx.symlink(src_entry_path, dst_entry_path)
+
+def _matches_glob(name, pattern):
+    if "*" not in pattern:
+        return name == pattern
+    parts = pattern.split("*")
+    if not name.startswith(parts[0]):
+        return False
+    if not name.endswith(parts[-1]):
+        return False
+    pos = len(parts[0])
+    for part in parts[1:-1]:
+        idx = name.find(part, pos)
+        if idx == -1:
+            return False
+        pos = idx + len(part)
+    return True
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
@@ -141,6 +176,22 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         # TODO: Detect OS
         "%{os}": "lnx",
     }
+    
+    # Extract substitutions if a makefile_ver attribute is present
+    if hasattr(repo_ctx.attr, "_makefile_ver") and repo_ctx.attr._makefile_ver:
+        makefile_ver = repo_ctx.path(repo_ctx.attr._makefile_ver)
+        makefile_content = repo_ctx.read(makefile_ver)
+        binary_major = "4"
+        binary_minor = "0"
+        for line in makefile_content.splitlines():
+            if line.startswith("MAJORBINARY"):
+                binary_major = line.split("=")[1].strip()
+            elif line.startswith("MINORBINARY"):
+                binary_minor = line.split("=")[1].strip()
+        substitutions["%{version_binary_major}"] = binary_major
+        substitutions["%{version_binary_minor}"] = binary_minor
+
+
     _create_symlinks(repo_ctx, root, repo_ctx.attr.includes, substitutions, mapping)
     _create_symlinks(repo_ctx, root, repo_ctx.attr.libs, substitutions, mapping)
     _create_symlinks(repo_ctx, root, repo_ctx.attr.bins, substitutions, mapping)
@@ -173,6 +224,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "bins": attr.string_list(default=bins),
+            "_makefile_ver": attr.label(default=Label("@onedal//:makefile.ver")),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),
             "_local_mapping": attr.string_dict(default=local_mapping),
@@ -182,5 +234,6 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
 
 repos = struct(
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
+    prebuilt_libs_repo_impl = _prebuilt_libs_repo_impl,
     create_symlinks = _create_symlinks,
 )

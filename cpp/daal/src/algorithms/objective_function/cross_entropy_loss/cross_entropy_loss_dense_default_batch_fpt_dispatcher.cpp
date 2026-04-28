@@ -25,16 +25,23 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::cross_entropy_loss::interface2::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::cross_entropy_loss::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       optimization_solver::cross_entropy_loss::defaultDense)
-
 namespace optimization_solver
 {
 namespace cross_entropy_loss
 {
+
 namespace interface2
 {
-using BatchType = Batch<DAAL_FPTYPE, optimization_solver::cross_entropy_loss::defaultDense>;
+using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
+
+template <>
+void BatchType::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
+    _in                  = &input;
+}
 
 template <>
 DAAL_EXPORT BatchType::Batch(size_t nClasses, size_t numberOfTerms)

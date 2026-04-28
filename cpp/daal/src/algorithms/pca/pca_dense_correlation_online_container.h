@@ -26,6 +26,7 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_online.h"
+#include "src/algorithms/algorithm_dispatch_container_common.h"
 #include "src/algorithms/pca/pca_dense_correlation_online_kernel.h"
 
 namespace daal
@@ -34,6 +35,46 @@ namespace algorithms
 {
 namespace pca
 {
+namespace internal
+{
+using namespace daal::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
+ * \brief Class containing methods to compute the result of the PCA algorithm
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer : public AnalysisContainerIface<online>
+{};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
+ * \brief Class containing methods to compute the result of the PCA algorithm
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<online>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the PCA algorithm in the online processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the PCA algorithm in the online processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, CpuType cpu>
 OnlineContainer<algorithmFPType, correlationDense, cpu>::OnlineContainer(daal::services::Environment::env * daalEnv)
 {
@@ -74,6 +115,8 @@ services::Status OnlineContainer<algorithmFPType, correlationDense, cpu>::finali
     __DAAL_CALL_KERNEL(env, internal::PCACorrelationKernel, __DAAL_KERNEL_ARGUMENTS(online, algorithmFPType), finalize, partialResult, parameter,
                        *eigenvectors, *eigenvalues);
 }
+
+} // namespace internal
 
 } // namespace pca
 } // namespace algorithms

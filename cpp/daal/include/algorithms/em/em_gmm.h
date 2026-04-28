@@ -43,32 +43,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__EM_GMM__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the EM for GMM algorithm.
- *        This class is associated with the Batch class and supports the method of computing EM for GMM in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the EM for GMM algorithm, double or float
- * \tparam method           EM for GMM computation method
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the EM for GMM algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the EM for GMM algorithm in the batch processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__EM_GMM__BATCH"></a>
  * \brief Computes EM for GMM in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-EM_GMM-ALGORITHM">EM for GMM algorithm description and usage models</a> -->
@@ -103,7 +77,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of the EM for GMM algorithm
@@ -131,22 +105,16 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
-        _result              = ResultPtr(new Result());
-    }
+    void initialize();
 
 public:
     InputType input;         /*!< %Input data structure */
@@ -159,7 +127,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace em_gmm

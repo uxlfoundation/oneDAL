@@ -1,5 +1,5 @@
 package(default_visibility = ["//visibility:public"])
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "headers",
     hdrs = glob([
@@ -9,16 +9,15 @@ cc_library(
     includes = [
         "include",
     ],
-    defines = [
-        "MKL_ILP64"
-    ],
 )
 
 cc_library(
     name = "mkl_static",
     srcs = [
-        "lib/libmkl_core.a",
+        # Keep MKL static archives in canonical dependency order.
+        # libmkl_intel_ilp64.a references mkl_serv_* symbols from libmkl_core.a.
         "lib/libmkl_intel_ilp64.a",
+        "lib/libmkl_core.a",
         "lib/libmkl_tbb_thread.a",
     ],
     linkopts = [
@@ -35,8 +34,12 @@ cc_library(
     ],
     deps = [
         ":headers",
-        "@opencl//:opencl_binary",
     ],
+    defines = [
+        "MKL_ILP64"
+    ],
+    alwayslink = 1,
+    linkstatic = 1,
 )
 
 cc_library(
@@ -55,24 +58,18 @@ cc_library(
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
     ],
-    srcs = [
-        "lib/libmkl_sycl_blas.so",
-        "lib/libmkl_sycl_lapack.so",
-        "lib/libmkl_sycl_sparse.so",
-        "lib/libmkl_sycl_dft.so",
-        "lib/libmkl_sycl_vm.so",
-        "lib/libmkl_sycl_rng.so",
-        "lib/libmkl_sycl_stats.so",
-        "lib/libmkl_sycl_data_fitting.so",
-        "lib/libmkl_sycl_blas.so.5",
-        "lib/libmkl_sycl_lapack.so.5",
-        "lib/libmkl_sycl_sparse.so.5",
-        "lib/libmkl_sycl_dft.so.5",
-        "lib/libmkl_sycl_vm.so.5",
-        "lib/libmkl_sycl_rng.so.5",
-        "lib/libmkl_sycl_stats.so.5",
-        "lib/libmkl_sycl_data_fitting.so.5",
-    ],
+    srcs = glob([
+        "lib/libmkl_core.so*",
+        "lib/libmkl_intel_lp64.so*",
+        "lib/libmkl_gnu_thread.so*",
+        "lib/libmkl_sycl_blas.so*",
+        "lib/libmkl_sycl_lapack.so*",
+        "lib/libmkl_sycl_sparse.so*",
+        "lib/libmkl_sycl_rng.so*",
+    ]),
+    deps = [
+        "@openmp//:openmp_binary",
+    ]
 )
 
 cc_library(
@@ -83,11 +80,12 @@ cc_library(
         # If the number of processors on machine is below 16 it will be defaulted to `nproc`.
         "-fsycl-max-parallel-link-jobs=16",
     ],
-    srcs = [
-        "lib/libmkl_sycl.so",
-    ],
     deps = [
         ":headers",
         ":mkl_dpc_utils",
+        "@opencl//:opencl_binary",
+    ],
+    defines = [
+        "MKL_LP64"
     ],
 )

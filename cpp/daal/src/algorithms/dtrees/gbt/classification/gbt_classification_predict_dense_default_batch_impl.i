@@ -37,7 +37,6 @@
 #include "src/algorithms/dtrees/gbt/regression/gbt_regression_predict_dense_default_batch_impl.i"
 #include "src/algorithms/dtrees/gbt/gbt_predict_dense_default_impl.i"
 #include "src/algorithms/objective_function/cross_entropy_loss/cross_entropy_loss_dense_default_batch_kernel.h"
-#include "src/services/service_algo_utils.h"
 #include <cfloat>
 
 using namespace daal::internal;
@@ -80,13 +79,12 @@ public:
      *
      * \param m The model for which to run prediction
      * \param nIterations Number of iterations
-     * \param pHostApp HostAppInterface
      * \param predShapContributions Predict SHAP contributions
      * \param predShapInteractions Predict SHAP interactions
      * \return services::Status
      */
-    services::Status run(const gbt::classification::internal::ModelImpl * m, size_t nIterations, services::HostAppIface * pHostApp,
-                         bool predShapContributions, bool predShapInteractions);
+    services::Status run(const gbt::classification::internal::ModelImpl * m, size_t nIterations, bool predShapContributions,
+                         bool predShapInteractions);
 
 protected:
     /**
@@ -128,13 +126,12 @@ public:
      * \param m The model for which to run prediction
      * \param nClasses Number of data classes
      * \param nIterations Number of iterations
-     * \param pHostApp HostAppInterface
      * \param predShapContributions Predict SHAP contributions
      * \param predShapInteractions Predict SHAP interactions
      * \return services::Status
      */
-    services::Status run(const gbt::classification::internal::ModelImpl * m, size_t nClasses, size_t nIterations, services::HostAppIface * pHostApp,
-                         bool predShapContributions, bool predShapInteractions);
+    services::Status run(const gbt::classification::internal::ModelImpl * m, size_t nClasses, size_t nIterations, bool predShapContributions,
+                         bool predShapInteractions);
 
 protected:
     /** Dispatcher type for template dispatching */
@@ -414,8 +411,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, CpuType cpu>
 services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(const gbt::classification::internal::ModelImpl * m, size_t nIterations,
-                                                                            services::HostAppIface * pHostApp, bool predShapContributions,
-                                                                            bool predShapInteractions)
+                                                                            bool predShapContributions, bool predShapInteractions)
 {
     // assert we're not requesting both contributions and interactions
     DAAL_ASSERT(!(predShapContributions && predShapInteractions));
@@ -452,7 +448,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         TArray<algorithmFPType, cpu> expValPtr(nRows);
         algorithmFPType * expVal = expValPtr.get();
         DAAL_CHECK_MALLOC(expVal);
-        s = super::runInternal(pHostApp, this->_res, margin, predShapContributions, predShapInteractions);
+        s = super::runInternal(this->_res, margin, predShapContributions, predShapInteractions);
         if (!s) return s;
 
         auto nBlocks           = daal::threader_get_threads_number();
@@ -464,11 +460,12 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             const size_t finishRow = (((iBlock + 1) == nBlocks) ? nRows : (iBlock + 1) * blockSize);
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, res + startRow, expVal + startRow);
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
-                res[iRow]               = label[services::internal::SignBit<algorithmFPType, cpu>::get(res[iRow])];
+                res[iRow] = label[services::internal::SignBit<algorithmFPType, cpu>::get(res[iRow])];
+                // Note: 0/1 probabilities are stored together
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
             }
@@ -484,7 +481,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         algorithmFPType * expVal = expValPtr.get();
         NumericTablePtr expNT    = HomogenNumericTableCPU<algorithmFPType, cpu>::create(expVal, 1, nRows, &s);
         DAAL_CHECK_MALLOC(expVal);
-        s = super::runInternal(pHostApp, expNT.get(), margin, predShapContributions, predShapInteractions);
+        s = super::runInternal(expNT.get(), margin, predShapContributions, predShapInteractions);
         if (!s) return s;
 
         auto nBlocks           = daal::threader_get_threads_number();
@@ -496,6 +493,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, expVal + startRow, expVal + startRow);
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
+                // Note: 0/1 probabilities are stored together
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
             }
@@ -507,7 +505,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         DAAL_CHECK_BLOCK_STATUS(resBD);
         const algorithmFPType label[2] = { algorithmFPType(1.), algorithmFPType(0.) };
         algorithmFPType * res          = resBD.get();
-        s                              = super::runInternal(pHostApp, this->_res, margin, predShapContributions, predShapInteractions);
+        s                              = super::runInternal(this->_res, margin, predShapContributions, predShapInteractions);
         if (!s) return s;
 
         // for SHAP values, the score from runInternal is what we need
@@ -515,7 +513,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         {
             // convert the score to a class label
             typedef services::internal::SignBit<algorithmFPType, cpu> SignBit;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             for (size_t iRow = 0; iRow < nRows; ++iRow)
             {
                 // probability is a sigmoid(f) hence sign(f) can be checked
@@ -726,26 +724,24 @@ size_t PredictMulticlassTask<algorithmFPType, cpu>::getMaxClass(const algorithmF
 // PredictKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, prediction::Method method, CpuType cpu>
-services::Status PredictKernel<algorithmFPType, method, cpu>::compute(services::HostAppIface * pHostApp, const NumericTable * x,
-                                                                      const classification::Model * m, NumericTable * r, NumericTable * prob,
-                                                                      size_t nClasses, size_t nIterations, bool predShapContributions,
-                                                                      bool predShapInteractions)
+services::Status PredictKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const classification::Model * m, NumericTable * r,
+                                                                      NumericTable * prob, size_t nClasses, size_t nIterations,
+                                                                      bool predShapContributions, bool predShapInteractions)
 {
     const daal::algorithms::gbt::classification::internal::ModelImpl * pModel =
         static_cast<const daal::algorithms::gbt::classification::internal::ModelImpl *>(m);
     if (nClasses == 2)
     {
         PredictBinaryClassificationTask<algorithmFPType, cpu> task(x, r, prob);
-        return task.run(pModel, nIterations, pHostApp, predShapContributions, predShapInteractions);
+        return task.run(pModel, nIterations, predShapContributions, predShapInteractions);
     }
     PredictMulticlassTask<algorithmFPType, cpu> task(x, r, prob);
-    return task.run(pModel, nClasses, nIterations, pHostApp, predShapContributions, predShapInteractions);
+    return task.run(pModel, nClasses, nIterations, predShapContributions, predShapInteractions);
 }
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status PredictMulticlassTask<algorithmFPType, cpu>::run(const gbt::classification::internal::ModelImpl * m, size_t nClasses,
-                                                                  size_t nIterations, services::HostAppIface * pHostApp, bool predShapContributions,
-                                                                  bool predShapInteractions)
+                                                                  size_t nIterations, bool predShapContributions, bool predShapInteractions)
 {
     // assert we're not requesting both contributions and interactions
     DAAL_ASSERT(!(predShapContributions && predShapInteractions));
@@ -787,7 +783,7 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predictByTreesVector(algorithm
         gbt::prediction::internal::predictForTreeVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(
             *this->_aTree[iTree], this->_featHelper, x, v, dispatcher);
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < vectorBlockSize; ++j) val[(iTree % nClasses) + j * nClasses] += v[j];
     }

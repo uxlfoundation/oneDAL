@@ -42,27 +42,6 @@ namespace interface1
  * @ingroup linear_model_prediction
  * @{
  */
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_MODEL__PREDICTION__BATCHCONTAINER"></a>
- *  \brief Class containing computation methods for the regression model-based prediction
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for the regression model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     *  Computes the result of the regression model-based prediction
-     *
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_MODEL__PREDICTION__BATCH"></a>
@@ -91,7 +70,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of the regression model-based prediction
@@ -105,7 +84,6 @@ protected:
 /** @} */
 } // namespace interface1
 using interface1::Batch;
-using interface1::BatchContainer;
 } // namespace prediction
 } // namespace linear_model
 } // namespace algorithms

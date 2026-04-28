@@ -1,4 +1,4 @@
-/** file data_management_utils.cpp */
+/** file data_conversion.cpp */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -21,7 +21,7 @@
 //--
 */
 
-#include "services/internal/daal_kernel_defines.h"
+#include "src/services/internal/daal_internal_kernel_defines.h"
 #include "src/externals/service_dispatch.h"
 #include "src/data_management/data_conversion_cpu.h"
 #include "data_management/data/internal/conversion.h"
@@ -42,7 +42,9 @@ static bool tryToCopyFuncAVX512(const size_t nrows, const size_t ncols, void * d
 
     if (!ptr)
     {
-        int cpuid = (int)daal::services::Environment::getInstance()->getCpuId();
+        daal::services::Environment * env = daal::services::Environment::getInstance();
+        if (!env) return false; // Environment not initialized
+        int cpuid = (int)env->getCpuId();
 
         switch (cpuid)
         {

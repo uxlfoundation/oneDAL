@@ -51,8 +51,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
 
-            This table can be an object of any class derived from ``NumericTable``
-            except ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix``.
+            This table can be an object of any class derived from ``NumericTable``.
 
 At the training stage, recommender algorithms calculate the result described below.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -116,4 +115,4 @@ For more details, see :ref:`algorithms`.
 
             By default, this table is an object of the ``HomogenNumericTable`` class,
             but you can define it as an object of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.

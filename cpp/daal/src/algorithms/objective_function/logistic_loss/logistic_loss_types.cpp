@@ -60,6 +60,7 @@ Parameter::Parameter(const Parameter & other)
 
 Parameter & Parameter::operator=(const Parameter & other)
 {
+    if (this == &other) return *this;
     sum_of_functions::Parameter::operator=(other);
     this->penaltyL1     = other.penaltyL1;
     this->penaltyL2     = other.penaltyL2;

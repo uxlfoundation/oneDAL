@@ -33,12 +33,9 @@ namespace kmeans
 {
 namespace init
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, randomDense, DAAL_CPU>;
-}
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, randomDense, DAAL_CPU>;
 template class DAAL_EXPORT KMeansInitKernel<randomDense, DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace init

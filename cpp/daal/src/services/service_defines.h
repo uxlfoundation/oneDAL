@@ -27,7 +27,7 @@
 
 #include <stdint.h>
 #include "services/daal_defines.h"
-#include "services/cpu_type.h"
+#include "src/services/cpu_type.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();
@@ -37,66 +37,53 @@ void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();
 
 #if defined(TARGET_X86_64)
-    #define DAAL_BASE_CPU daal::sse2
+    #define DAAL_BASE_CPU daal::internal::sse2
 #elif defined(TARGET_ARM)
-    #define DAAL_BASE_CPU daal::sve
+    #define DAAL_BASE_CPU daal::internal::sve
 #elif defined(TARGET_RISCV64)
-    #define DAAL_BASE_CPU daal::rv64
+    #define DAAL_BASE_CPU daal::internal::rv64
 #endif
 
 #define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())
 
-#if defined(__INTEL_COMPILER)
-    #define PRAGMA_FORCE_SIMD       _Pragma("ivdep")
-    #define PRAGMA_NOVECTOR         _Pragma("novector")
-    #define PRAGMA_VECTOR_ALIGNED   _Pragma("vector aligned")
-    #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
-    #define PRAGMA_VECTOR_ALWAYS    _Pragma("vector always")
-    #define PRAGMA_ICC_TO_STR(ARGS) _Pragma(#ARGS)
-    #define PRAGMA_ICC_OMP(ARGS)    PRAGMA_ICC_TO_STR(omp ARGS)
-    #define PRAGMA_ICC_NO16(ARGS)   PRAGMA_ICC_TO_STR(ARGS)
-    #define DAAL_TYPENAME           typename
-#elif defined(__GNUC__)
-    #if defined(TARGET_ARM)
-        #define PRAGMA_FORCE_SIMD _Pragma("omp simd")
-    #else
-        #define PRAGMA_FORCE_SIMD
-    #endif
-    #define PRAGMA_VECTOR_ALIGNED
-    #define PRAGMA_VECTOR_UNALIGNED
-    #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_ICC_TO_STR(ARGS)
-    #define PRAGMA_ICC_OMP(ARGS)
-    #define PRAGMA_ICC_NO16(ARGS)
-    #define DAAL_TYPENAME typename
-#elif defined(_MSC_VER)
-    #define PRAGMA_FORCE_SIMD
-    #define PRAGMA_NOVECTOR
-    #define PRAGMA_VECTOR_ALIGNED
-    #define PRAGMA_VECTOR_UNALIGNED
-    #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_ICC_TO_STR(ARGS)
-    #define PRAGMA_ICC_OMP(ARGS)
-    #define PRAGMA_ICC_NO16(ARGS)
-    #define DAAL_TYPENAME typename
-#else
-    #define PRAGMA_FORCE_SIMD
-    #define PRAGMA_NOVECTOR
-    #define PRAGMA_VECTOR_ALIGNED
-    #define PRAGMA_VECTOR_UNALIGNED
-    #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_ICC_OMP(ARGS)
-    #define PRAGMA_ICC_NO16(ARGS)
-    #define DAAL_TYPENAME typename
-#endif
+#define PRAGMA_TO_STR(ARGS)  _Pragma(#ARGS)
+#define PRAGMA_TO_STR_(ARGS) PRAGMA_TO_STR(ARGS)
 
-#if defined __APPLE__ && defined __INTEL_COMPILER && (__INTEL_COMPILER == 1600)
-    #undef PRAGMA_ICC_TO_STR
-    #define PRAGMA_ICC_TO_STR(ARGS) _Pragma(#ARGS)
-    #undef PRAGMA_ICC_OMP
-    #define PRAGMA_ICC_OMP(ARGS) PRAGMA_ICC_TO_STR(ARGS)
-    #undef PRAGMA_ICC_NO16
-    #define PRAGMA_ICC_NO16(ARGS)
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+    #define PRAGMA_IVDEP            _Pragma("ivdep")
+    #define PRAGMA_NOVECTOR         _Pragma("novector")
+    #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
+    // TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows or with gcov.
+    #if (defined(_MSC_VER) && defined(_DEBUG)) || defined(GCOV_BUILD)
+        #define PRAGMA_VECTOR_ALWAYS
+        #define PRAGMA_OMP_SIMD
+        #define PRAGMA_OMP_SIMD_ARGS(ARGS)
+    #else
+        #define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
+        #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+        #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+    #endif
+#elif defined(__GNUC__) || defined(__clang__)
+    #define PRAGMA_IVDEP _Pragma("ivdep")
+    #define PRAGMA_NOVECTOR
+    #define PRAGMA_VECTOR_UNALIGNED
+    #define PRAGMA_VECTOR_ALWAYS
+    #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#elif defined(_MSC_VER)
+    #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
+    #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
+    #define PRAGMA_VECTOR_UNALIGNED
+    #define PRAGMA_VECTOR_ALWAYS
+    #define PRAGMA_OMP_SIMD
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
+#else
+    #define PRAGMA_IVDEP
+    #define PRAGMA_NOVECTOR
+    #define PRAGMA_VECTOR_UNALIGNED
+    #define PRAGMA_VECTOR_ALWAYS
+    #define PRAGMA_OMP_SIMD
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
 #endif
 
 #ifdef DEBUG_ASSERT
@@ -131,7 +118,6 @@ enum DataFormat
 /* CPU comparison macro */
 #if defined(TARGET_X86_64)
     #define __sse2__   (0)
-    #define __sse42__  (2)
     #define __avx2__   (4)
     #define __avx512__ (6)
 #elif defined(TARGET_ARM)
@@ -145,7 +131,6 @@ enum DataFormat
 
 #if defined(TARGET_X86_64)
     #define CPU_sse2   __sse2__
-    #define CPU_sse42  __sse42__
     #define CPU_avx2   __avx2__
     #define CPU_avx512 __avx512__
 #elif defined(TARGET_ARM)

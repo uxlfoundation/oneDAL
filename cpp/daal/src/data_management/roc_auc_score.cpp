@@ -35,7 +35,7 @@ using namespace daal::internal;
 using namespace daal::services;
 using namespace daal::services::internal;
 
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction, double & score)
 {
     services::Status s;
@@ -79,7 +79,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         }
         elementsInBlock = j - i + 1;
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < elementsInBlock; ++j)
         {

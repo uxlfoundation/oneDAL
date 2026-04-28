@@ -34,6 +34,7 @@ namespace engines
 {
 namespace internal
 {
+using namespace daal::internal;
 template <CpuType cpu>
 struct Params
 {

@@ -28,7 +28,6 @@
 #include "services/base.h"
 #include "services/daal_defines.h"
 #include "services/error_handling.h"
-#include "services/cpu_type.h"
 
 namespace daal
 {
@@ -64,6 +63,12 @@ public:
      *  \return The environment instance
      */
     static Environment * getInstance();
+
+    /**
+     *  Returns the status of the environment instance initialization
+     *  \return Status of the environment instance initialization
+     */
+    static int getStatus();
 
     /**
      *  Decreases the instance counter

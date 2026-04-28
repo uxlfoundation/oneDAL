@@ -31,6 +31,9 @@
 #define KERNEL_SINGLE_NODE_CPU(...) \
     KERNEL_SPEC(::oneapi::dal::backend::single_node_cpu_kernel, __VA_ARGS__)
 
+#define KERNEL_UNIVERSAL_SPMD_CPU(...) \
+    KERNEL_SPEC(::oneapi::dal::backend::universal_spmd_cpu_kernel, __VA_ARGS__)
+
 #define KERNEL_SINGLE_NODE_GPU(...) \
     KERNEL_SPEC(::oneapi::dal::backend::single_node_gpu_kernel, __VA_ARGS__)
 
@@ -41,7 +44,6 @@ namespace oneapi::dal::backend {
 
 #if defined(TARGET_X86_64)
 struct cpu_dispatch_sse2 {};
-struct cpu_dispatch_sse42 {};
 struct cpu_dispatch_avx2 {};
 struct cpu_dispatch_avx512 {};
 #elif defined(TARGET_ARM)
@@ -54,7 +56,6 @@ struct cpu_dispatch_rv64 {};
 using cpu_dispatch_default = cpu_dispatch_sse2;
 
 #define __CPU_TAG_SSE2__    oneapi::dal::backend::cpu_dispatch_sse2
-#define __CPU_TAG_SSE42__   oneapi::dal::backend::cpu_dispatch_sse42
 #define __CPU_TAG_AVX2__    oneapi::dal::backend::cpu_dispatch_avx2
 #define __CPU_TAG_AVX512__  oneapi::dal::backend::cpu_dispatch_avx512
 #define __CPU_TAG_DEFAULT__ oneapi::dal::backend::cpu_dispatch_default
@@ -152,6 +153,9 @@ inline auto dispatch_by_device(const detail::data_parallel_policy& policy,
 /// Tag that indicates CPU kernel for single-node
 struct single_node_cpu_kernel {};
 
+/// Tag that indicates universal CPU kernel for single-node and SPMD modes
+struct universal_spmd_cpu_kernel {};
+
 /// Tag that indicates GPU kernel for single-node
 struct single_node_gpu_kernel {};
 
@@ -209,9 +213,45 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
                 throw unimplemented{ msg::algorithm_is_not_implemented_for_this_device() };
             });
     }
+    template <typename... Args>
+    auto operator()(const detail::spmd_data_parallel_policy& policy, Args&&... args) const
+        -> cpu_kernel_return_t<CpuKernel, Args...> {
+        // We have to specify return type for this function as compiler cannot
+        // infer it from a body that consist of single `throw` expression
+        using msg = detail::error_messages;
+        throw unimplemented{ msg::spmd_version_of_algorithm_is_not_implemented_for_this_device() };
+    }
 #endif
+};
+
+/// Dispatcher for the case of multi-node CPU algorithm based on universal SPMD kernel
+template <typename CpuKernel>
+struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>> {
+    template <typename... Args>
+    auto operator()(const detail::host_policy& policy, Args&&... args) const {
+        return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    auto operator()(const detail::spmd_host_policy& policy, Args&&... args) const {
+        return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
+    }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    template <typename... Args>
+    auto operator()(const detail::data_parallel_policy& policy, Args&&... args) const {
+        return dispatch_by_device(
+            policy,
+            [&]() {
+                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+            },
+            [&]() -> cpu_kernel_return_t<CpuKernel, Args...> {
+                // We have to specify return type for this lambda as compiler cannot
+                // infer it from a body that consist of single `throw` expression
+                using msg = detail::error_messages;
+                throw unimplemented{ msg::algorithm_is_not_implemented_for_this_device() };
+            });
+    }
     template <typename... Args>
     auto operator()(const detail::spmd_data_parallel_policy& policy, Args&&... args) const
         -> cpu_kernel_return_t<CpuKernel, Args...> {
@@ -304,8 +344,6 @@ inline constexpr auto dispatch_by_cpu(const context_cpu& ctx, Op&& op) {
     })
     ONEDAL_IF_CPU_DISPATCH_AVX2(
         if (test_cpu_extension(cpu_ex, cpu_extension::avx2)) { return op(cpu_dispatch_avx2{}); })
-    ONEDAL_IF_CPU_DISPATCH_SSE42(
-        if (test_cpu_extension(cpu_ex, cpu_extension::sse42)) { return op(cpu_dispatch_sse42{}); })
 
 #elif defined(TARGET_ARM)
     ONEDAL_IF_CPU_DISPATCH_A8SVE(

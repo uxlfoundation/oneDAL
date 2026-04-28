@@ -30,21 +30,37 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "lib/release/libmpi.so.12.0.0",
         "libfabric/lib/libfabric.so",
         "libfabric/lib/libfabric.so.1",
-        "libfabric/lib/prov",
+        "libfabric/lib/prov/libefa-fi.so",
+        "libfabric/lib/prov/libmlx-fi.so",
+        "libfabric/lib/prov/libpsm3-fi.so",
+        "libfabric/lib/prov/libpsmx2-fi.so",
+        "libfabric/lib/prov/librxm-fi.so",
+        "libfabric/lib/prov/libshm-fi.so",
+        "libfabric/lib/prov/libtcp-fi.so",
+        "libfabric/lib/prov/libverbs-1.1-fi.so",
+        "libfabric/lib/prov/libverbs-1.12-fi.so",
     ],
     build_template = "@onedal//dev/bazel/deps:mpi.tpl.BUILD",
     download_mapping = {
         # Required directory layout and layout in the downloaded
         # archives may be different. Mapping helps to setup relations
         # between the required layout (LHS) and downloaded (RHS).
-        #          REQUIRED                       DOWNLOADED
-        "libfabric/lib/libfabric.so":    "lib/libfabric/libfabric.so",
-        "libfabric/lib/libfabric.so.1":  "lib/libfabric/libfabric.so.1",
-        "lib/release/libmpi.so":         "lib/libmpi.so",
-        "lib/release/libmpi.so.12":      "lib/libmpi.so.12",
-        "lib/release/libmpi.so.12.0":    "lib/libmpi.so.12.0",
-        "lib/release/libmpi.so.12.0.0":  "lib/libmpi.so.12.0.0",
-        "libfabric/lib/prov":            "lib/libfabric/prov",
+        #          REQUIRED                              DOWNLOADED
+        "libfabric/lib/libfabric.so":                   "lib/libfabric.so",
+        "libfabric/lib/libfabric.so.1":                 "lib/libfabric.so.1",
+        "lib/release/libmpi.so":                        "lib/libmpi.so",
+        "lib/release/libmpi.so.12":                     "lib/libmpi.so.12",
+        "lib/release/libmpi.so.12.0":                   "lib/libmpi.so.12.0",
+        "lib/release/libmpi.so.12.0.0":                 "lib/libmpi.so.12.0.0",
+        "libfabric/lib/prov/libefa-fi.so":              "lib/libefa-fi.so",
+        "libfabric/lib/prov/libmlx-fi.so":              "lib/libmlx-fi.so",
+        "libfabric/lib/prov/libpsm3-fi.so":             "lib/libpsm3-fi.so",
+        "libfabric/lib/prov/libpsmx2-fi.so":            "lib/libpsmx2-fi.so",
+        "libfabric/lib/prov/librxm-fi.so":              "lib/librxm-fi.so",
+        "libfabric/lib/prov/libshm-fi.so":              "lib/libshm-fi.so",
+        "libfabric/lib/prov/libtcp-fi.so":              "lib/libtcp-fi.so",
+        "libfabric/lib/prov/libverbs-1.1-fi.so":        "lib/libverbs-1.1-fi.so",
+        "libfabric/lib/prov/libverbs-1.12-fi.so":       "lib/libverbs-1.12-fi.so",
     },
 )
 

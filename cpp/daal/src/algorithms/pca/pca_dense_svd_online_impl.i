@@ -156,7 +156,7 @@ inline void normalizeData(const size_t nObservations, const size_t nFeatures, co
 {
     for (size_t i = 0; i < nObservations; i++)
     {
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {
@@ -206,7 +206,7 @@ services::Status PCASVDOnlineKernel<algorithmFPType, cpu>::normalizeDataset(cons
     computeMean<algorithmFPType, cpu>(totalObservations, nFeatures, sums, mean.get());
     computeVariance<algorithmFPType, cpu>(totalObservations, nFeatures, sums, ssq, mean.get(), variance.get());
     normalizeData<algorithmFPType, cpu>(nVectors, nFeatures, dataArray, mean.get(), variance.get(), normalizedDataArray);
-    return Status();
+    return services::Status();
 }
 
 } // namespace internal

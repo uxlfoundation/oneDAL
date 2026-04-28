@@ -46,33 +46,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>
- *  \brief Class containing methods to compute results of the SVM training
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
- * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for SVM model-based training with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of SVM  model-based training in the batch processing mode
-     *
-     * \return Status of computation
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCH"></a>
  *  \brief %Algorithm class to train the SVM model
  *  <!-- \n<a href="DAAL-REF-SVM-ALGORITHM">SVM algorithm description and usage models</a> -->
@@ -88,6 +61,7 @@ public:
  * \par References
  *      - \ref interface1::Input "Input" class
  *      - \ref interface1::Model "Model" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = boser>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -102,14 +76,18 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of the algorithm */
     InputType input;         /*!< %Input objects of the algorithm */
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs an SVM training algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-    */
-    Batch(size_t nClasses);
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs an SVM training algorithm by copying input objects and parameters
@@ -125,13 +103,13 @@ public:
      * Get input objects for the SVM training algorithm
      * \return %Input objects for the SVM training algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns structure that contains computed results of the SVM training algorithm
@@ -142,7 +120,7 @@ public:
     /**
      * Resets the training results of the classification algorithm
      */
-    services::Status resetResult() DAAL_C11_OVERRIDE
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -158,9 +136,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         ResultPtr res = getResult();
         DAAL_CHECK(res, services::ErrorNullResult);
@@ -169,20 +147,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace training

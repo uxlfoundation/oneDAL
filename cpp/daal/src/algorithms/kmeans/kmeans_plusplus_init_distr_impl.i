@@ -97,7 +97,7 @@ public:
 
 protected:
     virtual Status updateMinDist(size_t iFirstOfNewCandidates, const algorithmFPType * pNewCenters, size_t nNewCandidates, algorithmFPType * aMinDist,
-                                 algorithmFPType * aMinDistAcc, algorithmFPType & overallError, size_t nBlocks) DAAL_C11_OVERRIDE
+                                 algorithmFPType * aMinDistAcc, algorithmFPType & overallError, size_t nBlocks) override
     {
         WriteRows<int, cpu> closestClusterBD(_aLocalData[internal::closestCluster], 0, 1);
         DAAL_CHECK_BLOCK_STATUS(closestClusterBD);

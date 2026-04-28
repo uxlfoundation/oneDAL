@@ -52,9 +52,9 @@ using namespace daal::algorithms::optimization_solver::iterative_solver::interna
  */
 
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status CoordinateDescentKernel<algorithmFPType, method, cpu>::compute(HostAppIface * pHost, NumericTable * inputArgument,
-                                                                                NumericTable * minimum, NumericTable * nIterations,
-                                                                                Parameter * parameter, engines::BatchBase & engine,
+services::Status CoordinateDescentKernel<algorithmFPType, method, cpu>::compute(NumericTable * inputArgument, NumericTable * minimum,
+                                                                                NumericTable * nIterations, Parameter * parameter,
+                                                                                engines::BatchBase & engine,
                                                                                 optimization_solver::objective_function::ResultPtr & hesGrResultPtr,
                                                                                 optimization_solver::objective_function::ResultPtr & proxResultPtr)
 {

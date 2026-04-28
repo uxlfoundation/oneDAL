@@ -44,35 +44,6 @@ namespace philox4x32x10
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the philox4x32x10 engine.
- *        This class is associated with the \ref philox4x32x10::interface1::Batch "philox4x32x10::Batch" class
- *        and supports the method of philox4x32x10 engine computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of philox4x32x10 engine, double or float
- * \tparam method           Computation method of the engine, philox4x32x10::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the philox4x32x10 engine with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     * Computes the result of the philox4x32x10 engine in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCH"></a>
  * \brief Provides methods for philox4x32x10 engine computations in the batch processing mode
  *
@@ -85,6 +56,8 @@ public:
  * \par References
  *      - \ref engines::interface1::Input  "engines::Input" class
  *      - \ref engines::interface1::Result "engines::Result" class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public engines::BatchBase
@@ -101,13 +74,13 @@ public:
      *
      * \return Pointer to philox4x32x10 engine
      */
-    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
      * \return Method of the engine
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of philox4x32x10 engine
@@ -141,26 +114,23 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = this->_result->template allocate<algorithmFPType>(&(this->input), NULL, (int)method);
         this->_res         = this->_result.get();
         return s;
     }
 
+    ~Batch();
+
 protected:
     Batch(size_t seed = 777);
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -171,7 +141,6 @@ typedef services::SharedPtr<Batch<> > philox4x32x10Ptr;
 typedef services::SharedPtr<const Batch<> > philox4x32x10ConstPtr;
 
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 using interface1::philox4x32x10Ptr;
 using interface1::philox4x32x10ConstPtr;

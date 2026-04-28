@@ -60,6 +60,7 @@ public:
 
     AnalysisContainerIface(const AnalysisContainerIface &)                               = delete;
     AnalysisContainerIface<mode> & operator=(const AnalysisContainerIface<mode> & other) = delete;
+    ~AnalysisContainerIface() override                                                   = default;
 };
 
 /**

@@ -26,9 +26,6 @@
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 
-using namespace daal::services;
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -39,6 +36,10 @@ namespace mcg59
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 /**
  *  \brief Kernel for mcg59 calculation
  */

@@ -101,7 +101,7 @@ Status ThreadingTask<algorithmFPType, cpu>::update(DAAL_INT startRow, DAAL_INT n
 
         for (DAAL_INT i = 0; i < nRows; i++, xPtr += nFeatures)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (DAAL_INT j = 0; j < nFeatures; j++)
             {
@@ -124,7 +124,7 @@ Status ThreadingTask<algorithmFPType, cpu>::update(DAAL_INT startRow, DAAL_INT n
         const algorithmFPType * yPtr = y;
         for (DAAL_INT i = 0; i < nRows; i++, yPtr += _nResponses)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (DAAL_INT j = 0; j < _nResponses; j++)
             {
@@ -140,7 +140,7 @@ void ThreadingTask<algorithmFPType, cpu>::reduce(algorithmFPType * xtx, algorith
 {
     {
         DAAL_PROFILER_THREADING_TASK(reduce.syrkX);
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < (_nBetasIntercept * _nBetasIntercept); i++)
         {
@@ -150,7 +150,7 @@ void ThreadingTask<algorithmFPType, cpu>::reduce(algorithmFPType * xtx, algorith
 
     {
         DAAL_PROFILER_THREADING_TASK(reduce.gemmXY);
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < (_nBetasIntercept * _nResponses); i++)
         {
@@ -334,11 +334,14 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     });
 
     Status st = safeStat.detach();
-    tls.reduce([=, &st](ThreadingTaskType * tlsLocal) -> void {
-        if (!tlsLocal) return;
-        if (st) tlsLocal->reduce(xtx, xty);
-        delete tlsLocal;
-    });
+    {
+        DAAL_PROFILER_TASK(reduction);
+        tls.reduce([=, &st](ThreadingTaskType * tlsLocal) -> void {
+            if (!tlsLocal) return;
+            if (st) tlsLocal->reduce(xtx, xty);
+            delete tlsLocal;
+        });
+    }
 
     return st;
 }

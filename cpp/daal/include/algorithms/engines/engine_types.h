@@ -70,6 +70,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__INPUT"></a>
  * \brief %Input objects for engines
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
@@ -77,7 +79,7 @@ public:
     /**
      * Default constructor
      */
-    Input();
+    DAAL_DEPRECATED Input();
     /** Copy constructor */
     Input(const Input & other);
 
@@ -104,18 +106,20 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of the engine
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     /** \brief Constructor */
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {}
 
@@ -152,8 +156,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter,
-                                   int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::Result::check;
@@ -167,14 +170,14 @@ protected:
         return services::Status();
     }
 
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override
     {
         serialImpl<data_management::InputDataArchive, false>(arch);
 
         return services::Status();
     }
 
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override
     {
         serialImpl<const data_management::OutputDataArchive, true>(arch);
 

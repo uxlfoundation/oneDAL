@@ -40,7 +40,7 @@ template <>
 struct to_daal_init_method<method::lloyd_csr>
         : daal_init_method_constant<daal_kmeans_init::plusPlusCSR> {};
 
-template <typename Float, daal::CpuType Cpu, typename Method>
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using init_kernel_t =
     daal_kmeans_init::internal::KMeansInitKernel<to_daal_init_method<Method>::value, Float, Cpu>;
 

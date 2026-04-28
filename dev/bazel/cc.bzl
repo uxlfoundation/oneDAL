@@ -19,9 +19,14 @@ load("@onedal//dev/bazel:utils.bzl",
     "paths",
     "sets",
 )
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "VersionInfo",
 )
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
@@ -123,7 +128,7 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
     # > The list of possible extensions for 'public_hdrs' is:
     #   .h,.hh,.hpp,.ipp,.hxx,.h++,.inc,.inl,.tlh,.tli,.H,.tcc
     if hdrs:
-        native.cc_library(
+        cc_library(
             name = "__{}_headers__".format(name),
             hdrs = hdrs,
         )
@@ -182,6 +187,7 @@ def _cc_dynamic_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
+
     linking_context, dynamic_lib = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = ctx.attr.lib_name,
@@ -190,6 +196,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
+        user_link_flags = ctx.attr.linkopts,
     )
     default_info = DefaultInfo(
         files = depset([ dynamic_lib ]),
@@ -207,6 +214,14 @@ cc_dynamic_lib = rule(
         "lib_tags": attr.string_list(),
         "deps": attr.label_list(mandatory=True),
         "def_file": attr.label(allow_single_file=True),
+        "linkopts": attr.string_list(
+            default = [],
+            doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
+        ),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],

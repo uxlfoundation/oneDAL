@@ -179,6 +179,7 @@ public:
             const RowIndexType idx     = indexedFeature[iSample];
             auto & sum                 = aGHSum[idx];
             sum.n++;
+            // Note: gradients and hessians are stored in the same array
             sum.g += pgh[2 * iSample];
             sum.h += pgh[2 * iSample + 1];
             gTotal += pgh[2 * iSample];
@@ -196,6 +197,7 @@ public:
             const RowIndexType idx = indexedFeature[i];
             auto & sum             = aGHSum[idx];
             sum.n++;
+            // Note: gradients and hessians are stored in the same array
             sum.g += pgh[2 * i];
             sum.h += pgh[2 * i + 1];
             gTotal += pgh[2 * i];
@@ -208,7 +210,7 @@ public:
         algorithmFPType * aGHSumPrevFP   = (algorithmFPType *)aGHSumPrev;
         algorithmFPType * aGHSumsOtherFP = (algorithmFPType *)aGHSumsOther;
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nUnique * 4; ++i)
         {
@@ -246,9 +248,10 @@ struct ComputeGHSumByRows
 
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             for (RowIndexType j = 0; j < nFeatures; j++)
             {
+                // Note: gradients and hessians are stored in the same array
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
                 aGHSumFP[idx + 0] += pgh[2 * aIdx[i]];
                 aGHSumFP[idx + 1] += pgh[2 * aIdx[i] + 1];
@@ -260,9 +263,10 @@ struct ComputeGHSumByRows
         {
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             for (RowIndexType j = 0; j < nFeatures; j++)
             {
+                // Note: gradients and hessians are stored in the same array
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
                 aGHSumFP[idx + 0] += pgh[2 * aIdx[i]];
                 aGHSumFP[idx + 1] += pgh[2 * aIdx[i] + 1];
@@ -284,19 +288,19 @@ struct MergeGHSums
         algorithmFPType * cur = (algorithmFPType *)res.ghSums;
         algorithmFPType * ptr = results[0] + 4 * iStart;
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < 4 * nUnique; i++) cur[i] = ptr[i];
 
         for (size_t iB = 1; iB < nBlocks; ++iB)
         {
             algorithmFPType * ptr = results[iB] + 4 * iStart;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < 4 * nUnique; i++) cur[i] += ptr[i];
         }
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nUnique; ++i)
         {
@@ -307,12 +311,6 @@ struct MergeGHSums
 };
 
 #if defined(DAAL_INTEL_CPP_COMPILER)
-    #if __CPUID__(DAAL_CPU) >= __sse42__
-        #define SSE42_ALL DAAL_CPU
-    #else
-        #define SSE42_ALL sse42
-    #endif
-
     #if __CPUID__(DAAL_CPU) >= __avx512__
         #define AVX512_ALL DAAL_CPU
     #else
@@ -320,7 +318,7 @@ struct MergeGHSums
     #endif
 
 template <typename RowIndexType, typename BinIndexType>
-struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
+struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, DAAL_CPU>
 {
     static void run(float * aGHSumFP, const BinIndexType * indexedFeature, const RowIndexType * aIdx, float * pgh, size_t nFeatures, size_t iStart,
                     size_t iEnd, size_t nRows, size_t * UniquesArr)
@@ -329,8 +327,8 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
         const size_t prefetchOffset      = 10; // heuristic, prefetch on 10 rows ahead
         const size_t elementsInCacheLine = cacheLineSize / sizeof(IndexType);
 
-        const size_t noPrefetchSize              = services::internal::min<SSE42_ALL, size_t>(prefetchOffset + elementsInCacheLine, nRows);
-        const size_t iEndWithPrefetch            = services::internal::min<SSE42_ALL, size_t>(nRows - noPrefetchSize, iEnd);
+        const size_t noPrefetchSize              = services::internal::min<DAAL_CPU, size_t>(prefetchOffset + elementsInCacheLine, nRows);
+        const size_t iEndWithPrefetch            = services::internal::min<DAAL_CPU, size_t>(nRows - noPrefetchSize, iEnd);
         const size_t nCacheLinesToPrefetchOneRow = nFeatures / elementsInCacheLine + !!(nFeatures % elementsInCacheLine);
 
         __m128 adds;
@@ -339,19 +337,16 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
         addsPtr[3]      = 0.0f;
 
         RowIndexType i = iStart;
-        PRAGMA_FORCE_SIMD
+
         for (; i < iEndWithPrefetch; ++i)
         {
             DAAL_PREFETCH_READ_T0(pgh + 2 * aIdx[i + prefetchOffset]);
             const BinIndexType * ptr = indexedFeature + aIdx[i + prefetchOffset] * nFeatures;
             for (IndexType j = 0; j < nCacheLinesToPrefetchOneRow; j++) DAAL_PREFETCH_READ_T0(ptr + elementsInCacheLine * j);
-
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
             addsPtr[0]                   = pgh[2 * aIdx[i]];
             addsPtr[1]                   = pgh[2 * aIdx[i] + 1];
 
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
             for (IndexType j = 0; j < nFeatures; j++)
             {
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
@@ -361,14 +356,12 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
             }
         }
 
-        PRAGMA_FORCE_SIMD
         for (; i < iEnd; ++i)
         {
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
             addsPtr[0]                   = pgh[2 * aIdx[i]];
             addsPtr[1]                   = pgh[2 * aIdx[i] + 1];
 
-            PRAGMA_FORCE_SIMD
             for (IndexType j = 0; j < nFeatures; j++)
             {
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);

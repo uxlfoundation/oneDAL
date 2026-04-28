@@ -26,6 +26,7 @@
 #ifndef __PCA_TRANSFORM_CONTAINER_H__
 #define __PCA_TRANSFORM_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/pca/transform/pca_transform_kernel.h"
 
 namespace daal
@@ -36,6 +37,35 @@ namespace pca
 {
 namespace transform
 {
+namespace internal
+{
+using namespace daal::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__TRANSFORM__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the PCA transformation algorithm in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the PCA transformation algorithm, double or float
+ * \tparam method           Computation method of the PCA transformation algorithm, \ref daal::algorithms::pca::transform::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+    * Constructs a container for the PCA transformation algorithm with a specified environment
+    * in the batch processing mode
+    * \param[in] daalEnv   Environment object
+    */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+    * Computes the result of the PCA transformation algorithm in the batch processing mode
+    */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, transform::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -64,6 +94,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::TransformKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, *(input->get(data)),
                        *(input->get(eigenvectors)), pMeans, pVariances, pEigenvalues, *(result->get(transformedData)));
 }
+
+} // namespace internal
 
 } // namespace transform
 } // namespace pca

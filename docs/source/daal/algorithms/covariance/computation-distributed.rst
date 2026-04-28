@@ -129,7 +129,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this table is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``sum``
      - Pointer to :math:`1 \times p` numeric table with partial sums computed so far on the local node.
 
@@ -137,7 +137,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this table is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 .. _cor_cov_step_2:
 
@@ -157,11 +157,6 @@ For more details, see :ref:`algorithms`.
      - Input
    * - ``partialResults``
      - A collection that contains results computed in :ref:`Step 1 <cor_cov_step_1>` on local nodes (``nObservations``, ``crossProduct``, and ``sum``).
-
-       .. note::
-
-          The collection can contain objects of any class derived from the ``NumericTable`` class
-          except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
 
 In this step, the correlation and variance-covariance matrices algorithm calculates the results described in the following table.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -183,7 +178,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``correlation``
      - Use when ``outputMatrixType``=``correlationMatrix``. Pointer to the numeric table with the :math:`p \times p` correlation matrix.
 
@@ -191,7 +186,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``mean``
      - Pointer to the :math:`1 \times p` numeric table with means.
 
@@ -199,6 +194,6 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 .. include:: ../../../opt-notice.rst

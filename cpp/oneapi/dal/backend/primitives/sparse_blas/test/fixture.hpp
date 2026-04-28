@@ -155,16 +155,15 @@ public:
         auto row_offsets_event = q.submit([&](sycl::handler& cgh) {
             cgh.memcpy(row_offsets, row_offsets_host, (local_m + 1) * sizeof(std::int64_t));
         });
-
-        return set_csr_data(q,
-                            a,
-                            local_m,
-                            local_k,
-                            indexing,
-                            data,
-                            column_indices,
-                            row_offsets,
-                            { data_event, column_indices_event, row_offsets_event });
+        table data_gpu = csr_table::wrap(q,
+                                         data_ary_.get_data(),
+                                         column_indices_ary_.get_data(),
+                                         row_offsets_ary_.get_data(),
+                                         local_m,
+                                         local_k,
+                                         indexing,
+                                         { data_event, column_indices_event, row_offsets_event });
+        return set_csr_data(q, a, static_cast<const csr_table&>(data_gpu));
     }
 
     auto B() {

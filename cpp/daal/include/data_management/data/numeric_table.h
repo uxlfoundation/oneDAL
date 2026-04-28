@@ -25,7 +25,6 @@
 #define __NUMERIC_TABLE_H__
 
 #include "services/base.h"
-#include "services/internal/buffer.h"
 #include "services/daal_defines.h"
 #include "services/daal_memory.h"
 #include "services/error_handling.h"
@@ -57,12 +56,8 @@ class DAAL_EXPORT BlockDescriptor
 {
 public:
     /** \private */
-    DAAL_FORCEINLINE BlockDescriptor()
-        : _ptr(), _nrows(0), _ncols(0), _colsOffset(0), _rowsOffset(0), _rwFlag(0), _buffer(), _capacity(0), _pPtr(0), _rawPtr(0)
+    DAAL_FORCEINLINE BlockDescriptor() : _ptr(), _nrows(0), _ncols(0), _colsOffset(0), _rowsOffset(0), _rwFlag(0), _capacity(0), _pPtr(0), _rawPtr(0)
     {}
-
-    /** \private */
-    ~BlockDescriptor() { freeBuffer(); }
 
     /**
      *  Gets a pointer to the buffer
@@ -73,10 +68,6 @@ public:
         if (_rawPtr)
         {
             return (DataType *)_rawPtr;
-        }
-        else if (_xBuffer)
-        {
-            return getCachedHostSharedPtr().get();
         }
         else
         {
@@ -94,72 +85,23 @@ public:
         {
             return services::SharedPtr<DataType>(services::reinterpretPointerCast<DataType, byte>(*_pPtr), (DataType *)_rawPtr);
         }
-        else if (_xBuffer)
-        {
-            services::Status status;
-            services::SharedPtr<DataType> ptr = _xBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-            return ptr;
-        }
         else
         {
             return _ptr;
         }
     }
 
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-    /**
-     *  Gets a Buffer object to the data block
-     *  \return Buffer to the block
-     *  \DAAL_DEPRECATED
-     */
-    inline services::internal::Buffer<DataType> getBuffer() const
-    {
-        if (_rawPtr)
-        {
-            const size_t size = _ncols * _nrows;
-            DAAL_ASSERT((size / _ncols) == _nrows);
-
-            services::Status status;
-            services::internal::Buffer<DataType> buffer((DataType *)_rawPtr, size, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-        else if (_xBuffer)
-        {
-            return _xBuffer;
-        }
-        else
-        {
-            const size_t size = _ncols * _nrows;
-            DAAL_ASSERT((size / _ncols) == _nrows);
-            DAAL_ASSERT(_ptr.get() != nullptr);
-
-            services::Status status;
-            services::internal::Buffer<DataType> buffer(_ptr, size, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-    }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-
     /**
      *  Returns the number of columns in the block
      *  \return Number of columns
      */
-    inline size_t getNumberOfColumns() const
-    {
-        return _ncols;
-    }
+    inline size_t getNumberOfColumns() const { return _ncols; }
 
     /**
      *  Returns the number of rows in the block
      *  \return Number of rows
      */
-    inline size_t getNumberOfRows() const
-    {
-        return _nrows;
-    }
+    inline size_t getNumberOfRows() const { return _nrows; }
 
     /**
      * Resets internal values and pointers to zero values
@@ -171,10 +113,8 @@ public:
         _rwFlag     = 0;
         _pPtr       = NULL;
         _rawPtr     = NULL;
-        _hostSharedPtr.reset();
     }
 
-public:
     /**
      *  Sets data pointer to use for in-place calculation
      *  \param[in] ptr      Pointer to the buffer
@@ -183,8 +123,6 @@ public:
      */
     inline void setPtr(DataType * ptr, size_t nColumns, size_t nRows)
     {
-        _xBuffer.reset();
-        _hostSharedPtr.reset();
         _ptr   = services::SharedPtr<DataType>(ptr, services::EmptyDeleter());
         _ncols = nColumns;
         _nrows = nRows;
@@ -198,8 +136,6 @@ public:
      */
     inline void setPtr(services::SharedPtr<byte> * pPtr, byte * rawPtr, size_t nColumns, size_t nRows)
     {
-        _xBuffer.reset();
-        _hostSharedPtr.reset();
         _pPtr   = pPtr;
         _rawPtr = rawPtr;
         _ncols  = nColumns;
@@ -214,47 +150,25 @@ public:
      */
     inline void setSharedPtr(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
     {
-        _xBuffer.reset();
-        _hostSharedPtr.reset();
         _ptr   = ptr;
         _ncols = nColumns;
         _nrows = nRows;
     }
-
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-    /**
-     *  Sets data buffer to the table
-     *  \param[in] buffer Buffer object that contains the memory
-     *  \param[in] nColumns Number of columns
-     *  \param[in] nRows Number of rows
-     *  \DAAL_DEPRECATED
-     */
-    inline void setBuffer(const daal::services::internal::Buffer<DataType> & buffer, size_t nColumns, size_t nRows)
-    {
-        _xBuffer = buffer;
-        _hostSharedPtr.reset();
-        _pPtr   = NULL;
-        _rawPtr = NULL;
-        _ncols  = nColumns;
-        _nrows  = nRows;
-    }
-
     /**
      *  Allocates memory of (\p nColumns * \p nRows + \p auxMemorySize) size
      *  \param[in] nColumns      Number of columns
      *  \param[in] nRows         Number of rows
-     *  \param[in] auxMemorySize Memory size
+     *  \param[in] auxMemorySize Auxiliary memory size for the memory block typically used for type conversion
+     *                           in get/releaseBlockOfRows and get/releaseBlockOfColumnValues methods
      *
      *  \return true if memory of (\p nColumns * \p nRows + \p auxMemorySize) size is allocated successfully
-     *  \DAAL_DEPRECATED
      */
     inline bool resizeBuffer(size_t nColumns, size_t nRows, size_t auxMemorySize = 0)
     {
-        // TOOD: Resize _xBuffer
-        _xBuffer.reset();
-        _hostSharedPtr.reset();
-        _ncols = nColumns;
-        _nrows = nRows;
+        _pPtr   = NULL;
+        _rawPtr = NULL;
+        _ncols  = nColumns;
+        _nrows  = nRows;
 
         const size_t elementsCount = nColumns * nRows;
         DAAL_ASSERT((elementsCount / nRows) == nColumns);
@@ -267,9 +181,11 @@ public:
 
         if (newSize > _capacity)
         {
-            freeBuffer();
-            _buffer = services::SharedPtr<DataType>((DataType *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
-            if (_buffer != 0)
+            _ptr.reset();
+            _capacity = 0;
+
+            _ptr = services::SharedPtr<DataType>((DataType *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
+            if (_ptr != 0)
             {
                 _capacity = newSize;
             }
@@ -279,7 +195,6 @@ public:
             }
         }
 
-        _ptr = _buffer;
         if (!auxMemorySize)
         {
             if (_aux_ptr)
@@ -289,12 +204,11 @@ public:
         }
         else
         {
-            _aux_ptr = services::SharedPtr<DataType>(_buffer, _buffer.get() + nColumns * nRows);
+            _aux_ptr = services::SharedPtr<DataType>(_ptr, _ptr.get() + nColumns * nRows);
         }
 
         return true;
     }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     /**
      *  Sets parameters of the block
@@ -310,7 +224,6 @@ public:
         if (_rwFlag != rwFlag)
         {
             _rwFlag = rwFlag;
-            _hostSharedPtr.reset(); // need to reallocate cached pointer when rwFlag is changed
         }
     }
 
@@ -318,77 +231,25 @@ public:
      *  Gets the number of columns in the numeric table preceding the first element in the block
      *  \return columns offset
      */
-    inline size_t getColumnsOffset() const
-    {
-        return _colsOffset;
-    }
+    inline size_t getColumnsOffset() const { return _colsOffset; }
 
     /**
      *  Gets the number of rows in the numeric table preceding the first element in the block
      *  \return rows offset
      */
-    inline size_t getRowsOffset() const
-    {
-        return _rowsOffset;
-    }
+    inline size_t getRowsOffset() const { return _rowsOffset; }
 
     /**
      *  Gets the flag specifying read/write access to the block
      *  \return flag
      */
-    inline size_t getRWFlag() const
-    {
-        return _rwFlag;
-    }
+    inline size_t getRWFlag() const { return _rwFlag; }
 
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      *  Gets a pointer to the additional memory buffer
      *  \return pointer
-     *  \DAAL_DEPRECATED
      */
-    void * getAdditionalBufferPtr() const
-    {
-        return _aux_ptr.get();
-    }
-
-    /**
-     *  \DAAL_DEPRECATED
-     */
-    inline services::SharedPtr<DataType> getAdditionalBufferSharedPtr() const
-    {
-        return _aux_ptr;
-    }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-
-protected:
-    /**
-     *  Frees the buffer
-     */
-    void freeBuffer()
-    {
-        if (_buffer)
-        {
-            _buffer = services::SharedPtr<DataType>();
-        }
-        _capacity = 0;
-    }
-
-    /**
-     *  Gets cached shared pointer to the block of memory from the Buffer object
-     * \return shared pointer
-     */
-
-    inline services::SharedPtr<DataType> getCachedHostSharedPtr() const
-    {
-        if (!_hostSharedPtr)
-        {
-            services::Status status;
-            _hostSharedPtr = _xBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-        }
-        return _hostSharedPtr;
-    }
+    void * getAdditionalBufferPtr() const { return _aux_ptr.get(); }
 
 private:
     services::SharedPtr<DataType> _ptr;
@@ -399,18 +260,11 @@ private:
     size_t _rowsOffset;
     int _rwFlag;
 
-#if (INTEL_DAAL_VERSION < 202600000)        /// 2026.0.0
-    services::SharedPtr<DataType> _aux_ptr; /*<! \DAAL_DEPRECATED */
+    services::SharedPtr<DataType> _aux_ptr;
+    size_t _capacity;
 
-    services::SharedPtr<DataType> _buffer; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
-    size_t _capacity;                      /*<! Buffer size in bytes. \DAAL_DEPRECATED */
-
-    services::SharedPtr<byte> * _pPtr; /*<! \DAAL_DEPRECATED */
-    byte * _rawPtr;                    /*<! \DAAL_DEPRECATED */
-
-    daal::services::internal::Buffer<DataType> _xBuffer;  /*<! \DAAL_DEPRECATED */
-    mutable services::SharedPtr<DataType> _hostSharedPtr; /*<! owns pointer returned from getBlockPtr() method \DAAL_DEPRECATED */
-#endif                                                    // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+    services::SharedPtr<byte> * _pPtr;
+    byte * _rawPtr;
 };
 
 /**
@@ -483,14 +337,10 @@ public:
      */
     enum StorageLayout
     {
-        soa                         = 1, // 1
-        aos                         = 2, // 2
-        csrArray                    = 1 << 4,
-        upperPackedSymmetricMatrix  = 1 << 8,
-        lowerPackedSymmetricMatrix  = 2 << 8,
-        upperPackedTriangularMatrix = 1 << 7,
-        lowerPackedTriangularMatrix = 4 << 8,
-        arrow                       = 8 << 8,
+        soa      = 1, // 1
+        aos      = 2, // 2
+        csrArray = 1 << 4,
+        arrow    = 8 << 8,
 
         layout_unknown = 0x80000000 // the last bit set
     };
@@ -591,9 +441,7 @@ public:
 using interface1::BlockDescriptor;
 using interface1::NumericTableIface;
 
-const int packed_mask = (int)NumericTableIface::csrArray | (int)NumericTableIface::upperPackedSymmetricMatrix
-                        | (int)NumericTableIface::lowerPackedSymmetricMatrix | (int)NumericTableIface::upperPackedTriangularMatrix
-                        | (int)NumericTableIface::lowerPackedTriangularMatrix;
+const int packed_mask = (int)NumericTableIface::csrArray;
 
 namespace interface1
 {
@@ -734,20 +582,6 @@ public:
     /**
      *  Constructor for a Numeric Table with predefined dictionary
      *  \param[in]  ddict          Pointer to the data dictionary
-     *  \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED NumericTable(NumericTableDictionary * ddict)
-    {
-        _obsnum            = 0;
-        _ddict             = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
-        _layout            = layout_unknown;
-        _memStatus         = notAllocated;
-        _normalizationFlag = NumericTable::nonNormalized;
-    }
-
-    /**
-     *  Constructor for a Numeric Table with predefined dictionary
-     *  \param[in]  ddict          Pointer to the data dictionary
      */
     NumericTable(NumericTableDictionaryPtr ddict)
     {
@@ -776,19 +610,19 @@ public:
     /** \private */
     virtual ~NumericTable() {}
 
-    DAAL_DEPRECATED_VIRTUAL virtual services::Status setDictionary(NumericTableDictionary * ddict) DAAL_C11_OVERRIDE
+    DAAL_DEPRECATED_VIRTUAL services::Status setDictionary(NumericTableDictionary * ddict) override
     {
         _ddict = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
         return services::Status();
     }
 
-    DAAL_DEPRECATED_VIRTUAL virtual NumericTableDictionary * getDictionary() const DAAL_C11_OVERRIDE { return _ddict.get(); }
+    DAAL_DEPRECATED_VIRTUAL NumericTableDictionary * getDictionary() const override { return _ddict.get(); }
 
-    virtual NumericTableDictionaryPtr getDictionarySharedPtr() const DAAL_C11_OVERRIDE { return _ddict; }
+    NumericTableDictionaryPtr getDictionarySharedPtr() const override { return _ddict; }
 
-    DAAL_DEPRECATED_VIRTUAL virtual services::Status resetDictionary() DAAL_C11_OVERRIDE { return services::Status(); }
+    DAAL_DEPRECATED_VIRTUAL services::Status resetDictionary() override { return services::Status(); }
 
-    virtual services::Status resize(size_t nrows) DAAL_C11_OVERRIDE
+    services::Status resize(size_t nrows) override
     {
         size_t obsnum      = _obsnum;
         services::Status s = setNumberOfRowsImpl(nrows);
@@ -811,20 +645,17 @@ public:
      */
     size_t getNumberOfRows() const { return _obsnum; }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfColumns(size_t ncol) DAAL_C11_OVERRIDE { return setNumberOfColumnsImpl(ncol); }
+    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfColumns(size_t ncol) override { return setNumberOfColumnsImpl(ncol); }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfRows(size_t nrow) DAAL_C11_OVERRIDE { return setNumberOfRowsImpl(nrow); }
+    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfRows(size_t nrow) override { return setNumberOfRowsImpl(nrow); }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status allocateDataMemory(daal::MemType type = daal::dram) DAAL_C11_OVERRIDE
-    {
-        return allocateDataMemoryImpl(type);
-    }
+    DAAL_DEPRECATED_VIRTUAL services::Status allocateDataMemory(daal::MemType type = daal::dram) override { return allocateDataMemoryImpl(type); }
 
-    DAAL_DEPRECATED_VIRTUAL void freeDataMemory() DAAL_C11_OVERRIDE { freeDataMemoryImpl(); }
+    DAAL_DEPRECATED_VIRTUAL void freeDataMemory() override { freeDataMemoryImpl(); }
 
-    StorageLayout getDataLayout() const DAAL_C11_OVERRIDE { return _layout; }
+    StorageLayout getDataLayout() const override { return _layout; }
 
-    features::FeatureType getFeatureType(size_t feature_idx) const DAAL_C11_OVERRIDE
+    features::FeatureType getFeatureType(size_t feature_idx) const override
     {
         if (_ddict.get() != NULL && _ddict->getNumberOfFeatures() > feature_idx)
         {
@@ -838,7 +669,7 @@ public:
         }
     }
 
-    size_t getNumberOfCategories(size_t feature_idx) const DAAL_C11_OVERRIDE
+    size_t getNumberOfCategories(size_t feature_idx) const override
     {
         if (_ddict.get() != NULL && _ddict->getNumberOfFeatures() > feature_idx && getFeatureType(feature_idx) != features::DAAL_CONTINUOUS)
         {
@@ -886,12 +717,12 @@ public:
     /**
      *  Allocates Numeric Tables for basic statistics
      */
-    virtual services::Status allocateBasicStatistics() DAAL_C11_OVERRIDE;
+    services::Status allocateBasicStatistics() override;
 
     /**
      * \copydoc NumericTableIface::check
      */
-    virtual services::Status check(const char * description, bool checkDataAllocation = true) const DAAL_C11_OVERRIDE
+    services::Status check(const char * description, bool checkDataAllocation = true) const override
     {
         if (getDataMemoryStatus() == notAllocated && checkDataAllocation)
         {

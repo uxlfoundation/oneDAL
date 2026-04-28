@@ -73,9 +73,12 @@ public:
 
         if (copy)
         {
-            for (size_t i = 0; i < _size; i++)
+            // Copy data from old buffer to new buffer, preserving existing data
+            // Use min of old and new size to prevent buffer overrun
+            const size_t copy_count = (size < _size) ? size : _size;
+            for (size_t i = 0; i < copy_count; i++)
             {
-                _buffer[i] = buffer[i];
+                buffer[i] = _buffer[i];
             }
         }
 

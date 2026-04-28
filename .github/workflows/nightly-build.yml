@@ -55,7 +55,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -73,12 +73,12 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
       - name: Archive build
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: oneDAL_env
           path: .ci/env
@@ -87,11 +87,11 @@ jobs:
     name: oneDAL Windows nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-2025
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install DPC++
         shell: cmd
         run: |
@@ -134,17 +134,17 @@ jobs:
           for /D %%s in (.\oneapi\*) do for /f "tokens=2 delims=[]" %%H in ('dir /al %%s\ ^| findstr /i /c:"latest"') do rmdir %%s\latest & mklink /D %%s\latest .\%%~nxH
           tar -cvzf oneapi.tar.gz .\oneapi
       - name: Archive build
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: __release_win
           path: .\__release_win_vc
       - name: Archive Intel BaseKit
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: intel_oneapi_basekit
           path: .\oneapi.tar.gz
       - name: Archive Intel OpenCL CPU runtime
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: opencl_rt_installer
           path: .\opencl_rt.msi
