@@ -900,7 +900,12 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
-    $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
+    $(if $(OS_is_win),, \
+        -Wl,-rpath,'$$ORIGIN/../../..' \
+        -Wl,-rpath,'$$ORIGIN/../../../' \
+        -Wl,-rpath,$(MKLROOT)/lib/ \
+        -Wl,-rpath,/opt/intel/oneapi/mkl/latest/lib/ \
+    )
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -923,7 +928,12 @@ $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(c
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win), $(if $(libsycl),$(libsycl),$(libsycl.default)))
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
-    $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
+    $(if $(OS_is_win),, \
+        -Wl,-rpath,'$$ORIGIN/../../..' \
+        -Wl,-rpath,'$$ORIGIN/../../../' \
+        -Wl,-rpath,$(MKLROOT)/lib/ \
+        -Wl,-rpath,/opt/intel/oneapi/mkl/latest/lib/ \
+    )
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(parameters_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(parameters_y.dpc)
@@ -1222,6 +1232,7 @@ Flags:
   OPTFLAG    - optimization flags to use ($(COMPILER)) [default: $(OPTFLAG)]
   WORKDIR    - directory for intermediate results [default: $(WORKDIR)]
   RELEASEDIR - directory for release [default: $(RELEASEDIR)]
+  SYCLSPLIT  - optimization flags to sycl device code split [default: $(SYCLSPLIT)]
   CORE.ALGORITHMS.CUSTOM - list of algorithms to be included into library
       build cpp interfaces only
       possible values: $(CORE.ALGORITHMS.CUSTOM.AVAILABLE)
