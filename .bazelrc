@@ -114,19 +114,18 @@ test:dpc-private \
 
 # Configuration: 'release-dpc'
 # Build release artifacts including DPC++ libs.
-# The //:release target automatically builds all ISA variants when
-# --cpu is unset (auto). Use --cpu=<isa> to restrict for CI speed.
-#   bazel build //:release                       # CPU only, all ISAs
-#   bazel build //:release --config=release-dpc  # with DPC++ libs
-#   bazel build //:release --cpu=avx2            # CI: avx2 only
+# Use --cpu=all for full ISA coverage, or --cpu=<isa> to restrict for CI speed.
+#   bazel build //:release --cpu=all                       # CPU only, all ISAs
+#   bazel build //:release --config=release-dpc --cpu=all  # with DPC++ libs
+#   bazel build //:release --cpu=avx2                      # CI: avx2 only
 build:release-dpc \
-    --release_dpc=true
+    --release_dpc=True
 
 
 # Configuration: 'dev'
-# Fast local development build — compiles only for the host machine's
-# highest ISA (auto-detected). Use this to speed up iterative builds.
-# NOT suitable for release/packaging.
+# Fast local development build — compiles for the host machine's
+# highest ISA (auto-detected), plus the baseline sse2 variant. Use this
+# to speed up iterative builds. NOT suitable for release/packaging.
 #   bazel build //cpp/oneapi/dal:tests --config=dev
 build:dev \
     --cpu=auto
@@ -213,19 +212,22 @@ common:ubsan \
 
 # Configuration: 'msan'
 # MemorySanitizer build.
-# Note: Requires Clang or ICPX. GCC does not support MSan.
+# Note: Requires a Clang/LLVM toolchain and lld; GCC does not support MSan.
 #   bazel test //cpp/oneapi/dal:tests --config=msan
 common:msan \
     --copt=-fsanitize=memory \
     --copt=-fsanitize-memory-track-origins \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=memory \
+    --linkopt=-fuse-ld=lld \
     --config=dbg-symbols
 
 # Configuration: 'type'
 # Type sanitizer build.
+# Note: Requires Clang; GCC and ICPX do not support TypeSanitizer.
 common:type \
     --copt=-fsanitize=type \
+    --copt=-fsanitize-recover=all \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=type \
     --config=dbg-symbols
