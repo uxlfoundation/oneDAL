@@ -32,23 +32,12 @@ function add_repo {
 
 function install_dpcpp {
     # DPC++ compiler version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-runtime-libs
-    echo "--- Installed oneAPI package versions ---"
-    dpkg -l | grep intel-oneapi | awk '{print $2, $3}' || true
-    echo "--- MKL directories in /opt/intel/oneapi/ ---"
-    ls -d /opt/intel/oneapi/mkl/*/ 2>/dev/null || true
-    echo "--- TBB directories in /opt/intel/oneapi/ ---"
-    ls -d /opt/intel/oneapi/tbb/*/ 2>/dev/null || true
-    echo "--- DPL directories in /opt/intel/oneapi/ ---"
-    ls -d /opt/intel/oneapi/dpl/*/ 2>/dev/null || true
-    echo "--- Compiler directories in /opt/intel/oneapi/ ---"
-    ls -d /opt/intel/oneapi/compiler/*/ 2>/dev/null || true
-    echo "--- End of version report ---"
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.0.0-947 intel-oneapi-runtime-libs
 }
 
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-tbb-devel
+    sudo apt-get install -y intel-oneapi-tbb-devel=2023.0.0-724
 }
 
 function install_dpl {
@@ -57,7 +46,7 @@ function install_dpl {
 
 function install_mkl {
     # MKL version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-mkl-devel
+    sudo apt-get install -y intel-oneapi-mkl-devel=2026.0.0-908
     install_tbb
     install_dpl
 }
