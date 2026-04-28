@@ -248,13 +248,14 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
 
     std::vector<Float> min_edge_vec(n, std::numeric_limits<Float>::max());
     std::vector<std::int32_t> min_from_vec(n, 0);
-    std::vector<bool> in_mst_vec(n, false);
+    // Use char instead of bool to avoid bit-packing overhead of vector<bool>
+    std::vector<char> in_mst_vec(n, 0);
 
     std::vector<std::int32_t> from_vec(edge_count);
     std::vector<std::int32_t> to_vec(edge_count);
     std::vector<Float> weight_vec(edge_count);
 
-    in_mst_vec[0] = true;
+    in_mst_vec[0] = 1;
     for (std::int64_t j = 1; j < n; j++) {
         min_edge_vec[j] = mrd_ptr[j]; // row 0, column j
     }
@@ -273,7 +274,7 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
         from_vec[e] = min_from_vec[best];
         to_vec[e] = best;
         weight_vec[e] = best_w;
-        in_mst_vec[best] = true;
+        in_mst_vec[best] = 1;
 
         for (std::int64_t j = 0; j < n; j++) {
             if (in_mst_vec[j])

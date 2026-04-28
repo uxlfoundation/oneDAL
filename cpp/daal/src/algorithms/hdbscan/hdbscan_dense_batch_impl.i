@@ -336,6 +336,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // Build MST using Prim's algorithm with MRD weights.
     // O(N^2) time using dense distance matrix, O(N) extra space.
+    // Inner loops are parallelized via static_threader_for for large N.
     {
         daal::services::internal::TArray<algorithmFPType, cpu> minEdgeArr(nRows);
         daal::services::internal::TArray<int, cpu> minFromArr(nRows);
@@ -366,38 +367,107 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             minEdge[j]        = d;
         }
 
-        for (size_t e = 0; e < edgeCount; e++)
+        const bool useParallelMst = (nRows >= 2048);
+
+        if (useParallelMst)
         {
-            // Find minimum edge to non-MST node
-            int best                = -1;
-            algorithmFPType bestW   = std::numeric_limits<algorithmFPType>::max();
-            for (size_t j = 0; j < nRows; j++)
+            // Parallel Prim's: use static_threader_for for inner loops.
+            // static_threader_for assigns contiguous index ranges per thread,
+            // preserving deterministic tie-breaking (lowest index wins).
+            const size_t nThreads = daal::threader_get_threads_number();
+
+            daal::services::internal::TArray<algorithmFPType, cpu> threadBestWArr(nThreads);
+            daal::services::internal::TArray<int, cpu> threadBestIdxArr(nThreads);
+            algorithmFPType * threadBestW = threadBestWArr.get();
+            int * threadBestIdx           = threadBestIdxArr.get();
+            DAAL_CHECK_MALLOC(threadBestW);
+            DAAL_CHECK_MALLOC(threadBestIdx);
+
+            for (size_t e = 0; e < edgeCount; e++)
             {
-                if (!inMst[j] && minEdge[j] < bestW)
+                // Phase 1: Parallel min-find — each thread finds local minimum
+                for (size_t t = 0; t < nThreads; t++)
                 {
-                    bestW = minEdge[j];
-                    best  = static_cast<int>(j);
+                    threadBestW[t]   = std::numeric_limits<algorithmFPType>::max();
+                    threadBestIdx[t] = -1;
                 }
-            }
 
-            mstFrom[e]    = minFrom[best];
-            mstTo[e]      = best;
-            mstWeights[e] = bestW;
-            inMst[best]   = 1;
+                daal::static_threader_for(nRows, [&](size_t j, size_t tid) {
+                    if (!inMst[j] && minEdge[j] < threadBestW[tid])
+                    {
+                        threadBestW[tid]   = minEdge[j];
+                        threadBestIdx[tid] = static_cast<int>(j);
+                    }
+                });
 
-            // Update min_edge for remaining nodes
-            const algorithmFPType * bestRow  = distMatrix + static_cast<size_t>(best) * nRows;
-            const algorithmFPType coreBest   = coreDistances[best];
-            for (size_t j = 0; j < nRows; j++)
-            {
-                if (inMst[j]) continue;
-                algorithmFPType d = bestRow[j];
-                d                 = (coreBest > d) ? coreBest : d;
-                d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-                if (d < minEdge[j])
+                // Merge thread-local results (iterate in tid order for deterministic tie-breaking)
+                int best              = -1;
+                algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
+                for (size_t t = 0; t < nThreads; t++)
                 {
-                    minEdge[j] = d;
-                    minFrom[j] = best;
+                    if (threadBestIdx[t] >= 0 && threadBestW[t] < bestW)
+                    {
+                        bestW = threadBestW[t];
+                        best  = threadBestIdx[t];
+                    }
+                }
+
+                mstFrom[e]    = minFrom[best];
+                mstTo[e]      = best;
+                mstWeights[e] = bestW;
+                inMst[best]   = 1;
+
+                // Phase 2: Parallel update of min_edge for remaining nodes
+                const algorithmFPType * bestRow = distMatrix + static_cast<size_t>(best) * nRows;
+                const algorithmFPType coreBest  = coreDistances[best];
+
+                daal::static_threader_for(nRows, [&](size_t j, size_t /*tid*/) {
+                    if (inMst[j]) return;
+                    algorithmFPType d = bestRow[j];
+                    d                 = (coreBest > d) ? coreBest : d;
+                    d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
+                    if (d < minEdge[j])
+                    {
+                        minEdge[j] = d;
+                        minFrom[j] = best;
+                    }
+                });
+            }
+        }
+        else
+        {
+            // Serial Prim's for small N (parallelization overhead not worth it)
+            for (size_t e = 0; e < edgeCount; e++)
+            {
+                int best              = -1;
+                algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
+                for (size_t j = 0; j < nRows; j++)
+                {
+                    if (!inMst[j] && minEdge[j] < bestW)
+                    {
+                        bestW = minEdge[j];
+                        best  = static_cast<int>(j);
+                    }
+                }
+
+                mstFrom[e]    = minFrom[best];
+                mstTo[e]      = best;
+                mstWeights[e] = bestW;
+                inMst[best]   = 1;
+
+                const algorithmFPType * bestRow = distMatrix + static_cast<size_t>(best) * nRows;
+                const algorithmFPType coreBest  = coreDistances[best];
+                for (size_t j = 0; j < nRows; j++)
+                {
+                    if (inMst[j]) continue;
+                    algorithmFPType d = bestRow[j];
+                    d                 = (coreBest > d) ? coreBest : d;
+                    d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
+                    if (d < minEdge[j])
+                    {
+                        minEdge[j] = d;
+                        minFrom[j] = best;
+                    }
                 }
             }
         }
