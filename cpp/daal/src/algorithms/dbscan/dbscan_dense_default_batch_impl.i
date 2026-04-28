@@ -73,7 +73,7 @@ Status DBSCANBatchKernel<algorithmFPType, method, cpu>::processNeighborhoodParal
 
     SafeStatus safeStat;
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         size_t total_elems = 0;
 
         size_t begin = iBlock * blockSize;
@@ -268,7 +268,7 @@ Status DBSCANBatchKernel<algorithmFPType, method, cpu>::computeNoMemSave(const N
 
     const size_t nBlocks   = neighs.size();
     const size_t blockSize = neighs.size() / nBlocks + !!(neighs.size() % nBlocks);
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         size_t begin = iBlock * blockSize;
         size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, neighs.size());
 

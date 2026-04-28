@@ -344,7 +344,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
         DAAL_CHECK_BLOCK_STATUS(bkA_input);
         const algorithmFPType * A_input = bkA_input.get();
 
-        daal::threader_for(blocks, blocks, [=, &A_input, &Q_buff, &RT_buff, &safeStat](int k) {
+        daal::threader_for(blocks, 1, [=, &A_input, &Q_buff, &RT_buff, &safeStat](int k) {
             const algorithmFPType * A_block = A_input + k * brows * cols;
             algorithmFPType * Q_block       = Q_buff + k * brows * cols;
 
@@ -457,7 +457,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
 
     if (svdPar->leftSingularMatrix == requiredInPackedForm)
     {
-        daal::threader_for(blocks, blocks, [=, &RT_buff, &U_output, &Q_buff, &safeStat](int k) {
+        daal::threader_for(blocks, 1, [=, &RT_buff, &U_output, &Q_buff, &safeStat](int k) {
             algorithmFPType * Q_block  = Q_buff + k * brows * cols;
             algorithmFPType * RT_block = RT_buff + k * cols * cols;
             algorithmFPType * U_block  = U_output + k * brows * cols; /* the same as Q_buff here */

@@ -143,7 +143,7 @@ inline services::Status MSEKernel<algorithmFPType, method, cpu>::compute(Numeric
                     {
                         if (soaPtr)
                         {
-                            daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+                            daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
                                 const size_t startRow   = iBlock * blockSize;
                                 const size_t finishRow  = (iBlock + 1 == nBlocks ? nDataRows : (iBlock + 1) * blockSize);
                                 DAAL_INT localBlockSize = finishRow - startRow;
@@ -169,7 +169,7 @@ inline services::Status MSEKernel<algorithmFPType, method, cpu>::compute(Numeric
                         }
                         else
                         {
-                            daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+                            daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
                                 const size_t startRow   = iBlock * blockSize;
                                 const size_t finishRow  = (iBlock + 1 == nBlocks ? nDataRows : (iBlock + 1) * blockSize);
                                 DAAL_INT localBlockSize = finishRow - startRow;
@@ -706,7 +706,7 @@ inline services::Status MSEKernel<algorithmFPType, method, cpu>::compute(Numeric
         algorithmFPType globalMaxNorm = 0;
 
         TlsMem<algorithmFPType, cpu, services::internal::ScalableCalloc<algorithmFPType, cpu> > tlsData(lipschitzConstant->getNumberOfRows());
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             algorithmFPType & _maxNorm  = *tlsData.local();
             const size_t startRow       = iBlock * blockSize;
             const size_t finishRow      = (iBlock + 1 == nBlocks ? n : (iBlock + 1) * blockSize);

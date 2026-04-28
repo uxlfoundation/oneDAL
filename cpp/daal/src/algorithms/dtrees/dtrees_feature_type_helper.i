@@ -481,7 +481,7 @@ services::Status IndexedFeatures::init(const NumericTable & nt, const FeatureTyp
     });
 
     SafeStatus safeStat;
-    daal::threader_for(nC, nC, [&](size_t iCol) {
+    daal::threader_for(nC, 1, [&](size_t iCol) {
         //in case of single thread no need to allocate
         TlsTask * task = tlsData.local();
         DAAL_CHECK_THR(task, services::ErrorMemoryAllocationFailed);

@@ -135,7 +135,7 @@ public:
         static const size_t s_cMaxClassesBufSize = 12;
         const bool bUseTLS(_nClasses > s_cMaxClassesBufSize);
         daal::TlsMem<algorithmFPType, cpu> lsData(_nClasses);
-        daal::threader_for(n, n, [&](size_t i) {
+        daal::threader_for(n, 1, [&](size_t i) {
             constexpr algorithmFPType one(1.0);
             constexpr algorithmFPType two(2.0);
             algorithmFPType buf[s_cMaxClassesBufSize];
@@ -263,7 +263,7 @@ protected:
         {
             this->_nParallelNodes.set(this->_nTrees); //highest level parallelization first
             daal::SafeStatus safeStat;
-            daal::threader_for(this->_nTrees, this->_nTrees, [&](size_t i) {
+            daal::threader_for(this->_nTrees, 1, [&](size_t i) {
                 if (safeStat)
                     safeStat |= buildTreeThreadLocal(aTbl[i], aTblImp[i], aTblSmplCnt[i], i, GH_SUMS_BUF);
                 else

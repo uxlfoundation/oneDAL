@@ -347,7 +347,7 @@ Status MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, alg
 
     /* Process input data set block by block */
     SafeStatus safeStat;
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         TSubTask * local = lsTask.local();
         if (!local)
         {

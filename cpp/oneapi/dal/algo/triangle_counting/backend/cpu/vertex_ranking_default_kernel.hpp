@@ -36,14 +36,14 @@ array<std::int64_t> triangle_counting_local(const dal::preview::detail::topology
     int thread_cnt = dal::detail::threader_get_max_threads();
 
     dal::detail::threader_for(thread_cnt * vertex_count,
-                              thread_cnt * vertex_count,
+                              4096,
                               [&](std::int64_t u) {
                                   triangles_local[u] = 0;
                               });
 
     //const std::int32_t average_degree_sparsity_boundary = 4;
     if (true) {
-        dal::detail::threader_for(vertex_count, vertex_count, [&](std::int32_t u) {
+        dal::detail::threader_for(vertex_count, 1, [&](std::int32_t u) {
             for (auto v_ = t.get_vertex_neighbors_begin(u); v_ != t.get_vertex_neighbors_end(u);
                  ++v_) {
                 std::int32_t v = *v_;
@@ -72,7 +72,7 @@ array<std::int64_t> triangle_counting_local(const dal::preview::detail::topology
         });
     }
     else { //average_degree >= average_degree_sparsity_boundary
-        // dal::detail::threader_for_simple(vertex_count, vertex_count, [&](std::int32_t u) {
+        // dal::detail::threader_for_simple(vertex_count, 1, [&](std::int32_t u) {
         //     if (t.get_vertex_degree(u) >= 2)
         //         dal::detail::threader_for_int64ptr(
         //             static_cast<const std::int64_t*>(static_cast<const void*>(t.get_vertex_neighbors_begin(u))),
@@ -112,11 +112,11 @@ array<std::int64_t> triangle_counting_local(const dal::preview::detail::topology
 
     std::int64_t* triangles_ptr = arr_triangles.get_mutable_data();
 
-    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
+    dal::detail::threader_for(vertex_count, 4096, [&](std::int64_t u) {
         triangles_ptr[u] = 0;
     });
 
-    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
+    dal::detail::threader_for(vertex_count, 256, [&](std::int64_t u) {
         for (int j = 0; j < thread_cnt; j++) {
             std::int64_t idx_glob = (std::int64_t)j * (std::int64_t)vertex_count;
             triangles_ptr[u] += triangles_local[idx_glob + u];

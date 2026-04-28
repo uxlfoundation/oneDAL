@@ -216,7 +216,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
     });
 
     /* Compute partial means and variances for each block */
-    daal::threader_for(numBlocks, numBlocks, [&](int iBlock) {
+    daal::threader_for(numBlocks, 1, [&](int iBlock) {
         struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local();
         if (!tls_data_local) return;
 
@@ -295,7 +295,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
     }
 
     /* Final normalization threaded loop */
-    daal::threader_for(numBlocks, numBlocks, [&](int iBlock) {
+    daal::threader_for(numBlocks, 1, [&](int iBlock) {
         size_t nVectors_local = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
         size_t startRow       = iBlock * numRowsInBlock;
 

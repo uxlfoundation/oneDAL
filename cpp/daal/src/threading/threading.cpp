@@ -349,7 +349,7 @@ DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t grain_size, const
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, 1), [&](tbb::blocked_range<int64_t> r) { func(r.begin(), r.end() - r.begin(), a); });
+        tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, grain_size), [&](tbb::blocked_range<int64_t> r) { func(r.begin(), r.end() - r.begin(), a); });
     }
     else
     {
