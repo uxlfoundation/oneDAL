@@ -31,6 +31,7 @@
 #include "src/threading/threading.h"
 #include "src/algorithms/service_sort.h"
 #include "src/algorithms/service_error_handling.h"
+#include "src/algorithms/svm/svm_train_result.h"
 #include "src/externals/service_blas.h"
 
 namespace daal
@@ -47,15 +48,11 @@ using namespace daal::internal;
 using namespace daal::services::internal;
 using namespace daal::data_management;
 using namespace daal::services;
-using namespace multi_class_classifier::internal;
-using namespace svm::training::internal;
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * xTable,
-                                                                                               const NumericTable * yTable,
-                                                                                               const NumericTable * wTable,
-                                                                                               daal::algorithms::Model * m, SvmModel * svmModel,
-                                                                                               const KernelParameter & par)
+services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(
+    const NumericTable * xTable, const NumericTable * yTable, const NumericTable * wTable, daal::algorithms::Model * m,
+    svm::internal::ModelImpl * svmModel, const KernelParameter & par)
 {
     Status s;
 
@@ -179,9 +176,14 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
                 isSVData[originalIndex]    = true;
             }
             auto biasesTable = svmModel->getBiases();
-            WriteOnlyColumns<algorithmFPType, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
+            WriteOnlyColumns<double, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
             DAAL_CHECK_BLOCK_STATUS_THR(mtBiases);
             *mtBiases.get() = svmModelPtr->getBias();
+
+            auto iterationsTable = svmModel->getNumberOfIterations();
+            WriteOnlyColumns<int, cpu> mtIterations(iterationsTable.get(), 0, imodel, 1);
+            DAAL_CHECK_BLOCK_STATUS_THR(mtIterations);
+            *mtIterations.get() = svmModelPtr->getNumberOfIterations()->getValue<int>(0, 0);
         }
     });
     lsTask.reduce([=, &safeStat](TSubTask * local) { delete local; });
@@ -238,10 +240,10 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
             }
             DAAL_ASSERT(inxSV == nSV);
         }
-        NumericTablePtr coeffOutTable = svmModel->getCoefficients();
+        NumericTablePtr coeffOutTable = svmModel->getClassificationCoefficients();
         DAAL_CHECK_STATUS(s, coeffOutTable->resize(nSV));
 
-        using SvmResultTask = SaveResultTask<algorithmFPType, cpu>;
+        using SvmResultTask = svm::training::internal::SaveResultTask<algorithmFPType, cpu>;
         DAAL_CHECK_STATUS(s, SvmResultTask::setSVByIndices(xTable, supportIndicesTable, svmModel->getSupportVectors()));
         WriteOnlyRows<algorithmFPType, cpu> mtCoefficientsOut(coeffOutTable.get(), 0, coeffOutTable->getNumberOfRows());
         DAAL_CHECK_BLOCK_STATUS(mtCoefficientsOut);

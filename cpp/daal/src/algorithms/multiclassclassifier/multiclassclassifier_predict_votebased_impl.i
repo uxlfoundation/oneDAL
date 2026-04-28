@@ -47,8 +47,8 @@ using namespace daal::services::internal;
 template <typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
 {
-    Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
-                   const daal::algorithms::Parameter * par);
+    Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
+                   NumericTable * df, const daal::algorithms::Parameter * par);
 };
 
 /** Base class for threading subtask */
@@ -303,8 +303,8 @@ private:
 template <typename algorithmFPType, CpuType cpu>
 Status MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * a,
                                                                                                             const daal::algorithms::Model * m,
-                                                                                                            SvmModel * svmModel, NumericTable * pred,
-                                                                                                            NumericTable * df,
+                                                                                                            svm::internal::ModelImpl * svmModel,
+                                                                                                            NumericTable * pred, NumericTable * df,
                                                                                                             const daal::algorithms::Parameter * par)
 {
     Model * model                              = static_cast<Model *>(const_cast<daal::algorithms::Model *>(m));
