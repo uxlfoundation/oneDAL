@@ -150,7 +150,12 @@ outputs:
         - mkl-devel
         - mkl-static
         - mkl-devel-dpcpp  # [cxx_compiler == "dpcpp" and linux64]
-        - {{ pin_subpackage('dal-gpu', exact=True) }}  # [cxx_compiler == "dpcpp" and linux64]
+        # Do not use exact=True here: conda-build may add a variant hash to
+        # dal-gpu's final build string (for example hd6b6ff7_0), while
+        # pin_subpackage(..., exact=True) in test requirements can render as
+        # build "0" before final output hashing.  Pinning by version is enough
+        # for tests to select the dal-gpu artifact produced by this recipe.
+        - {{ pin_subpackage('dal-gpu', min_pin='x.x.x', max_pin='x.x.x') }}  # [cxx_compiler == "dpcpp" and linux64]
       source_files:
         - examples
         - data
