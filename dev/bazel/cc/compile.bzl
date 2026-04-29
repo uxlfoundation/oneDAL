@@ -134,13 +134,14 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
-def _compile_wrapper(name, ctx, toolchain, feature_config, **kwargs):
+def _compile_wrapper(name, ctx, toolchain, feature_config,
+                     disallow_nopic_outputs = True, **kwargs):
     return cc_common.compile(
         name = name,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
-        disallow_nopic_outputs = True,
+        disallow_nopic_outputs = disallow_nopic_outputs,
         **kwargs,
     )
 

@@ -53,6 +53,9 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
     compilation_context, compilation_outputs = onedal_cc_compile.compile(
         name = ctx.label.name,
         ctx = ctx,
@@ -72,6 +75,7 @@ def _cc_module_impl(ctx):
         includes = ctx.attr.includes,
         system_includes = ctx.attr.system_includes,
         quote_includes = ctx.attr.quote_includes,
+        disallow_nopic_outputs = not is_windows,
     )
     if compilation_outputs.objects and compilation_outputs.pic_objects:
         fail("Non-PIC object files found, oneDAL assumes " +
@@ -118,7 +122,10 @@ _cc_module = rule(
         "_cpus": attr.label(
             default = "@config//:cpu",
         ),
-        "_fpts": attr.string_list(default = ["f32", "f64"])
+        "_fpts": attr.string_list(default = ["f32", "f64"]),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
