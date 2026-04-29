@@ -53,42 +53,34 @@ flag work.
 
 2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
    it in the repository root as `bazelisk.exe`.
-   ```powershell
-   $bazeliskVersion = "v1.28.1"
-   Invoke-WebRequest `
-       -Uri "https://github.com/bazelbuild/bazelisk/releases/download/$bazeliskVersion/bazelisk-windows-amd64.exe" `
-       -OutFile bazelisk.exe
-   .\bazelisk.exe version
+   ```bat
+   set BAZELISK_VERSION=v1.28.1
+   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
+   bazelisk.exe version
    ```
 
 3. For `bazel test` on Windows, set `BAZEL_SH` to a Bash executable. Git for
    Windows is sufficient.
-   ```powershell
-   $env:BAZEL_SH = "C:\Program Files\Git\bin\bash.exe"
+   ```bat
+   set BAZEL_SH=C:\Program Files\Git\bin\bash.exe
    ```
 
 4. Run Bazel from a Visual Studio Developer Command Prompt, or initialize the
    MSVC environment explicitly before invoking Bazel.
    ```bat
    call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
-   bazelisk.exe build //:release --verbose_failures --jobs=%NUMBER_OF_PROCESSORS%
+   bazelisk.exe build //:release --verbose_failures
    ```
 
 5. For tests that run executables linked with MKL/TBB, make the downloaded
    runtime DLLs visible through `PATH` and pass the environment to Bazel tests.
    Bazel downloads these dependencies into its external repository cache.
-   ```powershell
-   $outputBase = (.\bazelisk.exe info output_base).Trim()
-   $env:PATH = "$outputBase\external\+mkl_repo+mkl\bin;$outputBase\external\+tbb_repo+tbb\bin;$env:PATH"
-   $env:MKL_THREADING_LAYER = "TBB"
+   ```bat
+   for /f "delims=" %i in ('bazelisk.exe info output_base') do set BAZEL_OUTPUT_BASE=%i
+   set PATH=%BAZEL_OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%BAZEL_OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+   set MKL_THREADING_LAYER=TBB
 
-   .\bazelisk.exe test `
-       //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host `
-       --verbose_failures `
-       --test_output=errors `
-       --test_env=PATH `
-       --test_env=MKL_THREADING_LAYER `
-       --jobs=$env:NUMBER_OF_PROCESSORS
+   bazelisk.exe test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors --test_env=PATH --test_env=MKL_THREADING_LAYER
    ```
 
 ### Compiler choice
@@ -276,13 +268,13 @@ The most used Bazel commands are `build`, `test` and `run`.
 ### Build release package
 - On Linux:
   ```sh
-  bazel build //:release --verbose_failures --jobs=$(nproc)
+  bazel build //:release --verbose_failures
   ```
 
 - On Windows, run from the Visual Studio Developer Command Prompt described
   above:
   ```bat
-  bazelisk.exe build //:release --verbose_failures --jobs=%NUMBER_OF_PROCESSORS%
+  bazelisk.exe build //:release --verbose_failures
   ```
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
@@ -295,7 +287,7 @@ The most used Bazel commands are `build`, `test` and `run`.
 
 - On Windows, start with HOST example smoke builds:
   ```bat
-  bazelisk.exe build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures --jobs=%NUMBER_OF_PROCESSORS%
+  bazelisk.exe build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures
   ```
 
 - To run all oneAPI DPC++ examples ... It's not implemented yet. Windows DPC++

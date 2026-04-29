@@ -193,6 +193,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
             fail("Cannot locate {} dependency".format(repo_ctx.name))
     substitutions = {
         "%{os}": os_id,
+        "%{repo_root}": str(repo_ctx.path("")),
     }
     # Extract substitutions if a makefile_ver attribute is present
     if hasattr(repo_ctx.attr, "_makefile_ver") and repo_ctx.attr._makefile_ver:

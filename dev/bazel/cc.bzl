@@ -147,6 +147,9 @@ def _cc_static_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
         name = ctx.attr.lib_name,
@@ -154,7 +157,7 @@ def _cc_static_lib_impl(ctx):
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
-        is_windows = True,
+        is_windows = is_windows,
     )
     default_info = DefaultInfo(
         files = depset([ static_lib ]),
@@ -180,6 +183,27 @@ cc_static_lib = rule(
 )
 
 
+def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False):
+    out = ctx.actions.declare_file(out_name)
+    if is_windows:
+        ctx.actions.run(
+            executable = "cmd.exe",
+            inputs = [src],
+            outputs = [out],
+            arguments = ["/c", "copy", "/Y", src.path, out.path],
+            use_default_shell_env = True,
+        )
+    else:
+        ctx.actions.run(
+            executable = "cp",
+            inputs = [src],
+            outputs = [out],
+            arguments = [src.path, out.path],
+            use_default_shell_env = True,
+        )
+    return out
+
+
 def _cc_dynamic_lib_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx, features=[
         # This feature will force toolchain to not link the produced executable/dynamic library
@@ -193,7 +217,7 @@ def _cc_dynamic_lib_impl(ctx):
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
 
-    linking_context, dynamic_lib = onedal_cc_link.dynamic(
+    linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = ctx.attr.lib_name,
         actions = ctx.actions,
@@ -203,8 +227,29 @@ def _cc_dynamic_lib_impl(ctx):
         def_file = ctx.file.def_file,
         user_link_flags = ctx.attr.linkopts,
     )
+    default_files = dynamic_outputs.files
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    if is_windows:
+        vi = ctx.attr._version_info[VersionInfo]
+        default_files = []
+        if dynamic_outputs.dynamic_library:
+            default_files.append(_copy_dynamic_release_file(
+                ctx,
+                dynamic_outputs.dynamic_library,
+                "{}.{}.dll".format(ctx.attr.lib_name, vi.binary_major),
+                is_windows = is_windows,
+            ))
+        if dynamic_outputs.interface_library:
+            default_files.append(_copy_dynamic_release_file(
+                ctx,
+                dynamic_outputs.interface_library,
+                "{}_dll.lib".format(ctx.attr.lib_name),
+                is_windows = is_windows,
+            ))
     default_info = DefaultInfo(
-        files = depset([ dynamic_lib ]),
+        files = depset(default_files),
     )
     cc_info = CcInfo(
         compilation_context = compilation_context,
@@ -222,6 +267,9 @@ cc_dynamic_lib = rule(
         "linkopts": attr.string_list(
             default = [],
             doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
         ),
         "_version_info": attr.label(
             default = "@config//:version",

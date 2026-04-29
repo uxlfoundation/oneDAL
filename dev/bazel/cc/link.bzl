@@ -287,7 +287,14 @@ def _dynamic(owner, name, actions, cc_toolchain,
         interface_lib = library_to_link.resolved_symlink_interface_library or library_to_link.interface_library
     if not dynamic_lib:
         return utils.warn("'{}' dynamic library does not contain any " +
-                          "object file".format(name)), None
+                          "object file".format(name)), struct(
+            files = [],
+            dynamic_library = None,
+            interface_library = None,
+        )
+    dynamic_files = [dynamic_lib]
+    if interface_lib:
+        dynamic_files.append(interface_lib)
     dynamic_lib_to_link = cc_common.create_library_to_link(
         actions = actions,
         cc_toolchain = cc_toolchain,
@@ -304,7 +311,11 @@ def _dynamic(owner, name, actions, cc_toolchain,
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([ linker_input ]),
     )
-    return linking_context, dynamic_lib
+    return linking_context, struct(
+        files = dynamic_files,
+        dynamic_library = dynamic_lib,
+        interface_library = interface_lib,
+    )
 
 def _executable(owner, name, actions, cc_toolchain,
                 feature_configuration, linking_contexts,

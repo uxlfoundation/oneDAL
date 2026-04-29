@@ -140,7 +140,7 @@ def _compile_wrapper(name, ctx, toolchain, feature_config, **kwargs):
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
-        disallow_nopic_outputs = False,
+        disallow_nopic_outputs = True,
         **kwargs,
     )
 

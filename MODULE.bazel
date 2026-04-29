@@ -222,20 +222,22 @@ mkl_repo(
         "",  # onemkl-sycl-rng .conda extracts directly
         "",  # onemkl devel
     ],
+    # Use the latest verified classic MKL PyPI wheels for Windows CPU/MSVC
+    # builds. Windows DPC++/SYCL dependencies are out of scope here.
     win_urls = [
-        "https://files.pythonhosted.org/packages/91/ae/025174ee141432b974f97ecd2aea529a3bdb547392bde3dd55ce48fe7827/mkl-2025.2.0-py2.py3-none-win_amd64.whl",
-        "https://files.pythonhosted.org/packages/86/60/f979218ad807331524f3cd88c05b603d9ea5a685cffa513304bee8ae012b/mkl_devel-2025.2.0-py2.py3-none-win_amd64.whl",
-        "https://files.pythonhosted.org/packages/06/87/3eee37bf95c6b820b6394ad98e50132798514ecda1b2584c71c2c96b973c/mkl_include-2025.2.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/75/0e/b863a60889643e21d5d8d6b619f913703257878979b1df22d344a56276d0/mkl-2025.3.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/5e/d6/a0f24cf3193610debc8dceddcbac7d1510f68dbffe8f171ed5510c1e4f5e/mkl_devel-2025.3.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/b9/d7/0445e80511e70b653291daaac068712a780ee0e00bb791d047eed0053c4b/mkl_include-2025.3.0-py2.py3-none-win_amd64.whl",
     ],
     win_sha256s = [
-        "b6ec153e4a073421dbb52ef99c7be97e66cde0272e4a1e3569b090b6f0130253",
-        "305745583d7b08d2f8b8b37d20e6fa4b4325627a5989625c74aaaf651b10e9da",
-        "d20305b4adfa36407a808ec6a16dc5d6da6f8b9cb4a96bdcc0e0ab3239c43816",
+        "2dbf81b016150c2ce418d80707dcce11d0e3c56f20e1d54813174e7665405561",
+        "58e3c53d419a4431e6967089828df1ff2559958e6e5f30e491ec99593669fb12",
+        "d8efcf39c37767c65abdf42976189475bab36f456e5e7e53bab00bc35c6a3209",
     ],
     win_strip_prefixes = [
-        "mkl-2025.2.0.data/data/Library",
-        "mkl_devel-2025.2.0.data/data/Library",
-        "mkl_include-2025.2.0.data/data/Library",
+        "mkl-2025.3.0.data/data/Library",
+        "mkl_devel-2025.3.0.data/data/Library",
+        "mkl_include-2025.3.0.data/data/Library",
     ],
 )
 

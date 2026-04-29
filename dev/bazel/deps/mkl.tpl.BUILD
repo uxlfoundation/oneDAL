@@ -24,9 +24,9 @@ cc_library(
         # The source libraries have circular symbol dependencies. To successfully build this cc_library,
         # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
         "-Wl,--start-group",
-        "$(location lib/libmkl_core.a)",
-        "$(location lib/libmkl_intel_ilp64.a)",
-        "$(location lib/libmkl_tbb_thread.a)",
+        "%{repo_root}/lib/libmkl_core.a",
+        "%{repo_root}/lib/libmkl_intel_ilp64.a",
+        "%{repo_root}/lib/libmkl_tbb_thread.a",
         "-Wl,--end-group",
         "-lpthread",
         "-lm",
