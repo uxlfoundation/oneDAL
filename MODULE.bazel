@@ -22,6 +22,9 @@ bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "rules_shell", version = "0.7.1")
 bazel_dep(name = "fmt", version = "12.1.0")
 
+cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
+use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
+
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
 declare_onedal_config(name = "config",)
 
@@ -81,7 +84,19 @@ tbb_repo(
     strip_prefixes = [
         "tbb-2022.2.0.data/data",
         "tbb_devel-2022.2.0.data/data",
-    ]
+    ],
+    win_urls = [
+        "https://files.pythonhosted.org/packages/4e/d2/01e2a93f9c644585088188840bf453f23ed1a2838ec51d5ba1ada1ebca71/tbb-2022.2.0-py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/2c/b4/ec178737025d45eac8f37152ef8932da12ce8f1002a543bbd20bc163bed9/tbb_devel-2022.2.0-py3-none-win_amd64.whl",
+    ],
+    win_sha256s = [
+        "acbce7632d4d7acc6bdfe9849a57ab1624490198699eb16ea63243cfb4fd4cfa",
+        "93f32507693a93c8743391a6fde87dda65b8d47c35441a4ee28451a3aa5acdf3",
+    ],
+    win_strip_prefixes = [
+        "tbb-2022.2.0.data/data/Library",
+        "tbb_devel-2022.2.0.data/data/Library",
+    ],
 )
 
 mpi_repo = use_repo_rule("@onedal//dev/bazel/deps:mpi.bzl", "mpi_repo")
@@ -206,6 +221,21 @@ mkl_repo(
         "",  # onemkl-sycl-sparse .conda extracts directly
         "",  # onemkl-sycl-rng .conda extracts directly
         "",  # onemkl devel
+    ],
+    win_urls = [
+        "https://files.pythonhosted.org/packages/91/ae/025174ee141432b974f97ecd2aea529a3bdb547392bde3dd55ce48fe7827/mkl-2025.2.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/86/60/f979218ad807331524f3cd88c05b603d9ea5a685cffa513304bee8ae012b/mkl_devel-2025.2.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/06/87/3eee37bf95c6b820b6394ad98e50132798514ecda1b2584c71c2c96b973c/mkl_include-2025.2.0-py2.py3-none-win_amd64.whl",
+    ],
+    win_sha256s = [
+        "b6ec153e4a073421dbb52ef99c7be97e66cde0272e4a1e3569b090b6f0130253",
+        "305745583d7b08d2f8b8b37d20e6fa4b4325627a5989625c74aaaf651b10e9da",
+        "d20305b4adfa36407a808ec6a16dc5d6da6f8b9cb4a96bdcc0e0ab3239c43816",
+    ],
+    win_strip_prefixes = [
+        "mkl-2025.2.0.data/data/Library",
+        "mkl_devel-2025.2.0.data/data/Library",
+        "mkl_include-2025.2.0.data/data/Library",
     ],
 )
 

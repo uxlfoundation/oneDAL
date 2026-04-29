@@ -73,24 +73,25 @@ def _cc_module_impl(ctx):
         system_includes = ctx.attr.system_includes,
         quote_includes = ctx.attr.quote_includes,
     )
-    if compilation_outputs.objects:
+    if compilation_outputs.objects and compilation_outputs.pic_objects:
         fail("Non-PIC object files found, oneDAL assumes " +
              "all object files are compiled as PIC")
-    linking_context, linking_out = cc_common.create_linking_context_from_compilation_outputs(
-        name = ctx.label.name,
-        actions = ctx.actions,
-        cc_toolchain = toolchain,
-        feature_configuration = feature_config,
-        compilation_outputs = compilation_outputs,
-    )
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     if ctx.attr.override_deps_lib_tag:
         tagged_linking_contexts = onedal_cc_common. \
             override_tags(tagged_linking_contexts, ctx.attr.lib_tag)
-    tagged_linking_contexts.append(onedal_cc_common.create_tagged_linking_context(
-        tag = ctx.attr.lib_tag,
-        linking_context = linking_context,
-    ))
+    if compilation_outputs.objects or compilation_outputs.pic_objects:
+        linking_context, linking_out = cc_common.create_linking_context_from_compilation_outputs(
+            name = ctx.label.name,
+            actions = ctx.actions,
+            cc_toolchain = toolchain,
+            feature_configuration = feature_config,
+            compilation_outputs = compilation_outputs,
+        )
+        tagged_linking_contexts.append(onedal_cc_common.create_tagged_linking_context(
+            tag = ctx.attr.lib_tag,
+            linking_context = linking_context,
+        ))
     module_info = ModuleInfo(
         compilation_context = compilation_context,
         tagged_linking_contexts = tagged_linking_contexts,
@@ -153,6 +154,7 @@ def _cc_static_lib_impl(ctx):
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
+        is_windows = True,
     )
     default_info = DefaultInfo(
         files = depset([ static_lib ]),
@@ -169,6 +171,9 @@ cc_static_lib = rule(
         "lib_name": attr.string(),
         "lib_tags": attr.string_list(),
         "deps": attr.label_list(mandatory=True),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],

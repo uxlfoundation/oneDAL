@@ -43,6 +43,54 @@
    bazel --version
    ```
 
+## Install Bazel on Windows
+Windows Bazel support currently covers the regular C++/CPU build with the MSVC
+compiler. DPC++/SYCL builds on Windows are not wired yet; see the tracking issue
+for the remaining `sycl/sycl.hpp`, oneAPI compiler, runtime library and device
+flag work.
+
+1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
+
+2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
+   it in the repository root as `bazelisk.exe`.
+   ```powershell
+   $bazeliskVersion = "v1.28.1"
+   Invoke-WebRequest `
+       -Uri "https://github.com/bazelbuild/bazelisk/releases/download/$bazeliskVersion/bazelisk-windows-amd64.exe" `
+       -OutFile bazelisk.exe
+   .\bazelisk.exe version
+   ```
+
+3. For `bazel test` on Windows, set `BAZEL_SH` to a Bash executable. Git for
+   Windows is sufficient.
+   ```powershell
+   $env:BAZEL_SH = "C:\Program Files\Git\bin\bash.exe"
+   ```
+
+4. Run Bazel from a Visual Studio Developer Command Prompt, or initialize the
+   MSVC environment explicitly before invoking Bazel.
+   ```bat
+   call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+   bazelisk.exe build //:release --verbose_failures --jobs=%NUMBER_OF_PROCESSORS%
+   ```
+
+5. For tests that run executables linked with MKL/TBB, make the downloaded
+   runtime DLLs visible through `PATH` and pass the environment to Bazel tests.
+   Bazel downloads these dependencies into its external repository cache.
+   ```powershell
+   $outputBase = (.\bazelisk.exe info output_base).Trim()
+   $env:PATH = "$outputBase\external\+mkl_repo+mkl\bin;$outputBase\external\+tbb_repo+tbb\bin;$env:PATH"
+   $env:MKL_THREADING_LAYER = "TBB"
+
+   .\bazelisk.exe test `
+       //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host `
+       --verbose_failures `
+       --test_output=errors `
+       --test_env=PATH `
+       --test_env=MKL_THREADING_LAYER `
+       --jobs=$env:NUMBER_OF_PROCESSORS
+   ```
+
 ### Compiler choice
 Be default our build system configures Bazel to use Intel(R) C++ Compiler
 in case of normal C++ code and Intel(R) oneAPI DPC++ Compiler in case of
@@ -225,13 +273,34 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```
 
 ## Build recipes for oneDAL
+### Build release package
+- On Linux:
+  ```sh
+  bazel build //:release --verbose_failures --jobs=$(nproc)
+  ```
+
+- On Windows, run from the Visual Studio Developer Command Prompt described
+  above:
+  ```bat
+  bazelisk.exe build //:release --verbose_failures --jobs=%NUMBER_OF_PROCESSORS%
+  ```
+
+  The resulting release tree is under `bazel-bin/release/daal/latest`.
+
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
   ```sh
   bazel test //examples/oneapi/cpp:all
   ```
 
-- To run all oneAPI DPC++ examples ... It's not implemented yet...
+- On Windows, start with HOST example smoke builds:
+  ```bat
+  bazelisk.exe build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures --jobs=%NUMBER_OF_PROCESSORS%
+  ```
+
+- To run all oneAPI DPC++ examples ... It's not implemented yet. Windows DPC++
+  support is also not implemented yet and is tracked separately from the CPU
+  Windows Bazel build.
 
 ### Run oneAPI tests
 - To run all test use the following commands:

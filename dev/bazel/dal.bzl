@@ -124,7 +124,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
     )
 
 def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
-                   dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                   dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal"],
                    features=[], **kwargs):
     cc_static_lib(
         name = name,
@@ -143,7 +143,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                    dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal"],
                     features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
@@ -507,7 +507,7 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
         },
         copts = copts + select({
-            "@platforms//os:windows": [],
+            "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = local_defines + [

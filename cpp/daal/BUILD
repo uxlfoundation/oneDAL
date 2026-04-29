@@ -244,6 +244,7 @@ daal_dynamic_lib(
     deps = [
         ":core",
         ":all_algorithms",
+        ":thread_dynamic",
     ],
 )
 
