@@ -123,7 +123,7 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
         {
             const auto cp =
                 row_accessor<const Float>(input.get_partial_crossproduct()).pull({ 0, -1 });
-            const Float inv_nm1 = Float(1) / (row_count - 1);
+            const Float inv_nm1 = (row_count > 1) ? Float(1) / (row_count - 1) : Float(0);
             Float* vars = arr_vars.get_mutable_data();
             for (std::int64_t i = 0; i < column_count; ++i) {
                 vars[i] = cp[i * column_count + i] * inv_nm1;
