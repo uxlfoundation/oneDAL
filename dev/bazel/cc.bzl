@@ -197,7 +197,11 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False):
             executable = "cmd.exe",
             inputs = [src],
             outputs = [out],
-            arguments = ["/c", "copy", "/Y", src.path, out.path],
+            arguments = [
+                "/d",
+                "/c",
+                'copy /Y "{}" "{}"'.format(src.path, out.path),
+            ],
             use_default_shell_env = True,
         )
     else:
