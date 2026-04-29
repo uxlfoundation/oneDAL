@@ -190,12 +190,12 @@ cc_static_lib = rule(
 )
 
 
-def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False):
+def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inputs = []):
     out = ctx.actions.declare_file(out_name)
     if is_windows:
         ctx.actions.run(
             executable = "cmd.exe",
-            inputs = [src],
+            inputs = [src] + extra_inputs,
             outputs = [out],
             arguments = [
                 "/d",
@@ -207,7 +207,7 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False):
     else:
         ctx.actions.run(
             executable = "cp",
-            inputs = [src],
+            inputs = [src] + extra_inputs,
             outputs = [out],
             arguments = [src.path, out.path],
             use_default_shell_env = True,
@@ -251,6 +251,7 @@ def _cc_dynamic_lib_impl(ctx):
                 dynamic_outputs.dynamic_library,
                 "{}.{}.dll".format(ctx.attr.lib_name, vi.binary_major),
                 is_windows = is_windows,
+                extra_inputs = [dynamic_outputs.interface_library] if dynamic_outputs.interface_library else [],
             ))
         if dynamic_outputs.interface_library:
             default_files.append(_copy_dynamic_release_file(
