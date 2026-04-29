@@ -222,22 +222,22 @@ mkl_repo(
         "",  # onemkl-sycl-rng .conda extracts directly
         "",  # onemkl devel
     ],
-    # Use the latest verified classic MKL PyPI wheels for Windows CPU/MSVC
-    # builds. Windows DPC++/SYCL dependencies are out of scope here.
+    # Use the latest classic MKL PyPI wheels for Windows CPU/MSVC builds.
+    # Windows DPC++/SYCL dependencies are out of scope here.
     win_urls = [
-        "https://files.pythonhosted.org/packages/75/0e/b863a60889643e21d5d8d6b619f913703257878979b1df22d344a56276d0/mkl-2025.3.0-py2.py3-none-win_amd64.whl",
-        "https://files.pythonhosted.org/packages/5e/d6/a0f24cf3193610debc8dceddcbac7d1510f68dbffe8f171ed5510c1e4f5e/mkl_devel-2025.3.0-py2.py3-none-win_amd64.whl",
-        "https://files.pythonhosted.org/packages/b9/d7/0445e80511e70b653291daaac068712a780ee0e00bb791d047eed0053c4b/mkl_include-2025.3.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/7b/2f/8a77106ef648cc1f04aa27e8b6c50cd82de38d1767801ef29cd75b8026e8/mkl-2026.0.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/3b/32/7c214676e0707dcdb0709961a63bdd010af34ff9ead46d3bae38e36102c6/mkl_devel-2026.0.0-py2.py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/2d/4f/1944dfa73b63c183c5a48da47d7b140d97146d0a96a0e7ef8c2bd8f0739e/mkl_include-2026.0.0-py2.py3-none-win_amd64.whl",
     ],
     win_sha256s = [
-        "2dbf81b016150c2ce418d80707dcce11d0e3c56f20e1d54813174e7665405561",
-        "58e3c53d419a4431e6967089828df1ff2559958e6e5f30e491ec99593669fb12",
-        "d8efcf39c37767c65abdf42976189475bab36f456e5e7e53bab00bc35c6a3209",
+        "801c9cc748be81d8269bfec2495d02be38560fc7386439c18499ab3f32b06b3e",
+        "0d74e49b79ca10a332f4e4768afc597657fe9ce3d76f18bf7737d1a5043148a3",
+        "8e316479bc3a5cccb1161e8de2140e476bd5a8ecad840374770d529b591d8af6",
     ],
     win_strip_prefixes = [
-        "mkl-2025.3.0.data/data/Library",
-        "mkl_devel-2025.3.0.data/data/Library",
-        "mkl_include-2025.3.0.data/data/Library",
+        "mkl-2026.0.0.data/data/Library",
+        "mkl_devel-2026.0.0.data/data/Library",
+        "mkl_include-2026.0.0.data/data/Library",
     ],
 )
 
