@@ -23,15 +23,230 @@
 ONEDAL_2026.0 {
 global:
     extern "C++" {
-        # Public oneAPI interface - export all algorithm namespaces
-        "oneapi::dal::*";
+        # =========================== Public oneDAL DPC++ interface ============================
+
+        # ===================================== Algorithms =====================================
+
 
         # Explicitly exclude backend implementation (GPU kernels, primitives)
         "!oneapi::dal::backend::*";
         "!oneapi::dal::*::backend::*";
+
+        # basic_statistics
+
+        oneapi::dal::basic_statistics::v1::*;
+        oneapi::dal::basic_statistics::detail::v1::*;
+
+        "oneapi::dal::basic_statistics::detail::get_max_id()";
+        "oneapi::dal::basic_statistics::detail::get_min_id()";
+        "oneapi::dal::basic_statistics::detail::get_sum_id()";
+        "oneapi::dal::basic_statistics::detail::get_sum_squares_id()";
+        "oneapi::dal::basic_statistics::detail::get_sum_squares_centered_id()";
+        "oneapi::dal::basic_statistics::detail::get_mean_id()";
+        "oneapi::dal::basic_statistics::detail::get_second_order_raw_moment_id()";
+        "oneapi::dal::basic_statistics::detail::get_standard_deviation_id()";
+        "oneapi::dal::basic_statistics::detail::get_variance_id()";
+        "oneapi::dal::basic_statistics::detail::get_variation_id()";
+
+        # correlation_distance
+
+        oneapi::dal::correlation_distance::v1::*;
+        oneapi::dal::correlation_distance::detail::v1::*;
+
+        # cosine_distance
+
+        oneapi::dal::cosine_distance::v1::*;
+        oneapi::dal::cosine_distance::detail::v1::*;
+
+        # covariance
+
+        oneapi::dal::covariance::v1::*;
+        oneapi::dal::covariance::detail::v1::*;
+
+        "oneapi::dal::covariance::detail::get_cor_matrix_id()";
+        "oneapi::dal::covariance::detail::get_cov_matrix_id()";
+        "oneapi::dal::covariance::detail::get_means_id()";
+
+        # dbscan
+
+        oneapi::dal::dbscan::v1::*;
+        oneapi::dal::dbscan::detail::v1::*;
+
+        "oneapi::dal::dbscan::detail::get_core_flags_id()";
+        "oneapi::dal::dbscan::detail::get_core_observations_id()";
+        "oneapi::dal::dbscan::detail::get_core_observation_indices_id()";
+        "oneapi::dal::dbscan::detail::get_responses_id()";
+
+        # decision_forest
+
+        oneapi::dal::decision_forest::v1::*;
+        oneapi::dal::decision_forest::v2::*;
+        oneapi::dal::decision_forest::detail::v1::*;
+
+        # decision_tree
+
+        oneapi::dal::decision_tree::v1::*;
+
+        # distances (chebyshev_distance, minkowski_distance)
+
+        oneapi::dal::chebyshev_distance::detail::v1::*;
+        oneapi::dal::minkowski_distance::detail::v1::*;
+
+        # finiteness_checker
+
+        oneapi::dal::finiteness_checker::v1::*;
+        oneapi::dal::finiteness_checker::detail::v1::*;
+
+        # kernel functions: linear_kernel, polynomial_kernel, rbf_kernel, sigmoid_kernel
+
+        oneapi::dal::linear_kernel::v1::*;
+        oneapi::dal::linear_kernel::detail::v1::*;
+        oneapi::dal::polynomial_kernel::v1::*;
+        oneapi::dal::polynomial_kernel::detail::v1::*;
+        oneapi::dal::sigmoid_kernel::v1::*;
+        oneapi::dal::sigmoid_kernel::detail::v1::*;
+        oneapi::dal::rbf_kernel::v1::*;
+        oneapi::dal::rbf_kernel::detail::v1::*;
+
+        # kmeans
+
+        oneapi::dal::kmeans::v1::*;
+        oneapi::dal::kmeans::detail::v1::*;
+
+        oneapi::dal::kmeans_init::v1::*;
+        oneapi::dal::kmeans_init::detail::v1::*;
+
+        "oneapi::dal::kmeans::detail::get_compute_exact_objective_function_id()";
+
+        # knn
+
+        oneapi::dal::knn::v1::*;
+        oneapi::dal::knn::detail::v1::*;
+
+        "oneapi::dal::knn::detail::get_distances_id()";
+        "oneapi::dal::knn::detail::get_indices_id()";
+        "oneapi::dal::knn::detail::get_responses_id()";
+
+        # linear_regression
+
+        oneapi::dal::linear_regression::v1::*;
+        oneapi::dal::linear_regression::detail::v1::*;
+
+        "oneapi::dal::linear_regression::detail::get_coefficients_id()";
+        "oneapi::dal::linear_regression::detail::get_intercept_id()";
+
+        # logistic_regression
+
+        oneapi::dal::logistic_regression::v1::*;
+        oneapi::dal::logistic_regression::detail::v1::*;
+
+        "oneapi::dal::logistic_regression::detail::get_class_count_id()";
+        "oneapi::dal::logistic_regression::detail::get_coefficients_id()";
+        "oneapi::dal::logistic_regression::detail::get_intercept_id()";
+        "oneapi::dal::logistic_regression::detail::get_inner_iterations_count_id()";
+        "oneapi::dal::logistic_regression::detail::get_iterations_count_id()";
+
+        # objective_function
+
+        oneapi::dal::objective_function::v1::*;
+        oneapi::dal::objective_function::detail::v1::*;
+
+        # optimization solver
+
+        oneapi::dal::newton_cg::detail::v1::*;
+
+        # pca
+
+        oneapi::dal::pca::v1::*;
+        oneapi::dal::pca::detail::v1::*;
+
+        "oneapi::dal::pca::detail::get_eigenvalues_id()";
+        "oneapi::dal::pca::detail::get_eigenvectors_id()";
+        "oneapi::dal::pca::detail::get_explained_variances_ratio_id()";
+        "oneapi::dal::pca::detail::get_means_id()";
+        "oneapi::dal::pca::detail::get_singular_values_id()";
+        "oneapi::dal::pca::detail::get_variances_id()";
+
+        # svm
+
+        oneapi::dal::svm::v1::*;
+        oneapi::dal::svm::detail::v1::*;
+
+        # =================================== Data Management ==================================
+
+        # tables
+
+        oneapi::dal::v1::table::*;
+        oneapi::dal::v1::csr_table::*;
+        oneapi::dal::v1::homogen_table::*;
+        oneapi::dal::v1::heterogen_table::*;
+
+        "void oneapi::dal::v1::homogen_table::init_impl<oneapi::dal::detail::v1::default_host_policy>(oneapi::dal::detail::v1::default_host_policy const&, long, long, oneapi::dal::v2::array<unsigned char> const&, oneapi::dal::v1::data_type const&, oneapi::dal::v1::data_layout)";
+        "void oneapi::dal::v1::homogen_table::init_impl<oneapi::dal::detail::v1::data_parallel_policy>(oneapi::dal::detail::v1::data_parallel_policy const&, long, long, oneapi::dal::v2::array<unsigned char> const&, oneapi::dal::v1::data_type const&, oneapi::dal::v1::data_layout)";
+
+        oneapi::dal::v1::table_metadata::*;
+
+        oneapi::dal::detail::v2::chunked_array_base::*;
+
+        "oneapi::dal::detail::v1::homogen_table_builder::homogen_table_builder()";
+        "oneapi::dal::detail::v1::get_pull_rows_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_column_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_csr_block_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+
+        # memory management
+
+        "oneapi::dal::detail::v1::malloc(oneapi::dal::detail::v1::default_host_policy const&, unsigned long)";
+        "oneapi::dal::detail::v1::memcpy(oneapi::dal::detail::v1::default_host_policy const&, void*, void const*, long)";
+        "oneapi::dal::detail::v1::free(oneapi::dal::detail::v1::default_host_policy const&, void*)";
+
+        "oneapi::dal::detail::v1::malloc(oneapi::dal::detail::v1::data_parallel_policy const&, unsigned long, sycl::_V1::usm::alloc const&)";
+        "oneapi::dal::detail::v1::memcpy_usm2host(oneapi::dal::detail::v1::data_parallel_policy const&, void*, void const*, long)";
+        "oneapi::dal::detail::v1::memcpy_host2usm(oneapi::dal::detail::v1::data_parallel_policy const&, void*, void const*, long)";
+        "oneapi::dal::detail::v1::memcpy(oneapi::dal::detail::v1::data_parallel_policy const&, void*, void const*, long)";
+        "oneapi::dal::detail::v1::free(oneapi::dal::detail::v1::data_parallel_policy const&, void*)";
+
+        # CSV
+
+        oneapi::dal::csv::v1::*;
+        oneapi::dal::csv::detail::v1::*;
+
+        # ======================================= Services =====================================
+
+        # error handling
+
+        oneapi::dal::detail::v1::error_messages::*;
+
+        "vtable for oneapi::dal::v1::domain_error";
+        "vtable for oneapi::dal::v1::host_bad_alloc";
+        "vtable for oneapi::dal::v1::internal_error";
+        "vtable for oneapi::dal::v1::invalid_argument";
+        "vtable for oneapi::dal::v1::out_of_range";
+        "vtable for oneapi::dal::v1::range_error";
+        "vtable for oneapi::dal::v1::unimplemented";
+        "vtable for oneapi::dal::v1::uninitialized_optional_result";
+        "typeinfo for oneapi::dal::v1::domain_error";
+        "typeinfo for oneapi::dal::v1::host_bad_alloc";
+        "typeinfo for oneapi::dal::v1::internal_error";
+        "typeinfo for oneapi::dal::v1::invalid_argument";
+        "typeinfo for oneapi::dal::v1::out_of_range";
+        "typeinfo for oneapi::dal::v1::range_error";
+        "typeinfo for oneapi::dal::v1::unimplemented";
+        "typeinfo for oneapi::dal::v1::uninitialized_optional_result";
+
+        "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_mul_overflow(long const&, long const&)";
+
+        # other services
+
+        "oneapi::dal::detail::v1::host_policy::host_policy()";
+
+        "oneapi::dal::detail::v1::data_parallel_policy::init_impl(sycl::_V1::queue const&)";
+
+        "oneapi::dal::detail::v1::from_daal_cpu_type(int)";
+
+        "oneapi::dal::detail::v1::to_string[abi:cxx11](oneapi::dal::detail::v1::cpu_extension)";
     };
 
-# local:
+local:
     # Hide everything else by default
-    # *;
+    *;
 };
