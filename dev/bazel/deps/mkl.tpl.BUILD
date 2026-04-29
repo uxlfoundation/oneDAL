@@ -14,8 +14,10 @@ cc_library(
 cc_library(
     name = "mkl_static",
     srcs = [
-        "lib/libmkl_core.a",
+        # Keep MKL static archives in canonical dependency order.
+        # libmkl_intel_ilp64.a references mkl_serv_* symbols from libmkl_core.a.
         "lib/libmkl_intel_ilp64.a",
+        "lib/libmkl_core.a",
         "lib/libmkl_tbb_thread.a",
     ],
     linkopts = [
