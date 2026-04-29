@@ -58,13 +58,29 @@ def _collect_default_files(deps):
 def _copy(ctx, src_file, dst_path):
     # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
-    ctx.actions.run(
-        executable = "cp",
-        inputs = [ src_file ],
-        outputs = [ dst_file ],
-        use_default_shell_env = True,
-        arguments = [ src_file.path, dst_file.path ],
-    )
+    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        ctx.actions.run(
+            executable = "cmd.exe",
+            inputs = [ src_file ],
+            outputs = [ dst_file ],
+            use_default_shell_env = True,
+            arguments = [
+                "/d",
+                "/c",
+                'copy /Y "{}" "{}"'.format(
+                    src_file.path.replace("/", "\\"),
+                    dst_file.path.replace("/", "\\"),
+                ),
+            ],
+        )
+    else:
+        ctx.actions.run(
+            executable = "cp",
+            inputs = [ src_file ],
+            outputs = [ dst_file ],
+            use_default_shell_env = True,
+            arguments = [ src_file.path, dst_file.path ],
+        )
     return dst_file
 
 def _try_relativize(path, start):
@@ -229,6 +245,9 @@ _release = rule(
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
         ),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",

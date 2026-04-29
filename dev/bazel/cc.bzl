@@ -200,7 +200,10 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
             arguments = [
                 "/d",
                 "/c",
-                'copy /Y "{}" "{}"'.format(src.path, out.path),
+                'copy /Y "{}" "{}"'.format(
+                    src.path.replace("/", "\\"),
+                    out.path.replace("/", "\\"),
+                ),
             ],
             use_default_shell_env = True,
         )
