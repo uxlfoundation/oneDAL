@@ -101,7 +101,7 @@ function build_sysroot {
     mkdir -p "$1"
     pushd "$1" || exit
     sudo apt-get install -y debootstrap build-essential
-    sudo debootstrap --arch="$2" --verbose --include=fakeroot,symlinks,libatomic1 --resolve-deps --variant=minbase --components=main,universe "$3" "$4"
+    sudo debootstrap --arch="$2" --verbose --include=fakeroot,symlinks,libatomic1,libstdc++6 --resolve-deps --variant=minbase --components=main,universe "$3" "$4"
     sudo chroot "$4" symlinks -cr .
     sudo chown "${USER}" -R "$4"
     rm -rf "${4:?}"/{dev,proc,run,sys,var}
