@@ -179,7 +179,7 @@ static result_t call_daal_spmd_kernel(const context_cpu& ctx,
     const std::int64_t column_count = crossproduct_local.get_column_count();
 
     /// The DAAL covariance online kernel stores a CENTRED crossproduct:
-    ///   cp = Σ(x - mean_local)^T (x - mean_local)
+    ///   cp = \sum (x - mean_local)^T (x - mean_local)
     /// Simply allreducing centred crossproducts from different ranks does
     /// NOT produce the globally-centred crossproduct.  Convert each rank's
     /// centred cp to the raw second-moment matrix before reduction:
@@ -229,7 +229,7 @@ static result_t call_daal_spmd_kernel(const context_cpu& ctx,
     aggregated.set_partial_sum(sums_table);
 
     /// Use a local (non-SPMD) context so the finalize kernel does NOT
-    /// dispatch to the SPMD path — the data is already aggregated.
+    /// dispatch to the SPMD path - the data is already aggregated.
     const context_cpu local_ctx;
     return pca::backend::finalize_train_kernel_cpu<Float, method::cov, task_t>{}(local_ctx,
                                                                                  desc,

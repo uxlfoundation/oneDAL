@@ -117,9 +117,9 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
         }
     }
     else {
-        /// zscore: variances are cp[i,i] / (nobs - 1) — readable directly from
+        /// zscore: variances are cp[i,i] / (nobs - 1) - readable directly from
         /// the crossproduct input before DAAL converts it to a correlation matrix.
-        /// This avoids a second O(N²) finalizeCompute call.
+        /// This avoids a second O(N^2) finalizeCompute call.
         {
             const auto cp =
                 row_accessor<const Float>(input.get_partial_crossproduct()).pull({ 0, -1 });
