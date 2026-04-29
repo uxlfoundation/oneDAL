@@ -164,6 +164,22 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         # TODO: Detect OS
         "%{os}": "lnx",
     }
+    
+    # Extract substitutions if a makefile_ver attribute is present
+    if hasattr(repo_ctx.attr, "_makefile_ver") and repo_ctx.attr._makefile_ver:
+        makefile_ver = repo_ctx.path(repo_ctx.attr._makefile_ver)
+        makefile_content = repo_ctx.read(makefile_ver)
+        binary_major = "4"
+        binary_minor = "0"
+        for line in makefile_content.splitlines():
+            if line.startswith("MAJORBINARY"):
+                binary_major = line.split("=")[1].strip()
+            elif line.startswith("MINORBINARY"):
+                binary_minor = line.split("=")[1].strip()
+        substitutions["%{version_binary_major}"] = binary_major
+        substitutions["%{version_binary_minor}"] = binary_minor
+
+
     _create_symlinks(repo_ctx, root, repo_ctx.attr.includes, substitutions, mapping)
     _create_symlinks(repo_ctx, root, repo_ctx.attr.libs, substitutions, mapping)
     _create_symlinks(repo_ctx, root, repo_ctx.attr.bins, substitutions, mapping)
@@ -196,6 +212,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "bins": attr.string_list(default=bins),
+            "_makefile_ver": attr.label(default=Label("@onedal//:makefile.ver")),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),
             "_local_mapping": attr.string_dict(default=local_mapping),
@@ -205,5 +222,6 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
 
 repos = struct(
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
+    prebuilt_libs_repo_impl = _prebuilt_libs_repo_impl,
     create_symlinks = _create_symlinks,
 )
