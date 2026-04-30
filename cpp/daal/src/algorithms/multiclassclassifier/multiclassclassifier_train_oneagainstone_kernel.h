@@ -211,7 +211,7 @@ class MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu> : pub
 {
 public:
     services::Status compute(const NumericTable * xTable, const NumericTable * yTable, const NumericTable * wTable, daal::algorithms::Model * m,
-                             multi_class_classifier::internal::SvmModel * svmModel, const KernelParameter & par);
+                             svm::internal::ModelImpl * svmModel, const KernelParameter & par);
 
 protected:
     services::Status computeDataSize(size_t nVectors, size_t nFeatures, size_t nClasses, const NumericTable * xTable, const algorithmFPType * y,

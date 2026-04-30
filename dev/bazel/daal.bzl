@@ -42,8 +42,7 @@ def daal_module(name, features=[], lib_tag="daal",
         lib_tag = lib_tag,
         features = [ "c++17" ] + features,
         cpu_defines = {
-            "sse2":       [ "DAAL_CPU=sse2"       ],
-            "sse42":      [ "DAAL_CPU=sse42"      ],
+            "sse2":       [ "DAAL_CPU=sse2"      ],
             "avx2":       [ "DAAL_CPU=avx2"       ],
             "avx512":     [ "DAAL_CPU=avx512"     ],
         },
@@ -55,7 +54,7 @@ def daal_module(name, features=[], lib_tag="daal",
         srcs = auto_srcs + srcs,
         copts = copts + select({
             "@platforms//os:windows": [],
-            "//conditions:default": ["-fvisibility=hidden"],
+            "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = select({
             "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],

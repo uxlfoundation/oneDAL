@@ -529,8 +529,8 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
                                                            : 1;
 #if defined(TARGET_X86_64)
     if (typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_avx2) ||
-        typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_sse42)) {
-        // TODO: Workaround that disabled parallelism for SSE4.2 and AVX2 code paths
+        typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_sse2)) {
+        // TODO: Workaround that disabled parallelism for SSE2 and AVX2 code paths
         //       due to observed timeouts in case of execution under emulator
         //       related to atomics usage in such configurations.
         array_size = 1;

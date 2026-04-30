@@ -185,7 +185,6 @@ enum DataFormat
 /* CPU comparison macro */
 #if defined(TARGET_X86_64)
     #define __sse2__   (0)
-    #define __sse42__  (2)
     #define __avx2__   (4)
     #define __avx512__ (6)
 #elif defined(TARGET_ARM)
@@ -199,7 +198,6 @@ enum DataFormat
 
 #if defined(TARGET_X86_64)
     #define CPU_sse2   __sse2__
-    #define CPU_sse42  __sse42__
     #define CPU_avx2   __avx2__
     #define CPU_avx512 __avx512__
 #elif defined(TARGET_ARM)

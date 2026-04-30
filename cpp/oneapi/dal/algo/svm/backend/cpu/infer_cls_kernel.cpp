@@ -85,13 +85,17 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     const auto daal_decision_function =
         interop::convert_to_daal_homogen_table(arr_decision_function, row_count, model_count);
 
-    auto daal_svm_model =
-        daal_multiclass_internal::SvmModel::create<Float>(class_count, column_count);
+    const auto daal_layout = daal_data->getDataLayout();
+    daal::services::Status status;
+    auto daal_svm_model_ptr =
+        new daal_svm::internal::ModelImpl(Float(0), class_count, column_count, daal_layout, status);
+    daal_svm::ModelPtr daal_svm_model(daal_svm_model_ptr);
+    interop::status_to_exception(status);
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_multiclass_kernel_t>(ctx,
                                                                    daal_data.get(),
                                                                    daal_model.get(),
-                                                                   daal_svm_model.get(),
+                                                                   daal_svm_model_ptr,
                                                                    daal_response.get(),
                                                                    daal_decision_function.get(),
                                                                    &daal_multiclass_parameter));
@@ -118,13 +122,12 @@ static infer_result<Task> call_binary_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
 
-    const auto biases = trained_model.get_biases();
-    const auto biases_acc = row_accessor<const Float>{ biases }.pull();
-    const double bias = biases_acc[0];
+    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
+
     auto daal_model = daal_model_builder{}
                           .set_support_vectors(daal_support_vectors)
                           .set_coeffs(daal_coeffs)
-                          .set_bias(bias);
+                          .set_biases(daal_biases);
 
     auto arr_decision_function = array<Float>::empty(row_count * 1);
     const auto daal_decision_function =

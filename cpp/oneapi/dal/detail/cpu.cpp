@@ -26,7 +26,6 @@ ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int cpu_type) {
     switch (cpu) {
 #if defined(TARGET_X86_64)
         case daal::internal::sse2: return cpu_extension::sse2;
-        case daal::internal::sse42: return cpu_extension::sse42;
         case daal::internal::avx2: return cpu_extension::avx2;
         case daal::internal::avx512: return cpu_extension::avx512;
 #elif defined(TARGET_ARM)

@@ -130,6 +130,10 @@ void printResults() {
                                                       DataSource::doDictionaryFromContext);
     testLabelSource.loadDataBlock();
 
+    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
+                      "Number of iterations used by the training algorithm:",
+                      1);
+
     printNumericTables<int, float>(testLabelSource.getNumericTable(),
                                    predictionResult->get(classifier::prediction::prediction),
                                    "Ground truth\t",
