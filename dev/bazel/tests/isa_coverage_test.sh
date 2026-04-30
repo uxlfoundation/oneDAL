@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -22,16 +22,21 @@
 # automatically compiles all ISA variants (cfg transition on release rule).
 # This test enforces that contract.
 
-set -euo pipefail
+set -eu
 
 LIB="${1:-}"
-if [[ -z "${LIB}" ]]; then
+if [ -z "${LIB}" ]; then
     echo "Usage: $0 <path-to-libonedal_core.so>"
     exit 1
 fi
 
-if [[ ! -f "${LIB}" ]]; then
+if [ ! -f "${LIB}" ]; then
     echo "ERROR: Library not found: ${LIB}"
+    exit 1
+fi
+
+if ! command -v nm >/dev/null 2>&1; then
+    echo "ERROR: nm not found on PATH"
     exit 1
 fi
 
@@ -39,11 +44,10 @@ PASS=0
 FAIL=0
 
 check_isa() {
-    local cpu_type="$1"   # e.g. CpuTypeE4
-    local isa_name="$2"   # e.g. avx2
-    local count
+    cpu_type="$1"   # e.g. CpuTypeE4
+    isa_name="$2"   # e.g. avx2
     count=$(nm -D --defined-only "${LIB}" | grep -c "${cpu_type}" || true)
-    if [[ "${count}" -gt 0 ]]; then
+    if [ "${count}" -gt 0 ]; then
         echo "  OK  ${isa_name} (${cpu_type}): ${count} dispatch symbols"
         PASS=$((PASS + 1))
     else
@@ -59,7 +63,7 @@ check_isa "CpuTypeE4" "avx2"
 check_isa "CpuTypeE6" "avx512"
 
 echo ""
-if [[ "${FAIL}" -gt 0 ]]; then
+if [ "${FAIL}" -gt 0 ]; then
     echo "RESULT: FAILED (${FAIL} ISA(s) missing, ${PASS} present)"
     exit 1
 else
