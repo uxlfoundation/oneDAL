@@ -133,7 +133,7 @@ Status ImplicitALSTrainDistrStep3Kernel<algorithmFPType, cpu>::compute(implicit_
     const size_t nFactors       = parameter->nFactors;
 
     SafeStatus safeStat;
-    daal::threader_for(nPartialModels, 0, [&](size_t k) {
+    daal::threader_for(nPartialModels, 1, [&](size_t k) {
         PartialModel * dstPartialModel = static_cast<PartialModel *>((*dstPartialModels)[k].get());
         NumericTablePtr pSrcFactors    = srcPartialModel->getFactors();
         NumericTablePtr pDstFactors    = dstPartialModel->getFactors();
@@ -142,7 +142,7 @@ Status ImplicitALSTrainDistrStep3Kernel<algorithmFPType, cpu>::compute(implicit_
         const size_t sizeOfBlock       = 512;
         const size_t nBlocks           = (dstNRows + sizeOfBlock - 1) / sizeOfBlock;
 
-        daal::threader_for(nBlocks, 0, [&](size_t i) {
+        daal::threader_for(nBlocks, 1, [&](size_t i) {
             const size_t nRows = i < nBlocks - 1 ? sizeOfBlock : dstNRows - (i * sizeOfBlock);
             int result         = 0;
 
@@ -267,7 +267,7 @@ Status ImplicitALSTrainDistrStep4Kernel<algorithmFPType, fastCSR, cpu>::compute(
 
     NumericTablePtr pDstFactors = dstPartialModel->getFactors();
     SafeStatus safeStat;
-    daal::threader_for(nRows, nRows, [&](size_t i) {
+    daal::threader_for(nRows, 1, [&](size_t i) {
         AlsTls<algorithmFPType, cpu> * alsTlsLocal = alsTls.local();
         DAAL_CHECK_THR(alsTlsLocal, ErrorMemoryAllocationFailed);
         safeStat |= alsTlsLocal->run(*pDstFactors, mtData, i, xtx, aSrcFactors.get(), nFactorsRows.get(), indices.get());

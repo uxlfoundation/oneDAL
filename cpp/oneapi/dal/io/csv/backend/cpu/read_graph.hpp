@@ -56,7 +56,7 @@ void fill_filtered_neighs(const std::int64_t *unfiltered_offsets,
                           const std::int64_t *filtered_offsets,
                           std::int32_t *filtered_neighs,
                           std::int64_t vertex_count) {
-    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int32_t u) {
+    dal::detail::threader_for(vertex_count, 1, [&](std::int32_t u) {
         auto u_neighs = filtered_neighs + filtered_offsets[u];
         auto u_neighs_unf = unfiltered_neighs + unfiltered_offsets[u];
         for (std::int32_t i = 0; i < filtered_degrees[u]; i++) {
@@ -71,7 +71,7 @@ void filter_neighbors_and_fill_new_degrees(std::int32_t *unfiltered_neighs,
                                            std::int32_t *new_degrees,
                                            std::int64_t vertex_count) {
     //removing self-loops,  multiple edges from graph, and make neighbors in CSR sorted
-    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int32_t u) {
+    dal::detail::threader_for(vertex_count, 1, [&](std::int32_t u) {
         auto start_p = unfiltered_neighs + unfiltered_offsets[u];
         auto end_p = unfiltered_neighs + unfiltered_offsets[u + 1];
         dal::detail::parallel_sort(start_p, end_p);

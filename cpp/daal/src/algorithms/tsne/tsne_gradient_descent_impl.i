@@ -196,7 +196,7 @@ services::Status maxRowElementsImpl(const size_t * row, const IdxType N, IdxType
     const IdxType nBlocks     = N / sizeOfBlock + bool(N % sizeOfBlock);
 
     SafeStatus safeStat;
-    daal::threader_for(nBlocks, nBlocks, [&](IdxType iBlock) {
+    daal::threader_for(nBlocks, 1, [&](IdxType iBlock) {
         const IdxType iStart = iBlock * sizeOfBlock;
         const IdxType iEnd   = services::internal::min<cpu, IdxType>(N, iStart + sizeOfBlock);
         IdxType * localMax   = maxTlsData.local();
@@ -517,7 +517,7 @@ services::Status qTreeBuildingKernelImpl(MemoryCtxType<IdxType, DataType, cpu> &
             constexpr IdxType sizeOfBlock = 1;
             const IdxType nBlocks         = bNodes;
 
-            daal::threader_for(nBlocks, nBlocks, [&](IdxType iSubTree) {
+            daal::threader_for(nBlocks, 1, [&](IdxType iSubTree) {
                 TArrayCalloc<int, cpu> histArr(3072);
                 int * hist = histArr.get();
                 DAAL_CHECK_MALLOC_THR(hist);
@@ -817,7 +817,7 @@ struct AttractiveKernel
         const IdxType sizeOfBlock = services::internal::min<cpu, size_t>(256, N / nThreads + 1);
         const IdxType nBlocks     = N / sizeOfBlock + bool(N % sizeOfBlock);
 
-        daal::threader_for(nBlocks, nBlocks, [&](IdxType iBlock) {
+        daal::threader_for(nBlocks, 1, [&](IdxType iBlock) {
             const IdxType iStart = iBlock * sizeOfBlock;
             const IdxType iEnd   = services::internal::min<cpu, IdxType>(N, iStart + sizeOfBlock);
             DataType * logLocal  = logTlsData.local();

@@ -184,7 +184,7 @@ public:
 
         MergeGHSums<algorithmFPType, RowIndexType, BinIndexType, cpu>::run(nUnique, iStart, iEnd, _results, _size, _res1);
 
-        daal::threader_for(2, 2, [&](size_t iBlock) {
+        daal::threader_for(2, 1, [&](size_t iBlock) {
             if (iBlock == 0)
             {
                 // TODO: check for hasDiffFeatureValues()

@@ -284,7 +284,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
     algorithmFPType * R = service_scalable_calloc<algorithmFPType, cpu>(nthreads * ncols * ncols);
     QR_CHECK_RETURN(R, PCL_MEMORY_ERROR);
 
-    daal::threader_for(nthreads, nthreads, [&](size_t tid) {
+    daal::threader_for(nthreads, 1, [&](size_t tid) {
         DAAL_INT mkl_m_local;
         DAAL_INT mkl_n_local;
         DAAL_INT mkl_lda_local;
@@ -435,7 +435,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
 
         service_scalable_free<algorithmFPType, cpu>(a_local);
         work_free<algorithmFPType, cpu>(mkl_work_local);
-    }); /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    }); /* daal::threader_for( nthreads, 1, [&](size_t tid) */
 
     mkl_m     = nthreads * ncols;
     mkl_n     = ncols;
@@ -450,7 +450,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
 
     if (onlyV == false)
     {
-        daal::threader_for(nthreads, nthreads, [&](size_t tid) {
+        daal::threader_for(nthreads, 1, [&](size_t tid) {
             algorithmFPType * A_local = A + tid * rows_per_thread * ncols;
             algorithmFPType * R_local = R + tid * ncols;
 
@@ -463,7 +463,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
                     A_local[i * ncols + j] = R_local[i + j * nthreads * ncols];
                 }
             } /* for(size_t j = 0; j < ncols; j++ )  */
-        });   /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+        });   /* daal::threader_for( nthreads, 1, [&](size_t tid) */
     }
     else
     {
@@ -524,7 +524,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
     algorithmFPType * R = service_scalable_calloc<algorithmFPType, cpu>(nthreads * ncols * ncols);
     QR_CHECK_RETURN(R, PCL_MEMORY_ERROR);
 
-    daal::threader_for(nthreads, nthreads, [&](size_t tid) {
+    daal::threader_for(nthreads, 1, [&](size_t tid) {
         algorithmFPType * R_local = R + tid * ncols;
         size_t start              = tid * rows_per_thread;
         algorithmFPType * A_local = A + start * ncols;
@@ -545,7 +545,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
                 R_local[i + Rda * j] = 0.0f;
             }
         } /* for(size_t j = 0; j < ncols; j++ ) */
-    });   /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    });   /* daal::threader_for( nthreads, 1, [&](size_t tid) */
 
     mkl_m     = Rda;
     mkl_n     = ncols;
@@ -557,7 +557,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
 
     QR_CHECK_RETURN(!mkl_info, PCL_MKL_ERROR);
 
-    daal::threader_for(nthreads, nthreads, [&](size_t tid) {
+    daal::threader_for(nthreads, 1, [&](size_t tid) {
         char mkl_side_local;
         char mkl_trans_local;
         DAAL_INT mkl_m_local;
@@ -742,7 +742,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         service_scalable_free<algorithmFPType, cpu>(a);
         service_scalable_free<algorithmFPType, cpu>(b);
         work_free<algorithmFPType, cpu>(work_local);
-    }); /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    }); /* daal::threader_for( nthreads, 1, [&](size_t tid) */
 
     service_scalable_free<algorithmFPType, cpu>(R);
 
@@ -798,7 +798,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
 
     QR_CHECK_RETURN_FREE2(R && R2, PCL_MEMORY_ERROR, R, R2);
 
-    daal::threader_for(nthreads, nthreads, [&](size_t tid) {
+    daal::threader_for(nthreads, 1, [&](size_t tid) {
         algorithmFPType * R_local  = R + tid * ncols;
         algorithmFPType * R2_local = R2 + tid * ncols;
         size_t start               = tid * rows_per_thread;
@@ -848,7 +848,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
                 }
             }
         } /* if(tid == 0) */
-    });   /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    });   /* daal::threader_for( nthreads, 1, [&](size_t tid) */
 
     // R2 should now be a full dense matrix
     mkl_side  = 'L';
@@ -864,7 +864,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
 
     QR_CHECK_RETURN(!mkl_info, PCL_MKL_ERROR);
 
-    daal::threader_for(nthreads, nthreads, [&](size_t tid) {
+    daal::threader_for(nthreads, 1, [&](size_t tid) {
         char mkl_side_local;
         char mkl_trans_local;
         DAAL_INT mkl_m_local;
@@ -1034,7 +1034,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         service_scalable_free<algorithmFPType, cpu>(a);
         service_scalable_free<algorithmFPType, cpu>(b);
         work_free<algorithmFPType, cpu>(work_local);
-    }); /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    }); /* daal::threader_for( nthreads, 1, [&](size_t tid) */
 
     service_scalable_free<algorithmFPType, cpu>(R);
     service_scalable_free<algorithmFPType, cpu>(R2);
@@ -1082,7 +1082,7 @@ static int qr_pcl(const algorithmFPType * A_in,                        /* nrows 
             nBlocks++;
         }
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t block) {
+        daal::threader_for(nBlocks, 1, [&](size_t block) {
             size_t b = (block)*blockSize;
             size_t e = (block + 1) * blockSize;
             if (e > num)
@@ -1183,7 +1183,7 @@ static int svd_pcl(algorithmFPType * A_in,                                      
     {
         R_out = U_out;
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t block) {
+        daal::threader_for(nBlocks, 1, [&](size_t block) {
             size_t b = (block)*blockSize;
             size_t e = (block + 1) * blockSize;
             if (e > num)

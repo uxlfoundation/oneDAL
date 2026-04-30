@@ -70,7 +70,7 @@ public:
             : vertex_count(vertex_count),
               atomic_value_allocator(alloc_ptr) {
         relaxing_data = allocate(atomic_value_allocator, vertex_count);
-        dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t i) {
+        dal::detail::threader_for(vertex_count, 1024, [&](std::int64_t i) {
             new (relaxing_data + i) atomic_type(max_dist);
         });
         store_by_index(source, 0);
@@ -140,7 +140,7 @@ public:
         relaxing_data = allocate(atomic_value_allocator, vertex_count);
         double* value_ptr = &max_dist;
         AtomicT value_int_representation = *reinterpret_cast<AtomicT*>(value_ptr);
-        dal::detail::threader_for(vertex_count, vertex_count, [&](AtomicT i) {
+        dal::detail::threader_for(vertex_count, 1024, [&](AtomicT i) {
             new (relaxing_data + i) atomic_type(value_int_representation);
         });
         store_by_index(source, 0);
@@ -158,7 +158,7 @@ public:
         relaxing_data = allocate(atomic_value_allocator, vertex_count);
         relaxing_data_type max_dp(max_dist, -1);
         AtomicT max_dp_int_representation = *reinterpret_cast<AtomicT*>(&max_dp);
-        dal::detail::threader_for(vertex_count, vertex_count, [&](AtomicT i) {
+        dal::detail::threader_for(vertex_count, 1024, [&](AtomicT i) {
             new (relaxing_data + i) atomic_type(max_dp_int_representation);
         });
         store_by_index(source, relaxing_data_type(0, -1));
@@ -253,7 +253,7 @@ public:
               mutex_allocator(alloc_ptr) {
         relaxing_data = allocate(relaxing_data_allocator, vertex_count);
         mutexes = allocate(mutex_allocator, vertex_count);
-        dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t i) {
+        dal::detail::threader_for(vertex_count, 1024, [&](std::int64_t i) {
             new (relaxing_data + i) relaxing_data_type(max_dist, -1);
             new (mutexes + i) mutex_type();
         });

@@ -238,7 +238,7 @@ public:
         const size_t blockSize = 256;
         const size_t nBlocks   = nRowsA / blockSize + (nRowsA % blockSize > 0);
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             const size_t i1    = iBlock * blockSize;
             const size_t i2    = (iBlock + 1 == nBlocks ? nRowsA : i1 + blockSize);
             const size_t iSize = i2 - i1;
@@ -263,7 +263,7 @@ protected:
 
         SafeStatus safeStat;
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             size_t begin = iBlock * blockSize;
             size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, nRows);
 

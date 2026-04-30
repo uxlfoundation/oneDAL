@@ -241,7 +241,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
         } /* for (size_t i = 0; i < blockSize; i++) */
 
         *trg += goal;
-    }); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */
+    }); /* daal::threader_for( nBlocks, 1, [=](int k) */
     return safeStat.detach();
 }
 
