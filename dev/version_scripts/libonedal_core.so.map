@@ -356,6 +356,7 @@ global:
         # RTTI
         "vtable for daal::algorithms::kmeans::init::interface1::Parameter";
         "vtable for daal::algorithms::kmeans::init::interface1::DistributedStep2MasterInput";
+        "typeinfo for daal::algorithms::kmeans::interface1::PartialResult";
 
 
         # K-Nearest Neighbors (Brute Force)
