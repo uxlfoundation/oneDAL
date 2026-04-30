@@ -616,6 +616,7 @@ jobs:
   - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
+      "$(BAZELISK_EXE)" shutdown
       "$(BAZELISK_EXE)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release'
 
@@ -642,7 +643,9 @@ jobs:
   - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
-      for /f "usebackq tokens=*" %%i in (`"$(BAZELISK_EXE)" info output_base`) do set "OUTPUT_BASE=%%i"
+      "$(BAZELISK_EXE)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
       set PATH=%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set MKL_THREADING_LAYER=TBB
       "$(BAZELISK_EXE)" test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors --test_env=MKL_THREADING_LAYER --jobs=$(BAZEL_JOBS)
