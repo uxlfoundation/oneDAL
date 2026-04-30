@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# This template is used for non-Windows MKL packages. Windows uses mkl_win.tpl.BUILD.
 cc_library(
     name = "headers",
     hdrs = glob([
