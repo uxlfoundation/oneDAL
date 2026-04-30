@@ -43,8 +43,24 @@ def _filter_user_link_flags(feature_configuration, user_link_flags):
     return user_link_flags
 
 def _merge_static_libs(filename, actions, cc_toolchain,
-                       feature_configuration, static_libs):
+                       feature_configuration, static_libs, is_windows = False):
     output_file = actions.declare_file(filename)
+    if is_windows:
+        args = actions.args()
+        args.use_param_file("@%s", use_always = True)
+        args.set_param_file_format("multiline")
+        args.add("/NOLOGO")
+        args.add("/OUT:" + output_file.path)
+        args.add_all(static_libs)
+        actions.run(
+            executable = "lib.exe",
+            arguments = [args],
+            inputs = static_libs,
+            outputs = [output_file],
+            mnemonic = "MergeStaticLibraries",
+            use_default_shell_env = True,
+        )
+        return output_file
     merger_path = cc_common.get_tool_for_action(
         feature_configuration = feature_configuration,
         action_name = CPP_MERGE_STATIC_LIBRARIES,
@@ -83,13 +99,74 @@ def _merge_static_libs(filename, actions, cc_toolchain,
     return output_file
 
 def _static(owner, name, actions, cc_toolchain,
-            feature_configuration, linking_contexts):
+            feature_configuration, linking_contexts, is_windows = False):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if (unpacked_linking_context.objects and
         unpacked_linking_context.pic_objects):
         utils.warn("Static library {} contains mix of PIC and non-PIC code".format(name))
-    all_objects = depset(unpacked_linking_context.pic_objects +
-                         unpacked_linking_context.objects)
+    all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
+    if is_windows:
+        if all_object_list or unpacked_linking_context.static_libraries:
+            static_lib = _merge_static_libs(
+                filename = name + ".lib",
+                actions = actions,
+                cc_toolchain = cc_toolchain,
+                feature_configuration = feature_configuration,
+                static_libs = all_object_list + unpacked_linking_context.static_libraries,
+                is_windows = True,
+            )
+        else:
+            static_lib = actions.declare_file(name + ".lib")
+            actions.write(output = static_lib, content = "")
+        static_lib_to_link = cc_common.create_library_to_link(
+            actions = actions,
+            cc_toolchain = cc_toolchain,
+            feature_configuration = feature_configuration,
+            static_library = static_lib,
+            pic_static_library = static_lib,
+        )
+        linker_input = cc_common.create_linker_input(
+            owner = owner,
+            libraries = depset([static_lib_to_link] +
+                               unpacked_linking_context.dynamic_libraries_to_link),
+            user_link_flags = depset(unpacked_linking_context.user_link_flags),
+        )
+        return cc_common.create_linking_context(
+            linker_inputs = depset([ linker_input ]),
+        ), static_lib
+    if not all_object_list:
+        if unpacked_linking_context.static_libraries:
+            static_lib = _merge_static_libs(
+                filename = name + ".lib" if is_windows else name + ".a",
+                actions = actions,
+                cc_toolchain = cc_toolchain,
+                feature_configuration = feature_configuration,
+                static_libs = unpacked_linking_context.static_libraries,
+                is_windows = is_windows,
+            )
+        elif is_windows:
+            static_lib = actions.declare_file(name + ".lib")
+            actions.write(output = static_lib, content = "")
+        else:
+            return utils.warn("'{}' static library does not contain any " +
+                              "object file".format(name))
+        static_lib_to_link = cc_common.create_library_to_link(
+            actions = actions,
+            cc_toolchain = cc_toolchain,
+            feature_configuration = feature_configuration,
+            static_library = static_lib,
+            pic_static_library = static_lib,
+        )
+        linker_input = cc_common.create_linker_input(
+            owner = owner,
+            libraries = depset([static_lib_to_link] +
+                               unpacked_linking_context.dynamic_libraries_to_link),
+            user_link_flags = depset(unpacked_linking_context.user_link_flags),
+        )
+        return cc_common.create_linking_context(
+            linker_inputs = depset([ linker_input ]),
+        ), static_lib
+    all_objects = depset(all_object_list)
     compilation_outputs = cc_common.create_compilation_outputs(
         objects = all_objects,
         pic_objects = all_objects,
@@ -103,19 +180,33 @@ def _static(owner, name, actions, cc_toolchain,
         linking_contexts = linking_contexts,
         disallow_dynamic_library = True,
     )
-    if not linking_outputs.library_to_link:
-        return utils.warn("'{}' static library does not contain any " +
-                          "object file".format(name))
-    static_lib = (linking_outputs.library_to_link.static_library or
-                  linking_outputs.library_to_link.pic_static_library)
-    if unpacked_linking_context.static_libraries:
+    if linking_outputs.library_to_link:
+        static_lib = (linking_outputs.library_to_link.static_library or
+                      linking_outputs.library_to_link.pic_static_library)
+        if unpacked_linking_context.static_libraries:
+            static_lib = _merge_static_libs(
+                filename = utils.remove_substring(static_lib.basename, "_no_deps"),
+                actions = actions,
+                cc_toolchain = cc_toolchain,
+                feature_configuration = feature_configuration,
+                static_libs = [ static_lib ] + unpacked_linking_context.static_libraries,
+                is_windows = is_windows,
+            )
+    elif unpacked_linking_context.static_libraries:
         static_lib = _merge_static_libs(
-            filename = utils.remove_substring(static_lib.basename, "_no_deps"),
+            filename = name + ".lib" if is_windows else name + ".a",
             actions = actions,
             cc_toolchain = cc_toolchain,
             feature_configuration = feature_configuration,
-            static_libs = [ static_lib ] + unpacked_linking_context.static_libraries,
+            static_libs = unpacked_linking_context.static_libraries,
+            is_windows = is_windows,
         )
+    elif is_windows:
+        static_lib = actions.declare_file(name + ".lib")
+        actions.write(output = static_lib, content = "")
+    else:
+        return utils.warn("'{}' static library does not contain any " +
+                          "object file".format(name))
     static_lib_to_link = cc_common.create_library_to_link(
         actions = actions,
         cc_toolchain = cc_toolchain,
@@ -138,7 +229,7 @@ def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
           def_file=None, is_executable=False, user_link_flags=[]):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
-    if not is_executable and unpacked_linking_context.objects:
+    if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
             name, unpacked_linking_context.objects))
     all_objects = depset(unpacked_linking_context.pic_objects +
@@ -188,16 +279,27 @@ def _dynamic(owner, name, actions, cc_toolchain,
         user_link_flags=user_link_flags,
     )
     library_to_link = linking_outputs.library_to_link
-    if not (library_to_link and library_to_link.resolved_symlink_dynamic_library):
+    dynamic_lib = None
+    interface_lib = None
+    if library_to_link:
+        dynamic_lib = library_to_link.resolved_symlink_dynamic_library or library_to_link.dynamic_library
+        interface_lib = library_to_link.resolved_symlink_interface_library or library_to_link.interface_library
+    if not dynamic_lib:
         return utils.warn("'{}' dynamic library does not contain any " +
-                          "object file".format(name))
-    # TODO: Handle interface dynamic library on Windows
-    dynamic_lib = library_to_link.resolved_symlink_dynamic_library
+                          "object file".format(name)), struct(
+            files = [],
+            dynamic_library = None,
+            interface_library = None,
+        )
+    dynamic_files = [dynamic_lib]
+    if interface_lib:
+        dynamic_files.append(interface_lib)
     dynamic_lib_to_link = cc_common.create_library_to_link(
         actions = actions,
         cc_toolchain = cc_toolchain,
         feature_configuration = feature_configuration,
         dynamic_library = dynamic_lib,
+        interface_library = interface_lib,
     )
     linker_input = cc_common.create_linker_input(
         owner = owner,
@@ -208,7 +310,11 @@ def _dynamic(owner, name, actions, cc_toolchain,
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([ linker_input ]),
     )
-    return linking_context, dynamic_lib
+    return linking_context, struct(
+        files = dynamic_files,
+        dynamic_library = dynamic_lib,
+        interface_library = interface_lib,
+    )
 
 def _executable(owner, name, actions, cc_toolchain,
                 feature_configuration, linking_contexts,

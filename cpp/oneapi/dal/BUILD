@@ -96,6 +96,11 @@ dal_dynamic_lib(
         ":core",
         ":optional",
     ],
+    extra_deps = [
+        "@mkl//:mkl_core",
+        "@onedal//cpp/daal:core_dynamic",
+        "@onedal//cpp/daal:thread_dynamic",
+    ],
 )
 
 dal_dynamic_lib(
@@ -105,6 +110,11 @@ dal_dynamic_lib(
         ":dynamic",
         "@onedal//cpp/oneapi/dal/algo:parameters",
         "@onedal//cpp/oneapi/dal/detail/parameters",
+    ],
+    extra_deps = [
+        "@mkl//:mkl_core",
+        "@onedal//cpp/daal:core_dynamic",
+        "@onedal//cpp/daal:thread_dynamic",
     ],
 )
 

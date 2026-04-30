@@ -33,6 +33,18 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_sycl_rng.so*",
     ],
     build_template = "@onedal//dev/bazel/deps:mkl.tpl.BUILD",
+    win_includes = [
+        "include",
+    ],
+    win_libs = [
+        "lib/mkl_core.lib",
+        "lib/mkl_intel_ilp64.lib",
+        "lib/mkl_tbb_thread.lib",
+    ],
+    win_bins = [
+        "bin/*.dll",
+    ],
+    win_build_template = "@onedal//dev/bazel/deps:mkl_win.tpl.BUILD",
     download_mapping = {
     # Required directory layout and layout in the downloaded
     # archives may be different. Mapping helps to setup relations

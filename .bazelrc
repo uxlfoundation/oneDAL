@@ -34,6 +34,9 @@ test --test_env=FI_PROVIDER_PATH
 # the required environment variable to tests for compatibility:
 test --test_env=LD_LIBRARY_PATH
 
+# On Windows, tests may need PATH to find runtime DLLs from external dependencies.
+test --test_env=PATH
+
 # This variable is used to determine location of datasets for testing
 test --test_env=DAAL_DATASETS
 

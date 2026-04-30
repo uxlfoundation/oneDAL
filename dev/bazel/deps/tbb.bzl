@@ -27,6 +27,18 @@ tbb_repo = repos.prebuilt_libs_repo_rule(
         "lib/libtbbmalloc.so.2",
     ],
     build_template = "@onedal//dev/bazel/deps:tbb.tpl.BUILD",
+    win_includes = [
+        "include",
+    ],
+    win_libs = [
+        "lib/tbb12.lib",
+        "lib/tbbmalloc.lib",
+    ],
+    win_bins = [
+        "bin/tbb12.dll",
+        "bin/tbbmalloc.dll",
+    ],
+    win_build_template = "@onedal//dev/bazel/deps:tbb_win.tpl.BUILD",
     # Remove this once support for TBB 2021.11 and older versions is discontinued
     local_mapping = {
     # Required directory layout and layout in the downloaded

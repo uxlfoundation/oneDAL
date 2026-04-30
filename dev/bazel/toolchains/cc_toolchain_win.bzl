@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright contributors to the oneDAL project
+# Copyright 2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,16 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-package(default_visibility = ["//visibility:public"])
-
-exports_files([
-    "vars_lnx.sh",
-    "vars_mac.sh",
-    "vars_win.bat",
-    "config.txt",
-])
-
-filegroup(
-    name = "config_file",
-    srcs = ["config.txt"],
-)
+def configure_cc_toolchain_win(repo_ctx, reqs):
+    repo_ctx.template(
+        "BUILD",
+        Label("@onedal//dev/bazel/toolchains:cc_toolchain_win.tpl.BUILD"),
+    )

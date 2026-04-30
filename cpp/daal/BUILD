@@ -244,6 +244,9 @@ daal_dynamic_lib(
     deps = [
         ":core",
         ":all_algorithms",
+        # Match Make: onedal_core.dll contains the DAAL threading implementation
+        # and depends directly on TBB instead of depending on onedal_thread.dll.
+        ":threading_tbb",
     ],
 )
 

@@ -52,31 +52,49 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
 
 
 
-def _create_download_info(repo_ctx):
-    if repo_ctx.attr.url and repo_ctx.attr.urls:
+def _detect_os(repo_ctx):
+    return "win" if repo_ctx.os.name.lower().find("windows") != -1 else "lnx"
+
+def _select_by_os(repo_ctx, name, os_id):
+    if os_id == "win":
+        win_name = ("_win" + name) if name.startswith("_") else ("win_" + name)
+        if hasattr(repo_ctx.attr, win_name):
+            win_value = getattr(repo_ctx.attr, win_name)
+            if win_value:
+                return win_value
+    return getattr(repo_ctx.attr, name)
+
+def _create_download_info(repo_ctx, os_id):
+    url = _select_by_os(repo_ctx, "url", os_id)
+    urls = _select_by_os(repo_ctx, "urls", os_id)
+    sha256 = _select_by_os(repo_ctx, "sha256", os_id)
+    sha256s = _select_by_os(repo_ctx, "sha256s", os_id)
+    strip_prefix = _select_by_os(repo_ctx, "strip_prefix", os_id)
+    strip_prefixes = _select_by_os(repo_ctx, "strip_prefixes", os_id)
+    if url and urls:
         fail("Either `url` or `urls` attribute must be set")
-    if repo_ctx.attr.sha256 and repo_ctx.attr.sha256s:
+    if sha256 and sha256s:
         fail("Either `sha256` or `sha256s` attribute must be set")
-    if repo_ctx.attr.strip_prefix and repo_ctx.attr.strip_prefixes:
+    if strip_prefix and strip_prefixes:
         fail("Either `strip_prefix` or `strip_prefixes` attribute must be set")
-    if repo_ctx.attr.url:
+    if url:
         return struct(
-            urls = [repo_ctx.attr.url],
-            sha256s = [repo_ctx.attr.sha256],
-            strip_prefixes = [repo_ctx.attr.strip_prefix],
+            urls = [url],
+            sha256s = [sha256],
+            strip_prefixes = [strip_prefix],
         )
     else:
         return struct(
-            urls = repo_ctx.attr.urls,
-            sha256s = repo_ctx.attr.sha256s,
+            urls = urls,
+            sha256s = sha256s,
             strip_prefixes = (
-                repo_ctx.attr.strip_prefixes if repo_ctx.attr.strip_prefixes else
-                len(repo_ctx.attr.urls) * [repo_ctx.attr.strip_prefix]
+                strip_prefixes if strip_prefixes else
+                len(urls) * [strip_prefix]
             ),
         )
 
-def _normalize_download_info(repo_ctx):
-    info = _create_download_info(repo_ctx)
+def _normalize_download_info(repo_ctx, os_id):
+    info = _create_download_info(repo_ctx, os_id)
     expected_len = len(info.urls)
     if len(info.sha256s) != expected_len:
         fail("sha256 hashes count does not match URLs count")
@@ -135,9 +153,9 @@ def _matches_glob(name, pattern):
         pos = idx + len(part)
     return True
 
-def _download(repo_ctx):
+def _download(repo_ctx, os_id):
     output = repo_ctx.path("archive")
-    info_entries = _normalize_download_info(repo_ctx)
+    info_entries = _normalize_download_info(repo_ctx, os_id)
     for info in info_entries:
         _download_and_extract(
             repo_ctx,
@@ -150,6 +168,7 @@ def _download(repo_ctx):
 
 # TODO: Delete hardcoded package keywords after release
 def _prebuilt_libs_repo_impl(repo_ctx):
+    os_id = _detect_os(repo_ctx)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
     if root:
         if "2017u1" in root:
@@ -165,18 +184,17 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         else:
             mapping = {}
     else:
-        if repo_ctx.attr.url or repo_ctx.attr.urls:
-            root = _download(repo_ctx)
-            mapping = repo_ctx.attr._download_mapping
+        if _select_by_os(repo_ctx, "url", os_id) or _select_by_os(repo_ctx, "urls", os_id):
+            root = _download(repo_ctx, os_id)
+            mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
         elif repo_ctx.attr.fallback_root:
             root = repo_ctx.attr.fallback_root
         else:
             fail("Cannot locate {} dependency".format(repo_ctx.name))
     substitutions = {
-        # TODO: Detect OS
-        "%{os}": "lnx",
+        "%{os}": os_id,
+        "%{repo_root}": str(repo_ctx.path("")),
     }
-    
     # Extract substitutions if a makefile_ver attribute is present
     if hasattr(repo_ctx.attr, "_makefile_ver") and repo_ctx.attr._makefile_ver:
         makefile_ver = repo_ctx.path(repo_ctx.attr._makefile_ver)
@@ -191,20 +209,22 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         substitutions["%{version_binary_major}"] = binary_major
         substitutions["%{version_binary_minor}"] = binary_minor
 
-
-    _create_symlinks(repo_ctx, root, repo_ctx.attr.includes, substitutions, mapping)
-    _create_symlinks(repo_ctx, root, repo_ctx.attr.libs, substitutions, mapping)
-    _create_symlinks(repo_ctx, root, repo_ctx.attr.bins, substitutions, mapping)
+    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
+    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
+    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping)
     repo_ctx.template(
         "BUILD",
-        repo_ctx.attr.build_template,
+        _select_by_os(repo_ctx, "build_template", os_id),
         substitutions = substitutions,
     )
 
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
                              root_env_var="", fallback_root="",
                              url="", sha256="", strip_prefix="",
-                             local_mapping={}, download_mapping={}):
+                             local_mapping={}, download_mapping={},
+                             win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
+                             win_url="", win_urls=[], win_sha256="", win_sha256s=[],
+                             win_strip_prefix="", win_strip_prefixes=[], win_download_mapping={}):
     return repository_rule(
         implementation = _prebuilt_libs_repo_impl,
         environ = [
@@ -227,8 +247,20 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
             "_makefile_ver": attr.label(default=Label("@onedal//:makefile.ver")),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),
+            "win_includes": attr.string_list(default=win_includes),
+            "win_libs": attr.string_list(default=win_libs),
+            "win_bins": attr.string_list(default=win_bins),
+            "win_build_template": attr.label(allow_files=True,
+                                             default=Label(win_build_template or build_template)),
+            "win_url": attr.string(default=win_url),
+            "win_urls": attr.string_list(default=win_urls),
+            "win_sha256": attr.string(default=win_sha256),
+            "win_sha256s": attr.string_list(default=win_sha256s),
+            "win_strip_prefix": attr.string(default=win_strip_prefix),
+            "win_strip_prefixes": attr.string_list(default=win_strip_prefixes),
             "_local_mapping": attr.string_dict(default=local_mapping),
             "_download_mapping": attr.string_dict(default=download_mapping),
+            "_win_download_mapping": attr.string_dict(default=win_download_mapping),
         }
     )
 
