@@ -231,9 +231,14 @@ def _cc_dynamic_lib_impl(ctx):
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
 
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    vi = ctx.attr._version_info[VersionInfo] if is_windows else None
+    link_name = "{}.{}".format(ctx.attr.lib_name, vi.binary_major) if is_windows else ctx.attr.lib_name
     linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
-        name = ctx.attr.lib_name,
+        name = link_name,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
@@ -242,20 +247,20 @@ def _cc_dynamic_lib_impl(ctx):
         user_link_flags = ctx.attr.linkopts,
     )
     default_files = dynamic_outputs.files
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
     if is_windows:
-        vi = ctx.attr._version_info[VersionInfo]
         default_files = []
         if dynamic_outputs.dynamic_library:
-            default_files.append(_copy_dynamic_release_file(
-                ctx,
-                dynamic_outputs.dynamic_library,
-                "{}.{}.dll".format(ctx.attr.lib_name, vi.binary_major),
-                is_windows = is_windows,
-                extra_inputs = [dynamic_outputs.interface_library] if dynamic_outputs.interface_library else [],
-            ))
+            dynamic_release_name = "{}.{}.dll".format(ctx.attr.lib_name, vi.binary_major)
+            if dynamic_outputs.dynamic_library.basename == dynamic_release_name:
+                default_files.append(dynamic_outputs.dynamic_library)
+            else:
+                default_files.append(_copy_dynamic_release_file(
+                    ctx,
+                    dynamic_outputs.dynamic_library,
+                    dynamic_release_name,
+                    is_windows = is_windows,
+                    extra_inputs = [dynamic_outputs.interface_library] if dynamic_outputs.interface_library else [],
+                ))
         if dynamic_outputs.interface_library:
             default_files.append(_copy_dynamic_release_file(
                 ctx,

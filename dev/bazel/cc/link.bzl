@@ -217,7 +217,6 @@ def _static(owner, name, actions, cc_toolchain,
     linker_input = cc_common.create_linker_input(
         owner = owner,
         libraries = depset([static_lib_to_link] +
-                           unpacked_linking_context.static_libraries_to_link +
                            unpacked_linking_context.dynamic_libraries_to_link),
         user_link_flags = depset(unpacked_linking_context.user_link_flags),
     )

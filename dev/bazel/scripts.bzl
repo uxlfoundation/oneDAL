@@ -94,7 +94,7 @@ Name: oneDAL
 Description: oneAPI Data Analytics Library
 Version: {major}.{minor}
 URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
+Libs: {onedal_libs} mkl_core.lib mkl_intel_ilp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
 Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
 """.format(
                 major = vi.major,
