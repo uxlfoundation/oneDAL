@@ -39,7 +39,7 @@ pr:
 
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
-  TBB_VERSION : 'v2021.10.0'
+  TBB_VERSION : 'v2022.3.0'
   VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
@@ -293,11 +293,11 @@ jobs:
     platform.type : 'lnxriscv64'
     OPENBLAS_VERSION : 'v0.3.27'
     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
-    TBB_VERSION : 'v2021.10.0'
+    TBB_VERSION : 'v2022.3.0'
     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
   pool:
-    vmImage: 'ubuntu-22.04'
+    vmImage: 'ubuntu-24.04'
   steps:
   - script: |
       .ci/env/apt.sh dev-base
@@ -309,11 +309,11 @@ jobs:
       .ci/env/apt.sh llvm-version 18
     displayName: 'llvm 18 installation'
   - script: |
-      .ci/env/apt.sh qemu-deb
+      .ci/env/apt.sh qemu-apt
     displayName: 'qemu-emulation installation'
   - task: Cache@2
     inputs:
-      key: '"riscv64" | "sysroot"'
+      key: '"riscv64" | "sysroot" | "$(SYSROOT_OS)"'
       path: $(SYSROOT_CACHE_DIR)
       cacheHitVar: SYSROOT_RESTORED
   - script: |
@@ -325,7 +325,7 @@ jobs:
     displayName: 'System info'
   - task: Cache@2
     inputs:
-      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64"'
+      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64" | "$(SYSROOT_OS)"'
       path: $(OPENBLAS_CACHE_DIR)
       cacheHitVar: OPENBLAS_RESTORED
   - script: |
@@ -334,7 +334,7 @@ jobs:
     condition: ne(variables.OPENBLAS_RESTORED, 'true')
   - task: Cache@2
     inputs:
-      key: '"clang" | "riscv64" | "tbb" | "$(TBB_VERSION)"'
+      key: '"clang" | "riscv64" | "tbb" | "$(TBB_VERSION)" | "$(SYSROOT_OS)"'
       path: $(TBB_CACHE_DIR)
       cacheHitVar: TBB_RESTORED
   - script: |
