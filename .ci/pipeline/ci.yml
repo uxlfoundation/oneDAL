@@ -431,6 +431,21 @@ jobs:
     displayName: 'bazel-configure'
 
   - script: |
+      set -euo pipefail
+
+      for config in dbg dbg-symbols asan asan-static tsan ubsan msan type; do
+        echo "Checking Bazel config: ${config}"
+        bazel build --nobuild :release --config="${config}"
+      done
+
+      echo "Checking Bazel config: release-dpc"
+      bazel build --nobuild :release --config=release-dpc --cpu=all
+
+      echo "Checking Bazel config: dev"
+      bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
+    displayName: 'Bazel config smoke checks'
+
+  - script: |
       bazel build :release
     displayName: 'release'
 

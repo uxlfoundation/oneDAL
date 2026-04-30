@@ -372,3 +372,181 @@ dal_test_suite(
 
 ## What is missing in this guide
 - How to get make-like release structure
+
+## Debug and Sanitizer Builds
+
+### Debug build with assertions
+
+Equivalent to Make `REQDBG=1` — adds debug symbols, enables `DEBUG_ASSERT`
+and `ONEDAL_ENABLE_ASSERT`:
+
+```sh
+bazel build //:release --config=dbg
+bazel test //cpp/oneapi/dal:tests --config=dbg
+```
+
+### Debug symbols only (no assertion checks)
+
+Equivalent to Make `REQDBG=symbols`:
+
+```sh
+bazel build //:release --config=dbg-symbols
+```
+
+> Note: DPC++ targets can be built with debug/sanitizer configurations when
+> the selected compiler/runtime supports them. Debug builds of
+> `libonedal_dpc.so` may still produce excessive debug information and very long
+> link times; for practical DPC++ debugging, the static variant can be easier to
+> work with.
+
+### AddressSanitizer (ASan)
+
+Equivalent to Make `REQSAN=address`. Sanitizers do not automatically enable assertions or unoptimized debug builds. It is highly recommended to combine them with `--config=dbg` (for full debug + assertions) or `--enable_assert=True`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
+```
+
+For static libasan linkage (equivalent to Make `REQSAN=static`):
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=asan-static --config=dbg
+```
+
+### ThreadSanitizer (TSan)
+
+Equivalent to Make `REQSAN=thread`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=tsan
+```
+
+### UndefinedBehaviorSanitizer (UBSan)
+
+Equivalent to Make `REQSAN=undefined`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=ubsan
+```
+
+### MemorySanitizer (MSan)
+
+Equivalent to Make `REQSAN=memory`. Requires a Clang/LLVM toolchain and lld;
+GCC does not support MSan. The `msan` config enables
+`-fsanitize-memory-track-origins` for better origin diagnostics and passes
+`--linkopt=-fuse-ld=lld` for the linker.
+
+Bazel applies the sanitizer flags to the oneDAL build, but it does not make the
+rest of the toolchain and dependencies (for example `libstdc++`) MSan-instrumented.
+Uninstrumented dependencies can produce false positives or incomplete reports;
+use an MSan-instrumented sysroot/runtime when investigating MSan findings.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=msan
+```
+
+### Type Sanitizer
+
+The `type` config enables Clang TypeSanitizer and adds
+`-fsanitize-recover=all` so the runtime can report multiple findings in one run.
+GCC and ICPX do not support TypeSanitizer.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=type
+```
+
+
+---
+
+## Release Build
+
+Build the full release artifact with all ISA variants (sse2, avx2, avx512):
+
+```sh
+bazel build //:release --cpu=all
+```
+
+By default, `--cpu=auto` builds the baseline `sse2` variant plus the detected
+host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
+restrict coverage (e.g., for faster CI):
+
+```sh
+bazel build //:release --cpu=avx2
+```
+
+To include DPC++ libraries:
+
+```sh
+bazel build //:release --config=release-dpc --cpu=all
+```
+
+---
+
+### Standard Library Assertions
+
+To enable GNU libstdc++ assertions (e.g., `std::vector` bounds checking),
+inject the preprocessor macro via `--cxxopt` (C++-only flag):
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=dbg --cxxopt=-D_GLIBCXX_DEBUG
+```
+
+This applies only when the build uses GNU libstdc++ headers (for example GCC,
+or ICX configured to use libstdc++). It is not portable to non-GNU standard
+library implementations.
+
+---
+
+## Custom Compiler and Linker Flags
+
+Equivalent to Make `COPT` / `CXXFLAGS`. Use `--copt` for C and C++ flags, `--cxxopt` for C++-only flags, and `--linkopt` for linker flags:
+
+```sh
+# Architecture/optimization flags (C and C++)
+bazel build //:release --copt=-march=native
+
+# Override optimization level (C and C++)
+bazel build //:release --copt=-O2
+
+# C++-only preprocessor/language flags
+bazel build //:release --cxxopt=-std=c++17
+
+# Add a linker flag
+bazel build //:release --linkopt=-Wl,--as-needed
+```
+
+Avoid `-march=native` for release artifacts: oneDAL relies on runtime CPU
+feature dispatching and portable baseline objects. Native architecture flags are
+appropriate only for local experiments where the artifact will run on the same
+machine.
+
+To make flags permanent for your local environment, add them to `~/.bazelrc`:
+
+```
+# ~/.bazelrc (user-local, not committed)
+build --copt=-your-c-and-cxx-flag
+build --cxxopt=-your-cxx-only-flag
+build --linkopt=-your-link-flag
+```
+
+---
+
+## Make → Bazel Flag Reference
+
+| Make option | Bazel equivalent | Notes |
+|---|---|---|
+| `REQDBG=1` | `--config=dbg` | Debug symbols + assertions |
+| `REQDBG=symbols` | `--config=dbg-symbols` | Debug symbols only |
+| `REQSAN=address` | `--config=asan` | AddressSanitizer |
+| `REQSAN=static` | `--config=asan-static` | ASan with static libasan |
+| `REQSAN=thread` | `--config=tsan` | ThreadSanitizer |
+| `REQSAN=undefined` | `--config=ubsan` | UBSan |
+| `REQSAN=memory` | `--config=msan` | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended) |
+| TypeSanitizer | `--config=type` | Clang-only; GCC/ICPX unsupported |
+| `COMPILER=gnu` | `CC=gcc bazel build ...` | Override compiler via `CC` env |
+| `OPTFLAG=O2` | `--copt=-O2` | Override optimization level |
+| `COPT=-flag` | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only) | Arbitrary compiler flag |
+| `--cpu=<isa>` (Make `PLAT`) | `--cpu=<isa>` | ISA selection |
+| (Make default all ISAs) | `bazel build //:release --cpu=all` | Explicit full ISA coverage |
+| (CI: single ISA) | `--cpu=avx2` | Override for CI speed |
+
