@@ -120,18 +120,25 @@ VersionInfo = provider(
         "build",
         "buildrev",
         "status",
+        # Binary ABI version (distinct from product version).
+        # Used for SONAME and shared library symlinks.
+        # Matches Make's MAJORBINARY / MINORBINARY variables.
+        "binary_major",
+        "binary_minor",
     ],
 )
 
 def _version_info_impl(ctx):
     return [
         VersionInfo(
-            major    = ctx.attr.major,
-            minor    = ctx.attr.minor,
-            update   = ctx.attr.update,
-            build    = ctx.attr.build,
-            buildrev = ctx.attr.buildrev,
-            status   = ctx.attr.status,
+            major        = ctx.attr.major,
+            minor        = ctx.attr.minor,
+            update       = ctx.attr.update,
+            build        = ctx.attr.build,
+            buildrev     = ctx.attr.buildrev,
+            status       = ctx.attr.status,
+            binary_major = ctx.attr.binary_major,
+            binary_minor = ctx.attr.binary_minor,
         )
     ]
 
@@ -144,6 +151,10 @@ version_info = rule(
         "build": attr.string(mandatory=True),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
+        # ABI binary version — used for SONAME and symlinks.
+        # Must match MAJORBINARY/MINORBINARY in makefile.
+        "binary_major": attr.string(mandatory=True),
+        "binary_minor": attr.string(mandatory=True),
     },
 )
 
@@ -204,20 +215,34 @@ def _detect_cpu_extension(repo_ctx):
 
 def _declare_onedal_config_impl(repo_ctx):
     auto_cpu = _detect_cpu_extension(repo_ctx)
+
+    makefile_ver = repo_ctx.path(Label("@onedal//:makefile.ver"))
+    makefile_content = repo_ctx.read(makefile_ver)
+    
+    # Parse MAJORBINARY and MINORBINARY
+    binary_major = "4"
+    binary_minor = "0"
+    for line in makefile_content.splitlines():
+        if line.startswith("MAJORBINARY"):
+            binary_major = line.split("=")[1].strip()
+        elif line.startswith("MINORBINARY"):
+            binary_minor = line.split("=")[1].strip()
+
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
         substitutions = {
-            "%{auto_cpu}":         auto_cpu,
-            "%{version_major}":    "2026",
-            "%{version_minor}":    "1",
-            "%{version_update}":   "0",
-            "%{version_build}":    utils.datestamp(repo_ctx),
-            "%{version_buildrev}": "work",
-            "%{version_status}":   "P",
+            "%{auto_cpu}":              auto_cpu,
+            "%{version_major}":         "2026",
+            "%{version_minor}":         "1",
+            "%{version_update}":        "0",
+            "%{version_build}":         utils.datestamp(repo_ctx),
+            "%{version_buildrev}":      "work",
+            "%{version_status}":        "P",
+            "%{version_binary_major}":  binary_major,
+            "%{version_binary_minor}":  binary_minor,
         },
     )
-
 declare_onedal_config = repository_rule(
     implementation = _declare_onedal_config_impl,
     local = True,
