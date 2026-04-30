@@ -73,11 +73,16 @@ def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
 # ---------------------------------------------------------------------------
 
 def _generate_pkgconfig_impl(ctx):
-    """Generate onedal.pc from pkg-config.cpp template."""
+    """Generate pkg-config files matching deploy/pkg-config/pkg-config.cpp."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
 
     if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        onedal_libs = (
+            "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
+            if ctx.attr.static else
+            "${libdir}/onedal_dll.lib ${libdir}/onedal_core_dll.lib"
+        )
         ctx.actions.write(
             output = out,
             content = """prefix=${{pcfiledir}}/../../
@@ -89,11 +94,12 @@ Name: oneDAL
 Description: oneAPI Data Analytics Library
 Version: {major}.{minor}
 URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: ${{libdir}}/onedal_dll.lib ${{libdir}}/onedal_core_dll.lib mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
+Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
 Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
 """.format(
                 major = vi.major,
                 minor = vi.minor,
+                onedal_libs = onedal_libs,
             ),
         )
     else:
@@ -133,6 +139,10 @@ _generate_pkgconfig = rule(
             mandatory = True,
             doc = "Output path relative to the package.",
         ),
+        "static": attr.bool(
+            default = False,
+            doc = "Generate a static-library pkg-config file.",
+        ),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
@@ -143,11 +153,12 @@ _generate_pkgconfig = rule(
     },
 )
 
-def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", **kwargs):
+def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", static = False, **kwargs):
     """Generate pkg-config .pc file from deploy/pkg-config/pkg-config.cpp."""
     _generate_pkgconfig(
         name = name,
         template = "@onedal//deploy/pkg-config:pkg-config.cpp",
         out = out,
+        static = static,
         **kwargs
     )

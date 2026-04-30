@@ -20,4 +20,10 @@ exports_files([
     "vars_lnx.sh",
     "vars_mac.sh",
     "vars_win.bat",
+    "config.txt",
 ])
+
+filegroup(
+    name = "config_file",
+    srcs = ["config.txt"],
+)

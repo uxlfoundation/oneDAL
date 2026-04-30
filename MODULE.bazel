@@ -225,16 +225,19 @@ mkl_repo(
     # Use the latest classic MKL PyPI wheels for Windows CPU/MSVC builds.
     # Windows DPC++/SYCL dependencies are out of scope here.
     win_urls = [
+        "https://files.pythonhosted.org/packages/97/b8/232e453647e55d00f51d57a6b0f5d7da575188ff392d850b490ee1993b26/mkl_static-2026.0.0-py2.py3-none-win_amd64.whl",
         "https://files.pythonhosted.org/packages/7b/2f/8a77106ef648cc1f04aa27e8b6c50cd82de38d1767801ef29cd75b8026e8/mkl-2026.0.0-py2.py3-none-win_amd64.whl",
         "https://files.pythonhosted.org/packages/3b/32/7c214676e0707dcdb0709961a63bdd010af34ff9ead46d3bae38e36102c6/mkl_devel-2026.0.0-py2.py3-none-win_amd64.whl",
         "https://files.pythonhosted.org/packages/2d/4f/1944dfa73b63c183c5a48da47d7b140d97146d0a96a0e7ef8c2bd8f0739e/mkl_include-2026.0.0-py2.py3-none-win_amd64.whl",
     ],
     win_sha256s = [
+        "c0d5df2e923836a07e2f2f0db95ead67ae91f98559f5215fb82add910bb15732",
         "801c9cc748be81d8269bfec2495d02be38560fc7386439c18499ab3f32b06b3e",
         "0d74e49b79ca10a332f4e4768afc597657fe9ce3d76f18bf7737d1a5043148a3",
         "8e316479bc3a5cccb1161e8de2140e476bd5a8ecad840374770d529b591d8af6",
     ],
     win_strip_prefixes = [
+        "mkl_static-2026.0.0.data/data/Library",
         "mkl-2026.0.0.data/data/Library",
         "mkl_devel-2026.0.0.data/data/Library",
         "mkl_include-2026.0.0.data/data/Library",
