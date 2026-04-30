@@ -288,6 +288,18 @@ DAAL_EXPORT int daal_enabled_cpu_detect()
             result |= feature;                                             \
         }
 
+/// Check if AMX-BF16 is available: CPUID(7,0).EDX[22] + XCR0[17:18] tile state enabled by OS.
+static int check_amx_bf16_features()
+{
+    /* CPUID.(EAX=07H, ECX=0H):EDX.AMX-BF16[bit 22]==1 */
+    if (!check_cpuid(7, 0, 3, (1 << 22)))
+    {
+        return 0;
+    }
+    /* XCR0[17:18] - XTILECFG and XTILEDATA must be set */
+    return check_xgetbv_xcr0_ymm(0x60000);
+}
+
 DAAL_UINT64 __daal_internal_serv_cpu_feature_detect()
 {
     DAAL_UINT64 result = daal::internal::CpuFeature::unknown;
@@ -300,6 +312,10 @@ DAAL_UINT64 __daal_internal_serv_cpu_feature_detect()
     {
         DAAL_TEST_CPU_FEATURE(result, 7, 1, 0, 5, daal::internal::CpuFeature::avx512_bf16);
         DAAL_TEST_CPU_FEATURE(result, 7, 0, 2, 11, daal::internal::CpuFeature::avx512_vnni);
+    }
+    if (check_amx_bf16_features())
+    {
+        result |= daal::internal::CpuFeature::amx_bf16;
     }
     DAAL_TEST_CPU_FEATURE(result, 1, 0, 2, 7, daal::internal::CpuFeature::sstep);
     DAAL_TEST_CPU_FEATURE(result, 6, 0, 0, 1, daal::internal::CpuFeature::tb);
@@ -315,6 +331,11 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     // We cache the result in a static variable here.
     static const DAAL_UINT64 result = __daal_internal_serv_cpu_feature_detect();
     return result;
+}
+
+DAAL_EXPORT bool daal_has_amx_bf16()
+{
+    return (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
 }
 
 #elif defined(TARGET_ARM)
@@ -360,6 +381,11 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     return daal::internal::CpuFeature::unknown;
 }
 
+DAAL_EXPORT bool daal_has_amx_bf16()
+{
+    return false;
+}
+
 #elif defined(TARGET_RISCV64)
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
@@ -384,5 +410,10 @@ bool daal_check_is_intel_cpu()
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
 {
     return daal::internal::CpuFeature::unknown;
+}
+
+DAAL_EXPORT bool daal_has_amx_bf16()
+{
+    return false;
 }
 #endif
