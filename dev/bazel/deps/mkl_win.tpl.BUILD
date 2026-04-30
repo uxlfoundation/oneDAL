@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "headers",
@@ -27,12 +27,6 @@ cc_library(
     linkstatic = 1,
 )
 
-cc_import(
-    name = "mkl_rt_import",
-    interface_library = "lib/mkl_rt.lib",
-    shared_library = "bin/mkl_rt.2.dll",
-)
-
 cc_library(
     name = "mkl_core",
     deps = [
@@ -43,7 +37,6 @@ cc_library(
 
 cc_library(
     name = "mkl_dpc_utils",
-    deps = [":mkl_rt_import"],
 )
 
 cc_library(

@@ -40,7 +40,6 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/mkl_core.lib",
         "lib/mkl_intel_ilp64.lib",
         "lib/mkl_tbb_thread.lib",
-        "lib/mkl_rt.lib",
     ],
     win_bins = [
         "bin/*.dll",
