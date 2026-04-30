@@ -144,12 +144,14 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
                     dpc_deps=[], extra_deps=[], lib_tags=["dal"],
-                    features=[], **kwargs):
+                    features=[], def_file=None, dpc_def_file=None,
+                    **kwargs):
     cc_dynamic_lib(
         name = name,
         lib_name = lib_name,
         lib_tags = lib_tags,
         deps = dal_deps + extra_deps + host_deps,
+        def_file = def_file,
         **kwargs
     )
     cc_dynamic_lib(
@@ -158,6 +160,7 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         lib_name = lib_name + "_dpc",
         lib_tags = lib_tags,
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps,
+        def_file = dpc_def_file,
         **kwargs
     )
 

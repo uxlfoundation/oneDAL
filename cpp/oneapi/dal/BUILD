@@ -92,6 +92,14 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
+    def_file = select({
+        "@platforms//os:linux": "@onedal//dev/version_scripts:libonedal.so.map",
+        "//conditions:default": None,
+    }),
+    dpc_def_file = select({
+        "@platforms//os:linux": "@onedal//dev/version_scripts:libonedal_dpc.so.map",
+        "//conditions:default": None,
+    }),
     dal_deps = [
         ":core",
         ":optional",
@@ -101,6 +109,14 @@ dal_dynamic_lib(
 dal_dynamic_lib(
     name = "dynamic_parameters",
     lib_name = "onedal_parameters",
+    def_file = select({
+        "@platforms//os:linux": "@onedal//dev/version_scripts:libonedal_parameters.so.map",
+        "//conditions:default": None,
+    }),
+    dpc_def_file = select({
+        "@platforms//os:linux": "@onedal//dev/version_scripts:libonedal_parameters_dpc.so.map",
+        "//conditions:default": None,
+    }),
     dal_deps = [
         ":dynamic",
         "@onedal//cpp/oneapi/dal/algo:parameters",
