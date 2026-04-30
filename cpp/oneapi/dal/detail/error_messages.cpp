@@ -195,6 +195,15 @@ MSG(kmeans_init_plus_plus_dense_method_is_not_implemented_for_gpu,
     "K-Means init++ dense method is not implemented for GPU")
 MSG(objective_function_value_lt_zero, "Objective function value is lower than zero")
 
+/* HDBSCAN */
+MSG(hdbscan_metric_not_compatible_with_kd_tree,
+    "HDBSCAN cosine metric is not compatible with kd_tree method")
+MSG(hdbscan_min_cluster_size_lt_two, "HDBSCAN min_cluster_size must be at least 2")
+MSG(hdbscan_min_samples_lt_one, "HDBSCAN min_samples must be at least 1")
+MSG(hdbscan_minkowski_degree_leq_zero, "HDBSCAN Minkowski degree must be greater than zero")
+MSG(hdbscan_kd_tree_method_is_not_implemented_for_gpu,
+    "HDBSCAN k-d tree method is not implemented for GPU")
+
 /* k-NN */
 MSG(knn_kd_tree_method_is_not_implemented_for_gpu,
     "k-NN k-d tree method is not implemented for GPU")
