@@ -45,7 +45,8 @@ struct compute_ops {
         if (!(input.get_data().has_data())) {
             throw invalid_argument(msg::input_data_is_empty());
         }
-        if constexpr (std::is_same_v<method_t, method::kd_tree>) {
+        if constexpr (std::is_same_v<method_t, method::kd_tree> ||
+                     std::is_same_v<method_t, method::ball_tree>) {
             if (params.get_metric() == distance_metric::cosine) {
                 throw invalid_argument(msg::hdbscan_metric_not_compatible_with_kd_tree());
             }

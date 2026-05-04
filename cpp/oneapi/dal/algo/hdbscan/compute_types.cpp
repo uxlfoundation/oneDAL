@@ -35,6 +35,8 @@ public:
     table core_flags;
     table core_observation_indices;
     table core_observations;
+    table cluster_centers;
+    table medoid_centers;
     std::int64_t cluster_count = 0;
 
     result_option_id result_options;
@@ -98,6 +100,24 @@ const table& compute_result<Task>::get_core_observations() const {
 }
 
 template <typename Task>
+const table& compute_result<Task>::get_cluster_centers() const {
+    using msg = dal::detail::error_messages;
+    if (!get_result_options().test(result_options::cluster_centers)) {
+        throw domain_error(msg::this_result_is_not_enabled_via_result_options());
+    }
+    return impl_->cluster_centers;
+}
+
+template <typename Task>
+const table& compute_result<Task>::get_medoid_centers() const {
+    using msg = dal::detail::error_messages;
+    if (!get_result_options().test(result_options::medoid_centers)) {
+        throw domain_error(msg::this_result_is_not_enabled_via_result_options());
+    }
+    return impl_->medoid_centers;
+}
+
+template <typename Task>
 std::int64_t compute_result<Task>::get_cluster_count() const {
     return impl_->cluster_count;
 }
@@ -130,6 +150,16 @@ void compute_result<Task>::set_core_observation_indices_impl(const table& value)
 template <typename Task>
 void compute_result<Task>::set_core_observations_impl(const table& value) {
     impl_->core_observations = value;
+}
+
+template <typename Task>
+void compute_result<Task>::set_cluster_centers_impl(const table& value) {
+    impl_->cluster_centers = value;
+}
+
+template <typename Task>
+void compute_result<Task>::set_medoid_centers_impl(const table& value) {
+    impl_->medoid_centers = value;
 }
 
 template <typename Task>

@@ -39,10 +39,19 @@ enum class cluster_selection_method {
     leaf ///< Select all leaf nodes in the condensed tree (finer-grained clusters)
 };
 
+/// Method for computing and storing cluster centers.
+enum class store_centers_method {
+    none,     ///< Do not compute cluster centers (default)
+    centroid, ///< Compute centroids (weighted mean of member points)
+    medoid,   ///< Compute medoids (member point minimizing intra-cluster distance)
+    both      ///< Compute both centroids and medoids
+};
+
 } // namespace v1
 
 using v1::distance_metric;
 using v1::cluster_selection_method;
+using v1::store_centers_method;
 
 namespace task {
 namespace v1 {
@@ -63,12 +72,14 @@ namespace method {
 namespace v1 {
 struct brute_force {};
 struct kd_tree {};
+struct ball_tree {};
 
 using by_default = brute_force;
 } // namespace v1
 
 using v1::brute_force;
 using v1::kd_tree;
+using v1::ball_tree;
 using v1::by_default;
 
 } // namespace method
@@ -87,6 +98,8 @@ ONEDAL_EXPORT result_option_id get_responses_id();
 ONEDAL_EXPORT result_option_id get_core_observation_indices_id();
 ONEDAL_EXPORT result_option_id get_core_observations_id();
 ONEDAL_EXPORT result_option_id get_core_flags_id();
+ONEDAL_EXPORT result_option_id get_cluster_centers_id();
+ONEDAL_EXPORT result_option_id get_medoid_centers_id();
 
 } // namespace detail
 
@@ -98,6 +111,8 @@ const inline result_option_id responses = detail::get_responses_id();
 const inline result_option_id core_observation_indices = detail::get_core_observation_indices_id();
 const inline result_option_id core_observations = detail::get_core_observations_id();
 const inline result_option_id core_flags = detail::get_core_flags_id();
+const inline result_option_id cluster_centers = detail::get_cluster_centers_id();
+const inline result_option_id medoid_centers = detail::get_medoid_centers_id();
 
 } // namespace result_options
 
@@ -113,7 +128,7 @@ constexpr bool is_valid_float_v = dal::detail::is_one_of_v<Float, float, double>
 
 template <typename Method>
 constexpr bool is_valid_method_v =
-    dal::detail::is_one_of_v<Method, method::brute_force, method::kd_tree>;
+    dal::detail::is_one_of_v<Method, method::brute_force, method::kd_tree, method::ball_tree>;
 
 template <typename Task>
 constexpr bool is_valid_task_v = dal::detail::is_one_of_v<Task, task::clustering>;
@@ -136,6 +151,11 @@ public:
     double get_degree() const;
     cluster_selection_method get_cluster_selection() const;
     bool get_allow_single_cluster() const;
+    double get_cluster_selection_epsilon() const;
+    std::int64_t get_max_cluster_size() const;
+    double get_alpha() const;
+    store_centers_method get_store_centers() const;
+    std::int64_t get_leaf_size() const;
 
 protected:
     void set_min_cluster_size_impl(std::int64_t);
@@ -145,6 +165,11 @@ protected:
     void set_degree_impl(double);
     void set_cluster_selection_impl(cluster_selection_method);
     void set_allow_single_cluster_impl(bool);
+    void set_cluster_selection_epsilon_impl(double);
+    void set_max_cluster_size_impl(std::int64_t);
+    void set_alpha_impl(double);
+    void set_store_centers_impl(store_centers_method);
+    void set_leaf_size_impl(std::int64_t);
 
 private:
     dal::detail::pimpl<descriptor_impl<Task>> impl_;
@@ -265,6 +290,60 @@ public:
 
     auto& set_allow_single_cluster(bool value) {
         base_t::set_allow_single_cluster_impl(value);
+        return *this;
+    }
+
+    /// Distance threshold below which clusters are merged after selection.
+    /// @invariant :expr:`cluster_selection_epsilon >= 0`
+    double get_cluster_selection_epsilon() const {
+        return base_t::get_cluster_selection_epsilon();
+    }
+
+    auto& set_cluster_selection_epsilon(double value) {
+        base_t::set_cluster_selection_epsilon_impl(value);
+        return *this;
+    }
+
+    /// Maximum cluster size for EOM selection. 0 means no limit.
+    /// @invariant :expr:`max_cluster_size >= 0`
+    std::int64_t get_max_cluster_size() const {
+        return base_t::get_max_cluster_size();
+    }
+
+    auto& set_max_cluster_size(std::int64_t value) {
+        base_t::set_max_cluster_size_impl(value);
+        return *this;
+    }
+
+    /// Distance scaling parameter for robust single linkage.
+    /// @invariant :expr:`alpha > 0`
+    double get_alpha() const {
+        return base_t::get_alpha();
+    }
+
+    auto& set_alpha(double value) {
+        base_t::set_alpha_impl(value);
+        return *this;
+    }
+
+    /// Which cluster centers to compute and store: none, centroid, medoid, or both.
+    store_centers_method get_store_centers() const {
+        return base_t::get_store_centers();
+    }
+
+    auto& set_store_centers(store_centers_method value) {
+        base_t::set_store_centers_impl(value);
+        return *this;
+    }
+
+    /// Leaf size for kd_tree nearest neighbor queries.
+    /// @invariant :expr:`leaf_size >= 1`
+    std::int64_t get_leaf_size() const {
+        return base_t::get_leaf_size();
+    }
+
+    auto& set_leaf_size(std::int64_t value) {
+        base_t::set_leaf_size_impl(value);
         return *this;
     }
 };

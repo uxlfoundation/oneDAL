@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// GPU HDBSCAN kd_tree/ball_tree: blocked core distance computation + GPU Boruvka MST.
-/// No host-side tree construction or MST — all computation stays on device.
+/// GPU HDBSCAN ball_tree: blocked core distance computation + GPU Boruvka MST.
+/// Same pipeline as kd_tree GPU variant — all computation stays on device.
 
 #include "oneapi/dal/algo/hdbscan/backend/gpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernels_fp.hpp"
@@ -36,12 +36,10 @@ namespace bk = oneapi::dal::backend;
 namespace pr = oneapi::dal::backend::primitives;
 
 using dal::backend::context_gpu;
-
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-/// Choose block size so that the B×N distance block fits in ~256 MB of device memory.
 static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float_size) {
     const std::int64_t target_bytes = 256 * 1024 * 1024;
     std::int64_t bs = target_bytes / (row_count * float_size);
@@ -53,10 +51,10 @@ static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float
 }
 
 template <typename Float>
-static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
-                                            const descriptor_t& desc,
-                                            const table& local_data) {
-    ONEDAL_PROFILER_TASK(hdbscan.compute_kd_tree, ctx.get_queue());
+static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
+                                              const descriptor_t& desc,
+                                              const table& local_data) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_ball_tree, ctx.get_queue());
 
     auto& queue = ctx.get_queue();
 
@@ -146,7 +144,6 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
                 core_ptr[offset + i] = needs_sqrt ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
             });
         });
-
         prev_block_event = extract_event;
     }
 
@@ -235,15 +232,15 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
 }
 
 template <typename Float>
-struct compute_kernel_gpu<Float, method::kd_tree, task::clustering> {
+struct compute_kernel_gpu<Float, method::ball_tree, task::clustering> {
     result_t operator()(const context_gpu& ctx,
                         const descriptor_t& desc,
                         const input_t& input) const {
-        return compute_kernel_kd_tree_impl<Float>(ctx, desc, input.get_data());
+        return compute_kernel_ball_tree_impl<Float>(ctx, desc, input.get_data());
     }
 };
 
-template struct compute_kernel_gpu<float, method::kd_tree, task::clustering>;
-template struct compute_kernel_gpu<double, method::kd_tree, task::clustering>;
+template struct compute_kernel_gpu<float, method::ball_tree, task::clustering>;
+template struct compute_kernel_gpu<double, method::ball_tree, task::clustering>;
 
 } // namespace oneapi::dal::hdbscan::backend

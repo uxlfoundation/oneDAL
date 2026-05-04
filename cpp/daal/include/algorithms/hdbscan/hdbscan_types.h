@@ -32,7 +32,8 @@ namespace hdbscan
 enum Method
 {
     defaultDense = 0, /*!< Default: brute-force method with full distance matrix */
-    kdTree       = 1  /*!< K-d tree method: O(N log N) neighbor search, no N^2 distance matrix */
+    kdTree       = 1, /*!< K-d tree method: O(N log N) neighbor search, no N^2 distance matrix */
+    ballTree     = 2  /*!< Ball tree method: hypersphere-based partitioning, robust to high dimensions */
 };
 
 /**

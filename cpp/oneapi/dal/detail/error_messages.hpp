@@ -234,6 +234,10 @@ public:
     MSG(hdbscan_min_samples_lt_one);
     MSG(hdbscan_minkowski_degree_leq_zero);
     MSG(hdbscan_kd_tree_method_is_not_implemented_for_gpu);
+    MSG(hdbscan_cluster_selection_epsilon_lt_zero);
+    MSG(hdbscan_max_cluster_size_lt_zero);
+    MSG(hdbscan_alpha_leq_zero);
+    MSG(hdbscan_leaf_size_lt_one);
 
     /* k-NN */
     MSG(knn_kd_tree_method_is_not_implemented_for_gpu);

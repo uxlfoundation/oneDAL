@@ -207,7 +207,7 @@ static void compute_core_distances_on_host(const Float* dist_matrix,
     });
 }
 
-/// Build MST using Prim's algorithm with precomputed distance matrix.
+/// Build MST using Boruvka's algorithm with precomputed distance matrix.
 /// Uses Mutual Reachability Distance: MRD(i,j) = max(core[i], core[j], dist[i,j])
 template <typename Float>
 static void build_mst_on_host(const Float* dist_matrix,
@@ -218,51 +218,94 @@ static void build_mst_on_host(const Float* dist_matrix,
                               std::int64_t row_count) {
     ONEDAL_ASSERT(row_count > 1);
 
-    const std::int64_t edge_count = row_count - 1;
+    const std::int64_t n = row_count;
 
-    std::vector<Float> min_edge(row_count, std::numeric_limits<Float>::max());
-    std::vector<std::int32_t> min_from(row_count, 0);
-    std::vector<bool> in_mst(row_count, false);
+    std::vector<std::int32_t> uf_parent(n);
+    std::vector<std::int32_t> uf_rank(n, 0);
+    std::vector<std::int32_t> comp_of(n);
+    std::iota(uf_parent.begin(), uf_parent.end(), 0);
+    std::iota(comp_of.begin(), comp_of.end(), 0);
 
-    // Initialize from node 0
-    in_mst[0] = true;
-    const Float* row0 = dist_matrix;
-    const Float core0 = core_distances[0];
-    for (std::int64_t j = 1; j < row_count; j++) {
-        const Float dist = row0[j];
-        min_edge[j] = std::max({ core0, core_distances[j], dist });
-    }
-
-    for (std::int64_t e = 0; e < edge_count; e++) {
-        // Find minimum edge to non-MST node
-        std::int32_t best = -1;
-        Float best_w = std::numeric_limits<Float>::max();
-        for (std::int64_t j = 0; j < row_count; j++) {
-            if (!in_mst[j] && min_edge[j] < best_w) {
-                best_w = min_edge[j];
-                best = static_cast<std::int32_t>(j);
-            }
+    auto uf_find = [&](std::int32_t x) -> std::int32_t {
+        while (uf_parent[x] != x) {
+            uf_parent[x] = uf_parent[uf_parent[x]];
+            x = uf_parent[x];
         }
-        ONEDAL_ASSERT(best >= 0);
+        return x;
+    };
+    auto uf_union = [&](std::int32_t rx, std::int32_t ry) {
+        if (uf_rank[rx] < uf_rank[ry])
+            uf_parent[rx] = ry;
+        else if (uf_rank[rx] > uf_rank[ry])
+            uf_parent[ry] = rx;
+        else {
+            uf_parent[ry] = rx;
+            uf_rank[rx]++;
+        }
+    };
 
-        mst_from[e] = min_from[best];
-        mst_to[e] = best;
-        mst_weights[e] = best_w;
-        in_mst[best] = true;
+    std::vector<Float> pt_best_mrd(n);
+    std::vector<std::int32_t> pt_best_idx(n);
+    std::vector<Float> comp_best_mrd(n);
+    std::vector<std::int32_t> comp_best_from(n), comp_best_to(n);
 
-        // Update min_edge for remaining nodes
-        const Float* best_row = dist_matrix + static_cast<std::int64_t>(best) * row_count;
-        const Float core_best = core_distances[best];
-        for (std::int64_t j = 0; j < row_count; j++) {
-            if (in_mst[j])
+    std::int64_t edges_added = 0;
+    std::int64_t num_components = n;
+
+    while (num_components > 1) {
+        for (std::int64_t i = 0; i < n; i++) {
+            const std::int32_t my_comp = comp_of[i];
+            const Float* row = dist_matrix + i * n;
+            Float best_m = std::numeric_limits<Float>::max();
+            std::int32_t best_j = -1;
+            for (std::int64_t j = 0; j < n; j++) {
+                if (comp_of[j] == my_comp)
+                    continue;
+                const Float mrd = std::max({ core_distances[i], core_distances[j], row[j] });
+                if (mrd < best_m) {
+                    best_m = mrd;
+                    best_j = static_cast<std::int32_t>(j);
+                }
+            }
+            pt_best_mrd[i] = best_m;
+            pt_best_idx[i] = best_j;
+        }
+
+        std::fill(comp_best_mrd.begin(), comp_best_mrd.end(), std::numeric_limits<Float>::max());
+        std::fill(comp_best_from.begin(), comp_best_from.end(), -1);
+        std::fill(comp_best_to.begin(), comp_best_to.end(), -1);
+        for (std::int64_t i = 0; i < n; i++) {
+            if (pt_best_idx[i] < 0)
                 continue;
-            const Float dist = best_row[j];
-            const Float mrd = std::max({ core_best, core_distances[j], dist });
-            if (mrd < min_edge[j]) {
-                min_edge[j] = mrd;
-                min_from[j] = best;
+            const std::int32_t c = comp_of[i];
+            if (pt_best_mrd[i] < comp_best_mrd[c]) {
+                comp_best_mrd[c] = pt_best_mrd[i];
+                comp_best_from[c] = static_cast<std::int32_t>(i);
+                comp_best_to[c] = pt_best_idx[i];
             }
         }
+
+        std::int64_t added = 0;
+        for (std::int64_t c = 0; c < n; c++) {
+            if (comp_best_from[c] < 0)
+                continue;
+            const std::int32_t u = comp_best_from[c], v = comp_best_to[c];
+            const std::int32_t ru = uf_find(u), rv = uf_find(v);
+            if (ru == rv)
+                continue;
+            mst_from[edges_added] = u;
+            mst_to[edges_added] = v;
+            mst_weights[edges_added] = comp_best_mrd[c];
+            edges_added++;
+            added++;
+            uf_union(ru, rv);
+            num_components--;
+        }
+        if (added == 0)
+            break;
+
+        for (std::int64_t i = 0; i < n; i++)
+            comp_of[i] = uf_find(static_cast<std::int32_t>(i));
     }
 }
 
@@ -293,44 +336,94 @@ static void build_mst_on_host(const Float* data,
                               std::int64_t col_count) {
     ONEDAL_ASSERT(row_count > 1);
 
-    const std::int64_t edge_count = row_count - 1;
+    const std::int64_t n = row_count;
 
-    std::vector<Float> min_edge(row_count, std::numeric_limits<Float>::max());
-    std::vector<std::int32_t> min_from(row_count, 0);
-    std::vector<bool> in_mst(row_count, false);
+    std::vector<std::int32_t> uf_parent(n);
+    std::vector<std::int32_t> uf_rank(n, 0);
+    std::vector<std::int32_t> comp_of(n);
+    std::iota(uf_parent.begin(), uf_parent.end(), 0);
+    std::iota(comp_of.begin(), comp_of.end(), 0);
 
-    in_mst[0] = true;
-    for (std::int64_t j = 1; j < row_count; j++) {
-        const Float dist = euclidean_dist(data, 0, j, col_count);
-        min_edge[j] = std::max({ core_distances[0], core_distances[j], dist });
-    }
-
-    for (std::int64_t e = 0; e < edge_count; e++) {
-        std::int32_t best = -1;
-        Float best_w = std::numeric_limits<Float>::max();
-        for (std::int64_t j = 0; j < row_count; j++) {
-            if (!in_mst[j] && min_edge[j] < best_w) {
-                best_w = min_edge[j];
-                best = static_cast<std::int32_t>(j);
-            }
+    auto uf_find = [&](std::int32_t x) -> std::int32_t {
+        while (uf_parent[x] != x) {
+            uf_parent[x] = uf_parent[uf_parent[x]];
+            x = uf_parent[x];
         }
-        ONEDAL_ASSERT(best >= 0);
+        return x;
+    };
+    auto uf_union = [&](std::int32_t rx, std::int32_t ry) {
+        if (uf_rank[rx] < uf_rank[ry])
+            uf_parent[rx] = ry;
+        else if (uf_rank[rx] > uf_rank[ry])
+            uf_parent[ry] = rx;
+        else {
+            uf_parent[ry] = rx;
+            uf_rank[rx]++;
+        }
+    };
 
-        mst_from[e] = min_from[best];
-        mst_to[e] = best;
-        mst_weights[e] = best_w;
-        in_mst[best] = true;
+    std::vector<Float> pt_best_mrd(n);
+    std::vector<std::int32_t> pt_best_idx(n);
+    std::vector<Float> comp_best_mrd(n);
+    std::vector<std::int32_t> comp_best_from(n), comp_best_to(n);
 
-        for (std::int64_t j = 0; j < row_count; j++) {
-            if (in_mst[j])
+    std::int64_t edges_added = 0;
+    std::int64_t num_components = n;
+
+    while (num_components > 1) {
+        for (std::int64_t i = 0; i < n; i++) {
+            const std::int32_t my_comp = comp_of[i];
+            Float best_m = std::numeric_limits<Float>::max();
+            std::int32_t best_j = -1;
+            for (std::int64_t j = 0; j < n; j++) {
+                if (comp_of[j] == my_comp)
+                    continue;
+                const Float dist = euclidean_dist(data, i, j, col_count);
+                const Float mrd = std::max({ core_distances[i], core_distances[j], dist });
+                if (mrd < best_m) {
+                    best_m = mrd;
+                    best_j = static_cast<std::int32_t>(j);
+                }
+            }
+            pt_best_mrd[i] = best_m;
+            pt_best_idx[i] = best_j;
+        }
+
+        std::fill(comp_best_mrd.begin(), comp_best_mrd.end(), std::numeric_limits<Float>::max());
+        std::fill(comp_best_from.begin(), comp_best_from.end(), -1);
+        std::fill(comp_best_to.begin(), comp_best_to.end(), -1);
+        for (std::int64_t i = 0; i < n; i++) {
+            if (pt_best_idx[i] < 0)
                 continue;
-            const Float dist = euclidean_dist(data, best, j, col_count);
-            const Float mrd = std::max({ core_distances[best], core_distances[j], dist });
-            if (mrd < min_edge[j]) {
-                min_edge[j] = mrd;
-                min_from[j] = best;
+            const std::int32_t c = comp_of[i];
+            if (pt_best_mrd[i] < comp_best_mrd[c]) {
+                comp_best_mrd[c] = pt_best_mrd[i];
+                comp_best_from[c] = static_cast<std::int32_t>(i);
+                comp_best_to[c] = pt_best_idx[i];
             }
         }
+
+        std::int64_t added = 0;
+        for (std::int64_t c = 0; c < n; c++) {
+            if (comp_best_from[c] < 0)
+                continue;
+            const std::int32_t u = comp_best_from[c], v = comp_best_to[c];
+            const std::int32_t ru = uf_find(u), rv = uf_find(v);
+            if (ru == rv)
+                continue;
+            mst_from[edges_added] = u;
+            mst_to[edges_added] = v;
+            mst_weights[edges_added] = comp_best_mrd[c];
+            edges_added++;
+            added++;
+            uf_union(ru, rv);
+            num_components--;
+        }
+        if (added == 0)
+            break;
+
+        for (std::int64_t i = 0; i < n; i++)
+            comp_of[i] = uf_find(static_cast<std::int32_t>(i));
     }
 }
 
@@ -381,7 +474,9 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
                                               std::int64_t row_count,
                                               std::int64_t min_cluster_size,
                                               int cluster_selection = 0,
-                                              bool allow_single_cluster = false) {
+                                              bool allow_single_cluster = false,
+                                              double cluster_selection_epsilon = 0.0,
+                                              std::int64_t max_cluster_size = 0) {
     ONEDAL_ASSERT(row_count > 0);
     ONEDAL_ASSERT(min_cluster_size >= 2);
 
@@ -598,6 +693,10 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
         }
     }
 
+    const std::int32_t mcs_max = (max_cluster_size > 0)
+                                     ? static_cast<std::int32_t>(max_cluster_size)
+                                     : std::numeric_limits<std::int32_t>::max();
+
     if (cluster_selection == 1) {
         // Leaf selection: select all leaf clusters in the condensed tree
         for (std::int32_t c = root_cid; c < n_clusters; c++) {
@@ -606,6 +705,8 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
     }
     else {
         // Bottom-up EOM: compare parent stability vs sum of children
+        // When max_cluster_size is set, clusters exceeding the limit get zero
+        // stability so their children are preferred.
         for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
             if (is_leaf_cluster[c])
                 continue;
@@ -614,7 +715,10 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
             for (auto cc : child_clusters[c])
                 child_sum += stability[cc];
 
-            if (child_sum > stability[c]) {
+            const Float parent_stab =
+                (cluster_size[c] > mcs_max) ? Float(0) : stability[c];
+
+            if (child_sum > parent_stab) {
                 is_selected[c] = false;
                 stability[c] = child_sum;
             }
@@ -648,6 +752,37 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
         }
     }
 
+    // Build cluster parent map (needed for epsilon merging and label assignment)
+    std::vector<std::int32_t> cluster_parent(n_clusters, -1);
+    for (const auto& e : condensed) {
+        if (e.child >= row_count)
+            cluster_parent[e.child] = e.parent;
+    }
+
+    // Phase 3c: cluster_selection_epsilon — merge selected clusters whose
+    // merge distance (1/lambdaBirth) is below epsilon with their parent.
+    if (cluster_selection_epsilon > 0.0) {
+        const Float eps = static_cast<Float>(cluster_selection_epsilon);
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
+                if (!is_selected[c])
+                    continue;
+                const Float birth_dist =
+                    (lambda_birth[c] > Float(0)) ? Float(1) / lambda_birth[c] : Float(0);
+                if (birth_dist < eps) {
+                    const std::int32_t parent = cluster_parent[c];
+                    if (parent >= root_cid && parent < n_clusters) {
+                        is_selected[c] = false;
+                        is_selected[parent] = true;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+
     // --- Phase 4: Label each point ---
 
     std::int32_t label_counter = 0;
@@ -655,12 +790,6 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
     for (std::int32_t c = root_cid; c < n_clusters; c++) {
         if (is_selected[c])
             cluster_label[c] = label_counter++;
-    }
-
-    std::vector<std::int32_t> cluster_parent(n_clusters, -1);
-    for (const auto& e : condensed) {
-        if (e.child >= row_count)
-            cluster_parent[e.child] = e.parent;
     }
 
     std::vector<std::int32_t> point_fell_from(row_count, -1);
@@ -715,6 +844,82 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
     }
 
     return label_counter;
+}
+
+template <typename Float>
+static void compute_centroids_on_host(const Float* data,
+                                      const std::int32_t* labels,
+                                      std::int64_t row_count,
+                                      std::int64_t col_count,
+                                      std::int64_t cluster_count,
+                                      Float* centroids) {
+    ONEDAL_ASSERT(cluster_count > 0);
+
+    std::vector<std::int64_t> counts(cluster_count, 0);
+    std::memset(centroids, 0, cluster_count * col_count * sizeof(Float));
+
+    for (std::int64_t i = 0; i < row_count; i++) {
+        const std::int32_t label = labels[i];
+        if (label < 0 || label >= cluster_count)
+            continue;
+        counts[label]++;
+        Float* row_out = centroids + label * col_count;
+        const Float* row_in = data + i * col_count;
+        for (std::int64_t d = 0; d < col_count; d++) {
+            row_out[d] += row_in[d];
+        }
+    }
+
+    for (std::int64_t k = 0; k < cluster_count; k++) {
+        if (counts[k] == 0)
+            continue;
+        Float* row = centroids + k * col_count;
+        const Float inv = Float(1) / static_cast<Float>(counts[k]);
+        for (std::int64_t d = 0; d < col_count; d++) {
+            row[d] *= inv;
+        }
+    }
+}
+
+template <typename Float>
+static void compute_medoids_on_host(const Float* data,
+                                    const std::int32_t* labels,
+                                    std::int64_t row_count,
+                                    std::int64_t col_count,
+                                    std::int64_t cluster_count,
+                                    const Float* centroids,
+                                    Float* medoids) {
+    ONEDAL_ASSERT(cluster_count > 0);
+
+    std::vector<Float> best_dist(cluster_count, std::numeric_limits<Float>::max());
+    std::vector<std::int64_t> best_idx(cluster_count, -1);
+
+    for (std::int64_t i = 0; i < row_count; i++) {
+        const std::int32_t label = labels[i];
+        if (label < 0 || label >= cluster_count)
+            continue;
+        const Float* pt = data + i * col_count;
+        const Float* center = centroids + label * col_count;
+        Float dist = Float(0);
+        for (std::int64_t d = 0; d < col_count; d++) {
+            const Float diff = pt[d] - center[d];
+            dist += diff * diff;
+        }
+        if (dist < best_dist[label]) {
+            best_dist[label] = dist;
+            best_idx[label] = i;
+        }
+    }
+
+    for (std::int64_t k = 0; k < cluster_count; k++) {
+        Float* row = medoids + k * col_count;
+        if (best_idx[k] >= 0) {
+            std::memcpy(row, data + best_idx[k] * col_count, col_count * sizeof(Float));
+        }
+        else {
+            std::memset(row, 0, col_count * sizeof(Float));
+        }
+    }
 }
 
 } // namespace oneapi::dal::hdbscan::backend

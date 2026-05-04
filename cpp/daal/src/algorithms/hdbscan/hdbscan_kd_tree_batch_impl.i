@@ -38,6 +38,7 @@
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
+#include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_threading.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_arrays.h"
@@ -58,139 +59,6 @@ using daal::internal::ReadRows;
 using daal::internal::WriteOnlyRows;
 
 // =========================================================================
-// Distance functors for parameterizing kd-tree queries by metric
-// Each provides:
-//   pointDist(a, b, nCols)       — full point-to-point distance
-//   bboxLowerBound(q, lo, hi, nCols) — minimum distance from query to bbox
-//   planeDist(diff)              — distance to splitting hyperplane
-// =========================================================================
-template <typename FPType>
-struct EuclideanDist
-{
-    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
-    {
-        FPType sum = FPType(0);
-        for (int d = 0; d < nCols; d++)
-        {
-            const FPType diff = a[d] - b[d];
-            sum += diff * diff;
-        }
-        return static_cast<FPType>(sqrt(static_cast<double>(sum)));
-    }
-    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
-    {
-        FPType sum = FPType(0);
-        for (int d = 0; d < nCols; d++)
-        {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
-            sum += excess * excess;
-        }
-        return static_cast<FPType>(sqrt(static_cast<double>(sum)));
-    }
-    static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
-};
-
-template <typename FPType>
-struct ManhattanDist
-{
-    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
-    {
-        FPType sum = FPType(0);
-        for (int d = 0; d < nCols; d++)
-        {
-            FPType diff = a[d] - b[d];
-            sum += (diff >= FPType(0)) ? diff : -diff;
-        }
-        return sum;
-    }
-    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
-    {
-        FPType sum = FPType(0);
-        for (int d = 0; d < nCols; d++)
-        {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
-            sum += excess;
-        }
-        return sum;
-    }
-    static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
-};
-
-template <typename FPType>
-struct MinkowskiDist
-{
-    double p;
-    double invp;
-    MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
-
-    FPType pointDist(const FPType * a, const FPType * b, int nCols) const
-    {
-        double sum = 0.0;
-        for (int d = 0; d < nCols; d++)
-        {
-            double diff = static_cast<double>(a[d] - b[d]);
-            if (diff < 0.0) diff = -diff;
-            sum += pow(diff, p);
-        }
-        return static_cast<FPType>(pow(sum, invp));
-    }
-    FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
-    {
-        double sum = 0.0;
-        for (int d = 0; d < nCols; d++)
-        {
-            double excess = 0.0;
-            if (query[d] < lo[d])
-                excess = static_cast<double>(lo[d] - query[d]);
-            else if (query[d] > hi[d])
-                excess = static_cast<double>(query[d] - hi[d]);
-            sum += pow(excess, p);
-        }
-        return static_cast<FPType>(pow(sum, invp));
-    }
-    FPType planeDist(FPType diff) const { return (diff < FPType(0)) ? -diff : diff; }
-};
-
-template <typename FPType>
-struct ChebyshevDist
-{
-    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
-    {
-        FPType mx = FPType(0);
-        for (int d = 0; d < nCols; d++)
-        {
-            FPType diff = a[d] - b[d];
-            if (diff < FPType(0)) diff = -diff;
-            if (diff > mx) mx = diff;
-        }
-        return mx;
-    }
-    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
-    {
-        FPType mx = FPType(0);
-        for (int d = 0; d < nCols; d++)
-        {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
-            if (excess > mx) mx = excess;
-        }
-        return mx;
-    }
-    static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
-};
-
-// =========================================================================
 // k-d tree node structure
 // =========================================================================
 template <typename FPType>
@@ -203,75 +71,6 @@ struct KdNode
     int pointBegin;  // range of point indices for this subtree [begin, end)
     int pointEnd;
     int componentId; // -1 = mixed components, >= 0 = all points in same component
-};
-
-// =========================================================================
-// Max-heap for k nearest neighbors
-// =========================================================================
-template <typename FPType>
-struct KnnHeap
-{
-    FPType * dists;
-    int * indices;
-    int capacity;
-    int size;
-
-    void init(FPType * d, int * idx, int cap)
-    {
-        dists    = d;
-        indices  = idx;
-        capacity = cap;
-        size     = 0;
-    }
-
-    FPType maxDist() const { return (size > 0) ? dists[0] : std::numeric_limits<FPType>::max(); }
-
-    void push(FPType dist, int idx)
-    {
-        if (size < capacity)
-        {
-            dists[size]   = dist;
-            indices[size] = idx;
-            size++;
-            // Sift up
-            int i = size - 1;
-            while (i > 0)
-            {
-                int parent = (i - 1) / 2;
-                if (dists[i] > dists[parent])
-                {
-                    std::swap(dists[i], dists[parent]);
-                    std::swap(indices[i], indices[parent]);
-                    i = parent;
-                }
-                else
-                    break;
-            }
-        }
-        else if (dist < dists[0])
-        {
-            dists[0]   = dist;
-            indices[0] = idx;
-            // Sift down
-            int i = 0;
-            while (true)
-            {
-                int l       = 2 * i + 1;
-                int r       = 2 * i + 2;
-                int largest = i;
-                if (l < size && dists[l] > dists[largest]) largest = l;
-                if (r < size && dists[r] > dists[largest]) largest = r;
-                if (largest != i)
-                {
-                    std::swap(dists[i], dists[largest]);
-                    std::swap(indices[i], indices[largest]);
-                    i = largest;
-                }
-                else
-                    break;
-            }
-        }
-    }
 };
 
 // =========================================================================
@@ -670,7 +469,8 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
                                                                            int metric, double degree, int clusterSelection,
-                                                                           bool allowSingleCluster)
+                                                                           bool allowSingleCluster, double clusterSelectionEpsilon,
+                                                                           size_t maxClusterSize, double alpha, size_t leafSize)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -696,7 +496,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Step 1: Build k-d tree with bounding boxes
     // =========================================================================
 
-    const int maxLeafSize = 40;
+    const int maxLeafSize = static_cast<int>(leafSize);
     const int maxNodes    = 4 * static_cast<int>(nRows); // conservative upper bound
 
     daal::services::internal::TArray<KdNode<algorithmFPType>, cpu> nodesArr(maxNodes);
@@ -738,23 +538,45 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
+    const bool useAlpha = (alpha != 1.0);
+
     switch (metric)
     {
     case manhattan:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {});
+        if (useAlpha)
+            computeCoreDistAndMst<algorithmFPType, cpu>(
+                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
+                AlphaScaledDist<algorithmFPType, ManhattanDist<algorithmFPType>>(ManhattanDist<algorithmFPType> {}, alpha));
+        else
+            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                        coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {});
         break;
     case minkowski:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(degree));
+        if (useAlpha)
+            computeCoreDistAndMst<algorithmFPType, cpu>(
+                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
+                AlphaScaledDist<algorithmFPType, MinkowskiDist<algorithmFPType>>(MinkowskiDist<algorithmFPType>(degree), alpha));
+        else
+            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                        coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(degree));
         break;
     case chebyshev:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {});
+        if (useAlpha)
+            computeCoreDistAndMst<algorithmFPType, cpu>(
+                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
+                AlphaScaledDist<algorithmFPType, ChebyshevDist<algorithmFPType>>(ChebyshevDist<algorithmFPType> {}, alpha));
+        else
+            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                        coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {});
         break;
     default: // euclidean
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {});
+        if (useAlpha)
+            computeCoreDistAndMst<algorithmFPType, cpu>(
+                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
+                AlphaScaledDist<algorithmFPType, EuclideanDist<algorithmFPType>>(EuclideanDist<algorithmFPType> {}, alpha));
+        else
+            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                        coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {});
         break;
     }
 
@@ -767,7 +589,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int * assignments = assignBlock.get();
 
     int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                        clusterSelection, allowSingleCluster);
+                                                                        clusterSelection, allowSingleCluster, clusterSelectionEpsilon,
+                                                                        maxClusterSize);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

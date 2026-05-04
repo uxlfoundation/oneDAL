@@ -52,6 +52,9 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     const std::int32_t cluster_selection =
         (desc.get_cluster_selection() == cluster_selection_method::leaf) ? 1 : 0;
     const bool allow_single_cluster = desc.get_allow_single_cluster();
+    const double cluster_selection_epsilon = desc.get_cluster_selection_epsilon();
+    const std::int64_t max_cluster_size = desc.get_max_cluster_size();
+    const double alpha = desc.get_alpha();
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
 
@@ -66,6 +69,20 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                                  degree,
                                                                  { dist_alloc_event });
 
+    // Step 1b: Apply alpha scaling to distance matrix (robust single linkage)
+    sycl::event alpha_event = dist_event;
+    if (alpha != 1.0) {
+        const Float inv_alpha = static_cast<Float>(1.0 / alpha);
+        Float* dist_ptr = dist_matrix.get_mutable_data();
+        const std::int64_t total_dist = row_count * row_count;
+        alpha_event = queue.submit([&](sycl::handler& h) {
+            h.depends_on({ dist_event });
+            h.parallel_for(sycl::range<1>(total_dist), [=](sycl::id<1> idx) {
+                dist_ptr[idx[0]] *= inv_alpha;
+            });
+        });
+    }
+
     // Step 2: Compute core distances from the distance matrix
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
@@ -76,7 +93,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                                 min_samples,
                                                                 row_count,
                                                                 metric,
-                                                                { dist_event, core_dist_event });
+                                                                { alpha_event, core_dist_event });
 
     // Step 3: Transform distances into MRD matrix in-place
     auto& mrd_matrix = dist_matrix;
@@ -87,7 +104,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                                    metric,
                                                                    { core_event });
 
-    // Step 4: Build MST using Prim's algorithm on GPU with precomputed MRD matrix
+    // Step 4: Build MST using GPU Boruvka's algorithm with precomputed MRD matrix
     auto [mst_from, mst_from_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_to, mst_to_event] =
@@ -125,21 +142,33 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                              min_cluster_size,
                                                              { sort_event, responses_event },
                                                              cluster_selection,
-                                                             allow_single_cluster);
+                                                             allow_single_cluster,
+                                                             cluster_selection_epsilon,
+                                                             max_cluster_size);
     cluster_event.wait_and_throw();
 
-    // Count clusters from responses on device
-    auto responses_host = arr_responses.to_host(queue);
-    const auto* resp_ptr = responses_host.get_data();
-
-    std::int32_t max_label = -1;
-    for (std::int64_t i = 0; i < row_count; i++) {
-        if (resp_ptr[i] > max_label)
-            max_label = resp_ptr[i];
-    }
+    // Count clusters via GPU max reduction
+    auto [max_label_arr, ml_ev] =
+        pr::ndarray<std::int32_t, 1>::full(queue, 1, -1, sycl::usm::alloc::device);
+    sycl::event ml_alloc_ev = ml_ev;
+    const std::int32_t* r_ptr = arr_responses.get_data();
+    std::int32_t* ml_ptr = max_label_arr.get_mutable_data();
+    auto reduce_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ ml_alloc_ev });
+        h.single_task([=]() {
+            std::int32_t mx = -1;
+            for (std::int64_t i = 0; i < row_count; i++) {
+                if (r_ptr[i] > mx)
+                    mx = r_ptr[i];
+            }
+            ml_ptr[0] = mx;
+        });
+    });
+    auto max_label_host = max_label_arr.to_host(queue, { reduce_event });
+    const std::int32_t max_label = max_label_host.get_data()[0];
     const std::int64_t cluster_count = (max_label >= 0) ? (max_label + 1) : 0;
 
-    return make_results<Float>(queue, desc, arr_responses, cluster_count);
+    return make_results<Float>(queue, desc, arr_responses, cluster_count, local_data);
 }
 
 template <typename Float>

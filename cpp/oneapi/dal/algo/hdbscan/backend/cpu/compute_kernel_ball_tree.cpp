@@ -48,13 +48,13 @@ static int convert_metric(distance_metric m) {
 }
 
 template <typename Float, daal::internal::CpuType Cpu>
-using daal_hdbscan_default_dense_t =
-    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::defaultDense, Cpu>;
+using daal_hdbscan_ball_tree_t =
+    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::ballTree, Cpu>;
 
 template <typename Float>
-static result_t compute_kernel_dense_impl(const context_cpu& ctx,
-                                          const descriptor_t& desc,
-                                          const table& data) {
+static result_t compute_kernel_ball_tree_impl(const context_cpu& ctx,
+                                              const descriptor_t& desc,
+                                              const table& data) {
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t col_count = data.get_column_count();
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
@@ -70,10 +70,8 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
     const std::int64_t leaf_size = desc.get_leaf_size();
     const auto store_centers = desc.get_store_centers();
 
-    // Convert oneDAL table to DAAL NumericTable
     const auto daal_data = convert_to_daal_table<Float>(data);
 
-    // Create output DAAL tables
     auto daal_assignments = daal::data_management::HomogenNumericTable<int>::create(
         1,
         row_count,
@@ -83,8 +81,7 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
         1,
         daal::data_management::NumericTable::doAllocate);
 
-    // Call DAAL kernel via CPU dispatch using type alias that binds Method
-    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_default_dense_t>(
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_ball_tree_t>(
         ctx,
         daal_data.get(),
         daal_assignments.get(),
@@ -100,19 +97,15 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
         alpha,
         static_cast<size_t>(leaf_size)));
 
-    // Read cluster count
     daal::data_management::BlockDescriptor<int> nc_block;
     daal_nclusters->getBlockOfRows(0, 1, daal::data_management::readOnly, nc_block);
     const std::int64_t cluster_count = nc_block.getBlockPtr()[0];
     daal_nclusters->releaseBlockOfRows(nc_block);
 
-    // Build result
     auto results =
         result_t().set_cluster_count(cluster_count).set_result_options(desc.get_result_options());
 
     if (desc.get_result_options().test(result_options::responses)) {
-        // Convert DAAL assignments to oneDAL table
-        // Read int assignments and convert to int32
         auto arr_responses = array<std::int32_t>::empty(row_count);
         std::int32_t* resp_ptr = arr_responses.get_mutable_data();
 
@@ -189,15 +182,15 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
 }
 
 template <typename Float>
-struct compute_kernel_cpu<Float, method::brute_force, task::clustering> {
+struct compute_kernel_cpu<Float, method::ball_tree, task::clustering> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
                         const input_t& input) const {
-        return compute_kernel_dense_impl<Float>(ctx, desc, input.get_data());
+        return compute_kernel_ball_tree_impl<Float>(ctx, desc, input.get_data());
     }
 };
 
-template struct compute_kernel_cpu<float, method::brute_force, task::clustering>;
-template struct compute_kernel_cpu<double, method::brute_force, task::clustering>;
+template struct compute_kernel_cpu<float, method::ball_tree, task::clustering>;
+template struct compute_kernel_cpu<double, method::ball_tree, task::clustering>;
 
 } // namespace oneapi::dal::hdbscan::backend

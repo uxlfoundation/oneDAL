@@ -89,6 +89,8 @@ struct cluster_work_ptrs {
     std::int64_t total_nodes;
     std::int32_t cluster_selection; // 0 = EOM, 1 = leaf
     bool allow_single_cluster;
+    double cluster_selection_epsilon;
+    std::int64_t max_cluster_size;
 };
 
 template <typename Float>
@@ -215,6 +217,210 @@ sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
     return mrd_event;
 }
 
+/// GPU Boruvka helper: each work-item finds the nearest neighbor in a
+/// different component by scanning one row of the precomputed MRD matrix.
+/// Writes per-point best MRD and best neighbor index.
+template <typename Float>
+static sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
+                                            const Float* mrd_ptr,
+                                            const std::int32_t* comp_ptr,
+                                            Float* pt_best_mrd_ptr,
+                                            std::int32_t* pt_best_idx_ptr,
+                                            std::int64_t n,
+                                            const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const std::int32_t my_comp = comp_ptr[i];
+            const Float* row = mrd_ptr + i * n;
+            Float best_m = std::numeric_limits<Float>::max();
+            std::int32_t best_j = -1;
+            for (std::int64_t j = 0; j < n; j++) {
+                if (comp_ptr[j] != my_comp && row[j] < best_m) {
+                    best_m = row[j];
+                    best_j = static_cast<std::int32_t>(j);
+                }
+            }
+            pt_best_mrd_ptr[i] = best_m;
+            pt_best_idx_ptr[i] = best_j;
+        });
+    });
+}
+
+/// GPU Boruvka helper: each work-item finds the nearest neighbor in a
+/// different component using on-the-fly MRD distance computation.
+template <typename Float>
+static sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
+                                            const Float* data_ptr,
+                                            std::int64_t col_count,
+                                            const Float* core_ptr,
+                                            const std::int32_t* comp_ptr,
+                                            Float* pt_best_mrd_ptr,
+                                            std::int32_t* pt_best_idx_ptr,
+                                            std::int64_t n,
+                                            std::int32_t metric_id,
+                                            Float degree,
+                                            const bk::event_vector& deps) {
+    const std::int64_t d = col_count;
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const std::int32_t my_comp = comp_ptr[i];
+            const Float my_core = core_ptr[i];
+            const Float* xi = data_ptr + i * d;
+            Float best_m = std::numeric_limits<Float>::max();
+            std::int32_t best_j = -1;
+            for (std::int64_t j = 0; j < n; j++) {
+                if (comp_ptr[j] == my_comp)
+                    continue;
+                const Float* xj = data_ptr + j * d;
+                Float dist = Float(0);
+                if (metric_id == 1) { // manhattan
+                    for (std::int64_t dd = 0; dd < d; dd++) {
+                        Float diff = xi[dd] - xj[dd];
+                        dist += sycl::fabs(diff);
+                    }
+                }
+                else if (metric_id == 2) { // minkowski
+                    Float sum = Float(0);
+                    for (std::int64_t dd = 0; dd < d; dd++) {
+                        Float diff = sycl::fabs(xi[dd] - xj[dd]);
+                        sum += sycl::pow(diff, degree);
+                    }
+                    dist = sycl::pow(sum, Float(1) / degree);
+                }
+                else if (metric_id == 3) { // chebyshev
+                    for (std::int64_t dd = 0; dd < d; dd++) {
+                        Float diff = sycl::fabs(xi[dd] - xj[dd]);
+                        if (diff > dist)
+                            dist = diff;
+                    }
+                }
+                else { // euclidean
+                    Float sum = Float(0);
+                    for (std::int64_t dd = 0; dd < d; dd++) {
+                        Float diff = xi[dd] - xj[dd];
+                        sum += diff * diff;
+                    }
+                    dist = sycl::sqrt(sycl::fmax(sum, Float(0)));
+                }
+                Float mrd = sycl::fmax(sycl::fmax(my_core, core_ptr[j]), dist);
+                if (mrd < best_m) {
+                    best_m = mrd;
+                    best_j = static_cast<std::int32_t>(j);
+                }
+            }
+            pt_best_mrd_ptr[i] = best_m;
+            pt_best_idx_ptr[i] = best_j;
+        });
+    });
+}
+
+/// GPU Boruvka: reduce per-point bests to per-component bests, merge components,
+/// add MST edges. Runs as single_task because the merge step has data dependencies
+/// (union-find), but operates on O(N) data — not the O(N²) distance matrix.
+template <typename Float>
+static sycl::event boruvka_merge_components(sycl::queue& queue,
+                                            std::int32_t* comp_ptr,
+                                            std::int32_t* uf_parent_ptr,
+                                            std::int32_t* uf_rank_ptr,
+                                            const Float* pt_best_mrd_ptr,
+                                            const std::int32_t* pt_best_idx_ptr,
+                                            Float* comp_best_mrd_ptr,
+                                            std::int32_t* comp_best_from_ptr,
+                                            std::int32_t* comp_best_to_ptr,
+                                            std::int32_t* mst_from_ptr,
+                                            std::int32_t* mst_to_ptr,
+                                            Float* mst_weight_ptr,
+                                            std::int32_t* edges_added_ptr,
+                                            std::int32_t* num_comp_ptr,
+                                            std::int64_t n,
+                                            const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.single_task([=]() {
+            const Float inf = std::numeric_limits<Float>::max();
+
+            // Reset per-component best
+            for (std::int64_t c = 0; c < n; c++) {
+                comp_best_mrd_ptr[c] = inf;
+                comp_best_from_ptr[c] = -1;
+                comp_best_to_ptr[c] = -1;
+            }
+
+            // Reduce per-point bests to per-component bests
+            for (std::int64_t i = 0; i < n; i++) {
+                if (pt_best_idx_ptr[i] < 0)
+                    continue;
+                const std::int32_t c = comp_ptr[i];
+                if (pt_best_mrd_ptr[i] < comp_best_mrd_ptr[c]) {
+                    comp_best_mrd_ptr[c] = pt_best_mrd_ptr[i];
+                    comp_best_from_ptr[c] = static_cast<std::int32_t>(i);
+                    comp_best_to_ptr[c] = pt_best_idx_ptr[i];
+                }
+            }
+
+            auto uf_find = [&](std::int32_t x) -> std::int32_t {
+                while (uf_parent_ptr[x] != x) {
+                    uf_parent_ptr[x] = uf_parent_ptr[uf_parent_ptr[x]];
+                    x = uf_parent_ptr[x];
+                }
+                return x;
+            };
+            auto uf_union = [&](std::int32_t rx, std::int32_t ry) {
+                if (uf_rank_ptr[rx] < uf_rank_ptr[ry])
+                    uf_parent_ptr[rx] = ry;
+                else if (uf_rank_ptr[rx] > uf_rank_ptr[ry])
+                    uf_parent_ptr[ry] = rx;
+                else {
+                    uf_parent_ptr[ry] = rx;
+                    uf_rank_ptr[rx]++;
+                }
+            };
+
+            std::int32_t ea = edges_added_ptr[0];
+            std::int32_t added = 0;
+            for (std::int64_t c = 0; c < n; c++) {
+                if (comp_best_from_ptr[c] < 0)
+                    continue;
+                const std::int32_t u = comp_best_from_ptr[c];
+                const std::int32_t v = comp_best_to_ptr[c];
+                const std::int32_t ru = uf_find(u), rv = uf_find(v);
+                if (ru == rv)
+                    continue;
+                mst_from_ptr[ea] = u;
+                mst_to_ptr[ea] = v;
+                mst_weight_ptr[ea] = comp_best_mrd_ptr[c];
+                ea++;
+                added++;
+                uf_union(ru, rv);
+            }
+            edges_added_ptr[0] = ea;
+            num_comp_ptr[0] -= added;
+        });
+    });
+}
+
+/// GPU Boruvka: path-compress component IDs in parallel.
+template <typename Float>
+static sycl::event boruvka_compress_components(sycl::queue& queue,
+                                               std::int32_t* comp_ptr,
+                                               const std::int32_t* uf_parent_ptr,
+                                               std::int64_t n,
+                                               const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            std::int32_t x = static_cast<std::int32_t>(idx[0]);
+            while (uf_parent_ptr[x] != x)
+                x = uf_parent_ptr[x];
+            comp_ptr[idx[0]] = x;
+        });
+    });
+}
+
 template <typename Float>
 sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
                                          const pr::ndview<Float, 2>& mrd_matrix,
@@ -226,79 +432,216 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
     ONEDAL_PROFILER_TASK(hdbscan.build_mst, queue);
 
     const std::int64_t n = row_count;
-    const std::int64_t edge_count = n - 1;
 
     ONEDAL_ASSERT(n > 1);
     ONEDAL_ASSERT(mrd_matrix.get_dimension(0) == n);
     ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
-    ONEDAL_ASSERT(mst_from.get_dimension(0) == edge_count);
-    ONEDAL_ASSERT(mst_to.get_dimension(0) == edge_count);
-    ONEDAL_ASSERT(mst_weights.get_dimension(0) == edge_count);
 
-    // Prim's algorithm on the host using MRD data copied from device.
-    // The MRD matrix is already computed on GPU; we copy it to host for
-    // the inherently sequential MST construction, then copy results back.
+    // Allocate working arrays on device
+    auto [comp, comp_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [uf_parent, uf_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [uf_rank, ur_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [pt_best_mrd, pbm_ev] =
+        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [pt_best_idx, pbi_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_mrd, cbm_ev] =
+        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_from, cbf_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_to, cbt_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [edges_added_arr, ea_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
+    auto [num_comp_arr, nc_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
 
-    // Wait for MRD matrix and MST allocation to be ready
-    sycl::event::wait(deps);
+    std::int32_t* comp_ptr = comp.get_mutable_data();
+    std::int32_t* uf_parent_ptr = uf_parent.get_mutable_data();
+    std::int32_t* uf_rank_ptr = uf_rank.get_mutable_data();
+    std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
 
-    // Copy MRD matrix to host
-    auto mrd_host = mrd_matrix.to_host(queue);
-    const Float* mrd_ptr = mrd_host.get_data();
+    bk::event_vector init_deps = deps;
+    init_deps.insert(init_deps.end(),
+                     { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev,
+                       nc_ev });
 
-    std::vector<Float> min_edge_vec(n, std::numeric_limits<Float>::max());
-    std::vector<std::int32_t> min_from_vec(n, 0);
-    // Use char instead of bool to avoid bit-packing overhead of vector<bool>
-    std::vector<char> in_mst_vec(n, 0);
+    // Initialize comp[i] = i, uf_parent[i] = i, num_comp = n
+    auto init_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(init_deps);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int32_t i = static_cast<std::int32_t>(idx[0]);
+            comp_ptr[i] = i;
+            uf_parent_ptr[i] = i;
+            if (i == 0)
+                num_comp_ptr[0] = static_cast<std::int32_t>(n);
+        });
+    });
 
-    std::vector<std::int32_t> from_vec(edge_count);
-    std::vector<std::int32_t> to_vec(edge_count);
-    std::vector<Float> weight_vec(edge_count);
+    const Float* mrd_ptr = mrd_matrix.get_data();
+    const std::int32_t max_rounds = 64;
+    sycl::event last_event = init_event;
 
-    in_mst_vec[0] = 1;
-    for (std::int64_t j = 1; j < n; j++) {
-        min_edge_vec[j] = mrd_ptr[j]; // row 0, column j
+    for (std::int32_t round = 0; round < max_rounds; round++) {
+        // Step A: parallel find nearest different-component neighbor
+        auto find_event = boruvka_find_nearest_mrd(queue,
+                                                    mrd_ptr,
+                                                    comp_ptr,
+                                                    pt_best_mrd.get_mutable_data(),
+                                                    pt_best_idx.get_mutable_data(),
+                                                    n,
+                                                    { last_event });
+
+        // Step B: reduce + merge (single_task — O(N) work)
+        auto merge_event = boruvka_merge_components(queue,
+                                                     comp_ptr,
+                                                     uf_parent_ptr,
+                                                     uf_rank_ptr,
+                                                     pt_best_mrd.get_data(),
+                                                     pt_best_idx.get_data(),
+                                                     comp_best_mrd.get_mutable_data(),
+                                                     comp_best_from.get_mutable_data(),
+                                                     comp_best_to.get_mutable_data(),
+                                                     mst_from.get_mutable_data(),
+                                                     mst_to.get_mutable_data(),
+                                                     mst_weights.get_mutable_data(),
+                                                     edges_added_arr.get_mutable_data(),
+                                                     num_comp_arr.get_mutable_data(),
+                                                     n,
+                                                     { find_event });
+
+        // Step C: parallel path compression
+        auto compress_event =
+            boruvka_compress_components<Float>(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
+
+        // Check termination
+        auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
+        if (num_comp_host.get_data()[0] <= 1)
+            break;
+
+        last_event = compress_event;
     }
 
-    for (std::int64_t e = 0; e < edge_count; e++) {
-        // Find minimum-weight edge to a non-MST node
-        std::int32_t best = -1;
-        Float best_w = std::numeric_limits<Float>::max();
-        for (std::int64_t j = 0; j < n; j++) {
-            if (!in_mst_vec[j] && min_edge_vec[j] < best_w) {
-                best_w = min_edge_vec[j];
-                best = static_cast<std::int32_t>(j);
-            }
-        }
+    return last_event;
+}
 
-        from_vec[e] = min_from_vec[best];
-        to_vec[e] = best;
-        weight_vec[e] = best_w;
-        in_mst_vec[best] = 1;
+template <typename Float>
+sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
+                                              const pr::ndview<Float, 2>& data,
+                                              const pr::ndview<Float, 1>& core_distances,
+                                              pr::ndview<std::int32_t, 1>& mst_from,
+                                              pr::ndview<std::int32_t, 1>& mst_to,
+                                              pr::ndview<Float, 1>& mst_weights,
+                                              std::int64_t row_count,
+                                              std::int64_t col_count,
+                                              distance_metric metric,
+                                              double degree,
+                                              const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(hdbscan.build_mst_otf, queue);
 
-        for (std::int64_t j = 0; j < n; j++) {
-            if (in_mst_vec[j])
-                continue;
-            const Float mrd = mrd_ptr[best * n + j];
-            if (mrd < min_edge_vec[j]) {
-                min_edge_vec[j] = mrd;
-                min_from_vec[j] = best;
-            }
-        }
+    const std::int64_t n = row_count;
+
+    ONEDAL_ASSERT(n > 1);
+
+    std::int32_t metric_id = 0; // euclidean
+    if (metric == distance_metric::manhattan)
+        metric_id = 1;
+    else if (metric == distance_metric::minkowski)
+        metric_id = 2;
+    else if (metric == distance_metric::chebyshev)
+        metric_id = 3;
+
+    // Allocate working arrays on device
+    auto [comp, comp_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [uf_parent, uf_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [uf_rank, ur_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [pt_best_mrd, pbm_ev] =
+        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [pt_best_idx, pbi_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_mrd, cbm_ev] =
+        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_from, cbf_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_to, cbt_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [edges_added_arr, ea_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
+    auto [num_comp_arr, nc_ev] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
+
+    std::int32_t* comp_ptr = comp.get_mutable_data();
+    std::int32_t* uf_parent_ptr = uf_parent.get_mutable_data();
+    std::int32_t* uf_rank_ptr = uf_rank.get_mutable_data();
+    std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
+
+    bk::event_vector init_deps = deps;
+    init_deps.insert(init_deps.end(),
+                     { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev,
+                       nc_ev });
+
+    auto init_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(init_deps);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int32_t i = static_cast<std::int32_t>(idx[0]);
+            comp_ptr[i] = i;
+            uf_parent_ptr[i] = i;
+            if (i == 0)
+                num_comp_ptr[0] = static_cast<std::int32_t>(n);
+        });
+    });
+
+    const Float* data_ptr = data.get_data();
+    const Float* core_ptr = core_distances.get_data();
+    const Float deg_f = static_cast<Float>(degree);
+    const std::int32_t max_rounds = 64;
+    sycl::event last_event = init_event;
+
+    for (std::int32_t round = 0; round < max_rounds; round++) {
+        auto find_event = boruvka_find_nearest_otf(queue,
+                                                    data_ptr,
+                                                    col_count,
+                                                    core_ptr,
+                                                    comp_ptr,
+                                                    pt_best_mrd.get_mutable_data(),
+                                                    pt_best_idx.get_mutable_data(),
+                                                    n,
+                                                    metric_id,
+                                                    deg_f,
+                                                    { last_event });
+
+        auto merge_event = boruvka_merge_components(queue,
+                                                     comp_ptr,
+                                                     uf_parent_ptr,
+                                                     uf_rank_ptr,
+                                                     pt_best_mrd.get_data(),
+                                                     pt_best_idx.get_data(),
+                                                     comp_best_mrd.get_mutable_data(),
+                                                     comp_best_from.get_mutable_data(),
+                                                     comp_best_to.get_mutable_data(),
+                                                     mst_from.get_mutable_data(),
+                                                     mst_to.get_mutable_data(),
+                                                     mst_weights.get_mutable_data(),
+                                                     edges_added_arr.get_mutable_data(),
+                                                     num_comp_arr.get_mutable_data(),
+                                                     n,
+                                                     { find_event });
+
+        auto compress_event =
+            boruvka_compress_components<Float>(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
+
+        auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
+        if (num_comp_host.get_data()[0] <= 1)
+            break;
+
+        last_event = compress_event;
     }
 
-    // Copy MST results back to device
-    std::int32_t* from_ptr = mst_from.get_mutable_data();
-    std::int32_t* to_ptr = mst_to.get_mutable_data();
-    Float* weight_ptr = mst_weights.get_mutable_data();
-
-    auto from_event = queue.memcpy(from_ptr, from_vec.data(), edge_count * sizeof(std::int32_t));
-    auto to_event = queue.memcpy(to_ptr, to_vec.data(), edge_count * sizeof(std::int32_t));
-    auto weight_event = queue.memcpy(weight_ptr, weight_vec.data(), edge_count * sizeof(Float));
-
-    sycl::event::wait({ from_event, to_event, weight_event });
-
-    return weight_event;
+    return last_event;
 }
 
 template <typename Float>
@@ -607,6 +950,10 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                     w.is_ptr[c] = 0;
             }
 
+            const std::int32_t mcs_max = (w.max_cluster_size > 0)
+                                             ? static_cast<std::int32_t>(w.max_cluster_size)
+                                             : std::numeric_limits<std::int32_t>::max();
+
             if (w.cluster_selection == 1) {
                 // Leaf selection: select all leaf clusters
                 for (std::int32_t c = root_cid; c < n_clusters; c++) {
@@ -614,7 +961,7 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 }
             }
             else {
-                // Bottom-up EOM
+                // Bottom-up EOM with max_cluster_size support
                 for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
                     if (w.ilc_ptr[c])
                         continue;
@@ -625,7 +972,10 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                     if (w.cc1_ptr[c] >= 0)
                         child_sum += w.stab_ptr[w.cc1_ptr[c]];
 
-                    if (child_sum > w.stab_ptr[c]) {
+                    const Float parent_stab =
+                        (w.csz_ptr[c] > mcs_max) ? Float(0) : w.stab_ptr[c];
+
+                    if (child_sum > parent_stab) {
                         w.is_ptr[c] = 0;
                         w.stab_ptr[c] = child_sum;
                     }
@@ -663,16 +1013,40 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 }
             }
 
-            // --- Assign cluster labels and build mappings ---
+            // --- Build cluster parent map (needed for epsilon merging and labeling) ---
+            for (std::int32_t i = 0; i < cond_count; i++) {
+                if (w.cond_c_ptr[i] >= w.row_count)
+                    w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
+            }
+
+            // --- cluster_selection_epsilon: merge close clusters ---
+            if (w.cluster_selection_epsilon > 0.0) {
+                const Float eps = static_cast<Float>(w.cluster_selection_epsilon);
+                bool changed = true;
+                while (changed) {
+                    changed = false;
+                    for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
+                        if (!w.is_ptr[c])
+                            continue;
+                        const Float birth_dist =
+                            (w.lb_ptr[c] > Float(0)) ? Float(1) / w.lb_ptr[c] : Float(0);
+                        if (birth_dist < eps) {
+                            const std::int32_t parent = w.cprt_ptr[c];
+                            if (parent >= root_cid && parent < n_clusters) {
+                                w.is_ptr[c] = 0;
+                                w.is_ptr[parent] = 1;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- Assign cluster labels ---
             std::int32_t label_counter = 0;
             for (std::int32_t c = root_cid; c < n_clusters; c++) {
                 if (w.is_ptr[c])
                     w.clab_ptr[c] = label_counter++;
-            }
-
-            for (std::int32_t i = 0; i < cond_count; i++) {
-                if (w.cond_c_ptr[i] >= w.row_count)
-                    w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
             }
 
             for (std::int32_t i = 0; i < cond_count; i++) {
@@ -776,7 +1150,9 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                                                 std::int64_t min_cluster_size,
                                                 const bk::event_vector& deps,
                                                 std::int32_t cluster_selection,
-                                                bool allow_single_cluster) {
+                                                bool allow_single_cluster,
+                                                double cluster_selection_epsilon,
+                                                std::int64_t max_cluster_size) {
     ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 
     ONEDAL_ASSERT(row_count > 0);
@@ -913,6 +1289,8 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     w.total_nodes = total_nodes;
     w.cluster_selection = cluster_selection;
     w.allow_single_cluster = allow_single_cluster;
+    w.cluster_selection_epsilon = cluster_selection_epsilon;
+    w.max_cluster_size = max_cluster_size;
 
     // Submit kernels via helpers
     auto k2_event = build_dendrogram_kernels(queue, w, all_events);

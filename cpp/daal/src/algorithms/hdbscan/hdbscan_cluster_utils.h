@@ -45,7 +45,8 @@ using daal::internal::CpuType;
 /// clusterSelection: 0 = EOM, 1 = leaf
 template <typename algorithmFPType, CpuType cpu>
 int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments,
-                              int clusterSelection = 0, bool allowSingleCluster = false)
+                              int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
+                              size_t maxClusterSize = 0)
 {
     const size_t edgeCount    = nRows - 1;
     const size_t nDendroNodes = nRows - 1;
@@ -397,6 +398,8 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     daal::services::internal::TArray<char, cpu> isSelectedArr(nClusters);
     char * isSelected = isSelectedArr.get();
     if (!isSelected) return 0;
+    const int mcsMax = (maxClusterSize > 0) ? static_cast<int>(maxClusterSize) : std::numeric_limits<int>::max();
+
     for (int c = 0; c < nClusters; c++)
     {
         isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
@@ -413,6 +416,8 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     else
     {
         // EOM selection: bottom-up stability comparison
+        // When maxClusterSize is set, clusters exceeding the limit get zero
+        // stability so their children are preferred.
         for (int c = nClusters - 1; c >= rootCid; c--)
         {
             if (isLeafCluster[c]) continue;
@@ -420,7 +425,9 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             algorithmFPType childSum = algorithmFPType(0);
             for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
 
-            if (childSum > stability[c])
+            const algorithmFPType parentStab = (clusterSz[c] > mcsMax) ? algorithmFPType(0) : stability[c];
+
+            if (childSum > parentStab)
             {
                 isSelected[c] = 0;
                 stability[c]  = childSum;
@@ -459,6 +466,45 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         }
     }
 
+    // Build cluster parent map (needed by epsilon merging and label assignment)
+    daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
+    int * clusterParent = clusterParentArr.get();
+    if (!clusterParent) return 0;
+    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
+    for (size_t ei = 0; ei < nCondensed; ei++)
+    {
+        const CondensedEdge & e = condensed[ei];
+        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
+    }
+
+    // Phase 3c: cluster_selection_epsilon — merge selected clusters whose
+    // merge distance (1/lambdaBirth) is below epsilon with their parent.
+    if (clusterSelectionEpsilon > 0.0)
+    {
+        const algorithmFPType eps = static_cast<algorithmFPType>(clusterSelectionEpsilon);
+        bool changed              = true;
+        while (changed)
+        {
+            changed = false;
+            for (int c = rootCid + 1; c < nClusters; c++)
+            {
+                if (!isSelected[c]) continue;
+                const algorithmFPType birthDist =
+                    (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
+                if (birthDist < eps)
+                {
+                    const int parent = clusterParent[c];
+                    if (parent >= rootCid && parent < nClusters)
+                    {
+                        isSelected[c]      = 0;
+                        isSelected[parent] = 1;
+                        changed            = true;
+                    }
+                }
+            }
+        }
+    }
+
     // Phase 4: Label points
     int labelCounter = 0;
     daal::services::internal::TArray<int, cpu> clusterLabelArr(nClusters);
@@ -468,16 +514,6 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     for (int c = rootCid; c < nClusters; c++)
     {
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
-    }
-
-    daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
-    int * clusterParent = clusterParentArr.get();
-    if (!clusterParent) return 0;
-    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
     }
 
     daal::services::internal::TArray<int, cpu> pointFellFromArr(nRows);

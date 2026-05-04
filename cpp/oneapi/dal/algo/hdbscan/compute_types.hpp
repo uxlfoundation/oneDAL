@@ -122,6 +122,24 @@ public:
         return *this;
     }
 
+    /// A $k \times p$ table with cluster centroids (mean of member points).
+    /// $k$ is the number of clusters.
+    const table& get_cluster_centers() const;
+
+    auto& set_cluster_centers(const table& value) {
+        set_cluster_centers_impl(value);
+        return *this;
+    }
+
+    /// A $k \times p$ table with cluster medoids (member point minimizing
+    /// intra-cluster distance). $k$ is the number of clusters.
+    const table& get_medoid_centers() const;
+
+    auto& set_medoid_centers(const table& value) {
+        set_medoid_centers_impl(value);
+        return *this;
+    }
+
     /// Result options that indicates availability of the properties
     /// @remark default = default_result_options<Task>
     const result_option_id& get_result_options() const;
@@ -137,6 +155,8 @@ protected:
     void set_core_flags_impl(const table&);
     void set_core_observation_indices_impl(const table&);
     void set_core_observations_impl(const table&);
+    void set_cluster_centers_impl(const table&);
+    void set_medoid_centers_impl(const table&);
     void set_result_options_impl(const result_option_id&);
 
 private:

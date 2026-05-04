@@ -59,7 +59,7 @@ struct kernels_fp {
                                           distance_metric metric,
                                           const bk::event_vector& deps = {});
 
-    /// Build MST using Prim's algorithm on GPU with precomputed MRD matrix.
+    /// Build MST on device using GPU Boruvka with precomputed MRD matrix.
     static sycl::event build_mst(sycl::queue& queue,
                                  const pr::ndview<Float, 2>& mrd_matrix,
                                  pr::ndview<std::int32_t, 1>& mst_from,
@@ -67,6 +67,20 @@ struct kernels_fp {
                                  pr::ndview<Float, 1>& mst_weights,
                                  std::int64_t row_count,
                                  const bk::event_vector& deps = {});
+
+    /// Build MST on device using GPU Boruvka with on-the-fly distance computation.
+    /// Does NOT apply alpha scaling — caller must scale MST weights afterwards.
+    static sycl::event build_mst_otf(sycl::queue& queue,
+                                      const pr::ndview<Float, 2>& data,
+                                      const pr::ndview<Float, 1>& core_distances,
+                                      pr::ndview<std::int32_t, 1>& mst_from,
+                                      pr::ndview<std::int32_t, 1>& mst_to,
+                                      pr::ndview<Float, 1>& mst_weights,
+                                      std::int64_t row_count,
+                                      std::int64_t col_count,
+                                      distance_metric metric,
+                                      double degree,
+                                      const bk::event_vector& deps = {});
 
     /// Sort MST edges by weight using radix_sort_indices_inplace primitive.
     static sycl::event sort_mst_by_weight(sycl::queue& queue,
@@ -87,7 +101,9 @@ struct kernels_fp {
                                         std::int64_t min_cluster_size,
                                         const bk::event_vector& deps = {},
                                         std::int32_t cluster_selection = 0,
-                                        bool allow_single_cluster = false);
+                                        bool allow_single_cluster = false,
+                                        double cluster_selection_epsilon = 0.0,
+                                        std::int64_t max_cluster_size = 0);
 };
 
 #endif

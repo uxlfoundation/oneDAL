@@ -48,6 +48,7 @@ private:
 
 using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
 using hdbscan_kd_types = COMBINE_TYPES((float, double), (hdbscan::method::kd_tree));
+using hdbscan_bt_types = COMBINE_TYPES((float, double), (hdbscan::method::ball_tree));
 
 // =========================================================================
 // brute_force badarg tests
@@ -123,6 +124,62 @@ HDBSCAN_BF_BADARG_TEST("brute_force: cosine metric computes successfully") {
     REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
 }
 
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts zero cluster_selection_epsilon") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_cluster_selection_epsilon(0.0));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts positive cluster_selection_epsilon") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_cluster_selection_epsilon(0.5));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if cluster_selection_epsilon is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_cluster_selection_epsilon(-0.1), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts zero max_cluster_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_max_cluster_size(0));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts positive max_cluster_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_max_cluster_size(100));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if max_cluster_size is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_max_cluster_size(-1), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts alpha equal to 1") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_alpha(1.0));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts alpha greater than 1") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_alpha(2.5));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if alpha is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_alpha(0.0), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if alpha is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_alpha(-1.0), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts leaf_size equal to 1") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_leaf_size(1));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts large leaf_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_leaf_size(100));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if leaf_size is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_leaf_size(0), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if leaf_size is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_leaf_size(-1), domain_error);
+}
+
 // =========================================================================
 // kd_tree badarg tests
 // =========================================================================
@@ -175,6 +232,124 @@ HDBSCAN_KD_BADARG_TEST("kd_tree: throws if degree is zero") {
 
 HDBSCAN_KD_BADARG_TEST("kd_tree: throws if degree is negative") {
     REQUIRE_THROWS_AS(this->get_descriptor().set_degree(-1.0), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts zero cluster_selection_epsilon") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_cluster_selection_epsilon(0.0));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if cluster_selection_epsilon is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_cluster_selection_epsilon(-0.1), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts zero max_cluster_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_max_cluster_size(0));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if max_cluster_size is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_max_cluster_size(-1), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if alpha is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_alpha(0.0), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if alpha is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_alpha(-1.0), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts leaf_size equal to 1") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_leaf_size(1));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if leaf_size is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_leaf_size(0), domain_error);
+}
+
+// =========================================================================
+// ball_tree badarg tests
+// =========================================================================
+
+#define HDBSCAN_BT_BADARG_TEST(name) \
+    TEMPLATE_LIST_TEST_M(hdbscan_badarg_test, name, "[hdbscan][badarg]", hdbscan_bt_types)
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts valid min_cluster_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_min_cluster_size(2));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if min_cluster_size is less than 2") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_min_cluster_size(1), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts valid min_samples") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_min_samples(1));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if min_samples is less than 1") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_min_samples(0), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if data is empty") {
+    REQUIRE_THROWS_AS(this->compute(this->get_descriptor(), table{}), invalid_argument);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts valid data") {
+    REQUIRE_NOTHROW(this->compute(this->get_descriptor(), this->get_data()));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts manhattan metric") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::manhattan);
+    REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts chebyshev metric") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::chebyshev);
+    REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if cosine metric is used") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::cosine);
+    REQUIRE_THROWS_AS(this->compute(desc, this->get_data()), invalid_argument);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if degree is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(0.0), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if degree is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(-1.0), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts zero cluster_selection_epsilon") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_cluster_selection_epsilon(0.0));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if cluster_selection_epsilon is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_cluster_selection_epsilon(-0.1), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts zero max_cluster_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_max_cluster_size(0));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if max_cluster_size is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_max_cluster_size(-1), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if alpha is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_alpha(0.0), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if alpha is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_alpha(-1.0), domain_error);
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: accepts leaf_size equal to 1") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_leaf_size(1));
+}
+
+HDBSCAN_BT_BADARG_TEST("ball_tree: throws if leaf_size is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_leaf_size(0), domain_error);
 }
 
 } // namespace oneapi::dal::hdbscan::test

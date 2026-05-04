@@ -1,4 +1,4 @@
-/* file: hdbscan_kernel.h */
+/* file: hdbscan_ball_tree_batch_fpt_cpu.cpp */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -15,16 +15,10 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __HDBSCAN_KERNEL_H__
-#define __HDBSCAN_KERNEL_H__
+#include "src/algorithms/hdbscan/hdbscan_ball_tree_batch_impl.i"
+#include "services/daal_defines.h"
 
-#include "algorithms/hdbscan/hdbscan_types.h"
-#include "src/algorithms/kernel.h"
-#include "src/services/cpu_type.h"
-#include "data_management/data/numeric_table.h"
-
-using daal::data_management::NumericTable;
-using daal::internal::CpuType;
+using namespace daal::internal;
 
 namespace daal
 {
@@ -35,19 +29,9 @@ namespace hdbscan
 namespace internal
 {
 
-template <typename algorithmFPType, Method method, CpuType cpu>
-class HDBSCANBatchKernel : public Kernel
-{
-public:
-    services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, size_t minClusterSize,
-                             size_t minSamples, int metric = euclidean, double degree = 2.0, int clusterSelection = 0,
-                             bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0,
-                             double alpha = 1.0, size_t leafSize = 40);
-};
+template class DAAL_EXPORT HDBSCANBatchKernel<DAAL_FPTYPE, ballTree, DAAL_CPU>;
 
 } // namespace internal
 } // namespace hdbscan
 } // namespace algorithms
 } // namespace daal
-
-#endif // __HDBSCAN_KERNEL_H__

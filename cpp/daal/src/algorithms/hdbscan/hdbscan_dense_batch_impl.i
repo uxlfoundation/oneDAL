@@ -19,12 +19,12 @@
  * HDBSCAN brute-force implementation.
  *
  * The approach:
- *   1. Compute full pairwise Euclidean distance matrix via GEMM
+ *   1. Compute full pairwise distance matrix via GEMM (with alpha scaling)
  *   2. Compute core distances (k-th nearest neighbor distance per point)
- *   3. Build MST under Mutual Reachability Distance using Prim's algorithm
- *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
+ *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm
+ *   4. Sort MST + extract clusters via condensed tree + EOM/leaf (shared code)
  *
- * Complexity: O(N^2) for distance matrix and Prim's MST.
+ * Complexity: O(N^2) for distance matrix, O(N^2 * log N) worst case for Boruvka's MST.
  * Memory:     O(N^2) for the distance matrix.
  */
 
@@ -62,7 +62,8 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
                                                                            int metric, double degree, int clusterSelection,
-                                                                           bool allowSingleCluster)
+                                                                           bool allowSingleCluster, double clusterSelectionEpsilon,
+                                                                           size_t maxClusterSize, double alpha, size_t leafSize)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -290,6 +291,28 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // =========================================================================
+    // Step 1b: Apply alpha scaling (robust single linkage)
+    // =========================================================================
+    if (alpha != 1.0)
+    {
+        const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
+        const size_t totalDist         = nRows * nRows;
+        const size_t alphaBlockSize    = 4096;
+        const size_t nAlphaBlocks      = (totalDist + alphaBlockSize - 1) / alphaBlockSize;
+
+        daal::threader_for(nAlphaBlocks, nAlphaBlocks, [&](size_t iBlock) {
+            const size_t begin = iBlock * alphaBlockSize;
+            const size_t end   = (begin + alphaBlockSize > totalDist) ? totalDist : begin + alphaBlockSize;
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t idx = begin; idx < end; idx++)
+            {
+                distMatrix[idx] *= invAlpha;
+            }
+        });
+    }
+
+    // =========================================================================
     // Step 2: Compute core distances (k-th nearest neighbor distance per point)
     // =========================================================================
 
@@ -321,7 +344,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // =========================================================================
-    // Step 3: Build MST using Prim's algorithm with MRD
+    // Step 3: Build MST using Boruvka's algorithm with MRD
     // =========================================================================
 
     daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
@@ -334,141 +357,141 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
-    // Build MST using Prim's algorithm with MRD weights.
-    // O(N^2) time using dense distance matrix, O(N) extra space.
-    // Inner loops are parallelized via static_threader_for for large N.
+    // Build MST using Boruvka's algorithm with precomputed MRD matrix.
+    // Each iteration: parallel find nearest different-component neighbor per point,
+    // reduce to per-component best edge, union-find merge.
+    // O(N^2 * log N) worst case but typically O(N^2) with few iterations.
     {
-        daal::services::internal::TArray<algorithmFPType, cpu> minEdgeArr(nRows);
-        daal::services::internal::TArray<int, cpu> minFromArr(nRows);
-        daal::services::internal::TArray<char, cpu> inMstArr(nRows);
-        algorithmFPType * minEdge = minEdgeArr.get();
-        int * minFrom             = minFromArr.get();
-        char * inMst              = inMstArr.get();
-        DAAL_CHECK_MALLOC(minEdge);
-        DAAL_CHECK_MALLOC(minFrom);
-        DAAL_CHECK_MALLOC(inMst);
+        daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
+        daal::services::internal::TArray<int, cpu> ufRankArr(nRows);
+        daal::services::internal::TArray<int, cpu> componentOfArr(nRows);
+        int * ufParent    = ufParentArr.get();
+        int * ufRank      = ufRankArr.get();
+        int * componentOf = componentOfArr.get();
+        DAAL_CHECK_MALLOC(ufParent);
+        DAAL_CHECK_MALLOC(ufRank);
+        DAAL_CHECK_MALLOC(componentOf);
+
+        daal::services::internal::TArray<algorithmFPType, cpu> pointBestMrdArr(nRows);
+        daal::services::internal::TArray<int, cpu> pointBestIdxArr(nRows);
+        algorithmFPType * pointBestMrd = pointBestMrdArr.get();
+        int * pointBestIdx             = pointBestIdxArr.get();
+        DAAL_CHECK_MALLOC(pointBestMrd);
+        DAAL_CHECK_MALLOC(pointBestIdx);
+
+        daal::services::internal::TArray<algorithmFPType, cpu> compBestMrdArr(nRows);
+        daal::services::internal::TArray<int, cpu> compBestFromArr(nRows);
+        daal::services::internal::TArray<int, cpu> compBestToArr(nRows);
+        algorithmFPType * compBestMrd = compBestMrdArr.get();
+        int * compBestFrom            = compBestFromArr.get();
+        int * compBestTo              = compBestToArr.get();
+        DAAL_CHECK_MALLOC(compBestMrd);
+        DAAL_CHECK_MALLOC(compBestFrom);
+        DAAL_CHECK_MALLOC(compBestTo);
 
         for (size_t i = 0; i < nRows; i++)
         {
-            minEdge[i] = std::numeric_limits<algorithmFPType>::max();
-            minFrom[i] = 0;
-            inMst[i]   = 0;
+            ufParent[i]    = static_cast<int>(i);
+            ufRank[i]      = 0;
+            componentOf[i] = static_cast<int>(i);
         }
 
-        // Start from node 0
-        inMst[0]                        = 1;
-        const algorithmFPType core0     = coreDistances[0];
-        const algorithmFPType * distRow = distMatrix;
-        for (size_t j = 1; j < nRows; j++)
-        {
-            algorithmFPType d = distRow[j];
-            d                 = (core0 > d) ? core0 : d;
-            d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-            minEdge[j]        = d;
-        }
-
-        const bool useParallelMst = (nRows >= 2048);
-
-        if (useParallelMst)
-        {
-            // Parallel Prim's: use static_threader_for for inner loops.
-            // static_threader_for assigns contiguous index ranges per thread,
-            // preserving deterministic tie-breaking (lowest index wins).
-            const size_t nThreads = daal::threader_get_threads_number();
-
-            daal::services::internal::TArray<algorithmFPType, cpu> threadBestWArr(nThreads);
-            daal::services::internal::TArray<int, cpu> threadBestIdxArr(nThreads);
-            algorithmFPType * threadBestW = threadBestWArr.get();
-            int * threadBestIdx           = threadBestIdxArr.get();
-            DAAL_CHECK_MALLOC(threadBestW);
-            DAAL_CHECK_MALLOC(threadBestIdx);
-
-            for (size_t e = 0; e < edgeCount; e++)
+        auto ufFind = [&](int x) -> int {
+            while (ufParent[x] != x)
             {
-                // Phase 1: Parallel min-find — each thread finds local minimum
-                for (size_t t = 0; t < nThreads; t++)
-                {
-                    threadBestW[t]   = std::numeric_limits<algorithmFPType>::max();
-                    threadBestIdx[t] = -1;
-                }
-
-                daal::static_threader_for(nRows, [&](size_t j, size_t tid) {
-                    if (!inMst[j] && minEdge[j] < threadBestW[tid])
-                    {
-                        threadBestW[tid]   = minEdge[j];
-                        threadBestIdx[tid] = static_cast<int>(j);
-                    }
-                });
-
-                // Merge thread-local results (iterate in tid order for deterministic tie-breaking)
-                int best              = -1;
-                algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
-                for (size_t t = 0; t < nThreads; t++)
-                {
-                    if (threadBestIdx[t] >= 0 && threadBestW[t] < bestW)
-                    {
-                        bestW = threadBestW[t];
-                        best  = threadBestIdx[t];
-                    }
-                }
-
-                mstFrom[e]    = minFrom[best];
-                mstTo[e]      = best;
-                mstWeights[e] = bestW;
-                inMst[best]   = 1;
-
-                // Phase 2: Parallel update of min_edge for remaining nodes
-                const algorithmFPType * bestRow = distMatrix + static_cast<size_t>(best) * nRows;
-                const algorithmFPType coreBest  = coreDistances[best];
-
-                daal::static_threader_for(nRows, [&](size_t j, size_t /*tid*/) {
-                    if (inMst[j]) return;
-                    algorithmFPType d = bestRow[j];
-                    d                 = (coreBest > d) ? coreBest : d;
-                    d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-                    if (d < minEdge[j])
-                    {
-                        minEdge[j] = d;
-                        minFrom[j] = best;
-                    }
-                });
+                ufParent[x] = ufParent[ufParent[x]];
+                x           = ufParent[x];
             }
-        }
-        else
-        {
-            // Serial Prim's for small N (parallelization overhead not worth it)
-            for (size_t e = 0; e < edgeCount; e++)
+            return x;
+        };
+
+        auto ufUnion = [&](int rx, int ry) {
+            if (ufRank[rx] < ufRank[ry])
+                ufParent[rx] = ry;
+            else if (ufRank[rx] > ufRank[ry])
+                ufParent[ry] = rx;
+            else
             {
-                int best              = -1;
-                algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
+                ufParent[ry] = rx;
+                ufRank[rx]++;
+            }
+        };
+
+        size_t edgesAdded    = 0;
+        size_t numComponents = nRows;
+
+        while (numComponents > 1)
+        {
+            // Phase 1: For each point, find nearest different-component neighbor under MRD
+            daal::threader_for(nRows, nRows, [&](size_t i) {
+                const int myComp                  = componentOf[i];
+                const algorithmFPType * mrdRow    = distMatrix + i * nRows;
+                const algorithmFPType coreI       = coreDistances[i];
+                algorithmFPType bestMrd           = std::numeric_limits<algorithmFPType>::max();
+                int bestIdx                       = -1;
+
                 for (size_t j = 0; j < nRows; j++)
                 {
-                    if (!inMst[j] && minEdge[j] < bestW)
+                    if (componentOf[j] == myComp) continue;
+                    algorithmFPType mrd = mrdRow[j];
+                    mrd                 = (coreI > mrd) ? coreI : mrd;
+                    mrd                 = (coreDistances[j] > mrd) ? coreDistances[j] : mrd;
+                    if (mrd < bestMrd)
                     {
-                        bestW = minEdge[j];
-                        best  = static_cast<int>(j);
+                        bestMrd = mrd;
+                        bestIdx = static_cast<int>(j);
                     }
                 }
+                pointBestMrd[i] = bestMrd;
+                pointBestIdx[i] = bestIdx;
+            });
 
-                mstFrom[e]    = minFrom[best];
-                mstTo[e]      = best;
-                mstWeights[e] = bestW;
-                inMst[best]   = 1;
-
-                const algorithmFPType * bestRow = distMatrix + static_cast<size_t>(best) * nRows;
-                const algorithmFPType coreBest  = coreDistances[best];
-                for (size_t j = 0; j < nRows; j++)
+            // Phase 2: Reduce to per-component best edge
+            for (size_t i = 0; i < nRows; i++)
+            {
+                compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
+                compBestFrom[i] = -1;
+                compBestTo[i]   = -1;
+            }
+            for (size_t i = 0; i < nRows; i++)
+            {
+                if (pointBestIdx[i] < 0) continue;
+                const int comp = componentOf[i];
+                if (pointBestMrd[i] < compBestMrd[comp])
                 {
-                    if (inMst[j]) continue;
-                    algorithmFPType d = bestRow[j];
-                    d                 = (coreBest > d) ? coreBest : d;
-                    d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-                    if (d < minEdge[j])
-                    {
-                        minEdge[j] = d;
-                        minFrom[j] = best;
-                    }
+                    compBestMrd[comp]  = pointBestMrd[i];
+                    compBestFrom[comp] = static_cast<int>(i);
+                    compBestTo[comp]   = pointBestIdx[i];
                 }
+            }
+
+            // Phase 3: Merge components via best edges
+            size_t addedThisRound = 0;
+            for (size_t c = 0; c < nRows; c++)
+            {
+                if (compBestFrom[c] < 0) continue;
+                const int u  = compBestFrom[c];
+                const int v  = compBestTo[c];
+                const int ru = ufFind(u);
+                const int rv = ufFind(v);
+                if (ru == rv) continue;
+
+                mstFrom[edgesAdded]    = u;
+                mstTo[edgesAdded]      = v;
+                mstWeights[edgesAdded] = compBestMrd[c];
+                edgesAdded++;
+                addedThisRound++;
+
+                ufUnion(ru, rv);
+                numComponents--;
+            }
+
+            if (addedThisRound == 0) break;
+
+            // Phase 4: Update component IDs
+            for (size_t i = 0; i < nRows; i++)
+            {
+                componentOf[i] = ufFind(static_cast<int>(i));
             }
         }
     }
@@ -482,7 +505,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int * assignments = assignBlock.get();
 
     int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                        clusterSelection, allowSingleCluster);
+                                                                        clusterSelection, allowSingleCluster, clusterSelectionEpsilon,
+                                                                        maxClusterSize);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

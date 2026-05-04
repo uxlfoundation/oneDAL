@@ -203,6 +203,11 @@ MSG(hdbscan_min_samples_lt_one, "HDBSCAN min_samples must be at least 1")
 MSG(hdbscan_minkowski_degree_leq_zero, "HDBSCAN Minkowski degree must be greater than zero")
 MSG(hdbscan_kd_tree_method_is_not_implemented_for_gpu,
     "HDBSCAN k-d tree method is not implemented for GPU")
+MSG(hdbscan_cluster_selection_epsilon_lt_zero,
+    "HDBSCAN cluster_selection_epsilon must be non-negative")
+MSG(hdbscan_max_cluster_size_lt_zero, "HDBSCAN max_cluster_size must be non-negative")
+MSG(hdbscan_alpha_leq_zero, "HDBSCAN alpha must be greater than zero")
+MSG(hdbscan_leaf_size_lt_one, "HDBSCAN leaf_size must be at least 1")
 
 /* k-NN */
 MSG(knn_kd_tree_method_is_not_implemented_for_gpu,

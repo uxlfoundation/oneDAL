@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/backend/cpu/compute_kernel.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/backend/interop/common.hpp"
@@ -55,6 +56,7 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
                                             const descriptor_t& desc,
                                             const table& data) {
     const std::int64_t row_count = data.get_row_count();
+    const std::int64_t col_count = data.get_column_count();
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
     const std::int64_t min_samples = desc.get_min_samples();
     const int daal_metric = convert_metric(desc.get_metric());
@@ -62,6 +64,11 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
     const int cluster_selection =
         (desc.get_cluster_selection() == cluster_selection_method::leaf) ? 1 : 0;
     const bool allow_single_cluster = desc.get_allow_single_cluster();
+    const double cluster_selection_epsilon = desc.get_cluster_selection_epsilon();
+    const std::int64_t max_cluster_size = desc.get_max_cluster_size();
+    const double alpha = desc.get_alpha();
+    const std::int64_t leaf_size = desc.get_leaf_size();
+    const auto store_centers = desc.get_store_centers();
 
     const auto daal_data = convert_to_daal_table<Float>(data);
 
@@ -84,7 +91,11 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
         daal_metric,
         degree,
         cluster_selection,
-        allow_single_cluster));
+        allow_single_cluster,
+        cluster_selection_epsilon,
+        static_cast<size_t>(max_cluster_size),
+        alpha,
+        static_cast<size_t>(leaf_size)));
 
     daal::data_management::BlockDescriptor<int> nc_block;
     daal_nclusters->getBlockOfRows(0, 1, daal::data_management::readOnly, nc_block);
@@ -110,6 +121,61 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
         daal_assignments->releaseBlockOfRows(assign_block);
 
         results.set_responses(dal::homogen_table::wrap(arr_responses, row_count, 1));
+
+        if (cluster_count > 0 && store_centers != store_centers_method::none) {
+            const bool need_centroids = (store_centers == store_centers_method::centroid ||
+                                         store_centers == store_centers_method::both);
+            const bool need_medoids = (store_centers == store_centers_method::medoid ||
+                                       store_centers == store_centers_method::both);
+
+            row_accessor<const Float> data_acc{ data };
+            const auto data_arr = data_acc.pull({ 0, -1 });
+            const Float* data_ptr = data_arr.get_data();
+
+            if (need_centroids) {
+                auto arr_centroids = array<Float>::empty(cluster_count * col_count);
+                compute_centroids_on_host(data_ptr,
+                                          resp_ptr,
+                                          row_count,
+                                          col_count,
+                                          cluster_count,
+                                          arr_centroids.get_mutable_data());
+                results.set_cluster_centers(
+                    dal::homogen_table::wrap(arr_centroids, cluster_count, col_count));
+
+                if (need_medoids) {
+                    auto arr_medoids = array<Float>::empty(cluster_count * col_count);
+                    compute_medoids_on_host(data_ptr,
+                                            resp_ptr,
+                                            row_count,
+                                            col_count,
+                                            cluster_count,
+                                            arr_centroids.get_data(),
+                                            arr_medoids.get_mutable_data());
+                    results.set_medoid_centers(
+                        dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
+                }
+            }
+            else if (need_medoids) {
+                auto arr_centroids = array<Float>::empty(cluster_count * col_count);
+                compute_centroids_on_host(data_ptr,
+                                          resp_ptr,
+                                          row_count,
+                                          col_count,
+                                          cluster_count,
+                                          arr_centroids.get_mutable_data());
+                auto arr_medoids = array<Float>::empty(cluster_count * col_count);
+                compute_medoids_on_host(data_ptr,
+                                        resp_ptr,
+                                        row_count,
+                                        col_count,
+                                        cluster_count,
+                                        arr_centroids.get_data(),
+                                        arr_medoids.get_mutable_data());
+                results.set_medoid_centers(
+                    dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
+            }
+        }
     }
 
     return results;

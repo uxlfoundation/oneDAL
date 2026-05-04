@@ -207,6 +207,12 @@ public:
         if (!compute_mode.test(result_options::core_observation_indices)) {
             REQUIRE_THROWS_AS(result.get_core_observation_indices(), domain_error);
         }
+        if (!compute_mode.test(result_options::cluster_centers)) {
+            REQUIRE_THROWS_AS(result.get_cluster_centers(), domain_error);
+        }
+        if (!compute_mode.test(result_options::medoid_centers)) {
+            REQUIRE_THROWS_AS(result.get_medoid_centers(), domain_error);
+        }
     }
 };
 

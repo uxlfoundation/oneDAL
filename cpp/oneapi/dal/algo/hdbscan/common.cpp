@@ -37,6 +37,14 @@ result_option_id get_core_flags_id() {
     return result_option_id::make_by_index(3);
 }
 
+result_option_id get_cluster_centers_id() {
+    return result_option_id::make_by_index(4);
+}
+
+result_option_id get_medoid_centers_id() {
+    return result_option_id::make_by_index(5);
+}
+
 template <typename Task>
 const result_option_id default_result_options = result_options::responses;
 
@@ -52,6 +60,11 @@ public:
     double degree = 2.0;
     cluster_selection_method cluster_selection = cluster_selection_method::eom;
     bool allow_single_cluster = false;
+    double cluster_selection_epsilon = 0.0;
+    std::int64_t max_cluster_size = 0;
+    double alpha = 1.0;
+    store_centers_method store_centers = store_centers_method::none;
+    std::int64_t leaf_size = 40;
 };
 
 template <typename Task>
@@ -129,6 +142,69 @@ void descriptor_base<Task>::set_cluster_selection_impl(cluster_selection_method 
 template <typename Task>
 void descriptor_base<Task>::set_allow_single_cluster_impl(bool value) {
     impl_->allow_single_cluster = value;
+}
+
+template <typename Task>
+double descriptor_base<Task>::get_cluster_selection_epsilon() const {
+    return impl_->cluster_selection_epsilon;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_cluster_selection_epsilon_impl(double value) {
+    if (value < 0.0) {
+        throw domain_error(
+            dal::detail::error_messages::hdbscan_cluster_selection_epsilon_lt_zero());
+    }
+    impl_->cluster_selection_epsilon = value;
+}
+
+template <typename Task>
+std::int64_t descriptor_base<Task>::get_max_cluster_size() const {
+    return impl_->max_cluster_size;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_max_cluster_size_impl(std::int64_t value) {
+    if (value < 0) {
+        throw domain_error(dal::detail::error_messages::hdbscan_max_cluster_size_lt_zero());
+    }
+    impl_->max_cluster_size = value;
+}
+
+template <typename Task>
+double descriptor_base<Task>::get_alpha() const {
+    return impl_->alpha;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_alpha_impl(double value) {
+    if (value <= 0.0) {
+        throw domain_error(dal::detail::error_messages::hdbscan_alpha_leq_zero());
+    }
+    impl_->alpha = value;
+}
+
+template <typename Task>
+store_centers_method descriptor_base<Task>::get_store_centers() const {
+    return impl_->store_centers;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_store_centers_impl(store_centers_method value) {
+    impl_->store_centers = value;
+}
+
+template <typename Task>
+std::int64_t descriptor_base<Task>::get_leaf_size() const {
+    return impl_->leaf_size;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_leaf_size_impl(std::int64_t value) {
+    if (value < 1) {
+        throw domain_error(dal::detail::error_messages::hdbscan_leaf_size_lt_one());
+    }
+    impl_->leaf_size = value;
 }
 
 template <typename Task>
