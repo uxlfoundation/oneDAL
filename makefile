@@ -376,7 +376,8 @@ release.ONEAPI.LIBS_Y := $(oneapi_y)
 
 release.ONEAPI.LIBS_Y.dpc := $(oneapi_y.dpc)
 ifdef OS_is_win
-release.ONEAPI.LIBS_Y.import.dpc := $(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib)
+release.ONEAPI.LIBS_Y.import.dpc := \
+    $(oneapi_y.dpc:.$(MAJORBINARY).dll=_dll.$(MAJORBINARY).lib)
 endif
 
 release.PARAMETERS.LIBS_A := $(parameters_a) \
@@ -384,7 +385,7 @@ release.PARAMETERS.LIBS_A := $(parameters_a) \
 release.PARAMETERS.LIBS_Y := $(parameters_y)
 
 ifdef OS_is_win
-release.PARAMETERS.LIBS_Y.import.dpc := $(parameters_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib)
+release.PARAMETERS.LIBS_Y.import.dpc := $(parameters_y.dpc:.$(MAJORBINARY).dll=_dll.$(MAJORBINARY).lib)
 endif
 release.PARAMETERS.LIBS_Y.dpc := $(parameters_y.dpc)
 
