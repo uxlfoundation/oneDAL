@@ -167,7 +167,6 @@ static void compute_distance_matrix(const Float* data,
         for (std::int64_t i = i_begin; i < i_end; i++) {
             Float* row = dist_matrix + i * row_count;
             const Float ni = norms[i];
-            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (std::int64_t j = 0; j < row_count; j++) {
                 Float d2 = ni + norms[j] - Float(2) * row[j];
