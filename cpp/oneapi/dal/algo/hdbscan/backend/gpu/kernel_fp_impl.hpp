@@ -441,14 +441,11 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
     auto [comp, comp_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [uf_parent, uf_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [uf_rank, ur_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [pt_best_mrd, pbm_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [uf_rank, ur_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [pt_best_mrd, pbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [pt_best_idx, pbi_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_mrd, cbm_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_mrd, cbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [comp_best_from, cbf_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [comp_best_to, cbt_ev] =
@@ -464,9 +461,9 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
     std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
 
     bk::event_vector init_deps = deps;
-    init_deps.insert(init_deps.end(),
-                     { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev,
-                       nc_ev });
+    init_deps.insert(
+        init_deps.end(),
+        { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev, nc_ev });
 
     // Initialize comp[i] = i, uf_parent[i] = i, num_comp = n
     auto init_event = queue.submit([&](sycl::handler& h) {
@@ -487,30 +484,30 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
     for (std::int32_t round = 0; round < max_rounds; round++) {
         // Step A: parallel find nearest different-component neighbor
         auto find_event = boruvka_find_nearest_mrd(queue,
-                                                    mrd_ptr,
-                                                    comp_ptr,
-                                                    pt_best_mrd.get_mutable_data(),
-                                                    pt_best_idx.get_mutable_data(),
-                                                    n,
-                                                    { last_event });
+                                                   mrd_ptr,
+                                                   comp_ptr,
+                                                   pt_best_mrd.get_mutable_data(),
+                                                   pt_best_idx.get_mutable_data(),
+                                                   n,
+                                                   { last_event });
 
         // Step B: reduce + merge (single_task — O(N) work)
         auto merge_event = boruvka_merge_components(queue,
-                                                     comp_ptr,
-                                                     uf_parent_ptr,
-                                                     uf_rank_ptr,
-                                                     pt_best_mrd.get_data(),
-                                                     pt_best_idx.get_data(),
-                                                     comp_best_mrd.get_mutable_data(),
-                                                     comp_best_from.get_mutable_data(),
-                                                     comp_best_to.get_mutable_data(),
-                                                     mst_from.get_mutable_data(),
-                                                     mst_to.get_mutable_data(),
-                                                     mst_weights.get_mutable_data(),
-                                                     edges_added_arr.get_mutable_data(),
-                                                     num_comp_arr.get_mutable_data(),
-                                                     n,
-                                                     { find_event });
+                                                    comp_ptr,
+                                                    uf_parent_ptr,
+                                                    uf_rank_ptr,
+                                                    pt_best_mrd.get_data(),
+                                                    pt_best_idx.get_data(),
+                                                    comp_best_mrd.get_mutable_data(),
+                                                    comp_best_from.get_mutable_data(),
+                                                    comp_best_to.get_mutable_data(),
+                                                    mst_from.get_mutable_data(),
+                                                    mst_to.get_mutable_data(),
+                                                    mst_weights.get_mutable_data(),
+                                                    edges_added_arr.get_mutable_data(),
+                                                    num_comp_arr.get_mutable_data(),
+                                                    n,
+                                                    { find_event });
 
         // Step C: parallel path compression
         auto compress_event =
@@ -529,16 +526,16 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
 
 template <typename Float>
 sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
-                                              const pr::ndview<Float, 2>& data,
-                                              const pr::ndview<Float, 1>& core_distances,
-                                              pr::ndview<std::int32_t, 1>& mst_from,
-                                              pr::ndview<std::int32_t, 1>& mst_to,
-                                              pr::ndview<Float, 1>& mst_weights,
-                                              std::int64_t row_count,
-                                              std::int64_t col_count,
-                                              distance_metric metric,
-                                              double degree,
-                                              const bk::event_vector& deps) {
+                                             const pr::ndview<Float, 2>& data,
+                                             const pr::ndview<Float, 1>& core_distances,
+                                             pr::ndview<std::int32_t, 1>& mst_from,
+                                             pr::ndview<std::int32_t, 1>& mst_to,
+                                             pr::ndview<Float, 1>& mst_weights,
+                                             std::int64_t row_count,
+                                             std::int64_t col_count,
+                                             distance_metric metric,
+                                             double degree,
+                                             const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(hdbscan.build_mst_otf, queue);
 
     const std::int64_t n = row_count;
@@ -557,14 +554,11 @@ sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
     auto [comp, comp_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [uf_parent, uf_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [uf_rank, ur_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [pt_best_mrd, pbm_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [uf_rank, ur_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [pt_best_mrd, pbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [pt_best_idx, pbi_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_mrd, cbm_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
+    auto [comp_best_mrd, cbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [comp_best_from, cbf_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [comp_best_to, cbt_ev] =
@@ -580,9 +574,9 @@ sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
     std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
 
     bk::event_vector init_deps = deps;
-    init_deps.insert(init_deps.end(),
-                     { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev,
-                       nc_ev });
+    init_deps.insert(
+        init_deps.end(),
+        { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev, nc_ev });
 
     auto init_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(init_deps);
@@ -603,33 +597,33 @@ sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
 
     for (std::int32_t round = 0; round < max_rounds; round++) {
         auto find_event = boruvka_find_nearest_otf(queue,
-                                                    data_ptr,
-                                                    col_count,
-                                                    core_ptr,
-                                                    comp_ptr,
-                                                    pt_best_mrd.get_mutable_data(),
-                                                    pt_best_idx.get_mutable_data(),
-                                                    n,
-                                                    metric_id,
-                                                    deg_f,
-                                                    { last_event });
+                                                   data_ptr,
+                                                   col_count,
+                                                   core_ptr,
+                                                   comp_ptr,
+                                                   pt_best_mrd.get_mutable_data(),
+                                                   pt_best_idx.get_mutable_data(),
+                                                   n,
+                                                   metric_id,
+                                                   deg_f,
+                                                   { last_event });
 
         auto merge_event = boruvka_merge_components(queue,
-                                                     comp_ptr,
-                                                     uf_parent_ptr,
-                                                     uf_rank_ptr,
-                                                     pt_best_mrd.get_data(),
-                                                     pt_best_idx.get_data(),
-                                                     comp_best_mrd.get_mutable_data(),
-                                                     comp_best_from.get_mutable_data(),
-                                                     comp_best_to.get_mutable_data(),
-                                                     mst_from.get_mutable_data(),
-                                                     mst_to.get_mutable_data(),
-                                                     mst_weights.get_mutable_data(),
-                                                     edges_added_arr.get_mutable_data(),
-                                                     num_comp_arr.get_mutable_data(),
-                                                     n,
-                                                     { find_event });
+                                                    comp_ptr,
+                                                    uf_parent_ptr,
+                                                    uf_rank_ptr,
+                                                    pt_best_mrd.get_data(),
+                                                    pt_best_idx.get_data(),
+                                                    comp_best_mrd.get_mutable_data(),
+                                                    comp_best_from.get_mutable_data(),
+                                                    comp_best_to.get_mutable_data(),
+                                                    mst_from.get_mutable_data(),
+                                                    mst_to.get_mutable_data(),
+                                                    mst_weights.get_mutable_data(),
+                                                    edges_added_arr.get_mutable_data(),
+                                                    num_comp_arr.get_mutable_data(),
+                                                    n,
+                                                    { find_event });
 
         auto compress_event =
             boruvka_compress_components<Float>(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
@@ -972,8 +966,7 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                     if (w.cc1_ptr[c] >= 0)
                         child_sum += w.stab_ptr[w.cc1_ptr[c]];
 
-                    const Float parent_stab =
-                        (w.csz_ptr[c] > mcs_max) ? Float(0) : w.stab_ptr[c];
+                    const Float parent_stab = (w.csz_ptr[c] > mcs_max) ? Float(0) : w.stab_ptr[c];
 
                     if (child_sum > parent_stab) {
                         w.is_ptr[c] = 0;

@@ -61,9 +61,9 @@ using daal::internal::WriteOnlyRows;
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree, int clusterSelection,
-                                                                           bool allowSingleCluster, double clusterSelectionEpsilon,
-                                                                           size_t maxClusterSize, double alpha, size_t leafSize)
+                                                                           int metric, double degree, int clusterSelection, bool allowSingleCluster,
+                                                                           double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
+                                                                           size_t leafSize)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -424,11 +424,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         {
             // Phase 1: For each point, find nearest different-component neighbor under MRD
             daal::threader_for(nRows, nRows, [&](size_t i) {
-                const int myComp                  = componentOf[i];
-                const algorithmFPType * mrdRow    = distMatrix + i * nRows;
-                const algorithmFPType coreI       = coreDistances[i];
-                algorithmFPType bestMrd           = std::numeric_limits<algorithmFPType>::max();
-                int bestIdx                       = -1;
+                const int myComp               = componentOf[i];
+                const algorithmFPType * mrdRow = distMatrix + i * nRows;
+                const algorithmFPType coreI    = coreDistances[i];
+                algorithmFPType bestMrd        = std::numeric_limits<algorithmFPType>::max();
+                int bestIdx                    = -1;
 
                 for (size_t j = 0; j < nRows; j++)
                 {
@@ -505,8 +505,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int * assignments = assignBlock.get();
 
     int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                        clusterSelection, allowSingleCluster, clusterSelectionEpsilon,
-                                                                        maxClusterSize);
+                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

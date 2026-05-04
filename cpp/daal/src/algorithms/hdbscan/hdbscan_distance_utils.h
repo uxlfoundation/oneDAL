@@ -228,7 +228,7 @@ struct KnnHeap
         {
             dists[0]   = dist;
             indices[0] = idx;
-            int i = 0;
+            int i      = 0;
             while (true)
             {
                 int l       = 2 * i + 1;

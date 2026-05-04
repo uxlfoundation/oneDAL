@@ -489,8 +489,7 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             for (int c = rootCid + 1; c < nClusters; c++)
             {
                 if (!isSelected[c]) continue;
-                const algorithmFPType birthDist =
-                    (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
+                const algorithmFPType birthDist = (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
                 if (birthDist < eps)
                 {
                     const int parent = clusterParent[c];

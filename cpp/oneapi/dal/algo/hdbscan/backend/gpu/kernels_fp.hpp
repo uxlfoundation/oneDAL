@@ -71,16 +71,16 @@ struct kernels_fp {
     /// Build MST on device using GPU Boruvka with on-the-fly distance computation.
     /// Does NOT apply alpha scaling — caller must scale MST weights afterwards.
     static sycl::event build_mst_otf(sycl::queue& queue,
-                                      const pr::ndview<Float, 2>& data,
-                                      const pr::ndview<Float, 1>& core_distances,
-                                      pr::ndview<std::int32_t, 1>& mst_from,
-                                      pr::ndview<std::int32_t, 1>& mst_to,
-                                      pr::ndview<Float, 1>& mst_weights,
-                                      std::int64_t row_count,
-                                      std::int64_t col_count,
-                                      distance_metric metric,
-                                      double degree,
-                                      const bk::event_vector& deps = {});
+                                     const pr::ndview<Float, 2>& data,
+                                     const pr::ndview<Float, 1>& core_distances,
+                                     pr::ndview<std::int32_t, 1>& mst_from,
+                                     pr::ndview<std::int32_t, 1>& mst_to,
+                                     pr::ndview<Float, 1>& mst_weights,
+                                     std::int64_t row_count,
+                                     std::int64_t col_count,
+                                     distance_metric metric,
+                                     double degree,
+                                     const bk::event_vector& deps = {});
 
     /// Sort MST edges by weight using radix_sort_indices_inplace primitive.
     static sycl::event sort_mst_by_weight(sycl::queue& queue,

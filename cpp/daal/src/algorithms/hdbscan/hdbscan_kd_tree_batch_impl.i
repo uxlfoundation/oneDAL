@@ -468,9 +468,9 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree, int clusterSelection,
-                                                                           bool allowSingleCluster, double clusterSelectionEpsilon,
-                                                                           size_t maxClusterSize, double alpha, size_t leafSize)
+                                                                           int metric, double degree, int clusterSelection, bool allowSingleCluster,
+                                                                           double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
+                                                                           size_t leafSize)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -546,7 +546,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, ManhattanDist<algorithmFPType>>(ManhattanDist<algorithmFPType> {}, alpha));
+                AlphaScaledDist<algorithmFPType, ManhattanDist<algorithmFPType> >(ManhattanDist<algorithmFPType> {}, alpha));
         else
             computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                         coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {});
@@ -555,7 +555,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, MinkowskiDist<algorithmFPType>>(MinkowskiDist<algorithmFPType>(degree), alpha));
+                AlphaScaledDist<algorithmFPType, MinkowskiDist<algorithmFPType> >(MinkowskiDist<algorithmFPType>(degree), alpha));
         else
             computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                         coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(degree));
@@ -564,7 +564,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, ChebyshevDist<algorithmFPType>>(ChebyshevDist<algorithmFPType> {}, alpha));
+                AlphaScaledDist<algorithmFPType, ChebyshevDist<algorithmFPType> >(ChebyshevDist<algorithmFPType> {}, alpha));
         else
             computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                         coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {});
@@ -573,7 +573,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, EuclideanDist<algorithmFPType>>(EuclideanDist<algorithmFPType> {}, alpha));
+                AlphaScaledDist<algorithmFPType, EuclideanDist<algorithmFPType> >(EuclideanDist<algorithmFPType> {}, alpha));
         else
             computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                         coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {});
@@ -589,8 +589,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int * assignments = assignBlock.get();
 
     int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                        clusterSelection, allowSingleCluster, clusterSelectionEpsilon,
-                                                                        maxClusterSize);
+                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

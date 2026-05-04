@@ -41,8 +41,8 @@ class HDBSCANBatchKernel : public Kernel
 public:
     services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, size_t minClusterSize,
                              size_t minSamples, int metric = euclidean, double degree = 2.0, int clusterSelection = 0,
-                             bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0,
-                             double alpha = 1.0, size_t leafSize = 40);
+                             bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0,
+                             size_t leafSize = 40);
 };
 
 } // namespace internal

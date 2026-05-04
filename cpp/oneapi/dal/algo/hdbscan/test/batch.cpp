@@ -959,20 +959,20 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // Three clusters: A and B are close (distance ~1.0), C is far (distance ~10.0)
     constexpr float_t data[] = {
-        0.0,  0.0, //
-        0.05, 0.05, //
-        0.1,  0.0, //
-        0.0,  0.1, //
-        0.08, 0.08, //
-        1.0,  1.0, //
-        1.05, 1.05, //
-        1.1,  1.0, //
-        1.0,  1.1, //
-        1.08, 1.08, //
-        10.0, 10.0, //
+        0.0,   0.0, //
+        0.05,  0.05, //
+        0.1,   0.0, //
+        0.0,   0.1, //
+        0.08,  0.08, //
+        1.0,   1.0, //
+        1.05,  1.05, //
+        1.1,   1.0, //
+        1.0,   1.1, //
+        1.08,  1.08, //
+        10.0,  10.0, //
         10.05, 10.05, //
-        10.1, 10.0, //
-        10.0, 10.1, //
+        10.1,  10.0, //
+        10.0,  10.1, //
         10.08, 10.08, //
     };
     const std::int64_t row_count = 15;
@@ -982,18 +982,16 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t ms = 5;
 
     // Without epsilon: should find 3 clusters
-    const auto desc_no_eps =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_cluster_selection_epsilon(0.0);
+    const auto desc_no_eps = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_cluster_selection_epsilon(0.0);
     const auto result_no_eps = dal::compute(desc_no_eps, x);
     const auto count_no_eps = result_no_eps.get_cluster_count();
 
     // With large epsilon: should merge close clusters, resulting in fewer clusters
-    const auto desc_eps =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_cluster_selection_epsilon(5.0);
+    const auto desc_eps = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+                              .set_result_options(result_options::responses)
+                              .set_cluster_selection_epsilon(5.0);
     const auto result_eps = dal::compute(desc_eps, x);
     const auto count_eps = result_eps.get_cluster_count();
 
@@ -1009,20 +1007,20 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using float_t = std::tuple_element_t<0, TestType>;
 
     constexpr float_t data[] = {
-        0.0,  0.0, //
-        0.05, 0.05, //
-        0.1,  0.0, //
-        0.0,  0.1, //
-        0.08, 0.08, //
-        1.0,  1.0, //
-        1.05, 1.05, //
-        1.1,  1.0, //
-        1.0,  1.1, //
-        1.08, 1.08, //
-        10.0, 10.0, //
+        0.0,   0.0, //
+        0.05,  0.05, //
+        0.1,   0.0, //
+        0.0,   0.1, //
+        0.08,  0.08, //
+        1.0,   1.0, //
+        1.05,  1.05, //
+        1.1,   1.0, //
+        1.0,   1.1, //
+        1.08,  1.08, //
+        10.0,  10.0, //
         10.05, 10.05, //
-        10.1, 10.0, //
-        10.0, 10.1, //
+        10.1,  10.0, //
+        10.0,  10.1, //
         10.08, 10.08, //
     };
     const std::int64_t row_count = 15;
@@ -1031,16 +1029,14 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_no_eps =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_cluster_selection_epsilon(0.0);
+    const auto desc_no_eps = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_cluster_selection_epsilon(0.0);
     const auto result_no_eps = dal::compute(desc_no_eps, x);
 
-    const auto desc_eps =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_cluster_selection_epsilon(5.0);
+    const auto desc_eps = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+                              .set_result_options(result_options::responses)
+                              .set_cluster_selection_epsilon(5.0);
     const auto result_eps = dal::compute(desc_eps, x);
 
     REQUIRE(result_eps.get_cluster_count() <= result_no_eps.get_cluster_count());
@@ -1077,12 +1073,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // Default (alpha=1.0) and explicit alpha=1.0 should give same result
     const auto desc_default =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses);
-    const auto desc_alpha1 =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_alpha(1.0);
+        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms).set_result_options(
+            result_options::responses);
+    const auto desc_alpha1 = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_alpha(1.0);
 
     const auto result_default = dal::compute(desc_default, x);
     const auto result_alpha1 = dal::compute(desc_alpha1, x);
@@ -1118,10 +1113,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     };
     const auto x = homogen_table::wrap(data, 10, 2);
 
-    const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5)
-            .set_result_options(result_options::responses)
-            .set_alpha(1.5);
+    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5)
+                          .set_result_options(result_options::responses)
+                          .set_alpha(1.5);
     REQUIRE_NOTHROW(dal::compute(desc, x));
 }
 
@@ -1146,10 +1140,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     };
     const auto x = homogen_table::wrap(data, 10, 2);
 
-    const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(5, 5)
-            .set_result_options(result_options::responses)
-            .set_alpha(1.5);
+    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(5, 5)
+                          .set_result_options(result_options::responses)
+                          .set_alpha(1.5);
     REQUIRE_NOTHROW(dal::compute(desc, x));
 }
 
@@ -1182,24 +1175,20 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_leaf10 =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_leaf_size(10);
-    const auto desc_leaf40 =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_leaf_size(40);
+    const auto desc_leaf10 = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_leaf_size(10);
+    const auto desc_leaf40 = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_leaf_size(40);
 
     const auto result_leaf10 = dal::compute(desc_leaf10, x);
     const auto result_leaf40 = dal::compute(desc_leaf40, x);
 
     REQUIRE(result_leaf10.get_cluster_count() == result_leaf40.get_cluster_count());
 
-    const auto rows_10 =
-        row_accessor<const float_t>(result_leaf10.get_responses()).pull({ 0, -1 });
-    const auto rows_40 =
-        row_accessor<const float_t>(result_leaf40.get_responses()).pull({ 0, -1 });
+    const auto rows_10 = row_accessor<const float_t>(result_leaf10.get_responses()).pull({ 0, -1 });
+    const auto rows_40 = row_accessor<const float_t>(result_leaf40.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_10, rows_40, row_count);
 }
@@ -1235,12 +1224,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // max_cluster_size=0 should behave same as default
     const auto desc_default =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses);
-    const auto desc_max0 =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_max_cluster_size(0);
+        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms).set_result_options(
+            result_options::responses);
+    const auto desc_max0 = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+                               .set_result_options(result_options::responses)
+                               .set_max_cluster_size(0);
 
     const auto result_default = dal::compute(desc_default, x);
     const auto result_max0 = dal::compute(desc_max0, x);
@@ -1249,8 +1237,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     const auto rows_default =
         row_accessor<const float_t>(result_default.get_responses()).pull({ 0, -1 });
-    const auto rows_max0 =
-        row_accessor<const float_t>(result_max0.get_responses()).pull({ 0, -1 });
+    const auto rows_max0 = row_accessor<const float_t>(result_max0.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_default, rows_max0, row_count);
 }
@@ -1277,10 +1264,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto x = homogen_table::wrap(data, 10, 2);
 
     // max_cluster_size should run without error (functional check)
-    const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5)
-            .set_result_options(result_options::responses)
-            .set_max_cluster_size(3);
+    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5)
+                          .set_result_options(result_options::responses)
+                          .set_max_cluster_size(3);
     REQUIRE_NOTHROW(dal::compute(desc, x));
 }
 
@@ -1699,10 +1685,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     };
     const auto x = homogen_table::wrap(data, 10, 2);
 
-    const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(5, 5)
-            .set_result_options(result_options::responses)
-            .set_alpha(1.5);
+    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(5, 5)
+                          .set_result_options(result_options::responses)
+                          .set_alpha(1.5);
     REQUIRE_NOTHROW(dal::compute(desc, x));
 }
 
@@ -1731,24 +1716,20 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_leaf10 =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_leaf_size(10);
-    const auto desc_leaf40 =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_leaf_size(40);
+    const auto desc_leaf10 = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_leaf_size(10);
+    const auto desc_leaf40 = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_leaf_size(40);
 
     const auto result_leaf10 = dal::compute(desc_leaf10, x);
     const auto result_leaf40 = dal::compute(desc_leaf40, x);
 
     REQUIRE(result_leaf10.get_cluster_count() == result_leaf40.get_cluster_count());
 
-    const auto rows_10 =
-        row_accessor<const float_t>(result_leaf10.get_responses()).pull({ 0, -1 });
-    const auto rows_40 =
-        row_accessor<const float_t>(result_leaf40.get_responses()).pull({ 0, -1 });
+    const auto rows_10 = row_accessor<const float_t>(result_leaf10.get_responses()).pull({ 0, -1 });
+    const auto rows_40 = row_accessor<const float_t>(result_leaf40.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_10, rows_40, row_count);
 }
@@ -1761,20 +1742,20 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using float_t = std::tuple_element_t<0, TestType>;
 
     constexpr float_t data[] = {
-        0.0,  0.0, //
-        0.05, 0.05, //
-        0.1,  0.0, //
-        0.0,  0.1, //
-        0.08, 0.08, //
-        1.0,  1.0, //
-        1.05, 1.05, //
-        1.1,  1.0, //
-        1.0,  1.1, //
-        1.08, 1.08, //
-        10.0, 10.0, //
+        0.0,   0.0, //
+        0.05,  0.05, //
+        0.1,   0.0, //
+        0.0,   0.1, //
+        0.08,  0.08, //
+        1.0,   1.0, //
+        1.05,  1.05, //
+        1.1,   1.0, //
+        1.0,   1.1, //
+        1.08,  1.08, //
+        10.0,  10.0, //
         10.05, 10.05, //
-        10.1, 10.0, //
-        10.0, 10.1, //
+        10.1,  10.0, //
+        10.0,  10.1, //
         10.08, 10.08, //
     };
     const std::int64_t row_count = 15;
@@ -1783,16 +1764,14 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_no_eps =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_cluster_selection_epsilon(0.0);
+    const auto desc_no_eps = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+                                 .set_result_options(result_options::responses)
+                                 .set_cluster_selection_epsilon(0.0);
     const auto result_no_eps = dal::compute(desc_no_eps, x);
 
-    const auto desc_eps =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
-            .set_result_options(result_options::responses)
-            .set_cluster_selection_epsilon(5.0);
+    const auto desc_eps = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+                              .set_result_options(result_options::responses)
+                              .set_cluster_selection_epsilon(5.0);
     const auto result_eps = dal::compute(desc_eps, x);
 
     REQUIRE(result_eps.get_cluster_count() <= result_no_eps.get_cluster_count());

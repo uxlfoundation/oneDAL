@@ -102,28 +102,36 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
             case distance_metric::manhattan: {
                 pr::distance<Float, pr::lp_metric<Float>> dist_op(queue,
                                                                   pr::lp_metric<Float>(Float(1)));
-                dist_event =
-                    dist_op(block_view, data_nd, dist_block, { dist_block_event, prev_block_event });
+                dist_event = dist_op(block_view,
+                                     data_nd,
+                                     dist_block,
+                                     { dist_block_event, prev_block_event });
                 break;
             }
             case distance_metric::minkowski: {
                 pr::distance<Float, pr::lp_metric<Float>> dist_op(
                     queue,
                     pr::lp_metric<Float>(static_cast<Float>(degree)));
-                dist_event =
-                    dist_op(block_view, data_nd, dist_block, { dist_block_event, prev_block_event });
+                dist_event = dist_op(block_view,
+                                     data_nd,
+                                     dist_block,
+                                     { dist_block_event, prev_block_event });
                 break;
             }
             case distance_metric::chebyshev: {
                 pr::chebyshev_distance<Float> dist_op(queue);
-                dist_event =
-                    dist_op(block_view, data_nd, dist_block, { dist_block_event, prev_block_event });
+                dist_event = dist_op(block_view,
+                                     data_nd,
+                                     dist_block,
+                                     { dist_block_event, prev_block_event });
                 break;
             }
             default: {
                 pr::squared_l2_distance<Float> dist_op(queue);
-                dist_event =
-                    dist_op(block_view, data_nd, dist_block, { dist_block_event, prev_block_event });
+                dist_event = dist_op(block_view,
+                                     data_nd,
+                                     dist_block,
+                                     { dist_block_event, prev_block_event });
                 break;
             }
         }

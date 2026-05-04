@@ -130,7 +130,9 @@ template <typename FP, typename BaseDist>
 struct HostAlphaScaledDist {
     BaseDist base;
     FP inv_alpha;
-    HostAlphaScaledDist(const BaseDist& b, double a) : base(b), inv_alpha(static_cast<FP>(1.0 / a)) {}
+    HostAlphaScaledDist(const BaseDist& b, double a)
+            : base(b),
+              inv_alpha(static_cast<FP>(1.0 / a)) {}
     FP pointDist(const FP* a, const FP* b, std::int32_t n) const {
         return base.pointDist(a, b, n) * inv_alpha;
     }

@@ -58,7 +58,7 @@ void run(sycl::queue& q) {
 
     auto hdbscan_desc =
         dal::hdbscan::descriptor<float, dal::hdbscan::method::ball_tree>(min_cluster_size,
-                                                                          min_samples);
+                                                                         min_samples);
     hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
 
     if (metric_str == "manhattan") {

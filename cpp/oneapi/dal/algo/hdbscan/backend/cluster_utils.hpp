@@ -715,8 +715,7 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
             for (auto cc : child_clusters[c])
                 child_sum += stability[cc];
 
-            const Float parent_stab =
-                (cluster_size[c] > mcs_max) ? Float(0) : stability[c];
+            const Float parent_stab = (cluster_size[c] > mcs_max) ? Float(0) : stability[c];
 
             if (child_sum > parent_stab) {
                 is_selected[c] = false;

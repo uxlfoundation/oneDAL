@@ -65,8 +65,8 @@ using daal::internal::WriteOnlyRows;
 template <typename FPType>
 struct BallNode
 {
-    int left;        // -1 for leaf
-    int right;       // -1 for leaf
+    int left;  // -1 for leaf
+    int right; // -1 for leaf
     int pointBegin;
     int pointEnd;
     int centerIdx;   // index of the pivot point (used as approximate center)
@@ -81,20 +81,20 @@ template <typename algorithmFPType, typename DistFunc>
 static int buildBallTree(const algorithmFPType * data, int * pointIndices, int begin, int end, int nCols, BallNode<algorithmFPType> * nodes,
                          int & nextNode, int maxLeafSize, const DistFunc & distFunc)
 {
-    const int nodeIdx                   = nextNode++;
-    BallNode<algorithmFPType> & node    = nodes[nodeIdx];
-    node.pointBegin                     = begin;
-    node.pointEnd                       = end;
-    node.componentId                    = -1;
-    node.left                           = -1;
-    node.right                          = -1;
+    const int nodeIdx                = nextNode++;
+    BallNode<algorithmFPType> & node = nodes[nodeIdx];
+    node.pointBegin                  = begin;
+    node.pointEnd                    = end;
+    node.componentId                 = -1;
+    node.left                        = -1;
+    node.right                       = -1;
 
     const int count = end - begin;
 
     // Pick pivot as the first point, find farthest from it, then farthest from that
-    int pivot1 = pointIndices[begin];
+    int pivot1               = pointIndices[begin];
     algorithmFPType bestDist = algorithmFPType(-1);
-    int pivot2 = pivot1;
+    int pivot2               = pivot1;
     for (int i = begin; i < end; i++)
     {
         const algorithmFPType d = distFunc.pointDist(data + pivot1 * nCols, data + pointIndices[i] * nCols, nCols);
@@ -182,8 +182,8 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
     {
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
-            const int pi                = pointIndices[i];
-            const algorithmFPType dist  = distFunc.pointDist(queryPoint, data + pi * nCols, nCols);
+            const int pi               = pointIndices[i];
+            const algorithmFPType dist = distFunc.pointDist(queryPoint, data + pi * nCols, nCols);
             heap.push(dist, pi);
         }
         return;
@@ -266,9 +266,8 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
 // Boruvka nearest-different-component query on ball tree
 // =========================================================================
 template <typename algorithmFPType, typename DistFunc>
-static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes,
-                                           const int * pointIndices, const algorithmFPType * coreDistances,
-                                           const algorithmFPType * minCoreDistNode, const int * componentOf,
+static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
+                                           const algorithmFPType * coreDistances, const algorithmFPType * minCoreDistNode, const int * componentOf,
                                            const algorithmFPType * queryPoint, int queryIdx, algorithmFPType queryCoreD, int queryComponent,
                                            int nodeIdx, algorithmFPType & bestMrd, int & bestIdx, const DistFunc & distFunc)
 {
@@ -311,10 +310,10 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
     const int nearChild = (dLeft <= dRight) ? node.left : node.right;
     const int farChild  = (dLeft <= dRight) ? node.right : node.left;
 
-    nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                                   queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc);
-    nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                                   queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc);
+    nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx, queryCoreD,
+                                   queryComponent, nearChild, bestMrd, bestIdx, distFunc);
+    nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx, queryCoreD,
+                                   queryComponent, farChild, bestMrd, bestIdx, distFunc);
 }
 
 // =========================================================================
@@ -322,9 +321,8 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
 // =========================================================================
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples,
-                                          BallNode<algorithmFPType> * nodes, int * pointIndices, int totalTreeNodes,
-                                          algorithmFPType * coreDistances, int * mstFrom, int * mstTo, algorithmFPType * mstWeights,
-                                          const DistFunc & distFunc)
+                                          BallNode<algorithmFPType> * nodes, int * pointIndices, int totalTreeNodes, algorithmFPType * coreDistances,
+                                          int * mstFrom, int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc)
 {
     const int k = static_cast<int>(minSamples);
 
@@ -466,8 +464,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 
         if (addedThisRound == 0) break;
 
-        for (size_t i = 0; i < nRows; i++)
-            componentOf[i] = ufFind(static_cast<int>(i));
+        for (size_t i = 0; i < nRows; i++) componentOf[i] = ufFind(static_cast<int>(i));
 
         updateNodeComponentsBallTree(nodes, pointIndices, componentOf, 0);
     }
@@ -479,9 +476,9 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree, int clusterSelection,
-                                                                           bool allowSingleCluster, double clusterSelectionEpsilon,
-                                                                           size_t maxClusterSize, double alpha, size_t leafSize)
+                                                                           int metric, double degree, int clusterSelection, bool allowSingleCluster,
+                                                                           double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
+                                                                           size_t leafSize)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -532,22 +529,22 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     const bool useAlpha = (alpha != 1.0);
 
-    // Build tree and run core dist + MST, dispatched by metric
-    // We need to build the tree with the same distance functor used for queries
-    #define DISPATCH_BALL_TREE(DIST_FUNC) \
-    { \
-        int nextNode = 0; \
-        buildBallTree(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize, DIST_FUNC); \
-        const int totalTreeNodes = nextNode; \
-        computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, \
-                                                            coreDistances, mstFrom, mstTo, mstWeights, DIST_FUNC); \
+// Build tree and run core dist + MST, dispatched by metric
+// We need to build the tree with the same distance functor used for queries
+#define DISPATCH_BALL_TREE(DIST_FUNC)                                                                                                           \
+    {                                                                                                                                           \
+        int nextNode = 0;                                                                                                                       \
+        buildBallTree(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize, DIST_FUNC);        \
+        const int totalTreeNodes = nextNode;                                                                                                    \
+        computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances, \
+                                                            mstFrom, mstTo, mstWeights, DIST_FUNC);                                             \
     }
 
-    using FP = algorithmFPType;
-    using Eucl = EuclideanDist<FP>;
-    using Manh = ManhattanDist<FP>;
-    using Mink = MinkowskiDist<FP>;
-    using Cheb = ChebyshevDist<FP>;
+    using FP        = algorithmFPType;
+    using Eucl      = EuclideanDist<FP>;
+    using Manh      = ManhattanDist<FP>;
+    using Mink      = MinkowskiDist<FP>;
+    using Cheb      = ChebyshevDist<FP>;
     using AlphaManh = AlphaScaledDist<FP, Manh>;
     using AlphaMink = AlphaScaledDist<FP, Mink>;
     using AlphaCheb = AlphaScaledDist<FP, Cheb>;
@@ -581,7 +578,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         break;
     }
 
-    #undef DISPATCH_BALL_TREE
+#undef DISPATCH_BALL_TREE
 
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force/kd_tree)
     WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
@@ -589,8 +586,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int * assignments = assignBlock.get();
 
     int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                        clusterSelection, allowSingleCluster, clusterSelectionEpsilon,
-                                                                        maxClusterSize);
+                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

@@ -41,10 +41,10 @@ enum class cluster_selection_method {
 
 /// Method for computing and storing cluster centers.
 enum class store_centers_method {
-    none,     ///< Do not compute cluster centers (default)
+    none, ///< Do not compute cluster centers (default)
     centroid, ///< Compute centroids (weighted mean of member points)
-    medoid,   ///< Compute medoids (member point minimizing intra-cluster distance)
-    both      ///< Compute both centroids and medoids
+    medoid, ///< Compute medoids (member point minimizing intra-cluster distance)
+    both ///< Compute both centroids and medoids
 };
 
 } // namespace v1
