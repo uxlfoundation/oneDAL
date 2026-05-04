@@ -91,8 +91,8 @@ DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32Matmul
 inline bool daal_allow_amx_bf16_matmul()
 {
     const daal::internal::Float32MatmulPrecision p = daal_get_float32_matmul_precision();
-    return daal_has_amx_bf16() &&
-           (p == daal::internal::Float32MatmulPrecision::allow_bf16 || p == daal::internal::Float32MatmulPrecision::require_bf16);
+    return daal_has_amx_bf16()
+           && (p == daal::internal::Float32MatmulPrecision::allow_bf16 || p == daal::internal::Float32MatmulPrecision::require_bf16);
 }
 
 inline bool daal_require_amx_bf16_matmul()
