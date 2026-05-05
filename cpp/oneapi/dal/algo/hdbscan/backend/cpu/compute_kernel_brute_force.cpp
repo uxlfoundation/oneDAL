@@ -15,9 +15,8 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/backend/cpu/compute_kernel.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/cpu/compute_kernel_common.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
-#include "oneapi/dal/algo/hdbscan/common.hpp"
-#include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 
@@ -32,24 +31,12 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-namespace daal_hdbscan = daal::algorithms::hdbscan;
 namespace daal_hdbscan_internal = daal::algorithms::hdbscan::internal;
 namespace interop = dal::backend::interop;
 
-static int convert_metric(distance_metric m) {
-    switch (m) {
-        case distance_metric::euclidean: return daal_hdbscan::euclidean;
-        case distance_metric::manhattan: return daal_hdbscan::manhattan;
-        case distance_metric::minkowski: return daal_hdbscan::minkowski;
-        case distance_metric::chebyshev: return daal_hdbscan::chebyshev;
-        case distance_metric::cosine: return daal_hdbscan::cosine;
-        default: return daal_hdbscan::euclidean;
-    }
-}
-
 template <typename Float, daal::internal::CpuType Cpu>
-using daal_hdbscan_default_dense_t =
-    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::defaultDense, Cpu>;
+using daal_hdbscan_brute_force_t =
+    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::bruteForceDense, Cpu>;
 
 template <typename Float>
 static result_t compute_kernel_dense_impl(const context_cpu& ctx,
@@ -84,7 +71,7 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
         daal::data_management::NumericTable::doAllocate);
 
     // Call DAAL kernel via CPU dispatch using type alias that binds Method
-    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_default_dense_t>(
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_brute_force_t>(
         ctx,
         daal_data.get(),
         daal_assignments.get(),
@@ -135,53 +122,55 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
             const bool need_medoids = (store_centers == store_centers_method::medoid ||
                                        store_centers == store_centers_method::both);
 
-            row_accessor<const Float> data_acc{ data };
-            const auto data_arr = data_acc.pull({ 0, -1 });
-            const Float* data_ptr = data_arr.get_data();
+            daal::data_management::BlockDescriptor<Float> data_block;
+            daal_data->getBlockOfRows(0, row_count, daal::data_management::readOnly, data_block);
+            const Float* data_ptr = data_block.getBlockPtr();
 
             if (need_centroids) {
                 auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-                compute_centroids_on_host(data_ptr,
-                                          resp_ptr,
-                                          row_count,
-                                          col_count,
-                                          cluster_count,
-                                          arr_centroids.get_mutable_data());
+                compute_centroids(data_ptr,
+                                  resp_ptr,
+                                  row_count,
+                                  col_count,
+                                  cluster_count,
+                                  arr_centroids.get_mutable_data());
                 results.set_cluster_centers(
                     dal::homogen_table::wrap(arr_centroids, cluster_count, col_count));
 
                 if (need_medoids) {
                     auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                    compute_medoids_on_host(data_ptr,
-                                            resp_ptr,
-                                            row_count,
-                                            col_count,
-                                            cluster_count,
-                                            arr_centroids.get_data(),
-                                            arr_medoids.get_mutable_data());
+                    compute_medoids(data_ptr,
+                                    resp_ptr,
+                                    row_count,
+                                    col_count,
+                                    cluster_count,
+                                    arr_centroids.get_data(),
+                                    arr_medoids.get_mutable_data());
                     results.set_medoid_centers(
                         dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
                 }
             }
             else if (need_medoids) {
                 auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-                compute_centroids_on_host(data_ptr,
-                                          resp_ptr,
-                                          row_count,
-                                          col_count,
-                                          cluster_count,
-                                          arr_centroids.get_mutable_data());
+                compute_centroids(data_ptr,
+                                  resp_ptr,
+                                  row_count,
+                                  col_count,
+                                  cluster_count,
+                                  arr_centroids.get_mutable_data());
                 auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                compute_medoids_on_host(data_ptr,
-                                        resp_ptr,
-                                        row_count,
-                                        col_count,
-                                        cluster_count,
-                                        arr_centroids.get_data(),
-                                        arr_medoids.get_mutable_data());
+                compute_medoids(data_ptr,
+                                resp_ptr,
+                                row_count,
+                                col_count,
+                                cluster_count,
+                                arr_centroids.get_data(),
+                                arr_medoids.get_mutable_data());
                 results.set_medoid_centers(
                     dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
             }
+
+            daal_data->releaseBlockOfRows(data_block);
         }
     }
 

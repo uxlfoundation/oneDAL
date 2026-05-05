@@ -1,4 +1,3 @@
-/* file: hdbscan_dense_batch_fpt_cpu.cpp */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -15,23 +14,24 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "src/algorithms/hdbscan/hdbscan_dense_batch_impl.i"
-#include "services/daal_defines.h"
+#pragma once
 
-using namespace daal::internal;
+#include "oneapi/dal/algo/hdbscan/common.hpp"
+#include "algorithms/hdbscan/hdbscan_types.h"
 
-namespace daal
-{
-namespace algorithms
-{
-namespace hdbscan
-{
-namespace internal
-{
+namespace oneapi::dal::hdbscan::backend {
 
-template class DAAL_EXPORT HDBSCANBatchKernel<DAAL_FPTYPE, bruteForceDense, DAAL_CPU>;
+namespace daal_hdbscan = daal::algorithms::hdbscan;
 
-} // namespace internal
-} // namespace hdbscan
-} // namespace algorithms
-} // namespace daal
+inline int convert_metric(distance_metric m) {
+    switch (m) {
+        case distance_metric::euclidean: return daal_hdbscan::euclidean;
+        case distance_metric::manhattan: return daal_hdbscan::manhattan;
+        case distance_metric::minkowski: return daal_hdbscan::minkowski;
+        case distance_metric::chebyshev: return daal_hdbscan::chebyshev;
+        case distance_metric::cosine: return daal_hdbscan::cosine;
+        default: return daal_hdbscan::euclidean;
+    }
+}
+
+} // namespace oneapi::dal::hdbscan::backend

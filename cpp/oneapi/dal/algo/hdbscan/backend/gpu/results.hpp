@@ -75,44 +75,44 @@ inline result_t make_results(sycl::queue& queue,
 
         if (need_centroids) {
             auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-            compute_centroids_on_host(data_ptr,
-                                      resp_ptr,
-                                      row_count,
-                                      col_count,
-                                      cluster_count,
-                                      arr_centroids.get_mutable_data());
+            compute_centroids(data_ptr,
+                              resp_ptr,
+                              row_count,
+                              col_count,
+                              cluster_count,
+                              arr_centroids.get_mutable_data());
             results.set_cluster_centers(
                 dal::homogen_table::wrap(arr_centroids, cluster_count, col_count));
 
             if (need_medoids) {
                 auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                compute_medoids_on_host(data_ptr,
-                                        resp_ptr,
-                                        row_count,
-                                        col_count,
-                                        cluster_count,
-                                        arr_centroids.get_data(),
-                                        arr_medoids.get_mutable_data());
+                compute_medoids(data_ptr,
+                                resp_ptr,
+                                row_count,
+                                col_count,
+                                cluster_count,
+                                arr_centroids.get_data(),
+                                arr_medoids.get_mutable_data());
                 results.set_medoid_centers(
                     dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
             }
         }
         else if (need_medoids) {
             auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-            compute_centroids_on_host(data_ptr,
-                                      resp_ptr,
-                                      row_count,
-                                      col_count,
-                                      cluster_count,
-                                      arr_centroids.get_mutable_data());
+            compute_centroids(data_ptr,
+                              resp_ptr,
+                              row_count,
+                              col_count,
+                              cluster_count,
+                              arr_centroids.get_mutable_data());
             auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-            compute_medoids_on_host(data_ptr,
-                                    resp_ptr,
-                                    row_count,
-                                    col_count,
-                                    cluster_count,
-                                    arr_centroids.get_data(),
-                                    arr_medoids.get_mutable_data());
+            compute_medoids(data_ptr,
+                            resp_ptr,
+                            row_count,
+                            col_count,
+                            cluster_count,
+                            arr_centroids.get_data(),
+                            arr_medoids.get_mutable_data());
             results.set_medoid_centers(
                 dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
         }

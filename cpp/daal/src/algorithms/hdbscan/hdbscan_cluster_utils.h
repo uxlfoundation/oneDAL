@@ -37,25 +37,29 @@ namespace internal
 
 using daal::internal::CpuType;
 
-/// Sort MST edges by weight and extract flat clusters via condensed tree + EOM.
-/// Shared by both brute_force and kd_tree methods.
-///
-/// Input:  mstFrom[edgeCount], mstTo[edgeCount], mstWeights[edgeCount] — unsorted MST
-/// Output: assignments[nRows] — cluster labels (-1 = noise), returns label count
-/// clusterSelection: 0 = EOM, 1 = leaf
-template <typename algorithmFPType, CpuType cpu>
-int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments,
-                              int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
-                              size_t maxClusterSize = 0)
+struct CondensedEdge
 {
-    const size_t edgeCount    = nRows - 1;
-    const size_t nDendroNodes = nRows - 1;
-    const size_t totalNodes   = 2 * nRows - 1;
+    int parent;
+    int child;
+    int childSize;
+};
 
-    // =========================================================================
-    // Step 4: Sort MST edges by weight
-    // =========================================================================
+template <typename algorithmFPType, CpuType cpu>
+struct ClusterContext
+{
+    size_t nRows;
+    size_t minClusterSize;
+    int clusterSelection;
+    bool allowSingleCluster;
+    double clusterSelectionEpsilon;
+    size_t maxClusterSize;
+    int rootCid;
+    int nClusters;
+};
 
+template <typename algorithmFPType, CpuType cpu>
+static void sortMstEdges(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t edgeCount)
+{
     struct MstEdge
     {
         algorithmFPType weight;
@@ -63,49 +67,60 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         int to;
     };
 
+    daal::services::internal::TArray<MstEdge, cpu> edgesArr(edgeCount);
+    MstEdge * edges = edgesArr.get();
+    if (!edges) return;
+
+    for (size_t i = 0; i < edgeCount; i++)
     {
-        daal::services::internal::TArray<MstEdge, cpu> edgesArr(edgeCount);
-        MstEdge * edges = edgesArr.get();
-        if (!edges) return 0;
-
-        for (size_t i = 0; i < edgeCount; i++)
-        {
-            edges[i] = { mstWeights[i], mstFrom[i], mstTo[i] };
-        }
-
-        // Sort by (weight, min(from,to), max(from,to)) for deterministic ordering.
-        std::sort(edges, edges + edgeCount, [](const MstEdge & a, const MstEdge & b) {
-            if (a.weight != b.weight) return a.weight < b.weight;
-            const int aLo = (a.from < a.to) ? a.from : a.to;
-            const int aHi = (a.from < a.to) ? a.to : a.from;
-            const int bLo = (b.from < b.to) ? b.from : b.to;
-            const int bHi = (b.from < b.to) ? b.to : b.from;
-            if (aLo != bLo) return aLo < bLo;
-            return aHi < bHi;
-        });
-
-        for (size_t i = 0; i < edgeCount; i++)
-        {
-            mstFrom[i]    = edges[i].from;
-            mstTo[i]      = edges[i].to;
-            mstWeights[i] = edges[i].weight;
-        }
+        edges[i] = { mstWeights[i], mstFrom[i], mstTo[i] };
     }
 
-    // =========================================================================
-    // Step 5: Extract clusters (dendrogram -> condensed tree -> EOM -> labels)
-    // =========================================================================
+    std::sort(edges, edges + edgeCount, [](const MstEdge & a, const MstEdge & b) {
+        if (a.weight != b.weight) return a.weight < b.weight;
+        const int aLo = (a.from < a.to) ? a.from : a.to;
+        const int aHi = (a.from < a.to) ? a.to : a.from;
+        const int bLo = (b.from < b.to) ? b.from : b.to;
+        const int bHi = (b.from < b.to) ? b.to : b.from;
+        if (aLo != bLo) return aLo < bLo;
+        return aHi < bHi;
+    });
 
-    // Phase 1: Build Kruskal dendrogram via union-find
+    for (size_t i = 0; i < edgeCount; i++)
+    {
+        mstFrom[i]    = edges[i].from;
+        mstTo[i]      = edges[i].to;
+        mstWeights[i] = edges[i].weight;
+    }
+}
+
+template <typename algorithmFPType, CpuType cpu>
+struct DendroNode
+{
+    int left;
+    int right;
+    algorithmFPType weight;
+    int size;
+};
+
+template <typename algorithmFPType, CpuType cpu>
+static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t edgeCount,
+                                  DendroNode<algorithmFPType, cpu> * dendro, int * nodeSize, int * leftChild, int * rightChild,
+                                  algorithmFPType * nodeWeight, size_t totalNodes)
+{
     daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
     daal::services::internal::TArray<int, cpu> compSizeArr(nRows);
-    int * ufParent = ufParentArr.get();
-    int * compSize = compSizeArr.get();
-    if (!ufParent || !compSize) return 0;
+    daal::services::internal::TArray<int, cpu> compToNodeArr(nRows);
+    int * ufParent   = ufParentArr.get();
+    int * compSize   = compSizeArr.get();
+    int * compToNode = compToNodeArr.get();
+    if (!ufParent || !compSize || !compToNode) return -1;
+
     for (size_t i = 0; i < nRows; i++)
     {
-        ufParent[i] = static_cast<int>(i);
-        compSize[i] = 1;
+        ufParent[i]   = static_cast<int>(i);
+        compSize[i]   = 1;
+        compToNode[i] = static_cast<int>(i);
     }
 
     auto ufFind = [&](int x) -> int {
@@ -117,29 +132,7 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         return x;
     };
 
-    struct DendroNode
-    {
-        int left;
-        int right;
-        algorithmFPType weight;
-        int size;
-    };
-
-    daal::services::internal::TArray<DendroNode, cpu> dendroArr(nDendroNodes);
-    DendroNode * dendro = dendroArr.get();
-    if (!dendro) return 0;
-    for (size_t i = 0; i < nDendroNodes; i++)
-    {
-        dendro[i] = { 0, 0, algorithmFPType(0), 0 };
-    }
-
-    daal::services::internal::TArray<int, cpu> compToNodeArr(nRows);
-    int * compToNode = compToNodeArr.get();
-    if (!compToNode) return 0;
-    for (size_t i = 0; i < nRows; i++)
-    {
-        compToNode[i] = static_cast<int>(i);
-    }
+    for (size_t i = 0; i < nRows; i++) dendro[i] = { 0, 0, algorithmFPType(0), 0 };
 
     for (size_t e = 0; e < edgeCount; e++)
     {
@@ -168,17 +161,7 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         }
     }
 
-    // Phase 2: Build condensed tree
-    daal::services::internal::TArray<int, cpu> nodeSizeArr(totalNodes);
-    daal::services::internal::TArray<int, cpu> leftChildArr(totalNodes);
-    daal::services::internal::TArray<int, cpu> rightChildArr(totalNodes);
-    daal::services::internal::TArray<algorithmFPType, cpu> nodeWeightArr(totalNodes);
-    int * nodeSize               = nodeSizeArr.get();
-    int * leftChild              = leftChildArr.get();
-    int * rightChild             = rightChildArr.get();
-    algorithmFPType * nodeWeight = nodeWeightArr.get();
-    if (!nodeSize || !leftChild || !rightChild || !nodeWeight) return 0;
-
+    // Initialize node arrays
     for (size_t i = 0; i < totalNodes; i++)
     {
         nodeSize[i]   = (i < nRows) ? 1 : 0;
@@ -186,7 +169,7 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         rightChild[i] = -1;
         nodeWeight[i] = algorithmFPType(0);
     }
-    for (size_t e = 0; e < nDendroNodes; e++)
+    for (size_t e = 0; e < edgeCount; e++)
     {
         const size_t nid = nRows + e;
         nodeSize[nid]    = dendro[e].size;
@@ -195,23 +178,9 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         nodeWeight[nid]  = dendro[e].weight;
     }
 
-    struct CondensedEdge
-    {
-        int parent;
-        int child;
-        algorithmFPType lambdaVal;
-        int childSize;
-    };
-
-    const size_t maxCondensed = 2 * nRows;
-    daal::services::internal::TArray<CondensedEdge, cpu> condensedArr(maxCondensed);
-    CondensedEdge * condensed = condensedArr.get();
-    if (!condensed) return 0;
-    size_t nCondensed = 0;
-
     // Find root
     int root = -1;
-    for (int e = static_cast<int>(nDendroNodes) - 1; e >= 0; e--)
+    for (int e = static_cast<int>(edgeCount) - 1; e >= 0; e--)
     {
         if (dendro[e].size > 0)
         {
@@ -219,28 +188,18 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             break;
         }
     }
+    return root;
+}
 
-    if (root < 0)
-    {
-        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
-        return 0;
-    }
-
-    int nextCid = static_cast<int>(nRows);
-    daal::services::internal::TArray<int, cpu> dendroToClusterArr(totalNodes);
-    int * dendroToCluster = dendroToClusterArr.get();
-    if (!dendroToCluster) return 0;
-    for (size_t i = 0; i < totalNodes; i++) dendroToCluster[i] = -1;
-    dendroToCluster[root] = nextCid++;
-
-    // Pre-allocated stacks
-    daal::services::internal::TArray<int, cpu> leafStackArr(nDendroNodes + 1);
-    int * leafStack = leafStackArr.get();
-    if (!leafStack) return 0;
-
+template <typename algorithmFPType, CpuType cpu>
+static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize, int * leftChild, int * rightChild, algorithmFPType * nodeWeight,
+                                 int * dendroToCluster, CondensedEdge * condensed, algorithmFPType * condensedLambda, int & nextCid)
+{
+    daal::services::internal::TArray<int, cpu> leafStackArr(nRows);
     daal::services::internal::TArray<int, cpu> fallenBufArr(nRows);
+    int * leafStack = leafStackArr.get();
     int * fallenBuf = fallenBufArr.get();
-    if (!fallenBuf) return 0;
+    if (!leafStack || !fallenBuf) return 0;
 
     auto collectLeaves = [&](int startNid, int * out, size_t & outCount) {
         outCount              = 0;
@@ -266,13 +225,14 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         int node;
         int cluster;
     };
+    const size_t nDendroNodes = nRows - 1;
     daal::services::internal::TArray<StackItem, cpu> mainStackArr(nDendroNodes + 1);
     StackItem * mainStack = mainStackArr.get();
     if (!mainStack) return 0;
     int mainStackTop          = 0;
     mainStack[mainStackTop++] = { root, dendroToCluster[root] };
 
-    const int mcs = static_cast<int>(minClusterSize);
+    size_t nCondensed = 0;
 
     while (mainStackTop > 0)
     {
@@ -296,12 +256,16 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
 
         if (lBig && rBig)
         {
-            const int lcid            = nextCid++;
-            const int rcid            = nextCid++;
-            dendroToCluster[lc]       = lcid;
-            dendroToCluster[rc]       = rcid;
-            condensed[nCondensed++]   = { parentCid, lcid, lambda, ls };
-            condensed[nCondensed++]   = { parentCid, rcid, lambda, rs };
+            const int lcid              = nextCid++;
+            const int rcid              = nextCid++;
+            dendroToCluster[lc]         = lcid;
+            dendroToCluster[rc]         = rcid;
+            condensed[nCondensed]       = { parentCid, lcid, ls };
+            condensedLambda[nCondensed] = lambda;
+            nCondensed++;
+            condensed[nCondensed]       = { parentCid, rcid, rs };
+            condensedLambda[nCondensed] = lambda;
+            nCondensed++;
             mainStack[mainStackTop++] = { lc, lcid };
             mainStack[mainStackTop++] = { rc, rcid };
         }
@@ -310,7 +274,12 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             dendroToCluster[lc] = parentCid;
             size_t nFallen      = 0;
             collectLeaves(rc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++) condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
+            for (size_t fi = 0; fi < nFallen; fi++)
+            {
+                condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
+                condensedLambda[nCondensed] = lambda;
+                nCondensed++;
+            }
             mainStack[mainStackTop++] = { lc, parentCid };
         }
         else if (rBig)
@@ -318,7 +287,12 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             dendroToCluster[rc] = parentCid;
             size_t nFallen      = 0;
             collectLeaves(lc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++) condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
+            for (size_t fi = 0; fi < nFallen; fi++)
+            {
+                condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
+                condensedLambda[nCondensed] = lambda;
+                nCondensed++;
+            }
             mainStack[mainStackTop++] = { rc, parentCid };
         }
         else
@@ -328,14 +302,23 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             size_t nFallen2 = 0;
             collectLeaves(rc, fallenBuf + nFallen, nFallen2);
             nFallen += nFallen2;
-            for (size_t fi = 0; fi < nFallen; fi++) condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
+            for (size_t fi = 0; fi < nFallen; fi++)
+            {
+                condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
+                condensedLambda[nCondensed] = lambda;
+                nCondensed++;
+            }
         }
     }
 
-    // Phase 3: Stability and EOM selection
-    const int nClusters = nextCid;
-    const int rootCid   = static_cast<int>(nRows);
+    return nCondensed;
+}
 
+template <typename algorithmFPType, CpuType cpu>
+static void selectClusters(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
+                           int mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon,
+                           char * isSelected)
+{
     daal::services::internal::TArrayCalloc<algorithmFPType, cpu> stabilityArr(nClusters);
     daal::services::internal::TArrayCalloc<algorithmFPType, cpu> lambdaBirthArr(nClusters);
     daal::services::internal::TArray<char, cpu> isLeafClusterArr(nClusters);
@@ -344,21 +327,21 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     algorithmFPType * lambdaBirth = lambdaBirthArr.get();
     char * isLeafCluster          = isLeafClusterArr.get();
     int * clusterSz               = clusterSizeArr.get();
-    if (!stability || !lambdaBirth || !isLeafCluster || !clusterSz) return 0;
+    if (!stability || !lambdaBirth || !isLeafCluster || !clusterSz) return;
 
     for (int c = 0; c < nClusters; c++) isLeafCluster[c] = 1;
     clusterSz[rootCid] = static_cast<int>(nRows);
 
     daal::services::internal::TArrayCalloc<int, cpu> childCountArr(nClusters);
     int * childCount = childCountArr.get();
-    if (!childCount) return 0;
+    if (!childCount) return;
 
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
         if (e.child >= static_cast<int>(nRows))
         {
-            lambdaBirth[e.child]    = e.lambdaVal;
+            lambdaBirth[e.child]    = condensedLambda[ei];
             isLeafCluster[e.parent] = 0;
             childCount[e.parent]++;
             clusterSz[e.child] = e.childSize;
@@ -367,14 +350,14 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
 
     daal::services::internal::TArray<int, cpu> childOffsetArr(nClusters + 1);
     int * childOffset = childOffsetArr.get();
-    if (!childOffset) return 0;
+    if (!childOffset) return;
     childOffset[0] = 0;
     for (int c = 1; c <= nClusters; c++) childOffset[c] = childOffset[c - 1] + childCount[c - 1];
     const int totalChildren = childOffset[nClusters];
 
     daal::services::internal::TArray<int, cpu> childListArr(totalChildren > 0 ? totalChildren : 1);
     int * childList = childListArr.get();
-    if (!childList) return 0;
+    if (!childList) return;
 
     for (int c = 0; c < nClusters; c++) childCount[c] = 0;
     for (size_t ei = 0; ei < nCondensed; ei++)
@@ -391,13 +374,10 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     {
         const CondensedEdge & e       = condensed[ei];
         const algorithmFPType birth   = lambdaBirth[e.parent];
-        const algorithmFPType contrib = (e.lambdaVal - birth) * static_cast<algorithmFPType>(e.childSize);
+        const algorithmFPType contrib = (condensedLambda[ei] - birth) * static_cast<algorithmFPType>(e.childSize);
         if (contrib > algorithmFPType(0)) stability[e.parent] += contrib;
     }
 
-    daal::services::internal::TArray<char, cpu> isSelectedArr(nClusters);
-    char * isSelected = isSelectedArr.get();
-    if (!isSelected) return 0;
     const int mcsMax = (maxClusterSize > 0) ? static_cast<int>(maxClusterSize) : std::numeric_limits<int>::max();
 
     for (int c = 0; c < nClusters; c++)
@@ -405,9 +385,13 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
     }
 
+    // Use a pre-allocated stack for descendant traversal
+    daal::services::internal::TArray<int, cpu> descStackArr(nClusters);
+    int * descStack = descStackArr.get();
+    if (!descStack) return;
+
     if (clusterSelection == 1)
     {
-        // Leaf selection: select all leaf clusters in the condensed tree
         for (int c = rootCid; c < nClusters; c++)
         {
             isSelected[c] = (isLeafCluster[c] && clusterSz[c] >= mcs) ? 1 : 0;
@@ -415,9 +399,6 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     }
     else
     {
-        // EOM selection: bottom-up stability comparison
-        // When maxClusterSize is set, clusters exceeding the limit get zero
-        // stability so their children are preferred.
         for (int c = nClusters - 1; c >= rootCid; c--)
         {
             if (isLeafCluster[c]) continue;
@@ -435,20 +416,18 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             else
             {
                 int descTop = 0;
-                for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) leafStack[descTop++] = childList[ci];
+                for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) descStack[descTop++] = childList[ci];
                 while (descTop > 0)
                 {
-                    const int d   = leafStack[--descTop];
+                    const int d   = descStack[--descTop];
                     isSelected[d] = 0;
-                    for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) leafStack[descTop++] = childList[ci];
+                    for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) descStack[descTop++] = childList[ci];
                 }
             }
         }
     }
 
-    // Phase 3b: allow_single_cluster enforcement.
-    // When allow_single_cluster is false (default) and only the root cluster
-    // is selected AND it has children, force-select its children instead.
+    // allow_single_cluster enforcement
     if (!allowSingleCluster)
     {
         int selectedCount = 0;
@@ -466,21 +445,20 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         }
     }
 
-    // Build cluster parent map (needed by epsilon merging and label assignment)
-    daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
-    int * clusterParent = clusterParentArr.get();
-    if (!clusterParent) return 0;
-    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
-    }
-
-    // Phase 3c: cluster_selection_epsilon — merge selected clusters whose
-    // merge distance (1/lambdaBirth) is below epsilon with their parent.
+    // cluster_selection_epsilon merging
     if (clusterSelectionEpsilon > 0.0)
     {
+        // Build cluster parent map
+        daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
+        int * clusterParent = clusterParentArr.get();
+        if (!clusterParent) return;
+        for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
+        for (size_t ei = 0; ei < nCondensed; ei++)
+        {
+            const CondensedEdge & e = condensed[ei];
+            if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
+        }
+
         const algorithmFPType eps = static_cast<algorithmFPType>(clusterSelectionEpsilon);
         bool changed              = true;
         while (changed)
@@ -503,8 +481,16 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             }
         }
     }
+}
 
-    // Phase 4: Label points
+template <typename algorithmFPType, CpuType cpu>
+static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
+                       DendroNode<algorithmFPType, cpu> * dendro, int * dendroToCluster, char * isSelected, int nClusters, int rootCid,
+                       int * assignments)
+{
+    const size_t totalNodes   = 2 * nRows - 1;
+    const size_t nDendroNodes = nRows - 1;
+
     int labelCounter = 0;
     daal::services::internal::TArray<int, cpu> clusterLabelArr(nClusters);
     int * clusterLabel = clusterLabelArr.get();
@@ -513,6 +499,17 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     for (int c = rootCid; c < nClusters; c++)
     {
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
+    }
+
+    // Build cluster parent map for label walk-up
+    daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
+    int * clusterParent = clusterParentArr.get();
+    if (!clusterParent) return 0;
+    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
+    for (size_t ei = 0; ei < nCondensed; ei++)
+    {
+        const CondensedEdge & e = condensed[ei];
+        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
     }
 
     daal::services::internal::TArray<int, cpu> pointFellFromArr(nRows);
@@ -525,8 +522,6 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         if (e.child < static_cast<int>(nRows)) pointFellFrom[e.child] = e.parent;
     }
 
-    // Label points that fell from clusters in the condensed tree.
-    // Walk up from the fell-from cluster to find the deepest selected ancestor.
     for (size_t i = 0; i < nRows; i++)
     {
         assignments[i] = -1;
@@ -544,9 +539,7 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         }
     }
 
-    // Handle points never ejected (remained in leaf clusters through condensation).
-    // Walk up the dendrogram to find their condensed cluster, then find the
-    // nearest selected ancestor.
+    // Handle points never ejected
     daal::services::internal::TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
     if (!dendroParent) return 0;
@@ -588,6 +581,76 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     }
 
     return labelCounter;
+}
+
+/// Sort MST edges by weight and extract flat clusters via condensed tree + EOM.
+/// Shared by both brute_force and kd_tree methods.
+template <typename algorithmFPType, CpuType cpu>
+int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments,
+                              int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
+                              size_t maxClusterSize = 0)
+{
+    const size_t edgeCount  = nRows - 1;
+    const size_t totalNodes = 2 * nRows - 1;
+
+    // Step 1: Sort MST edges
+    sortMstEdges<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, edgeCount);
+
+    // Step 2: Build dendrogram
+    daal::services::internal::TArray<DendroNode<algorithmFPType, cpu>, cpu> dendroArr(edgeCount);
+    daal::services::internal::TArray<int, cpu> nodeSizeArr(totalNodes);
+    daal::services::internal::TArray<int, cpu> leftChildArr(totalNodes);
+    daal::services::internal::TArray<int, cpu> rightChildArr(totalNodes);
+    daal::services::internal::TArray<algorithmFPType, cpu> nodeWeightArr(totalNodes);
+    auto * dendro                = dendroArr.get();
+    int * nodeSize               = nodeSizeArr.get();
+    int * leftChild              = leftChildArr.get();
+    int * rightChild             = rightChildArr.get();
+    algorithmFPType * nodeWeight = nodeWeightArr.get();
+    if (!dendro || !nodeSize || !leftChild || !rightChild || !nodeWeight) return 0;
+
+    int root = buildKruskalDendrogram<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, edgeCount, dendro, nodeSize, leftChild, rightChild,
+                                                            nodeWeight, totalNodes);
+
+    if (root < 0)
+    {
+        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
+        return 0;
+    }
+
+    // Step 3: Build condensed tree
+    int nextCid = static_cast<int>(nRows);
+    daal::services::internal::TArray<int, cpu> dendroToClusterArr(totalNodes);
+    int * dendroToCluster = dendroToClusterArr.get();
+    if (!dendroToCluster) return 0;
+    for (size_t i = 0; i < totalNodes; i++) dendroToCluster[i] = -1;
+    dendroToCluster[root] = nextCid++;
+
+    const size_t maxCondensed = 2 * nRows;
+    daal::services::internal::TArray<CondensedEdge, cpu> condensedArr(maxCondensed);
+    daal::services::internal::TArray<algorithmFPType, cpu> condensedLambdaArr(maxCondensed);
+    CondensedEdge * condensed         = condensedArr.get();
+    algorithmFPType * condensedLambda = condensedLambdaArr.get();
+    if (!condensed || !condensedLambda) return 0;
+
+    const int mcs     = static_cast<int>(minClusterSize);
+    size_t nCondensed = buildCondensedTree<algorithmFPType, cpu>(root, nRows, mcs, nodeSize, leftChild, rightChild, nodeWeight, dendroToCluster,
+                                                                 condensed, condensedLambda, nextCid);
+
+    // Step 4: Select clusters
+    const int nClusters = nextCid;
+    const int rootCid   = static_cast<int>(nRows);
+
+    daal::services::internal::TArray<char, cpu> isSelectedArr(nClusters);
+    char * isSelected = isSelectedArr.get();
+    if (!isSelected) return 0;
+
+    selectClusters<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, nClusters, rootCid, mcs, maxClusterSize, clusterSelection,
+                                         allowSingleCluster, clusterSelectionEpsilon, isSelected);
+
+    // Step 5: Label points
+    return labelPoints<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, dendro, dendroToCluster, isSelected, nClusters, rootCid,
+                                             assignments);
 }
 
 } // namespace internal

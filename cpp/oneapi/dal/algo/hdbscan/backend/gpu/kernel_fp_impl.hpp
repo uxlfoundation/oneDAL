@@ -787,17 +787,16 @@ sycl::event build_dendrogram_kernels(sycl::queue& queue,
 }
 
 // =========================================================================
-// Cluster extraction helper: Kernel 3
-// Build condensed tree + EOM stability selection + cluster mappings.
+// Cluster extraction helper: Kernel 3a
+// Build the condensed tree from the dendrogram.
 // =========================================================================
 template <typename Float>
-sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
-                                            const cluster_work_ptrs<Float>& w,
-                                            const bk::event_vector& deps) {
-    auto k3_event = queue.submit([&](sycl::handler& h) {
+sycl::event build_condensed_tree_kernel(sycl::queue& queue,
+                                        const cluster_work_ptrs<Float>& w,
+                                        const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.single_task([=]() {
-            // Find root
             std::int32_t root = -1;
             for (std::int64_t e = w.edge_count - 1; e >= 0; e--) {
                 if (w.dsz_ptr[e] > 0) {
@@ -827,8 +826,6 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                     w.cond_s_ptr[idx] = child_sz;
                 };
 
-            // Iterative collect_leaves using a separate stack (leaf_stk_ptr)
-            // to avoid corrupting the condensed-tree traversal stack.
             auto collect_and_add_leaves =
                 [&](std::int32_t subtree_root, std::int32_t parent_cid, Float lambda) {
                     std::int32_t sp = 0;
@@ -847,7 +844,6 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                     }
                 };
 
-            // Build condensed tree using explicit stack
             std::int32_t ct_sp = 0;
             w.stk_ptr[ct_sp] = root;
             w.stk_cid_ptr[ct_sp] = w.dtc_ptr[root];
@@ -908,8 +904,26 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 }
             }
 
-            // --- EOM: Compute stability and select clusters ---
-            const std::int32_t n_clusters = next_cid;
+            w.nc_ptr[0] = next_cid;
+        });
+    });
+}
+
+// =========================================================================
+// Cluster extraction helper: Kernel 3b
+// EOM stability selection + cluster mappings + label assignment prep.
+// =========================================================================
+template <typename Float>
+sycl::event eom_select_clusters_kernel(sycl::queue& queue,
+                                       const cluster_work_ptrs<Float>& w,
+                                       const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.single_task([=]() {
+            const std::int32_t n_clusters = w.nc_ptr[0];
+            if (n_clusters == 0)
+                return;
+
             const std::int32_t root_cid = static_cast<std::int32_t>(w.row_count);
             const std::int32_t cond_count = w.cond_cnt_ptr[0];
 
@@ -949,13 +963,11 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                                              : std::numeric_limits<std::int32_t>::max();
 
             if (w.cluster_selection == 1) {
-                // Leaf selection: select all leaf clusters
                 for (std::int32_t c = root_cid; c < n_clusters; c++) {
                     w.is_ptr[c] = (w.ilc_ptr[c] && w.csz_ptr[c] >= w.min_cluster_size) ? 1 : 0;
                 }
             }
             else {
-                // Bottom-up EOM with max_cluster_size support
                 for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
                     if (w.ilc_ptr[c])
                         continue;
@@ -990,7 +1002,6 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 }
             }
 
-            // --- allow_single_cluster enforcement ---
             if (!w.allow_single_cluster) {
                 std::int32_t sel_count = 0;
                 for (std::int32_t c = root_cid; c < n_clusters; c++) {
@@ -1006,13 +1017,11 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 }
             }
 
-            // --- Build cluster parent map (needed for epsilon merging and labeling) ---
             for (std::int32_t i = 0; i < cond_count; i++) {
                 if (w.cond_c_ptr[i] >= w.row_count)
                     w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
             }
 
-            // --- cluster_selection_epsilon: merge close clusters ---
             if (w.cluster_selection_epsilon > 0.0) {
                 const Float eps = static_cast<Float>(w.cluster_selection_epsilon);
                 bool changed = true;
@@ -1035,7 +1044,6 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 }
             }
 
-            // --- Assign cluster labels ---
             std::int32_t label_counter = 0;
             for (std::int32_t c = root_cid; c < n_clusters; c++) {
                 if (w.is_ptr[c])
@@ -1046,13 +1054,8 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                 if (w.cond_c_ptr[i] < w.row_count)
                     w.pff_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
             }
-
-            // Store n_clusters for kernel 5
-            w.nc_ptr[0] = n_clusters;
         });
     });
-
-    return k3_event;
 }
 
 // =========================================================================
@@ -1287,8 +1290,9 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
 
     // Submit kernels via helpers
     auto k2_event = build_dendrogram_kernels(queue, w, all_events);
-    auto k3_event = build_condensed_tree_eom_kernel(queue, w, { k2_event });
-    return assign_label_kernels(queue, w, { k3_event });
+    auto k3a_event = build_condensed_tree_kernel(queue, w, { k2_event });
+    auto k3b_event = eom_select_clusters_kernel(queue, w, { k3a_event });
+    return assign_label_kernels(queue, w, { k3b_event });
 }
 
 #endif
