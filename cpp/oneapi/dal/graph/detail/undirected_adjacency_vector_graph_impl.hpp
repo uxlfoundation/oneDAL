@@ -108,6 +108,43 @@ public:
         return _topology;
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
+    inline void to_device(sycl::queue& queue) {
+        const auto* ptr = _topology._rows.get_data();
+        if (ptr != nullptr) {
+            auto alloc_type = sycl::get_pointer_type(ptr, queue.get_context());
+            if (alloc_type == sycl::usm::alloc::unknown || alloc_type == sycl::usm::alloc::host) {
+                _topology = _topology.to_device(queue);
+            }
+        }
+
+        if constexpr (!std::is_same_v<VertexValue, empty_value>) {
+            transfer_array_to_device(queue, _vertex_values);
+        }
+
+        if constexpr (!std::is_same_v<EdgeValue, empty_value>) {
+            transfer_array_to_device(queue, _edge_values);
+        }
+    }
+
+private:
+    template <typename T>
+    static void transfer_array_to_device(sycl::queue& queue, container<T>& arr) {
+        const auto count = arr.get_count();
+        if (count == 0) return;
+        const auto* src = arr.get_data();
+        auto alloc_type = sycl::get_pointer_type(src, queue.get_context());
+        if (alloc_type == sycl::usm::alloc::device || alloc_type == sycl::usm::alloc::shared) {
+            return;
+        }
+        auto device_arr = container<T>::empty(queue, count, sycl::usm::alloc::device);
+        queue.memcpy(device_arr.get_mutable_data(), src, count * sizeof(T)).wait_and_throw();
+        arr = device_arr;
+    }
+
+public:
+#endif
+
     inline vertex_values<VertexValue>& get_vertex_values() {
         return _vertex_values;
     }

@@ -14,43 +14,54 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <chrono>
+#include <sycl/sycl.hpp>
+#include <iomanip>
+#include <iostream>
 #include <memory>
 
-#include "example_util/utils.hpp"
+#ifndef ONEDAL_DATA_PARALLEL
+#define ONEDAL_DATA_PARALLEL
+#endif
+
 #include "oneapi/dal/algo/triangle_counting.hpp"
 #include "oneapi/dal/graph/undirected_adjacency_vector_graph.hpp"
 #include "oneapi/dal/io/csv.hpp"
 
+#include "example_util/utils.hpp"
+
 namespace dal = oneapi::dal;
 using namespace dal::preview::triangle_counting;
 
-int main(int argc, char** argv) {
+void run(sycl::queue& q) {
     const auto filename = get_data_path("data/graph.csv");
 
-    // read the graph
     using graph_t = dal::preview::undirected_adjacency_vector_graph<>;
-    const auto graph = dal::read<graph_t>(dal::csv::data_source{ filename });
-    // set algorithm parameters
+    auto graph = dal::read<graph_t>(dal::csv::data_source{ filename });
+
+    graph.to_device(q);
+
     const auto tc_desc = descriptor<float, method::ordered_count, task::local_and_global>();
 
-    // compute local and global triangles
-    const auto t1 = std::chrono::steady_clock::now();
-    const auto result_vertex_ranking = dal::preview::vertex_ranking(tc_desc, graph);
-    const auto t2 = std::chrono::steady_clock::now();
-    const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-    std::cout << "Triangle counting compute time: " << dt << " ms" << std::endl;
+    const auto result = dal::preview::vertex_ranking(q, tc_desc, graph);
 
-    // extract the result
-    std::cout << "Global triangles: " << result_vertex_ranking.get_global_rank() << std::endl;
-    std::cout << "Local triangles: " << std::endl;
+    std::cout << "Global triangles: " << result.get_global_rank() << std::endl;
+    std::cout << "Local triangles:" << std::endl;
 
-    auto local_triangles_table = result_vertex_ranking.get_ranks();
+    auto local_triangles_table = result.get_ranks();
     const auto& local_triangles = static_cast<const dal::homogen_table&>(local_triangles_table);
     const auto local_triangles_data = local_triangles.get_data<std::int64_t>();
     for (auto i = 0; i < local_triangles_table.get_row_count(); i++) {
         std::cout << i << ":\t" << local_triangles_data[i] << std::endl;
     }
+}
 
+int main(int argc, char const* argv[]) {
+    for (auto d : list_devices()) {
+        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
+                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
+                  << std::endl;
+        auto q = sycl::queue{ d };
+        run(q);
+    }
     return 0;
 }

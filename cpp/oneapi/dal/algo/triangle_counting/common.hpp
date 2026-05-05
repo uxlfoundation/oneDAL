@@ -17,6 +17,7 @@
 #pragma once
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/graph/undirected_adjacency_vector_graph.hpp"
+#include "oneapi/dal/graph/detail/device_csr_topology.hpp"
 #include "oneapi/dal/table/common.hpp"
 
 namespace oneapi::dal::preview::triangle_counting {
@@ -139,6 +140,24 @@ private:
 
 namespace detail {
 
+#ifdef ONEDAL_DATA_PARALLEL
+template <typename T>
+struct is_device_csr_topology : std::false_type {};
+
+template <typename Index, typename Weight>
+struct is_device_csr_topology<dal::preview::detail::device_csr_topology<Index, Weight>>
+    : std::true_type {};
+
+template <typename Graph>
+constexpr bool is_valid_graph =
+    is_device_csr_topology<Graph>::value ||
+    dal::detail::is_one_of_v<Graph,
+                             undirected_adjacency_vector_graph<vertex_user_value_type<Graph>,
+                                                               edge_user_value_type<Graph>,
+                                                               graph_user_value_type<Graph>,
+                                                               vertex_type<Graph>,
+                                                               graph_allocator<Graph>>>;
+#else
 template <typename Graph>
 constexpr bool is_valid_graph =
     dal::detail::is_one_of_v<Graph,
@@ -147,6 +166,7 @@ constexpr bool is_valid_graph =
                                                                graph_user_value_type<Graph>,
                                                                vertex_type<Graph>,
                                                                graph_allocator<Graph>>>;
+#endif
 
 } // namespace detail
 } // namespace oneapi::dal::preview::triangle_counting

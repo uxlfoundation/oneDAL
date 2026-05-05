@@ -61,6 +61,13 @@ public:
     /// Swaps the implementation of this object and another one
     undirected_adjacency_vector_graph &operator=(undirected_adjacency_vector_graph &&other);
 
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Transfers graph data to device memory associated with the given queue
+    void to_device(sycl::queue& queue) {
+        dal::detail::pimpl_accessor{}.get_pimpl(*this)->to_device(queue);
+    }
+#endif
+
 private:
     using pimpl = dal::detail::pimpl<typename graph_traits<graph_type>::impl_type>;
 

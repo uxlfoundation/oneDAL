@@ -30,4 +30,16 @@ auto vertex_ranking(Args &&...args) {
     return detail::vertex_ranking_dispatch(std::forward<Args>(args)...);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+/// Overload that accepts a SYCL queue for GPU execution
+///
+/// @param q     SYCL queue specifying the target device
+/// @param args  Algorithm descriptor and input graph
+template <typename... Args>
+auto vertex_ranking(sycl::queue& q, Args &&...args) {
+    const auto policy = dal::detail::data_parallel_policy{ q };
+    return detail::vertex_ranking_dispatch(policy, std::forward<Args>(args)...);
+}
+#endif
+
 } // namespace oneapi::dal::preview
