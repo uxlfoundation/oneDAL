@@ -12,6 +12,7 @@ cc_library(
     name = "tbb",
     srcs = ["lib/tbb12.lib"],
     data = ["bin/tbb12.dll"],
+    linkopts = ["/LIBPATH:external/tbb/lib"],
     deps = [":headers"],
 )
 
@@ -19,5 +20,6 @@ cc_library(
     name = "tbbmalloc",
     srcs = ["lib/tbbmalloc.lib"],
     data = ["bin/tbbmalloc.dll"],
+    linkopts = ["/LIBPATH:external/tbb/lib"],
     deps = [":headers"],
 )
