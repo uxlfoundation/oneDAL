@@ -132,7 +132,7 @@ static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * 
         return x;
     };
 
-    for (size_t i = 0; i < nRows; i++) dendro[i] = { 0, 0, algorithmFPType(0), 0 };
+    for (size_t i = 0; i < edgeCount; i++) dendro[i] = { 0, 0, algorithmFPType(0), 0 };
 
     for (size_t e = 0; e < edgeCount; e++)
     {
