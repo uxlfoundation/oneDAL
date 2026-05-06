@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "headers",
@@ -8,29 +8,16 @@ cc_library(
     includes = ["include"],
 )
 
-cc_import(
-    name = "tbb_import",
-    interface_library = "lib/tbb12.lib",
-    shared_library = "bin/tbb12.dll",
-)
-
 cc_library(
     name = "tbb",
-    data = glob(["bin/*.dll"], allow_empty = True),
-    deps = [
-        ":headers",
-        ":tbb_import",
-    ],
-)
-
-cc_import(
-    name = "tbbmalloc_import",
-    interface_library = "lib/tbbmalloc.lib",
-    shared_library = "bin/tbbmalloc.dll",
+    srcs = ["lib/tbb12.lib"],
+    data = ["bin/tbb12.dll"],
+    deps = [":headers"],
 )
 
 cc_library(
     name = "tbbmalloc",
-    data = glob(["bin/*.dll"], allow_empty = True),
-    deps = [":tbbmalloc_import"],
+    srcs = ["lib/tbbmalloc.lib"],
+    data = ["bin/tbbmalloc.dll"],
+    deps = [":headers"],
 )
