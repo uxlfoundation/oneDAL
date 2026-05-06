@@ -152,6 +152,9 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
                 core_ptr[offset + i] = needs_sqrt ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
             });
         });
+
+        // Wait before temporaries (dist_block, ksel_vals) go out of scope
+        extract_event.wait_and_throw();
         prev_block_event = extract_event;
     }
 

@@ -155,6 +155,8 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
             });
         });
 
+        // Wait before temporaries (dist_block, ksel_vals) go out of scope
+        extract_event.wait_and_throw();
         prev_block_event = extract_event;
     }
 
