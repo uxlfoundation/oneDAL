@@ -36,13 +36,13 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
+#include <vector>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_threading.h"
 #include "src/data_management/service_numeric_table.h"
-#include "src/services/service_arrays.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
@@ -346,33 +346,29 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     }
 
     // Per-node minimum core distances
-    daal::services::internal::TArray<algorithmFPType, cpu> minCoreDistNodeArr(totalTreeNodes);
-    algorithmFPType * minCoreDistNode = minCoreDistNodeArr.get();
-    if (!minCoreDistNode) return;
+    std::vector<algorithmFPType> minCoreDistNodeVec(totalTreeNodes);
+    algorithmFPType * minCoreDistNode = minCoreDistNodeVec.data();
     computeMinCoreDistsBallTree(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
-    daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
-    daal::services::internal::TArray<int, cpu> ufRankArr(nRows);
-    daal::services::internal::TArray<int, cpu> componentOfArr(nRows);
-    int * ufParent    = ufParentArr.get();
-    int * ufRank      = ufRankArr.get();
-    int * componentOf = componentOfArr.get();
-    if (!ufParent || !ufRank || !componentOf) return;
+    std::vector<int> ufParentVec(nRows);
+    std::vector<int> ufRankVec(nRows, 0);
+    std::vector<int> componentOfVec(nRows);
+    int * ufParent    = ufParentVec.data();
+    int * ufRank      = ufRankVec.data();
+    int * componentOf = componentOfVec.data();
 
-    daal::services::internal::TArray<algorithmFPType, cpu> pointBestMrdArr(nRows);
-    daal::services::internal::TArray<int, cpu> pointBestIdxArr(nRows);
-    algorithmFPType * pointBestMrd = pointBestMrdArr.get();
-    int * pointBestIdx             = pointBestIdxArr.get();
-    if (!pointBestMrd || !pointBestIdx) return;
+    std::vector<algorithmFPType> pointBestMrdVec(nRows);
+    std::vector<int> pointBestIdxVec(nRows);
+    algorithmFPType * pointBestMrd = pointBestMrdVec.data();
+    int * pointBestIdx             = pointBestIdxVec.data();
 
-    daal::services::internal::TArray<algorithmFPType, cpu> compBestMrdArr(nRows);
-    daal::services::internal::TArray<int, cpu> compBestFromArr(nRows);
-    daal::services::internal::TArray<int, cpu> compBestToArr(nRows);
-    algorithmFPType * compBestMrd = compBestMrdArr.get();
-    int * compBestFrom            = compBestFromArr.get();
-    int * compBestTo              = compBestToArr.get();
-    if (!compBestMrd || !compBestFrom || !compBestTo) return;
+    std::vector<algorithmFPType> compBestMrdVec(nRows);
+    std::vector<int> compBestFromVec(nRows);
+    std::vector<int> compBestToVec(nRows);
+    algorithmFPType * compBestMrd = compBestMrdVec.data();
+    int * compBestFrom            = compBestFromVec.data();
+    int * compBestTo              = compBestToVec.data();
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -504,28 +500,22 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const int maxLeafSize = static_cast<int>(leafSize);
     const int maxNodes    = 4 * static_cast<int>(nRows);
 
-    daal::services::internal::TArray<BallNode<algorithmFPType>, cpu> nodesArr(maxNodes);
-    BallNode<algorithmFPType> * nodes = nodesArr.get();
-    DAAL_CHECK_MALLOC(nodes);
+    std::vector<BallNode<algorithmFPType> > nodesVec(maxNodes);
+    BallNode<algorithmFPType> * nodes = nodesVec.data();
 
-    daal::services::internal::TArray<int, cpu> pointIndicesArr(nRows);
-    int * pointIndices = pointIndicesArr.get();
-    DAAL_CHECK_MALLOC(pointIndices);
+    std::vector<int> pointIndicesVec(nRows);
+    int * pointIndices = pointIndicesVec.data();
     for (size_t i = 0; i < nRows; i++) pointIndices[i] = static_cast<int>(i);
 
-    daal::services::internal::TArray<algorithmFPType, cpu> coreDists(nRows);
-    algorithmFPType * coreDistances = coreDists.get();
-    DAAL_CHECK_MALLOC(coreDistances);
+    std::vector<algorithmFPType> coreDistsVec(nRows);
+    algorithmFPType * coreDistances = coreDistsVec.data();
 
-    daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
-    daal::services::internal::TArray<int, cpu> mstToArr(edgeCount);
-    daal::services::internal::TArray<algorithmFPType, cpu> mstWeightsArr(edgeCount);
-    int * mstFrom                = mstFromArr.get();
-    int * mstTo                  = mstToArr.get();
-    algorithmFPType * mstWeights = mstWeightsArr.get();
-    DAAL_CHECK_MALLOC(mstFrom);
-    DAAL_CHECK_MALLOC(mstTo);
-    DAAL_CHECK_MALLOC(mstWeights);
+    std::vector<int> mstFromVec(edgeCount);
+    std::vector<int> mstToVec(edgeCount);
+    std::vector<algorithmFPType> mstWeightsVec(edgeCount);
+    int * mstFrom                = mstFromVec.data();
+    int * mstTo                  = mstToVec.data();
+    algorithmFPType * mstWeights = mstWeightsVec.data();
 
     const bool useAlpha = (alpha != 1.0);
 

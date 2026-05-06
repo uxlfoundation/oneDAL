@@ -33,6 +33,7 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
+#include <vector>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -40,7 +41,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
-#include "src/services/service_arrays.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
@@ -90,16 +90,14 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Step 1: Compute pairwise distance matrix
     // =========================================================================
 
-    daal::services::internal::TArray<algorithmFPType, cpu> distMatrixArr(nRows * nRows);
-    algorithmFPType * distMatrix = distMatrixArr.get();
-    DAAL_CHECK_MALLOC(distMatrix);
+    std::vector<algorithmFPType> distMatrixVec(nRows * nRows);
+    algorithmFPType * distMatrix = distMatrixVec.data();
 
     if (metric == euclidean || metric == cosine)
     {
         // GEMM-accelerated path for Euclidean and Cosine
-        daal::services::internal::TArray<algorithmFPType, cpu> normsArr(nRows);
-        algorithmFPType * norms = normsArr.get();
-        DAAL_CHECK_MALLOC(norms);
+        std::vector<algorithmFPType> normsVec(nRows);
+        algorithmFPType * norms = normsVec.data();
 
         const size_t normBlockSize = 512;
         const size_t nNormBlocks   = (nRows + normBlockSize - 1) / normBlockSize;
@@ -316,9 +314,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Step 2: Compute core distances (k-th nearest neighbor distance per point)
     // =========================================================================
 
-    daal::services::internal::TArray<algorithmFPType, cpu> coreDists(nRows);
-    algorithmFPType * coreDistances = coreDists.get();
-    DAAL_CHECK_MALLOC(coreDistances);
+    std::vector<algorithmFPType> coreDistsVec(nRows);
+    algorithmFPType * coreDistances = coreDistsVec.data();
 
     const size_t target = (minSamples > 0) ? minSamples - 1 : 0;
     const size_t t      = (target >= nRows) ? nRows - 1 : target;
@@ -347,47 +344,36 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Step 3: Build MST using Boruvka's algorithm with MRD
     // =========================================================================
 
-    daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
-    daal::services::internal::TArray<int, cpu> mstToArr(edgeCount);
-    daal::services::internal::TArray<algorithmFPType, cpu> mstWeightsArr(edgeCount);
-    int * mstFrom                = mstFromArr.get();
-    int * mstTo                  = mstToArr.get();
-    algorithmFPType * mstWeights = mstWeightsArr.get();
-    DAAL_CHECK_MALLOC(mstFrom);
-    DAAL_CHECK_MALLOC(mstTo);
-    DAAL_CHECK_MALLOC(mstWeights);
+    std::vector<int> mstFromVec(edgeCount);
+    std::vector<int> mstToVec(edgeCount);
+    std::vector<algorithmFPType> mstWeightsVec(edgeCount);
+    int * mstFrom                = mstFromVec.data();
+    int * mstTo                  = mstToVec.data();
+    algorithmFPType * mstWeights = mstWeightsVec.data();
 
     // Build MST using Boruvka's algorithm with precomputed MRD matrix.
     // Each iteration: parallel find nearest different-component neighbor per point,
     // reduce to per-component best edge, union-find merge.
     // O(N^2 * log N) worst case but typically O(N^2) with few iterations.
     {
-        daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
-        daal::services::internal::TArray<int, cpu> ufRankArr(nRows);
-        daal::services::internal::TArray<int, cpu> componentOfArr(nRows);
-        int * ufParent    = ufParentArr.get();
-        int * ufRank      = ufRankArr.get();
-        int * componentOf = componentOfArr.get();
-        DAAL_CHECK_MALLOC(ufParent);
-        DAAL_CHECK_MALLOC(ufRank);
-        DAAL_CHECK_MALLOC(componentOf);
+        std::vector<int> ufParentVec(nRows);
+        std::vector<int> ufRankVec(nRows, 0);
+        std::vector<int> componentOfVec(nRows);
+        int * ufParent    = ufParentVec.data();
+        int * ufRank      = ufRankVec.data();
+        int * componentOf = componentOfVec.data();
 
-        daal::services::internal::TArray<algorithmFPType, cpu> pointBestMrdArr(nRows);
-        daal::services::internal::TArray<int, cpu> pointBestIdxArr(nRows);
-        algorithmFPType * pointBestMrd = pointBestMrdArr.get();
-        int * pointBestIdx             = pointBestIdxArr.get();
-        DAAL_CHECK_MALLOC(pointBestMrd);
-        DAAL_CHECK_MALLOC(pointBestIdx);
+        std::vector<algorithmFPType> pointBestMrdVec(nRows);
+        std::vector<int> pointBestIdxVec(nRows);
+        algorithmFPType * pointBestMrd = pointBestMrdVec.data();
+        int * pointBestIdx             = pointBestIdxVec.data();
 
-        daal::services::internal::TArray<algorithmFPType, cpu> compBestMrdArr(nRows);
-        daal::services::internal::TArray<int, cpu> compBestFromArr(nRows);
-        daal::services::internal::TArray<int, cpu> compBestToArr(nRows);
-        algorithmFPType * compBestMrd = compBestMrdArr.get();
-        int * compBestFrom            = compBestFromArr.get();
-        int * compBestTo              = compBestToArr.get();
-        DAAL_CHECK_MALLOC(compBestMrd);
-        DAAL_CHECK_MALLOC(compBestFrom);
-        DAAL_CHECK_MALLOC(compBestTo);
+        std::vector<algorithmFPType> compBestMrdVec(nRows);
+        std::vector<int> compBestFromVec(nRows);
+        std::vector<int> compBestToVec(nRows);
+        algorithmFPType * compBestMrd = compBestMrdVec.data();
+        int * compBestFrom            = compBestFromVec.data();
+        int * compBestTo              = compBestToVec.data();
 
         for (size_t i = 0; i < nRows; i++)
         {
