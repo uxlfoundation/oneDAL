@@ -21,6 +21,7 @@ cc_library(
     ],
     deps = [
         ":headers",
+        "@tbb//:tbb",
     ],
     defines = ["MKL_ILP64"],
     alwayslink = 1,
