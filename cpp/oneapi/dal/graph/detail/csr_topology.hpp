@@ -152,9 +152,11 @@ public:
 
         const auto rows_count = _vertex_count + 1;
         const auto cols_count = _cols.get_count();
+        const auto degrees_count = _degrees.get_count();
+        const auto rows_vertex_count = _rows_vertex.get_count();
 
-        auto device_rows = edge_set::empty(queue, rows_count, sycl::usm::alloc::device);
-        auto device_cols = vertex_set::empty(queue, cols_count, sycl::usm::alloc::device);
+        auto device_rows = edge_set::empty(queue, rows_count, sycl::usm::alloc::shared);
+        auto device_cols = vertex_set::empty(queue, cols_count, sycl::usm::alloc::shared);
 
         auto e1 = queue.memcpy(device_rows.get_mutable_data(),
                                _rows.get_data(),
@@ -169,7 +171,23 @@ public:
         result._cols = device_cols;
         result._rows_ptr = result._rows.get_data();
         result._cols_ptr = result._cols.get_data();
-        result._degrees_ptr = nullptr;
+
+        if (degrees_count > 0) {
+            auto device_degrees = vertex_set::empty(queue, degrees_count, sycl::usm::alloc::shared);
+            queue.memcpy(device_degrees.get_mutable_data(), _degrees.get_data(),
+                         degrees_count * sizeof(vertex_type)).wait_and_throw();
+            result._degrees = device_degrees;
+            result._degrees_ptr = result._degrees.get_data();
+        }
+
+        if (rows_vertex_count > 0) {
+            auto device_rows_vertex = vertex_edge_set::empty(queue, rows_vertex_count,
+                                                              sycl::usm::alloc::shared);
+            queue.memcpy(device_rows_vertex.get_mutable_data(), _rows_vertex.get_data(),
+                         rows_vertex_count * sizeof(vertex_edge_type)).wait_and_throw();
+            result._rows_vertex = device_rows_vertex;
+        }
+
         return result;
     }
 #endif

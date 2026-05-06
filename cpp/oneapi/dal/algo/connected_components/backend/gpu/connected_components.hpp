@@ -14,27 +14,19 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// @file
-/// Contains the definition of the main processing function for vertex partitioning algorithms
-
 #pragma once
 
-#include "oneapi/dal/detail/vertex_partitioning_ops.hpp"
+#include "oneapi/dal/algo/connected_components/common.hpp"
+#include "oneapi/dal/algo/connected_components/vertex_partitioning_types.hpp"
+#include "oneapi/dal/backend/dispatcher.hpp"
 
-namespace oneapi::dal::preview {
+namespace oneapi::dal::preview::connected_components::backend {
 
-/// The main processing function for vertex partitioning algorithms
-template <typename... Args>
-auto vertex_partitioning(Args &&...args) {
-    return detail::vertex_partitioning_dispatch(std::forward<Args>(args)...);
-}
+template <typename Float, typename Task, typename Topology>
+struct vertex_partitioning_kernel_gpu {
+    vertex_partitioning_result<Task> operator()(const dal::backend::context_gpu& ctx,
+                                                const detail::descriptor_base<Task>& desc,
+                                                const Topology& topology) const;
+};
 
-#ifdef ONEDAL_DATA_PARALLEL
-template <typename... Args>
-auto vertex_partitioning(sycl::queue& q, Args &&...args) {
-    const auto policy = dal::detail::data_parallel_policy{ q };
-    return detail::vertex_partitioning_dispatch(policy, std::forward<Args>(args)...);
-}
-#endif
-
-} // namespace oneapi::dal::preview
+} // namespace oneapi::dal::preview::connected_components::backend

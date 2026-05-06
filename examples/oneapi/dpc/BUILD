@@ -69,6 +69,7 @@ dal_algo_example_suite(
         "rbf_kernel",
         "svm",
         "triangle_counting",
+        "connected_components",
     ],
     compile_as = [ "dpc++" ],
     data = _DATA_DEPS,

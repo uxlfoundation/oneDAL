@@ -138,7 +138,7 @@ private:
         if (alloc_type == sycl::usm::alloc::device || alloc_type == sycl::usm::alloc::shared) {
             return;
         }
-        auto device_arr = container<T>::empty(queue, count, sycl::usm::alloc::device);
+        auto device_arr = container<T>::empty(queue, count, sycl::usm::alloc::shared);
         queue.memcpy(device_arr.get_mutable_data(), src, count * sizeof(T)).wait_and_throw();
         arr = device_arr;
     }
