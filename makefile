@@ -377,7 +377,7 @@ release.ONEAPI.LIBS_Y := $(oneapi_y)
 release.ONEAPI.LIBS_Y.dpc := $(oneapi_y.dpc)
 ifdef OS_is_win
 release.ONEAPI.LIBS_Y.import.dpc := \
-    $(oneapi_y.dpc:.$(MAJORBINARY).dll=_dll.$(MAJORBINARY).lib)
+    $(oneapi_y.dpc:.$(MAJORBINARY).dll=_dll.lib)
 endif
 
 release.PARAMETERS.LIBS_A := $(parameters_a) \
@@ -385,7 +385,7 @@ release.PARAMETERS.LIBS_A := $(parameters_a) \
 release.PARAMETERS.LIBS_Y := $(parameters_y)
 
 ifdef OS_is_win
-release.PARAMETERS.LIBS_Y.import.dpc := $(parameters_y.dpc:.$(MAJORBINARY).dll=_dll.$(MAJORBINARY).lib)
+release.PARAMETERS.LIBS_Y.import.dpc := $(parameters_y.dpc:.$(MAJORBINARY).dll=_dll.lib)
 endif
 release.PARAMETERS.LIBS_Y.dpc := $(parameters_y.dpc)
 
@@ -1017,13 +1017,13 @@ $(foreach x,$(release.LIBS_A),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia
 $(foreach x,$(release.LIBS_Y),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_c)))
 $(foreach x,$(release.ONEAPI.LIBS_A),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_oneapi_c)))
 $(foreach x,$(release.ONEAPI.LIBS_Y),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_oneapi_c)))
-$(foreach x,$(release.ONEAPI.LIBS_A.dpc),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_oneapi_dpc)))
+$(foreach x,$(release.ONEAPI.LIBS_Y.import.dpc),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_oneapi_dpc)))
 $(foreach x,$(release.ONEAPI.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_oneapi_dpc)))
 
 ifeq ($(BUILD_PARAMETERS_LIB),yes)
 $(foreach x,$(release.PARAMETERS.LIBS_A),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_parameters_c)))
 $(foreach x,$(release.PARAMETERS.LIBS_Y),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_parameters_c)))
-$(foreach x,$(release.PARAMETERS.LIBS_A.dpc),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_parameters_dpc)))
+$(foreach x,$(release.PARAMETERS.LIBS_Y.import.dpc),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_parameters_dpc)))
 $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_parameters_dpc)))
 endif
 endif
