@@ -19,7 +19,6 @@ ALGOS = [
     "correlation_distance",
     "cosine_distance",
     "dbscan",
-    "hdbscan",
     "decision_tree",
     "finiteness_checker",
     "jaccard",

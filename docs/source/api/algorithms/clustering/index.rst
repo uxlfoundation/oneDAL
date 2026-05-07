@@ -22,6 +22,5 @@ This chapter describes programming interfaces of the clustering algorithms imple
    :titlesonly:
 
    dbscan.rst
-   hdbscan.rst
    kmeans.rst
    kmeans-init.rst
