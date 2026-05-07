@@ -18,12 +18,12 @@
 #ifndef __HDBSCAN_CLUSTER_UTILS_H__
 #define __HDBSCAN_CLUSTER_UTILS_H__
 
-#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <vector>
 
+#include "src/algorithms/service_sort.h"
+#include "src/services/service_arrays.h"
 #include "src/services/service_defines.h"
 
 namespace daal
@@ -36,6 +36,7 @@ namespace internal
 {
 
 using daal::internal::CpuType;
+using daal::services::internal::TArray;
 
 struct CondensedEdge
 {
@@ -47,36 +48,7 @@ struct CondensedEdge
 template <typename algorithmFPType, CpuType cpu>
 static void sortMstEdges(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t edgeCount)
 {
-    struct MstEdge
-    {
-        algorithmFPType weight;
-        int from;
-        int to;
-    };
-
-    std::vector<MstEdge> edges(edgeCount);
-
-    for (size_t i = 0; i < edgeCount; i++)
-    {
-        edges[i] = { mstWeights[i], mstFrom[i], mstTo[i] };
-    }
-
-    std::sort(edges.begin(), edges.end(), [](const MstEdge & a, const MstEdge & b) {
-        if (a.weight != b.weight) return a.weight < b.weight;
-        const int aLo = (a.from < a.to) ? a.from : a.to;
-        const int aHi = (a.from < a.to) ? a.to : a.from;
-        const int bLo = (b.from < b.to) ? b.from : b.to;
-        const int bHi = (b.from < b.to) ? b.to : b.from;
-        if (aLo != bLo) return aLo < bLo;
-        return aHi < bHi;
-    });
-
-    for (size_t i = 0; i < edgeCount; i++)
-    {
-        mstFrom[i]    = edges[i].from;
-        mstTo[i]      = edges[i].to;
-        mstWeights[i] = edges[i].weight;
-    }
+    daal::algorithms::internal::qSort<algorithmFPType, int, int, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
 }
 
 template <typename algorithmFPType, CpuType cpu>
@@ -93,13 +65,17 @@ static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * 
                                   DendroNode<algorithmFPType, cpu> * dendro, int * nodeSize, int * leftChild, int * rightChild,
                                   algorithmFPType * nodeWeight, size_t totalNodes)
 {
-    std::vector<int> ufParent(nRows);
-    std::vector<int> compSize(nRows, 1);
-    std::vector<int> compToNode(nRows);
+    TArray<int, cpu> ufParentArr(nRows);
+    TArray<int, cpu> compSizeArr(nRows);
+    TArray<int, cpu> compToNodeArr(nRows);
+    int * ufParent   = ufParentArr.get();
+    int * compSize   = compSizeArr.get();
+    int * compToNode = compToNodeArr.get();
 
     for (size_t i = 0; i < nRows; i++)
     {
         ufParent[i]   = static_cast<int>(i);
+        compSize[i]   = 1;
         compToNode[i] = static_cast<int>(i);
     }
 
@@ -175,8 +151,10 @@ template <typename algorithmFPType, CpuType cpu>
 static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize, int * leftChild, int * rightChild, algorithmFPType * nodeWeight,
                                  int * dendroToCluster, CondensedEdge * condensed, algorithmFPType * condensedLambda, int & nextCid)
 {
-    std::vector<int> leafStack(nRows);
-    std::vector<int> fallenBuf(nRows);
+    TArray<int, cpu> leafStackArr(nRows);
+    TArray<int, cpu> fallenBufArr(nRows);
+    int * leafStack = leafStackArr.get();
+    int * fallenBuf = fallenBufArr.get();
 
     auto collectLeaves = [&](int startNid, int * out, size_t & outCount) {
         outCount              = 0;
@@ -203,7 +181,8 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
         int cluster;
     };
     const size_t nDendroNodes = nRows - 1;
-    std::vector<StackItem> mainStack(nDendroNodes + 1);
+    TArray<StackItem, cpu> mainStackArr(nDendroNodes + 1);
+    StackItem * mainStack     = mainStackArr.get();
     int mainStackTop          = 0;
     mainStack[mainStackTop++] = { root, dendroToCluster[root] };
 
@@ -248,7 +227,7 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
         {
             dendroToCluster[lc] = parentCid;
             size_t nFallen      = 0;
-            collectLeaves(rc, fallenBuf.data(), nFallen);
+            collectLeaves(rc, fallenBuf, nFallen);
             for (size_t fi = 0; fi < nFallen; fi++)
             {
                 condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
@@ -261,7 +240,7 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
         {
             dendroToCluster[rc] = parentCid;
             size_t nFallen      = 0;
-            collectLeaves(lc, fallenBuf.data(), nFallen);
+            collectLeaves(lc, fallenBuf, nFallen);
             for (size_t fi = 0; fi < nFallen; fi++)
             {
                 condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
@@ -273,9 +252,9 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
         else
         {
             size_t nFallen = 0;
-            collectLeaves(lc, fallenBuf.data(), nFallen);
+            collectLeaves(lc, fallenBuf, nFallen);
             size_t nFallen2 = 0;
-            collectLeaves(rc, fallenBuf.data() + nFallen, nFallen2);
+            collectLeaves(rc, fallenBuf + nFallen, nFallen2);
             nFallen += nFallen2;
             for (size_t fi = 0; fi < nFallen; fi++)
             {
@@ -294,13 +273,26 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
                            int mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon,
                            char * isSelected)
 {
-    std::vector<algorithmFPType> stability(nClusters, algorithmFPType(0));
-    std::vector<algorithmFPType> lambdaBirth(nClusters, algorithmFPType(0));
-    std::vector<char> isLeafCluster(nClusters, 1);
-    std::vector<int> clusterSz(nClusters, 0);
+    TArray<algorithmFPType, cpu> stabilityArr(nClusters);
+    TArray<algorithmFPType, cpu> lambdaBirthArr(nClusters);
+    TArray<char, cpu> isLeafClusterArr(nClusters);
+    TArray<int, cpu> clusterSzArr(nClusters);
+    algorithmFPType * stability   = stabilityArr.get();
+    algorithmFPType * lambdaBirth = lambdaBirthArr.get();
+    char * isLeafCluster          = isLeafClusterArr.get();
+    int * clusterSz               = clusterSzArr.get();
+    for (int c = 0; c < nClusters; c++)
+    {
+        stability[c]     = algorithmFPType(0);
+        lambdaBirth[c]   = algorithmFPType(0);
+        isLeafCluster[c] = 1;
+        clusterSz[c]     = 0;
+    }
     clusterSz[rootCid] = static_cast<int>(nRows);
 
-    std::vector<int> childCount(nClusters, 0);
+    TArray<int, cpu> childCountArr(nClusters);
+    int * childCount = childCountArr.get();
+    for (int c = 0; c < nClusters; c++) childCount[c] = 0;
 
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
@@ -314,12 +306,14 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
         }
     }
 
-    std::vector<int> childOffset(nClusters + 1);
-    childOffset[0] = 0;
+    TArray<int, cpu> childOffsetArr(nClusters + 1);
+    int * childOffset = childOffsetArr.get();
+    childOffset[0]    = 0;
     for (int c = 1; c <= nClusters; c++) childOffset[c] = childOffset[c - 1] + childCount[c - 1];
     const int totalChildren = childOffset[nClusters];
 
-    std::vector<int> childList(totalChildren > 0 ? totalChildren : 1);
+    TArray<int, cpu> childListArr(totalChildren > 0 ? totalChildren : 1);
+    int * childList = childListArr.get();
 
     for (int c = 0; c < nClusters; c++) childCount[c] = 0;
     for (size_t ei = 0; ei < nCondensed; ei++)
@@ -347,7 +341,8 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
         isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
     }
 
-    std::vector<int> descStack(nClusters);
+    TArray<int, cpu> descStackArr(nClusters);
+    int * descStack = descStackArr.get();
 
     if (clusterSelection == 1)
     {
@@ -407,7 +402,9 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
     // cluster_selection_epsilon merging
     if (clusterSelectionEpsilon > 0.0)
     {
-        std::vector<int> clusterParent(nClusters, -1);
+        TArray<int, cpu> clusterParentArr(nClusters);
+        int * clusterParent = clusterParentArr.get();
+        for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
         for (size_t ei = 0; ei < nCondensed; ei++)
         {
             const CondensedEdge & e = condensed[ei];
@@ -447,21 +444,27 @@ static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLam
     const size_t nDendroNodes = nRows - 1;
 
     int labelCounter = 0;
-    std::vector<int> clusterLabel(nClusters, -1);
+    TArray<int, cpu> clusterLabelArr(nClusters);
+    int * clusterLabel = clusterLabelArr.get();
+    for (int c = 0; c < nClusters; c++) clusterLabel[c] = -1;
     for (int c = rootCid; c < nClusters; c++)
     {
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
     }
 
     // Build cluster parent map for label walk-up
-    std::vector<int> clusterParent(nClusters, -1);
+    TArray<int, cpu> clusterParentArr(nClusters);
+    int * clusterParent = clusterParentArr.get();
+    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
         if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
     }
 
-    std::vector<int> pointFellFrom(nRows, -1);
+    TArray<int, cpu> pointFellFromArr(nRows);
+    int * pointFellFrom = pointFellFromArr.get();
+    for (size_t i = 0; i < nRows; i++) pointFellFrom[i] = -1;
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
@@ -486,7 +489,9 @@ static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLam
     }
 
     // Handle points never ejected
-    std::vector<int> dendroParent(totalNodes, -1);
+    TArray<int, cpu> dendroParentArr(totalNodes);
+    int * dendroParent = dendroParentArr.get();
+    for (size_t i = 0; i < totalNodes; i++) dendroParent[i] = -1;
     for (size_t e = 0; e < nDendroNodes; e++)
     {
         const size_t nid = nRows + e;
@@ -540,16 +545,16 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     sortMstEdges<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, edgeCount);
 
     // Step 2: Build dendrogram
-    std::vector<DendroNode<algorithmFPType, cpu> > dendroVec(edgeCount);
-    std::vector<int> nodeSizeVec(totalNodes);
-    std::vector<int> leftChildVec(totalNodes);
-    std::vector<int> rightChildVec(totalNodes);
-    std::vector<algorithmFPType> nodeWeightVec(totalNodes);
-    auto * dendro                = dendroVec.data();
-    int * nodeSize               = nodeSizeVec.data();
-    int * leftChild              = leftChildVec.data();
-    int * rightChild             = rightChildVec.data();
-    algorithmFPType * nodeWeight = nodeWeightVec.data();
+    TArray<DendroNode<algorithmFPType, cpu>, cpu> dendroArr(edgeCount);
+    TArray<int, cpu> nodeSizeArr(totalNodes);
+    TArray<int, cpu> leftChildArr(totalNodes);
+    TArray<int, cpu> rightChildArr(totalNodes);
+    TArray<algorithmFPType, cpu> nodeWeightArr(totalNodes);
+    DendroNode<algorithmFPType, cpu> * dendro = dendroArr.get();
+    int * nodeSize                            = nodeSizeArr.get();
+    int * leftChild                           = leftChildArr.get();
+    int * rightChild                          = rightChildArr.get();
+    algorithmFPType * nodeWeight              = nodeWeightArr.get();
 
     int root = buildKruskalDendrogram<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, edgeCount, dendro, nodeSize, leftChild, rightChild,
                                                             nodeWeight, totalNodes);
@@ -562,15 +567,16 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
 
     // Step 3: Build condensed tree
     int nextCid = static_cast<int>(nRows);
-    std::vector<int> dendroToClusterVec(totalNodes, -1);
-    int * dendroToCluster = dendroToClusterVec.data();
+    TArray<int, cpu> dendroToClusterArr(totalNodes);
+    int * dendroToCluster = dendroToClusterArr.get();
+    for (size_t i = 0; i < totalNodes; i++) dendroToCluster[i] = -1;
     dendroToCluster[root] = nextCid++;
 
     const size_t maxCondensed = 3 * nRows;
-    std::vector<CondensedEdge> condensedVec(maxCondensed);
-    std::vector<algorithmFPType> condensedLambdaVec(maxCondensed);
-    CondensedEdge * condensed         = condensedVec.data();
-    algorithmFPType * condensedLambda = condensedLambdaVec.data();
+    TArray<CondensedEdge, cpu> condensedArr(maxCondensed);
+    TArray<algorithmFPType, cpu> condensedLambdaArr(maxCondensed);
+    CondensedEdge * condensed         = condensedArr.get();
+    algorithmFPType * condensedLambda = condensedLambdaArr.get();
 
     const int mcs     = static_cast<int>(minClusterSize);
     size_t nCondensed = buildCondensedTree<algorithmFPType, cpu>(root, nRows, mcs, nodeSize, leftChild, rightChild, nodeWeight, dendroToCluster,
@@ -580,8 +586,8 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     const int nClusters = nextCid;
     const int rootCid   = static_cast<int>(nRows);
 
-    std::vector<char> isSelectedVec(nClusters);
-    char * isSelected = isSelectedVec.data();
+    TArray<char, cpu> isSelectedArr(nClusters);
+    char * isSelected = isSelectedArr.get();
 
     selectClusters<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, nClusters, rootCid, mcs, maxClusterSize, clusterSelection,
                                          allowSingleCluster, clusterSelectionEpsilon, isSelected);

@@ -29,75 +29,16 @@
 #include "oneapi/dal/detail/threading.hpp"
 #include "oneapi/dal/backend/common.hpp"
 
-extern "C" {
-void dgemm_(const char*,
-            const char*,
-            const std::int64_t*,
-            const std::int64_t*,
-            const std::int64_t*,
-            const double*,
-            const double*,
-            const std::int64_t*,
-            const double*,
-            const std::int64_t*,
-            const double*,
-            double*,
-            const std::int64_t*);
-void sgemm_(const char*,
-            const char*,
-            const std::int64_t*,
-            const std::int64_t*,
-            const std::int64_t*,
-            const float*,
-            const float*,
-            const std::int64_t*,
-            const float*,
-            const std::int64_t*,
-            const float*,
-            float*,
-            const std::int64_t*);
-}
+#ifndef ONEDAL_DATA_PARALLEL
+#include "src/externals/service_blas.h"
+#endif
 
 namespace oneapi::dal::hdbscan::backend {
 
 namespace de = oneapi::dal::detail;
 namespace bk = oneapi::dal::backend;
 
-namespace {
-
-inline void gemm_call(const char* ta,
-                      const char* tb,
-                      const std::int64_t* m,
-                      const std::int64_t* n,
-                      const std::int64_t* k,
-                      const float* alpha,
-                      const float* a,
-                      const std::int64_t* lda,
-                      const float* b,
-                      const std::int64_t* ldb,
-                      const float* beta,
-                      float* c,
-                      const std::int64_t* ldc) {
-    sgemm_(ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-}
-
-inline void gemm_call(const char* ta,
-                      const char* tb,
-                      const std::int64_t* m,
-                      const std::int64_t* n,
-                      const std::int64_t* k,
-                      const double* alpha,
-                      const double* a,
-                      const std::int64_t* lda,
-                      const double* b,
-                      const std::int64_t* ldb,
-                      const double* beta,
-                      double* c,
-                      const std::int64_t* ldc) {
-    dgemm_(ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-}
-
-} // anonymous namespace
+#ifndef ONEDAL_DATA_PARALLEL
 
 template <typename Float>
 static void compute_distance_matrix(const Float* data,
@@ -123,28 +64,28 @@ static void compute_distance_matrix(const Float* data,
     {
         const char transa = 't';
         const char transb = 'n';
-        const std::int64_t m = row_count;
-        const std::int64_t n = row_count;
-        const std::int64_t k = col_count;
-        const Float alpha = Float(1);
-        const Float beta = Float(0);
-        const std::int64_t lda = col_count;
-        const std::int64_t ldb = col_count;
-        const std::int64_t ldc = row_count;
+        const DAAL_INT m = static_cast<DAAL_INT>(row_count);
+        const DAAL_INT n = static_cast<DAAL_INT>(row_count);
+        const DAAL_INT k = static_cast<DAAL_INT>(col_count);
+        const Float alpha_val = Float(1);
+        const Float beta_val = Float(0);
+        const DAAL_INT lda = static_cast<DAAL_INT>(col_count);
+        const DAAL_INT ldb = static_cast<DAAL_INT>(col_count);
+        const DAAL_INT ldc = static_cast<DAAL_INT>(row_count);
 
-        gemm_call(&transa,
-                  &transb,
-                  &m,
-                  &n,
-                  &k,
-                  &alpha,
-                  data,
-                  &lda,
-                  data,
-                  &ldb,
-                  &beta,
-                  dist_matrix,
-                  &ldc);
+        daal::internal::BlasInst<Float, daal::internal::CpuType::sse2>::xgemm(&transa,
+                                                                              &transb,
+                                                                              &m,
+                                                                              &n,
+                                                                              &k,
+                                                                              &alpha_val,
+                                                                              data,
+                                                                              &lda,
+                                                                              data,
+                                                                              &ldb,
+                                                                              &beta_val,
+                                                                              dist_matrix,
+                                                                              &ldc);
     }
 
     const std::int64_t block_size = 256;
@@ -169,6 +110,8 @@ static void compute_distance_matrix(const Float* data,
         }
     });
 }
+
+#endif // !ONEDAL_DATA_PARALLEL
 
 template <typename Float>
 static void compute_core_distances(const Float* dist_matrix,
