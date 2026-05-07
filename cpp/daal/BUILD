@@ -244,7 +244,14 @@ daal_dynamic_lib(
     deps = [
         ":core",
         ":all_algorithms",
-    ],
+    ] + select({
+        # MSVC requires all DLL symbols to be resolved at link time.  The
+        # algorithm objects reference DAAL threading entry points, while the
+        # Linux shared build intentionally leaves those references unresolved
+        # until the final executable links with onedal_thread.
+        "@platforms//os:windows": [":threading_tbb"],
+        "//conditions:default": [],
+    }),
 )
 
 daal_dynamic_lib(
