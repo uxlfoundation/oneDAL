@@ -63,6 +63,32 @@ private:
                                              NumericTable * ntCoreIndices, NumericTable * ntCoreObservations);
 };
 
+template <typename algorithmFPType, CpuType cpu>
+class DBSCANBatchKernel<algorithmFPType, kdTree, cpu> : public Kernel
+{
+public:
+    services::Status computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
+                                      NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                      const Parameter * par);
+
+    services::Status computeMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
+                                    NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                    const Parameter * par);
+};
+
+template <typename algorithmFPType, CpuType cpu>
+class DBSCANBatchKernel<algorithmFPType, ballTree, cpu> : public Kernel
+{
+public:
+    services::Status computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
+                                      NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                      const Parameter * par);
+
+    services::Status computeMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
+                                    NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                    const Parameter * par);
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DBSCANDistrStep1Kernel : public Kernel
 {

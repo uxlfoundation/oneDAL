@@ -95,9 +95,9 @@ static int buildDbscanBallTree(const FPType * data, int * pointIndices, int begi
     const int count = end - begin;
 
     // Find diameter approximation: pick first, find farthest, find farthest from that
-    int pivot1       = pointIndices[begin];
-    FPType bestDist  = FPType(-1);
-    int pivot2       = pivot1;
+    int pivot1      = pointIndices[begin];
+    FPType bestDist = FPType(-1);
+    int pivot2      = pivot1;
     for (int i = begin; i < end; i++)
     {
         const FPType d = euclideanDist(data + pivot1 * nCols, data + pointIndices[i] * nCols, nCols);
@@ -247,18 +247,18 @@ static int ballTreeCountNeighbors(const FPType * data, int nCols, const DbscanBa
         return cnt;
     }
 
-    return ballTreeCountNeighbors(data, nCols, nodes, pointIndices, queryPoint, node.left, epsilon) +
-           ballTreeCountNeighbors(data, nCols, nodes, pointIndices, queryPoint, node.right, epsilon);
+    return ballTreeCountNeighbors(data, nCols, nodes, pointIndices, queryPoint, node.left, epsilon)
+           + ballTreeCountNeighbors(data, nCols, nodes, pointIndices, queryPoint, node.right, epsilon);
 }
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status DBSCANBatchKernel<algorithmFPType, ballTree, cpu>::computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights,
-                                                                                      NumericTable * ntAssignments, NumericTable * ntNClusters,
-                                                                                      NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                                                                      const Parameter * par)
+                                                                                     NumericTable * ntAssignments, NumericTable * ntNClusters,
+                                                                                     NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                                                                     const Parameter * par)
 {
-    const size_t nRows = ntData->getNumberOfRows();
-    const size_t nCols = ntData->getNumberOfColumns();
+    const size_t nRows            = ntData->getNumberOfRows();
+    const size_t nCols            = ntData->getNumberOfColumns();
     const algorithmFPType epsilon = static_cast<algorithmFPType>(par->epsilon);
     const size_t minObservations  = par->minObservations;
     const int leafSize            = 40;
@@ -408,9 +408,9 @@ services::Status DBSCANBatchKernel<algorithmFPType, ballTree, cpu>::computeNoMem
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status DBSCANBatchKernel<algorithmFPType, ballTree, cpu>::computeMemSave(const NumericTable * ntData, const NumericTable * ntWeights,
-                                                                                    NumericTable * ntAssignments, NumericTable * ntNClusters,
-                                                                                    NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                                                                    const Parameter * par)
+                                                                                   NumericTable * ntAssignments, NumericTable * ntNClusters,
+                                                                                   NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                                                                   const Parameter * par)
 {
     return computeNoMemSave(ntData, ntWeights, ntAssignments, ntNClusters, ntCoreIndices, ntCoreObservations, par);
 }

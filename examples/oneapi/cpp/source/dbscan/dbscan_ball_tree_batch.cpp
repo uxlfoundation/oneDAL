@@ -36,8 +36,8 @@ int main(int argc, char const* argv[]) {
     const auto result = dal::compute(dbscan_desc, x_data);
 
     std::cout << "Cluster count: " << result.get_cluster_count() << std::endl;
-    std::cout << "Core observation count: "
-              << result.get_core_observation_indices().get_row_count() << std::endl;
+    std::cout << "Core observation count: " << result.get_core_observation_indices().get_row_count()
+              << std::endl;
     std::cout << "Responses:\n" << result.get_responses() << std::endl;
     return 0;
 }

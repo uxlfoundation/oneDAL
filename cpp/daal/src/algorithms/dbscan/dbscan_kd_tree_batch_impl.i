@@ -90,9 +90,9 @@ static int buildDbscanKdTree(const FPType * data, int * pointIndices, int begin,
             if (val < lo) lo = val;
             if (val > hi) hi = val;
         }
-        bboxLo[nodeIdx * nCols + d]  = lo;
-        bboxHi[nodeIdx * nCols + d]  = hi;
-        const FPType spread = hi - lo;
+        bboxLo[nodeIdx * nCols + d] = lo;
+        bboxHi[nodeIdx * nCols + d] = hi;
+        const FPType spread         = hi - lo;
         if (spread > bestSpread)
         {
             bestSpread = spread;
@@ -149,9 +149,9 @@ static void rangeQuery(const FPType * data, int nCols, const DbscanKdNode<FPType
         // Leaf: check each point
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
-            const int pi          = pointIndices[i];
-            const FPType * row    = data + pi * nCols;
-            FPType distSq = FPType(0);
+            const int pi       = pointIndices[i];
+            const FPType * row = data + pi * nCols;
+            FPType distSq      = FPType(0);
             for (int d = 0; d < nCols; d++)
             {
                 const FPType diff = queryPoint[d] - row[d];
@@ -205,7 +205,7 @@ static int countNeighbors(const FPType * data, int nCols, const DbscanKdNode<FPT
         {
             const int pi       = pointIndices[i];
             const FPType * row = data + pi * nCols;
-            FPType distSq = FPType(0);
+            FPType distSq      = FPType(0);
             for (int d = 0; d < nCols; d++)
             {
                 const FPType diff = queryPoint[d] - row[d];
@@ -233,12 +233,12 @@ static int countNeighbors(const FPType * data, int nCols, const DbscanKdNode<FPT
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status DBSCANBatchKernel<algorithmFPType, kdTree, cpu>::computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights,
-                                                                                    NumericTable * ntAssignments, NumericTable * ntNClusters,
-                                                                                    NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                                                                    const Parameter * par)
+                                                                                   NumericTable * ntAssignments, NumericTable * ntNClusters,
+                                                                                   NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                                                                   const Parameter * par)
 {
-    const size_t nRows = ntData->getNumberOfRows();
-    const size_t nCols = ntData->getNumberOfColumns();
+    const size_t nRows            = ntData->getNumberOfRows();
+    const size_t nCols            = ntData->getNumberOfColumns();
     const algorithmFPType epsilon = static_cast<algorithmFPType>(par->epsilon);
     const size_t minObservations  = par->minObservations;
     const int leafSize            = 40;
@@ -272,7 +272,7 @@ services::Status DBSCANBatchKernel<algorithmFPType, kdTree, cpu>::computeNoMemSa
         const algorithmFPType * queryPoint = data + i * nCols;
         const int cnt = countNeighbors(data, static_cast<int>(nCols), nodesArr.get(), pointIndices, bboxLoArr.get(), bboxHiArr.get(), queryPoint, 0,
                                        epsilon, static_cast<int>(minObservations));
-        isCore[i] = (cnt >= static_cast<int>(minObservations)) ? 1 : 0;
+        isCore[i]     = (cnt >= static_cast<int>(minObservations)) ? 1 : 0;
     }
 
     // Phase 2: Cluster expansion via BFS
@@ -394,9 +394,9 @@ services::Status DBSCANBatchKernel<algorithmFPType, kdTree, cpu>::computeNoMemSa
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status DBSCANBatchKernel<algorithmFPType, kdTree, cpu>::computeMemSave(const NumericTable * ntData, const NumericTable * ntWeights,
-                                                                                  NumericTable * ntAssignments, NumericTable * ntNClusters,
-                                                                                  NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                                                                  const Parameter * par)
+                                                                                 NumericTable * ntAssignments, NumericTable * ntNClusters,
+                                                                                 NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
+                                                                                 const Parameter * par)
 {
     // Memory-save mode uses the same tree approach (already more memory-efficient than brute-force)
     return computeNoMemSave(ntData, ntWeights, ntAssignments, ntNClusters, ntCoreIndices, ntCoreObservations, par);

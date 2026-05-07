@@ -86,16 +86,15 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     const auto daal_core_observations = interop::empty_daal_homogen_table<Float>(column_count);
     const auto daal_cluster_count = interop::convert_to_daal_homogen_table(arr_cluster_count, 1, 1);
 
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, dbscan_ball_tree_compute_wrapper>(
-            ctx,
-            daal_data.get(),
-            daal_weights.get(),
-            daal_responses.get(),
-            daal_cluster_count.get(),
-            daal_core_observation_indices.get(),
-            daal_core_observations.get(),
-            &par));
+    interop::status_to_exception(interop::call_daal_kernel<Float, dbscan_ball_tree_compute_wrapper>(
+        ctx,
+        daal_data.get(),
+        daal_weights.get(),
+        daal_responses.get(),
+        daal_cluster_count.get(),
+        daal_core_observation_indices.get(),
+        daal_core_observations.get(),
+        &par));
 
     auto core_observation_indices =
         interop::convert_from_daal_homogen_table<int>(daal_core_observation_indices);
