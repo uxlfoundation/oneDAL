@@ -45,6 +45,13 @@ public:
                              size_t leafSize = 40);
 };
 
+template <typename algorithmFPType, CpuType cpu>
+class HDBSCANDistMatrixKernel : public Kernel
+{
+public:
+    services::Status compute(const algorithmFPType * data, algorithmFPType * distMatrix, size_t nRows, size_t nCols);
+};
+
 } // namespace internal
 } // namespace hdbscan
 } // namespace algorithms

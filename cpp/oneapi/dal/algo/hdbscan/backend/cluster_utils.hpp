@@ -30,7 +30,9 @@
 #include "oneapi/dal/backend/common.hpp"
 
 #ifndef ONEDAL_DATA_PARALLEL
-#include "src/externals/service_blas.h"
+#include "oneapi/dal/backend/interop/common.hpp"
+#include "oneapi/dal/backend/interop/error_converter.hpp"
+#include <daal/src/algorithms/hdbscan/hdbscan_kernel.h>
 #endif
 
 namespace oneapi::dal::hdbscan::backend {
@@ -40,8 +42,13 @@ namespace bk = oneapi::dal::backend;
 
 #ifndef ONEDAL_DATA_PARALLEL
 
+template <typename Float, daal::internal::CpuType Cpu>
+using daal_hdbscan_dist_matrix_kernel_t =
+    daal::algorithms::hdbscan::internal::HDBSCANDistMatrixKernel<Float, Cpu>;
+
 template <typename Float>
-static void compute_distance_matrix(const Float* data,
+static void compute_distance_matrix(const dal::backend::context_cpu& ctx,
+                                    const Float* data,
                                     Float* dist_matrix,
                                     std::int64_t row_count,
                                     std::int64_t col_count) {
@@ -61,32 +68,13 @@ static void compute_distance_matrix(const Float* data,
         norms[i] = sum;
     });
 
-    {
-        const char transa = 't';
-        const char transb = 'n';
-        const DAAL_INT m = static_cast<DAAL_INT>(row_count);
-        const DAAL_INT n = static_cast<DAAL_INT>(row_count);
-        const DAAL_INT k = static_cast<DAAL_INT>(col_count);
-        const Float alpha_val = Float(1);
-        const Float beta_val = Float(0);
-        const DAAL_INT lda = static_cast<DAAL_INT>(col_count);
-        const DAAL_INT ldb = static_cast<DAAL_INT>(col_count);
-        const DAAL_INT ldc = static_cast<DAAL_INT>(row_count);
-
-        daal::internal::BlasInst<Float, daal::internal::CpuType::sse2>::xgemm(&transa,
-                                                                              &transb,
-                                                                              &m,
-                                                                              &n,
-                                                                              &k,
-                                                                              &alpha_val,
-                                                                              data,
-                                                                              &lda,
-                                                                              data,
-                                                                              &ldb,
-                                                                              &beta_val,
-                                                                              dist_matrix,
-                                                                              &ldc);
-    }
+    dal::backend::interop::status_to_exception(
+        dal::backend::interop::call_daal_kernel<Float, daal_hdbscan_dist_matrix_kernel_t>(
+            ctx,
+            data,
+            dist_matrix,
+            static_cast<size_t>(row_count),
+            static_cast<size_t>(col_count)));
 
     const std::int64_t block_size = 256;
     const bk::uniform_blocking blocking(row_count, block_size);
