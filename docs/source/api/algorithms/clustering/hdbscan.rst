@@ -75,6 +75,7 @@ Method tags
    namespace oneapi::dal::hdbscan::method {
        struct brute_force {};
        struct kd_tree {};
+       struct ball_tree {};
    }
 
 Task tags

@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <limits>
 
+#include "src/services/service_defines.h"
+
 namespace daal
 {
 namespace algorithms
@@ -43,6 +45,8 @@ struct EuclideanDist
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType sum = FPType(0);
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
         for (int d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
@@ -73,6 +77,8 @@ struct ManhattanDist
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType sum = FPType(0);
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
         for (int d = 0; d < nCols; d++)
         {
             FPType diff = a[d] - b[d];

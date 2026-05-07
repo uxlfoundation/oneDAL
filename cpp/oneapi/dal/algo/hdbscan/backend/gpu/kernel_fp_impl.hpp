@@ -515,8 +515,10 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
 
         // Check termination
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
-        if (num_comp_host.get_data()[0] <= 1)
+        if (num_comp_host.get_data()[0] <= 1) {
+            last_event = compress_event;
             break;
+        }
 
         last_event = compress_event;
     }
@@ -629,8 +631,10 @@ sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
             boruvka_compress_components<Float>(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
 
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
-        if (num_comp_host.get_data()[0] <= 1)
+        if (num_comp_host.get_data()[0] <= 1) {
+            last_event = compress_event;
             break;
+        }
 
         last_event = compress_event;
     }

@@ -53,16 +53,16 @@ The following distance metrics are supported via the ``metric`` parameter:
      - Methods
    * - Euclidean (default)
      - :math:`d(x, y) = \sqrt{\sum_i (x_i - y_i)^2}`
-     - brute_force, kd_tree
+     - brute_force, kd_tree, ball_tree
    * - Manhattan
      - :math:`d(x, y) = \sum_i |x_i - y_i|`
-     - brute_force, kd_tree
+     - brute_force, kd_tree, ball_tree
    * - Minkowski
      - :math:`d(x, y) = \left(\sum_i |x_i - y_i|^p\right)^{1/p}`
-     - brute_force, kd_tree
+     - brute_force, kd_tree, ball_tree
    * - Chebyshev
      - :math:`d(x, y) = \max_i |x_i - y_i|`
-     - brute_force, kd_tree
+     - brute_force, kd_tree, ball_tree
    * - Cosine
      - :math:`d(x, y) = 1 - \frac{x \cdot y}{\|x\| \|y\|}`
      - brute_force only
@@ -70,8 +70,8 @@ The following distance metrics are supported via the ``metric`` parameter:
 The Minkowski metric requires a ``degree`` parameter :math:`p > 0`. Setting :math:`p = 1` is
 equivalent to Manhattan, :math:`p = 2` is equivalent to Euclidean.
 
-The Cosine metric is not compatible with the kd_tree method because no valid bounding-box
-lower bound exists for cosine distance in a k-d tree.
+The Cosine metric is not compatible with tree-based methods (kd_tree, ball_tree) because
+no valid bounding-box lower bound exists for cosine distance in spatial trees.
 
 HDBSCAN consists of the following steps:
 
@@ -116,13 +116,15 @@ Computation method: *brute_force*
 
 The brute-force method computes the full :math:`n \times n` pairwise distance matrix
 using the selected metric, then uses this matrix for core distance computation
-and Prim's MST algorithm. Euclidean and Cosine distances are GEMM-accelerated;
-other metrics use element-wise computation.
+and MST construction via Boruvka's algorithm. Euclidean and Cosine distances are
+GEMM-accelerated; other metrics use element-wise computation.
 
 - **Core distances**: For each row of the distance matrix, find the :math:`k`-th
-  nearest distance using partial sort.
-- **MST**: Prim's algorithm with :math:`O(n^2)` complexity, using precomputed MRD matrix.
-- **Complexity**: :math:`O(n^2 p)` for distances + :math:`O(n^2)` for MST.
+  nearest distance using partial sort. Parallelized across rows.
+- **MST**: Boruvka's algorithm with :math:`O(n^2 \log n)` worst-case complexity,
+  using precomputed MRD matrix. The per-round nearest-neighbor search is
+  parallelized across all points.
+- **Complexity**: :math:`O(n^2 p)` for distances + :math:`O(n^2 \log n)` for MST.
 - **Memory**: :math:`O(n^2)` for the distance matrix.
 
 
@@ -144,7 +146,29 @@ Minkowski, and Chebyshev metrics (Cosine is not supported).
 - **Memory**: :math:`O(n \cdot p)` for k-d tree nodes and bounding boxes.
 
 The k-d tree method is significantly faster for moderate-sized datasets,
-especially in low-to-moderate dimensions.
+especially in low-to-moderate dimensions (:math:`p \leq 20`).
+
+
+.. _hdbscan_c_math_ball_tree:
+
+Computation method: *ball_tree*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ball tree method is similar to the k-d tree method but uses hypersphere
+(ball) bounding volumes instead of axis-aligned bounding boxes. This provides
+better pruning in higher-dimensional spaces where k-d tree splitting planes
+become ineffective.
+
+- **Core distances**: For each point, perform a k-NN query on the ball tree.
+  Complexity: :math:`O(n \cdot k \cdot \log n)`.
+- **MST**: Boruvka's algorithm with ball-tree-accelerated nearest-different-component
+  queries, using hypersphere distance bounds for pruning.
+  Complexity: :math:`O(n \log^2 n)`.
+- **Memory**: :math:`O(n \cdot p)` for ball tree nodes, centers, and radii.
+
+The ball tree method is preferred over k-d tree when the number of features
+exceeds approximately 20, as it maintains effective pruning regardless of
+dimensionality.
 
 
 ---------------------

@@ -180,14 +180,19 @@ static void compute_core_distances(const Float* dist_matrix,
     ONEDAL_ASSERT(min_samples <= row_count);
 
     const std::int64_t target = min_samples - 1;
+    const std::int64_t t = (target >= row_count) ? row_count - 1 : target;
+
+    const std::int64_t num_threads = de::threader_get_max_threads();
+    auto scratch = dal::array<Float>::empty(row_count * num_threads);
+    Float* scratch_ptr = scratch.get_mutable_data();
 
     de::threader_for_int64(row_count, [&](std::int64_t i) {
-        std::vector<Float> dists(row_count);
+        const std::int64_t tid = de::threader_get_current_thread_index();
+        Float* dists = scratch_ptr + tid * row_count;
         const Float* row = dist_matrix + i * row_count;
-        std::memcpy(dists.data(), row, row_count * sizeof(Float));
+        std::memcpy(dists, row, row_count * sizeof(Float));
 
-        std::int64_t t = (target >= row_count) ? row_count - 1 : target;
-        std::nth_element(dists.begin(), dists.begin() + t, dists.end());
+        std::nth_element(dists, dists + t, dists + row_count);
         core_distances[i] = dists[t];
     });
 }
