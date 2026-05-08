@@ -612,11 +612,11 @@ def _expand_select(deps):
             expanded += [dep]
     return expanded
 
-def daal_example_suite(name, srcs, **kwargs):
+def daal_example_suite(name, srcs, use_onedal_release_libs=True, **kwargs):
     dal_example_suite(
         name = name,
         srcs = srcs,
-        use_onedal_release_libs = False,
+        use_onedal_release_libs = use_onedal_release_libs,
         is_daal = True,
         **kwargs,
     )
