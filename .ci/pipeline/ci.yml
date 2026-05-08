@@ -642,8 +642,8 @@ jobs:
       set "BAZEL_FLAGS=--verbose_failures"
       set "TEST_FLAGS=--test_env=PATH --test_env=MKL_THREADING_LAYER"
       set "MKL_THREADING_LAYER=TBB"
-      bash dev/bazel/run_examples_split.sh all host //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host
-    displayName: 'example smoke build/run'
+      bash dev/bazel/run_examples_split.sh all host //examples/daal/cpp:all //examples/oneapi/cpp:all
+    displayName: 'examples build/run'
 
   - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
