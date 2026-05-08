@@ -80,7 +80,7 @@ collect_targets() {
         query_expr="${query_expr} + ${query_parts[$i]}"
     done
 
-    "${BAZEL_BIN:-bazel}" query "${query_expr}" \
+    bazel_cmd query "${query_expr}" \
         | kind_filter \
         | sort -u
 }
@@ -102,6 +102,11 @@ detect_jobs() {
 BAZEL_JOBS="$(detect_jobs)"
 BAZEL_BIN="${BAZEL:-bazel}"
 
+bazel_cmd() {
+    # shellcheck disable=SC2086
+    "${BAZEL_BIN}" ${BAZEL_STARTUP_FLAGS:-} "$@"
+}
+
 mapfile -t TARGETS < <(collect_targets)
 
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
@@ -121,7 +126,7 @@ fi
 build_examples() {
     echo "==> BUILD phase: compiling/linking all selected examples" >&2
     # shellcheck disable=SC2086
-    "${BAZEL_BIN}" build --jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${BUILD_FLAGS:-} "${TARGETS[@]}"
+    bazel_cmd build --jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${BUILD_FLAGS:-} "${TARGETS[@]}"
 }
 
 TEST_ENV_PATH_FLAG=()
@@ -130,7 +135,7 @@ configure_windows_runtime_path() {
     case "$(uname -s 2>/dev/null || echo unknown)" in
         MINGW*|MSYS*|CYGWIN*)
             local output_base output_base_win path_win
-            output_base="$("${BAZEL_BIN}" info output_base 2>/dev/null || true)"
+            output_base="$(bazel_cmd info output_base 2>/dev/null || true)"
             if [[ -n "${output_base}" ]]; then
                 export PATH="${output_base}/external/+mkl_repo+mkl/bin:${output_base}/external/+tbb_repo+tbb/bin:${output_base}/external/+mkl_repo+mkl/archive/bin:${output_base}/external/+tbb_repo+tbb/archive/bin:${PATH}"
                 output_base_win="$(cygpath -w "${output_base}" 2>/dev/null || echo "${output_base}")"
@@ -139,7 +144,7 @@ configure_windows_runtime_path() {
                 TEST_ENV_PATH_FLAG=(
                     "--test_env=PATH=${output_base_win}\\external\\+mkl_repo+mkl\\bin;${output_base_win}\\external\\+tbb_repo+tbb\\bin;${output_base_win}\\external\\+mkl_repo+mkl\\archive\\bin;${output_base_win}\\external\\+tbb_repo+tbb\\archive\\bin;${path_win}"
                     "--test_env=MKL_THREADING_LAYER=${MKL_THREADING_LAYER}"
-                    "--test_env=DALROOT=$(pwd)"
+                    "--test_env=DALROOT=${DALROOT:-$(pwd)}"
                 )
             fi
             ;;
@@ -153,7 +158,7 @@ run_examples() {
     # After the build phase, this should mostly schedule test actions, while still staying correct
     # if a target changed between phases.
     # shellcheck disable=SC2086
-    "${BAZEL_BIN}" test --build_tests_only --test_output=errors "${TEST_ENV_PATH_FLAG[@]}" --jobs="${BAZEL_JOBS}" --local_test_jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${TEST_FLAGS:-} "${TARGETS[@]}"
+    bazel_cmd test --build_tests_only --test_output=errors "${TEST_ENV_PATH_FLAG[@]}" --jobs="${BAZEL_JOBS}" --local_test_jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${TEST_FLAGS:-} "${TARGETS[@]}"
 }
 
 case "${MODE}" in

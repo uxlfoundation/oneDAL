@@ -637,8 +637,13 @@ jobs:
   - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures
-    displayName: 'example smoke build'
+      set "BAZEL=./bazelisk.exe"
+      set "BAZEL_STARTUP_FLAGS=--output_user_root=$(BAZEL_OUTPUT_USER_ROOT)"
+      set "BAZEL_FLAGS=--verbose_failures"
+      set "TEST_FLAGS=--test_env=PATH --test_env=MKL_THREADING_LAYER"
+      set "MKL_THREADING_LAYER=TBB"
+      bash dev/bazel/run_examples_split.sh all host //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host
+    displayName: 'example smoke build/run'
 
   - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
