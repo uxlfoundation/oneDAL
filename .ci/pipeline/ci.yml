@@ -635,6 +635,11 @@ jobs:
     continueOnError: true
 
   - script: |
+      echo Cleaning Bazel cache before running examples or tests
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
       set "BAZEL=./bazelisk.exe"
@@ -642,8 +647,29 @@ jobs:
       set "BAZEL_FLAGS=--verbose_failures"
       set "TEST_FLAGS=--test_link_mode=release_dynamic --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER"
       set "MKL_THREADING_LAYER=TBB"
-      bash dev/bazel/run_examples_split.sh all host //examples/daal/cpp:all //examples/oneapi/cpp:all
-    displayName: 'examples build/run'
+      bash dev/bazel/run_examples_split.sh all host //examples/daal/cpp:all
+    displayName: 'daal-cpp-examples-thread-release-dynamic'
+
+  - script: |
+      echo Cleaning Bazel cache before running examples or tests
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
+      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      set BAZEL_SH=$(BAZEL_SH)
+      set "BAZEL=./bazelisk.exe"
+      set "BAZEL_STARTUP_FLAGS=--output_user_root=$(BAZEL_OUTPUT_USER_ROOT)"
+      set "BAZEL_FLAGS=--verbose_failures"
+      set "TEST_FLAGS=--test_link_mode=release_dynamic --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER"
+      set "MKL_THREADING_LAYER=TBB"
+      bash dev/bazel/run_examples_split.sh all host //examples/oneapi/cpp:all
+    displayName: 'cpp-examples-thread-release-dynamic'
+
+  - script: |
+      echo Cleaning Bazel cache before running examples or tests
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
@@ -653,8 +679,24 @@ jobs:
       set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
       set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set MKL_THREADING_LAYER=TBB
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER
-    displayName: 'test smoke'
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/daal:tests --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER
+    displayName: 'daal-tests-release-dynamic'
+
+  - script: |
+      echo Cleaning Bazel cache before running examples or tests
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
+      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      set BAZEL_SH=$(BAZEL_SH)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set MKL_THREADING_LAYER=TBB
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/oneapi/dal:tests --config=host --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER
+    displayName: 'cpp-tests-release-dynamic'
 
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL
