@@ -137,6 +137,10 @@ configure_windows_runtime_path() {
             local output_base output_base_win path_win
             output_base="$(bazel_cmd info output_base 2>/dev/null || true)"
             if [[ -n "${output_base}" ]]; then
+                local dalroot_path="${DALROOT:-}"
+                if [[ -n "${dalroot_path}" ]]; then
+                    export PATH="${dalroot_path}/redist/intel64:${dalroot_path}/lib/intel64:${PATH}"
+                fi
                 export PATH="${output_base}/external/+mkl_repo+mkl/bin:${output_base}/external/+tbb_repo+tbb/bin:${output_base}/external/+mkl_repo+mkl/archive/bin:${output_base}/external/+tbb_repo+tbb/archive/bin:${PATH}"
                 output_base_win="$(cygpath -w "${output_base}" 2>/dev/null || echo "${output_base}")"
                 path_win="$(cygpath -wp "${PATH}" 2>/dev/null || echo "${PATH}")"

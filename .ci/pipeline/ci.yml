@@ -640,7 +640,7 @@ jobs:
       set "BAZEL=./bazelisk.exe"
       set "BAZEL_STARTUP_FLAGS=--output_user_root=$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_FLAGS=--verbose_failures"
-      set "TEST_FLAGS=--test_env=PATH --test_env=MKL_THREADING_LAYER"
+      set "TEST_FLAGS=--test_link_mode=release_dynamic --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER"
       set "MKL_THREADING_LAYER=TBB"
       bash dev/bazel/run_examples_split.sh all host //examples/daal/cpp:all //examples/oneapi/cpp:all
     displayName: 'examples build/run'
@@ -651,9 +651,9 @@ jobs:
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
       set /p OUTPUT_BASE=<output_base.txt
       set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
-      set PATH=%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set MKL_THREADING_LAYER=TBB
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors --test_env=MKL_THREADING_LAYER
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER
     displayName: 'test smoke'
 
 - job: LinuxSklearnex
