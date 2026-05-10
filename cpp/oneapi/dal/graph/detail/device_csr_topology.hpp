@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -187,20 +187,20 @@ device_csr_topology<IndexType> topology_to_device(sycl::queue& queue,
     // Transfer column indices (IndexType -> IndexType) to device
     dal::array<IndexType> device_cols;
     if (cols_count > 0) {
-        device_cols =
-            dal::array<IndexType>::empty(queue, cols_count, sycl::usm::alloc::device);
-        queue.memcpy(device_cols.get_mutable_data(),
-                     host_topo._cols.get_data(),
-                     cols_count * sizeof(IndexType))
+        device_cols = dal::array<IndexType>::empty(queue, cols_count, sycl::usm::alloc::device);
+        queue
+            .memcpy(device_cols.get_mutable_data(),
+                    host_topo._cols.get_data(),
+                    cols_count * sizeof(IndexType))
             .wait_and_throw();
     }
 
     // Transfer row offsets (int64 -> int64) to device
-    auto device_rows =
-        dal::array<std::int64_t>::empty(queue, rows_count, sycl::usm::alloc::device);
-    queue.memcpy(device_rows.get_mutable_data(),
-                 host_topo._rows.get_data(),
-                 rows_count * sizeof(std::int64_t))
+    auto device_rows = dal::array<std::int64_t>::empty(queue, rows_count, sycl::usm::alloc::device);
+    queue
+        .memcpy(device_rows.get_mutable_data(),
+                host_topo._rows.get_data(),
+                rows_count * sizeof(std::int64_t))
         .wait_and_throw();
 
     return device_csr_topology<IndexType>(std::move(device_rows),
@@ -231,9 +231,7 @@ topology<IndexType> topology_to_host(const device_csr_topology<IndexType>& devic
 
     // Retrieve the queue from the device arrays
     auto q = device_topo.get_cols_array().get_queue().value();
-    q.memcpy(host_cols.get_mutable_data(),
-             device_topo.get_cols(),
-             cols_count * sizeof(IndexType))
+    q.memcpy(host_cols.get_mutable_data(), device_topo.get_cols(), cols_count * sizeof(IndexType))
         .wait_and_throw();
     q.memcpy(host_rows.get_mutable_data(),
              device_topo.get_rows(),

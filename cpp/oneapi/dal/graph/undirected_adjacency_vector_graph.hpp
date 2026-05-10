@@ -63,7 +63,7 @@ public:
 
 #ifdef ONEDAL_DATA_PARALLEL
     /// Transfers graph data to device memory associated with the given queue
-    void to_device(sycl::queue& queue) {
+    void to_device(sycl::queue &queue) {
         dal::detail::pimpl_accessor{}.get_pimpl(*this)->to_device(queue);
     }
 #endif

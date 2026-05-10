@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -41,77 +41,79 @@ std::int64_t* count_triangles_gpu(sycl::queue& queue,
                                   const Index* cols,
                                   std::int64_t vertex_count,
                                   std::int64_t edge_count) {
-    auto* local_triangles =
-        sycl::malloc_shared<std::int64_t>(vertex_count, queue);
+    auto* local_triangles = sycl::malloc_shared<std::int64_t>(vertex_count, queue);
     queue.memset(local_triangles, 0, vertex_count * sizeof(std::int64_t)).wait_and_throw();
 
     // Parallel kernel: each work-item processes one vertex
-    queue.submit([&](sycl::handler& cgh) {
-        const std::int64_t* d_rows = rows;
-        const Index* d_cols = cols;
-        std::int64_t* d_triangles = local_triangles;
-        const std::int64_t vc = vertex_count;
+    queue
+        .submit([&](sycl::handler& cgh) {
+            const std::int64_t* d_rows = rows;
+            const Index* d_cols = cols;
+            std::int64_t* d_triangles = local_triangles;
+            const std::int64_t vc = vertex_count;
 
-        cgh.parallel_for(sycl::range<1>(vc), [=](sycl::id<1> idx) {
-            const std::int64_t u = idx[0];
-            const std::int64_t u_start = d_rows[u];
-            const std::int64_t u_end = d_rows[u + 1];
+            cgh.parallel_for(sycl::range<1>(vc), [=](sycl::id<1> idx) {
+                const std::int64_t u = idx[0];
+                const std::int64_t u_start = d_rows[u];
+                const std::int64_t u_end = d_rows[u + 1];
 
-            std::int64_t count = 0;
+                std::int64_t count = 0;
 
-            // Iterate over each neighbor v of u where v > u
-            for (std::int64_t i = u_start; i < u_end; ++i) {
-                const std::int64_t v = d_cols[i];
-                if (v <= u) continue;
+                // Iterate over each neighbor v of u where v > u
+                for (std::int64_t i = u_start; i < u_end; ++i) {
+                    const std::int64_t v = d_cols[i];
+                    if (v <= u)
+                        continue;
 
-                const std::int64_t v_start = d_rows[v];
-                const std::int64_t v_end = d_rows[v + 1];
+                    const std::int64_t v_start = d_rows[v];
+                    const std::int64_t v_end = d_rows[v + 1];
 
-                // Merge-based intersection of neighbors of u and v
-                std::int64_t ui = u_start;
-                std::int64_t vi = v_start;
-                while (ui < u_end && vi < v_end) {
-                    const std::int64_t nu = d_cols[ui];
-                    const std::int64_t nv = d_cols[vi];
-                    if (nu == nv) {
-                        // Only count if common neighbor w > v to avoid
-                        // triple-counting the same triangle
-                        if (nu > v) {
-                            // Found a triangle (u, v, nu) with u < v < nu
-                            count++;
-                            // Atomically increment counts for v and the common neighbor
-                            sycl::atomic_ref<std::int64_t,
-                                             sycl::memory_order::relaxed,
-                                             sycl::memory_scope::device,
-                                             sycl::access::address_space::global_space>(
-                                d_triangles[v])
-                                .fetch_add(1);
-                            sycl::atomic_ref<std::int64_t,
-                                             sycl::memory_order::relaxed,
-                                             sycl::memory_scope::device,
-                                             sycl::access::address_space::global_space>(
-                                d_triangles[nu])
-                                .fetch_add(1);
+                    // Merge-based intersection of neighbors of u and v
+                    std::int64_t ui = u_start;
+                    std::int64_t vi = v_start;
+                    while (ui < u_end && vi < v_end) {
+                        const std::int64_t nu = d_cols[ui];
+                        const std::int64_t nv = d_cols[vi];
+                        if (nu == nv) {
+                            // Only count if common neighbor w > v to avoid
+                            // triple-counting the same triangle
+                            if (nu > v) {
+                                // Found a triangle (u, v, nu) with u < v < nu
+                                count++;
+                                // Atomically increment counts for v and the common neighbor
+                                sycl::atomic_ref<std::int64_t,
+                                                 sycl::memory_order::relaxed,
+                                                 sycl::memory_scope::device,
+                                                 sycl::access::address_space::global_space>(
+                                    d_triangles[v])
+                                    .fetch_add(1);
+                                sycl::atomic_ref<std::int64_t,
+                                                 sycl::memory_order::relaxed,
+                                                 sycl::memory_scope::device,
+                                                 sycl::access::address_space::global_space>(
+                                    d_triangles[nu])
+                                    .fetch_add(1);
+                            }
+                            ++ui;
+                            ++vi;
                         }
-                        ++ui;
-                        ++vi;
-                    }
-                    else if (nu < nv) {
-                        ++ui;
-                    }
-                    else {
-                        ++vi;
+                        else if (nu < nv) {
+                            ++ui;
+                        }
+                        else {
+                            ++vi;
+                        }
                     }
                 }
-            }
-            // Add the count for vertex u
-            sycl::atomic_ref<std::int64_t,
-                             sycl::memory_order::relaxed,
-                             sycl::memory_scope::device,
-                             sycl::access::address_space::global_space>(d_triangles[u])
-                .fetch_add(count);
-        });
-    }).wait_and_throw();
+                // Add the count for vertex u
+                sycl::atomic_ref<std::int64_t,
+                                 sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device,
+                                 sycl::access::address_space::global_space>(d_triangles[u])
+                    .fetch_add(count);
+            });
+        })
+        .wait_and_throw();
 
     return local_triangles;
 }
@@ -128,19 +130,21 @@ std::int64_t sum_triangles_gpu(sycl::queue& queue,
     auto* sum_buf = sycl::malloc_shared<std::int64_t>(1, queue);
     sum_buf[0] = 0;
 
-    queue.submit([&](sycl::handler& cgh) {
-        const std::int64_t* d_triangles = local_triangles;
-        std::int64_t* d_sum = sum_buf;
-        const std::int64_t vc = vertex_count;
+    queue
+        .submit([&](sycl::handler& cgh) {
+            const std::int64_t* d_triangles = local_triangles;
+            std::int64_t* d_sum = sum_buf;
+            const std::int64_t vc = vertex_count;
 
-        cgh.parallel_for(sycl::range<1>(vc), [=](sycl::id<1> idx) {
-            sycl::atomic_ref<std::int64_t,
-                             sycl::memory_order::relaxed,
-                             sycl::memory_scope::device,
-                             sycl::access::address_space::global_space>(d_sum[0])
-                .fetch_add(d_triangles[idx[0]]);
-        });
-    }).wait_and_throw();
+            cgh.parallel_for(sycl::range<1>(vc), [=](sycl::id<1> idx) {
+                sycl::atomic_ref<std::int64_t,
+                                 sycl::memory_order::relaxed,
+                                 sycl::memory_scope::device,
+                                 sycl::access::address_space::global_space>(d_sum[0])
+                    .fetch_add(d_triangles[idx[0]]);
+            });
+        })
+        .wait_and_throw();
 
     // Each triangle is counted 3 times (once per vertex)
     const std::int64_t result = sum_buf[0] / 3;
@@ -163,21 +167,23 @@ vertex_ranking_result<Task> run_vertex_ranking_gpu(const dal::backend::context_g
         return vertex_ranking_result<Task>();
     }
 
-    auto* local_triangles =
-        detail_gpu::count_triangles_gpu(queue, topology.rows, topology.cols,
-                                        vertex_count, edge_count);
+    auto* local_triangles = detail_gpu::count_triangles_gpu(queue,
+                                                            topology.rows,
+                                                            topology.cols,
+                                                            vertex_count,
+                                                            edge_count);
 
     vertex_ranking_result<Task> result;
 
     if constexpr (std::is_same_v<Task, task::local> ||
                   std::is_same_v<Task, task::local_and_global>) {
-        auto arr = array<std::int64_t>(queue, local_triangles, vertex_count,
+        auto arr = array<std::int64_t>(queue,
+                                       local_triangles,
+                                       vertex_count,
                                        [queue](std::int64_t* ptr) mutable {
                                            sycl::free(ptr, queue);
                                        });
-        result.set_ranks(dal::detail::homogen_table_builder{}
-                             .reset(arr, vertex_count, 1)
-                             .build());
+        result.set_ranks(dal::detail::homogen_table_builder{}.reset(arr, vertex_count, 1).build());
     }
 
     if constexpr (std::is_same_v<Task, task::global> ||

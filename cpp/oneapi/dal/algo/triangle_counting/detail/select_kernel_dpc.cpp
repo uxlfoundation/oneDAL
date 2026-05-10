@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -26,9 +26,9 @@ namespace oneapi::dal::preview::triangle_counting::detail {
 template <typename Descriptor, typename Topology>
 vertex_ranking_result<typename Descriptor::task_t>
 backend_default<dal::detail::data_parallel_policy, Descriptor, Topology>::operator()(
-    const dal::detail::data_parallel_policy& ctx,
-    const Descriptor& descriptor,
-    const Topology& t) {
+    const dal::detail::data_parallel_policy &ctx,
+    const Descriptor &descriptor,
+    const Topology &t) {
     using float_t = typename Descriptor::float_t;
     using task_t = typename Descriptor::task_t;
     using method_t = typename Descriptor::method_t;
@@ -47,10 +47,9 @@ backend_default<dal::detail::data_parallel_policy, Descriptor, Topology>::operat
         [&]() {
             // GPU path: delegate to GPU kernel
             dal::backend::context_gpu gpu_ctx{ ctx };
-            return backend::vertex_ranking_kernel_gpu<float_t, task_t, Topology>()(
-                gpu_ctx,
-                descriptor,
-                t);
+            return backend::vertex_ranking_kernel_gpu<float_t, task_t, Topology>()(gpu_ctx,
+                                                                                   descriptor,
+                                                                                   t);
         });
 }
 
@@ -59,11 +58,12 @@ backend_default<dal::detail::data_parallel_policy, Descriptor, Topology>::operat
 
 template <typename Descriptor, typename Index>
 vertex_ranking_result<typename Descriptor::task_t>
-vertex_ranking_ops_dispatcher<dal::detail::data_parallel_policy, Descriptor,
-                              dal::preview::detail::device_csr_topology<Index>>::operator()(
-    const dal::detail::data_parallel_policy &policy,
-    const Descriptor &descriptor,
-    input_t &input) const {
+vertex_ranking_ops_dispatcher<dal::detail::data_parallel_policy,
+                              Descriptor,
+                              dal::preview::detail::device_csr_topology<Index>>::
+operator()(const dal::detail::data_parallel_policy &policy,
+           const Descriptor &descriptor,
+           input_t &input) const {
     using float_t = typename Descriptor::float_t;
     using task_t = typename Descriptor::task_t;
 
@@ -77,33 +77,22 @@ vertex_ranking_ops_dispatcher<dal::detail::data_parallel_policy, Descriptor,
 }
 
 // Explicit instantiations for supported descriptor/topology combinations
-using default_descriptor_local = descriptor<
-    float,
-    method::ordered_count,
-    task::local,
-    std::allocator<char>>;
+using default_descriptor_local =
+    descriptor<float, method::ordered_count, task::local, std::allocator<char>>;
 
-using default_descriptor_global = descriptor<
-    float,
-    method::ordered_count,
-    task::global,
-    std::allocator<char>>;
+using default_descriptor_global =
+    descriptor<float, method::ordered_count, task::global, std::allocator<char>>;
 
-using default_descriptor_local_and_global = descriptor<
-    float,
-    method::ordered_count,
-    task::local_and_global,
-    std::allocator<char>>;
+using default_descriptor_local_and_global =
+    descriptor<float, method::ordered_count, task::local_and_global, std::allocator<char>>;
 
 using default_topology = dal::preview::detail::topology<std::int32_t>;
 using device_topology = dal::preview::detail::device_csr_topology<std::int32_t>;
 
-template struct ONEDAL_EXPORT backend_default<dal::detail::data_parallel_policy,
-                                              default_descriptor_local,
-                                              default_topology>;
-template struct ONEDAL_EXPORT backend_default<dal::detail::data_parallel_policy,
-                                              default_descriptor_global,
-                                              default_topology>;
+template struct ONEDAL_EXPORT
+    backend_default<dal::detail::data_parallel_policy, default_descriptor_local, default_topology>;
+template struct ONEDAL_EXPORT
+    backend_default<dal::detail::data_parallel_policy, default_descriptor_global, default_topology>;
 template struct ONEDAL_EXPORT backend_default<dal::detail::data_parallel_policy,
                                               default_descriptor_local_and_global,
                                               default_topology>;

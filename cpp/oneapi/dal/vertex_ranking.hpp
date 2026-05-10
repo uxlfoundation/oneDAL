@@ -36,7 +36,7 @@ auto vertex_ranking(Args &&...args) {
 /// @param q     SYCL queue specifying the target device
 /// @param args  Algorithm descriptor and input graph
 template <typename... Args>
-auto vertex_ranking(sycl::queue& q, Args &&...args) {
+auto vertex_ranking(sycl::queue &q, Args &&...args) {
     const auto policy = dal::detail::data_parallel_policy{ q };
     return detail::vertex_ranking_dispatch(policy, std::forward<Args>(args)...);
 }

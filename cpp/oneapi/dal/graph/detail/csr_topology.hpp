@@ -156,9 +156,11 @@ public:
         auto device_rows = edge_set::empty(queue, rows_count, sycl::usm::alloc::device);
         auto device_cols = vertex_set::empty(queue, cols_count, sycl::usm::alloc::device);
 
-        auto e1 = queue.memcpy(device_rows.get_mutable_data(), _rows.get_data(),
+        auto e1 = queue.memcpy(device_rows.get_mutable_data(),
+                               _rows.get_data(),
                                rows_count * sizeof(edge_type));
-        auto e2 = queue.memcpy(device_cols.get_mutable_data(), _cols.get_data(),
+        auto e2 = queue.memcpy(device_cols.get_mutable_data(),
+                               _cols.get_data(),
                                cols_count * sizeof(vertex_type));
         e1.wait_and_throw();
         e2.wait_and_throw();

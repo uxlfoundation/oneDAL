@@ -63,15 +63,15 @@ struct vertex_ranking_ops {
 /// Specialization for device_csr_topology: skips host-to-device transfer
 /// since the graph data is already on the device.
 template <typename Descriptor, typename Index>
-struct vertex_ranking_ops_dispatcher<dal::detail::data_parallel_policy, Descriptor,
+struct vertex_ranking_ops_dispatcher<dal::detail::data_parallel_policy,
+                                     Descriptor,
                                      dal::preview::detail::device_csr_topology<Index>> {
     using task_t = typename Descriptor::task_t;
     using input_t = vertex_ranking_input<dal::preview::detail::device_csr_topology<Index>, task_t>;
 
-    vertex_ranking_result<task_t> operator()(
-        const dal::detail::data_parallel_policy &policy,
-        const Descriptor &descriptor,
-        input_t &input) const;
+    vertex_ranking_result<task_t> operator()(const dal::detail::data_parallel_policy &policy,
+                                             const Descriptor &descriptor,
+                                             input_t &input) const;
 };
 #endif
 

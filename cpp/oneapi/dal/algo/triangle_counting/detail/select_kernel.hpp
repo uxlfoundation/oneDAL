@@ -76,10 +76,9 @@ struct backend_default<dal::detail::data_parallel_policy, Descriptor, Topology>
     using method_t = typename Descriptor::method_t;
     using allocator_t = typename Descriptor::allocator_t;
 
-    virtual vertex_ranking_result<task_t> operator()(
-        const dal::detail::data_parallel_policy& ctx,
-        const Descriptor& descriptor,
-        const Topology& t);
+    virtual vertex_ranking_result<task_t> operator()(const dal::detail::data_parallel_policy& ctx,
+                                                     const Descriptor& descriptor,
+                                                     const Topology& t);
 };
 #endif
 

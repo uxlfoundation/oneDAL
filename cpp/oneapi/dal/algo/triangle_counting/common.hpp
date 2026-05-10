@@ -146,7 +146,7 @@ struct is_device_csr_topology : std::false_type {};
 
 template <typename Index, typename Weight>
 struct is_device_csr_topology<dal::preview::detail::device_csr_topology<Index, Weight>>
-    : std::true_type {};
+        : std::true_type {};
 
 template <typename Graph>
 constexpr bool is_valid_graph =

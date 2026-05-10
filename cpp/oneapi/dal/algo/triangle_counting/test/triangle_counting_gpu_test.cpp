@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -226,8 +226,7 @@ public:
         const auto result = dal::preview::vertex_ranking(q, tc_desc, g);
 
         const auto local_triangles_table = result.get_ranks();
-        const auto& local_triangles =
-            static_cast<const dal::homogen_table&>(local_triangles_table);
+        const auto& local_triangles = static_cast<const dal::homogen_table&>(local_triangles_table);
         const auto local_triangles_data = local_triangles.get_data<std::int64_t>();
 
         REQUIRE(local_triangles_table.get_row_count() == vertex_count);
@@ -260,8 +259,7 @@ public:
         const auto result = dal::preview::vertex_ranking(q, tc_desc, g);
 
         const auto local_triangles_table = result.get_ranks();
-        const auto& local_triangles =
-            static_cast<const dal::homogen_table&>(local_triangles_table);
+        const auto& local_triangles = static_cast<const dal::homogen_table&>(local_triangles_table);
         const auto local_triangles_data = local_triangles.get_data<std::int64_t>();
 
         REQUIRE(result.get_global_rank() == global_triangle_count);
@@ -335,8 +333,7 @@ TEST_M(triangle_counting_gpu_test, "GPU: Null graph - local task") {
         std::allocator<char>>(alloc);
 
     const auto result = dal::preview::vertex_ranking(q, tc_desc, null_graph);
-    const auto& local_triangles =
-        static_cast<const dal::homogen_table&>(result.get_ranks());
+    const auto& local_triangles = static_cast<const dal::homogen_table&>(result.get_ranks());
     REQUIRE(local_triangles.has_data() == false);
 }
 
@@ -367,8 +364,7 @@ TEST_M(triangle_counting_gpu_test, "GPU: Null graph - local_and_global task") {
         std::allocator<char>>(alloc);
 
     const auto result = dal::preview::vertex_ranking(q, tc_desc, null_graph);
-    const auto& local_triangles =
-        static_cast<const dal::homogen_table&>(result.get_ranks());
+    const auto& local_triangles = static_cast<const dal::homogen_table&>(result.get_ranks());
     REQUIRE(local_triangles.has_data() == false);
     REQUIRE(result.get_global_rank() == 0);
 }
@@ -381,8 +377,7 @@ TEST_M(triangle_counting_gpu_test, "GPU: topology_to_device round-trip") {
     const auto& topo = oneapi::dal::detail::get_impl(g).get_topology();
 
     // Transfer topology to device
-    auto device_topo =
-        dal::preview::detail::topology_to_device<std::int32_t>(q, topo);
+    auto device_topo = dal::preview::detail::topology_to_device<std::int32_t>(q, topo);
 
     REQUIRE(device_topo.get_vertex_count() == 5);
     REQUIRE(device_topo.get_edge_count() == 10);
@@ -411,8 +406,7 @@ TEST_M(triangle_counting_gpu_test, "GPU: Empty topology round-trip") {
 
     dal::preview::detail::topology<std::int32_t> empty_topo;
 
-    auto device_topo =
-        dal::preview::detail::topology_to_device<std::int32_t>(q, empty_topo);
+    auto device_topo = dal::preview::detail::topology_to_device<std::int32_t>(q, empty_topo);
 
     REQUIRE(device_topo.get_vertex_count() == 0);
     REQUIRE(device_topo.get_edge_count() == 0);

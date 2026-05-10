@@ -131,7 +131,8 @@ private:
     template <typename T>
     static void transfer_array_to_device(sycl::queue& queue, container<T>& arr) {
         const auto count = arr.get_count();
-        if (count == 0) return;
+        if (count == 0)
+            return;
         const auto* src = arr.get_data();
         auto alloc_type = sycl::get_pointer_type(src, queue.get_context());
         if (alloc_type == sycl::usm::alloc::device || alloc_type == sycl::usm::alloc::shared) {

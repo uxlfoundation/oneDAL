@@ -1,3 +1,19 @@
+/*******************************************************************************
+* Copyright 2026 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
+
 #pragma once
 
 #include <cstdint>
@@ -19,7 +35,7 @@ struct csr_topology_gpu_view {
 /// Creates a GPU view from a device_csr_topology (zero-copy, just extracts pointers).
 template <typename Index = std::int32_t>
 csr_topology_gpu_view<Index> make_gpu_view(
-        const dal::preview::detail::device_csr_topology<Index>& device_topo) {
+    const dal::preview::detail::device_csr_topology<Index>& device_topo) {
     csr_topology_gpu_view<Index> view;
     view.rows = device_topo.get_rows();
     view.cols = device_topo.get_cols();
