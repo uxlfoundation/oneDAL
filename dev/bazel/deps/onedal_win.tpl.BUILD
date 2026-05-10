@@ -7,7 +7,7 @@ cc_library(
     hdrs = glob([
         "include/**/*.h",
         "include/oneapi/**/*.hpp",
-    ]),
+    ], allow_empty = True),
     includes = ["include"],
 )
 
