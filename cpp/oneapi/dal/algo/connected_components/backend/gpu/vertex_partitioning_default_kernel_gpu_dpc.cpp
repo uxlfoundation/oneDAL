@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -143,11 +143,10 @@ std::int32_t* compute_components_gpu(sycl::queue& queue,
         return labels;
     }
 
-    csr_graph_device_wrapper<Index, std::int64_t> graph(
-        queue,
-        static_cast<std::uint64_t>(vertex_count),
-        rows,
-        cols);
+    csr_graph_device_wrapper<Index, std::int64_t> graph(queue,
+                                                        static_cast<std::uint64_t>(vertex_count),
+                                                        rows,
+                                                        cols);
 
     fp::frontier<std::uint32_t> in_frontier(queue, vertex_count, sycl::usm::alloc::device);
     fp::frontier<std::uint32_t> out_frontier(queue, vertex_count, sycl::usm::alloc::device);
@@ -179,8 +178,7 @@ std::int32_t* compute_components_gpu(sycl::queue& queue,
                         sycl::atomic_ref<std::int32_t,
                                          sycl::memory_order::relaxed,
                                          sycl::memory_scope::device,
-                                         sycl::access::address_space::global_space>(
-                            d_labels[dst])
+                                         sycl::access::address_space::global_space>(d_labels[dst])
                             .fetch_min(label_src);
                     return label_src < old_val;
                 }
@@ -245,9 +243,8 @@ vertex_partitioning_result<Task> run_vertex_partitioning_gpu(
         });
 
     vertex_partitioning_result<Task> result;
-    result.set_labels(dal::detail::homogen_table_builder{}
-                          .reset(labels_arr, vertex_count, 1)
-                          .build());
+    result.set_labels(
+        dal::detail::homogen_table_builder{}.reset(labels_arr, vertex_count, 1).build());
     result.set_component_count(component_count);
 
     return result;

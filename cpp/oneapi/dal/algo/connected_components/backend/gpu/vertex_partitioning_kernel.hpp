@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ struct csr_topology_gpu_view {
 
 template <typename Index = std::int32_t>
 csr_topology_gpu_view<Index> make_gpu_view(
-        const dal::preview::detail::device_csr_topology<Index>& device_topo) {
+    const dal::preview::detail::device_csr_topology<Index>& device_topo) {
     csr_topology_gpu_view<Index> view;
     view.rows = device_topo.get_rows();
     view.cols = device_topo.get_cols();

@@ -79,7 +79,7 @@ struct backend_default<dal::detail::data_parallel_policy, Descriptor, Topology>
 
 template <typename Policy, typename Descriptor, typename Topology>
 dal::detail::shared<backend_base<Policy, Descriptor, Topology>> get_backend(const Descriptor& desc,
-                                                                         const Topology& t) {
+                                                                            const Topology& t) {
     return std::make_shared<backend_default<Policy, Descriptor, Topology>>();
 }
 

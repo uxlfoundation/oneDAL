@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright 2026 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -42,23 +42,18 @@ backend_default<dal::detail::data_parallel_policy, Descriptor, Topology>::operat
         },
         [&]() {
             dal::backend::context_gpu gpu_ctx{ ctx };
-            return backend::vertex_partitioning_kernel_gpu<float_t, task_t, Topology>()(
-                gpu_ctx,
-                descriptor,
-                t);
+            return backend::vertex_partitioning_kernel_gpu<float_t, task_t, Topology>()(gpu_ctx,
+                                                                                        descriptor,
+                                                                                        t);
         });
 }
 
-using default_descriptor = descriptor<
-    float,
-    method::afforest,
-    task::vertex_partitioning,
-    std::allocator<char>>;
+using default_descriptor =
+    descriptor<float, method::afforest, task::vertex_partitioning, std::allocator<char>>;
 
 using default_topology = dal::preview::detail::topology<std::int32_t>;
 
-template struct ONEDAL_EXPORT backend_default<dal::detail::data_parallel_policy,
-                                              default_descriptor,
-                                              default_topology>;
+template struct ONEDAL_EXPORT
+    backend_default<dal::detail::data_parallel_policy, default_descriptor, default_topology>;
 
 } // namespace oneapi::dal::preview::connected_components::detail

@@ -31,7 +31,7 @@ auto vertex_partitioning(Args &&...args) {
 
 #ifdef ONEDAL_DATA_PARALLEL
 template <typename... Args>
-auto vertex_partitioning(sycl::queue& q, Args &&...args) {
+auto vertex_partitioning(sycl::queue &q, Args &&...args) {
     const auto policy = dal::detail::data_parallel_policy{ q };
     return detail::vertex_partitioning_dispatch(policy, std::forward<Args>(args)...);
 }
