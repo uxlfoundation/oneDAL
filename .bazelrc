@@ -252,6 +252,7 @@ common:type \
     --copt=-fsanitize-recover=all \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=type \
+    --linkopt=-fuse-ld=lld \
     --config=dbg-symbols
 
 # On Windows, dev/bazel/toolchains/cc_toolchain_win.bzl selects the custom

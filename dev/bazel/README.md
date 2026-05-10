@@ -459,6 +459,16 @@ bazel build //:release --config=dbg-symbols
 > link times; for practical DPC++ debugging, the static variant can be easier to
 > work with.
 
+#### Sanitized DPC++ builds
+
+DPC++ libraries can be combined with sanitizers (ASan, TSAN, UBSan) when the
+DPC++ runtime supports them. Use `--release_dpc=True` alongside the sanitizer config:
+
+```sh
+bazel build //:release --config=asan --release_dpc=True --cpu=all
+bazel test //cpp/oneapi/dal:tests --config=ubsan --release_dpc=True
+```
+
 ### AddressSanitizer (ASan)
 
 Equivalent to Make `REQSAN=address`. Sanitizers do not automatically enable assertions or unoptimized debug builds. It is highly recommended to combine them with `--config=dbg` (for full debug + assertions) or `--enable_assert=True`:
@@ -552,8 +562,9 @@ bazel test //cpp/oneapi/dal:tests --config=dbg --cxxopt=-D_GLIBCXX_DEBUG
 ```
 
 This applies only when the build uses GNU libstdc++ headers (for example GCC,
-or ICX configured to use libstdc++). It is not portable to non-GNU standard
-library implementations.
+or ICX configured to use libstdc++). If ICX is configured to use libc++ (default
+on some systems), this flag will have no effect. It is not portable to non-GNU
+standard library implementations.
 
 ---
 
