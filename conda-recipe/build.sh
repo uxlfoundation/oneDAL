@@ -16,7 +16,7 @@
 #===============================================================================
 
 if [ -z "${MKLROOT:-}" ]; then
-    export MKLROOT="${BUILD_PREFIX}"
+    export MKLROOT="${CONDA_PREFIX}"
 fi
 
 export DPL_ROOT=$PREFIX
