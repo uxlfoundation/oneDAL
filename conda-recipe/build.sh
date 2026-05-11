@@ -15,12 +15,9 @@
 # limitations under the License.
 #===============================================================================
 
-# The `dpcpp_impl_linux-64` compiler package sets MKLROOT via its activation
-# scripts, but conda-forge's `clangxx_linux-64` / `gxx_linux-64` do not, and
-# `mkl-devel`'s own activation is not guaranteed to reach the build script
-# shell.  mkl-devel is declared under `build:` so it installs under
-# $BUILD_PREFIX — point MKLROOT there explicitly when the compiler did not.
-export MKLROOT="${CONDA_PREFIX}"
+if [ -z "${MKLROOT:-}" ]; then
+    export MKLROOT="${BUILD_PREFIX}"
+fi
 
 export DPL_ROOT=$PREFIX
 
