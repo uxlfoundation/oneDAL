@@ -56,7 +56,7 @@ function install_clang-format {
 }
 
 function install_dev-base {
-    sudo apt-get install -y gcc-multilib g++-multilib tree
+    sudo apt-get install -y gcc-multilib g++-multilib tree lld
 }
 
 function install_dev-base-conda {

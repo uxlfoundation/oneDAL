@@ -25,6 +25,7 @@ COMPILER ?= icx
 CPUs := sse2 avx2 avx512
 CPUs.files := nrh hsw skx
 OPTFLAG ?= O2
+SYCLSPLIT ?= per_kernel
 
 ONEAPI.dispatcher_tag.nrh := -D__CPU_TAG__=__CPU_TAG_SSE2__
 ONEAPI.dispatcher_tag.hsw := -D__CPU_TAG__=__CPU_TAG_AVX2__
