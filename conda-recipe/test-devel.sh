@@ -22,6 +22,9 @@ test -f $CONDA_PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 # Load oneDAL environment helpers required by pkg-config/CMake example builds.
 . "$CONDA_PREFIX/env/vars.sh"
 
+cp ".ci/env/MKLConfig.cmake" "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+echo "Replaced MKLConfig.cmake with patched version from .ci/env/"
+
 run_examples() {
     interface_name=$1
     linking_type=$2
