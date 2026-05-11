@@ -18,9 +18,9 @@
 #pragma once
 
 #include <cmath>
-#include <algorithm>
-#include <limits>
+#include <utility>
 
+#include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 
 namespace daal
@@ -207,7 +207,7 @@ struct KnnHeap
         size     = 0;
     }
 
-    FPType maxDist() const { return (size > 0) ? dists[0] : std::numeric_limits<FPType>::max(); }
+    FPType maxDist() const { return (size > 0) ? dists[0] : daal::services::internal::MaxVal<FPType>::get(); }
 
     void push(FPType dist, int idx)
     {

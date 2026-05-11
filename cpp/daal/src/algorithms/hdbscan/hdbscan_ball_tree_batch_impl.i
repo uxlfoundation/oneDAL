@@ -33,9 +33,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
-#include <limits>
-#include <numeric>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -45,6 +42,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_memory.h"
 #include "src/services/service_arrays.h"
+#include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
@@ -219,7 +217,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
     if (node.left < 0)
     {
-        algorithmFPType minCD = std::numeric_limits<algorithmFPType>::max();
+        algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];
@@ -418,7 +416,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
             const int comp                   = componentOf[i];
             const algorithmFPType * queryPt  = data + i * nCols;
             const algorithmFPType queryCoreD = coreDistances[i];
-            algorithmFPType bestMrd          = std::numeric_limits<algorithmFPType>::max();
+            algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             int bestIdx                      = -1;
 
             nearestMrdBoruvkaQueryBallTree(data, iNCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPt,
@@ -430,7 +428,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 
         for (size_t i = 0; i < nRows; i++)
         {
-            compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
+            compBestMrd[i]  = daal::services::internal::MaxVal<algorithmFPType>::get();
             compBestFrom[i] = -1;
             compBestTo[i]   = -1;
         }

@@ -32,9 +32,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
-#include <limits>
-#include <numeric>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -44,6 +41,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_memory.h"
 #include "src/services/service_arrays.h"
+#include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
@@ -95,8 +93,8 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
     int bestDim                = 0;
     for (int d = 0; d < nCols; d++)
     {
-        algorithmFPType lo = std::numeric_limits<algorithmFPType>::max();
-        algorithmFPType hi = std::numeric_limits<algorithmFPType>::lowest();
+        algorithmFPType lo = daal::services::internal::MaxVal<algorithmFPType>::get();
+        algorithmFPType hi = -daal::services::internal::MaxVal<algorithmFPType>::get();
         for (int i = begin; i < end; i++)
         {
             const algorithmFPType val = data[pointIndices[i] * nCols + d];
@@ -186,7 +184,7 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
     if (node.splitDim < 0)
     {
-        algorithmFPType minCD = std::numeric_limits<algorithmFPType>::max();
+        algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];
@@ -406,7 +404,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
             const int comp                   = componentOf[i];
             const algorithmFPType * queryPt  = data + i * nCols;
             const algorithmFPType queryCoreD = coreDistances[i];
-            algorithmFPType bestMrd          = std::numeric_limits<algorithmFPType>::max();
+            algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             int bestIdx                      = -1;
 
             nearestMrdBoruvkaQuery(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPt,
@@ -418,7 +416,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 
         for (size_t i = 0; i < nRows; i++)
         {
-            compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
+            compBestMrd[i]  = daal::services::internal::MaxVal<algorithmFPType>::get();
             compBestFrom[i] = -1;
             compBestTo[i]   = -1;
         }

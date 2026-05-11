@@ -18,12 +18,9 @@
 #ifndef __HDBSCAN_CLUSTER_UTILS_H__
 #define __HDBSCAN_CLUSTER_UTILS_H__
 
-#include <cstring>
-#include <limits>
-#include <numeric>
-
 #include "src/algorithms/service_sort.h"
 #include "src/services/service_arrays.h"
+#include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 
 namespace daal
@@ -36,6 +33,7 @@ namespace internal
 {
 
 using daal::internal::CpuType;
+using daal::services::internal::MaxVal;
 using daal::services::internal::TArray;
 
 struct CondensedEdge
@@ -188,6 +186,17 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
 
     size_t nCondensed = 0;
 
+    auto emitFallenLeaves = [&](int subtree, int parentCid, algorithmFPType lambda) {
+        size_t nFallen = 0;
+        collectLeaves(subtree, fallenBuf, nFallen);
+        for (size_t fi = 0; fi < nFallen; fi++)
+        {
+            condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
+            condensedLambda[nCondensed] = lambda;
+            nCondensed++;
+        }
+    };
+
     while (mainStackTop > 0)
     {
         const StackItem item = mainStack[--mainStackTop];
@@ -200,10 +209,9 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
         const int rc = rightChild[nid];
         if (lc < 0 || rc < 0) continue;
 
-        const int ls = nodeSize[lc];
-        const int rs = nodeSize[rc];
-        const algorithmFPType lambda =
-            (nodeWeight[nid] > algorithmFPType(0)) ? algorithmFPType(1) / nodeWeight[nid] : std::numeric_limits<algorithmFPType>::max();
+        const int ls                 = nodeSize[lc];
+        const int rs                 = nodeSize[rc];
+        const algorithmFPType lambda = (nodeWeight[nid] > algorithmFPType(0)) ? algorithmFPType(1) / nodeWeight[nid] : MaxVal<algorithmFPType>::get();
 
         const bool lBig = ls >= mcs;
         const bool rBig = rs >= mcs;
@@ -226,42 +234,19 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
         else if (lBig)
         {
             dendroToCluster[lc] = parentCid;
-            size_t nFallen      = 0;
-            collectLeaves(rc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
-                condensedLambda[nCondensed] = lambda;
-                nCondensed++;
-            }
+            emitFallenLeaves(rc, parentCid, lambda);
             mainStack[mainStackTop++] = { lc, parentCid };
         }
         else if (rBig)
         {
             dendroToCluster[rc] = parentCid;
-            size_t nFallen      = 0;
-            collectLeaves(lc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
-                condensedLambda[nCondensed] = lambda;
-                nCondensed++;
-            }
+            emitFallenLeaves(lc, parentCid, lambda);
             mainStack[mainStackTop++] = { rc, parentCid };
         }
         else
         {
-            size_t nFallen = 0;
-            collectLeaves(lc, fallenBuf, nFallen);
-            size_t nFallen2 = 0;
-            collectLeaves(rc, fallenBuf + nFallen, nFallen2);
-            nFallen += nFallen2;
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed]       = { parentCid, fallenBuf[fi], 1 };
-                condensedLambda[nCondensed] = lambda;
-                nCondensed++;
-            }
+            emitFallenLeaves(lc, parentCid, lambda);
+            emitFallenLeaves(rc, parentCid, lambda);
         }
     }
 
@@ -269,30 +254,17 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static void selectClusters(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
-                           int mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon,
-                           char * isSelected)
+static void initClusterMetadata(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters,
+                                int rootCid, algorithmFPType * lambdaBirth, char * isLeafCluster, int * clusterSz, int * childCount)
 {
-    TArray<algorithmFPType, cpu> stabilityArr(nClusters);
-    TArray<algorithmFPType, cpu> lambdaBirthArr(nClusters);
-    TArray<char, cpu> isLeafClusterArr(nClusters);
-    TArray<int, cpu> clusterSzArr(nClusters);
-    algorithmFPType * stability   = stabilityArr.get();
-    algorithmFPType * lambdaBirth = lambdaBirthArr.get();
-    char * isLeafCluster          = isLeafClusterArr.get();
-    int * clusterSz               = clusterSzArr.get();
     for (int c = 0; c < nClusters; c++)
     {
-        stability[c]     = algorithmFPType(0);
         lambdaBirth[c]   = algorithmFPType(0);
         isLeafCluster[c] = 1;
         clusterSz[c]     = 0;
+        childCount[c]    = 0;
     }
     clusterSz[rootCid] = static_cast<int>(nRows);
-
-    TArray<int, cpu> childCountArr(nClusters);
-    int * childCount = childCountArr.get();
-    for (int c = 0; c < nClusters; c++) childCount[c] = 0;
 
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
@@ -305,27 +277,13 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
             clusterSz[e.child] = e.childSize;
         }
     }
+}
 
-    TArray<int, cpu> childOffsetArr(nClusters + 1);
-    int * childOffset = childOffsetArr.get();
-    childOffset[0]    = 0;
-    for (int c = 1; c <= nClusters; c++) childOffset[c] = childOffset[c - 1] + childCount[c - 1];
-    const int totalChildren = childOffset[nClusters];
-
-    TArray<int, cpu> childListArr(totalChildren > 0 ? totalChildren : 1);
-    int * childList = childListArr.get();
-
-    for (int c = 0; c < nClusters; c++) childCount[c] = 0;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows))
-        {
-            childList[childOffset[e.parent] + childCount[e.parent]] = e.child;
-            childCount[e.parent]++;
-        }
-    }
-
+template <typename algorithmFPType, CpuType cpu>
+static void computeClusterStability(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, int nClusters,
+                                    const algorithmFPType * lambdaBirth, algorithmFPType * stability)
+{
+    for (int c = 0; c < nClusters; c++) stability[c] = algorithmFPType(0);
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e       = condensed[ei];
@@ -333,16 +291,154 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
         const algorithmFPType contrib = (condensedLambda[ei] - birth) * static_cast<algorithmFPType>(e.childSize);
         if (contrib > algorithmFPType(0)) stability[e.parent] += contrib;
     }
+}
 
-    const int mcsMax = (maxClusterSize > 0) ? static_cast<int>(maxClusterSize) : std::numeric_limits<int>::max();
+template <typename algorithmFPType, CpuType cpu>
+static void runEomSelection(int nClusters, int rootCid, int mcsMax, algorithmFPType * stability, const int * clusterSz, const char * isLeafCluster,
+                            const int * childOffset, const int * childCount, const int * childList, int * descStack, char * isSelected)
+{
+    for (int c = nClusters - 1; c >= rootCid; c--)
+    {
+        if (isLeafCluster[c]) continue;
+
+        algorithmFPType childSum = algorithmFPType(0);
+        for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
+
+        const algorithmFPType parentStab = (clusterSz[c] > mcsMax) ? algorithmFPType(0) : stability[c];
+
+        if (childSum > parentStab)
+        {
+            isSelected[c] = 0;
+            stability[c]  = childSum;
+        }
+        else
+        {
+            int descTop = 0;
+            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) descStack[descTop++] = childList[ci];
+            while (descTop > 0)
+            {
+                const int d   = descStack[--descTop];
+                isSelected[d] = 0;
+                for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) descStack[descTop++] = childList[ci];
+            }
+        }
+    }
+}
+
+template <typename algorithmFPType, CpuType cpu>
+static void applyClusterSelectionEpsilon(CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
+                                         const algorithmFPType * lambdaBirth, double clusterSelectionEpsilon, char * isSelected)
+{
+    TArray<int, cpu> clusterParentArr(nClusters);
+    int * clusterParent = clusterParentArr.get();
+    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
+    for (size_t ei = 0; ei < nCondensed; ei++)
+    {
+        const CondensedEdge & e = condensed[ei];
+        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
+    }
+
+    const algorithmFPType eps = static_cast<algorithmFPType>(clusterSelectionEpsilon);
+    bool changed              = true;
+    while (changed)
+    {
+        changed = false;
+        for (int c = rootCid + 1; c < nClusters; c++)
+        {
+            if (!isSelected[c]) continue;
+            const algorithmFPType birthDist = (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
+            if (birthDist < eps)
+            {
+                const int parent = clusterParent[c];
+                if (parent >= rootCid && parent < nClusters)
+                {
+                    isSelected[c]      = 0;
+                    isSelected[parent] = 1;
+                    changed            = true;
+                }
+            }
+        }
+    }
+}
+
+static void computeChildOffsets(int nClusters, const int * childCount, int * childOffset)
+{
+    childOffset[0] = 0;
+    for (int c = 1; c <= nClusters; c++) childOffset[c] = childOffset[c - 1] + childCount[c - 1];
+}
+
+template <typename algorithmFPType, CpuType cpu>
+static void fillChildList(CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, const int * childOffset, int * childList)
+{
+    TArray<int, cpu> fillCursorArr(nClusters);
+    int * fillCursor = fillCursorArr.get();
+    for (int c = 0; c < nClusters; c++) fillCursor[c] = 0;
+    for (size_t ei = 0; ei < nCondensed; ei++)
+    {
+        const CondensedEdge & e = condensed[ei];
+        if (e.child >= static_cast<int>(nRows))
+        {
+            childList[childOffset[e.parent] + fillCursor[e.parent]] = e.child;
+            fillCursor[e.parent]++;
+        }
+    }
+}
+
+template <typename algorithmFPType, CpuType cpu>
+static void enforceAllowSingleCluster(int nClusters, int rootCid, const char * isLeafCluster, const int * childOffset, const int * childCount,
+                                      const int * childList, char * isSelected)
+{
+    int selectedCount = 0;
+    for (int c = rootCid; c < nClusters; c++)
+    {
+        if (isSelected[c]) selectedCount++;
+    }
+    if (selectedCount == 1 && isSelected[rootCid] && !isLeafCluster[rootCid])
+    {
+        isSelected[rootCid] = 0;
+        for (int ci = childOffset[rootCid]; ci < childOffset[rootCid] + childCount[rootCid]; ci++)
+        {
+            isSelected[childList[ci]] = 1;
+        }
+    }
+}
+
+template <typename algorithmFPType, CpuType cpu>
+static void selectClusters(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
+                           int mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon,
+                           char * isSelected)
+{
+    TArray<algorithmFPType, cpu> stabilityArr(nClusters);
+    TArray<algorithmFPType, cpu> lambdaBirthArr(nClusters);
+    TArray<char, cpu> isLeafClusterArr(nClusters);
+    TArray<int, cpu> clusterSzArr(nClusters);
+    TArray<int, cpu> childCountArr(nClusters);
+    algorithmFPType * stability   = stabilityArr.get();
+    algorithmFPType * lambdaBirth = lambdaBirthArr.get();
+    char * isLeafCluster          = isLeafClusterArr.get();
+    int * clusterSz               = clusterSzArr.get();
+    int * childCount              = childCountArr.get();
+
+    initClusterMetadata<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, nClusters, rootCid, lambdaBirth, isLeafCluster,
+                                              clusterSz, childCount);
+
+    TArray<int, cpu> childOffsetArr(nClusters + 1);
+    int * childOffset = childOffsetArr.get();
+    computeChildOffsets(nClusters, childCount, childOffset);
+    const int totalChildren = childOffset[nClusters];
+
+    TArray<int, cpu> childListArr(totalChildren > 0 ? totalChildren : 1);
+    int * childList = childListArr.get();
+    fillChildList<algorithmFPType, cpu>(condensed, nCondensed, nRows, nClusters, childOffset, childList);
+
+    computeClusterStability<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nClusters, lambdaBirth, stability);
+
+    const int mcsMax = (maxClusterSize > 0) ? static_cast<int>(maxClusterSize) : MaxVal<int>::get();
 
     for (int c = 0; c < nClusters; c++)
     {
         isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
     }
-
-    TArray<int, cpu> descStackArr(nClusters);
-    int * descStack = descStackArr.get();
 
     if (clusterSelection == 1)
     {
@@ -353,84 +449,46 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
     }
     else
     {
-        for (int c = nClusters - 1; c >= rootCid; c--)
-        {
-            if (isLeafCluster[c]) continue;
-
-            algorithmFPType childSum = algorithmFPType(0);
-            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
-
-            const algorithmFPType parentStab = (clusterSz[c] > mcsMax) ? algorithmFPType(0) : stability[c];
-
-            if (childSum > parentStab)
-            {
-                isSelected[c] = 0;
-                stability[c]  = childSum;
-            }
-            else
-            {
-                int descTop = 0;
-                for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) descStack[descTop++] = childList[ci];
-                while (descTop > 0)
-                {
-                    const int d   = descStack[--descTop];
-                    isSelected[d] = 0;
-                    for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) descStack[descTop++] = childList[ci];
-                }
-            }
-        }
+        TArray<int, cpu> descStackArr(nClusters);
+        int * descStack = descStackArr.get();
+        runEomSelection<algorithmFPType, cpu>(nClusters, rootCid, mcsMax, stability, clusterSz, isLeafCluster, childOffset, childCount, childList,
+                                              descStack, isSelected);
     }
 
-    // allow_single_cluster enforcement
     if (!allowSingleCluster)
     {
-        int selectedCount = 0;
-        for (int c = rootCid; c < nClusters; c++)
-        {
-            if (isSelected[c]) selectedCount++;
-        }
-        if (selectedCount == 1 && isSelected[rootCid] && !isLeafCluster[rootCid])
-        {
-            isSelected[rootCid] = 0;
-            for (int ci = childOffset[rootCid]; ci < childOffset[rootCid] + childCount[rootCid]; ci++)
-            {
-                isSelected[childList[ci]] = 1;
-            }
-        }
+        enforceAllowSingleCluster<algorithmFPType, cpu>(nClusters, rootCid, isLeafCluster, childOffset, childCount, childList, isSelected);
     }
 
-    // cluster_selection_epsilon merging
     if (clusterSelectionEpsilon > 0.0)
     {
-        TArray<int, cpu> clusterParentArr(nClusters);
-        int * clusterParent = clusterParentArr.get();
-        for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
-        for (size_t ei = 0; ei < nCondensed; ei++)
-        {
-            const CondensedEdge & e = condensed[ei];
-            if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
-        }
+        applyClusterSelectionEpsilon<algorithmFPType, cpu>(condensed, nCondensed, nRows, nClusters, rootCid, lambdaBirth, clusterSelectionEpsilon,
+                                                           isSelected);
+    }
+}
 
-        const algorithmFPType eps = static_cast<algorithmFPType>(clusterSelectionEpsilon);
-        bool changed              = true;
-        while (changed)
+static int assignLabelByWalkUp(int startCid, int rootCid, int nClusters, const char * isSelected, const int * clusterLabel, const int * clusterParent)
+{
+    int c = startCid;
+    while (c >= rootCid && c < nClusters)
+    {
+        if (isSelected[c]) return clusterLabel[c];
+        c = clusterParent[c];
+    }
+    return -1;
+}
+
+template <typename algorithmFPType, CpuType cpu>
+static void buildDendroParent(DendroNode<algorithmFPType, cpu> * dendro, size_t nRows, size_t nDendroNodes, size_t totalNodes, int * dendroParent)
+{
+    for (size_t i = 0; i < totalNodes; i++) dendroParent[i] = -1;
+    for (size_t e = 0; e < nDendroNodes; e++)
+    {
+        const size_t nid = nRows + e;
+        if (dendro[e].size > 0)
         {
-            changed = false;
-            for (int c = rootCid + 1; c < nClusters; c++)
-            {
-                if (!isSelected[c]) continue;
-                const algorithmFPType birthDist = (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
-                if (birthDist < eps)
-                {
-                    const int parent = clusterParent[c];
-                    if (parent >= rootCid && parent < nClusters)
-                    {
-                        isSelected[c]      = 0;
-                        isSelected[parent] = 1;
-                        changed            = true;
-                    }
-                }
-            }
+            dendroParent[dendro[e].left]  = static_cast<int>(nid);
+            dendroParent[dendro[e].right] = static_cast<int>(nid);
         }
     }
 }
@@ -452,55 +510,32 @@ static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLam
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
     }
 
-    // Build cluster parent map for label walk-up
     TArray<int, cpu> clusterParentArr(nClusters);
-    int * clusterParent = clusterParentArr.get();
-    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
-    }
-
     TArray<int, cpu> pointFellFromArr(nRows);
+    int * clusterParent = clusterParentArr.get();
     int * pointFellFrom = pointFellFromArr.get();
+    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
     for (size_t i = 0; i < nRows; i++) pointFellFrom[i] = -1;
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
-        if (e.child < static_cast<int>(nRows)) pointFellFrom[e.child] = e.parent;
+        if (e.child >= static_cast<int>(nRows))
+            clusterParent[e.child] = e.parent;
+        else
+            pointFellFrom[e.child] = e.parent;
     }
 
     for (size_t i = 0; i < nRows; i++)
     {
         assignments[i] = -1;
-        int c          = pointFellFrom[i];
+        const int c    = pointFellFrom[i];
         if (c < rootCid || c >= nClusters) continue;
-
-        while (c >= rootCid && c < nClusters)
-        {
-            if (isSelected[c])
-            {
-                assignments[i] = clusterLabel[c];
-                break;
-            }
-            c = clusterParent[c];
-        }
+        assignments[i] = assignLabelByWalkUp(c, rootCid, nClusters, isSelected, clusterLabel, clusterParent);
     }
 
-    // Handle points never ejected
     TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
-    for (size_t i = 0; i < totalNodes; i++) dendroParent[i] = -1;
-    for (size_t e = 0; e < nDendroNodes; e++)
-    {
-        const size_t nid = nRows + e;
-        if (dendro[e].size > 0)
-        {
-            dendroParent[dendro[e].left]  = static_cast<int>(nid);
-            dendroParent[dendro[e].right] = static_cast<int>(nid);
-        }
-    }
+    buildDendroParent<algorithmFPType, cpu>(dendro, nRows, nDendroNodes, totalNodes, dendroParent);
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -512,16 +547,7 @@ static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLam
             const int cid = dendroToCluster[nid];
             if (cid >= rootCid)
             {
-                int c = cid;
-                while (c >= rootCid && c < nClusters)
-                {
-                    if (isSelected[c])
-                    {
-                        assignments[i] = clusterLabel[c];
-                        break;
-                    }
-                    c = clusterParent[c];
-                }
+                assignments[i] = assignLabelByWalkUp(cid, rootCid, nClusters, isSelected, clusterLabel, clusterParent);
                 break;
             }
             nid = dendroParent[nid];

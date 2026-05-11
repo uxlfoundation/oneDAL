@@ -30,9 +30,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
-#include <limits>
-#include <numeric>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -42,6 +39,7 @@
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
+#include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
@@ -430,7 +428,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                 const int myComp               = componentOf[i];
                 const algorithmFPType * mrdRow = distMatrix + i * nRows;
                 const algorithmFPType coreI    = coreDistances[i];
-                algorithmFPType bestMrd        = std::numeric_limits<algorithmFPType>::max();
+                algorithmFPType bestMrd        = daal::services::internal::MaxVal<algorithmFPType>::get();
                 int bestIdx                    = -1;
 
                 for (size_t j = 0; j < nRows; j++)
@@ -452,7 +450,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             // Phase 2: Reduce to per-component best edge
             for (size_t i = 0; i < nRows; i++)
             {
-                compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
+                compBestMrd[i]  = daal::services::internal::MaxVal<algorithmFPType>::get();
                 compBestFrom[i] = -1;
                 compBestTo[i]   = -1;
             }
