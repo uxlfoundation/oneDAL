@@ -78,6 +78,12 @@ struct vertex_partitioning_kernel_cpu<method::afforest,
     }
 };
 
+ONEDAL_EXPORT vertex_partitioning_result<task::vertex_partitioning> run_afforest(
+    const dal::detail::host_policy& ctx,
+    const detail::descriptor_base<task::vertex_partitioning>& desc,
+    const dal::preview::detail::topology<std::int32_t>& t,
+    byte_alloc_iface* alloc);
+
 template <typename Allocator>
 struct vertex_partitioning_kernel_cpu<method::afforest,
                                       task::vertex_partitioning,
@@ -93,9 +99,7 @@ struct vertex_partitioning_kernel_cpu<method::afforest,
         if (vertex_count == 0) {
             return vertex_partitioning_result<task::vertex_partitioning>();
         }
-        return afforest<float,
-                        task::vertex_partitioning,
-                        dal::preview::detail::topology<std::int32_t>>{}(ctx, desc, t, &alloc_con);
+        return run_afforest(ctx, desc, t, &alloc_con);
     }
 };
 
