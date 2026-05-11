@@ -159,7 +159,6 @@ outputs:
       source_files:
         - examples
         - data
-        - .ci/env/MKLConfig.cmake
       script: test-devel.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
