@@ -15,6 +15,10 @@
 # limitations under the License.
 #===============================================================================
 
+if [ -z "${MKLROOT:-}" ]; then
+    export MKLROOT="${CONDA_PREFIX}"
+fi
+
 export DPL_ROOT=$PREFIX
 
 # Use isolated TBBROOT staging so we don't create files under $PREFIX that may
