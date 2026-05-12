@@ -36,6 +36,20 @@ struct traverse_ops_dispatcher {
     }
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
+template <typename Descriptor, typename Graph>
+struct traverse_ops_dispatcher<dal::detail::data_parallel_policy, Descriptor, Graph> {
+    using task_t = typename Descriptor::task_t;
+    traverse_result<task_t> operator()(const dal::detail::data_parallel_policy &policy,
+                                       const Descriptor &descriptor,
+                                       traverse_input<Graph, task_t> &input) const {
+        static auto impl =
+            get_backend<dal::detail::data_parallel_policy, Descriptor>(descriptor, input.get_graph());
+        return (*impl)(policy, descriptor, input.get_graph());
+    }
+};
+#endif
+
 template <typename Descriptor, typename Graph>
 struct traverse_ops {
     using float_t = typename Descriptor::float_t;

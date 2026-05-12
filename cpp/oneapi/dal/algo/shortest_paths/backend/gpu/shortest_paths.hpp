@@ -14,29 +14,20 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// @file
-/// Contains the definition of the main processing function for traverse
-/// family of the algorithms
-
 #pragma once
 
-#include "oneapi/dal/detail/traverse_ops.hpp"
+#include "oneapi/dal/algo/shortest_paths/common.hpp"
+#include "oneapi/dal/algo/shortest_paths/traverse_types.hpp"
+#include "oneapi/dal/backend/dispatcher.hpp"
 
-namespace oneapi::dal::preview {
+namespace oneapi::dal::preview::shortest_paths::backend {
 
-/// The main processing function for traverse family of the algorithms
-template <typename... Args>
-auto traverse(Args &&...args) {
-    return detail::traverse_dispatch(std::forward<Args>(args)...);
-}
+template <typename Float, typename Task, typename Topology, typename EdgeValue>
+struct traverse_kernel_gpu {
+    traverse_result<Task> operator()(const dal::backend::context_gpu& ctx,
+                                     const detail::descriptor_base<Task>& desc,
+                                     const Topology& topology,
+                                     const EdgeValue* edge_values) const;
+};
 
-#ifdef ONEDAL_DATA_PARALLEL
-/// GPU/DPC++ overload accepting a SYCL queue
-template <typename... Args>
-auto traverse(sycl::queue &queue, Args &&...args) {
-    const auto policy = dal::detail::data_parallel_policy(queue);
-    return detail::traverse_dispatch(policy, std::forward<Args>(args)...);
-}
-#endif
-
-} // namespace oneapi::dal::preview
+} // namespace oneapi::dal::preview::shortest_paths::backend

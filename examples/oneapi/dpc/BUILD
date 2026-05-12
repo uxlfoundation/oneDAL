@@ -70,6 +70,7 @@ dal_algo_example_suite(
         "svm",
         "triangle_counting",
         "connected_components",
+        "shortest_paths",
     ],
     compile_as = [ "dpc++" ],
     data = _DATA_DEPS,
