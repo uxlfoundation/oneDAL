@@ -33,8 +33,8 @@ operator()(const dal::detail::host_policy& policy,
 }
 
 template struct afforest<float,
-                        task::vertex_partitioning,
-                        dal::preview::detail::topology<std::int32_t>>;
+                         task::vertex_partitioning,
+                         dal::preview::detail::topology<std::int32_t>>;
 
 vertex_partitioning_result<task::vertex_partitioning> run_afforest(
     const dal::detail::host_policy& ctx,
