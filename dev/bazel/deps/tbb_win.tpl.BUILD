@@ -17,9 +17,19 @@ cc_library(
 )
 
 cc_library(
+    name = "tbb_binary",
+    deps = [":tbb"],
+)
+
+cc_library(
     name = "tbbmalloc",
     srcs = ["lib/tbbmalloc.lib"],
     data = ["bin/tbbmalloc.dll"],
     linkopts = ["/LIBPATH:external/tbb/lib"],
     deps = [":headers"],
+)
+
+cc_library(
+    name = "tbbmalloc_binary",
+    deps = [":tbbmalloc"],
 )
