@@ -44,7 +44,8 @@ struct traverse_ops_dispatcher<dal::detail::data_parallel_policy, Descriptor, Gr
                                        const Descriptor &descriptor,
                                        traverse_input<Graph, task_t> &input) const {
         static auto impl =
-            get_backend<dal::detail::data_parallel_policy, Descriptor>(descriptor, input.get_graph());
+            get_backend<dal::detail::data_parallel_policy, Descriptor>(descriptor,
+                                                                       input.get_graph());
         return (*impl)(policy, descriptor, input.get_graph());
     }
 };

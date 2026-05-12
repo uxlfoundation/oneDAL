@@ -136,22 +136,18 @@ public:
         rows_count = 22;
         source = 0;
     }
-    std::array<std::int64_t, 22> rows = { 0,  3,  6,  8,  11, 14, 15, 18, 21, 22,
-                                          25, 27, 30, 32, 35, 37, 39, 42, 42, 45,
-                                          47, 49 };
-    std::array<std::int32_t, 49> cols = { 1,  2,  3,  2,  5,  13, 5,  6,  2,  4,
-                                          7,  0,  7,  8,  6,  3,  7,  9,  6,  10,
-                                          11, 12, 5,  13, 14, 6,  9,  10, 14, 16,
-                                          7,  11, 14, 17, 18, 10, 15, 11, 19, 12,
-                                          15, 20, 14, 17, 19, 14, 20, 8,  15 };
-    std::array<double, 49> edge_weights = { 95, 89, 70, 19, 96, 73, 42, 19, 23, 40,
-                                            10, 70, 18, 64, 47, 94, 21, 22, 26, 40,
-                                            66, 91, 62, 80, 10, 57, 63, 99, 73, 17,
-                                            12, 14, 42, 92, 69, 39, 58, 38, 10, 87,
-                                            36, 71, 45, 93, 11, 21, 21, 66, 46 };
-    std::array<double, 21> distances = { 0,   95,  89,  70,  110, 131, 106, 80,
-                                         174, 128, 120, 146, 250, 168, 138, 196,
-                                         163, 260, 237, 206, 227 };
+    std::array<std::int64_t, 22> rows = { 0,  3,  6,  8,  11, 14, 15, 18, 21, 22, 25,
+                                          27, 30, 32, 35, 37, 39, 42, 42, 45, 47, 49 };
+    std::array<std::int32_t, 49> cols = { 1,  2,  3,  2,  5,  13, 5,  6,  2,  4,  7,  0,  7,
+                                          8,  6,  3,  7,  9,  6,  10, 11, 12, 5,  13, 14, 6,
+                                          9,  10, 14, 16, 7,  11, 14, 17, 18, 10, 15, 11, 19,
+                                          12, 15, 20, 14, 17, 19, 14, 20, 8,  15 };
+    std::array<double, 49> edge_weights = { 95, 89, 70, 19, 96, 73, 42, 19, 23, 40, 10, 70, 18,
+                                            64, 47, 94, 21, 22, 26, 40, 66, 91, 62, 80, 10, 57,
+                                            63, 99, 73, 17, 12, 14, 42, 92, 69, 39, 58, 38, 10,
+                                            87, 36, 71, 45, 93, 11, 21, 21, 66, 46 };
+    std::array<double, 21> distances = { 0,   95,  89,  70,  110, 131, 106, 80,  174, 128, 120,
+                                         146, 250, 168, 138, 196, 163, 260, 237, 206, 227 };
 };
 
 template <typename EdgeValue, typename GraphT>
@@ -162,10 +158,10 @@ void check_distances(sycl::queue& queue,
                      std::int64_t vertex_count,
                      double delta) {
     using namespace dal::preview::shortest_paths;
-    const auto desc = descriptor<float, method::delta_stepping, task::one_to_all>(
-        source,
-        delta,
-        optional_results::distances);
+    const auto desc =
+        descriptor<float, method::delta_stepping, task::one_to_all>(source,
+                                                                    delta,
+                                                                    optional_results::distances);
 
     const auto result = dal::preview::traverse(queue, desc, graph);
     const auto& dist_table = result.get_distances();
@@ -187,8 +183,7 @@ void check_distances(sycl::queue& queue,
     }
 }
 
-TEST_CASE("shortest_paths GPU: isolated vertices (double)",
-          "[shortest_paths][gpu]") {
+TEST_CASE("shortest_paths GPU: isolated vertices (double)", "[shortest_paths][gpu]") {
     DECLARE_TEST_POLICY(policy);
     auto selector = sycl::gpu_selector_v;
     auto queue = sycl::queue(selector);
@@ -199,35 +194,53 @@ TEST_CASE("shortest_paths GPU: isolated vertices (double)",
     }
 
     d_isolated_graph_type data;
-    const auto builder = dal::preview::detail::directed_adjacency_vector_graph_builder<
-        std::int32_t, double, dal::preview::empty_value, int>(
-        data.get_vertex_count(), data.get_edge_count(),
-        data.rows.data(), data.cols.data(), data.edge_weights.data());
+    const auto builder =
+        dal::preview::detail::directed_adjacency_vector_graph_builder<std::int32_t,
+                                                                      double,
+                                                                      dal::preview::empty_value,
+                                                                      int>(
+            data.get_vertex_count(),
+            data.get_edge_count(),
+            data.rows.data(),
+            data.cols.data(),
+            data.edge_weights.data());
     const auto& graph = builder.get_graph();
 
-    check_distances<double>(queue, graph, data.get_source(), data.distances.data(),
-                            data.get_vertex_count(), 1.0);
+    check_distances<double>(queue,
+                            graph,
+                            data.get_source(),
+                            data.distances.data(),
+                            data.get_vertex_count(),
+                            1.0);
 }
 
-TEST_CASE("shortest_paths GPU: isolated vertices (int32)",
-          "[shortest_paths][gpu]") {
+TEST_CASE("shortest_paths GPU: isolated vertices (int32)", "[shortest_paths][gpu]") {
     DECLARE_TEST_POLICY(policy);
     auto selector = sycl::gpu_selector_v;
     auto queue = sycl::queue(selector);
 
     d_isolated_int_graph_type data;
-    const auto builder = dal::preview::detail::directed_adjacency_vector_graph_builder<
-        std::int32_t, std::int32_t, dal::preview::empty_value, int>(
-        data.get_vertex_count(), data.get_edge_count(),
-        data.rows.data(), data.cols.data(), data.edge_weights.data());
+    const auto builder =
+        dal::preview::detail::directed_adjacency_vector_graph_builder<std::int32_t,
+                                                                      std::int32_t,
+                                                                      dal::preview::empty_value,
+                                                                      int>(
+            data.get_vertex_count(),
+            data.get_edge_count(),
+            data.rows.data(),
+            data.cols.data(),
+            data.edge_weights.data());
     const auto& graph = builder.get_graph();
 
-    check_distances<std::int32_t>(queue, graph, data.get_source(), data.distances.data(),
-                                  data.get_vertex_count(), 1.0);
+    check_distances<std::int32_t>(queue,
+                                  graph,
+                                  data.get_source(),
+                                  data.distances.data(),
+                                  data.get_vertex_count(),
+                                  1.0);
 }
 
-TEST_CASE("shortest_paths GPU: one-bucket graph (double)",
-          "[shortest_paths][gpu]") {
+TEST_CASE("shortest_paths GPU: one-bucket graph (double)", "[shortest_paths][gpu]") {
     DECLARE_TEST_POLICY(policy);
     auto selector = sycl::gpu_selector_v;
     auto queue = sycl::queue(selector);
@@ -238,18 +251,27 @@ TEST_CASE("shortest_paths GPU: one-bucket graph (double)",
     }
 
     d_one_bucket_graph_type data;
-    const auto builder = dal::preview::detail::directed_adjacency_vector_graph_builder<
-        std::int32_t, double, dal::preview::empty_value, int>(
-        data.get_vertex_count(), data.get_edge_count(),
-        data.rows.data(), data.cols.data(), data.edge_weights.data());
+    const auto builder =
+        dal::preview::detail::directed_adjacency_vector_graph_builder<std::int32_t,
+                                                                      double,
+                                                                      dal::preview::empty_value,
+                                                                      int>(
+            data.get_vertex_count(),
+            data.get_edge_count(),
+            data.rows.data(),
+            data.cols.data(),
+            data.edge_weights.data());
     const auto& graph = builder.get_graph();
 
-    check_distances<double>(queue, graph, data.get_source(), data.distances.data(),
-                            data.get_vertex_count(), 1.0);
+    check_distances<double>(queue,
+                            graph,
+                            data.get_source(),
+                            data.distances.data(),
+                            data.get_vertex_count(),
+                            1.0);
 }
 
-TEST_CASE("shortest_paths GPU: graph_3 (21 vertices, double)",
-          "[shortest_paths][gpu]") {
+TEST_CASE("shortest_paths GPU: graph_3 (21 vertices, double)", "[shortest_paths][gpu]") {
     DECLARE_TEST_POLICY(policy);
     auto selector = sycl::gpu_selector_v;
     auto queue = sycl::queue(selector);
@@ -260,14 +282,24 @@ TEST_CASE("shortest_paths GPU: graph_3 (21 vertices, double)",
     }
 
     d_graph_3_type data;
-    const auto builder = dal::preview::detail::directed_adjacency_vector_graph_builder<
-        std::int32_t, double, dal::preview::empty_value, int>(
-        data.get_vertex_count(), data.get_edge_count(),
-        data.rows.data(), data.cols.data(), data.edge_weights.data());
+    const auto builder =
+        dal::preview::detail::directed_adjacency_vector_graph_builder<std::int32_t,
+                                                                      double,
+                                                                      dal::preview::empty_value,
+                                                                      int>(
+            data.get_vertex_count(),
+            data.get_edge_count(),
+            data.rows.data(),
+            data.cols.data(),
+            data.edge_weights.data());
     const auto& graph = builder.get_graph();
 
-    check_distances<double>(queue, graph, data.get_source(), data.distances.data(),
-                            data.get_vertex_count(), 1.0);
+    check_distances<double>(queue,
+                            graph,
+                            data.get_source(),
+                            data.distances.data(),
+                            data.get_vertex_count(),
+                            1.0);
 }
 
 } // namespace oneapi::dal::algo::shortest_paths::gpu::test

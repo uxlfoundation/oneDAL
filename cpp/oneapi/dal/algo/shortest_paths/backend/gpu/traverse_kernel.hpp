@@ -34,9 +34,8 @@ struct csr_topology_gpu_view {
 };
 
 template <typename Float, typename Task, typename Index, typename Weight>
-traverse_result<Task> run_shortest_paths_gpu(
-    const dal::backend::context_gpu& ctx,
-    const detail::descriptor_base<Task>& desc,
-    const csr_topology_gpu_view<Index, Weight>& topology);
+traverse_result<Task> run_shortest_paths_gpu(const dal::backend::context_gpu& ctx,
+                                             const detail::descriptor_base<Task>& desc,
+                                             const csr_topology_gpu_view<Index, Weight>& topology);
 
 } // namespace oneapi::dal::preview::shortest_paths::backend

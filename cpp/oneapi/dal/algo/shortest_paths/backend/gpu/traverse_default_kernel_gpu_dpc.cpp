@@ -86,13 +86,11 @@ public:
     }
 
     SYCL_EXTERNAL inline neighbor_iterator_t begin(std::uint32_t vertex) const {
-        return neighbor_iterator_t(_col_indices,
-                                   _col_indices + _row_ptr[vertex]);
+        return neighbor_iterator_t(_col_indices, _col_indices + _row_ptr[vertex]);
     }
 
     SYCL_EXTERNAL inline neighbor_iterator_t end(std::uint32_t vertex) const {
-        return neighbor_iterator_t(_col_indices,
-                                   _col_indices + _row_ptr[vertex + 1]);
+        return neighbor_iterator_t(_col_indices, _col_indices + _row_ptr[vertex + 1]);
     }
 
 private:
@@ -118,11 +116,10 @@ public:
               _weights(weights) {}
 
     weighted_csr_graph_view<Index, OffsetT> get_device_view() const {
-        return weighted_csr_graph_view<Index, OffsetT>(
-            _num_nodes,
-            _row_ptr,
-            const_cast<Index*>(_col_indices),
-            _weights);
+        return weighted_csr_graph_view<Index, OffsetT>(_num_nodes,
+                                                       _row_ptr,
+                                                       const_cast<Index*>(_col_indices),
+                                                       _weights);
     }
 
     sycl::queue& get_queue() const {
@@ -163,9 +160,7 @@ void compute_sssp_gpu(sycl::queue& queue,
             const std::int64_t vc = vertex_count;
             const std::int64_t src = source;
             cgh.parallel_for(sycl::range<1>(vc), [=](sycl::id<1> idx) {
-                d_dist[idx[0]] = (static_cast<std::int64_t>(idx[0]) == src)
-                                     ? Weight{ 0 }
-                                     : inf;
+                d_dist[idx[0]] = (static_cast<std::int64_t>(idx[0]) == src) ? Weight{ 0 } : inf;
             });
         })
         .wait_and_throw();
@@ -249,10 +244,9 @@ void compute_sssp_gpu(sycl::queue& queue,
 } // namespace detail_gpu
 
 template <typename Float, typename Task, typename Index, typename Weight>
-traverse_result<Task> run_shortest_paths_gpu(
-    const dal::backend::context_gpu& ctx,
-    const detail::descriptor_base<Task>& desc,
-    const csr_topology_gpu_view<Index, Weight>& topology) {
+traverse_result<Task> run_shortest_paths_gpu(const dal::backend::context_gpu& ctx,
+                                             const detail::descriptor_base<Task>& desc,
+                                             const csr_topology_gpu_view<Index, Weight>& topology) {
     auto& queue = ctx.get_queue();
 
     const auto vertex_count = topology.vertex_count;
@@ -289,29 +283,25 @@ traverse_result<Task> run_shortest_paths_gpu(
     traverse_result<Task> result;
 
     if (need_distances) {
-        auto dist_arr =
-            array<Weight>(queue, distances, vertex_count, [queue](Weight* ptr) mutable {
-                sycl::free(ptr, queue);
-            });
+        auto dist_arr = array<Weight>(queue, distances, vertex_count, [queue](Weight* ptr) mutable {
+            sycl::free(ptr, queue);
+        });
         result.set_distances(
-            dal::detail::homogen_table_builder{}
-                .reset(dist_arr, vertex_count, 1)
-                .build());
+            dal::detail::homogen_table_builder{}.reset(dist_arr, vertex_count, 1).build());
     }
     else {
         sycl::free(distances, queue);
     }
 
     if (need_predecessors && predecessors != nullptr) {
-        auto pred_arr = array<std::int32_t>(
-            queue,
-            predecessors,
-            vertex_count,
-            [queue](std::int32_t* ptr) mutable { sycl::free(ptr, queue); });
+        auto pred_arr = array<std::int32_t>(queue,
+                                            predecessors,
+                                            vertex_count,
+                                            [queue](std::int32_t* ptr) mutable {
+                                                sycl::free(ptr, queue);
+                                            });
         result.set_predecessors(
-            dal::detail::homogen_table_builder{}
-                .reset(pred_arr, vertex_count, 1)
-                .build());
+            dal::detail::homogen_table_builder{}.reset(pred_arr, vertex_count, 1).build());
     }
 
     return result;
@@ -346,8 +336,7 @@ traverse_result<Task> traverse_kernel_gpu<Float, Task, Topology, EdgeValue>::ope
         device_cols = t._cols.get_data();
     }
     else {
-        device_topo_holder =
-            dal::preview::detail::topology_to_device<index_type>(queue, t);
+        device_topo_holder = dal::preview::detail::topology_to_device<index_type>(queue, t);
         device_rows = device_topo_holder.get_rows();
         device_cols = device_topo_holder.get_cols();
     }
@@ -358,18 +347,16 @@ traverse_result<Task> traverse_kernel_gpu<Float, Task, Topology, EdgeValue>::ope
     EdgeValue* device_weights_ptr = nullptr;
 
     if (weights_count > 0 && edge_values != nullptr) {
-        const auto weights_ptr_type =
-            sycl::get_pointer_type(edge_values, queue.get_context());
+        const auto weights_ptr_type = sycl::get_pointer_type(edge_values, queue.get_context());
         if (weights_ptr_type == sycl::usm::alloc::device ||
             weights_ptr_type == sycl::usm::alloc::shared) {
             device_weights_ptr = const_cast<EdgeValue*>(edge_values);
         }
         else {
             auto* buf = sycl::malloc_shared<EdgeValue>(weights_count, queue);
-            queue.memcpy(buf, edge_values, weights_count * sizeof(EdgeValue))
-                .wait_and_throw();
-            device_weights = dal::array<EdgeValue>(
-                queue, buf, weights_count, [queue](EdgeValue* p) mutable {
+            queue.memcpy(buf, edge_values, weights_count * sizeof(EdgeValue)).wait_and_throw();
+            device_weights =
+                dal::array<EdgeValue>(queue, buf, weights_count, [queue](EdgeValue* p) mutable {
                     sycl::free(p, queue);
                 });
             device_weights_ptr = const_cast<EdgeValue*>(device_weights.get_data());

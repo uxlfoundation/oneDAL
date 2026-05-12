@@ -43,8 +43,7 @@ backend_default<dal::detail::data_parallel_policy, Descriptor, Graph>::operator(
                 g);
         },
         [&]() {
-            using topology_type =
-                typename graph_traits<Graph>::impl_type::topology_type;
+            using topology_type = typename graph_traits<Graph>::impl_type::topology_type;
             auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
             const auto& t = topology_builder(g);
             const auto vals = dal::detail::get_impl(g).get_edge_values().get_data();
@@ -58,31 +57,29 @@ backend_default<dal::detail::data_parallel_policy, Descriptor, Graph>::operator(
 }
 
 // Explicit instantiations for int32_t edge weights
-using descriptor_int32 = descriptor<
-    float,
-    method::delta_stepping,
-    task::one_to_all,
-    std::allocator<char>>;
+using descriptor_int32 =
+    descriptor<float, method::delta_stepping, task::one_to_all, std::allocator<char>>;
 
-using graph_int32 = dal::preview::directed_adjacency_vector_graph<
-    std::int32_t, std::int32_t, dal::preview::empty_value, int, std::allocator<char>>;
+using graph_int32 = dal::preview::directed_adjacency_vector_graph<std::int32_t,
+                                                                  std::int32_t,
+                                                                  dal::preview::empty_value,
+                                                                  int,
+                                                                  std::allocator<char>>;
 
-template struct ONEDAL_EXPORT backend_default<dal::detail::data_parallel_policy,
-                                              descriptor_int32,
-                                              graph_int32>;
+template struct ONEDAL_EXPORT
+    backend_default<dal::detail::data_parallel_policy, descriptor_int32, graph_int32>;
 
 // Explicit instantiations for double edge weights
-using descriptor_double = descriptor<
-    float,
-    method::delta_stepping,
-    task::one_to_all,
-    std::allocator<char>>;
+using descriptor_double =
+    descriptor<float, method::delta_stepping, task::one_to_all, std::allocator<char>>;
 
-using graph_double = dal::preview::directed_adjacency_vector_graph<
-    std::int32_t, double, dal::preview::empty_value, int, std::allocator<char>>;
+using graph_double = dal::preview::directed_adjacency_vector_graph<std::int32_t,
+                                                                   double,
+                                                                   dal::preview::empty_value,
+                                                                   int,
+                                                                   std::allocator<char>>;
 
-template struct ONEDAL_EXPORT backend_default<dal::detail::data_parallel_policy,
-                                              descriptor_double,
-                                              graph_double>;
+template struct ONEDAL_EXPORT
+    backend_default<dal::detail::data_parallel_policy, descriptor_double, graph_double>;
 
 } // namespace oneapi::dal::preview::shortest_paths::detail

@@ -65,9 +65,7 @@ int main(int argc, char** argv) {
     for (auto d : sycl::platform::get_platforms()) {
         for (auto device : d.get_devices()) {
             sycl::queue q{ device };
-            std::cout << "Running on "
-                      << device.get_info<sycl::info::device::name>()
-                      << std::endl;
+            std::cout << "Running on " << device.get_info<sycl::info::device::name>() << std::endl;
             run(q);
         }
     }
