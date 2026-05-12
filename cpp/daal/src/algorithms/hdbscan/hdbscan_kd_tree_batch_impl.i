@@ -16,7 +16,8 @@
 *******************************************************************************/
 
 /*
- * HDBSCAN implementation using a k-d tree with Boruvka's MST algorithm.
+ * HDBSCAN implementation using a k-d tree with Boruvka's Minimum Spanning Tree
+ * (MST) algorithm: https://arxiv.org/html/2412.07789v1
  *
  * The approach:
  *   1. Build a k-d tree over the input data (with bounding boxes per node)
@@ -139,9 +140,9 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
 // =========================================================================
 // k-NN query on kd-tree (templated on distance functor)
 // =========================================================================
-template <typename algorithmFPType, typename DistFunc>
+template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
-                     const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType> & heap, const DistFunc & distFunc)
+                     const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -314,23 +315,14 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     const int k = static_cast<int>(minSamples);
 
     // Step 2: Compute core distances via k-NN queries on the kd-tree
-    {
-        daal::TlsMem<algorithmFPType, cpu> tlsHeapDists(k);
-        daal::TlsMem<int, cpu> tlsHeapIndices(k);
+    daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {
+        KnnHeap<algorithmFPType, cpu> heap(k);
+        if (!heap.ok()) return;
 
-        daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {
-            algorithmFPType * heapDists = tlsHeapDists.local();
-            int * heapIndices           = tlsHeapIndices.local();
-            if (!heapDists || !heapIndices) return;
+        knnQuery<algorithmFPType, cpu>(data, static_cast<int>(nCols), nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
 
-            KnnHeap<algorithmFPType> heap;
-            heap.init(heapDists, heapIndices, k);
-
-            knnQuery(data, static_cast<int>(nCols), nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
-
-            coreDistances[i] = heap.maxDist();
-        });
-    }
+        coreDistances[i] = heap.maxDist();
+    });
 
     // Step 2b: Per-node minimum core distances
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
@@ -467,7 +459,8 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree, int clusterSelection, bool allowSingleCluster,
+                                                                           algorithms::internal::PairwiseDistanceType pairwiseDistance,
+                                                                           double minkowskiDegree, int clusterSelection, bool allowSingleCluster,
                                                                            double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
                                                                            size_t leafSize)
 {
@@ -540,9 +533,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     const bool useAlpha = (alpha != 1.0);
 
-    switch (metric)
+    using algorithms::internal::PairwiseDistanceType;
+
+    switch (pairwiseDistance)
     {
-    case manhattan:
+    case PairwiseDistanceType::manhattan:
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
@@ -551,16 +546,16 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                         coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {});
         break;
-    case minkowski:
+    case PairwiseDistanceType::minkowski:
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, MinkowskiDist<algorithmFPType> >(MinkowskiDist<algorithmFPType>(degree), alpha));
+                AlphaScaledDist<algorithmFPType, MinkowskiDist<algorithmFPType> >(MinkowskiDist<algorithmFPType>(minkowskiDegree), alpha));
         else
             computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                        coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(degree));
+                                                        coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(minkowskiDegree));
         break;
-    case chebyshev:
+    case PairwiseDistanceType::chebyshev:
         if (useAlpha)
             computeCoreDistAndMst<algorithmFPType, cpu>(
                 data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,

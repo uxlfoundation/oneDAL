@@ -17,20 +17,21 @@
 #pragma once
 
 #include "oneapi/dal/algo/hdbscan/common.hpp"
-#include "algorithms/hdbscan/hdbscan_types.h"
+
+#include <daal/src/algorithms/service_kernel_math.h>
 
 namespace oneapi::dal::hdbscan::backend {
 
-namespace daal_hdbscan = daal::algorithms::hdbscan;
+using daal_pairwise_distance_t = daal::algorithms::internal::PairwiseDistanceType;
 
-inline int convert_metric(distance_metric m) {
+inline daal_pairwise_distance_t convert_metric(distance_metric m) {
     switch (m) {
-        case distance_metric::euclidean: return daal_hdbscan::euclidean;
-        case distance_metric::manhattan: return daal_hdbscan::manhattan;
-        case distance_metric::minkowski: return daal_hdbscan::minkowski;
-        case distance_metric::chebyshev: return daal_hdbscan::chebyshev;
-        case distance_metric::cosine: return daal_hdbscan::cosine;
-        default: return daal_hdbscan::euclidean;
+        case distance_metric::euclidean: return daal_pairwise_distance_t::euclidean;
+        case distance_metric::manhattan: return daal_pairwise_distance_t::manhattan;
+        case distance_metric::minkowski: return daal_pairwise_distance_t::minkowski;
+        case distance_metric::chebyshev: return daal_pairwise_distance_t::chebyshev;
+        case distance_metric::cosine: return daal_pairwise_distance_t::cosine;
+        default: return daal_pairwise_distance_t::euclidean;
     }
 }
 

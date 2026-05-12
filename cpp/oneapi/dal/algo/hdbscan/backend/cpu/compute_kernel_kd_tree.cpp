@@ -31,13 +31,12 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-namespace daal_hdbscan = daal::algorithms::hdbscan;
 namespace daal_hdbscan_internal = daal::algorithms::hdbscan::internal;
 namespace interop = dal::backend::interop;
 
 template <typename Float, daal::internal::CpuType Cpu>
 using daal_hdbscan_kd_tree_t =
-    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::kdTree, Cpu>;
+    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan_internal::kdTree, Cpu>;
 
 template <typename Float>
 static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
@@ -47,7 +46,7 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
     const std::int64_t col_count = data.get_column_count();
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
     const std::int64_t min_samples = desc.get_min_samples();
-    const int daal_metric = convert_metric(desc.get_metric());
+    const auto daal_metric = convert_metric(desc.get_metric());
     const double degree = desc.get_degree();
     const int cluster_selection =
         (desc.get_cluster_selection() == cluster_selection_method::leaf) ? 1 : 0;

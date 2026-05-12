@@ -62,7 +62,8 @@ using daal::services::internal::TArrayScalable;
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree, int clusterSelection, bool allowSingleCluster,
+                                                                           algorithms::internal::PairwiseDistanceType pairwiseDistance,
+                                                                           double minkowskiDegree, int clusterSelection, bool allowSingleCluster,
                                                                            double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
                                                                            size_t leafSize)
 {
@@ -96,7 +97,9 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     algorithmFPType * distMatrix = distMatrixVec.get();
     DAAL_CHECK_MALLOC(distMatrix);
 
-    if (metric == euclidean || metric == cosine)
+    using algorithms::internal::PairwiseDistanceType;
+
+    if (pairwiseDistance == PairwiseDistanceType::euclidean || pairwiseDistance == PairwiseDistanceType::cosine)
     {
         // GEMM-accelerated path for Euclidean and Cosine
         TArray<algorithmFPType, cpu> normsVec(nRows);
@@ -143,7 +146,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         const size_t distBlockSize = 256;
         const size_t nDistBlocks   = (nRows + distBlockSize - 1) / distBlockSize;
 
-        if (metric == euclidean)
+        if (pairwiseDistance == PairwiseDistanceType::euclidean)
         {
             // Convert dot products to Euclidean distances
             daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
@@ -194,7 +197,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             });
         }
     }
-    else if (metric == manhattan)
+    else if (pairwiseDistance == PairwiseDistanceType::manhattan)
     {
         const size_t rowBlockSize = 64;
         const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
@@ -226,7 +229,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             }
         });
     }
-    else if (metric == chebyshev)
+    else if (pairwiseDistance == PairwiseDistanceType::chebyshev)
     {
         const size_t rowBlockSize = 64;
         const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
@@ -259,7 +262,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
     else // minkowski
     {
-        const double p            = degree;
+        const double p            = minkowskiDegree;
         const double invp         = 1.0 / p;
         const size_t rowBlockSize = 64;
         const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;

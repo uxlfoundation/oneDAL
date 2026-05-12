@@ -20,6 +20,7 @@
 #include <cmath>
 #include <utility>
 
+#include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 
@@ -189,63 +190,70 @@ struct AlphaScaledDist
 };
 
 // =========================================================================
-// Max-heap for k nearest neighbors
+// Bounded max-heap of the k nearest neighbors seen so far.
+//
+// Ordering invariant: dists_[0] is the largest distance currently in the heap
+// (binary max-heap over dists_; indices_ moves in lockstep). While fewer than
+// capacity neighbors have been pushed the heap keeps filling; once full,
+// dists_[0] is the current k-th nearest distance and push() only replaces the
+// top when a strictly closer neighbor arrives. maxDist() returns that top or
+// +infinity while the heap is not yet full, which lets tree traversals use it
+// as a pruning radius. The heap owns its storage via TArrayScalable so each
+// thread can allocate its own without external TlsMem scaffolding.
 // =========================================================================
-template <typename FPType>
+template <typename FPType, daal::internal::CpuType cpu>
 struct KnnHeap
 {
-    FPType * dists;
-    int * indices;
-    int capacity;
-    int size;
-
-    void init(FPType * d, int * idx, int cap)
+    KnnHeap(int cap) : capacity_(cap), size_(0), distsArr_(cap), indicesArr_(cap)
     {
-        dists    = d;
-        indices  = idx;
-        capacity = cap;
-        size     = 0;
+        dists_   = distsArr_.get();
+        indices_ = indicesArr_.get();
     }
 
-    FPType maxDist() const { return (size > 0) ? dists[0] : daal::services::internal::MaxVal<FPType>::get(); }
+    KnnHeap(const KnnHeap &)             = delete;
+    KnnHeap & operator=(const KnnHeap &) = delete;
+
+    bool ok() const { return dists_ != nullptr && indices_ != nullptr; }
+
+    FPType maxDist() const { return (size_ > 0) ? dists_[0] : daal::services::internal::MaxVal<FPType>::get(); }
 
     void push(FPType dist, int idx)
     {
-        if (size < capacity)
+        if (size_ < capacity_)
         {
-            dists[size]   = dist;
-            indices[size] = idx;
-            size++;
-            int i = size - 1;
+            dists_[size_]   = dist;
+            indices_[size_] = idx;
+            size_++;
+            int i = size_ - 1;
             while (i > 0)
             {
                 int parent = (i - 1) / 2;
-                if (dists[i] > dists[parent])
+                if (dists_[i] > dists_[parent])
                 {
-                    std::swap(dists[i], dists[parent]);
-                    std::swap(indices[i], indices[parent]);
+                    std::swap(dists_[i], dists_[parent]);
+                    std::swap(indices_[i], indices_[parent]);
                     i = parent;
                 }
                 else
                     break;
             }
         }
-        else if (dist < dists[0])
+        else if (dist < dists_[0])
         {
-            dists[0]   = dist;
-            indices[0] = idx;
-            int i      = 0;
+            dists_[0]   = dist;
+            indices_[0] = idx;
+            int i       = 0;
             while (true)
             {
                 int l       = 2 * i + 1;
                 int r       = 2 * i + 2;
                 int largest = i;
-                if (l < size && dists[l] > dists[largest]) largest = l;
-                if (r < size && dists[r] > dists[largest]) largest = r;
+                if (l < size_ && dists_[l] > dists_[largest]) largest = l;
+                if (r < size_ && dists_[r] > dists_[largest]) largest = r;
                 if (largest != i)
                 {
-                    std::swap(dists[i], dists[largest]);
-                    std::swap(indices[i], indices[largest]);
+                    std::swap(dists_[i], dists_[largest]);
+                    std::swap(indices_[i], indices_[largest]);
                     i = largest;
                 }
                 else
@@ -253,6 +261,14 @@ struct KnnHeap
             }
         }
     }
+
+private:
+    int capacity_;
+    int size_;
+    daal::services::internal::TArrayScalable<FPType, cpu> distsArr_;
+    daal::services::internal::TArrayScalable<int, cpu> indicesArr_;
+    FPType * dists_; // distances from points in the heap to the current query (heap root is the largest)
+    int * indices_;  // indices of points in the heap, kept in lockstep with dists_
 };
 
 } // namespace internal

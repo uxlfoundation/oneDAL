@@ -18,8 +18,8 @@
 #ifndef __HDBSCAN_KERNEL_H__
 #define __HDBSCAN_KERNEL_H__
 
-#include "algorithms/hdbscan/hdbscan_types.h"
 #include "src/algorithms/kernel.h"
+#include "src/algorithms/service_kernel_math.h"
 #include "src/services/cpu_type.h"
 #include "data_management/data/numeric_table.h"
 
@@ -35,14 +35,48 @@ namespace hdbscan
 namespace internal
 {
 
+/**
+ * Available methods of the HDBSCAN algorithm.
+ *
+ * Kept in the internal src namespace because HDBSCAN is only exposed through
+ * the oneDAL (oneAPI) interface; the legacy DAAL C++ API does not ship this
+ * algorithm, so the method tag does not need to be part of the public API.
+ */
+enum Method
+{
+    bruteForceDense = 0, /*!< Brute-force method with full distance matrix */
+    kdTree          = 1, /*!< K-d tree method: O(N log N) neighbor search, no N^2 distance matrix */
+    ballTree        = 2  /*!< Ball tree method: hypersphere-based partitioning, robust to high dimensions */
+};
+
+/**
+ * Computes HDBSCAN clustering for the specified input data and parameters.
+ *
+ * \param[in]  ntData                  Input numeric table of size N x P containing the data to cluster.
+ * \param[out] ntAssignments           Output numeric table of size N x 1 containing the cluster assignment
+ *                                     for each input point. -1 indicates noise; non-negative values are the
+ *                                     cluster index in [0, C), where C is the number of clusters found.
+ * \param[out] ntNClusters             Output numeric table of size 1 x 1 containing the number of clusters C found.
+ * \param[in]  minClusterSize          Minimum number of points required to form a cluster.
+ * \param[in]  minSamples              Number of neighbors used when computing core distances.
+ * \param[in]  pairwiseDistance        Distance metric used for pairwise distances (see algorithms::internal::PairwiseDistanceType).
+ * \param[in]  minkowskiDegree         Exponent p for the Minkowski distance. Ignored for other metrics.
+ * \param[in]  clusterSelection        Cluster selection strategy: 0 — excess of mass, 1 — leaf.
+ * \param[in]  allowSingleCluster      If true, allow the root cluster of the condensed tree to be selected.
+ * \param[in]  clusterSelectionEpsilon Distance threshold used to merge clusters closer than epsilon.
+ * \param[in]  maxClusterSize          Maximum allowed cluster size (only used with cluster selection epsilon). 0 disables the limit.
+ * \param[in]  alpha                   Robust single-linkage scaling factor (distances are divided by alpha).
+ * \param[in]  leafSize                Maximum number of points per leaf in the kd-tree / ball-tree. Ignored for brute force.
+ */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class HDBSCANBatchKernel : public Kernel
 {
 public:
     services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, size_t minClusterSize,
-                             size_t minSamples, int metric = euclidean, double degree = 2.0, int clusterSelection = 0,
-                             bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0,
-                             size_t leafSize = 40);
+                             size_t minSamples,
+                             algorithms::internal::PairwiseDistanceType pairwiseDistance = algorithms::internal::PairwiseDistanceType::euclidean,
+                             double minkowskiDegree = 2.0, int clusterSelection = 0, bool allowSingleCluster = false,
+                             double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0, size_t leafSize = 40);
 };
 
 } // namespace internal

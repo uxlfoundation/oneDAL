@@ -29,7 +29,7 @@ namespace hdbscan
 namespace internal
 {
 
-template class DAAL_EXPORT HDBSCANBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+template class DAAL_EXPORT HDBSCANBatchKernel<DAAL_FPTYPE, bruteForceDense, DAAL_CPU>;
 
 } // namespace internal
 } // namespace hdbscan
