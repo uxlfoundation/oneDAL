@@ -41,7 +41,9 @@ public:
     inline void set(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
+#endif
         _data[element_index] |= (element_t(1) << bit_index);
     }
 
@@ -49,7 +51,9 @@ public:
     inline void unset(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
+#endif
         _data[element_index] &= ~(element_t(1) << bit_index);
     }
 
@@ -57,7 +61,9 @@ public:
     inline bool test(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
+#endif
         return (_data[element_index] & (element_t(1) << bit_index)) != 0;
     }
 
@@ -67,7 +73,9 @@ public:
     inline void atomic_set(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
+#endif
         sycl::atomic_ref<element_t, mem_order, mem_scope> atomic_element(_data[element_index]);
         atomic_element |= (element_t(1) << bit_index);
     }
@@ -78,7 +86,9 @@ public:
     inline void atomic_unset(std::uint32_t index) {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
+#endif
         sycl::atomic_ref<element_t, mem_order, mem_scope> atomic_element(_data[element_index]);
         atomic_element &= ~(element_t(1) << bit_index);
     }
@@ -89,7 +99,9 @@ public:
     inline bool atomic_test(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
+#endif
         sycl::atomic_ref<element_t, mem_order, mem_scope> atomic_element(_data[element_index]);
         return (atomic_element.load() & (element_t(1) << bit_index)) != 0;
     }
@@ -110,7 +122,9 @@ public:
 
     /// override operator []
     inline element_t& operator[](std::uint64_t index) {
+#ifndef __SYCL_DEVICE_ONLY__
         ONEDAL_ASSERT(index < _num_items, "Index out of bounds");
+#endif
         return _data[index];
     }
 
