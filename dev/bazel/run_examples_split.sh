@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -31,25 +31,25 @@
 #   BAZEL_FLAGS="--config=dpc" TEST_FLAGS="--local_test_jobs=8 --test_output=errors" \
 #     dev/bazel/run_examples_split.sh all dpc //examples/oneapi/dpc/...
 
-set -euo pipefail
+set -eu
 
 MODE="${1:-all}"
-if [[ $# -gt 0 ]]; then shift; fi
+if [ "$#" -gt 0 ]; then shift; fi
 
 KIND="${1:-all}"
 case "${KIND}" in
     host|dpc|all)
-        if [[ $# -gt 0 ]]; then shift; fi
+        if [ "$#" -gt 0 ]; then shift; fi
         ;;
     *)
         KIND="all"
         ;;
 esac
 
-if [[ $# -gt 0 ]]; then
-    QUERY_TARGETS=("$@")
+if [ "$#" -gt 0 ]; then
+    QUERY_TARGETS="$*"
 else
-    QUERY_TARGETS=("//examples/...")
+    QUERY_TARGETS="//examples/..."
 fi
 
 case "${MODE}" in
@@ -68,16 +68,19 @@ kind_filter() {
     esac
 }
 
+bazel_cmd() {
+    # shellcheck disable=SC2086
+    "${BAZEL_BIN}" ${BAZEL_STARTUP_FLAGS:-} "$@"
+}
+
 collect_targets() {
-    local query_parts=()
-    local target
-    for target in "${QUERY_TARGETS[@]}"; do
-        query_parts+=("tests(${target})")
-    done
-    local query_expr="${query_parts[0]}"
-    local i
-    for ((i = 1; i < ${#query_parts[@]}; i++)); do
-        query_expr="${query_expr} + ${query_parts[$i]}"
+    query_expr=""
+    for target in ${QUERY_TARGETS}; do
+        if [ -n "${query_expr}" ]; then
+            query_expr="${query_expr} + tests(${target})"
+        else
+            query_expr="tests(${target})"
+        fi
     done
 
     bazel_cmd query "${query_expr}" \
@@ -86,9 +89,9 @@ collect_targets() {
 }
 
 detect_jobs() {
-    if [[ -n "${BAZEL_JOBS:-}" ]]; then
+    if [ -n "${BAZEL_JOBS:-}" ]; then
         echo "${BAZEL_JOBS}"
-    elif [[ -n "${NUMBER_OF_PROCESSORS:-}" ]]; then
+    elif [ -n "${NUMBER_OF_PROCESSORS:-}" ]; then
         echo "${NUMBER_OF_PROCESSORS}"
     elif command -v nproc >/dev/null 2>&1; then
         nproc
@@ -101,55 +104,45 @@ detect_jobs() {
 
 BAZEL_JOBS="$(detect_jobs)"
 BAZEL_BIN="${BAZEL:-bazel}"
+TARGETS="$(collect_targets)"
+TARGET_COUNT="$(printf '%s\n' "${TARGETS}" | sed '/^$/d' | wc -l | tr -d ' ')"
 
-bazel_cmd() {
-    # shellcheck disable=SC2086
-    "${BAZEL_BIN}" ${BAZEL_STARTUP_FLAGS:-} "$@"
-}
-
-mapfile -t TARGETS < <(collect_targets)
-
-if [[ ${#TARGETS[@]} -eq 0 ]]; then
-    echo "No example test targets found for kind='${KIND}' in: ${QUERY_TARGETS[*]}" >&2
+if [ "${TARGET_COUNT}" -eq 0 ]; then
+    echo "No example test targets found for kind='${KIND}' in: ${QUERY_TARGETS}" >&2
     exit 1
 fi
 
-echo "Selected ${#TARGETS[@]} example targets (${KIND}) from: ${QUERY_TARGETS[*]}" >&2
+echo "Selected ${TARGET_COUNT} example targets (${KIND}) from: ${QUERY_TARGETS}" >&2
 echo "Using ${BAZEL_JOBS} parallel Bazel jobs/test jobs" >&2
 echo "Using Bazel binary: ${BAZEL_BIN}" >&2
 
-if [[ "${MODE}" == "list" ]]; then
-    printf '%s\n' "${TARGETS[@]}"
+if [ "${MODE}" = "list" ]; then
+    printf '%s\n' "${TARGETS}"
     exit 0
 fi
 
 build_examples() {
     echo "==> BUILD phase: compiling/linking all selected examples" >&2
     # shellcheck disable=SC2086
-    bazel_cmd build --jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${BUILD_FLAGS:-} "${TARGETS[@]}"
+    bazel_cmd build --jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${BUILD_FLAGS:-} ${TARGETS}
 }
 
-TEST_ENV_PATH_FLAG=()
+TEST_ENV_PATH_FLAGS=""
 
 configure_windows_runtime_path() {
     case "$(uname -s 2>/dev/null || echo unknown)" in
         MINGW*|MSYS*|CYGWIN*)
-            local output_base output_base_win path_win
             output_base="$(bazel_cmd info output_base 2>/dev/null || true)"
-            if [[ -n "${output_base}" ]]; then
-                local dalroot_path="${DALROOT:-}"
-                if [[ -n "${dalroot_path}" ]]; then
-                    export PATH="${dalroot_path}/redist/intel64:${dalroot_path}/lib/intel64:${PATH}"
+            if [ -n "${output_base}" ]; then
+                dalroot_path="${DALROOT:-}"
+                if [ -n "${dalroot_path}" ]; then
+                    PATH="${dalroot_path}/redist/intel64:${dalroot_path}/lib/intel64:${PATH}"
                 fi
-                export PATH="${output_base}/external/+mkl_repo+mkl/bin:${output_base}/external/+tbb_repo+tbb/bin:${output_base}/external/+mkl_repo+mkl/archive/bin:${output_base}/external/+tbb_repo+tbb/archive/bin:${PATH}"
-                output_base_win="$(cygpath -w "${output_base}" 2>/dev/null || echo "${output_base}")"
-                path_win="$(cygpath -wp "${PATH}" 2>/dev/null || echo "${PATH}")"
+                PATH="${output_base}/external/+mkl_repo+mkl/bin:${output_base}/external/+tbb_repo+tbb/bin:${output_base}/external/+mkl_repo+mkl/archive/bin:${output_base}/external/+tbb_repo+tbb/archive/bin:${PATH}"
+                export PATH
                 export MKL_THREADING_LAYER="${MKL_THREADING_LAYER:-TBB}"
-                TEST_ENV_PATH_FLAG=(
-                    "--test_env=PATH=${output_base_win}\\external\\+mkl_repo+mkl\\bin;${output_base_win}\\external\\+tbb_repo+tbb\\bin;${output_base_win}\\external\\+mkl_repo+mkl\\archive\\bin;${output_base_win}\\external\\+tbb_repo+tbb\\archive\\bin;${path_win}"
-                    "--test_env=MKL_THREADING_LAYER=${MKL_THREADING_LAYER}"
-                    "--test_env=DALROOT=${DALROOT:-$(pwd)}"
-                )
+                export DALROOT="${DALROOT:-$(pwd)}"
+                TEST_ENV_PATH_FLAGS="--test_env=PATH --test_env=MKL_THREADING_LAYER --test_env=DALROOT"
             fi
             ;;
     esac
@@ -162,7 +155,7 @@ run_examples() {
     # After the build phase, this should mostly schedule test actions, while still staying correct
     # if a target changed between phases.
     # shellcheck disable=SC2086
-    bazel_cmd test --build_tests_only --test_output=errors "${TEST_ENV_PATH_FLAG[@]}" --jobs="${BAZEL_JOBS}" --local_test_jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${TEST_FLAGS:-} "${TARGETS[@]}"
+    bazel_cmd test --build_tests_only --test_output=errors ${TEST_ENV_PATH_FLAGS} --jobs="${BAZEL_JOBS}" --local_test_jobs="${BAZEL_JOBS}" ${BAZEL_FLAGS:-} ${TEST_FLAGS:-} ${TARGETS}
 }
 
 case "${MODE}" in
