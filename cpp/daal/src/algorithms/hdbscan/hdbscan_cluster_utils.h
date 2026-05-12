@@ -49,19 +49,12 @@ static void sortMstEdges(int * mstFrom, int * mstTo, algorithmFPType * mstWeight
     daal::algorithms::internal::qSort<algorithmFPType, int, int, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
 }
 
+/// Build the single-linkage dendrogram from sorted MST edges via union-find.
+/// Node ids [0, nRows) are leaves; [nRows, nRows+edgeCount) are internal nodes.
+/// Returns the root node id, or -1 if empty.
 template <typename algorithmFPType, CpuType cpu>
-struct DendroNode
-{
-    int left;
-    int right;
-    algorithmFPType weight;
-    int size;
-};
-
-template <typename algorithmFPType, CpuType cpu>
-static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t edgeCount,
-                                  DendroNode<algorithmFPType, cpu> * dendro, int * nodeSize, int * leftChild, int * rightChild,
-                                  algorithmFPType * nodeWeight, size_t totalNodes)
+static int buildDendrogramFromSortedMst(const int * mstFrom, const int * mstTo, const algorithmFPType * mstWeights, size_t nRows, size_t edgeCount,
+                                        int * nodeSize, int * leftChild, int * rightChild, algorithmFPType * nodeWeight, size_t totalNodes)
 {
     TArray<int, cpu> ufParentArr(nRows);
     TArray<int, cpu> compSizeArr(nRows);
@@ -70,6 +63,13 @@ static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * 
     int * compSize   = compSizeArr.get();
     int * compToNode = compToNodeArr.get();
 
+    for (size_t i = 0; i < totalNodes; i++)
+    {
+        nodeSize[i]   = (i < nRows) ? 1 : 0;
+        leftChild[i]  = -1;
+        rightChild[i] = -1;
+        nodeWeight[i] = algorithmFPType(0);
+    }
     for (size_t i = 0; i < nRows; i++)
     {
         ufParent[i]   = static_cast<int>(i);
@@ -86,20 +86,21 @@ static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * 
         return x;
     };
 
-    for (size_t i = 0; i < edgeCount; i++) dendro[i] = { 0, 0, algorithmFPType(0), 0 };
-
+    int root = -1;
     for (size_t e = 0; e < edgeCount; e++)
     {
         const int ru = ufFind(mstFrom[e]);
         const int rv = ufFind(mstTo[e]);
         if (ru == rv) continue;
 
-        const int leftNode  = compToNode[ru];
-        const int rightNode = compToNode[rv];
-        const int newSize   = compSize[ru] + compSize[rv];
-        const int nodeId    = static_cast<int>(nRows + e);
+        const int nodeId  = static_cast<int>(nRows + e);
+        const int newSize = compSize[ru] + compSize[rv];
 
-        dendro[e] = { leftNode, rightNode, mstWeights[e], newSize };
+        leftChild[nodeId]  = compToNode[ru];
+        rightChild[nodeId] = compToNode[rv];
+        nodeWeight[nodeId] = mstWeights[e];
+        nodeSize[nodeId]   = newSize;
+        root               = nodeId;
 
         if (compSize[ru] < compSize[rv])
         {
@@ -115,39 +116,13 @@ static int buildKruskalDendrogram(int * mstFrom, int * mstTo, algorithmFPType * 
         }
     }
 
-    // Initialize node arrays
-    for (size_t i = 0; i < totalNodes; i++)
-    {
-        nodeSize[i]   = (i < nRows) ? 1 : 0;
-        leftChild[i]  = -1;
-        rightChild[i] = -1;
-        nodeWeight[i] = algorithmFPType(0);
-    }
-    for (size_t e = 0; e < edgeCount; e++)
-    {
-        const size_t nid = nRows + e;
-        nodeSize[nid]    = dendro[e].size;
-        leftChild[nid]   = dendro[e].left;
-        rightChild[nid]  = dendro[e].right;
-        nodeWeight[nid]  = dendro[e].weight;
-    }
-
-    // Find root
-    int root = -1;
-    for (int e = static_cast<int>(edgeCount) - 1; e >= 0; e--)
-    {
-        if (dendro[e].size > 0)
-        {
-            root = static_cast<int>(nRows + e);
-            break;
-        }
-    }
     return root;
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize, int * leftChild, int * rightChild, algorithmFPType * nodeWeight,
-                                 int * dendroToCluster, CondensedEdge * condensed, algorithmFPType * condensedLambda, int & nextCid)
+static size_t buildCondensedTree(int root, size_t nRows, int mcs, const int * nodeSize, const int * leftChild, const int * rightChild,
+                                 const algorithmFPType * nodeWeight, int * dendroToCluster, CondensedEdge * condensed,
+                                 algorithmFPType * condensedLambda, int & nextCid)
 {
     TArray<int, cpu> leafStackArr(nRows);
     TArray<int, cpu> fallenBufArr(nRows);
@@ -254,8 +229,8 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, int * nodeSize
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static void initClusterMetadata(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters,
-                                int rootCid, algorithmFPType * lambdaBirth, char * isLeafCluster, int * clusterSz, int * childCount)
+static void initClusterMetadata(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
+                                int nClusters, int rootCid, algorithmFPType * lambdaBirth, char * isLeafCluster, int * clusterSz, int * childCount)
 {
     for (int c = 0; c < nClusters; c++)
     {
@@ -280,7 +255,7 @@ static void initClusterMetadata(CondensedEdge * condensed, algorithmFPType * con
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static void computeClusterStability(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, int nClusters,
+static void computeClusterStability(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, int nClusters,
                                     const algorithmFPType * lambdaBirth, algorithmFPType * stability)
 {
     for (int c = 0; c < nClusters; c++) stability[c] = algorithmFPType(0);
@@ -326,7 +301,7 @@ static void runEomSelection(int nClusters, int rootCid, int mcsMax, algorithmFPT
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static void applyClusterSelectionEpsilon(CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
+static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
                                          const algorithmFPType * lambdaBirth, double clusterSelectionEpsilon, char * isSelected)
 {
     TArray<int, cpu> clusterParentArr(nClusters);
@@ -368,7 +343,7 @@ static void computeChildOffsets(int nClusters, const int * childCount, int * chi
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static void fillChildList(CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, const int * childOffset, int * childList)
+static void fillChildList(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, const int * childOffset, int * childList)
 {
     TArray<int, cpu> fillCursorArr(nClusters);
     int * fillCursor = fillCursorArr.get();
@@ -384,7 +359,6 @@ static void fillChildList(CondensedEdge * condensed, size_t nCondensed, size_t n
     }
 }
 
-template <typename algorithmFPType, CpuType cpu>
 static void enforceAllowSingleCluster(int nClusters, int rootCid, const char * isLeafCluster, const int * childOffset, const int * childCount,
                                       const int * childList, char * isSelected)
 {
@@ -404,8 +378,8 @@ static void enforceAllowSingleCluster(int nClusters, int rootCid, const char * i
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static void selectClusters(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
-                           int mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon,
+static void selectClusters(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows, int nClusters,
+                           int rootCid, int mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon,
                            char * isSelected)
 {
     TArray<algorithmFPType, cpu> stabilityArr(nClusters);
@@ -457,7 +431,7 @@ static void selectClusters(CondensedEdge * condensed, algorithmFPType * condense
 
     if (!allowSingleCluster)
     {
-        enforceAllowSingleCluster<algorithmFPType, cpu>(nClusters, rootCid, isLeafCluster, childOffset, childCount, childList, isSelected);
+        enforceAllowSingleCluster(nClusters, rootCid, isLeafCluster, childOffset, childCount, childList, isSelected);
     }
 
     if (clusterSelectionEpsilon > 0.0)
@@ -478,28 +452,21 @@ static int assignLabelByWalkUp(int startCid, int rootCid, int nClusters, const c
     return -1;
 }
 
-template <typename algorithmFPType, CpuType cpu>
-static void buildDendroParent(DendroNode<algorithmFPType, cpu> * dendro, size_t nRows, size_t nDendroNodes, size_t totalNodes, int * dendroParent)
+static void buildDendroParent(const int * leftChild, const int * rightChild, size_t nRows, size_t totalNodes, int * dendroParent)
 {
     for (size_t i = 0; i < totalNodes; i++) dendroParent[i] = -1;
-    for (size_t e = 0; e < nDendroNodes; e++)
+    for (size_t nid = nRows; nid < totalNodes; nid++)
     {
-        const size_t nid = nRows + e;
-        if (dendro[e].size > 0)
-        {
-            dendroParent[dendro[e].left]  = static_cast<int>(nid);
-            dendroParent[dendro[e].right] = static_cast<int>(nid);
-        }
+        if (leftChild[nid] >= 0) dendroParent[leftChild[nid]] = static_cast<int>(nid);
+        if (rightChild[nid] >= 0) dendroParent[rightChild[nid]] = static_cast<int>(nid);
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
-static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
-                       DendroNode<algorithmFPType, cpu> * dendro, int * dendroToCluster, char * isSelected, int nClusters, int rootCid,
-                       int * assignments)
+static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, const int * leftChild, const int * rightChild,
+                       const int * dendroToCluster, const char * isSelected, int nClusters, int rootCid, int * assignments)
 {
-    const size_t totalNodes   = 2 * nRows - 1;
-    const size_t nDendroNodes = nRows - 1;
+    const size_t totalNodes = 2 * nRows - 1;
 
     int labelCounter = 0;
     TArray<int, cpu> clusterLabelArr(nClusters);
@@ -535,7 +502,7 @@ static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLam
 
     TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
-    buildDendroParent<algorithmFPType, cpu>(dendro, nRows, nDendroNodes, totalNodes, dendroParent);
+    buildDendroParent(leftChild, rightChild, nRows, totalNodes, dendroParent);
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -558,7 +525,7 @@ static int labelPoints(CondensedEdge * condensed, algorithmFPType * condensedLam
 }
 
 /// Sort MST edges by weight and extract flat clusters via condensed tree + EOM.
-/// Shared by both brute_force and kd_tree methods.
+/// Shared by brute_force, kd_tree, and ball_tree methods.
 template <typename algorithmFPType, CpuType cpu>
 int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments,
                               int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
@@ -567,23 +534,19 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     const size_t edgeCount  = nRows - 1;
     const size_t totalNodes = 2 * nRows - 1;
 
-    // Step 1: Sort MST edges
     sortMstEdges<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, edgeCount);
 
-    // Step 2: Build dendrogram
-    TArray<DendroNode<algorithmFPType, cpu>, cpu> dendroArr(edgeCount);
     TArray<int, cpu> nodeSizeArr(totalNodes);
     TArray<int, cpu> leftChildArr(totalNodes);
     TArray<int, cpu> rightChildArr(totalNodes);
     TArray<algorithmFPType, cpu> nodeWeightArr(totalNodes);
-    DendroNode<algorithmFPType, cpu> * dendro = dendroArr.get();
-    int * nodeSize                            = nodeSizeArr.get();
-    int * leftChild                           = leftChildArr.get();
-    int * rightChild                          = rightChildArr.get();
-    algorithmFPType * nodeWeight              = nodeWeightArr.get();
+    int * nodeSize               = nodeSizeArr.get();
+    int * leftChild              = leftChildArr.get();
+    int * rightChild             = rightChildArr.get();
+    algorithmFPType * nodeWeight = nodeWeightArr.get();
 
-    int root = buildKruskalDendrogram<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, edgeCount, dendro, nodeSize, leftChild, rightChild,
-                                                            nodeWeight, totalNodes);
+    const int root = buildDendrogramFromSortedMst<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, edgeCount, nodeSize, leftChild, rightChild,
+                                                                        nodeWeight, totalNodes);
 
     if (root < 0)
     {
@@ -591,7 +554,6 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         return 0;
     }
 
-    // Step 3: Build condensed tree
     int nextCid = static_cast<int>(nRows);
     TArray<int, cpu> dendroToClusterArr(totalNodes);
     int * dendroToCluster = dendroToClusterArr.get();
@@ -608,7 +570,6 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     size_t nCondensed = buildCondensedTree<algorithmFPType, cpu>(root, nRows, mcs, nodeSize, leftChild, rightChild, nodeWeight, dendroToCluster,
                                                                  condensed, condensedLambda, nextCid);
 
-    // Step 4: Select clusters
     const int nClusters = nextCid;
     const int rootCid   = static_cast<int>(nRows);
 
@@ -618,8 +579,7 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
     selectClusters<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, nClusters, rootCid, mcs, maxClusterSize, clusterSelection,
                                          allowSingleCluster, clusterSelectionEpsilon, isSelected);
 
-    // Step 5: Label points
-    return labelPoints<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, dendro, dendroToCluster, isSelected, nClusters, rootCid,
+    return labelPoints<algorithmFPType, cpu>(condensed, nCondensed, nRows, leftChild, rightChild, dendroToCluster, isSelected, nClusters, rootCid,
                                              assignments);
 }
 

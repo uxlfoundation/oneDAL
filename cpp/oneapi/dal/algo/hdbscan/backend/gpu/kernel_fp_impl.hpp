@@ -47,11 +47,6 @@ struct cluster_work_ptrs {
     std::int32_t* comp_size_ptr;
     std::int32_t* comp_to_node_ptr;
 
-    std::int32_t* dl_ptr;
-    std::int32_t* dr_ptr;
-    Float* dw_ptr;
-    std::int32_t* dsz_ptr;
-
     std::int32_t* ns_ptr;
     std::int32_t* lc_ptr;
     std::int32_t* rc_ptr;
@@ -713,22 +708,23 @@ sycl::event kernels_fp<Float>::sort_mst_by_weight(sycl::queue& queue,
 }
 
 // =========================================================================
-// Cluster extraction helper: Kernels 1+2
-// Build Kruskal dendrogram via union-find, then init node arrays.
+// Cluster extraction helper: Kernel 1
+// Build single-linkage dendrogram from sorted MST edges via union-find.
+// Writes directly into node arrays: node ids [0, row_count) are leaves and
+// [row_count, total_nodes) are internal nodes (one per processed edge).
 // =========================================================================
 template <typename Float>
 sycl::event build_dendrogram_kernels(sycl::queue& queue,
                                      const cluster_work_ptrs<Float>& w,
                                      const bk::event_vector& deps) {
-    // Kernel 1 (single_task): Build Kruskal dendrogram via union-find
-    // Sequential — edges must be processed in sorted order
-    auto k1_event = queue.submit([&](sycl::handler& h) {
+    return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.single_task([=]() {
             for (std::int64_t i = 0; i < w.row_count; i++) {
                 w.uf_parent_ptr[i] = static_cast<std::int32_t>(i);
                 w.comp_size_ptr[i] = 1;
                 w.comp_to_node_ptr[i] = static_cast<std::int32_t>(i);
+                w.ns_ptr[i] = 1;
             }
 
             auto uf_find = [&](std::int32_t x) -> std::int32_t {
@@ -745,49 +741,27 @@ sycl::event build_dendrogram_kernels(sycl::queue& queue,
                 if (ru == rv)
                     continue;
 
-                const std::int32_t left_node = w.comp_to_node_ptr[ru];
-                const std::int32_t right_node = w.comp_to_node_ptr[rv];
+                const std::int32_t nid = static_cast<std::int32_t>(w.row_count + e);
                 const std::int32_t new_size = w.comp_size_ptr[ru] + w.comp_size_ptr[rv];
 
-                w.dl_ptr[e] = left_node;
-                w.dr_ptr[e] = right_node;
-                w.dw_ptr[e] = w.mst_weights_ptr[e];
-                w.dsz_ptr[e] = new_size;
+                w.lc_ptr[nid] = w.comp_to_node_ptr[ru];
+                w.rc_ptr[nid] = w.comp_to_node_ptr[rv];
+                w.nw_ptr[nid] = w.mst_weights_ptr[e];
+                w.ns_ptr[nid] = new_size;
 
                 if (w.comp_size_ptr[ru] < w.comp_size_ptr[rv]) {
                     w.uf_parent_ptr[ru] = rv;
                     w.comp_size_ptr[rv] = new_size;
-                    w.comp_to_node_ptr[rv] = static_cast<std::int32_t>(w.row_count + e);
+                    w.comp_to_node_ptr[rv] = nid;
                 }
                 else {
                     w.uf_parent_ptr[rv] = ru;
                     w.comp_size_ptr[ru] = new_size;
-                    w.comp_to_node_ptr[ru] = static_cast<std::int32_t>(w.row_count + e);
+                    w.comp_to_node_ptr[ru] = nid;
                 }
             }
         });
     });
-
-    // Kernel 2 (parallel_for): Initialize node arrays from dendrogram
-    // Each work-item handles one dendrogram node or one leaf node
-    auto k2_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ k1_event });
-        h.parallel_for(sycl::range<1>(w.total_nodes), [=](sycl::id<1> idx) {
-            const std::int64_t nid = idx[0];
-            if (nid < w.row_count) {
-                w.ns_ptr[nid] = 1;
-            }
-            else {
-                const std::int64_t e = nid - w.row_count;
-                w.ns_ptr[nid] = w.dsz_ptr[e];
-                w.lc_ptr[nid] = w.dl_ptr[e];
-                w.rc_ptr[nid] = w.dr_ptr[e];
-                w.nw_ptr[nid] = w.dw_ptr[e];
-            }
-        });
-    });
-
-    return k2_event;
 }
 
 // =========================================================================
@@ -803,8 +777,9 @@ sycl::event build_condensed_tree_kernel(sycl::queue& queue,
         h.single_task([=]() {
             std::int32_t root = -1;
             for (std::int64_t e = w.edge_count - 1; e >= 0; e--) {
-                if (w.dsz_ptr[e] > 0) {
-                    root = static_cast<std::int32_t>(w.row_count + e);
+                const std::int64_t nid = w.row_count + e;
+                if (w.ns_ptr[nid] > 0) {
+                    root = static_cast<std::int32_t>(nid);
                     break;
                 }
             }
@@ -1070,17 +1045,18 @@ template <typename Float>
 sycl::event assign_label_kernels(sycl::queue& queue,
                                  const cluster_work_ptrs<Float>& w,
                                  const bk::event_vector& deps) {
-    // Kernel 4 (parallel_for): Build dendro_parent from dendrogram edges
-    // Each work-item processes one dendrogram edge independently
+    // Kernel 4 (parallel_for): Build dendro_parent from internal nodes.
+    // Each work-item processes one internal node independently.
     auto k4_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.parallel_for(sycl::range<1>(w.edge_count), [=](sycl::id<1> idx) {
-            const std::int64_t e = idx[0];
-            if (w.dsz_ptr[e] > 0) {
-                const std::int64_t nid = w.row_count + e;
-                w.dp_ptr[w.dl_ptr[e]] = static_cast<std::int32_t>(nid);
-                w.dp_ptr[w.dr_ptr[e]] = static_cast<std::int32_t>(nid);
-            }
+            const std::int64_t nid = w.row_count + idx[0];
+            const std::int32_t lc = w.lc_ptr[nid];
+            const std::int32_t rc = w.rc_ptr[nid];
+            if (lc >= 0)
+                w.dp_ptr[lc] = static_cast<std::int32_t>(nid);
+            if (rc >= 0)
+                w.dp_ptr[rc] = static_cast<std::int32_t>(nid);
         });
     });
 
@@ -1171,15 +1147,6 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     auto [comp_to_node, comp_to_node_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
 
-    auto [dendro_left, dl_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    auto [dendro_right, dr_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    auto [dendro_weight, dw_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    auto [dendro_size, ds_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-
     auto [node_size, ns_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
     auto [left_child, lc_ev] =
@@ -1238,12 +1205,12 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
 
     // Collect all allocation events into a single dependency vector
     bk::event_vector all_events = deps;
-    all_events.insert(all_events.end(),
-                      { uf_parent_ev, comp_size_ev, comp_to_node_ev, dl_ev,   dr_ev,  dw_ev,  ds_ev,
-                        ns_ev,        lc_ev,        rc_ev,           nw_ev,   dtc_ev, cp_ev,  cc_ev,
-                        cl_ev,        cs_ev,        cca_ev,          stab_ev, lb_ev,  ilc_ev, is_ev,
-                        clab_ev,      csz_ev,       cprt_ev,         cc0_ev,  cc1_ev, pff_ev, dp_ev,
-                        stk_ev,       stk_cid_ev,   leaf_stk_ev,     nca_ev });
+    all_events.insert(
+        all_events.end(),
+        { uf_parent_ev, comp_size_ev, comp_to_node_ev, ns_ev,   lc_ev,      rc_ev,       nw_ev,
+          dtc_ev,       cp_ev,        cc_ev,           cl_ev,   cs_ev,      cca_ev,      stab_ev,
+          lb_ev,        ilc_ev,       is_ev,           clab_ev, csz_ev,     cprt_ev,     cc0_ev,
+          cc1_ev,       pff_ev,       dp_ev,           stk_ev,  stk_cid_ev, leaf_stk_ev, nca_ev });
 
     // Fill working data pointers
     cluster_work_ptrs<Float> w;
@@ -1254,10 +1221,6 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     w.uf_parent_ptr = uf_parent.get_mutable_data();
     w.comp_size_ptr = comp_size.get_mutable_data();
     w.comp_to_node_ptr = comp_to_node.get_mutable_data();
-    w.dl_ptr = dendro_left.get_mutable_data();
-    w.dr_ptr = dendro_right.get_mutable_data();
-    w.dw_ptr = dendro_weight.get_mutable_data();
-    w.dsz_ptr = dendro_size.get_mutable_data();
     w.ns_ptr = node_size.get_mutable_data();
     w.lc_ptr = left_child.get_mutable_data();
     w.rc_ptr = right_child.get_mutable_data();
