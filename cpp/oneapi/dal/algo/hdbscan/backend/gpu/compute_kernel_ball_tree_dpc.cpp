@@ -18,7 +18,7 @@
 /// Same pipeline as kd_tree GPU variant — all computation stays on device.
 
 #include "oneapi/dal/algo/hdbscan/backend/gpu/compute_kernel.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/gpu/kernels_fp.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/results.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -26,9 +26,6 @@
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
-#include "oneapi/dal/backend/primitives/distance/distance.hpp"
-#include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
-#include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
@@ -166,18 +163,18 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     auto [mst_weights, mst_weights_event] =
         pr::ndarray<Float, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
 
-    auto mst_event = kernels_fp<Float>::build_mst_otf(
-        queue,
-        data_nd,
-        core_distances,
-        mst_from,
-        mst_to,
-        mst_weights,
-        row_count,
-        col_count,
-        metric,
-        degree,
-        { prev_block_event, mst_from_event, mst_to_event, mst_weights_event });
+    auto mst_event =
+        build_mst_otf<Float>(queue,
+                             data_nd,
+                             core_distances,
+                             mst_from,
+                             mst_to,
+                             mst_weights,
+                             row_count,
+                             col_count,
+                             metric,
+                             degree,
+                             { prev_block_event, mst_from_event, mst_to_event, mst_weights_event });
 
     // Step 2b: Apply alpha scaling to MST weights
     if (alpha != 1.0) {
@@ -193,29 +190,25 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     }
 
     // Step 3: Sort MST edges by weight
-    auto sort_event = kernels_fp<Float>::sort_mst_by_weight(queue,
-                                                            mst_from,
-                                                            mst_to,
-                                                            mst_weights,
-                                                            edge_count,
-                                                            { mst_event });
+    auto sort_event =
+        sort_mst_by_weight<Float>(queue, mst_from, mst_to, mst_weights, edge_count, { mst_event });
 
     // Step 4: Extract flat clusters
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
 
-    auto cluster_event = kernels_fp<Float>::extract_clusters(queue,
-                                                             mst_from,
-                                                             mst_to,
-                                                             mst_weights,
-                                                             arr_responses,
-                                                             row_count,
-                                                             min_cluster_size,
-                                                             { sort_event, responses_event },
-                                                             cluster_selection,
-                                                             allow_single_cluster,
-                                                             cluster_selection_epsilon,
-                                                             max_cluster_size);
+    auto cluster_event = extract_clusters<Float>(queue,
+                                                 mst_from,
+                                                 mst_to,
+                                                 mst_weights,
+                                                 arr_responses,
+                                                 row_count,
+                                                 min_cluster_size,
+                                                 { sort_event, responses_event },
+                                                 cluster_selection,
+                                                 allow_single_cluster,
+                                                 cluster_selection_epsilon,
+                                                 max_cluster_size);
     cluster_event.wait_and_throw();
 
     // Count clusters via GPU reduction

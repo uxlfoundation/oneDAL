@@ -16,15 +16,16 @@
 
 #pragma once
 
-#include "oneapi/dal/algo/hdbscan/backend/gpu/kernels_fp.hpp"
+#include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 
+#include "oneapi/dal/backend/common.hpp"
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
 #include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
 #include "oneapi/dal/backend/primitives/sort/sort.hpp"
-#include "oneapi/dal/backend/primitives/reduction/reduction.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
@@ -89,12 +90,12 @@ struct cluster_work_ptrs {
 };
 
 template <typename Float>
-sycl::event kernels_fp<Float>::compute_distance_matrix(sycl::queue& queue,
-                                                       const pr::ndview<Float, 2>& data,
-                                                       pr::ndview<Float, 2>& dist,
-                                                       distance_metric metric,
-                                                       double degree,
-                                                       const bk::event_vector& deps) {
+inline sycl::event compute_distance_matrix(sycl::queue& queue,
+                                           const pr::ndview<Float, 2>& data,
+                                           pr::ndview<Float, 2>& dist,
+                                           distance_metric metric,
+                                           double degree,
+                                           const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_distance_matrix, queue);
 
     const std::int64_t n = data.get_dimension(0);
@@ -131,13 +132,13 @@ sycl::event kernels_fp<Float>::compute_distance_matrix(sycl::queue& queue,
 }
 
 template <typename Float>
-sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
-                                                      const pr::ndview<Float, 2>& dist,
-                                                      pr::ndview<Float, 1>& core_distances,
-                                                      std::int64_t min_samples,
-                                                      std::int64_t row_count,
-                                                      distance_metric metric,
-                                                      const bk::event_vector& deps) {
+inline sycl::event compute_core_distances(sycl::queue& queue,
+                                          const pr::ndview<Float, 2>& dist,
+                                          pr::ndview<Float, 1>& core_distances,
+                                          std::int64_t min_samples,
+                                          std::int64_t row_count,
+                                          distance_metric metric,
+                                          const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances, queue);
 
     const std::int64_t n = row_count;
@@ -177,11 +178,11 @@ sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
 }
 
 template <typename Float>
-sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
-                                                  const pr::ndview<Float, 1>& core_distances,
-                                                  pr::ndview<Float, 2>& mrd_matrix,
-                                                  distance_metric metric,
-                                                  const bk::event_vector& deps) {
+inline sycl::event compute_mrd_matrix(sycl::queue& queue,
+                                      const pr::ndview<Float, 1>& core_distances,
+                                      pr::ndview<Float, 2>& mrd_matrix,
+                                      distance_metric metric,
+                                      const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_mrd_matrix, queue);
 
     const std::int64_t n = core_distances.get_dimension(0);
@@ -216,7 +217,7 @@ sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
 /// different component by scanning one row of the precomputed MRD matrix.
 /// Writes per-point best MRD and best neighbor index.
 template <typename Float>
-static sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
+inline sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
                                             const Float* mrd_ptr,
                                             const std::int32_t* comp_ptr,
                                             Float* pt_best_mrd_ptr,
@@ -246,7 +247,7 @@ static sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
 /// GPU Boruvka helper: each work-item finds the nearest neighbor in a
 /// different component using on-the-fly MRD distance computation.
 template <typename Float>
-static sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
+inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
                                             const Float* data_ptr,
                                             std::int64_t col_count,
                                             const Float* core_ptr,
@@ -317,7 +318,7 @@ static sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
 /// add MST edges. Runs as single_task because the merge step has data dependencies
 /// (union-find), but operates on O(N) data — not the O(N²) distance matrix.
 template <typename Float>
-static sycl::event boruvka_merge_components(sycl::queue& queue,
+inline sycl::event boruvka_merge_components(sycl::queue& queue,
                                             std::int32_t* comp_ptr,
                                             std::int32_t* uf_parent_ptr,
                                             std::int32_t* uf_rank_ptr,
@@ -399,8 +400,7 @@ static sycl::event boruvka_merge_components(sycl::queue& queue,
 }
 
 /// GPU Boruvka: path-compress component IDs in parallel.
-template <typename Float>
-static sycl::event boruvka_compress_components(sycl::queue& queue,
+inline sycl::event boruvka_compress_components(sycl::queue& queue,
                                                std::int32_t* comp_ptr,
                                                const std::int32_t* uf_parent_ptr,
                                                std::int64_t n,
@@ -417,13 +417,13 @@ static sycl::event boruvka_compress_components(sycl::queue& queue,
 }
 
 template <typename Float>
-sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
-                                         const pr::ndview<Float, 2>& mrd_matrix,
-                                         pr::ndview<std::int32_t, 1>& mst_from,
-                                         pr::ndview<std::int32_t, 1>& mst_to,
-                                         pr::ndview<Float, 1>& mst_weights,
-                                         std::int64_t row_count,
-                                         const bk::event_vector& deps) {
+inline sycl::event build_mst(sycl::queue& queue,
+                             const pr::ndview<Float, 2>& mrd_matrix,
+                             pr::ndview<std::int32_t, 1>& mst_from,
+                             pr::ndview<std::int32_t, 1>& mst_to,
+                             pr::ndview<Float, 1>& mst_weights,
+                             std::int64_t row_count,
+                             const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.build_mst, queue);
 
     const std::int64_t n = row_count;
@@ -478,35 +478,35 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
 
     for (std::int32_t round = 0; round < max_rounds; round++) {
         // Step A: parallel find nearest different-component neighbor
-        auto find_event = boruvka_find_nearest_mrd(queue,
-                                                   mrd_ptr,
-                                                   comp_ptr,
-                                                   pt_best_mrd.get_mutable_data(),
-                                                   pt_best_idx.get_mutable_data(),
-                                                   n,
-                                                   { last_event });
+        auto find_event = boruvka_find_nearest_mrd<Float>(queue,
+                                                          mrd_ptr,
+                                                          comp_ptr,
+                                                          pt_best_mrd.get_mutable_data(),
+                                                          pt_best_idx.get_mutable_data(),
+                                                          n,
+                                                          { last_event });
 
         // Step B: reduce + merge (single_task — O(N) work)
-        auto merge_event = boruvka_merge_components(queue,
-                                                    comp_ptr,
-                                                    uf_parent_ptr,
-                                                    uf_rank_ptr,
-                                                    pt_best_mrd.get_data(),
-                                                    pt_best_idx.get_data(),
-                                                    comp_best_mrd.get_mutable_data(),
-                                                    comp_best_from.get_mutable_data(),
-                                                    comp_best_to.get_mutable_data(),
-                                                    mst_from.get_mutable_data(),
-                                                    mst_to.get_mutable_data(),
-                                                    mst_weights.get_mutable_data(),
-                                                    edges_added_arr.get_mutable_data(),
-                                                    num_comp_arr.get_mutable_data(),
-                                                    n,
-                                                    { find_event });
+        auto merge_event = boruvka_merge_components<Float>(queue,
+                                                           comp_ptr,
+                                                           uf_parent_ptr,
+                                                           uf_rank_ptr,
+                                                           pt_best_mrd.get_data(),
+                                                           pt_best_idx.get_data(),
+                                                           comp_best_mrd.get_mutable_data(),
+                                                           comp_best_from.get_mutable_data(),
+                                                           comp_best_to.get_mutable_data(),
+                                                           mst_from.get_mutable_data(),
+                                                           mst_to.get_mutable_data(),
+                                                           mst_weights.get_mutable_data(),
+                                                           edges_added_arr.get_mutable_data(),
+                                                           num_comp_arr.get_mutable_data(),
+                                                           n,
+                                                           { find_event });
 
         // Step C: parallel path compression
         auto compress_event =
-            boruvka_compress_components<Float>(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
+            boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
 
         // Check termination
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
@@ -522,17 +522,17 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
 }
 
 template <typename Float>
-sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
-                                             const pr::ndview<Float, 2>& data,
-                                             const pr::ndview<Float, 1>& core_distances,
-                                             pr::ndview<std::int32_t, 1>& mst_from,
-                                             pr::ndview<std::int32_t, 1>& mst_to,
-                                             pr::ndview<Float, 1>& mst_weights,
-                                             std::int64_t row_count,
-                                             std::int64_t col_count,
-                                             distance_metric metric,
-                                             double degree,
-                                             const bk::event_vector& deps) {
+inline sycl::event build_mst_otf(sycl::queue& queue,
+                                 const pr::ndview<Float, 2>& data,
+                                 const pr::ndview<Float, 1>& core_distances,
+                                 pr::ndview<std::int32_t, 1>& mst_from,
+                                 pr::ndview<std::int32_t, 1>& mst_to,
+                                 pr::ndview<Float, 1>& mst_weights,
+                                 std::int64_t row_count,
+                                 std::int64_t col_count,
+                                 distance_metric metric,
+                                 double degree,
+                                 const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.build_mst_otf, queue);
 
     const std::int64_t n = row_count;
@@ -593,37 +593,37 @@ sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
     sycl::event last_event = init_event;
 
     for (std::int32_t round = 0; round < max_rounds; round++) {
-        auto find_event = boruvka_find_nearest_otf(queue,
-                                                   data_ptr,
-                                                   col_count,
-                                                   core_ptr,
-                                                   comp_ptr,
-                                                   pt_best_mrd.get_mutable_data(),
-                                                   pt_best_idx.get_mutable_data(),
-                                                   n,
-                                                   metric_id,
-                                                   deg_f,
-                                                   { last_event });
+        auto find_event = boruvka_find_nearest_otf<Float>(queue,
+                                                          data_ptr,
+                                                          col_count,
+                                                          core_ptr,
+                                                          comp_ptr,
+                                                          pt_best_mrd.get_mutable_data(),
+                                                          pt_best_idx.get_mutable_data(),
+                                                          n,
+                                                          metric_id,
+                                                          deg_f,
+                                                          { last_event });
 
-        auto merge_event = boruvka_merge_components(queue,
-                                                    comp_ptr,
-                                                    uf_parent_ptr,
-                                                    uf_rank_ptr,
-                                                    pt_best_mrd.get_data(),
-                                                    pt_best_idx.get_data(),
-                                                    comp_best_mrd.get_mutable_data(),
-                                                    comp_best_from.get_mutable_data(),
-                                                    comp_best_to.get_mutable_data(),
-                                                    mst_from.get_mutable_data(),
-                                                    mst_to.get_mutable_data(),
-                                                    mst_weights.get_mutable_data(),
-                                                    edges_added_arr.get_mutable_data(),
-                                                    num_comp_arr.get_mutable_data(),
-                                                    n,
-                                                    { find_event });
+        auto merge_event = boruvka_merge_components<Float>(queue,
+                                                           comp_ptr,
+                                                           uf_parent_ptr,
+                                                           uf_rank_ptr,
+                                                           pt_best_mrd.get_data(),
+                                                           pt_best_idx.get_data(),
+                                                           comp_best_mrd.get_mutable_data(),
+                                                           comp_best_from.get_mutable_data(),
+                                                           comp_best_to.get_mutable_data(),
+                                                           mst_from.get_mutable_data(),
+                                                           mst_to.get_mutable_data(),
+                                                           mst_weights.get_mutable_data(),
+                                                           edges_added_arr.get_mutable_data(),
+                                                           num_comp_arr.get_mutable_data(),
+                                                           n,
+                                                           { find_event });
 
         auto compress_event =
-            boruvka_compress_components<Float>(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
+            boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
 
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
         if (num_comp_host.get_data()[0] <= 1) {
@@ -638,12 +638,12 @@ sycl::event kernels_fp<Float>::build_mst_otf(sycl::queue& queue,
 }
 
 template <typename Float>
-sycl::event kernels_fp<Float>::sort_mst_by_weight(sycl::queue& queue,
-                                                  pr::ndview<std::int32_t, 1>& mst_from,
-                                                  pr::ndview<std::int32_t, 1>& mst_to,
-                                                  pr::ndview<Float, 1>& mst_weights,
-                                                  std::int64_t edge_count,
-                                                  const bk::event_vector& deps) {
+inline sycl::event sort_mst_by_weight(sycl::queue& queue,
+                                      pr::ndview<std::int32_t, 1>& mst_from,
+                                      pr::ndview<std::int32_t, 1>& mst_to,
+                                      pr::ndview<Float, 1>& mst_weights,
+                                      std::int64_t edge_count,
+                                      const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.sort_mst_by_weight, queue);
 
     ONEDAL_ASSERT(edge_count > 0);
@@ -714,9 +714,9 @@ sycl::event kernels_fp<Float>::sort_mst_by_weight(sycl::queue& queue,
 // [row_count, total_nodes) are internal nodes (one per processed edge).
 // =========================================================================
 template <typename Float>
-sycl::event build_dendrogram_kernels(sycl::queue& queue,
-                                     const cluster_work_ptrs<Float>& w,
-                                     const bk::event_vector& deps) {
+inline sycl::event build_dendrogram_kernels(sycl::queue& queue,
+                                            const cluster_work_ptrs<Float>& w,
+                                            const bk::event_vector& deps) {
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.single_task([=]() {
@@ -769,9 +769,9 @@ sycl::event build_dendrogram_kernels(sycl::queue& queue,
 // Build the condensed tree from the dendrogram.
 // =========================================================================
 template <typename Float>
-sycl::event build_condensed_tree_kernel(sycl::queue& queue,
-                                        const cluster_work_ptrs<Float>& w,
-                                        const bk::event_vector& deps) {
+inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
+                                               const cluster_work_ptrs<Float>& w,
+                                               const bk::event_vector& deps) {
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.single_task([=]() {
@@ -893,9 +893,9 @@ sycl::event build_condensed_tree_kernel(sycl::queue& queue,
 // EOM stability selection + cluster mappings + label assignment prep.
 // =========================================================================
 template <typename Float>
-sycl::event eom_select_clusters_kernel(sycl::queue& queue,
-                                       const cluster_work_ptrs<Float>& w,
-                                       const bk::event_vector& deps) {
+inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
+                                              const cluster_work_ptrs<Float>& w,
+                                              const bk::event_vector& deps) {
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.single_task([=]() {
@@ -1042,9 +1042,9 @@ sycl::event eom_select_clusters_kernel(sycl::queue& queue,
 // Build dendro_parent array, then label each point independently.
 // =========================================================================
 template <typename Float>
-sycl::event assign_label_kernels(sycl::queue& queue,
-                                 const cluster_work_ptrs<Float>& w,
-                                 const bk::event_vector& deps) {
+inline sycl::event assign_label_kernels(sycl::queue& queue,
+                                        const cluster_work_ptrs<Float>& w,
+                                        const bk::event_vector& deps) {
     // Kernel 4 (parallel_for): Build dendro_parent from internal nodes.
     // Each work-item processes one internal node independently.
     auto k4_event = queue.submit([&](sycl::handler& h) {
@@ -1114,21 +1114,21 @@ sycl::event assign_label_kernels(sycl::queue& queue,
 
 // =========================================================================
 // extract_clusters: orchestrator that allocates working memory and
-// delegates to the three helper functions above.
+// delegates to the four helper kernels above.
 // =========================================================================
 template <typename Float>
-sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
-                                                const pr::ndview<std::int32_t, 1>& mst_from,
-                                                const pr::ndview<std::int32_t, 1>& mst_to,
-                                                const pr::ndview<Float, 1>& mst_weights,
-                                                pr::ndview<std::int32_t, 1>& responses,
-                                                std::int64_t row_count,
-                                                std::int64_t min_cluster_size,
-                                                const bk::event_vector& deps,
-                                                std::int32_t cluster_selection,
-                                                bool allow_single_cluster,
-                                                double cluster_selection_epsilon,
-                                                std::int64_t max_cluster_size) {
+inline sycl::event extract_clusters(sycl::queue& queue,
+                                    const pr::ndview<std::int32_t, 1>& mst_from,
+                                    const pr::ndview<std::int32_t, 1>& mst_to,
+                                    const pr::ndview<Float, 1>& mst_weights,
+                                    pr::ndview<std::int32_t, 1>& responses,
+                                    std::int64_t row_count,
+                                    std::int64_t min_cluster_size,
+                                    const bk::event_vector& deps = {},
+                                    std::int32_t cluster_selection = 0,
+                                    bool allow_single_cluster = false,
+                                    double cluster_selection_epsilon = 0.0,
+                                    std::int64_t max_cluster_size = 0) {
     ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 
     ONEDAL_ASSERT(row_count > 0);
@@ -1256,10 +1256,10 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     w.max_cluster_size = max_cluster_size;
 
     // Submit kernels via helpers
-    auto k2_event = build_dendrogram_kernels(queue, w, all_events);
-    auto k3a_event = build_condensed_tree_kernel(queue, w, { k2_event });
-    auto k3b_event = eom_select_clusters_kernel(queue, w, { k3a_event });
-    return assign_label_kernels(queue, w, { k3b_event });
+    auto k2_event = build_dendrogram_kernels<Float>(queue, w, all_events);
+    auto k3a_event = build_condensed_tree_kernel<Float>(queue, w, { k2_event });
+    auto k3b_event = eom_select_clusters_kernel<Float>(queue, w, { k3a_event });
+    return assign_label_kernels<Float>(queue, w, { k3b_event });
 }
 
 #endif

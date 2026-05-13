@@ -15,7 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/backend/gpu/compute_kernel.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/gpu/kernels_fp.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/results.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -62,12 +62,12 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     auto [dist_matrix, dist_alloc_event] =
         pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
 
-    auto dist_event = kernels_fp<Float>::compute_distance_matrix(queue,
-                                                                 data_nd,
-                                                                 dist_matrix,
-                                                                 metric,
-                                                                 degree,
-                                                                 { dist_alloc_event });
+    auto dist_event = compute_distance_matrix<Float>(queue,
+                                                     data_nd,
+                                                     dist_matrix,
+                                                     metric,
+                                                     degree,
+                                                     { dist_alloc_event });
 
     // Step 1b: Apply alpha scaling to distance matrix (robust single linkage)
     sycl::event alpha_event = dist_event;
@@ -87,22 +87,19 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
 
-    auto core_event = kernels_fp<Float>::compute_core_distances(queue,
-                                                                dist_matrix,
-                                                                core_distances,
-                                                                min_samples,
-                                                                row_count,
-                                                                metric,
-                                                                { alpha_event, core_dist_event });
+    auto core_event = compute_core_distances<Float>(queue,
+                                                    dist_matrix,
+                                                    core_distances,
+                                                    min_samples,
+                                                    row_count,
+                                                    metric,
+                                                    { alpha_event, core_dist_event });
 
     // Step 3: Transform distances into MRD matrix in-place
     auto& mrd_matrix = dist_matrix;
 
-    auto mrd_compute_event = kernels_fp<Float>::compute_mrd_matrix(queue,
-                                                                   core_distances,
-                                                                   mrd_matrix,
-                                                                   metric,
-                                                                   { core_event });
+    auto mrd_compute_event =
+        compute_mrd_matrix<Float>(queue, core_distances, mrd_matrix, metric, { core_event });
 
     // Step 4: Build MST using GPU Boruvka's algorithm with precomputed MRD matrix
     auto [mst_from, mst_from_event] =
@@ -112,39 +109,35 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     auto [mst_weights, mst_weights_event] =
         pr::ndarray<Float, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
 
-    auto mst_event = kernels_fp<Float>::build_mst(
-        queue,
-        mrd_matrix,
-        mst_from,
-        mst_to,
-        mst_weights,
-        row_count,
-        { mrd_compute_event, mst_from_event, mst_to_event, mst_weights_event });
+    auto mst_event =
+        build_mst<Float>(queue,
+                         mrd_matrix,
+                         mst_from,
+                         mst_to,
+                         mst_weights,
+                         row_count,
+                         { mrd_compute_event, mst_from_event, mst_to_event, mst_weights_event });
 
     // Step 5: Sort MST edges by weight using radix sort primitive
-    auto sort_event = kernels_fp<Float>::sort_mst_by_weight(queue,
-                                                            mst_from,
-                                                            mst_to,
-                                                            mst_weights,
-                                                            edge_count,
-                                                            { mst_event });
+    auto sort_event =
+        sort_mst_by_weight<Float>(queue, mst_from, mst_to, mst_weights, edge_count, { mst_event });
 
     // Step 6: Extract flat clusters using EOM on device
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
 
-    auto cluster_event = kernels_fp<Float>::extract_clusters(queue,
-                                                             mst_from,
-                                                             mst_to,
-                                                             mst_weights,
-                                                             arr_responses,
-                                                             row_count,
-                                                             min_cluster_size,
-                                                             { sort_event, responses_event },
-                                                             cluster_selection,
-                                                             allow_single_cluster,
-                                                             cluster_selection_epsilon,
-                                                             max_cluster_size);
+    auto cluster_event = extract_clusters<Float>(queue,
+                                                 mst_from,
+                                                 mst_to,
+                                                 mst_weights,
+                                                 arr_responses,
+                                                 row_count,
+                                                 min_cluster_size,
+                                                 { sort_event, responses_event },
+                                                 cluster_selection,
+                                                 allow_single_cluster,
+                                                 cluster_selection_epsilon,
+                                                 max_cluster_size);
     cluster_event.wait_and_throw();
 
     // Count clusters via GPU max reduction
