@@ -188,6 +188,8 @@ global:
 
         "oneapi::dal::detail::v1::homogen_table_builder::homogen_table_builder()";
         "oneapi::dal::detail::v1::get_pull_rows_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_rows_iface_impl(oneapi::dal::detail::v1::table_builder_iface*)";
+        "oneapi::dal::detail::v1::get_push_rows_iface_impl(oneapi::dal::detail::v1::table_builder_iface*)";
         "oneapi::dal::detail::v1::get_pull_column_iface_impl(oneapi::dal::detail::v1::table_iface*)";
         "oneapi::dal::detail::v1::get_pull_csr_block_iface_impl(oneapi::dal::detail::v1::table_iface*)";
 
@@ -236,10 +238,17 @@ global:
 
         "oneapi::dal::detail::v1::to_string[abi:cxx11](oneapi::dal::detail::v1::cpu_extension)";
 
-        "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::spmd_policy_base(oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none> const&)";
-
         "_onedal_threader_get_max_threads";
         "_onedal_threader_for_int64";
+
+        "oneapi::dal::detail::serializable_registry::instance()";
+        "void oneapi::dal::detail::v2::serialize_array<oneapi::dal::detail::v1::default_host_policy>(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::output_archive&, unsigned char const*, long, oneapi::dal::v1::data_type)";
+        "std::tuple<std::shared_ptr<unsigned char>, long> oneapi::dal::detail::v2::deserialize_array<oneapi::dal::detail::v1::default_host_policy>(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::input_archive&, oneapi::dal::v1::data_type)";
+
+        "oneapi::dal::detail::v2::array_impl<unsigned char> oneapi::dal::detail::v2::chunked_array_base::flatten_impl<oneapi::dal::detail::v1::default_host_policy, oneapi::dal::detail::v1::host_allocator<unsigned char> >(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::v1::host_allocator<unsigned char> const&) const";
+        "oneapi::dal::detail::v2::array_impl<unsigned char const*> oneapi::dal::detail::v2::chunked_array_base::get_data_impl<oneapi::dal::detail::v1::default_host_policy, oneapi::dal::detail::v1::host_allocator<unsigned char const*> >(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::v1::host_allocator<unsigned char const*> const&) const";
+
+        "oneapi::dal::detail::v1::global_context::get_global_context()";
 
         # Preview interfaces (experimental, subject to change without deprecation)
 
@@ -259,6 +268,7 @@ global:
         "typeinfo for oneapi::dal::preview::spmd::v1::communication_error";
 
         "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::get_communicator() const";
+        "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::spmd_policy_base(oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none> const&)";
 
         # Explicitly exclude backend implementation
 
