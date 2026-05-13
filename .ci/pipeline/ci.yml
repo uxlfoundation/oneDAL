@@ -595,12 +595,20 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: 'Install oneAPI Base Toolkit'
+
   - powershell: |
       $ErrorActionPreference = "Stop"
       $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
       Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
       & "$(BAZELISK_EXE)" version
     displayName: 'install-bazel'
+
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      bash .ci/scripts/describe_system.sh
+    displayName: 'System info'
 
   - script: |
       for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
@@ -615,6 +623,7 @@ jobs:
     displayName: 'bazel-configure'
 
   - script: |
+      call %TEMP%\oneapi\setvars.bat --force
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
@@ -637,30 +646,33 @@ jobs:
 
 
   - script: |
+      call %TEMP%\oneapi\setvars.bat --force
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
-      set "BAZEL=./bazelisk.exe"
-      set "BAZEL_STARTUP_FLAGS=--output_user_root=$(BAZEL_OUTPUT_USER_ROOT)"
-      set "BAZEL_FLAGS=--verbose_failures --jobs=$(BAZEL_JOBS)"
-      set "TEST_FLAGS=--test_link_mode=release_dynamic --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER"
-      set "MKL_THREADING_LAYER=TBB"
-      bash dev/bazel/run_examples_split.sh all host //examples/daal/cpp:all
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set MKL_THREADING_LAYER=TBB
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
 
   - script: |
+      call %TEMP%\oneapi\setvars.bat --force
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
-      set "BAZEL=./bazelisk.exe"
-      set "BAZEL_STARTUP_FLAGS=--output_user_root=$(BAZEL_OUTPUT_USER_ROOT)"
-      set "BAZEL_FLAGS=--verbose_failures --jobs=$(BAZEL_JOBS)"
-      set "TEST_FLAGS=--test_link_mode=release_dynamic --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER"
-      set "MKL_THREADING_LAYER=TBB"
-      bash dev/bazel/run_examples_split.sh all host //examples/oneapi/cpp:all
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set MKL_THREADING_LAYER=TBB
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'cpp-examples-thread-release-dynamic'
 
 
   - script: |
+      call %TEMP%\oneapi\setvars.bat --force
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
@@ -673,6 +685,7 @@ jobs:
 
 
   - script: |
+      call %TEMP%\oneapi\setvars.bat --force
       call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       set BAZEL_SH=$(BAZEL_SH)
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
@@ -682,6 +695,32 @@ jobs:
       set MKL_THREADING_LAYER=TBB
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/oneapi/dal:tests --config=host --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER --jobs=$(BAZEL_JOBS)
     displayName: 'cpp-tests-release-dynamic'
+
+
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      set BAZEL_SH=$(BAZEL_SH)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%TEMP%\oneapi\compiler\latest\bin;%PATH%
+      set MKL_THREADING_LAYER=TBB
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=dpc --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER --verbose_failures --test_output=errors --jobs=$(BAZEL_JOBS)
+    displayName: 'cpp-examples-dpc-release-dynamic'
+
+
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      set BAZEL_SH=$(BAZEL_SH)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%TEMP%\oneapi\compiler\latest\bin;%PATH%
+      set MKL_THREADING_LAYER=TBB
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/oneapi/dal:tests --config=dpc --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT --test_env=PATH --test_env=MKL_THREADING_LAYER --jobs=$(BAZEL_JOBS)
+    displayName: 'cpp-tests-dpc-release-dynamic'
 
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL
