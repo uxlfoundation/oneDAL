@@ -41,7 +41,6 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "tool",
     "artifact_name_pattern",
 )
-load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
 
@@ -172,10 +171,6 @@ def _impl(ctx):
         implies = ["archiver_flags", "linker_param_file"],
         tools = [tool(path = ctx.attr.ar_path)],
     )
-    cpp_merge_static_libraries_action = action_config(
-        action_name = CPP_MERGE_STATIC_LIBRARIES,
-        tools = [tool(path = ctx.attr.ar_merge_path)],
-    )
 
     action_configs = [
         assemble_action,
@@ -187,7 +182,6 @@ def _impl(ctx):
         cpp_link_nodeps_dynamic_library_action,
         cpp_link_dynamic_library_action,
         cpp_link_static_library_action,
-        cpp_merge_static_libraries_action,
     ]
 
     # --- features -----------------------------------------------------------
@@ -695,11 +689,6 @@ def _impl(ctx):
             extension = ".lib",
         ),
         artifact_name_pattern(
-            category_name = "alwayslink_static_library",
-            prefix = "",
-            extension = ".lib",
-        ),
-        artifact_name_pattern(
             category_name = "executable",
             prefix = "",
             extension = ".exe",
@@ -748,7 +737,6 @@ cc_toolchain_config = rule(
         "cc_link_path": attr.string(mandatory = True),
         "dpcc_link_path": attr.string(mandatory = True),
         "ar_path": attr.string(mandatory = True),
-        "ar_merge_path": attr.string(mandatory = True),
         "cxx_builtin_include_directories": attr.string_list(),
         "compile_flags_cc": attr.string_list(),
         "compile_flags_dpcc": attr.string_list(),

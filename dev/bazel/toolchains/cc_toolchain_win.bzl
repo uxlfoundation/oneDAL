@@ -61,7 +61,6 @@ def _find_tools_icx(repo_ctx):
         cc_link = cc_path,
         dpcc_link = dpcc_path,
         ar = ar_path,
-        ar_merge = ar_path,
         is_dpc_found = dpcpp_found,
     )
 
@@ -171,7 +170,6 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
             "%{cc_link_path}": tools.cc_link,
             "%{dpcc_link_path}": tools.dpcc_link,
             "%{ar_path}": tools.ar,
-            "%{ar_merge_path}": tools.ar_merge,
             "%{cxx_builtin_include_directories}": get_starlark_list(
                 builtin_include_directories,
             ),

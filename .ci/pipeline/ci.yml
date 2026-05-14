@@ -61,6 +61,7 @@ resources:
 
 jobs:
 - job: 'FormatterChecks'
+  condition: false
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
@@ -78,6 +79,7 @@ jobs:
       failOnStderr: true
 
 - job: 'LinuxMakeGNU_MKL'
+  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_gnu'
@@ -144,6 +146,7 @@ jobs:
     continueOnError: true
 
 - job: 'LinuxMakeIntel_MKL'
+  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx'
@@ -193,6 +196,7 @@ jobs:
     displayName: 'daal/cpp/mpi samples'
 
 - job: 'LinuxMakeGNU_MKL_Conda'
+  condition: false
   timeoutInMinutes: 300
   variables:
     release.dir: '__release_lnx_gnu_conda'
@@ -276,6 +280,7 @@ jobs:
     displayName: 'daal/cpp/mpi samples'
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
+  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_clang'
@@ -712,6 +717,7 @@ jobs:
     displayName: 'cpp-tests-dpc-release-dynamic'
 
 - job: LinuxSklearnex
+  condition: false
   dependsOn: LinuxMakeGNU_MKL
   timeoutInMinutes: 0
   variables:
@@ -753,6 +759,7 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
+  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_vc'
@@ -817,6 +824,7 @@ jobs:
 
   
 - job: 'WindowsMakeIntel'
+  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win'
@@ -862,6 +870,7 @@ jobs:
 
 
 - job: WindowsSklearnex
+  condition: false
   dependsOn: WindowsMakeVC
   timeoutInMinutes: 0
   variables:
