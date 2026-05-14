@@ -193,7 +193,10 @@ def _impl(ctx):
     pedantic_feature = feature(name = "pedantic")
     dbg_feature = feature(name = "dbg")
     opt_feature = feature(name = "opt")
-    supports_pic_feature = feature(name = "supports_pic", enabled = True)
+    # Windows PE/COFF objects have no PIC/non-PIC distinction, so we do not
+    # register a `supports_pic` feature. Matches rules_cc's MSVC auto-config
+    # and keeps `cc_common.compile` from emitting both variants (which the
+    # cc_module rule in dev/bazel/cc.bzl explicitly rejects).
     supports_dynamic_linker_feature = feature(
         name = "supports_dynamic_linker", enabled = True,
     )
@@ -631,7 +634,6 @@ def _impl(ctx):
         pedantic_feature,
         dbg_feature,
         opt_feature,
-        supports_pic_feature,
         supports_dynamic_linker_feature,
         do_not_link_dynamic_dependencies_feature,
         default_compile_flags_feature,
