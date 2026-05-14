@@ -36,10 +36,7 @@ generate_pkgconfig(
 
 filegroup(
     name = "release_oneapi_includes",
-    srcs = select({
-        ":windows": [],
-        "//conditions:default": ["@onedal//cpp/oneapi/dal:public_includes"],
-    }),
+    srcs = ["@onedal//cpp/oneapi/dal:public_includes"],
 )
 
 filegroup(
@@ -109,15 +106,11 @@ release(
         "@onedal//cpp/daal:thread_static",
         "@onedal//cpp/daal:core_dynamic",
         "@onedal//cpp/daal:thread_dynamic",
+        "@onedal//cpp/oneapi/dal:static",
+        "@onedal//cpp/oneapi/dal:dynamic",
+        "@onedal//cpp/oneapi/dal:static_parameters",
+        "@onedal//cpp/oneapi/dal:dynamic_parameters",
     ] + select({
-        ":windows": [],
-        "//conditions:default": [
-            "@onedal//cpp/oneapi/dal:static",
-            "@onedal//cpp/oneapi/dal:dynamic",
-            "@onedal//cpp/oneapi/dal:static_parameters",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters",
-        ],
-    }) + select({
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:static_dpc",
             "@onedal//cpp/oneapi/dal:dynamic_dpc",

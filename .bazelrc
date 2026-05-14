@@ -113,3 +113,10 @@ build:dpc-private \
 
 test:dpc-private \
     --test_tag_filters="dpc,-public"
+
+
+# On Windows, dev/bazel/toolchains/cc_toolchain_win.bzl selects the custom
+# Intel oneAPI icx/icpx cc_toolchain by default (icx must be on PATH,
+# typically via %ONEAPI_ROOT%\setvars.bat). To fall back to the stock
+# rules_cc MSVC cl auto-config, set ONEDAL_WIN_COMPILER=cl in the
+# environment (or pass --repo_env=ONEDAL_WIN_COMPILER=cl to bazel).

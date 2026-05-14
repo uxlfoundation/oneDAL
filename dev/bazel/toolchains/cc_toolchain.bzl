@@ -66,8 +66,13 @@ onedal_cc_toolchain = repository_rule(
     implementation = _onedal_cc_toolchain_impl,
     environ = [
         "CC",
+        "CXX",
         "PATH",
         "INCLUDE",
         "LIB",
+        # Opt-in switch for the Intel oneAPI Windows toolchain:
+        # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
+        # back to the rules_cc MSVC cl auto-config.
+        "ONEDAL_WIN_COMPILER",
     ],
 )

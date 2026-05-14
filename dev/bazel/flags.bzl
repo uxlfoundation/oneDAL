@@ -41,6 +41,35 @@ lnx_cc_flags = {
     "pedantic": lnx_cc_pedantic_flags,
 }
 
+# icx/icpx on Windows accept clang-style driver flags as well as MSVC-style
+# `/flag` syntax. We use the clang-style driver everywhere so the custom
+# toolchain in dev/bazel/toolchains/cc_toolchain_config_win.bzl can share
+# most flag wiring with Linux.
+win_icx_common_flags = [
+    "/EHsc",
+    "-fwrapv",
+    "-fstack-protector-strong",
+    "-fno-delete-null-pointer-checks",
+    "-Werror",
+    "-Wformat",
+    "-Wformat-security",
+    "-Wreturn-type",
+    "-Wno-deprecated-declarations",
+]
+
+win_icx_pedantic_flags = [
+    "-Wall",
+    "-Wextra",
+    "-Wno-unused-parameter",
+    "-Wno-unused-but-set-parameter",
+    "-Wno-unused-command-line-argument",
+]
+
+win_icx_flags = {
+    "common": win_icx_common_flags,
+    "pedantic": win_icx_pedantic_flags,
+}
+
 def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
     _check_flag_category(category)
     if os_id == "lnx":
@@ -69,6 +98,15 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
         return flags
+    if os_id == "win":
+        if compiler_id in ["icx", "icpx"]:
+            flags = win_icx_flags[category]
+            if compiler_id == "icpx" and category == "common":
+                flags = flags + ["-fsycl"]
+            return flags
+        # cl / other fall through to empty; cl path uses the rules_cc
+        # MSVC auto-config and does not consume these flags.
+        return []
     fail("Unsupported OS")
 
 def get_cpu_flags(arch_id, os_id, compiler_id):
@@ -80,6 +118,7 @@ def get_cpu_flags(arch_id, os_id, compiler_id):
         avx2 = ["-march=haswell"]
         avx512 = ["-march=haswell"]
     elif compiler_id in ["icx", "icpx"]:
+        # icx on Windows accepts -march like its Linux counterpart.
         sse2 = ["-march=nocona"]
         avx2 = ["-march=haswell"]
         avx512 = ["-march=skx"]
