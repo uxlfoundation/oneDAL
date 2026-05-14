@@ -57,6 +57,9 @@ win_icx_common_flags = [
     "-Wformat-security",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
+    # Target-level Windows copts still include MSVC /utf-8 for cl compatibility;
+    # in clang/GCC driver mode icx parses it as an unused -u argument.
+    "-Wno-unused-command-line-argument",
 ]
 
 win_icx_pedantic_flags = [
@@ -64,7 +67,6 @@ win_icx_pedantic_flags = [
     "-Wextra",
     "-Wno-unused-parameter",
     "-Wno-unused-but-set-parameter",
-    "-Wno-unused-command-line-argument",
 ]
 
 win_icx_flags = {
