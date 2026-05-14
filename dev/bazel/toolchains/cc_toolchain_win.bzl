@@ -140,8 +140,10 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
         is_dpcc = True, category = "pedantic",
     ) if tools.is_dpc_found else []
 
+    # Force clang/GCC driver mode on Windows: icx.exe can default to clang-cl
+    # parsing, while this toolchain emits clang/GCC-style compile and link flags.
     # Route linking through lld-link so clang-style -Wl,... passthrough works.
-    common_link_flags = ["-fuse-ld=lld-link"]
+    common_link_flags = ["--driver-mode=g++", "-fuse-ld=lld-link"]
 
     link_flags_cc = common_link_flags
     link_flags_dpcc = (common_link_flags + [

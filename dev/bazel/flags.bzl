@@ -41,12 +41,14 @@ lnx_cc_flags = {
     "pedantic": lnx_cc_pedantic_flags,
 }
 
-# icx/icpx on Windows accept clang-style driver flags as well as MSVC-style
-# `/flag` syntax. We use the clang-style driver everywhere so the custom
-# toolchain in dev/bazel/toolchains/cc_toolchain_config_win.bzl can share
-# most flag wiring with Linux.
+# icx/icpx on Windows can otherwise default to clang-cl parsing, which rejects
+# Bazel's clang/GCC-style arguments such as -std=, -iquote, -isystem, and -MF.
+# Force clang/GCC driver mode and avoid MSVC-only /EHsc so all subsequent flags
+# are interpreted consistently by the custom Windows toolchain.
 win_icx_common_flags = [
-    "/EHsc",
+    "--driver-mode=g++",
+    "-fexceptions",
+    "-fcxx-exceptions",
     "-fwrapv",
     "-fstack-protector-strong",
     "-fno-delete-null-pointer-checks",
