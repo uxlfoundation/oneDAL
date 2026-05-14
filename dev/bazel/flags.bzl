@@ -41,32 +41,31 @@ lnx_cc_flags = {
     "pedantic": lnx_cc_pedantic_flags,
 }
 
-# icx/icpx on Windows can otherwise default to clang-cl parsing, which rejects
-# Bazel's clang/GCC-style arguments such as -std=, -iquote, -isystem, and -MF.
-# Force clang/GCC driver mode and avoid MSVC-only /EHsc so all subsequent flags
-# are interpreted consistently by the custom Windows toolchain.
+# icx/icpx on Windows run in their native clang-cl driver mode, so flags
+# use MSVC-style spellings. Mirrors dev/make/compiler_definitions/{icx,dpcpp}.mkl.32e.mk
+# (COMPILER.win.icx / COMPILER.win.dpcpp).
 win_icx_common_flags = [
-    "--driver-mode=g++",
-    "-fexceptions",
-    "-fcxx-exceptions",
-    "-fwrapv",
-    "-fstack-protector-strong",
-    "-fno-delete-null-pointer-checks",
-    "-Werror",
-    "-Wformat",
-    "-Wformat-security",
-    "-Wreturn-type",
+    "-MD",
+    "-nologo",
+    "-WX",
+    "-Qopenmp-simd",
     "-Wno-deprecated-declarations",
-    # Target-level Windows copts still include MSVC /utf-8 for cl compatibility;
-    # in clang/GCC driver mode icx parses it as an unused -u argument.
-    "-Wno-unused-command-line-argument",
+    "-Wno-ignored-attributes",
+    # Silence icx's "loop not vectorized" pass-failed diagnostic so it does
+    # not combine with `-WX`. Matches `-Wno-pass-failed` from `-DEBC.icx`.
+    "-Wno-pass-failed",
+    # icx 2026 is stricter about [[nodiscard]] than older toolchains;
+    # suppress to avoid failing third-party headers (fmt, Catch2) that
+    # ignore nodiscard-returning functions called for side effects.
+    "-Wno-unused-result",
 ]
 
+# Matches `pedantic.opts.win.icx` / `pedantic.opts.win.dpcpp` in the Makefile.
 win_icx_pedantic_flags = [
     "-Wall",
     "-Wextra",
+    "-Wwritable-strings",
     "-Wno-unused-parameter",
-    "-Wno-unused-but-set-parameter",
 ]
 
 win_icx_flags = {

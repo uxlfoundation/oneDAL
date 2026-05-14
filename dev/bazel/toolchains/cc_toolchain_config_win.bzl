@@ -14,19 +14,19 @@
 # limitations under the License.
 #===============================================================================
 
-# Custom cc_toolchain_config for Intel oneAPI icx/icpx on Windows.
+# Custom cc_toolchain_config for Intel oneAPI icx on Windows.
 #
-# icx.exe and icpx.exe are clang-based and accept both MSVC-style ("/flag")
-# and clang-style ("-flag") driver options. This config uses the clang
-# driver interface everywhere, so the flag wiring closely mirrors
-# cc_toolchain_config_lnx.bzl. The major differences vs. Linux:
+# icx.exe runs in its native clang-cl driver mode (MSVC-compatible syntax),
+# matching dev/make/compiler_definitions/icx.mkl.32e.mk. All flags below use
+# MSVC-style spellings (`/I`, `/imsvc`, `/Fo`, `/Qstd:c++17`, `-MD`, …) so
+# icx accepts them without a driver-mode flip. The major differences vs.
+# cc_toolchain_config_lnx.bzl:
 #
+#   * Flags use `/FLAG`/`-FLAG` clang-cl syntax, not gcc-style.
 #   * .obj / .lib / .dll output extensions (set via artifact_name_pattern).
 #   * No -fPIC — Windows is always position-independent.
-#   * No -Wl,-rpath — DLL resolution uses PATH, not rpath.
 #   * Static archives produced via `lib.exe` (or equivalent), not `ar`.
-#   * Link driven through the compiler driver (icx/icpx) with -fuse-ld=lld-link
-#     so the existing Linux-style "-Wl,..." passthrough is honored by lld-link.
+#   * Link driven through icx with `-link` forwarding to lld-link.exe.
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 
@@ -34,6 +34,8 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "feature",
     "flag_group",
     "flag_set",
+    "env_entry",
+    "env_set",
     "tool_path",
     "variable_with_value",
     "with_feature_set",
@@ -205,6 +207,28 @@ def _impl(ctx):
     )
     no_legacy_features_feature = feature(name = "no_legacy_features", enabled = True)
 
+    # Inject Windows shell env vars into every compile and link action so
+    # icx (via `INCLUDE`) and lld-link (via `LIB`) find MSVC, Windows SDK,
+    # and oneAPI headers/libs without relying on the user's inherited
+    # shell — the Makefile relies on these same vars set by setvars.bat.
+    msvc_env_entries = []
+    if ctx.attr.env_include:
+        msvc_env_entries.append(env_entry(key = "INCLUDE", value = ctx.attr.env_include))
+    if ctx.attr.env_lib:
+        msvc_env_entries.append(env_entry(key = "LIB", value = ctx.attr.env_lib))
+    if ctx.attr.env_path:
+        msvc_env_entries.append(env_entry(key = "PATH", value = ctx.attr.env_path))
+    msvc_env_feature = feature(
+        name = "msvc_env",
+        enabled = True,
+        env_sets = [env_set(
+            actions = all_compile_actions + all_link_actions + [
+                ACTION_NAMES.cpp_link_static_library,
+            ] + lto_index_actions,
+            env_entries = msvc_env_entries,
+        )] if msvc_env_entries else [],
+    )
+
     compiler_input_flags_feature = feature(
         name = "compiler_input_flags",
         flag_sets = [flag_set(
@@ -222,15 +246,15 @@ def _impl(ctx):
             actions = all_compile_actions,
             flag_groups = [
                 flag_group(
-                    flags = ["-S"],
+                    flags = ["/Fa%{output_file}"],
                     expand_if_available = "output_assembly_file",
                 ),
                 flag_group(
-                    flags = ["-E"],
+                    flags = ["/P", "/Fi%{output_file}"],
                     expand_if_available = "output_preprocess_file",
                 ),
                 flag_group(
-                    flags = ["-o", "%{output_file}"],
+                    flags = ["/Fo%{output_file}"],
                     expand_if_available = "output_file",
                 ),
             ],
@@ -278,17 +302,17 @@ def _impl(ctx):
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["-std=c++11"])],
+                flag_groups = [flag_group(flags = ["/Qstd:c++11"])],
                 with_features = [with_feature_set(features = ["c++11"])],
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["-std=c++14"])],
+                flag_groups = [flag_group(flags = ["/Qstd:c++14"])],
                 with_features = [with_feature_set(features = ["c++14"])],
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["-std=c++17"])],
+                flag_groups = [flag_group(flags = ["/Qstd:c++17"])],
                 with_features = [with_feature_set(features = ["c++17"])],
             ),
             flag_set(
@@ -384,15 +408,15 @@ def _impl(ctx):
         )],
     )
 
-    # Windows DLLs live alongside their import .lib; search paths mirror
-    # Linux's -L. No runtime_library_search_directories feature — Windows
-    # has no rpath concept.
+    # Windows DLLs live alongside their import .lib. clang-cl forwards
+    # library search paths to lld-link when they start with `-libpath:`
+    # (lowercase, no slash prefix that confuses its input-file detector).
     library_search_directories_feature = feature(
         name = "library_search_directories",
         flag_sets = [flag_set(
             actions = all_link_actions + lto_index_actions,
             flag_groups = [flag_group(
-                flags = ["-L%{library_search_directories}"],
+                flags = ["-libpath:%{library_search_directories}"],
                 iterate_over = "library_search_directories",
                 expand_if_available = "library_search_directories",
             )],
@@ -413,12 +437,13 @@ def _impl(ctx):
                 ACTION_NAMES.clif_match,
             ],
             flag_groups = [flag_group(
-                flags = ["-D%{preprocessor_defines}"],
+                flags = ["/D%{preprocessor_defines}"],
                 iterate_over = "preprocessor_defines",
             )],
         )],
     )
 
+    # Force-include a header (`-include foo.h` in gcc; `/FI foo.h` in clang-cl).
     includes_feature = feature(
         name = "includes",
         enabled = True,
@@ -433,13 +458,17 @@ def _impl(ctx):
                 ACTION_NAMES.clif_match,
             ],
             flag_groups = [flag_group(
-                flags = ["-include", "%{includes}"],
+                flags = ["/FI", "%{includes}"],
                 iterate_over = "includes",
                 expand_if_available = "includes",
             )],
         )],
     )
 
+    # clang-cl accepts `-I<dir>` / `/I <dir>` for user includes and `/imsvc <dir>`
+    # for system-include paths (the clang-cl equivalent of `-isystem`). Quote
+    # includes have no distinct syntax in MSVC-driver mode, so they collapse
+    # into plain `/I`.
     include_paths_feature = feature(
         name = "include_paths",
         enabled = True,
@@ -455,15 +484,15 @@ def _impl(ctx):
             ],
             flag_groups = [
                 flag_group(
-                    flags = ["-iquote", "%{quote_include_paths}"],
+                    flags = ["/I%{quote_include_paths}"],
                     iterate_over = "quote_include_paths",
                 ),
                 flag_group(
-                    flags = ["-I%{include_paths}"],
+                    flags = ["/I%{include_paths}"],
                     iterate_over = "include_paths",
                 ),
                 flag_group(
-                    flags = ["-isystem", "%{system_include_paths}"],
+                    flags = ["/imsvc", "%{system_include_paths}"],
                     iterate_over = "system_include_paths",
                 ),
             ],
@@ -520,8 +549,10 @@ def _impl(ctx):
                                 value = "interface_library",
                             ),
                         ),
+                        # MSVC-style: dynamic libraries link via their import
+                        # .lib name as a positional argument (no `-l`).
                         flag_group(
-                            flags = ["-l%{libraries_to_link.name}"],
+                            flags = ["%{libraries_to_link.name}.lib"],
                             expand_if_equal = variable_with_value(
                                 name = "libraries_to_link.type",
                                 value = "dynamic_library",
@@ -577,7 +608,9 @@ def _impl(ctx):
         ],
     )
 
-    # clang-style -MD/-MF works with icx on Windows.
+    # icx in clang-cl mode emits dependency info via clang-style flags passed
+    # through `/clang:` so they don't collide with MSVC's `-MD` (which in
+    # clang-cl means "link against msvcrt", not "generate .d file").
     dependency_file_feature = feature(
         name = "dependency_file",
         enabled = True,
@@ -592,18 +625,26 @@ def _impl(ctx):
                 ACTION_NAMES.clif_match,
             ],
             flag_groups = [flag_group(
-                flags = ["-MD", "-MF", "%{dependency_file}"],
+                flags = [
+                    "/clang:-MD",
+                    "/clang:-MF",
+                    "/clang:%{dependency_file}",
+                ],
                 expand_if_available = "dependency_file",
             )],
         )],
     )
 
+    # icx in clang-cl mode uses `/Fe<path>` to name an .exe output, and
+    # `-o<path>` for DLL/LTO intermediates via its link driver. `/Fe` is the
+    # MSVC-compat spelling and works for both executables and DLLs when
+    # combined with `/LD` in shared_flag_feature below.
     output_execpath_flags_feature = feature(
         name = "output_execpath_flags",
         flag_sets = [flag_set(
             actions = all_link_actions + lto_index_actions,
             flag_groups = [flag_group(
-                flags = ["-o", "%{output_execpath}"],
+                flags = ["/Fe%{output_execpath}"],
                 expand_if_available = "output_execpath",
             )],
         )],
@@ -618,8 +659,9 @@ def _impl(ctx):
                 ACTION_NAMES.lto_index_for_dynamic_library,
                 ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
             ],
-            # icx on Windows accepts -shared and translates to /DLL.
-            flag_groups = [flag_group(flags = ["-shared"])],
+            # `/LD` tells clang-cl to build a DLL and link against the DLL
+            # CRT (mirrors the Makefile's `-LD` in `dpc.link.dynamic.win`).
+            flag_groups = [flag_group(flags = ["/LD"])],
         )],
     )
 
@@ -627,6 +669,7 @@ def _impl(ctx):
 
     features = [
         no_legacy_features_feature,
+        msvc_env_feature,
         dpc_feature,
         cxx11_feature,
         cxx14_feature,
@@ -754,6 +797,12 @@ cc_toolchain_config = rule(
         "deterministic_compile_flags": attr.string_list(),
         "cpu_flags_cc": attr.string_list_dict(),
         "cpu_flags_dpcc": attr.string_list_dict(),
+        # `INCLUDE` / `LIB` / `PATH` values captured at repo-configure time
+        # so bazel-sandboxed compile and link actions can find MSVC + Windows
+        # SDK + oneAPI headers/libs without the shell env being inherited.
+        "env_include": attr.string(default = ""),
+        "env_lib": attr.string(default = ""),
+        "env_path": attr.string(default = ""),
     },
     provides = [CcToolchainConfigInfo],
 )

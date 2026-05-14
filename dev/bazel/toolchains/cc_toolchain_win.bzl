@@ -45,8 +45,13 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
     return str(tool_path), is_found
 
 def _find_tools_icx(repo_ctx):
+    # Use `icx.exe` for both C and C++/DPC++ on Windows. icx runs in its
+    # native clang-cl driver mode (MSVC-compatible syntax), matching
+    # dev/make/compiler_definitions/icx.mkl.32e.mk. The toolchain below
+    # emits clang-cl-style flags (`/I`, `/imsvc`, `/Fo`, `/Qstd:c++17`, …)
+    # so no driver-mode flip is needed.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
-    dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icpx", mandatory = False)
+    dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
     # On Windows the Intel compiler suite ships `llvm-lib` and `lld-link`
     # next to icx.exe. Both accept MSVC-style /OUT: and /LIBPATH: syntax.
     ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
@@ -56,8 +61,8 @@ def _find_tools_icx(repo_ctx):
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,
-        # icx/icpx drive the link step; no separate wrapper script needed on
-        # Windows — lld-link is invoked implicitly via `-fuse-ld=lld-link`.
+        # icpx drives the link step; lld-link is invoked implicitly via
+        # `-fuse-ld=lld-link`.
         cc_link = cc_path,
         dpcc_link = dpcc_path,
         ar = ar_path,
@@ -95,12 +100,34 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
 
     tools = _find_tools_icx(repo_ctx)
 
-    # icx/icpx accept clang-style include detection via `-E -v`.
-    # We leave the builtin include discovery empty for now — Bazel will
-    # treat system headers reached via INCLUDE env as implicit. Populating
-    # this list reliably requires parsing the `-v` output which differs from
-    # the Linux cc path; punt until we have a real environment to test in.
+    # Collect system include roots. The INCLUDE env (populated by Intel
+    # setvars.bat + MSVC VsDevCmd.bat) covers MSVC, Windows SDK, and oneAPI
+    # headers. Add the clang builtin include dir shipped in the oneAPI
+    # compiler package — it is not exported via INCLUDE but icx pulls
+    # headers from there for its intrinsic declarations and the C11
+    # `__stddef_*` helpers. Mirrors how the Makefile relies on the oneAPI
+    # install layout without probing the compiler.
     builtin_include_directories = []
+    for raw in repo_ctx.os.environ.get("INCLUDE", "").split(";"):
+        p = raw.strip()
+        if p and p not in builtin_include_directories:
+            builtin_include_directories.append(p.replace("\\", "/"))
+    cmplr_root = repo_ctx.os.environ.get("CMPLR_ROOT", "").strip().replace("\\", "/")
+    if cmplr_root:
+        # oneAPI's math/intrinsic overrides ship here and are pulled in by
+        # icx before the system headers — Bazel sees them as absolute-path
+        # inclusions and needs them whitelisted as toolchain dirs.
+        opt_inc = "{}/opt/compiler/include".format(cmplr_root)
+        if repo_ctx.path(opt_inc).exists:
+            builtin_include_directories.append(opt_inc)
+        # Clang builtin headers live under `lib/clang/<N>/include`.
+        clang_root = repo_ctx.path("{}/lib/clang".format(cmplr_root))
+        if clang_root.exists:
+            for entry in clang_root.readdir():
+                inc = "{}/include".format(str(entry).replace("\\", "/"))
+                if repo_ctx.path(inc).exists:
+                    if inc not in builtin_include_directories:
+                        builtin_include_directories.append(inc)
 
     reqs_icx = struct(
         os_id = "win",
@@ -117,6 +144,10 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
 
     dpcc_code_split = "per_kernel"
 
+    # `--driver-mode=g++` is not added to the flag sets — the `icx_g_driver.bat`
+    # wrapper registered in `_find_tools_icx` injects it before any bazel-
+    # supplied argument (including those read from @paramfile, where flag-set
+    # flags would arrive too late for clang-cl to re-parse).
     compile_flags_cc = get_default_compiler_options(
         repo_ctx, reqs_icx, tools.cc,
         is_dpcc = False, category = "common",
@@ -140,13 +171,12 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
         is_dpcc = True, category = "pedantic",
     ) if tools.is_dpc_found else []
 
-    # Force clang/GCC driver mode on Windows: icx.exe can default to clang-cl
-    # parsing, while this toolchain emits clang/GCC-style compile and link flags.
-    # Route linking through lld-link so clang-style -Wl,... passthrough works.
-    common_link_flags = ["--driver-mode=g++", "-fuse-ld=lld-link"]
-
-    link_flags_cc = common_link_flags
-    link_flags_dpcc = (common_link_flags + [
+    # icx in clang-cl mode picks up lld-link (or link.exe) automatically.
+    # lld-link resolves `<name>.lib` via the `LIB` env var; Bazel actions
+    # do not inherit the shell `LIB`, so pass it through via the toolchain
+    # env_entries (see cc_toolchain_config_win.bzl — `msvc_env_feature`).
+    link_flags_cc = []
+    link_flags_dpcc = ([
         "-fsycl",
         "-fsycl-device-code-split={}".format(dpcc_code_split),
     ]) if tools.is_dpc_found else []
@@ -189,7 +219,9 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
             ]),
             "%{opt_link_flags}": get_starlark_list([]),
             "%{dbg_compile_flags}": get_starlark_list([
-                "-g",
+                # clang-cl: `/Z7` embeds debug info in the .obj (no .pdb
+                # juggling, matches Makefile `-DEBC.icx = -debug:all -Z7`).
+                "/Z7",
                 "-O1",
                 "-DONEDAL_ENABLE_ASSERT",
                 "-DDEBUG_ASSERT",
@@ -206,6 +238,13 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
             "%{cpu_flags_dpcc}": get_starlark_list_dict(
                 get_cpu_specific_options(reqs_icx, is_dpcc = True),
             ),
+            # BUILD template values are embedded in double-quoted Starlark
+            # strings, so any literal backslash becomes an invalid escape.
+            # Convert to forward slashes (both lld-link and MSVC link.exe
+            # accept forward-slash paths in INCLUDE/LIB/PATH entries).
+            "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
+            "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
+            "%{env_path}": repo_ctx.os.environ.get("PATH", "").replace("\\", "/"),
         },
     )
 

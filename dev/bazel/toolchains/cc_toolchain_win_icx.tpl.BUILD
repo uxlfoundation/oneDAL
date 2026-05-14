@@ -69,6 +69,9 @@ cc_toolchain_config(
     deterministic_compile_flags = [%{deterministic_compile_flags}],
     cpu_flags_cc = {%{cpu_flags_cc}},
     cpu_flags_dpcc = {%{cpu_flags_dpcc}},
+    env_include = "%{env_include}",
+    env_lib = "%{env_lib}",
+    env_path = "%{env_path}",
 )
 
 cc_toolchain(
