@@ -108,26 +108,40 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
     # `__stddef_*` helpers. Mirrors how the Makefile relies on the oneAPI
     # install layout without probing the compiler.
     builtin_include_directories = []
-    for raw in repo_ctx.os.environ.get("INCLUDE", "").split(";"):
-        p = raw.strip()
+
+    def _add_builtin_include_dir(path):
+        p = path.strip().replace("\\", "/")
         if p and p not in builtin_include_directories:
-            builtin_include_directories.append(p.replace("\\", "/"))
+            builtin_include_directories.append(p)
+        if p:
+            real = str(repo_ctx.path(p).realpath).replace("\\", "/")
+            if real and real not in builtin_include_directories:
+                builtin_include_directories.append(real)
+
+    for raw in repo_ctx.os.environ.get("INCLUDE", "").split(";"):
+        _add_builtin_include_dir(raw)
     cmplr_root = repo_ctx.os.environ.get("CMPLR_ROOT", "").strip().replace("\\", "/")
     if cmplr_root:
+        # Whitelist the compiler package root as well as the precise include
+        # dirs. oneAPI's `latest` can be a junction/symlink while icx reports
+        # absolute inclusions through the resolved versioned path
+        # (`.../compiler/2026.0/...`), and Bazel compares the resolved header
+        # path against this list.
+        _add_builtin_include_dir(cmplr_root)
         # oneAPI's math/intrinsic overrides ship here and are pulled in by
         # icx before the system headers — Bazel sees them as absolute-path
         # inclusions and needs them whitelisted as toolchain dirs.
         opt_inc = "{}/opt/compiler/include".format(cmplr_root)
         if repo_ctx.path(opt_inc).exists:
-            builtin_include_directories.append(opt_inc)
+            _add_builtin_include_dir(opt_inc)
         # Clang builtin headers live under `lib/clang/<N>/include`.
         clang_root = repo_ctx.path("{}/lib/clang".format(cmplr_root))
         if clang_root.exists:
+            _add_builtin_include_dir(str(clang_root))
             for entry in clang_root.readdir():
                 inc = "{}/include".format(str(entry).replace("\\", "/"))
                 if repo_ctx.path(inc).exists:
-                    if inc not in builtin_include_directories:
-                        builtin_include_directories.append(inc)
+                    _add_builtin_include_dir(inc)
 
     reqs_icx = struct(
         os_id = "win",

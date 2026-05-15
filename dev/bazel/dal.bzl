@@ -143,7 +143,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal"],
+                    dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal", "mkl_embed"],
                     features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
