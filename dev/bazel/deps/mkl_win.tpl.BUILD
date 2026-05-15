@@ -24,8 +24,6 @@ cc_library(
         "@tbb//:tbb",
     ],
     defines = ["MKL_ILP64"],
-    alwayslink = 1,
-    linkstatic = 1,
 )
 
 cc_library(
