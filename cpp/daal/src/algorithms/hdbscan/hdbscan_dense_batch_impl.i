@@ -33,11 +33,11 @@
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
+#include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_error_handling.h"
+#include "src/algorithms/service_kernel_math.h"
 #include "src/algorithms/service_threading.h"
 #include "src/data_management/service_numeric_table.h"
-#include "src/externals/service_blas.h"
-#include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
@@ -52,7 +52,6 @@ namespace hdbscan
 namespace internal
 {
 
-using daal::internal::BlasInst;
 using daal::internal::CpuType;
 using daal::internal::ReadRows;
 using daal::internal::WriteOnlyRows;
@@ -98,201 +97,42 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(distMatrix);
 
     using algorithms::internal::PairwiseDistanceType;
+    using algorithms::internal::EuclideanDistances;
+    using algorithms::internal::CosineDistances;
 
-    if (pairwiseDistance == PairwiseDistanceType::euclidean || pairwiseDistance == PairwiseDistanceType::cosine)
+    // For Euclidean and Cosine, reuse the shared GEMM-based primitives in
+    // service_kernel_math.h. They are the same primitives knn uses, with a
+    // blocked row-norm computation, A·Aᵀ via xxgemm, and vectorized finalize.
+    // For other metrics, fillFullDistMatrix routes the row-pair loop through
+    // the corresponding *Dist functor in hdbscan_distance_utils.h, so all three
+    // legacy inline blocks (manhattan/chebyshev/minkowski) collapse to one
+    // call site driven by the metric tag.
+    if (pairwiseDistance == PairwiseDistanceType::euclidean)
     {
-        // GEMM-accelerated path for Euclidean and Cosine
-        TArray<algorithmFPType, cpu> normsVec(nRows);
-        algorithmFPType * norms = normsVec.get();
-        DAAL_CHECK_MALLOC(norms);
-
-        const size_t normBlockSize = 512;
-        const size_t nNormBlocks   = (nRows + normBlockSize - 1) / normBlockSize;
-
-        daal::threader_for(nNormBlocks, nNormBlocks, [&](size_t iBlock) {
-            const size_t begin = iBlock * normBlockSize;
-            const size_t end   = (begin + normBlockSize > nRows) ? nRows : begin + normBlockSize;
-
-            for (size_t i = begin; i < end; i++)
-            {
-                algorithmFPType sum         = algorithmFPType(0);
-                const algorithmFPType * row = data + i * nCols;
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t d = 0; d < nCols; d++)
-                {
-                    sum += row[d] * row[d];
-                }
-                norms[i] = sum;
-            }
-        });
-
-        // Compute A * A^T via GEMM
-        {
-            const char transa           = 't';
-            const char transb           = 'n';
-            const DAAL_INT m            = static_cast<DAAL_INT>(nRows);
-            const DAAL_INT n            = static_cast<DAAL_INT>(nRows);
-            const DAAL_INT k            = static_cast<DAAL_INT>(nCols);
-            const algorithmFPType alpha = algorithmFPType(1);
-            const algorithmFPType beta  = algorithmFPType(0);
-            const DAAL_INT lda          = static_cast<DAAL_INT>(nCols);
-            const DAAL_INT ldb          = static_cast<DAAL_INT>(nCols);
-            const DAAL_INT ldc          = static_cast<DAAL_INT>(nRows);
-
-            BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, data, &lda, data, &ldb, &beta, distMatrix, &ldc);
-        }
-
-        const size_t distBlockSize = 256;
-        const size_t nDistBlocks   = (nRows + distBlockSize - 1) / distBlockSize;
-
-        if (pairwiseDistance == PairwiseDistanceType::euclidean)
-        {
-            // Convert dot products to Euclidean distances
-            daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
-                const size_t i_begin = iBlock * distBlockSize;
-                const size_t i_end   = (i_begin + distBlockSize > nRows) ? nRows : i_begin + distBlockSize;
-
-                for (size_t i = i_begin; i < i_end; i++)
-                {
-                    algorithmFPType * row    = distMatrix + i * nRows;
-                    const algorithmFPType ni = norms[i];
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < nRows; j++)
-                    {
-                        algorithmFPType d2 = ni + norms[j] - algorithmFPType(2) * row[j];
-                        if (d2 < algorithmFPType(0)) d2 = algorithmFPType(0);
-                        row[j] = static_cast<algorithmFPType>(sqrt(static_cast<double>(d2)));
-                    }
-                    row[i] = algorithmFPType(0);
-                }
-            });
-        }
-        else // cosine
-        {
-            // Convert dot products to cosine distances: 1 - dot / (||a|| * ||b||)
-            daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
-                const size_t i_begin = iBlock * distBlockSize;
-                const size_t i_end   = (i_begin + distBlockSize > nRows) ? nRows : i_begin + distBlockSize;
-
-                for (size_t i = i_begin; i < i_end; i++)
-                {
-                    algorithmFPType * row    = distMatrix + i * nRows;
-                    const algorithmFPType ni = static_cast<algorithmFPType>(sqrt(static_cast<double>(norms[i])));
-                    for (size_t j = 0; j < nRows; j++)
-                    {
-                        const algorithmFPType nj    = static_cast<algorithmFPType>(sqrt(static_cast<double>(norms[j])));
-                        const algorithmFPType denom = ni * nj;
-                        algorithmFPType d;
-                        if (denom > algorithmFPType(0))
-                            d = algorithmFPType(1) - row[j] / denom;
-                        else
-                            d = algorithmFPType(0);
-                        if (d < algorithmFPType(0)) d = algorithmFPType(0);
-                        row[j] = d;
-                    }
-                    row[i] = algorithmFPType(0);
-                }
-            });
-        }
+        EuclideanDistances<algorithmFPType, cpu> dist(*ntData, *ntData, /*squared=*/false);
+        DAAL_CHECK_STATUS_VAR(dist.init());
+        DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
+    }
+    else if (pairwiseDistance == PairwiseDistanceType::cosine)
+    {
+        CosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
+        DAAL_CHECK_STATUS_VAR(dist.init());
+        DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
     }
     else if (pairwiseDistance == PairwiseDistanceType::manhattan)
     {
-        const size_t rowBlockSize = 64;
-        const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
-
-        daal::threader_for(nRowBlocks, nRowBlocks, [&](size_t iBlock) {
-            const size_t i_begin = iBlock * rowBlockSize;
-            const size_t i_end   = (i_begin + rowBlockSize > nRows) ? nRows : i_begin + rowBlockSize;
-
-            for (size_t i = i_begin; i < i_end; i++)
-            {
-                const algorithmFPType * row_i = data + i * nCols;
-                algorithmFPType * dist_row    = distMatrix + i * nRows;
-
-                for (size_t j = i; j < nRows; j++)
-                {
-                    const algorithmFPType * row_j = data + j * nCols;
-                    algorithmFPType d             = algorithmFPType(0);
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t f = 0; f < nCols; f++)
-                    {
-                        algorithmFPType diff = row_i[f] - row_j[f];
-                        d += (diff >= algorithmFPType(0)) ? diff : -diff;
-                    }
-                    dist_row[j]               = d;
-                    distMatrix[j * nRows + i] = d;
-                }
-                dist_row[i] = algorithmFPType(0);
-            }
-        });
+        ManhattanDist<algorithmFPType> mh;
+        fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, mh, distMatrix);
     }
     else if (pairwiseDistance == PairwiseDistanceType::chebyshev)
     {
-        const size_t rowBlockSize = 64;
-        const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
-
-        daal::threader_for(nRowBlocks, nRowBlocks, [&](size_t iBlock) {
-            const size_t i_begin = iBlock * rowBlockSize;
-            const size_t i_end   = (i_begin + rowBlockSize > nRows) ? nRows : i_begin + rowBlockSize;
-
-            for (size_t i = i_begin; i < i_end; i++)
-            {
-                const algorithmFPType * row_i = data + i * nCols;
-                algorithmFPType * dist_row    = distMatrix + i * nRows;
-
-                for (size_t j = i; j < nRows; j++)
-                {
-                    const algorithmFPType * row_j = data + j * nCols;
-                    algorithmFPType d             = algorithmFPType(0);
-                    for (size_t f = 0; f < nCols; f++)
-                    {
-                        algorithmFPType diff = row_i[f] - row_j[f];
-                        if (diff < algorithmFPType(0)) diff = -diff;
-                        if (diff > d) d = diff;
-                    }
-                    dist_row[j]               = d;
-                    distMatrix[j * nRows + i] = d;
-                }
-                dist_row[i] = algorithmFPType(0);
-            }
-        });
+        ChebyshevDist<algorithmFPType> ch;
+        fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, ch, distMatrix);
     }
     else // minkowski
     {
-        const double p            = minkowskiDegree;
-        const double invp         = 1.0 / p;
-        const size_t rowBlockSize = 64;
-        const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
-
-        daal::threader_for(nRowBlocks, nRowBlocks, [&](size_t iBlock) {
-            const size_t i_begin = iBlock * rowBlockSize;
-            const size_t i_end   = (i_begin + rowBlockSize > nRows) ? nRows : i_begin + rowBlockSize;
-
-            for (size_t i = i_begin; i < i_end; i++)
-            {
-                const algorithmFPType * row_i = data + i * nCols;
-                algorithmFPType * dist_row    = distMatrix + i * nRows;
-
-                for (size_t j = i; j < nRows; j++)
-                {
-                    const algorithmFPType * row_j = data + j * nCols;
-                    double dsum                   = 0.0;
-                    for (size_t f = 0; f < nCols; f++)
-                    {
-                        double diff = static_cast<double>(row_i[f] - row_j[f]);
-                        if (diff < 0.0) diff = -diff;
-                        dsum += pow(diff, p);
-                    }
-                    const algorithmFPType d   = static_cast<algorithmFPType>(pow(dsum, invp));
-                    dist_row[j]               = d;
-                    distMatrix[j * nRows + i] = d;
-                }
-                dist_row[i] = algorithmFPType(0);
-            }
-        });
+        MinkowskiDist<algorithmFPType> mk(minkowskiDegree);
+        fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, mk, distMatrix);
     }
 
     // =========================================================================

@@ -22,6 +22,7 @@
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
+#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -441,15 +442,26 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
     }
 }
 
-static int assignLabelByWalkUp(int startCid, int rootCid, int nClusters, const char * isSelected, const int * clusterLabel, const int * clusterParent)
+/// Resolve a final point label for every cluster in one O(nClusters) forward sweep.
+/// Invariant: in the condensed tree built by buildCondensedTree, a parent's cluster id
+/// is always strictly less than each child's id (parents are emitted before children),
+/// so iterating c = rootCid..nClusters-1 visits parents before children and
+/// resolvedLabel[clusterParent[c]] is already final by the time we read it.
+/// Replaces a per-point ancestor walk with a single table lookup in labelPoints.
+static void resolveClusterLabels(int rootCid, int nClusters, const char * isSelected, const int * clusterLabel, const int * clusterParent,
+                                 int * resolvedLabel)
 {
-    int c = startCid;
-    while (c >= rootCid && c < nClusters)
+    for (int c = 0; c < rootCid; c++) resolvedLabel[c] = -1;
+    for (int c = rootCid; c < nClusters; c++)
     {
-        if (isSelected[c]) return clusterLabel[c];
-        c = clusterParent[c];
+        if (isSelected[c])
+        {
+            resolvedLabel[c] = clusterLabel[c];
+            continue;
+        }
+        const int p      = clusterParent[c];
+        resolvedLabel[c] = (p >= rootCid && p < nClusters) ? resolvedLabel[p] : -1;
     }
-    return -1;
 }
 
 static void buildDendroParent(const int * leftChild, const int * rightChild, size_t nRows, size_t totalNodes, int * dendroParent)
@@ -462,6 +474,21 @@ static void buildDendroParent(const int * leftChild, const int * rightChild, siz
     }
 }
 
+/// Final point labeling phase. For each input point i, assign assignments[i] to
+///   - the dense label (0..nLabels-1) of the deepest selected ancestor cluster
+///     in the condensed tree, OR
+///   - -1 if no such ancestor exists (the point is "noise").
+///
+/// Two passes over the points, both parallelized via daal::threader_for:
+///   1) Points that fell out of a cluster directly (pointFellFrom[i] >= 0):
+///      look up the resolved label of their drop cluster in O(1).
+///   2) Points that never fell out before the root cluster: walk up the
+///      dendrogram via dendroParent[] until hitting a node with a known
+///      cluster id, then look up its resolved label.
+///
+/// resolveClusterLabels precomputes the dense label per cluster in one
+/// O(nClusters) sweep so neither per-point pass walks the cluster tree.
+/// Returns the number of distinct labels emitted (0..labelCounter-1).
 template <typename algorithmFPType, CpuType cpu>
 static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, const int * leftChild, const int * rightChild,
                        const int * dendroToCluster, const char * isSelected, int nClusters, int rootCid, int * assignments)
@@ -492,21 +519,22 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
             pointFellFrom[e.child] = e.parent;
     }
 
-    for (size_t i = 0; i < nRows; i++)
-    {
-        assignments[i] = -1;
+    TArray<int, cpu> resolvedLabelArr(nClusters);
+    int * resolvedLabel = resolvedLabelArr.get();
+    resolveClusterLabels(rootCid, nClusters, isSelected, clusterLabel, clusterParent, resolvedLabel);
+
+    const int iNRows = static_cast<int>(nRows);
+    daal::threader_for(iNRows, iNRows, [&](size_t i) {
         const int c    = pointFellFrom[i];
-        if (c < rootCid || c >= nClusters) continue;
-        assignments[i] = assignLabelByWalkUp(c, rootCid, nClusters, isSelected, clusterLabel, clusterParent);
-    }
+        assignments[i] = (c >= rootCid && c < nClusters) ? resolvedLabel[c] : -1;
+    });
 
     TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
     buildDendroParent(leftChild, rightChild, nRows, totalNodes, dendroParent);
 
-    for (size_t i = 0; i < nRows; i++)
-    {
-        if (pointFellFrom[i] >= 0) continue;
+    daal::threader_for(iNRows, iNRows, [&](size_t i) {
+        if (pointFellFrom[i] >= 0) return;
 
         int nid = static_cast<int>(i);
         while (nid >= 0 && nid < static_cast<int>(totalNodes))
@@ -514,12 +542,12 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
             const int cid = dendroToCluster[nid];
             if (cid >= rootCid)
             {
-                assignments[i] = assignLabelByWalkUp(cid, rootCid, nClusters, isSelected, clusterLabel, clusterParent);
+                assignments[i] = resolvedLabel[cid];
                 break;
             }
             nid = dendroParent[nid];
         }
-    }
+    });
 
     return labelCounter;
 }

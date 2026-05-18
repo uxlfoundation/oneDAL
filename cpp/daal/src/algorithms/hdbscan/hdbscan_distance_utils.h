@@ -20,9 +20,12 @@
 #include <cmath>
 #include <utility>
 
+#include "src/externals/service_blas.h"
+#include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
+#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -33,12 +36,73 @@ namespace hdbscan
 namespace internal
 {
 
+/// Compute the squared L2 norm of a row, vectorized.
+/// Used by EuclideanDist::blockDist to cache ‖x_i‖² between sweeps.
+template <typename FPType>
+static FPType rowNormSquared(const FPType * row, int nCols)
+{
+    FPType sum = FPType(0);
+    PRAGMA_IVDEP
+    PRAGMA_VECTOR_ALWAYS
+    for (int d = 0; d < nCols; d++) sum += row[d] * row[d];
+    return sum;
+}
+
+/// Compute squared L2 norms for `count` contiguous row-major rows.
+/// Caller pre-allocates outNorms of length `count`.
+/// Used to amortize ‖x‖² across the three pivot sweeps inside one ball-tree node.
+template <typename FPType>
+static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * outNorms)
+{
+    for (int i = 0; i < count; i++) outNorms[i] = rowNormSquared(rows + i * nCols, nCols);
+}
+
+/// Fill a symmetric `nRows × nRows` distance matrix in row-major layout using a
+/// scalar metric functor. Exploits symmetry: only the upper triangle (j >= i) is
+/// computed, the lower triangle is mirrored. Outer parallelization over row
+/// blocks via `daal::threader_for`. Diagonal entries are zeroed.
+///
+/// Used by the dense brute-force HDBSCAN for non-Euclidean metrics where there
+/// is no GEMM identity to exploit. Centralises the row-pair loop so Manhattan,
+/// Chebyshev, and Minkowski share one implementation instead of three near
+/// duplicates.
+template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
+static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, const DistFunc & distFunc, FPType * outDist)
+{
+    constexpr size_t blockSize = 64;
+    const size_t nBlocks       = (nRows + blockSize - 1) / blockSize;
+
+    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        const size_t i_begin = iBlock * blockSize;
+        const size_t i_end   = (i_begin + blockSize > nRows) ? nRows : i_begin + blockSize;
+        for (size_t i = i_begin; i < i_end; i++)
+        {
+            const FPType * row_i = data + i * nCols;
+            FPType * dist_row    = outDist + i * nRows;
+            for (size_t j = i; j < nRows; j++)
+            {
+                const FPType d         = distFunc.pointDist(row_i, data + j * nCols, static_cast<int>(nCols));
+                dist_row[j]            = d;
+                outDist[j * nRows + i] = d;
+            }
+            dist_row[i] = FPType(0);
+        }
+    });
+}
+
 // =========================================================================
-// Distance functors for parameterizing tree queries by metric
+// Distance functors for parameterizing tree queries by metric.
 // Each provides:
-//   pointDist(a, b, nCols)       — full point-to-point distance
-//   bboxLowerBound(q, lo, hi, nCols) — minimum distance from query to bbox
-//   planeDist(diff)              — distance to splitting hyperplane
+//   pointDist(a, b, nCols)              — full point-to-point distance
+//   bboxLowerBound(q, lo, hi, nCols)    — minimum distance from query to bbox
+//   planeDist(diff)                     — distance to splitting hyperplane
+//   blockDist(pivotPt, scratchRows, rowNorms2, count, nCols, outDists, scratch)
+//                                       — distance from one pivot to `count`
+//                                         contiguous rows; Euclidean uses BLAS
+//                                         xxgemv + cached row norms², others use
+//                                         a vectorized inner loop. `rowNorms2`
+//                                         and `scratch` may be nullptr for
+//                                         non-Euclidean metrics.
 // =========================================================================
 template <typename FPType>
 struct EuclideanDist
@@ -70,6 +134,42 @@ struct EuclideanDist
         return static_cast<FPType>(sqrt(static_cast<double>(sum)));
     }
     static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
+
+    /// Vectorized pivot-to-block Euclidean distance via BLAS xxgemv.
+    /// Identity used: ‖x_i − p‖² = ‖x_i‖² + ‖p‖² − 2·⟨x_i, p⟩.
+    /// `scratchRows` is row-major `count × nCols`. `rowNorms2[i] = ‖scratchRows[i]‖²`
+    /// must be precomputed by the caller (see rowNormsSquared). `outDists` (length
+    /// `count`) is filled with non-negative Euclidean distances. Negative squared
+    /// distances from rounding noise are clamped to zero before sqrt.
+    template <daal::internal::CpuType cpu>
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, int count, int nCols, FPType * outDists)
+    {
+        const FPType pivotNorm2 = rowNormSquared(pivotPt, nCols);
+
+        // outDists ← scratchRows · pivotPt  (count vector)
+        // GEMV: y = α·op(A)·x + β·y. With trans='N', op(A)=A. We want
+        // y[i] = ⟨scratchRows[i], pivotPt⟩ over nCols, so A is nCols×count
+        // (column-major view of the row-major scratchRows[count×nCols]).
+        const char trans    = 'N';
+        const DAAL_INT m    = static_cast<DAAL_INT>(nCols);
+        const DAAL_INT n    = static_cast<DAAL_INT>(count);
+        const FPType alpha  = FPType(1);
+        const FPType beta   = FPType(0);
+        const DAAL_INT lda  = static_cast<DAAL_INT>(nCols);
+        const DAAL_INT incx = 1;
+        const DAAL_INT incy = 1;
+        daal::internal::BlasInst<FPType, cpu>::xxgemv(&trans, &m, &n, &alpha, scratchRows, &lda, pivotPt, &incx, &beta, outDists, &incy);
+
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
+        for (int i = 0; i < count; i++)
+        {
+            FPType d2 = rowNorms2[i] + pivotNorm2 - FPType(2) * outDists[i];
+            if (d2 < FPType(0)) d2 = FPType(0);
+            outDists[i] = d2;
+        }
+        daal::internal::MathInst<FPType, cpu>::vSqrt(count, outDists, outDists);
+    }
 };
 
 template <typename FPType>
@@ -102,6 +202,15 @@ struct ManhattanDist
         return sum;
     }
     static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
+
+    /// Manhattan has no factorization that lets us batch via BLAS, but routing
+    /// through a single blockDist entry point keeps callers (ball tree) symmetric
+    /// across metrics. The pointDist body is already vectorized via PRAGMA_IVDEP.
+    template <daal::internal::CpuType cpu>
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists)
+    {
+        for (int i = 0; i < count; i++) outDists[i] = pointDist(pivotPt, scratchRows + i * nCols, nCols);
+    }
 };
 
 template <typename FPType>
@@ -137,6 +246,13 @@ struct MinkowskiDist
         return static_cast<FPType>(pow(sum, invp));
     }
     FPType planeDist(FPType diff) const { return (diff < FPType(0)) ? -diff : diff; }
+
+    /// See ManhattanDist::blockDist — same rationale (no BLAS factorization).
+    template <daal::internal::CpuType cpu>
+    void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists) const
+    {
+        for (int i = 0; i < count; i++) outDists[i] = pointDist(pivotPt, scratchRows + i * nCols, nCols);
+    }
 };
 
 template <typename FPType>
@@ -168,6 +284,13 @@ struct ChebyshevDist
         return mx;
     }
     static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
+
+    /// See ManhattanDist::blockDist — same rationale (no BLAS factorization).
+    template <daal::internal::CpuType cpu>
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists)
+    {
+        for (int i = 0; i < count; i++) outDists[i] = pointDist(pivotPt, scratchRows + i * nCols, nCols);
+    }
 };
 
 // =========================================================================
@@ -187,6 +310,19 @@ struct AlphaScaledDist
         return base.bboxLowerBound(query, lo, hi, nCols) * invAlpha;
     }
     FPType planeDist(FPType diff) const { return base.planeDist(diff) * invAlpha; }
+
+    /// Delegate to the base metric's batched path then scale all distances by 1/α
+    /// in one vectorized pass. Lets Euclidean keep its BLAS xxgemv fast path under
+    /// alpha scaling (used for robust single linkage, alpha != 1).
+    template <daal::internal::CpuType cpu>
+    void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, int count, int nCols, FPType * outDists) const
+    {
+        base.template blockDist<cpu>(pivotPt, scratchRows, rowNorms2, count, nCols, outDists);
+        const FPType s = invAlpha;
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
+        for (int i = 0; i < count; i++) outDists[i] *= s;
+    }
 };
 
 // =========================================================================
