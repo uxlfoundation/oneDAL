@@ -45,25 +45,32 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
     return str(tool_path), is_found
 
 def _find_tools_icx(repo_ctx):
-    # Use `icx.exe` for both C and C++/DPC++ on Windows. icx runs in its
-    # native clang-cl driver mode (MSVC-compatible syntax), matching
-    # dev/make/compiler_definitions/icx.mkl.32e.mk. The toolchain below
-    # emits clang-cl-style flags (`/I`, `/imsvc`, `/Fo`, `/Qstd:c++17`, …)
-    # so no driver-mode flip is needed.
+    # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
+    # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
+    # than going through the icx driver — mirrors makefile common.mk:125
+    # (`link.dynamic.win = link ...`) and Linux's dynamic_link_lnx.tpl.sh
+    # wrapper. Going through icx for huge link actions caused LNK1170:
+    # icx materialised every Bazel-line arg into a single >131071-char
+    # line in its own intermediate response file before invoking link.exe.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
-    # On Windows the Intel compiler suite ships `llvm-lib` and `lld-link`
-    # next to icx.exe. Both accept MSVC-style /OUT: and /LIBPATH: syntax.
+    # Host link tool: prefer lld-link.exe (ships next to icx in oneAPI),
+    # fall back to MSVC's link.exe — both accept the same flag syntax and
+    # multi-line response files.
+    cc_link_path, lld_found = _find_tool(repo_ctx, "lld-link", mandatory = False)
+    if not lld_found:
+        cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
+    # Static archiver: same as before, llvm-lib first then MSVC lib.
     ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
     if not ar_path or ar_path.endswith("tool_not_found_llvm-lib.bat"):
-        # Fall back to lib.exe shipped by MSVC (required by oneAPI install).
         ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,
-        # icpx drives the link step; lld-link is invoked implicitly via
-        # `-fuse-ld=lld-link`.
-        cc_link = cc_path,
+        # Host link: lld-link.exe directly. DPC++ link still goes through
+        # icx so it can pull in SYCL device-code libs (matches the
+        # makefile's dpc.link.dynamic.win path in common.mk:138).
+        cc_link = cc_link_path,
         dpcc_link = dpcc_path,
         ar = ar_path,
         is_dpc_found = dpcpp_found,

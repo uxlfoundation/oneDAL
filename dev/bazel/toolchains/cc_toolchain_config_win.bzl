@@ -635,16 +635,18 @@ def _impl(ctx):
         )],
     )
 
-    # icx in clang-cl mode uses `/Fe<path>` to name an .exe output, and
-    # `-o<path>` for DLL/LTO intermediates via its link driver. `/Fe` is the
-    # MSVC-compat spelling and works for both executables and DLLs when
-    # combined with `/LD` in shared_flag_feature below.
+    # The link tool is lld-link.exe directly (see _find_tools_icx in
+    # cc_toolchain_win.bzl). lld-link uses linker-native MSVC syntax:
+    #   /OUT:<path>   to name the artifact (exe or dll)
+    #   /DLL          to build a DLL
+    # These spellings also work when forwarded by icx's clang-cl driver
+    # (which is how the DPC++ link path uses them).
     output_execpath_flags_feature = feature(
         name = "output_execpath_flags",
         flag_sets = [flag_set(
             actions = all_link_actions + lto_index_actions,
             flag_groups = [flag_group(
-                flags = ["/Fe%{output_execpath}"],
+                flags = ["/OUT:%{output_execpath}"],
                 expand_if_available = "output_execpath",
             )],
         )],
@@ -659,9 +661,7 @@ def _impl(ctx):
                 ACTION_NAMES.lto_index_for_dynamic_library,
                 ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
             ],
-            # `/LD` tells clang-cl to build a DLL and link against the DLL
-            # CRT (mirrors the Makefile's `-LD` in `dpc.link.dynamic.win`).
-            flag_groups = [flag_group(flags = ["/LD"])],
+            flag_groups = [flag_group(flags = ["/DLL"])],
         )],
     )
 
