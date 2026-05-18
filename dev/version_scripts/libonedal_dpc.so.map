@@ -253,6 +253,20 @@ global:
         "oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::set_active_exception(std::__exception_ptr::exception_ptr const&) const";
         "oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::wait_for_exception_handling() const";
 
+        # SPMD communicator via host implementation methods
+        "typeinfo for oneapi::dal::detail::v1::spmd_communicator_via_host_impl";
+        "oneapi::dal::detail::v1::spmd_communicator_via_host_impl::bcast(sycl::_V1::queue&, unsigned char*, long, oneapi::dal::v1::data_type const&, std::vector<sycl::_V1::event, std::allocator<sycl::_V1::event> > const&, long)";
+        "oneapi::dal::detail::v1::spmd_communicator_via_host_impl::allgatherv(sycl::_V1::queue&, unsigned char const*, long, unsigned char*, long const*, long const*, oneapi::dal::v1::data_type const&, std::vector<sycl::_V1::event, std::allocator<sycl::_V1::event> > const&)";
+        "oneapi::dal::detail::v1::spmd_communicator_via_host_impl::allreduce(sycl::_V1::queue&, unsigned char const*, unsigned char*, long, oneapi::dal::v1::data_type const&, oneapi::dal::preview::spmd::v1::reduce_op const&, std::vector<sycl::_V1::event, std::allocator<sycl::_V1::event> > const&)";
+        "oneapi::dal::detail::v1::spmd_communicator_via_host_impl::sendrecv_replace(sycl::_V1::queue&, unsigned char*, long, oneapi::dal::v1::data_type const&, long, long, std::vector<sycl::_V1::event, std::allocator<sycl::_V1::event> > const&)";
+
+        # SPMD communicator template methods (allreduce, allgatherv for specific types)
+        "oneapi::dal::preview::spmd::v1::request oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::allreduce<long>(oneapi::dal::v2::array<long> const&, oneapi::dal::preview::spmd::v1::reduce_op const&) const";
+        "oneapi::dal::preview::spmd::v1::request oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::allgatherv<float>(oneapi::dal::v2::array<float> const&, oneapi::dal::v2::array<float> const&, long const*, long const*) const";
+
+        # SPMD helper functions for CCL
+        "oneapi::dal::preview::detail::check_if_pointer_matches_queue(sycl::_V1::queue const&, void const*)";
+
 
         # other services
 
