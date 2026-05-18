@@ -179,13 +179,21 @@ def _copy_lib(ctx, prefix, version_info):
             if is_windows and lib.basename in ["onedal_core.4.dll", "onedal_thread.4.dll"]:
                 dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
                 continue
-            if is_windows and lib.basename == "onedal_thread_dll.lib":
+            # Bazel emits Windows DLL import libs with the `.if.lib`
+            # extension (only `.if.lib`/`.lib`/`.ifso`/`.tbd` are allowed
+            # as `interface_library` artifact names). Rename to the
+            # `_dll.lib` convention the Make release ships and downstream
+            # examples link against (e.g. `onedal_core_dll.lib`).
+            dst_basename = lib.basename
+            if is_windows and dst_basename.endswith(".if.lib"):
+                dst_basename = dst_basename[:-len(".if.lib")] + "_dll.lib"
+            if is_windows and dst_basename == "onedal_thread_dll.lib":
                 continue
 
-            dst_path = paths.join(lib_prefix, lib.basename)
+            dst_path = paths.join(lib_prefix, dst_basename)
             dst_files.append(_copy(ctx, lib, dst_path))
 
-            if is_windows and lib.basename == "onedal_core_dll.lib" and version_info:
+            if is_windows and dst_basename == "onedal_core_dll.lib" and version_info:
                 dst_files.append(_copy(ctx, lib, paths.join(
                     lib_prefix,
                     "onedal_core_dll.{}.lib".format(version_info.binary_major),
