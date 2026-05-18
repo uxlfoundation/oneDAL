@@ -235,6 +235,25 @@ global:
 
         "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_mul_overflow(long const&, long const&)";
 
+        # SPMD
+
+        "vtable for oneapi::dal::preview::spmd::v1::error_holder";
+        "typeinfo for oneapi::dal::preview::spmd::v1::error_holder";
+
+        "oneapi::dal::preview::spmd::v1::error_holder::rethrow_actual() const";
+
+        "vtable for oneapi::dal::detail::v1::spmd_communicator_via_host_impl";
+
+        "vtable for oneapi::dal::preview::spmd::v1::communication_error";
+        "typeinfo for oneapi::dal::preview::spmd::v1::communication_error";
+
+        "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::spmd_policy_base(oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm> const&)";
+        "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::get_communicator() const";
+
+        "oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::set_active_exception(std::__exception_ptr::exception_ptr const&) const";
+        "oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::wait_for_exception_handling() const";
+
+
         # other services
 
         "oneapi::dal::detail::v1::host_policy::host_policy()";
