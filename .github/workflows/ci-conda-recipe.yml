@@ -64,11 +64,10 @@ jobs:
           conda config --add channels conda-forge
           conda config --set channel_priority strict
           conda update -y -q conda python
-      - name: Conda create
-        run: conda create -y -q -n build-env conda-build
+          conda install -y -q -n base conda-build
       - name: Conda build and test
         run: |
-          conda run -n build-env conda build . \
+          conda build . \
             --variants "{cxx_compiler: ${{ matrix.cxx_compiler }}, cxx_compiler_version: ${{ matrix.cxx_compiler_version }}}"
         env:
           # Note: AVX2 is used as the most common denominator for CI systems
