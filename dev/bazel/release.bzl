@@ -239,6 +239,13 @@ def _copy_lib(ctx, prefix, version_info):
                         paths.join(lib_prefix, versioned_implib_name),
                     ))
                 continue
+            # On Windows, the rules_cc MSVC auto-config (used by the cl
+            # branch) already emits `<name>.if.lib` import libs alongside
+            # the .dll. We always derive the import lib post-link from
+            # the DLL above, so skip these to avoid declaring the same
+            # `<name>_dll.lib` output twice.
+            if is_windows and lib.extension == "lib" and lib.basename.endswith(".if.lib"):
+                continue
 
             dst_path = paths.join(lib_prefix, lib.basename)
             dst_files.append(_copy(ctx, lib, dst_path))
