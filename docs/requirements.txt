@@ -9,7 +9,7 @@ docutils~=0.21.2
 idna==3.11
 imagesize==2.0.0
 importlib-metadata==9.0.0
-importlib-resources==6.5.2
+importlib-resources==7.1.0
 Jinja2==3.1.6
 lxml==6.1.0
 MarkupSafe==3.0.3
@@ -36,5 +36,5 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 typing-extensions==4.15.0
-urllib3==2.6.3
-zipp==3.23.0
+urllib3==2.7.0
+zipp==4.1.0
