@@ -55,6 +55,38 @@ def _collect_default_files(deps):
             files += dep[DefaultInfo].files.to_list()
     return utils.unique_files(files)
 
+def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
+    """Derive a Windows DLL's import library at `lib_dst_path` from `dll_file`.
+
+    Runs `dev/bazel/toolchains/tools/dll_to_implib.bat` which dumps the
+    DLL's exports table and feeds it to `lib /def:` to produce a fresh
+    `.lib`. Mirrors the makefile's `-IMPLIB:<name>_dll.lib` linker flag,
+    which we cannot pass directly through Bazel's cc_common.link()
+    because there is no API to register the side-effect file as an
+    action output. Generating it from the DLL post-link is equivalent.
+    """
+    lib_file = ctx.actions.declare_file(lib_dst_path)
+    exp_file = ctx.actions.declare_file(lib_dst_path[:-len(".lib")] + ".exp")
+    script = ctx.file._dll_to_implib
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [dll_file, script],
+        outputs = [lib_file, exp_file],
+        arguments = [
+            "/d", "/c",
+            "{} {} {} {}".format(
+                script.path.replace("/", "\\"),
+                dll_file.path.replace("/", "\\"),
+                lib_file.path.replace("/", "\\"),
+                exp_file.path.replace("/", "\\"),
+            ),
+        ],
+        use_default_shell_env = True,
+        mnemonic = "DllToImplib",
+        progress_message = "Generating import lib %s" % lib_file.short_path,
+    )
+    return lib_file
+
 def _copy(ctx, src_file, dst_path):
     # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
@@ -172,32 +204,44 @@ def _copy_lib(ctx, prefix, version_info):
             # 3. Unversioned symlink: libonedal_core.so -> libonedal_core.so.2
             dst_files.append(_symlink(ctx, lib.basename, major_link_name, lib_prefix))
         else:
-            # Static libs (.a), DLLs (.dll), import libs (.lib) — copy as-is.
-            # Match Windows Make release layout: DAAL runtime DLLs are packaged
-            # under redist/intel64, not lib/intel64. The thread import library is
-            # not shipped in the Make DAAL package.
-            if is_windows and lib.basename in ["onedal_core.4.dll", "onedal_thread.4.dll"]:
+            # Static libs (.a), DLLs (.dll), import libs (.lib).
+            # Windows release layout: place DAAL runtime DLLs under
+            # redist/intel64 (not lib/intel64) and derive each DLL's
+            # import library `<name>_dll.lib` via dumpbin+lib /def — the
+            # makefile route (`-IMPLIB:<name>_dll.lib`) is unreachable
+            # through Bazel's cc_common.link() so we generate the import
+            # lib post-link, matching the Make release contents.
+            if is_windows and lib.extension == "dll":
                 dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
-                continue
-            # Bazel emits Windows DLL import libs with the `.if.lib`
-            # extension (only `.if.lib`/`.lib`/`.ifso`/`.tbd` are allowed
-            # as `interface_library` artifact names). Rename to the
-            # `_dll.lib` convention the Make release ships and downstream
-            # examples link against (e.g. `onedal_core_dll.lib`).
-            dst_basename = lib.basename
-            if is_windows and dst_basename.endswith(".if.lib"):
-                dst_basename = dst_basename[:-len(".if.lib")] + "_dll.lib"
-            if is_windows and dst_basename == "onedal_thread_dll.lib":
+
+                # `onedal_core.4.dll` -> `onedal_core_dll.lib`
+                base_no_ver = lib.basename
+                if version_info:
+                    suffix = ".{}.dll".format(version_info.binary_major)
+                    if base_no_ver.endswith(suffix):
+                        base_no_ver = base_no_ver[:-len(suffix)] + ".dll"
+                stem = base_no_ver[:-len(".dll")]
+                # The thread import library is not shipped in the Make
+                # DAAL package, mirror that here.
+                if stem == "onedal_thread":
+                    continue
+                implib_name = "{}_dll.lib".format(stem)
+                implib = _make_implib_for_dll(
+                    ctx, lib, paths.join(lib_prefix, implib_name),
+                )
+                dst_files.append(implib)
+                if version_info and stem == "onedal_core":
+                    versioned_implib_name = "onedal_core_dll.{}.lib".format(
+                        version_info.binary_major,
+                    )
+                    dst_files.append(_copy(
+                        ctx, implib,
+                        paths.join(lib_prefix, versioned_implib_name),
+                    ))
                 continue
 
-            dst_path = paths.join(lib_prefix, dst_basename)
+            dst_path = paths.join(lib_prefix, lib.basename)
             dst_files.append(_copy(ctx, lib, dst_path))
-
-            if is_windows and dst_basename == "onedal_core_dll.lib" and version_info:
-                dst_files.append(_copy(ctx, lib, paths.join(
-                    lib_prefix,
-                    "onedal_core_dll.{}.lib".format(version_info.binary_major),
-                )))
 
     return dst_files
 
@@ -296,6 +340,12 @@ _release = rule(
         ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_dll_to_implib": attr.label(
+            default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
+            allow_single_file = True,
+            doc = "Helper that derives a Windows DLL's import library by " +
+                  "running dumpbin+lib /def: post-link.",
         ),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",

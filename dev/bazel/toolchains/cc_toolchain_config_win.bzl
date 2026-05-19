@@ -642,35 +642,15 @@ def _impl(ctx):
     #   /DLL            to build a DLL
     # These spellings also work when forwarded by icx's clang-cl driver
     # (which is how the DPC++ link path uses them).
-    # Only emit /IMPLIB on the dynamic-library link actions. Bazel sets
-    # `interface_library_output_path = "ignored"` for executable links as
-    # a sentinel; if /IMPLIB picks that up, link.exe tries to write a
-    # file literally named `ignored` next to the .exe and races with
-    # parallel link.exe processes (LNK1104).
-    _dynamic_link_actions = [
-        ACTION_NAMES.cpp_link_dynamic_library,
-        ACTION_NAMES.cpp_link_nodeps_dynamic_library,
-        ACTION_NAMES.lto_index_for_dynamic_library,
-        ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
-    ]
     output_execpath_flags_feature = feature(
         name = "output_execpath_flags",
-        flag_sets = [
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = [flag_group(
-                    flags = ["/OUT:%{output_execpath}"],
-                    expand_if_available = "output_execpath",
-                )],
-            ),
-            flag_set(
-                actions = _dynamic_link_actions,
-                flag_groups = [flag_group(
-                    flags = ["/IMPLIB:%{interface_library_output_path}"],
-                    expand_if_available = "interface_library_output_path",
-                )],
-            ),
-        ],
+        flag_sets = [flag_set(
+            actions = all_link_actions + lto_index_actions,
+            flag_groups = [flag_group(
+                flags = ["/OUT:%{output_execpath}"],
+                expand_if_available = "output_execpath",
+            )],
+        )],
     )
 
     shared_flag_feature = feature(

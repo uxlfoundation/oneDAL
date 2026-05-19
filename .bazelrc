@@ -34,6 +34,16 @@ test --test_env=FI_PROVIDER_PATH
 # the required environment variable to tests for compatibility:
 test --test_env=LD_LIBRARY_PATH
 
+# Forward MSVC tooling env into Bazel-spawned build actions on Windows.
+# `dll_to_implib.bat` (release.bzl) and other actions that need
+# dumpbin/lib look up VCTOOLSINSTALLDIR to add the MSVC HostX64\x64
+# bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
+# actions that go through cmd-style helpers.
+build --action_env=VCTOOLSINSTALLDIR
+build --action_env=INCLUDE
+build --action_env=LIB
+build --action_env=PATH
+
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
 # the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
