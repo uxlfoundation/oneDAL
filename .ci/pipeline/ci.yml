@@ -528,7 +528,9 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
-      bazel test //cpp/daal:tests
+      bazel test //cpp/daal:tests \
+                 --test_output=errors \
+                 --verbose_failures
     displayName: 'daal-tests-algorithms'
 
   - script: |
@@ -540,7 +542,10 @@ jobs:
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_output=errors \
+                 --verbose_failures \
+                 --test_arg=--durations=yes
     displayName: 'cpp-tests-thread-dev'
 
   - script: |
