@@ -178,6 +178,18 @@ def _copy_lib(ctx, prefix, version_info):
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
 
+    # On Windows, when the link action already emitted a real
+    # `<name>.if.lib` (rules_cc MSVC auto-config does this for the cl
+    # branch and our icx branch when it eventually wires /IMPLIB), use
+    # that as the import lib via rename; otherwise derive it post-link
+    # from the .dll via dumpbin + lib /def. This avoids declaring the
+    # same `<name>_dll.lib` twice when both paths fire for one DLL.
+    iflib_stems = {}
+    if is_windows:
+        for lib in libs:
+            if lib.basename.endswith(".if.lib"):
+                iflib_stems[lib.basename[:-len(".if.lib")]] = lib
+
     for lib in libs:
         # Determine if this is a shared library that needs versioning.
         # Only Linux .so files are versioned; .dylib (macOS) is not yet supported
@@ -226,9 +238,20 @@ def _copy_lib(ctx, prefix, version_info):
                 if stem == "onedal_thread":
                     continue
                 implib_name = "{}_dll.lib".format(stem)
-                implib = _make_implib_for_dll(
-                    ctx, lib, paths.join(lib_prefix, implib_name),
-                )
+                # Prefer the link-emitted .if.lib (rules_cc MSVC auto-
+                # config writes one alongside every DLL). Fall back to
+                # dumpbin + lib /def: when the toolchain did not emit
+                # one (icx custom config currently does not).
+                source_iflib = iflib_stems.get(stem)
+                if source_iflib:
+                    implib = _copy(
+                        ctx, source_iflib,
+                        paths.join(lib_prefix, implib_name),
+                    )
+                else:
+                    implib = _make_implib_for_dll(
+                        ctx, lib, paths.join(lib_prefix, implib_name),
+                    )
                 dst_files.append(implib)
                 if version_info and stem == "onedal_core":
                     versioned_implib_name = "onedal_core_dll.{}.lib".format(
@@ -239,12 +262,10 @@ def _copy_lib(ctx, prefix, version_info):
                         paths.join(lib_prefix, versioned_implib_name),
                     ))
                 continue
-            # On Windows, the rules_cc MSVC auto-config (used by the cl
-            # branch) already emits `<name>.if.lib` import libs alongside
-            # the .dll. We always derive the import lib post-link from
-            # the DLL above, so skip these to avoid declaring the same
-            # `<name>_dll.lib` output twice.
-            if is_windows and lib.extension == "lib" and lib.basename.endswith(".if.lib"):
+            # The link-emitted `.if.lib`s are consumed via the dll
+            # branch above (renamed to `_dll.lib`); skip them here so we
+            # do not declare the same output twice.
+            if is_windows and lib.basename.endswith(".if.lib"):
                 continue
 
             dst_path = paths.join(lib_prefix, lib.basename)
