@@ -122,6 +122,15 @@ global:
         "oneapi::dal::knn::detail::get_indices_id()";
         "oneapi::dal::knn::detail::get_responses_id()";
 
+        # KNN distance thunks for various distance metrics
+        # These are non-virtual thunks generated for distance metric classes
+        "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::chebyshev_distance::descriptor<float, oneapi::dal::chebyshev_distance::method::v1::dense> >::get_impl() const";
+        "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::chebyshev_distance::descriptor<double, oneapi::dal::chebyshev_distance::method::v1::dense> >::get_impl() const";
+        "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::cosine_distance::descriptor<float, oneapi::dal::cosine_distance::method::v1::dense> >::get_impl() const";
+        "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::cosine_distance::descriptor<double, oneapi::dal::cosine_distance::method::v1::dense> >::get_impl() const";
+        "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::minkowski_distance::descriptor<float, oneapi::dal::minkowski_distance::method::v1::dense> >::get_impl() const";
+        "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::minkowski_distance::descriptor<double, oneapi::dal::minkowski_distance::method::v1::dense> >::get_impl() const";
+
         # linear_regression
 
         oneapi::dal::linear_regression::v1::*;

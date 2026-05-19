@@ -146,10 +146,18 @@ global:
         "oneapi::dal::logistic_regression::detail::get_inner_iterations_count_id()";
         "oneapi::dal::logistic_regression::detail::get_iterations_count_id()";
 
+        # Non-virtual thunks for optimizer
+        "non-virtual thunk to oneapi::dal::logistic_regression::detail::v1::optimizer<oneapi::dal::newton_cg::v1::descriptor<double, oneapi::dal::newton_cg::method::v1::dense, oneapi::dal::newton_cg::task::v1::compute> >::get_impl() const";
+        "non-virtual thunk to oneapi::dal::logistic_regression::detail::v1::optimizer<oneapi::dal::newton_cg::v1::descriptor<float, oneapi::dal::newton_cg::method::v1::dense, oneapi::dal::newton_cg::task::v1::compute> >::get_impl() const";
+
         # objective_function
 
         oneapi::dal::objective_function::v1::*;
         oneapi::dal::objective_function::detail::v1::*;
+
+        # logloss_objective
+        oneapi::dal::logloss_objective::v1::*;
+        oneapi::dal::logloss_objective::detail::v1::*;
 
         # optimization solver
 
@@ -171,6 +179,16 @@ global:
 
         oneapi::dal::svm::v1::*;
         oneapi::dal::svm::detail::v1::*;
+
+        # Selective public API from preview namespace
+        oneapi::dal::preview::rbf_kernel::v1::*;
+        oneapi::dal::preview::rbf_kernel::detail::v1::*;
+        oneapi::dal::preview::polynomial_kernel::v1::*;
+        oneapi::dal::preview::polynomial_kernel::detail::v1::*;
+        oneapi::dal::preview::linear_kernel::v1::*;
+        oneapi::dal::preview::linear_kernel::detail::v1::*;
+        oneapi::dal::preview::sigmoid_kernel::v1::*;
+        oneapi::dal::preview::sigmoid_kernel::detail::v1::*;
 
         # =================================== Data Management ==================================
 

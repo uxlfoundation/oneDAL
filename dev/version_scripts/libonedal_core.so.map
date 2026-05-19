@@ -31,14 +31,25 @@ global:
 
         daal::algorithms::interface1::Argument::*;
         "daal::algorithms::interface1::AlgorithmImpl<*>::*";
+        daal::algorithms::interface1::Model::*;
+        daal::algorithms::interface1::OptionalArgument::*;
+        daal::algorithms::interface1::PartialResult::*;
+        daal::algorithms::interface1::Result::*;
 
         "vtable for daal::algorithms::interface1::Hyperparameter";
         "typeinfo for daal::algorithms::interface1::Hyperparameter";
+
+        # Hyperparameter methods
+        daal::algorithms::interface1::Hyperparameter::*;
 
         # AlgorithmImpl::computeNoThrow() instantiations
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)1>::computeNoThrow()";
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::computeNoThrow()";
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::computeNoThrow()";
+
+        # AlgorithmImpl copy constructors
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::AlgorithmImpl(daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2> const&)";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::AlgorithmImpl(daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4> const&)";
 
 
         # Cholesky
@@ -103,6 +114,10 @@ global:
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
+        # Hyperparameter methods
+        "daal::algorithms::covariance::internal::Hyperparameter::find(daal::algorithms::covariance::internal::DoubleHyperparameterId, double&) const";
+        "daal::algorithms::covariance::internal::Hyperparameter::find(daal::algorithms::covariance::internal::HyperparameterId, long long&) const";
+
 
         # DBSCAN
 
@@ -148,6 +163,8 @@ global:
 
         # Decision Forest
 
+        daal::algorithms::decision_forest::interface1::*;
+
         daal::algorithms::decision_forest::classification::interface1::*;
         daal::algorithms::decision_forest::classification::prediction::interface1::*;
         daal::algorithms::decision_forest::classification::prediction::interface3::*;
@@ -189,11 +206,23 @@ global:
         # RTTI and destructor for dtrees internal Tree (needed by decision_forest examples)
         "typeinfo for daal::algorithms::dtrees::internal::Tree";
 
+        # Decision forest hyperparameter methods
+        "daal::algorithms::decision_forest::classification::training::internal::Hyperparameter::find(daal::algorithms::decision_forest::classification::training::internal::DoubleHyperparameterId, double&) const";
+        "daal::algorithms::decision_forest::classification::training::internal::Hyperparameter::find(daal::algorithms::decision_forest::classification::training::internal::HyperparameterId, long long&) const";
+        "daal::algorithms::decision_forest::prediction::internal::Hyperparameter::find(daal::algorithms::decision_forest::prediction::internal::DoubleHyperparameterId, double&) const";
+        "daal::algorithms::decision_forest::prediction::internal::Hyperparameter::find(daal::algorithms::decision_forest::prediction::internal::HyperparameterId, long long&) const";
+        "daal::algorithms::decision_forest::regression::training::internal::Hyperparameter::find(daal::algorithms::decision_forest::regression::training::internal::DoubleHyperparameterId, double&) const";
+        "daal::algorithms::decision_forest::regression::training::internal::Hyperparameter::find(daal::algorithms::decision_forest::regression::training::internal::HyperparameterId, long long&) const";
+        "daal::algorithms::decision_forest::regression::training::internal::Hyperparameter::Hyperparameter()";
+        "daal::algorithms::decision_forest::regression::training::internal::Hyperparameter::set(daal::algorithms::decision_forest::regression::training::internal::DoubleHyperparameterId, double)";
+        "daal::algorithms::decision_forest::regression::training::internal::Hyperparameter::set(daal::algorithms::decision_forest::regression::training::internal::HyperparameterId, long long)";
+
 
         # Elastic Net
 
         daal::algorithms::elastic_net::prediction::interface1::*;
         daal::algorithms::elastic_net::training::interface1::*;
+        daal::algorithms::elastic_net::interface1::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::elastic_net::prediction::interface1::Result";
@@ -201,6 +230,9 @@ global:
         "typeinfo for daal::algorithms::elastic_net::training::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::elastic_net::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::elastic_net::training::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::elastic_net::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::elastic_net::training::interface1::Parameter const*, int)";
+
+        # Model validation function
+        "daal::algorithms::elastic_net::checkModel(daal::algorithms::elastic_net::interface1::Model*, daal::algorithms::interface1::Parameter const&, unsigned long, unsigned long, int)";
 
         "!daal::algorithms::elastic_net::internal::*";
         "!daal::algorithms::elastic_net::*::internal::*";
@@ -231,6 +263,10 @@ global:
         daal::algorithms::engines::mt2203::interface1::*;
         daal::algorithms::engines::philox4x32x10::interface1::*;
 
+        # Explicit template instantiations for engines
+        "daal::services::interface1::Status daal::algorithms::engines::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::engines::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
         "!daal::algorithms::engines::internal::*";
 
 
@@ -246,6 +282,7 @@ global:
 
         daal::algorithms::gbt::classification::interface1::ModelBuilder::*;
         daal::algorithms::gbt::regression::interface1::ModelBuilder::*;
+        daal::algorithms::gbt::interface1::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::gbt::classification::prediction::interface2::Result";
@@ -316,6 +353,10 @@ global:
         daal::algorithms::kernel_function::interface1::*;
         daal::algorithms::kernel_function::linear::interface1::*;
         daal::algorithms::kernel_function::rbf::interface1::*;
+
+        # Polynomial kernel internal Input and Parameter (specific exports)
+        daal::algorithms::kernel_function::polynomial::internal::Input::*;
+        daal::algorithms::kernel_function::polynomial::internal::Parameter::*;
 
         # Explicit template instantiations
         "daal::services::interface1::Status daal::algorithms::kernel_function::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -399,12 +440,16 @@ global:
 
         daal::algorithms::lasso_regression::training::interface1::*;
         daal::algorithms::lasso_regression::prediction::interface1::*;
+        daal::algorithms::lasso_regression::interface1::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::lasso_regression::prediction::interface1::Result";
         "typeinfo for daal::algorithms::lasso_regression::training::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::lasso_regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::lasso_regression::training::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::lasso_regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::lasso_regression::training::interface1::Parameter const*, int)";
+
+        # Model validation function
+        "daal::algorithms::lasso_regression::checkModel(daal::algorithms::lasso_regression::interface1::Model*, daal::algorithms::interface1::Parameter const&, unsigned long, unsigned long, int)";
 
         "!daal::algorithms::lasso_regression::internal::*";
         "!daal::algorithms::lasso_regression::*::internal::*";
@@ -413,17 +458,37 @@ global:
         # Linear Model
 
         daal::algorithms::linear_model::prediction::interface1::*;
+        daal::algorithms::linear_model::interface1::*;
+
+        # Linear model hyperparameter methods
+        "daal::algorithms::linear_model::internal::Hyperparameter::find(daal::algorithms::linear_model::internal::DoubleHyperparameterId, double&) const";
+        "daal::algorithms::linear_model::internal::Hyperparameter::find(daal::algorithms::linear_model::internal::HyperparameterId, long long&) const";
+        "daal::algorithms::linear_model::internal::Hyperparameter::Hyperparameter()";
+        "daal::algorithms::linear_model::internal::Hyperparameter::set(daal::algorithms::linear_model::internal::DoubleHyperparameterId, double)";
+        "daal::algorithms::linear_model::internal::Hyperparameter::set(daal::algorithms::linear_model::internal::HyperparameterId, long long)";
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::linear_model::prediction::interface1::Input";
         "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
+        # Model validation function
+        "daal::algorithms::linear_model::checkModel(daal::algorithms::linear_model::interface1::Model*, daal::algorithms::interface1::Parameter const&, unsigned long, unsigned long)";
+
 
         # Linear Regression
 
         daal::algorithms::linear_regression::training::interface1::*;
         daal::algorithms::linear_regression::prediction::interface1::*;
+        daal::algorithms::linear_regression::interface1::*;
+
+        # Linear regression hyperparameter conversion
+        "daal::algorithms::linear_regression::internal::convert(daal::algorithms::linear_regression::internal::Hyperparameter const*, daal::services::interface1::SharedPtr<daal::algorithms::linear_model::internal::Hyperparameter>&)";
+        "daal::algorithms::linear_regression::internal::Hyperparameter::find(daal::algorithms::linear_regression::internal::DoubleHyperparameterId, double&) const";
+        "daal::algorithms::linear_regression::internal::Hyperparameter::find(daal::algorithms::linear_regression::internal::HyperparameterId, long long&) const";
+
+        # Model validation function
+        "daal::algorithms::linear_regression::checkModel(daal::algorithms::linear_regression::interface1::Model*, daal::algorithms::interface1::Parameter const&, unsigned long, unsigned long, int)";
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::linear_regression::prediction::interface1::Result";
@@ -512,6 +577,7 @@ global:
         daal::algorithms::normalization::zscore::interface1::*;
         daal::algorithms::normalization::zscore::interface2::*;
         daal::algorithms::normalization::zscore::interface3::*;
+        daal::algorithms::normalization::interface2::*;
 
         # Explicit template instantiations and RTTI
         "vtable for daal::algorithms::normalization::minmax::interface1::ParameterBase";
@@ -552,6 +618,7 @@ global:
         daal::algorithms::optimization_solver::sgd::interface1::*;
         daal::algorithms::optimization_solver::sgd::interface2::*;
         daal::algorithms::optimization_solver::sum_of_functions::interface2::*;
+        daal::algorithms::optimization_solver::interface2::*;
 
         # Explicit template instantiations and RTTI
         "vtable for daal::algorithms::optimization_solver::iterative_solver::interface2::Parameter";
@@ -625,6 +692,10 @@ global:
         "daal::services::interface1::Status daal::algorithms::qr::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter*, int)";
         "daal::services::interface1::Status daal::algorithms::qr::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter*, int)";
 
+        # Additional QR template instantiations for setPartialResultStorage
+        "daal::services::interface1::Status daal::algorithms::qr::interface1::DistributedPartialResult::setPartialResultStorage<double>(daal::data_management::interface1::SerializableKeyValueCollection<daal::data_management::interface1::SerializationIface>*, unsigned long&)";
+        "daal::services::interface1::Status daal::algorithms::qr::interface1::DistributedPartialResult::setPartialResultStorage<float>(daal::data_management::interface1::SerializableKeyValueCollection<daal::data_management::interface1::SerializationIface>*, unsigned long&)";
+
         "!daal::algorithms::qr::internal::*";
 
 
@@ -644,6 +715,7 @@ global:
 
         daal::algorithms::ridge_regression::training::interface1::*;
         daal::algorithms::ridge_regression::prediction::interface1::*;
+        daal::algorithms::ridge_regression::interface1::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::ridge_regression::training::interface1::PartialResult";
@@ -660,6 +732,9 @@ global:
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
+
+        # Model validation function
+        "daal::algorithms::ridge_regression::checkModel(daal::algorithms::ridge_regression::interface1::Model*, daal::algorithms::interface1::Parameter const&, unsigned long, unsigned long, int)";
 
 
         # SVD
@@ -711,9 +786,16 @@ global:
 
         daal::algorithms::tsne::interface1::*;
 
+        # Explicit template instantiations for tsneGradientDescent
+        "void daal::algorithms::internal::tsneGradientDescent<int, double>(daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::CSRNumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>)";
+        "void daal::algorithms::internal::tsneGradientDescent<int, float>(daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::CSRNumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>, daal::services::interface1::SharedPtr<daal::data_management::interface1::NumericTable>)";
+
         "!daal::algorithms::tsne::internal::*";
 
         # =================================== Data Management ==================================
+
+        # Broader data management exports
+        daal::data_management::*;
 
         daal::data_management::interface1::DataCollection::*;
 
@@ -802,6 +884,9 @@ global:
         "void daal::data_management::internal::vectorAssignValueToArray<int>(int*, unsigned long, int)";
 
         # ======================================= Services =====================================
+
+        # Broader services exports
+        daal::services::*;
 
         # Memory management
 
@@ -1051,6 +1136,12 @@ global:
     _Z23daal_check_is_intel_cpu*;
     _Z23daal_enabled_cpu_detect*;
     _Z28daal_serv_cpu_feature_detect*;
+
+    # STL template instantiations
+    "_ZSt16__introsort_loopIN9__gnu_cxx17__normal_iteratorIPKN4daal15data_management9interface111FeatureTypeESt6vectorIS5_SaIS5_EEEElNS0_5__ops15_Iter_less_iterEEvT_SD_T0_T1_";
+    "_ZN4daal15data_management9interface17Factory15_v1_ObjectTypes8_entriesB5cxx11Ev";
+    "_ZN4daal15data_management9interface17Factory15_v1_ObjectTypes8_entriesEv";
+    "_ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE17_M_realloc_insertIJS5_EEEvN9__gnu_cxx17__normal_iteratorIPS5_S7_EEDpOT_";
 
 local:
     # Hide everything else by default
