@@ -80,7 +80,7 @@ function install_opencl_apt {
 function install_qemu_emulation_deb {
     sudo apt-get install -f -y
     sudo apt-get install -y qemu-user qemu-user-binfmt qemu-user-static
-    sudo systemctl restart systemd-binfmt.service || true
+    sudo systemctl restart systemd-binfmt.service
 }
 
 function install_llvm_version {
