@@ -58,6 +58,7 @@ win_icx_common_flags = [
     # suppress to avoid failing third-party headers (fmt, Catch2) that
     # ignore nodiscard-returning functions called for side effects.
     "-Wno-unused-result",
+    "-Wno-unused-variable",
 ]
 
 # Matches `pedantic.opts.win.icx` / `pedantic.opts.win.dpcpp` in the Makefile.
