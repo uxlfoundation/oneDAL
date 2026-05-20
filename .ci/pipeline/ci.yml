@@ -652,8 +652,6 @@ jobs:
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --test_env=MKL_THREADING_LAYER=TBB --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'cpp-examples-thread-release-dynamic'
 
-
-
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL
   timeoutInMinutes: 0
