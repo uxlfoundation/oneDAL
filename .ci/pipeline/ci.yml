@@ -758,8 +758,8 @@ jobs:
       set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set PATH=%TEST_PATH%
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/daal:tests --test_link_mode=release_dynamic --verbose_failures --test_output=errors --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --test_env=MKL_THREADING_LAYER=TBB --jobs=$(BAZEL_JOBS)
-    displayName: 'daal-tests-release-dynamic'
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //cpp/daal:tests --verbose_failures --test_output=errors --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --test_env=MKL_THREADING_LAYER=TBB --jobs=$(BAZEL_JOBS)
+    displayName: 'daal-tests-algorithms'
 
 
   - script: |
