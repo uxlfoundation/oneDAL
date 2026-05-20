@@ -1,12 +1,18 @@
 @echo off
 rem ============================================================================
-rem Copyright contributors to the oneDAL project
+rem Copyright 2026 Intel Corporation
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
 rem You may obtain a copy of the License at
 rem
 rem     http://www.apache.org/licenses/LICENSE-2.0
+rem
+rem Unless required by applicable law or agreed to in writing, software
+rem distributed under the License is distributed on an "AS IS" BASIS,
+rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+rem See the License for the specific language governing permissions and
+rem limitations under the License.
 rem ============================================================================
 rem
 rem Generate a DLL's import library (.lib) from the DLL itself by harvesting
@@ -87,6 +93,14 @@ rem Bazel expects it (Bazel was given LIB_OUT and EXP_OUT separately).
 set "LIB_EXP=%LIB_OUT:.lib=.exp%"
 if not "%EXP_OUT%"=="" if /I not "%LIB_EXP%"=="%EXP_OUT%" (
     if exist "%LIB_EXP%" move /Y "%LIB_EXP%" "%EXP_OUT%" >NUL
+)
+
+rem Some lib-compatible tools only produce the import library for /def: and do
+rem not leave a sibling .exp file. The .exp is not packaged, but Bazel declared
+rem it as an action output to keep the tool side effects tracked, so create an
+rem empty placeholder when the linker did not emit one.
+if not "%EXP_OUT%"=="" if not exist "%EXP_OUT%" (
+    type NUL > "%EXP_OUT%"
 )
 
 del /Q "%DEF_TMP%" 2>NUL

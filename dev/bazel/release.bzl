@@ -178,17 +178,22 @@ def _copy_lib(ctx, prefix, version_info):
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
 
-    # On Windows, when the link action already emitted a real
-    # `<name>.if.lib` (rules_cc MSVC auto-config does this for the cl
-    # branch and our icx branch when it eventually wires /IMPLIB), use
-    # that as the import lib via rename; otherwise derive it post-link
-    # from the .dll via dumpbin + lib /def. This avoids declaring the
-    # same `<name>_dll.lib` twice when both paths fire for one DLL.
-    iflib_stems = {}
+    # On Windows, when the dynamic library rule already emitted a real
+    # import library, use that via rename; otherwise derive it post-link
+    # from the .dll via dumpbin + lib /def.
+    #
+    # rules_cc may expose `<name>.if.lib`, while our cc_dynamic_lib rule
+    # publishes the same file as `<name>_dll.lib`. Both represent the DLL
+    # import library and must be consumed by the DLL branch below, otherwise
+    # the final loop would try to copy `<name>_dll.lib` into the same release
+    # output that the DLL branch is also generating.
+    import_lib_stems = {}
     if is_windows:
         for lib in libs:
             if lib.basename.endswith(".if.lib"):
-                iflib_stems[lib.basename[:-len(".if.lib")]] = lib
+                import_lib_stems[lib.basename[:-len(".if.lib")]] = lib
+            elif lib.basename.endswith("_dll.lib"):
+                import_lib_stems[lib.basename[:-len("_dll.lib")]] = lib
 
     for lib in libs:
         # Determine if this is a shared library that needs versioning.
@@ -242,10 +247,10 @@ def _copy_lib(ctx, prefix, version_info):
                 # config writes one alongside every DLL). Fall back to
                 # dumpbin + lib /def: when the toolchain did not emit
                 # one (icx custom config currently does not).
-                source_iflib = iflib_stems.get(stem)
-                if source_iflib:
+                source_import_lib = import_lib_stems.get(stem)
+                if source_import_lib:
                     implib = _copy(
-                        ctx, source_iflib,
+                        ctx, source_import_lib,
                         paths.join(lib_prefix, implib_name),
                     )
                 else:
@@ -262,10 +267,10 @@ def _copy_lib(ctx, prefix, version_info):
                         paths.join(lib_prefix, versioned_implib_name),
                     ))
                 continue
-            # The link-emitted `.if.lib`s are consumed via the dll
-            # branch above (renamed to `_dll.lib`); skip them here so we
-            # do not declare the same output twice.
-            if is_windows and lib.basename.endswith(".if.lib"):
+            # Link-emitted import libraries are consumed via the dll branch
+            # above (renamed to `_dll.lib`); skip them here so we do not
+            # declare the same output twice.
+            if is_windows and (lib.basename.endswith(".if.lib") or lib.basename.endswith("_dll.lib")):
                 continue
 
             dst_path = paths.join(lib_prefix, lib.basename)
