@@ -151,7 +151,7 @@ def _download(repo_ctx):
 def _prebuilt_libs_repo_impl(repo_ctx):
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
     if root:
-            mapping = {}
+        mapping = {}
     else:
         if repo_ctx.attr.url or repo_ctx.attr.urls:
             root = _download(repo_ctx)
