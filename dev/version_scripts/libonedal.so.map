@@ -247,8 +247,51 @@ global:
 
         "oneapi::dal::detail::v1::to_string[abi:cxx11](oneapi::dal::detail::v1::cpu_extension)";
 
+        # Policy methods
+        "oneapi::dal::detail::v1::host_policy::get_enabled_cpu_extensions() const";
+
+        # Exception what() methods (critical for vtables)
+        "oneapi::dal::v1::device_bad_alloc::what() const";
+        "oneapi::dal::v1::domain_error::what() const";
+        "oneapi::dal::v1::host_bad_alloc::what() const";
+        "oneapi::dal::v1::internal_error::what() const";
+        "oneapi::dal::v1::invalid_argument::what() const";
+        "oneapi::dal::v1::out_of_range::what() const";
+        "oneapi::dal::v1::range_error::what() const";
+        "oneapi::dal::v1::system_error::what() const";
+        "oneapi::dal::v1::system_error::code() const";
+        "oneapi::dal::v1::unimplemented::what() const";
+        "oneapi::dal::v1::uninitialized_optional_result::what() const";
+        "oneapi::dal::v1::unsupported_device::what() const";
+
+        # Chunked array methods
+        "oneapi::dal::detail::v2::array_impl<unsigned char*> oneapi::dal::detail::v2::chunked_array_base::get_mutable_data_impl<oneapi::dal::detail::v1::default_host_policy, oneapi::dal::detail::v1::host_allocator<unsigned char*> >(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::v1::host_allocator<unsigned char*> const&) const";
+
+        # Newton CG descriptor methods
+        "oneapi::dal::newton_cg::detail::v1::descriptor_base<oneapi::dal::newton_cg::task::v1::compute>::get_max_iteration() const";
+        "oneapi::dal::newton_cg::detail::v1::descriptor_base<oneapi::dal::newton_cg::task::v1::compute>::get_tolerance() const";
+
         "_onedal_threader_get_max_threads";
         "_onedal_threader_for_int64";
+
+        # Additional threading and TLS functions
+        "_onedal_del_mutex";
+        "_onedal_del_tls_ptr";
+        "_onedal_get_tls_local";
+        "_onedal_get_tls_ptr";
+        "_onedal_lock_mutex";
+        "_onedal_new_mutex";
+        "_onedal_unlock_mutex";
+        "_onedal_parallel_reduce_int32_int64";
+        "_onedal_parallel_reduce_int32_int64_simple";
+        "_onedal_parallel_reduce_int32ptr_int64_simple";
+        "_onedal_parallel_reduce_tls";
+        "_onedal_reduce_tls";
+        "_onedal_threader_for";
+        "_onedal_threader_for_blocked_size";
+        "_onedal_threader_for_int32ptr";
+        "_onedal_threader_for_simple";
+        "_onedal_threader_get_current_thread_index";
 
         "oneapi::dal::detail::serializable_registry::instance()";
         "void oneapi::dal::detail::v2::serialize_array<oneapi::dal::detail::v1::default_host_policy>(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::output_archive&, unsigned char const*, long, oneapi::dal::v1::data_type)";

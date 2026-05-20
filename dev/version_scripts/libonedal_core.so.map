@@ -51,6 +51,29 @@ global:
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::AlgorithmImpl(daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2> const&)";
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::AlgorithmImpl(daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4> const&)";
 
+        # AlgorithmImpl full API (ComputeMode 2 and 4)
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::AlgorithmImpl()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::~AlgorithmImpl()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::compute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::setupCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::resetCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::finalizeCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::setupFinalizeCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::resetFinalizeCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::enableResetOnCompute(bool)";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::enableResetOnFinalizeCompute(bool)";
+
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::AlgorithmImpl()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::~AlgorithmImpl()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::compute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::setupCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::resetCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::finalizeCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::setupFinalizeCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::resetFinalizeCompute()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::enableResetOnCompute(bool)";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::enableResetOnFinalizeCompute(bool)";
+
 
         # Cholesky
 
@@ -284,6 +307,11 @@ global:
         daal::algorithms::gbt::regression::interface1::ModelBuilder::*;
         daal::algorithms::gbt::interface1::*;
 
+        # GBT Model specific methods
+        daal::algorithms::gbt::classification::interface1::Model::*;
+        daal::algorithms::gbt::regression::interface1::Model::*;
+        daal::algorithms::gbt::training::interface1::Parameter::*;
+
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::gbt::classification::prediction::interface2::Result";
         "daal::services::interface1::Status daal::algorithms::gbt::classification::prediction::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -425,6 +453,7 @@ global:
         daal::algorithms::kdtree_knn_classification::training::interface3::*;
         daal::algorithms::kdtree_knn_classification::prediction::interface1::*;
         daal::algorithms::kdtree_knn_classification::prediction::interface3::*;
+        daal::algorithms::kdtree_knn_classification::interface3::Parameter::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::kdtree_knn_classification::prediction::interface1::Result";
@@ -458,6 +487,7 @@ global:
         # Linear Model
 
         daal::algorithms::linear_model::prediction::interface1::*;
+        daal::algorithms::linear_model::training::interface1::*;
         daal::algorithms::linear_model::interface1::*;
 
         # Linear model hyperparameter methods
@@ -516,6 +546,7 @@ global:
         daal::algorithms::logistic_regression::training::interface3::*;
         daal::algorithms::logistic_regression::prediction::interface1::*;
         daal::algorithms::logistic_regression::prediction::interface2::*;
+        daal::algorithms::logistic_regression::interface1::Model::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::logistic_regression::training::interface2::Result";
@@ -553,6 +584,8 @@ global:
         daal::algorithms::multi_class_classifier::training::interface2::*;
         daal::algorithms::multi_class_classifier::prediction::interface1::*;
         daal::algorithms::multi_class_classifier::prediction::interface2::*;
+        daal::algorithms::multi_class_classifier::interface1::*;
+        daal::algorithms::multi_class_classifier::interface2::Parameter::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::multi_class_classifier::training::interface1::Result";
@@ -618,6 +651,7 @@ global:
         daal::algorithms::optimization_solver::sgd::interface1::*;
         daal::algorithms::optimization_solver::sgd::interface2::*;
         daal::algorithms::optimization_solver::sum_of_functions::interface2::*;
+        daal::algorithms::optimization_solver::precomputed::interface2::*;
         daal::algorithms::optimization_solver::interface2::*;
 
         # Explicit template instantiations and RTTI
