@@ -16,10 +16,10 @@
 
 module(name = "onedal")
 
-bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-bazel_dep(name = "rules_cc", version = "0.2.17")
-bazel_dep(name = "rules_shell", version = "0.7.1")
+bazel_dep(name = "rules_cc", version = "0.2.18")
+bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "fmt", version = "12.1.0")
 
 cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
@@ -74,28 +74,28 @@ tbb_repo(
     name = "tbb",
     root_env_var = "TBBROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/cd/5c/019acaccf0038b8e05b0a54189439d0987891017a84ca43675589f7e460c/tbb-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/75/b8/de55540aecc77a7f308db1b0667e017578be7d4c18d7235cbc8f1fd1f59a/tbb_devel-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/aa/d2/9a994ce9b18182b04783282eba77e236d23919acf42a886d72fe14fc78a4/tbb-2023.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/3d/ce/3f7551583ad858dc6d6b8a6b34f1843db3887879677cb772fdc6101aaa1a/tbb_devel-2023.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "522189f3e370a6b9c92b8a7fbdecf3633f7c53f0ea4eb8d6891a7f5f00c78099",
-        "3cf12760779cdbdad1006112a1384e1f8853e46f8bc7a41e7e7bcfd5557b6983",
+        "482f57656386ea14b96e8da36b3fcc4cd880834ef0f328ba09e8e2e3c639285e",
+        "612eb3f7dd2096868ac9907c9e3fb2246f8d0fe88a7c5531163e5c4515bf801b",
     ],
     strip_prefixes = [
-        "tbb-2022.2.0.data/data",
-        "tbb_devel-2022.2.0.data/data",
+        "tbb-2023.0.0.data/data",
+        "tbb_devel-2023.0.0.data/data",
     ],
     win_urls = [
-        "https://files.pythonhosted.org/packages/4e/d2/01e2a93f9c644585088188840bf453f23ed1a2838ec51d5ba1ada1ebca71/tbb-2022.2.0-py3-none-win_amd64.whl",
-        "https://files.pythonhosted.org/packages/2c/b4/ec178737025d45eac8f37152ef8932da12ce8f1002a543bbd20bc163bed9/tbb_devel-2022.2.0-py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/7a/f8/dd5e1d9955c91ebd301d855232163750489b20ea5a8c4e40954269493dcc/tbb-2023.0.0-py3-none-win_amd64.whl",
+        "https://files.pythonhosted.org/packages/db/da/07298ded5d56686fce1e0123730d6a5e288f7951863beb4fcc0214ad8ed0/tbb_devel-2023.0.0-py3-none-win_amd64.whl",
     ],
     win_sha256s = [
-        "acbce7632d4d7acc6bdfe9849a57ab1624490198699eb16ea63243cfb4fd4cfa",
-        "93f32507693a93c8743391a6fde87dda65b8d47c35441a4ee28451a3aa5acdf3",
+        "82d1c2b4b6881d5b4f2e67288ca1c864f54e3cd82c7e428aaf912aa30ab21d01",
+        "acc9df3c4f60b662dcd1fa27f72e40580201f30931fb8bd7336c603c8f4f1664",
     ],
     win_strip_prefixes = [
-        "tbb-2022.2.0.data/data/Library",
-        "tbb_devel-2022.2.0.data/data/Library",
+        "tbb-2023.0.0.data/data/Library",
+        "tbb_devel-2023.0.0.data/data/Library",
     ],
 )
 

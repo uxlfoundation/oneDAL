@@ -16,7 +16,7 @@
 # limitations under the License.
 #===============================================================================
 
-TBB_VERSION="2021.10.0"
+TBB_VERSION="2022.3.0"
 TBB_URL_ROOT="https://github.com/uxlfoundation/oneTBB/releases/download/v${TBB_VERSION}"
 
 os=$(uname)
@@ -75,6 +75,11 @@ if [ ! -d "${DST}/${OS}/bin" ]; then
   else
     echo tar -xvf "${DST}/${TBB_PACKAGE}" -C "${DST}"
     tar -C "${DST}/${OS}" --strip-components=1 -xvf "${DST}/${TBB_PACKAGE}"
+    # Flatten old TBB layout (lib/intel64/gcc4.8/) to new layout (lib/)
+    if [ -d "${DST}/${OS}/lib/intel64/gcc4.8" ]; then
+      mv "${DST}/${OS}/lib/intel64/gcc4.8"/* "${DST}/${OS}/lib/"
+      rm -rf "${DST}/${OS}/lib/intel64"
+    fi
   fi
   ls -al "${DST}/${OS}/"
   echo "Downloaded and unpacked oneTBB to ${DST}/${OS}"
