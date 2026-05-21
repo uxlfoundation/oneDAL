@@ -27,4 +27,16 @@ tbb_repo = repos.prebuilt_libs_repo_rule(
         "lib/libtbbmalloc.so.2",
     ],
     build_template = "@onedal//dev/bazel/deps:tbb.tpl.BUILD",
+    win_includes = [
+        "include",
+    ],
+    win_libs = [
+        "lib/tbb12.lib",
+        "lib/tbbmalloc.lib",
+    ],
+    win_bins = [
+        "bin/tbb12.dll",
+        "bin/tbbmalloc.dll",
+    ],
+    win_build_template = "@onedal//dev/bazel/deps:tbb_win.tpl.BUILD",
 )

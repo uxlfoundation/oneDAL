@@ -1,4 +1,3 @@
-#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,22 +14,22 @@
 # limitations under the License.
 #===============================================================================
 
-input=$1
-output=$2
-cpus=$3
+param(
+    [Parameter(Mandatory=$true)][string]$InputPath,
+    [Parameter(Mandatory=$true)][string]$OutputPath,
+    [string]$Cpus = ""
+)
 
-if [ "${cpus}" == "" ]; then
-    cp $input $output
-    exit
-fi
+$ErrorActionPreference = "Stop"
 
-function join { local IFS="$1"; shift; echo "$*"; }
+if ([string]::IsNullOrWhiteSpace($Cpus)) {
+    Copy-Item -LiteralPath $InputPath -Destination $OutputPath -Force
+    exit 0
+}
 
-replacements=()
-for cpu in $cpus
-do
-    replacements+=("^#define DAAL_KERNEL_${cpu^^}\b")
-done
+$cpuPattern = ($Cpus -split '\s+' | Where-Object { $_ } | ForEach-Object { [regex]::Escape($_.ToUpperInvariant()) }) -join '|'
+$pattern = "^#define DAAL_KERNEL_($cpuPattern)\b"
 
-sed_args=$(join '|' "${replacements[@]}")
-sed -E "s/${sed_args}//" $input > $output
+(Get-Content -LiteralPath $InputPath) | ForEach-Object {
+    $_ -replace $pattern, ""
+} | Set-Content -LiteralPath $OutputPath -Encoding ASCII

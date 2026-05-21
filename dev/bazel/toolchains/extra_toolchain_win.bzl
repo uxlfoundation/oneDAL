@@ -1,4 +1,3 @@
-#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,22 +14,20 @@
 # limitations under the License.
 #===============================================================================
 
-input=$1
-output=$2
-cpus=$3
-
-if [ "${cpus}" == "" ]; then
-    cp $input $output
-    exit
-fi
-
-function join { local IFS="$1"; shift; echo "$*"; }
-
-replacements=()
-for cpu in $cpus
-do
-    replacements+=("^#define DAAL_KERNEL_${cpu^^}\b")
-done
-
-sed_args=$(join '|' "${replacements[@]}")
-sed -E "s/${sed_args}//" $input > $output
+def configure_extra_toolchain_win(repo_ctx, compiler_id):
+    repo_ctx.template(
+        "patch_daal_kernel_defines.cmd",
+        Label("@onedal//dev/bazel/toolchains/tools:patch_daal_kernel_defines.cmd"),
+    )
+    repo_ctx.template(
+        "patch_daal_kernel_defines.ps1",
+        Label("@onedal//dev/bazel/toolchains/tools:patch_daal_kernel_defines.ps1"),
+    )
+    patch_daal_kernel_defines_path = str(repo_ctx.path("patch_daal_kernel_defines.cmd"))
+    repo_ctx.template(
+        "BUILD",
+        Label("@onedal//dev/bazel/toolchains:extra_toolchain_win.tpl.BUILD"),
+        {
+            "%{patch_daal_kernel_defines}": patch_daal_kernel_defines_path,
+        }
+    )

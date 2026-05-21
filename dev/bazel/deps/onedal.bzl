@@ -47,5 +47,25 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}",
         "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}.%{version_binary_minor}",
     ],
+    win_libs = [
+        # Static libraries
+        "lib/intel64/onedal_core.lib",
+        "lib/intel64/onedal_thread.lib",
+        "lib/intel64/onedal.lib",
+        "lib/intel64/onedal_parameters.lib",
+
+        # Dynamic import libraries and oneAPI DLLs
+        "lib/intel64/onedal_core_dll.lib",
+        "lib/intel64/onedal_core_dll.%{version_binary_major}.lib",
+        "lib/intel64/onedal_dll.lib",
+        "lib/intel64/onedal_parameters_dll.lib",
+        "lib/intel64/onedal.%{version_binary_major}.dll",
+        "lib/intel64/onedal_parameters.%{version_binary_major}.dll",
+    ],
+    win_bins = [
+        "redist/intel64/onedal_core.%{version_binary_major}.dll",
+        "redist/intel64/onedal_thread.%{version_binary_major}.dll",
+    ],
     build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
+    win_build_template = "@onedal//dev/bazel/deps:onedal_win.tpl.BUILD",
 )

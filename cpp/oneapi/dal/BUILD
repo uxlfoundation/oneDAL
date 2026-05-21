@@ -96,6 +96,14 @@ dal_dynamic_lib(
         ":core",
         ":optional",
     ],
+    # On Windows the onedal.dll bundles DAAL algorithm objects that
+    # reference the threading shims. Pull in the same delay-load shim
+    # used by onedal_core.dll so unresolved `_threaded_scalable_*` /
+    # `_daal_static_threader_reduce` symbols get satisfied. No-op on Linux.
+    host_deps = select({
+        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
+        "//conditions:default": [],
+    }),
 )
 
 dal_dynamic_lib(
@@ -106,6 +114,10 @@ dal_dynamic_lib(
         "@onedal//cpp/oneapi/dal/algo:parameters",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
+    host_deps = select({
+        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
+        "//conditions:default": [],
+    }),
 )
 
 filegroup(
