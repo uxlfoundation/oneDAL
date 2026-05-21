@@ -56,12 +56,6 @@ test --test_env=Path
 # (redist/intel64, lib/intel64) for runtime DLL lookups on Windows.
 test --test_env=DALROOT
 
-# Default MKL threading layer for tests. TBB is the threading backend
-# wired into the dynamic onedal_thread.dll, and MKL needs this hint to
-# pick the matching threading runtime when loaded via the SYCL/host
-# tests; matches the value the WindowsBazel CI job exports explicitly.
-test --test_env=MKL_THREADING_LAYER=TBB
-
 # This variable is used to determine location of datasets for testing
 test --test_env=DAAL_DATASETS
 

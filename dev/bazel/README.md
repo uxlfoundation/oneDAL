@@ -78,9 +78,8 @@ flag work.
    ```bat
    for /f "delims=" %i in ('bazelisk.exe info output_base') do set BAZEL_OUTPUT_BASE=%i
    set PATH=%BAZEL_OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%BAZEL_OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
-   set MKL_THREADING_LAYER=TBB
 
-   bazelisk.exe test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors --test_env=PATH --test_env=MKL_THREADING_LAYER
+   bazelisk.exe test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors
    ```
 
 ### Compiler choice

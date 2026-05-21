@@ -598,20 +598,12 @@ jobs:
       bash .ci/scripts/describe_system.sh
     displayName: 'System info'
   - script: |
-      for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
-      if not defined VS_PATH (
-          echo Visual Studio with MSVC x64 tools was not found
-          exit /b 1
-      )
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
-      echo ##vso[task.setvariable variable=VSDEVCMD]%VS_PATH%\Common7\Tools\VsDevCmd.bat
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
-      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
-      set BAZEL_SH=$(BAZEL_SH)
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release'
@@ -629,27 +621,25 @@ jobs:
     continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
-      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
-      set BAZEL_SH=$(BAZEL_SH)
+      "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
       set /p OUTPUT_BASE=<output_base.txt
       set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
       set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set PATH=%TEST_PATH%
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --test_env=MKL_THREADING_LAYER=TBB --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
-      call "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
-      set BAZEL_SH=$(BAZEL_SH)
+      "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
       set /p OUTPUT_BASE=<output_base.txt
       set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
       set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set PATH=%TEST_PATH%
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --test_env=MKL_THREADING_LAYER=TBB --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'cpp-examples-thread-release-dynamic'
 
 - job: LinuxSklearnex

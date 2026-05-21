@@ -53,7 +53,7 @@ def _merge_static_libs(filename, actions, cc_toolchain,
         args.add("/OUT:" + output_file.path)
         args.add_all(static_libs)
         actions.run(
-            executable = "lib.exe",
+            executable = "xilib.exe"
             arguments = [args],
             inputs = static_libs,
             outputs = [output_file],

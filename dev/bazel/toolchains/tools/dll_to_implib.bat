@@ -1,6 +1,6 @@
 @echo off
 rem ============================================================================
-rem Copyright 2026 Intel Corporation
+rem Copyright contributors to the oneDAL project
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
