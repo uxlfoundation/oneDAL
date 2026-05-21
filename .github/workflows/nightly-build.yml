@@ -20,7 +20,6 @@ name: Nightly-build
 # It is a dependency of uxlfoundation/scikit-learn-intelex's `CI` GitHub action
 
 on:
-  push:
   schedule:
     - cron: '0 21 * * *'
   pull_request:
@@ -50,6 +49,7 @@ env:
 jobs:
   build_lnx:
     name: oneDAL Linux nightly build
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
 
@@ -85,6 +85,7 @@ jobs:
 
   build_win:
     name: oneDAL Windows nightly build
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-2025
     timeout-minutes: 180
 

@@ -30,6 +30,19 @@ namespace pr = oneapi::dal::backend::primitives;
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 
+/// Build a oneAPI compute result from device-side responses (no centers).
+///
+/// Wraps `responses` into a homogen_table when `result_options::responses` is
+/// requested; always sets `cluster_count` and forwards `result_options`.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] queue         The SYCL queue
+/// @param[in] desc          Algorithm descriptor (carries `result_options`)
+/// @param[in] responses     Per-point cluster labels on device, length `n`
+/// @param[in] cluster_count Number of distinct clusters
+///
+/// @return oneAPI `compute_result`
 template <typename Float>
 inline result_t make_results(sycl::queue& queue,
                              const descriptor_t& desc,
@@ -48,6 +61,22 @@ inline result_t make_results(sycl::queue& queue,
     return results;
 }
 
+/// Build a oneAPI compute result from device-side responses, including centers.
+///
+/// Forwards to the no-data overload to set responses and cluster count, then
+/// optionally computes centroid and/or medoid tables on the host (via
+/// `compute_centroids` / `compute_medoids`) when `desc.get_store_centers()`
+/// requests them.
+///
+/// @tparam Float Floating-point type used for centers
+///
+/// @param[in] queue         The SYCL queue
+/// @param[in] desc          Algorithm descriptor
+/// @param[in] responses     Per-point cluster labels on device, length `n`
+/// @param[in] cluster_count Number of distinct clusters
+/// @param[in] data          Original input table (read for centers)
+///
+/// @return oneAPI `compute_result` with optional cluster/medoid centers
 template <typename Float>
 inline result_t make_results(sycl::queue& queue,
                              const descriptor_t& desc,

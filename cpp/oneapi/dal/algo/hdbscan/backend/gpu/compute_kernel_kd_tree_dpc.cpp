@@ -38,7 +38,15 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-/// Choose block size so that the B×N distance block fits in ~256 MB of device memory.
+/// Pick a block size for the blocked core-distance sweep.
+///
+/// Targets a `B × N` distance block of about 256 MB; clamped to a minimum of
+/// 256 rows and to `row_count`.
+///
+/// @param[in] row_count  Number of points `N`
+/// @param[in] float_size `sizeof(Float)`
+///
+/// @return Chosen block size `B`
 static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float_size) {
     const std::int64_t target_bytes = 256 * 1024 * 1024;
     std::int64_t bs = target_bytes / (row_count * float_size);
@@ -49,6 +57,21 @@ static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float
     return bs;
 }
 
+/// Run the kd-tree HDBSCAN GPU pipeline for a single floating-point type.
+///
+/// Despite the name, no host-side tree is built: core distances are computed
+/// in `B × N` blocks via `pr::distance` + `pr::kselect_by_rows`, then the MST
+/// is built directly with `build_mst_otf` (on-the-fly distances) so the full
+/// `N × N` MRD matrix is never materialized. After sort + extract_clusters
+/// the responses are assembled into the oneAPI result.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] ctx        GPU dispatch context
+/// @param[in] desc       Algorithm descriptor
+/// @param[in] local_data Input data table of size `n × d`
+///
+/// @return oneAPI `compute_result` with responses and cluster count
 template <typename Float>
 static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
                                             const descriptor_t& desc,

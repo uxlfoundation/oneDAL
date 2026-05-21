@@ -24,6 +24,20 @@
 
 namespace oneapi::dal::hdbscan::backend {
 
+/// Compute the per-cluster centroid (mean point) of a labeled point set.
+///
+/// Sums every labeled point into its cluster's row of `centroids`, counts the
+/// points per cluster, then divides by the count. Points whose label is
+/// negative or out of range are skipped (HDBSCAN noise).
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  data          Row-major input buffer of size `row_count × col_count`
+/// @param[in]  labels        Cluster id per point, length `row_count` (-1 = noise)
+/// @param[in]  row_count     Number of input points
+/// @param[in]  col_count     Number of features per point
+/// @param[in]  cluster_count Number of clusters
+/// @param[out] centroids     Row-major centroid buffer, size `cluster_count × col_count`
 template <typename Float>
 static void compute_centroids(const Float* data,
                               const std::int32_t* labels,
@@ -60,6 +74,21 @@ static void compute_centroids(const Float* data,
     }
 }
 
+/// Compute the per-cluster medoid (closest input point to the centroid).
+///
+/// For each labeled point, computes its squared Euclidean distance to the
+/// cluster centroid and tracks the minimum per cluster. The chosen medoid is
+/// then copied row-by-row into `medoids`. Empty clusters get a zero row.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  data          Row-major input buffer of size `row_count × col_count`
+/// @param[in]  labels        Cluster id per point, length `row_count` (-1 = noise)
+/// @param[in]  row_count     Number of input points
+/// @param[in]  col_count     Number of features per point
+/// @param[in]  cluster_count Number of clusters
+/// @param[in]  centroids     Cluster centroids, size `cluster_count × col_count`
+/// @param[out] medoids       Output medoid rows, size `cluster_count × col_count`
 template <typename Float>
 static void compute_medoids(const Float* data,
                             const std::int32_t* labels,

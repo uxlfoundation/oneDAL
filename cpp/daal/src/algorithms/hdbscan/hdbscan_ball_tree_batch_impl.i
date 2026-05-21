@@ -62,29 +62,41 @@ using daal::internal::WriteOnlyRows;
 using daal::services::internal::TArray;
 using daal::services::internal::TArrayScalable;
 
-// =========================================================================
-// Ball tree node: center + radius instead of split plane + bounding box
-// =========================================================================
+/// Ball-tree node: hypersphere over a contiguous range of point indices.
+///
+/// Each node stores a center pivot id and a radius. The lower bound for a
+/// query `q` to any point in the ball is `max(0, dist(q, center) - radius)`,
+/// which is what makes ball trees more robust than kd-trees in high dimensions.
+///
+/// @tparam FPType Floating-point type
 template <typename FPType>
 struct BallNode
 {
-    int left;  // -1 for leaf
-    int right; // -1 for leaf
-    int pointBegin;
-    int pointEnd;
-    int centerIdx;   // index of the pivot point (used as approximate center)
-    FPType radius;   // max distance from center to any point in this ball
-    int componentId; // -1 = mixed components, >= 0 = uniform
+    int left;        ///< Index of left child node (-1 for leaf)
+    int right;       ///< Index of right child node (-1 for leaf)
+    int pointBegin;  ///< Begin of the node's point-index range
+    int pointEnd;    ///< End (exclusive) of the node's point-index range
+    int centerIdx;   ///< Index of the pivot point used as approximate center
+    FPType radius;   ///< Max distance from center to any point in this ball
+    int componentId; ///< -1 = mixed components, >= 0 = uniform Boruvka component
 };
 
 /// Gather `pointIndices[begin..end)` rows from `data` into a contiguous
-/// row-major buffer `scratchRows[count × nCols]` so all subsequent distance
-/// sweeps at this ball-tree node touch contiguous memory.
+/// row-major buffer.
 ///
 /// Paying the gather cost once lets pivot2 / pivot3 / radius / partition share
 /// one layout, avoids repeated FP conversions on low-precision input, and is
 /// what makes the BLAS xxgemv path in EuclideanDist::blockDist applicable
 /// (xxgemv needs the operand row block to be a contiguous matrix).
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in]  data         Row-major input buffer of size `nRows × nCols`
+/// @param[in]  pointIndices Permutation array; rows `[begin, end)` are gathered
+/// @param[in]  begin        First index (inclusive) into `pointIndices`
+/// @param[in]  end          Last index (exclusive) into `pointIndices`
+/// @param[in]  nCols        Number of features
+/// @param[out] scratchRows  Output, row-major `(end - begin) × nCols`
 template <typename algorithmFPType>
 static void gatherRows(const algorithmFPType * data, const int * pointIndices, int begin, int end, int nCols, algorithmFPType * scratchRows)
 {
@@ -99,10 +111,18 @@ static void gatherRows(const algorithmFPType * data, const int * pointIndices, i
     }
 }
 
-/// Pick the index of the largest entry in [0, count). Tiebreak: first occurrence.
-/// Split out from blockDistsAndArgmax so the distance pass goes entirely through
-/// distFunc.blockDist (BLAS xxgemv on Euclidean) and the argmax becomes a
-/// straight-line scalar reduction over a contiguous array.
+/// Index of the largest entry in `[0, count)`; tiebreak by first occurrence.
+///
+/// Split out from blockDistsAndArgmax so the distance pass goes entirely
+/// through `distFunc.blockDist` (BLAS xxgemv on Euclidean) and the argmax
+/// becomes a straight-line scalar reduction over a contiguous array.
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in] arr   Input array, length `count`
+/// @param[in] count Number of entries (must be >= 1)
+///
+/// @return Index of the maximum element
 template <typename algorithmFPType>
 static int argmaxArray(const algorithmFPType * arr, int count)
 {
@@ -119,15 +139,28 @@ static int argmaxArray(const algorithmFPType * arr, int count)
     return idx;
 }
 
-/// Compute distances from `pivotPt` to all `count` rows in `scratchRows` (row-major
-/// `count × nCols`), write them into `outDists`, and return the argmax position.
+/// Compute distances from `pivotPt` to a contiguous row block and return the argmax.
 ///
-/// Vectorization: delegates the distance sweep to `distFunc.blockDist`. For
-/// EuclideanDist (and AlphaScaledDist<EuclideanDist>) this is one BLAS xxgemv +
-/// vSqrt finalize over the contiguous scratch buffer; row norms² come from
+/// Delegates the distance sweep to `distFunc.blockDist`. For EuclideanDist
+/// (and AlphaScaledDist<EuclideanDist>) this is one BLAS xxgemv + vSqrt
+/// finalize over the contiguous scratch buffer; row norms² come from
 /// `rowNorms2` (pre-cached once per node by the caller). For other metrics
 /// blockDist falls back to a vectorized per-row inner loop. The argmax is a
 /// separate scalar reduction over the resulting array.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
+/// @tparam DistFunc        Metric functor exposing `blockDist`
+///
+/// @param[in]  pivotPt     Pivot row, length `nCols`
+/// @param[in]  scratchRows Row-major batch, size `count × nCols`
+/// @param[in]  rowNorms2   Per-row squared norms, length `count` (may be unused for non-Euclidean)
+/// @param[in]  count       Number of rows in the batch
+/// @param[in]  nCols       Number of features
+/// @param[in]  distFunc    Metric functor instance
+/// @param[out] outDists    Output distances, length `count`
+///
+/// @return Index of the row with the maximum distance
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
 static int blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmFPType * scratchRows, const algorithmFPType * rowNorms2, int count,
                                int nCols, const DistFunc & distFunc, algorithmFPType * outDists)
@@ -136,30 +169,42 @@ static int blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmF
     return argmaxArray(outDists, count);
 }
 
-/// Recursively build a ball tree node for pointIndices[begin..end).
+/// Recursively build a ball-tree node for `pointIndices[begin..end)`.
 ///
 /// Each call:
 ///   1. Claims a unique slot `nodeIdx` from the shared `nextNode` counter
-///      (deterministic: claimed left-to-right in DFS order).
+///      (deterministic: left-to-right in DFS order).
 ///   2. Gathers the relevant rows into a contiguous scratch buffer once so all
 ///      subsequent distance sweeps read contiguous memory and (for Euclidean)
 ///      can be batched as a single BLAS xxgemv.
-///   3. Computes ‖x_i‖² once into rowNorms2 and reuses it across the three
-///      pivot sweeps (pivot2, pivot3, radius is free).
-///   4. Picks pivot2 as the farthest point from pivot1 (= first point),
-///      pivot3 as the farthest from pivot2. pivot2 becomes the ball center;
-///      max(d2) becomes the ball radius.
-///   5. Partitions points by d2 ≤ d3 vs d2 > d3 (closer to pivot2 vs closer to
-///      pivot3). d2 / d3 / pointIndices swap in lockstep during the partition.
-///   6. Recurses sequentially: left child first, then right. Sequential ordering
-///      gives reproducible node-array layout across runs (same input → same
-///      `nodes[]`), which is important for stable profiling and keeps any
-///      future caller iterating linearly over `nodes[]` from breaking.
+///   3. Computes `‖x_i‖²` once into `rowNorms2` and reuses it across the three
+///      pivot sweeps (radius is free once `d2` is filled).
+///   4. Picks pivot2 as the farthest point from pivot1 (= first point), pivot3
+///      as the farthest from pivot2. pivot2 becomes the ball center; `max(d2)`
+///      becomes the ball radius.
+///   5. Partitions points by `d2 <= d3` vs `d2 > d3`. `d2`, `d3`, and
+///      `pointIndices` swap in lockstep during the partition.
+///   6. Recurses sequentially: left child first, then right. Sequential
+///      ordering gives reproducible node-array layout across runs.
 ///
-/// Build cost is small relative to Boruvka MST + labeling, so we don't
-/// parallelize sibling subtrees here. If profiling later shows build is hot,
-/// the right addition is an outer threader_for over the topmost few levels
-/// (claiming child slots up front to keep determinism).
+/// Build cost is small relative to Boruvka MST + labeling, so sibling subtrees
+/// are not parallelized here.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag (selects the scratch allocator)
+/// @tparam DistFunc        Metric functor exposing `blockDist`
+///
+/// @param[in]     data         Row-major input buffer
+/// @param[in,out] pointIndices Permutation; reordered in-place by the partition
+/// @param[in]     begin        First index of the current subtree's range
+/// @param[in]     end          One past the last index of the range
+/// @param[in]     nCols        Number of features
+/// @param[in,out] nodes        Output node array (this call writes node `nextNode`)
+/// @param[in,out] nextNode     Counter of allocated nodes; post-incremented per call
+/// @param[in]     maxLeafSize  Leaf cutoff
+/// @param[in]     distFunc     Metric functor instance
+///
+/// @return Index of the node created by this call
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
 static int buildBallTree(const algorithmFPType * data, int * pointIndices, int begin, int end, int nCols, BallNode<algorithmFPType> * nodes,
                          int & nextNode, int maxLeafSize, const DistFunc & distFunc)
@@ -248,14 +293,27 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     return nodeIdx;
 }
 
-/// k-NN tree-pruned query on the ball tree.
-/// Maintains a bounded max-heap (`heap`) of the k nearest candidates seen so far.
-/// At each internal node, prunes the subtree if the lower bound
-///     max(0, dist(query, ballCenter) − ballRadius)
-/// already exceeds the current k-th NN distance (heap.maxDist()). Visits the
-/// closer child first so the pruning radius tightens before exploring the
-/// farther child. At leaves, scans every point and pushes into the heap.
-/// Caller seeds `heap` empty (maxDist() returns +∞ until k items are pushed).
+/// k-nearest-neighbor query on the ball tree, pruned by hypersphere bounds.
+///
+/// Maintains a bounded max-heap of the k nearest candidates seen so far. At
+/// each internal node, the lower bound `max(0, dist(query, ballCenter) -
+/// ballRadius)` is compared against the current k-th NN distance
+/// (`heap.maxDist()`). The closer child is visited first so the pruning
+/// radius tightens before exploring the farther child. At leaves the loop
+/// scans every point and pushes into the heap.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
+/// @tparam DistFunc        Metric functor exposing `pointDist`
+///
+/// @param[in]     data         Row-major input buffer
+/// @param[in]     nCols        Number of features
+/// @param[in]     nodes        Ball-tree nodes
+/// @param[in]     pointIndices Point-index permutation owned by the tree
+/// @param[in]     queryPoint   Query row, length `nCols`
+/// @param[in]     nodeIdx      Subtree root to visit (caller passes 0)
+/// @param[in,out] heap         Bounded max-heap of best-k candidates seen so far
+/// @param[in]     distFunc     Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void knnQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
                              const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
@@ -294,12 +352,23 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
     }
 }
 
-/// Bottom-up pass: for each ball-tree node, store the minimum core-distance over
-/// all points it contains. Used as a pruning lower bound during Boruvka MRD
-/// queries — for a query point q with core distance c_q, any candidate p in a
-/// subtree S has MRD(q, p) ≥ max(c_q, minCoreDistNode[S], dist(q, S)). Recursion
-/// returns the subtree min so each node sees its descendants' aggregate without
-/// a second pass.
+/// Compute the per-node minimum core distance bottom-up.
+///
+/// For a query point `q` with core distance `c_q`, any candidate `p` in a
+/// subtree `S` has `MRD(q, p) >= max(c_q, minCoreDistNode[S], dist(q, S))`,
+/// so this aggregate is the third pruning ingredient for Boruvka MRD queries.
+/// Recursion returns the subtree min so each node sees its descendants'
+/// aggregate without a second pass.
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in]  nodes           Ball-tree nodes
+/// @param[in]  pointIndices    Point-index permutation
+/// @param[in]  coreDistances   Per-point core distances, length `nRows`
+/// @param[out] minCoreDistNode Per-node min core distance, length `totalTreeNodes`
+/// @param[in]  nodeIdx         Subtree root (caller passes 0)
+///
+/// @return Min core distance found in this subtree
 template <typename algorithmFPType>
 static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPType> * nodes, const int * pointIndices,
                                                    const algorithmFPType * coreDistances, algorithmFPType * minCoreDistNode, int nodeIdx)
@@ -322,11 +391,21 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
     return minCoreDistNode[nodeIdx];
 }
 
-/// Refresh node-level component tags after a Boruvka merge round.
+/// Refresh per-node component tags after a Boruvka merge round.
+///
 /// A node's `componentId` is set to the shared component id when every point
-/// under it belongs to the same component, otherwise -1 ("mixed"). The Boruvka
-/// nearest-different-component query uses this to skip whole subtrees that
-/// match the query's component. Returns the node's component (or -1 if mixed).
+/// under it belongs to the same component, otherwise -1 ("mixed"). The
+/// Boruvka nearest-different-component query uses this to skip whole subtrees
+/// that match the query's component.
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in,out] nodes        Ball-tree nodes (component ids written in place)
+/// @param[in]     pointIndices Point-index permutation
+/// @param[in]     componentOf  Per-point component id, length `nRows`
+/// @param[in]     nodeIdx      Subtree root (caller passes 0)
+///
+/// @return Shared component id of this subtree, or -1 if mixed
 template <typename algorithmFPType>
 static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const int * pointIndices, const int * componentOf, int nodeIdx)
 {
@@ -356,14 +435,31 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
     return -1;
 }
 
-/// Recursive Boruvka query: find the closest point (by MRD) in a different
-/// component than `queryComponent`, pruning subtrees that are entirely inside
-/// the query's component or whose MRD lower bound already exceeds bestMrd.
+/// Find the query's nearest point in a different component under MRD on the ball tree.
 ///
-/// MRD(a, b) = max(coreDist(a), coreDist(b), dist(a, b)) — so a subtree's MRD
-/// lower bound from query q is max(coreDist(q), minCoreDistNode[S], dist(q, S))
-/// where dist(q, S) = max(0, dist(q, center) − radius). Tightens bestMrd in
-/// place via pass-by-ref. Visits the nearer child first to maximize pruning.
+/// Prunes subtrees whose `componentId` matches the query's component, or whose
+/// MRD lower bound `max(coreDist(q), minCoreDistNode[S], max(0, dist(q,
+/// center) - radius))` is not smaller than the current `bestMrd`. Visits the
+/// nearer child first to tighten `bestMrd` before exploring the other side.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam DistFunc        Metric functor exposing `pointDist`
+///
+/// @param[in]     data            Row-major input buffer
+/// @param[in]     nCols           Number of features
+/// @param[in]     nodes           Ball-tree nodes
+/// @param[in]     pointIndices    Point-index permutation
+/// @param[in]     coreDistances   Per-point core distances, length `nRows`
+/// @param[in]     minCoreDistNode Per-node minimum core distance
+/// @param[in]     componentOf     Per-point component id
+/// @param[in]     queryPoint      Query row, length `nCols`
+/// @param[in]     queryIdx        Query point index (used by callers for self-skip)
+/// @param[in]     queryCoreD      Query's core distance
+/// @param[in]     queryComponent  Query's current component id
+/// @param[in]     nodeIdx         Subtree root (caller passes 0)
+/// @param[in,out] bestMrd         Best MRD found so far (caller seeds with `+inf`)
+/// @param[in,out] bestIdx         Index of the best different-component candidate so far
+/// @param[in]     distFunc        Metric functor instance
 template <typename algorithmFPType, typename DistFunc>
 static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
                                            const algorithmFPType * coreDistances, const algorithmFPType * minCoreDistNode, const int * componentOf,
@@ -415,17 +511,32 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
                                    queryComponent, farChild, bestMrd, bestIdx, distFunc);
 }
 
-/// Phase 2 + 3 of HDBSCAN driven by the ball tree:
-///   - Phase 2: core distance per point = distance to its (k = minSamples)-th
-///     nearest neighbor, queried via knnQueryBallTree.
-///   - Phase 3: minimum spanning tree under Mutual Reachability Distance
-///     using Boruvka's algorithm. Each Boruvka round, every point asks the
-///     tree for the closest different-component candidate (pruned by node
-///     component tags + min core distance + radius), then candidates are
-///     reduced per component to one MST edge before union-find merges.
+/// Compute core distances and the MST under MRD on a ball tree.
 ///
-/// Outputs (`coreDistances`, `mstFrom/To/Weights`) are filled in place. The
-/// MST has exactly nRows-1 edges by construction.
+/// Pipeline:
+///   1. per-point k-NN query against the ball tree -> `coreDistances`;
+///   2. bottom-up reduction -> `minCoreDistNode`;
+///   3. Boruvka rounds: per-point nearest-different-component MRD query,
+///      reduce to per-component best edges, union via union-find, refresh
+///      per-node component tags. Loops until a single component remains or no
+///      progress is made. The MST has exactly `nRows - 1` edges.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
+/// @tparam DistFunc        Metric functor
+///
+/// @param[in]     data           Row-major input buffer of size `nRows × nCols`
+/// @param[in]     nRows          Number of points
+/// @param[in]     nCols          Number of features
+/// @param[in]     minSamples     k for core-distance k-NN queries
+/// @param[in,out] nodes          Ball-tree nodes (component tags refreshed each round)
+/// @param[in]     pointIndices   Point-index permutation produced by buildBallTree
+/// @param[in]     totalTreeNodes Number of ball-tree nodes
+/// @param[out]    coreDistances  Per-point core distances, length `nRows`
+/// @param[out]    mstFrom        Source endpoint per MST edge, length `nRows - 1`
+/// @param[out]    mstTo          Target endpoint per MST edge, length `nRows - 1`
+/// @param[out]    mstWeights     Edge weights (MRD), length `nRows - 1`
+/// @param[in]     distFunc       Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples,
                                           BallNode<algorithmFPType> * nodes, int * pointIndices, int totalTreeNodes, algorithmFPType * coreDistances,
@@ -568,11 +679,29 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     }
 }
 
-/// Drive the ball-tree side of the HDBSCAN pipeline for a single distance
-/// functor: build the tree, then compute core distances + Boruvka MST under
-/// MRD. Sequential build keeps the node-array layout deterministic across
-/// runs. Returns nothing — outputs (`coreDistances`, `mstFrom/To/Weights`)
-/// are written through the passed pointers.
+/// Build the ball tree then compute core distances + Boruvka MST under MRD.
+///
+/// Single entry point used by the per-metric switch in compute(): each
+/// pairwise-distance value (and its alpha-scaled variant) instantiates this
+/// template once. Sequential build keeps the node-array layout deterministic
+/// across runs.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
+/// @tparam DistFunc        Metric functor
+///
+/// @param[in]     data          Row-major input buffer of size `nRows × nCols`
+/// @param[in]     nRows         Number of points
+/// @param[in]     nCols         Number of features
+/// @param[in]     minSamples    k for core-distance k-NN queries
+/// @param[in]     maxLeafSize   Leaf cutoff passed to buildBallTree
+/// @param[out]    nodes         Ball-tree node storage (caller pre-allocates)
+/// @param[in,out] pointIndices  Point-index permutation, seeded `[0, nRows)` by caller
+/// @param[out]    coreDistances Per-point core distances, length `nRows`
+/// @param[out]    mstFrom       Source endpoint per MST edge, length `nRows - 1`
+/// @param[out]    mstTo         Target endpoint per MST edge, length `nRows - 1`
+/// @param[out]    mstWeights    Edge weights (MRD), length `nRows - 1`
+/// @param[in]     distFunc      Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, int maxLeafSize,
                                       BallNode<algorithmFPType> * nodes, int * pointIndices, algorithmFPType * coreDistances, int * mstFrom,

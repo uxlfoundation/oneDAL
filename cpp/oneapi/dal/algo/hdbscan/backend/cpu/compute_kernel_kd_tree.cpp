@@ -38,6 +38,18 @@ template <typename Float, daal::internal::CpuType Cpu>
 using daal_hdbscan_kd_tree_t =
     daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan_internal::kdTree, Cpu>;
 
+/// Run the kd-tree HDBSCAN CPU pipeline for a single floating-point type.
+///
+/// Same shape as the brute-force CPU bridge but binds the DAAL kernel
+/// instantiation to `kdTree`. Optionally computes centroid/medoid tables.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] ctx  CPU dispatch context
+/// @param[in] desc Algorithm descriptor
+/// @param[in] data Input data table of size `n × d`
+///
+/// @return oneAPI `compute_result` with responses, cluster count, and optional centers
 template <typename Float>
 static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
                                             const descriptor_t& desc,

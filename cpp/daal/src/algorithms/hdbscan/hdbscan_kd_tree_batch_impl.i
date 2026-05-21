@@ -61,24 +61,48 @@ using daal::internal::WriteOnlyRows;
 using daal::services::internal::TArray;
 using daal::services::internal::TArrayScalable;
 
-// =========================================================================
-// k-d tree node structure
-// =========================================================================
+/// k-d tree node.
+///
+/// Internal nodes split a contiguous range of `pointIndices` along `splitDim`
+/// at `splitVal`; leaves are marked with `splitDim < 0`. `componentId` is
+/// updated as Boruvka rounds merge components and is used to prune subtrees
+/// whose points all belong to the query's current component.
+///
+/// @tparam FPType Floating-point type
 template <typename FPType>
 struct KdNode
 {
-    int splitDim;    // -1 for leaf
-    FPType splitVal; // split value at this dimension
-    int left;        // index of left child node (-1 if leaf)
-    int right;       // index of right child node (-1 if leaf)
-    int pointBegin;  // range of point indices for this subtree [begin, end)
-    int pointEnd;
-    int componentId; // -1 = mixed components, >= 0 = all points in same component
+    int splitDim;    ///< Splitting dimension (-1 for leaf)
+    FPType splitVal; ///< Split value along `splitDim` (unused for leaves)
+    int left;        ///< Index of left child node (-1 if leaf)
+    int right;       ///< Index of right child node (-1 if leaf)
+    int pointBegin;  ///< Begin of the node's point-index range
+    int pointEnd;    ///< End (exclusive) of the node's point-index range
+    int componentId; ///< -1 = mixed components, >= 0 = all points in same component
 };
 
-// =========================================================================
-// Build k-d tree recursively with bounding box computation
-// =========================================================================
+/// Build a k-d tree recursively with per-node axis-aligned bounding boxes.
+///
+/// Splits along the dimension with the largest spread, partitioning
+/// `pointIndices[begin..end)` around the median value via `std::nth_element`.
+/// Leaves are emitted when the point count drops to `<= maxLeafSize`.
+/// Bounding-box arrays are filled in place for every node and used later for
+/// kd-tree pruning.
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in]     data         Row-major input buffer of size `nRows × nCols`
+/// @param[in,out] pointIndices Permutation of input row ids; reordered in place
+/// @param[in]     begin        First index of the current subtree's range
+/// @param[in]     end          One past the last index of the current range
+/// @param[in]     nCols        Number of features
+/// @param[out]    nodes        Output node array (this call writes node `nextNode`)
+/// @param[in,out] nextNode     Counter of allocated nodes (post-incremented)
+/// @param[in]     maxLeafSize  Max points per leaf
+/// @param[out]    bboxLo       Per-node lower bbox bounds, length `totalNodes × nCols`
+/// @param[out]    bboxHi       Per-node upper bbox bounds, length `totalNodes × nCols`
+///
+/// @return Index of the node created by this call
 template <typename algorithmFPType>
 static int buildKdTree(const algorithmFPType * data, int * pointIndices, int begin, int end, int nCols, KdNode<algorithmFPType> * nodes,
                        int & nextNode, int maxLeafSize, algorithmFPType * bboxLo, algorithmFPType * bboxHi)
@@ -137,9 +161,24 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
     return nodeIdx;
 }
 
-// =========================================================================
-// k-NN query on kd-tree (templated on distance functor)
-// =========================================================================
+/// k-nearest-neighbor query on the kd-tree, templated on the distance functor.
+///
+/// Visits the nearer child first to tighten the heap's pruning radius, then
+/// recurses into the far child only if the splitting plane is closer than the
+/// current k-th nearest distance.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag (forwarded to the heap allocator)
+/// @tparam DistFunc        Metric functor exposing `pointDist` and `planeDist`
+///
+/// @param[in]     data         Row-major input buffer
+/// @param[in]     nCols        Number of features
+/// @param[in]     nodes        kd-tree nodes
+/// @param[in]     pointIndices Point-index permutation owned by the tree
+/// @param[in]     queryPoint   Query row, length `nCols`
+/// @param[in]     nodeIdx      Index of the subtree root to visit (caller passes 0 for the root)
+/// @param[in,out] heap         Bounded max-heap of best-k candidates seen so far
+/// @param[in]     distFunc     Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
                      const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
@@ -175,9 +214,20 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
     }
 }
 
-// =========================================================================
-// Compute minimum core distance per tree node (bottom-up, O(N) total)
-// =========================================================================
+/// Compute the minimum core distance among the points in every kd-tree subtree.
+///
+/// Bottom-up O(N) traversal. Used as the third pruning lower bound during
+/// Boruvka MRD queries (`MRD >= max(coreQ, minCoreDistNode[subtree], minDist)`).
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in]  nodes           kd-tree nodes
+/// @param[in]  pointIndices    Point-index permutation
+/// @param[in]  coreDistances   Core distance per original point, length `nRows`
+/// @param[out] minCoreDistNode Per-node min core distance, length `totalNodes`
+/// @param[in]  nodeIdx         Index of the subtree root (caller passes 0 for the root)
+///
+/// @return Min core distance found in this subtree
 template <typename algorithmFPType>
 static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes, const int * pointIndices, const algorithmFPType * coreDistances,
                                            algorithmFPType * minCoreDistNode, int nodeIdx)
@@ -200,11 +250,21 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
     return minCoreDistNode[nodeIdx];
 }
 
-// =========================================================================
-// Update component IDs on tree nodes (bottom-up, O(tree_nodes) total)
-// Returns the component ID if all points in subtree are in same component,
-// or -1 if mixed.
-// =========================================================================
+/// Refresh per-node component ids after a Boruvka merge round.
+///
+/// Bottom-up traversal: a leaf inherits its single shared component if all of
+/// its points agree, otherwise it is marked mixed. Internal nodes inherit the
+/// component when both children agree, mixed otherwise. Pure-component nodes
+/// let later MRD queries prune entire subtrees.
+///
+/// @tparam algorithmFPType Floating-point type
+///
+/// @param[in,out] nodes        kd-tree nodes (component ids written in place)
+/// @param[in]     pointIndices Point-index permutation
+/// @param[in]     componentOf  Per-point component id, length `nRows`
+/// @param[in]     nodeIdx      Index of the subtree root (caller passes 0)
+///
+/// @return The shared component id of this subtree, or -1 if mixed
 template <typename algorithmFPType>
 static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * pointIndices, const int * componentOf, int nodeIdx)
 {
@@ -235,11 +295,35 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
     return -1;
 }
 
-// =========================================================================
-// Boruvka nearest-different-component query under MRD metric
-// Uses three-level pruning: component, bounding-box MRD lower bound, near/far
-// Templated on distance functor to support multiple metrics.
-// =========================================================================
+/// Find the query's nearest point in a different component under MRD on the kd-tree.
+///
+/// Three-level pruning:
+///   1. skip subtrees whose `componentId` matches the query's component;
+///   2. skip subtrees whose `max(coreQ, minCoreDistNode, bboxMinDist)` is not
+///      smaller than the current best MRD;
+///   3. visit the nearer child first to tighten `bestMrd`, then the far child
+///      only if its plane distance still permits an improvement.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam DistFunc        Metric functor exposing `pointDist` and `bboxLowerBound`
+///
+/// @param[in]     data            Row-major input buffer
+/// @param[in]     nCols           Number of features
+/// @param[in]     nodes           kd-tree nodes
+/// @param[in]     pointIndices    Point-index permutation
+/// @param[in]     coreDistances   Per-point core distances, length `nRows`
+/// @param[in]     bboxLo          Per-node lower bbox bounds
+/// @param[in]     bboxHi          Per-node upper bbox bounds
+/// @param[in]     minCoreDistNode Per-node minimum core distance
+/// @param[in]     componentOf     Per-point component id
+/// @param[in]     queryPoint      Query row, length `nCols`
+/// @param[in]     queryIdx        Query point index (used only for self-skip in callers)
+/// @param[in]     queryCoreD      Query's core distance
+/// @param[in]     queryComponent  Query's current component id
+/// @param[in]     nodeIdx         Index of the subtree root to visit (caller passes 0)
+/// @param[in,out] bestMrd         Best MRD found so far (caller seeds with `+inf`)
+/// @param[in,out] bestIdx         Index of the best different-component point so far
+/// @param[in]     distFunc        Metric functor instance
 template <typename algorithmFPType, typename DistFunc>
 static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
                                    const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
@@ -303,9 +387,34 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
                            queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc);
 }
 
-// =========================================================================
-// Core distances + Boruvka MST, templated on distance functor
-// =========================================================================
+/// Compute core distances and the MST under MRD on a kd-tree, templated on metric.
+///
+/// Pipeline:
+///   1. per-point k-NN query against the kd-tree -> `coreDistances`;
+///   2. bottom-up reduction -> `minCoreDistNode`;
+///   3. Boruvka rounds: per-point nearest-different-component MRD query,
+///      reduce to per-component best edges, union via union-find, refresh
+///      per-node component ids. Loops until a single component remains or no
+///      progress is made.
+///
+/// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
+/// @tparam DistFunc        Metric functor
+///
+/// @param[in]     data            Row-major input buffer of size `nRows × nCols`
+/// @param[in]     nRows           Number of points
+/// @param[in]     nCols           Number of features
+/// @param[in]     minSamples      Number of neighbors used for core distance (k)
+/// @param[in,out] nodes           kd-tree nodes (component ids updated each round)
+/// @param[in]     pointIndices    Point-index permutation produced by buildKdTree
+/// @param[in]     totalTreeNodes  Number of kd-tree nodes
+/// @param[in]     bboxLo          Per-node lower bbox bounds
+/// @param[in]     bboxHi          Per-node upper bbox bounds
+/// @param[out]    coreDistances   Per-point core distances, length `nRows`
+/// @param[out]    mstFrom         Source endpoint per MST edge, length `nRows - 1`
+/// @param[out]    mstTo           Target endpoint per MST edge, length `nRows - 1`
+/// @param[out]    mstWeights      Edge weights (MRD), length `nRows - 1`
+/// @param[in]     distFunc        Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
                                   int * pointIndices, int totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,

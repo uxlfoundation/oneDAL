@@ -36,8 +36,17 @@ namespace hdbscan
 namespace internal
 {
 
-/// Compute the squared L2 norm of a row, vectorized.
-/// Used by EuclideanDist::blockDist to cache ‖x_i‖² between sweeps.
+/// Compute the squared L2 norm of a single row, vectorized.
+///
+/// Used by EuclideanDist::blockDist to cache `‖x_i‖²` between the three pivot
+/// sweeps performed at each ball-tree node so the norm is read once and reused.
+///
+/// @tparam FPType Floating-point type
+///
+/// @param[in]  row   Pointer to the start of a row, length `nCols`
+/// @param[in]  nCols Number of features (row length)
+///
+/// @return Sum of squared row entries
 template <typename FPType>
 static FPType rowNormSquared(const FPType * row, int nCols)
 {
@@ -48,9 +57,17 @@ static FPType rowNormSquared(const FPType * row, int nCols)
     return sum;
 }
 
-/// Compute squared L2 norms for `count` contiguous row-major rows.
-/// Caller pre-allocates outNorms of length `count`.
-/// Used to amortize ‖x‖² across the three pivot sweeps inside one ball-tree node.
+/// Compute squared L2 norms for a contiguous block of row-major rows.
+///
+/// Used by ball-tree node construction to amortize `‖x‖²` across the three
+/// pivot sweeps performed at the same node.
+///
+/// @tparam FPType Floating-point type
+///
+/// @param[in]  rows     Row-major buffer of size `count × nCols`
+/// @param[in]  count    Number of rows
+/// @param[in]  nCols    Number of features per row
+/// @param[out] outNorms Output norms, length `count`
 template <typename FPType>
 static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * outNorms)
 {
@@ -58,14 +75,24 @@ static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * 
 }
 
 /// Fill a symmetric `nRows × nRows` distance matrix in row-major layout using a
-/// scalar metric functor. Exploits symmetry: only the upper triangle (j >= i) is
-/// computed, the lower triangle is mirrored. Outer parallelization over row
-/// blocks via `daal::threader_for`. Diagonal entries are zeroed.
+/// scalar metric functor.
 ///
-/// Used by the dense brute-force HDBSCAN for non-Euclidean metrics where there
-/// is no GEMM identity to exploit. Centralises the row-pair loop so Manhattan,
-/// Chebyshev, and Minkowski share one implementation instead of three near
-/// duplicates.
+/// Exploits symmetry: only the upper triangle (j >= i) is computed, the lower
+/// triangle is mirrored. Outer parallelization over row blocks via
+/// `daal::threader_for`. Diagonal entries are zeroed. Used by the dense
+/// brute-force HDBSCAN for non-Euclidean metrics where there is no GEMM
+/// identity to exploit; centralises the row-pair loop so Manhattan, Chebyshev,
+/// and Minkowski share one implementation instead of three near duplicates.
+///
+/// @tparam FPType   Floating-point type
+/// @tparam cpu      CPU dispatch tag
+/// @tparam DistFunc Metric functor exposing `pointDist(a, b, nCols)`
+///
+/// @param[in]  data     Row-major input buffer of size `nRows × nCols`
+/// @param[in]  nRows    Number of rows
+/// @param[in]  nCols    Number of features per row
+/// @param[in]  distFunc Distance functor instance
+/// @param[out] outDist  Row-major output, length `nRows × nRows`
 template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
 static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, const DistFunc & distFunc, FPType * outDist)
 {
@@ -92,21 +119,38 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 
 // =========================================================================
 // Distance functors for parameterizing tree queries by metric.
-// Each provides:
-//   pointDist(a, b, nCols)              — full point-to-point distance
-//   bboxLowerBound(q, lo, hi, nCols)    — minimum distance from query to bbox
-//   planeDist(diff)                     — distance to splitting hyperplane
-//   blockDist(pivotPt, scratchRows, rowNorms2, count, nCols, outDists, scratch)
-//                                       — distance from one pivot to `count`
-//                                         contiguous rows; Euclidean uses BLAS
-//                                         xxgemv + cached row norms², others use
-//                                         a vectorized inner loop. `rowNorms2`
-//                                         and `scratch` may be nullptr for
-//                                         non-Euclidean metrics.
+//
+// Each functor provides four methods:
+//   - pointDist(a, b, nCols)                      — full point-to-point distance
+//   - bboxLowerBound(q, lo, hi, nCols)            — minimum distance from query to a bbox
+//   - planeDist(diff)                             — distance to a splitting hyperplane (kd-tree)
+//   - blockDist(pivot, rows, rowNorms2, count, nCols, out)
+//                                                 — pivot-to-block distances; Euclidean uses
+//                                                   BLAS xxgemv + cached row norms²,
+//                                                   non-Euclidean fall back to a vectorized loop.
+//                                                   `rowNorms2` may be nullptr for non-Euclidean.
+//
+// Used to parameterize HDBSCAN tree builds and Boruvka MRD queries by metric
+// without code duplication.
 // =========================================================================
+
+/// Euclidean (L2) distance functor.
+///
+/// All methods are static (stateless metric). blockDist uses the identity
+/// `‖x − p‖² = ‖x‖² + ‖p‖² − 2·⟨x, p⟩` to delegate the inner products to a
+/// single BLAS xxgemv call, then sqrts in a vectorized pass.
+///
+/// @tparam FPType Floating-point type
 template <typename FPType>
 struct EuclideanDist
 {
+    /// Compute the L2 distance between two rows.
+    ///
+    /// @param[in]  a     First row, length `nCols`
+    /// @param[in]  b     Second row, length `nCols`
+    /// @param[in]  nCols Number of features
+    ///
+    /// @return `‖a − b‖₂`
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType sum = FPType(0);
@@ -119,6 +163,18 @@ struct EuclideanDist
         }
         return static_cast<FPType>(sqrt(static_cast<double>(sum)));
     }
+
+    /// Compute the L2 distance from a query point to its nearest point in a
+    /// bounding box (== 0 if the query lies inside the box).
+    ///
+    /// Used as a kd-tree pruning lower bound.
+    ///
+    /// @param[in]  query Query point, length `nCols`
+    /// @param[in]  lo    Per-dimension lower bound, length `nCols`
+    /// @param[in]  hi    Per-dimension upper bound, length `nCols`
+    /// @param[in]  nCols Number of features
+    ///
+    /// @return Minimum L2 distance from `query` to the box `[lo, hi]`
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType sum = FPType(0);
@@ -133,14 +189,31 @@ struct EuclideanDist
         }
         return static_cast<FPType>(sqrt(static_cast<double>(sum)));
     }
+
+    /// Distance from a query to a kd-tree axis-aligned splitting hyperplane,
+    /// given the signed difference in the splitting coordinate.
+    ///
+    /// @param[in]  diff `query[splitDim] - splitVal`
+    ///
+    /// @return `|diff|` (axis-aligned plane distance for L2)
     static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
 
     /// Vectorized pivot-to-block Euclidean distance via BLAS xxgemv.
-    /// Identity used: ‖x_i − p‖² = ‖x_i‖² + ‖p‖² − 2·⟨x_i, p⟩.
-    /// `scratchRows` is row-major `count × nCols`. `rowNorms2[i] = ‖scratchRows[i]‖²`
-    /// must be precomputed by the caller (see rowNormsSquared). `outDists` (length
-    /// `count`) is filled with non-negative Euclidean distances. Negative squared
-    /// distances from rounding noise are clamped to zero before sqrt.
+    ///
+    /// Identity used: `‖x_i − p‖² = ‖x_i‖² + ‖p‖² − 2·⟨x_i, p⟩`. The inner
+    /// products are computed as a single xxgemv on the row-major scratch
+    /// buffer; `rowNorms2[i]` must equal `‖scratchRows[i]‖²` (see
+    /// rowNormsSquared). Negative squared distances from rounding noise are
+    /// clamped to zero before sqrt.
+    ///
+    /// @tparam cpu CPU dispatch tag for BLAS / vSqrt selection
+    ///
+    /// @param[in]  pivotPt     Pivot row, length `nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  rowNorms2   Precomputed `‖scratchRows[i]‖²`, length `count`
+    /// @param[in]  count       Number of rows in the batch
+    /// @param[in]  nCols       Number of features
+    /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
     static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, int count, int nCols, FPType * outDists)
     {
@@ -172,9 +245,20 @@ struct EuclideanDist
     }
 };
 
+/// Manhattan (L1) distance functor.
+///
+/// Stateless metric; same interface as EuclideanDist. blockDist falls through
+/// to a vectorized scalar loop because L1 admits no GEMM identity.
+///
+/// @tparam FPType Floating-point type
 template <typename FPType>
 struct ManhattanDist
 {
+    /// Compute `‖a − b‖₁`.
+    ///
+    /// @param[in]  a     First row, length `nCols`
+    /// @param[in]  b     Second row, length `nCols`
+    /// @param[in]  nCols Number of features
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType sum = FPType(0);
@@ -187,6 +271,13 @@ struct ManhattanDist
         }
         return sum;
     }
+
+    /// Minimum L1 distance from query point to a bbox `[lo, hi]`. 0 if inside.
+    ///
+    /// @param[in]  query Query point, length `nCols`
+    /// @param[in]  lo    Lower bound per dimension, length `nCols`
+    /// @param[in]  hi    Upper bound per dimension, length `nCols`
+    /// @param[in]  nCols Number of features
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType sum = FPType(0);
@@ -201,11 +292,26 @@ struct ManhattanDist
         }
         return sum;
     }
+
+    /// Distance from a query to an axis-aligned splitting plane.
+    ///
+    /// @param[in] diff `query[splitDim] - splitVal`
     static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
 
-    /// Manhattan has no factorization that lets us batch via BLAS, but routing
-    /// through a single blockDist entry point keeps callers (ball tree) symmetric
-    /// across metrics. The pointDist body is already vectorized via PRAGMA_IVDEP.
+    /// Pivot-to-block Manhattan distance.
+    ///
+    /// L1 has no factorization that lets us batch via BLAS, but routing through
+    /// a single blockDist entry point keeps ball-tree callers symmetric across
+    /// metrics; pointDist is vectorized internally.
+    ///
+    /// @tparam cpu CPU dispatch tag (unused for this metric)
+    ///
+    /// @param[in]  pivotPt     Pivot row, length `nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  rowNorms2   Unused (kept for interface symmetry with Euclidean)
+    /// @param[in]  count       Number of rows
+    /// @param[in]  nCols       Number of features
+    /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
     static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists)
     {
@@ -213,13 +319,27 @@ struct ManhattanDist
     }
 };
 
+/// Minkowski distance functor of arbitrary degree `p > 0`.
+///
+/// Stateful: holds `p` and `1/p`. blockDist falls through to a scalar loop.
+///
+/// @tparam FPType Floating-point type
 template <typename FPType>
 struct MinkowskiDist
 {
-    double p;
-    double invp;
+    double p;    ///< Minkowski degree
+    double invp; ///< Cached `1.0 / p`
+
+    /// Construct a Minkowski functor of given degree.
+    ///
+    /// @param[in] degree Minkowski exponent `p > 0`
     MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
 
+    /// Compute `(Σ |a_d − b_d|^p)^(1/p)`.
+    ///
+    /// @param[in]  a     First row, length `nCols`
+    /// @param[in]  b     Second row, length `nCols`
+    /// @param[in]  nCols Number of features
     FPType pointDist(const FPType * a, const FPType * b, int nCols) const
     {
         double sum = 0.0;
@@ -231,6 +351,13 @@ struct MinkowskiDist
         }
         return static_cast<FPType>(pow(sum, invp));
     }
+
+    /// Minimum Minkowski distance from a query to a bbox `[lo, hi]`.
+    ///
+    /// @param[in]  query Query point, length `nCols`
+    /// @param[in]  lo    Lower bound per dimension, length `nCols`
+    /// @param[in]  hi    Upper bound per dimension, length `nCols`
+    /// @param[in]  nCols Number of features
     FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
     {
         double sum = 0.0;
@@ -245,9 +372,24 @@ struct MinkowskiDist
         }
         return static_cast<FPType>(pow(sum, invp));
     }
+
+    /// Distance from a query to an axis-aligned splitting plane.
+    ///
+    /// @param[in] diff `query[splitDim] - splitVal`
     FPType planeDist(FPType diff) const { return (diff < FPType(0)) ? -diff : diff; }
 
-    /// See ManhattanDist::blockDist — same rationale (no BLAS factorization).
+    /// Pivot-to-block Minkowski distance.
+    ///
+    /// Same rationale as ManhattanDist::blockDist — no BLAS factorization.
+    ///
+    /// @tparam cpu CPU dispatch tag (unused for this metric)
+    ///
+    /// @param[in]  pivotPt     Pivot row, length `nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  rowNorms2   Unused
+    /// @param[in]  count       Number of rows
+    /// @param[in]  nCols       Number of features
+    /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
     void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists) const
     {
@@ -255,9 +397,19 @@ struct MinkowskiDist
     }
 };
 
+/// Chebyshev (L∞) distance functor.
+///
+/// Stateless. blockDist falls through to a scalar loop.
+///
+/// @tparam FPType Floating-point type
 template <typename FPType>
 struct ChebyshevDist
 {
+    /// Compute `max_d |a_d − b_d|`.
+    ///
+    /// @param[in]  a     First row, length `nCols`
+    /// @param[in]  b     Second row, length `nCols`
+    /// @param[in]  nCols Number of features
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType mx = FPType(0);
@@ -269,6 +421,13 @@ struct ChebyshevDist
         }
         return mx;
     }
+
+    /// Minimum Chebyshev distance from a query to a bbox `[lo, hi]`.
+    ///
+    /// @param[in]  query Query point, length `nCols`
+    /// @param[in]  lo    Lower bound per dimension, length `nCols`
+    /// @param[in]  hi    Upper bound per dimension, length `nCols`
+    /// @param[in]  nCols Number of features
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType mx = FPType(0);
@@ -283,9 +442,24 @@ struct ChebyshevDist
         }
         return mx;
     }
+
+    /// Distance from a query to an axis-aligned splitting plane.
+    ///
+    /// @param[in] diff `query[splitDim] - splitVal`
     static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
 
-    /// See ManhattanDist::blockDist — same rationale (no BLAS factorization).
+    /// Pivot-to-block Chebyshev distance.
+    ///
+    /// Same rationale as ManhattanDist::blockDist — no BLAS factorization.
+    ///
+    /// @tparam cpu CPU dispatch tag (unused for this metric)
+    ///
+    /// @param[in]  pivotPt     Pivot row, length `nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  rowNorms2   Unused
+    /// @param[in]  count       Number of rows
+    /// @param[in]  nCols       Number of features
+    /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
     static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists)
     {
@@ -293,27 +467,64 @@ struct ChebyshevDist
     }
 };
 
-// =========================================================================
-// Alpha-scaling wrapper: multiplies all distances by 1/alpha
-// =========================================================================
+/// Alpha-scaling wrapper around any base metric: multiplies all distances by `1/alpha`.
+///
+/// Used for robust single linkage where the user supplies an alpha != 1. Forwards
+/// every method to the wrapped metric and scales the result; in particular,
+/// blockDist preserves the base metric's batched fast path (e.g. EuclideanDist's
+/// BLAS xxgemv).
+///
+/// @tparam FPType   Floating-point type
+/// @tparam BaseDist Wrapped metric functor type
 template <typename FPType, typename BaseDist>
 struct AlphaScaledDist
 {
-    BaseDist base;
-    FPType invAlpha;
+    BaseDist base;   ///< Wrapped base metric instance
+    FPType invAlpha; ///< Cached `1.0 / alpha`
 
+    /// Construct an alpha-scaled wrapper.
+    ///
+    /// @param[in] b     Base metric instance
+    /// @param[in] alpha Scaling factor (`> 0`)
     AlphaScaledDist(const BaseDist & b, double alpha) : base(b), invAlpha(static_cast<FPType>(1.0 / alpha)) {}
 
+    /// Scaled point-to-point distance.
+    ///
+    /// @param[in]  a     First row, length `nCols`
+    /// @param[in]  b     Second row, length `nCols`
+    /// @param[in]  nCols Number of features
     FPType pointDist(const FPType * a, const FPType * b, int nCols) const { return base.pointDist(a, b, nCols) * invAlpha; }
+
+    /// Scaled bbox lower bound.
+    ///
+    /// @param[in]  query Query point, length `nCols`
+    /// @param[in]  lo    Lower bound per dimension, length `nCols`
+    /// @param[in]  hi    Upper bound per dimension, length `nCols`
+    /// @param[in]  nCols Number of features
     FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
     {
         return base.bboxLowerBound(query, lo, hi, nCols) * invAlpha;
     }
+
+    /// Scaled hyperplane distance.
+    ///
+    /// @param[in] diff `query[splitDim] - splitVal`
     FPType planeDist(FPType diff) const { return base.planeDist(diff) * invAlpha; }
 
-    /// Delegate to the base metric's batched path then scale all distances by 1/α
-    /// in one vectorized pass. Lets Euclidean keep its BLAS xxgemv fast path under
-    /// alpha scaling (used for robust single linkage, alpha != 1).
+    /// Scaled pivot-to-block distance.
+    ///
+    /// Delegates to the base metric's batched path then multiplies all distances
+    /// by `1/alpha` in one vectorized pass. Lets EuclideanDist keep its BLAS
+    /// xxgemv fast path under alpha scaling.
+    ///
+    /// @tparam cpu CPU dispatch tag (forwarded to base.blockDist)
+    ///
+    /// @param[in]  pivotPt     Pivot row, length `nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  rowNorms2   Forwarded to the base metric (may be unused)
+    /// @param[in]  count       Number of rows
+    /// @param[in]  nCols       Number of features
+    /// @param[out] outDists    Output distances scaled by `1/alpha`, length `count`
     template <daal::internal::CpuType cpu>
     void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, int count, int nCols, FPType * outDists) const
     {
@@ -325,21 +536,30 @@ struct AlphaScaledDist
     }
 };
 
-// =========================================================================
-// Bounded max-heap of the k nearest neighbors seen so far.
-//
-// Ordering invariant: dists_[0] is the largest distance currently in the heap
-// (binary max-heap over dists_; indices_ moves in lockstep). While fewer than
-// capacity neighbors have been pushed the heap keeps filling; once full,
-// dists_[0] is the current k-th nearest distance and push() only replaces the
-// top when a strictly closer neighbor arrives. maxDist() returns that top or
-// +infinity while the heap is not yet full, which lets tree traversals use it
-// as a pruning radius. The heap owns its storage via TArrayScalable so each
-// thread can allocate its own without external TlsMem scaffolding.
-// =========================================================================
+/// Bounded max-heap of the k nearest neighbors seen so far.
+///
+/// Ordering invariant: `dists_[0]` is the largest distance currently in the
+/// heap (binary max-heap over `dists_`; `indices_` moves in lockstep). While
+/// fewer than `capacity` neighbors have been pushed the heap keeps filling;
+/// once full, `dists_[0]` is the current k-th nearest distance and `push()`
+/// only replaces the top when a strictly closer neighbor arrives. `maxDist()`
+/// returns that top or `+infinity` while the heap is not yet full, which lets
+/// tree traversals use it as a pruning radius. The heap owns its storage via
+/// `TArrayScalable` so each thread can allocate its own without external
+/// `TlsMem` scaffolding.
+///
+/// @tparam FPType Floating-point type used for distances
+/// @tparam cpu    CPU dispatch tag (selects the scalable allocator)
 template <typename FPType, daal::internal::CpuType cpu>
 struct KnnHeap
 {
+    /// Construct an empty heap with capacity `cap`.
+    ///
+    /// Allocates internal `dists_` / `indices_` arrays. After construction,
+    /// `ok()` must be checked before use; allocation failure leaves the heap
+    /// inert.
+    ///
+    /// @param[in] cap Maximum number of neighbors to keep
     KnnHeap(int cap) : capacity_(cap), size_(0), distsArr_(cap), indicesArr_(cap)
     {
         dists_   = distsArr_.get();
@@ -349,10 +569,19 @@ struct KnnHeap
     KnnHeap(const KnnHeap &)             = delete;
     KnnHeap & operator=(const KnnHeap &) = delete;
 
+    /// True iff internal allocations succeeded.
     bool ok() const { return dists_ != nullptr && indices_ != nullptr; }
 
+    /// Return the current k-th nearest distance, or `+inf` if the heap isn't full.
+    ///
+    /// Useful as a pruning radius for tree traversals.
     FPType maxDist() const { return (size_ > 0) ? dists_[0] : daal::services::internal::MaxVal<FPType>::get(); }
 
+    /// Insert a candidate `(dist, idx)`; ignored if the heap is full and the
+    /// distance is not strictly smaller than the current top.
+    ///
+    /// @param[in] dist Candidate distance
+    /// @param[in] idx  Candidate point index
     void push(FPType dist, int idx)
     {
         if (size_ < capacity_)

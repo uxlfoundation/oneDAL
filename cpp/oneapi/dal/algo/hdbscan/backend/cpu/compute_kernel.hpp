@@ -21,8 +21,25 @@
 
 namespace oneapi::dal::hdbscan::backend {
 
+/// HDBSCAN CPU compute kernel functor.
+///
+/// Specialized per (Float, Method, Task) tuple by the per-method TUs in
+/// `compute_kernel_brute_force.cpp` / `compute_kernel_kd_tree.cpp` /
+/// `compute_kernel_ball_tree.cpp`. Each specialization forwards to the DAAL
+/// `HDBSCANBatchKernel` after converting the oneAPI descriptor and input.
+///
+/// @tparam Float  Floating-point type
+/// @tparam Method Method tag (`method::brute_force`, `method::kd_tree`, `method::ball_tree`)
+/// @tparam Task   Task tag (currently `task::compute`)
 template <typename Float, typename Method, typename Task>
 struct compute_kernel_cpu {
+    /// Run the HDBSCAN compute pipeline on the CPU.
+    ///
+    /// @param[in] ctx    CPU dispatch context
+    /// @param[in] params Algorithm descriptor (carries metric, mcs, min_samples, etc.)
+    /// @param[in] input  Compute input (carries the data table)
+    ///
+    /// @return Compute result containing the response and cluster-count tables
     compute_result<Task> operator()(const dal::backend::context_cpu& ctx,
                                     const detail::descriptor_base<Task>& params,
                                     const compute_input<Task>& input) const;

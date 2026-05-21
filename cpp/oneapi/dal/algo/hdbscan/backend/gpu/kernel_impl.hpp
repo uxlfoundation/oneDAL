@@ -34,9 +34,14 @@ namespace oneapi::dal::hdbscan::backend {
 namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
-/// Working pointers and constants for cluster extraction kernels.
-/// Groups all device pointers and scalar parameters so they can be
-/// passed to helper functions without 30+ individual parameters.
+/// Working pointers and scalar constants shared by the GPU cluster-extraction kernels.
+///
+/// Groups every device pointer (MST inputs, dendrogram/condensed-tree scratch,
+/// per-cluster bookkeeping, walk-up stacks) and the per-call scalar parameters
+/// so the four extract_clusters phases pass a single value instead of 30+
+/// individual arguments.
+///
+/// @tparam Float Floating-point type used for MST weights and lambdas
 template <typename Float>
 struct cluster_work_ptrs {
     const std::int32_t* mst_from_ptr;
@@ -89,6 +94,23 @@ struct cluster_work_ptrs {
     std::int64_t max_cluster_size;
 };
 
+/// Compute the full pairwise distance matrix on the GPU using the requested metric.
+///
+/// Routes to the matching primitive in `dal::backend::primitives::distance`.
+/// For `euclidean`, returns the squared L2 matrix (sqrt is applied later inside
+/// `compute_core_distances`/`compute_mrd_matrix` to amortize the sweep). For
+/// other metrics the matrix already holds final distances.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue  The SYCL queue
+/// @param[in]  data   Input matrix of size `n × d`
+/// @param[out] dist   Output matrix of size `n × n` (row-major)
+/// @param[in]  metric Distance metric tag (`distance_metric`)
+/// @param[in]  degree Minkowski degree (used only when `metric == minkowski`)
+/// @param[in]  deps   Events that must complete before submission
+///
+/// @return Event signaling completion of the distance computation
 template <typename Float>
 inline sycl::event compute_distance_matrix(sycl::queue& queue,
                                            const pr::ndview<Float, 2>& data,
@@ -131,6 +153,24 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
     }
 }
 
+/// Compute per-point core distances as the k-th smallest entry per row.
+///
+/// Runs `pr::kselect_by_rows` on the precomputed distance matrix to extract
+/// the k smallest values per row, then takes element `k - 1` (the k-th
+/// smallest) into `core_distances`. For `euclidean`, the input matrix holds
+/// squared L2 values so a `sqrt(max(·, 0))` is applied during the extraction.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue          The SYCL queue
+/// @param[in]  dist           Pairwise distance matrix of size `n × n`
+/// @param[out] core_distances Per-point core distances, length `n`
+/// @param[in]  min_samples    `k` used for the k-NN core-distance definition
+/// @param[in]  row_count      Number of rows `n`
+/// @param[in]  metric         Distance metric tag (controls the sqrt finalize)
+/// @param[in]  deps           Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event compute_core_distances(sycl::queue& queue,
                                           const pr::ndview<Float, 2>& dist,
@@ -177,6 +217,22 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     return extract_event;
 }
 
+/// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
+///
+/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j))`. For
+/// `euclidean`, the input matrix holds squared L2 values so a `sqrt(max(·, 0))`
+/// is applied per entry before the `max`. For other metrics the values are
+/// already final distances.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue          The SYCL queue
+/// @param[in]     core_distances Per-point core distances, length `n`
+/// @param[in,out] mrd_matrix     Distance matrix `n × n`, overwritten with MRD values
+/// @param[in]     metric         Distance metric tag (controls the sqrt finalize)
+/// @param[in]     deps           Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event compute_mrd_matrix(sycl::queue& queue,
                                       const pr::ndview<Float, 1>& core_distances,
@@ -213,9 +269,23 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
     return mrd_event;
 }
 
-/// GPU Boruvka helper: each work-item finds the nearest neighbor in a
-/// different component by scanning one row of the precomputed MRD matrix.
-/// Writes per-point best MRD and best neighbor index.
+/// Find the nearest different-component neighbor per point by scanning a precomputed MRD matrix.
+///
+/// One work-item per row: iterates over the row, keeps the smallest entry
+/// whose column belongs to a different component than the row's own. Writes
+/// the best MRD and the best column index per point.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue           The SYCL queue
+/// @param[in]  mrd_ptr         Precomputed MRD matrix of size `n × n`
+/// @param[in]  comp_ptr        Per-point component id, length `n`
+/// @param[out] pt_best_mrd_ptr Per-point best MRD, length `n`
+/// @param[out] pt_best_idx_ptr Per-point best different-component column index, length `n`
+/// @param[in]  n               Number of points
+/// @param[in]  deps            Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
                                             const Float* mrd_ptr,
@@ -244,8 +314,29 @@ inline sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
     });
 }
 
-/// GPU Boruvka helper: each work-item finds the nearest neighbor in a
-/// different component using on-the-fly MRD distance computation.
+/// Find the nearest different-component neighbor per point with on-the-fly distance computation.
+///
+/// Same as `boruvka_find_nearest_mrd` but does not require an `n × n` MRD
+/// matrix in memory: each work-item computes the distance to every other
+/// point on the fly using the requested metric. Used by the kd-tree and
+/// ball-tree GPU backends to avoid the `O(n²)` storage of a precomputed
+/// matrix.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue           The SYCL queue
+/// @param[in]  data_ptr        Row-major input buffer, size `n × col_count`
+/// @param[in]  col_count       Number of features
+/// @param[in]  core_ptr        Per-point core distances, length `n`
+/// @param[in]  comp_ptr        Per-point component id, length `n`
+/// @param[out] pt_best_mrd_ptr Per-point best MRD, length `n`
+/// @param[out] pt_best_idx_ptr Per-point best different-component point index, length `n`
+/// @param[in]  n               Number of points
+/// @param[in]  metric_id       0=euclidean, 1=manhattan, 2=minkowski, 3=chebyshev
+/// @param[in]  degree          Minkowski degree (used only when `metric_id == 2`)
+/// @param[in]  deps            Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
                                             const Float* data_ptr,
@@ -314,9 +405,34 @@ inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
     });
 }
 
-/// GPU Boruvka: reduce per-point bests to per-component bests, merge components,
-/// add MST edges. Runs as single_task because the merge step has data dependencies
-/// (union-find), but operates on O(N) data — not the O(N²) distance matrix.
+/// Reduce per-point bests to per-component bests, then merge via union-find.
+///
+/// Runs as a single SYCL task because the union-find step has serial data
+/// dependencies, but every array involved is `O(n)` (not the `O(n²)` distance
+/// matrix), so single-task is acceptable. Appends accepted edges to
+/// `mst_from_ptr` / `mst_to_ptr` / `mst_weight_ptr` and decrements
+/// `num_comp_ptr` accordingly.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue              The SYCL queue
+/// @param[in,out] comp_ptr           Per-point component id, length `n` (re-read after compress)
+/// @param[in,out] uf_parent_ptr      Union-find parent array, length `n`
+/// @param[in,out] uf_rank_ptr        Union-find rank array, length `n`
+/// @param[in]     pt_best_mrd_ptr    Per-point best MRD from the find phase
+/// @param[in]     pt_best_idx_ptr    Per-point best different-component index from the find phase
+/// @param[out]    comp_best_mrd_ptr  Scratch: per-component best MRD, length `n`
+/// @param[out]    comp_best_from_ptr Scratch: per-component best `from` index, length `n`
+/// @param[out]    comp_best_to_ptr   Scratch: per-component best `to` index, length `n`
+/// @param[out]    mst_from_ptr       Output MST `from` endpoints
+/// @param[out]    mst_to_ptr         Output MST `to` endpoints
+/// @param[out]    mst_weight_ptr     Output MST weights
+/// @param[in,out] edges_added_ptr    Single-element counter of MST edges added so far
+/// @param[in,out] num_comp_ptr       Single-element counter of remaining components
+/// @param[in]     n                  Number of points
+/// @param[in]     deps               Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event boruvka_merge_components(sycl::queue& queue,
                                             std::int32_t* comp_ptr,
@@ -399,7 +515,19 @@ inline sycl::event boruvka_merge_components(sycl::queue& queue,
     });
 }
 
-/// GPU Boruvka: path-compress component IDs in parallel.
+/// Path-compress component ids in parallel after a Boruvka merge round.
+///
+/// One work-item per point: walks `uf_parent` to the root and writes the root
+/// into `comp_ptr`. Equivalent to `comp[i] = find(i)` per point but fully
+/// parallel because the walk only reads `uf_parent` (no concurrent writes).
+///
+/// @param[in]  queue         The SYCL queue
+/// @param[out] comp_ptr      Per-point component id, length `n` (overwritten)
+/// @param[in]  uf_parent_ptr Union-find parent array, length `n`
+/// @param[in]  n             Number of points
+/// @param[in]  deps          Events that must complete before submission
+///
+/// @return Event signaling completion
 inline sycl::event boruvka_compress_components(sycl::queue& queue,
                                                std::int32_t* comp_ptr,
                                                const std::int32_t* uf_parent_ptr,
@@ -416,6 +544,28 @@ inline sycl::event boruvka_compress_components(sycl::queue& queue,
     });
 }
 
+/// Build the MST under MRD on the GPU using the precomputed MRD matrix.
+///
+/// Allocates per-point Boruvka working arrays (component ids, union-find,
+/// per-point and per-component bests, MST counters) on the device, then loops
+/// at most `max_rounds` Boruvka iterations: parallel find -> single-task
+/// merge -> parallel path compression. Stops as soon as the device-side
+/// component counter drops to 1.
+///
+/// Used by the brute-force GPU backend; the kd-tree and ball-tree backends
+/// use `build_mst_otf` to avoid the `O(n²)` MRD storage.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue       The SYCL queue
+/// @param[in]  mrd_matrix  Precomputed MRD matrix of size `n × n`
+/// @param[out] mst_from    Output MST `from` endpoints, length `n - 1`
+/// @param[out] mst_to      Output MST `to` endpoints, length `n - 1`
+/// @param[out] mst_weights Output MST weights, length `n - 1`
+/// @param[in]  row_count   Number of points `n`
+/// @param[in]  deps        Events that must complete before submission
+///
+/// @return Event signaling completion of the final Boruvka round
 template <typename Float>
 inline sycl::event build_mst(sycl::queue& queue,
                              const pr::ndview<Float, 2>& mrd_matrix,
@@ -521,6 +671,28 @@ inline sycl::event build_mst(sycl::queue& queue,
     return last_event;
 }
 
+/// Build the MST under MRD on the GPU with on-the-fly distance computation.
+///
+/// Same Boruvka loop as `build_mst`, but the find phase uses
+/// `boruvka_find_nearest_otf` so no `n × n` MRD matrix is required. Used by
+/// the kd-tree and ball-tree GPU backends where the matrix would be the
+/// dominant memory cost.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue          The SYCL queue
+/// @param[in]  data           Row-major input buffer of size `n × col_count`
+/// @param[in]  core_distances Per-point core distances, length `n`
+/// @param[out] mst_from       Output MST `from` endpoints, length `n - 1`
+/// @param[out] mst_to         Output MST `to` endpoints, length `n - 1`
+/// @param[out] mst_weights    Output MST weights, length `n - 1`
+/// @param[in]  row_count      Number of points `n`
+/// @param[in]  col_count      Number of features `d`
+/// @param[in]  metric         Distance metric tag
+/// @param[in]  degree         Minkowski degree (used only when `metric == minkowski`)
+/// @param[in]  deps           Events that must complete before submission
+///
+/// @return Event signaling completion of the final Boruvka round
 template <typename Float>
 inline sycl::event build_mst_otf(sycl::queue& queue,
                                  const pr::ndview<Float, 2>& data,
@@ -637,6 +809,23 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
     return last_event;
 }
 
+/// Sort MST edges in ascending order of weight, keeping endpoints aligned.
+///
+/// Builds an iota index permutation, runs `pr::radix_sort_indices_inplace` on
+/// `mst_weights` against the index permutation, then gathers `mst_from` /
+/// `mst_to` according to the resulting permutation and copies the gathered
+/// arrays back in place.
+///
+/// @tparam Float Floating-point type used for edge weights
+///
+/// @param[in]     queue       The SYCL queue
+/// @param[in,out] mst_from    Source endpoints, length `edge_count` (sorted in place)
+/// @param[in,out] mst_to      Target endpoints, length `edge_count` (sorted in place)
+/// @param[in,out] mst_weights Edge weights (sort key), length `edge_count` (sorted in place)
+/// @param[in]     edge_count  Number of MST edges
+/// @param[in]     deps        Events that must complete before submission
+///
+/// @return Event signaling completion of the final copy-back
 template <typename Float>
 inline sycl::event sort_mst_by_weight(sycl::queue& queue,
                                       pr::ndview<std::int32_t, 1>& mst_from,
@@ -707,12 +896,25 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
     return copy_event;
 }
 
-// =========================================================================
-// Cluster extraction helper: Kernel 1
-// Build single-linkage dendrogram from sorted MST edges via union-find.
-// Writes directly into node arrays: node ids [0, row_count) are leaves and
-// [row_count, total_nodes) are internal nodes (one per processed edge).
-// =========================================================================
+/// Cluster extraction kernel 1: build the single-linkage dendrogram.
+///
+/// Walks sorted MST edges via union-find. Writes directly into the node
+/// arrays accessed through `w`: ids `[0, row_count)` are leaves with size 1;
+/// ids `[row_count, total_nodes)` are internal nodes (one per accepted edge),
+/// with `lc_ptr` / `rc_ptr` set to the merged components' representative node
+/// ids and `nw_ptr` set to the merging edge weight.
+///
+/// Single SYCL task because union-find is inherently serial; runs on `O(n)`
+/// data so the GPU is used as a coprocessor for the surrounding allocations
+/// and chained kernels rather than for parallelism here.
+///
+/// @tparam Float Floating-point type used for edge weights
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event build_dendrogram_kernels(sycl::queue& queue,
                                             const cluster_work_ptrs<Float>& w,
@@ -764,10 +966,24 @@ inline sycl::event build_dendrogram_kernels(sycl::queue& queue,
     });
 }
 
-// =========================================================================
-// Cluster extraction helper: Kernel 3a
-// Build the condensed tree from the dendrogram.
-// =========================================================================
+/// Cluster extraction kernel 2: build the condensed tree from the dendrogram.
+///
+/// Walks the dendrogram top-down: for each internal node, sides whose subtree
+/// size is at least `min_cluster_size` keep their cluster id; sides smaller
+/// than `min_cluster_size` are emitted as fallen-leaf condensed edges. New
+/// cluster ids are allocated only when both sides survive (a real split).
+/// Writes the condensed-edge arrays (`cond_p_ptr` / `cond_c_ptr` /
+/// `cond_l_ptr` / `cond_s_ptr`) and the next-cluster-id counter (`nc_ptr`).
+///
+/// Single SYCL task because the walk is serial and operates on `O(n)` data.
+///
+/// @tparam Float Floating-point type used for edge weights / lambdas
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
                                                const cluster_work_ptrs<Float>& w,
@@ -888,10 +1104,25 @@ inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
     });
 }
 
-// =========================================================================
-// Cluster extraction helper: Kernel 3b
-// EOM stability selection + cluster mappings + label assignment prep.
-// =========================================================================
+/// Cluster extraction kernel 3: EOM stability selection and label assignment prep.
+///
+/// Initializes per-cluster bookkeeping (lambda birth, leaf flag, child
+/// pointers, sizes), accumulates stability per cluster, runs Excess-of-Mass
+/// (or leaf) selection, optionally enforces `allow_single_cluster=false`,
+/// applies `cluster_selection_epsilon`, then assigns dense label ids to
+/// selected clusters and records `point_fell_from` and `cluster_parent` for
+/// the labeling kernel.
+///
+/// Single SYCL task because the EOM bottom-up sweep and the cluster-epsilon
+/// fixed-point have serial dependencies; data sizes remain `O(nClusters)`.
+///
+/// @tparam Float Floating-point type used for cluster lambdas / stabilities
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion
 template <typename Float>
 inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                                               const cluster_work_ptrs<Float>& w,
@@ -1037,10 +1268,24 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
     });
 }
 
-// =========================================================================
-// Cluster extraction helper: Kernels 4+5
-// Build dendro_parent array, then label each point independently.
-// =========================================================================
+/// Cluster extraction kernels 4 + 5: build `dendro_parent`, then label each point.
+///
+/// Phase 4 (parallel_for over internal nodes): reverse `lc_ptr` / `rc_ptr`
+/// into `dp_ptr` (parent pointer per node).
+///
+/// Phase 5 (parallel_for over points): for each point, either follow
+/// `point_fell_from` to its drop cluster and walk up the cluster tree until
+/// hitting a selected ancestor, or — for points never ejected — walk up the
+/// dendrogram via `dp_ptr` until a node with a known cluster id is found and
+/// then walk up the cluster tree.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion of phase 5
 template <typename Float>
 inline sycl::event assign_label_kernels(sycl::queue& queue,
                                         const cluster_work_ptrs<Float>& w,
@@ -1112,10 +1357,30 @@ inline sycl::event assign_label_kernels(sycl::queue& queue,
     return k5_event;
 }
 
-// =========================================================================
-// extract_clusters: orchestrator that allocates working memory and
-// delegates to the four helper kernels above.
-// =========================================================================
+/// Extract HDBSCAN cluster labels from a sorted MST on the GPU.
+///
+/// Orchestrator: allocates every device-side working buffer, fills a
+/// `cluster_work_ptrs<Float>`, and chains the four extraction kernels:
+/// `build_dendrogram_kernels` -> `build_condensed_tree_kernel` ->
+/// `eom_select_clusters_kernel` -> `assign_label_kernels`. Final responses
+/// are written to the caller-supplied `responses` view.
+///
+/// @tparam Float Floating-point type used for MST weights
+///
+/// @param[in]  queue                     The SYCL queue
+/// @param[in]  mst_from                  MST source endpoints, length `row_count - 1` (sorted by weight)
+/// @param[in]  mst_to                    MST target endpoints, length `row_count - 1`
+/// @param[in]  mst_weights               MST weights, length `row_count - 1` (ascending)
+/// @param[out] responses                 Per-point cluster label, length `row_count` (-1 = noise)
+/// @param[in]  row_count                 Number of points
+/// @param[in]  min_cluster_size          Minimum cluster size (mcs)
+/// @param[in]  deps                      Events that must complete before submission
+/// @param[in]  cluster_selection         0 = EOM (default), 1 = leaf
+/// @param[in]  allow_single_cluster      If false, reject root-only outcomes
+/// @param[in]  cluster_selection_epsilon Distance epsilon for cluster_selection_epsilon (0 disables)
+/// @param[in]  max_cluster_size          Maximum cluster size cap (0 disables)
+///
+/// @return Event signaling completion of the labeling phase
 template <typename Float>
 inline sycl::event extract_clusters(sycl::queue& queue,
                                     const pr::ndview<std::int32_t, 1>& mst_from,

@@ -24,6 +24,15 @@ namespace oneapi::dal::hdbscan::backend {
 
 using daal_pairwise_distance_t = daal::algorithms::internal::PairwiseDistanceType;
 
+/// Convert a oneAPI HDBSCAN `distance_metric` value to the DAAL pairwise tag.
+///
+/// Used by the CPU backends to forward the user-facing oneAPI metric enum to
+/// the shared DAAL `PairwiseDistanceType` consumed by `HDBSCANBatchKernel`.
+/// Unknown values fall through to euclidean.
+///
+/// @param[in] m oneAPI metric tag
+///
+/// @return Equivalent DAAL `PairwiseDistanceType`
 inline daal_pairwise_distance_t convert_metric(distance_metric m) {
     switch (m) {
         case distance_metric::euclidean: return daal_pairwise_distance_t::euclidean;

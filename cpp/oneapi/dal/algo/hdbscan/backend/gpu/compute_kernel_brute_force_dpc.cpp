@@ -35,6 +35,20 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
+/// Run the brute-force HDBSCAN GPU pipeline for a single floating-point type.
+///
+/// Pipeline: pairwise distance matrix -> alpha scaling (if `alpha != 1.0`)
+/// -> core distances via k-select -> in-place MRD matrix -> GPU Boruvka MST
+/// (`build_mst`) -> radix sort by weight -> `extract_clusters`. Outputs
+/// per-point responses and the cluster count.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] ctx        GPU dispatch context (carries the SYCL queue)
+/// @param[in] desc       Algorithm descriptor
+/// @param[in] local_data Input data table of size `n × d`
+///
+/// @return oneAPI `compute_result` with responses and cluster count
 template <typename Float>
 static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                           const descriptor_t& desc,

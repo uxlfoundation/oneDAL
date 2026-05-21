@@ -37,6 +37,15 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
+/// Pick a block size for the blocked core-distance sweep.
+///
+/// Targets a `B × N` distance block of about 256 MB; clamped to a minimum of
+/// 256 rows and to `row_count`.
+///
+/// @param[in] row_count  Number of points `N`
+/// @param[in] float_size `sizeof(Float)`
+///
+/// @return Chosen block size `B`
 static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float_size) {
     const std::int64_t target_bytes = 256 * 1024 * 1024;
     std::int64_t bs = target_bytes / (row_count * float_size);
@@ -47,6 +56,19 @@ static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float
     return bs;
 }
 
+/// Run the ball-tree HDBSCAN GPU pipeline for a single floating-point type.
+///
+/// Same shape as the kd-tree GPU variant: blocked core distances via
+/// `pr::distance` + `pr::kselect_by_rows`, then on-the-fly Boruvka MST via
+/// `build_mst_otf`, sort, and `extract_clusters`. No host-side tree.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] ctx        GPU dispatch context
+/// @param[in] desc       Algorithm descriptor
+/// @param[in] local_data Input data table of size `n × d`
+///
+/// @return oneAPI `compute_result` with responses and cluster count
 template <typename Float>
 static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
                                               const descriptor_t& desc,

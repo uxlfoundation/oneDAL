@@ -38,6 +38,20 @@ template <typename Float, daal::internal::CpuType Cpu>
 using daal_hdbscan_brute_force_t =
     daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan_internal::bruteForceDense, Cpu>;
 
+/// Run the brute-force HDBSCAN CPU pipeline for a single floating-point type.
+///
+/// Bridges the oneAPI descriptor and input table to the DAAL
+/// `HDBSCANBatchKernel<Float, bruteForceDense, Cpu>`, then converts the DAAL
+/// outputs back into a oneAPI `compute_result`. Optionally computes
+/// centroid and/or medoid tables when requested via `store_centers`.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] ctx  CPU dispatch context
+/// @param[in] desc Algorithm descriptor (carries metric, mcs, min_samples, etc.)
+/// @param[in] data Input data table of size `n × d`
+///
+/// @return oneAPI `compute_result` with responses, cluster count, and optional centers
 template <typename Float>
 static result_t compute_kernel_dense_impl(const context_cpu& ctx,
                                           const descriptor_t& desc,
