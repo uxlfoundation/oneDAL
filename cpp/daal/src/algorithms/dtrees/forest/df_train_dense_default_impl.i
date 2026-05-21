@@ -1130,7 +1130,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
     /* total number of features */
     const size_t maxFeatures = nFeatures();
     /* minimum fraction of all samples per bin */
-    const intermSummFPType qMax = 0.02;
+    const intermSummFPType qMax = 0.25;
     /* index of the best split, initialized to first index we investigate */
     IndexType * bestSplitIdx = featureIndexBuf(0) + iStart;
     /* sample index */
@@ -1178,7 +1178,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
         const auto iFeature = _aFeatureIdx[i];
         const bool bUseIndexedFeatures =
             (!_memorySavingMode)
-            && (static_cast<intermSummFPType>(n) > qMax * static_cast<intermSummFPType>(_helper.indexedFeatures().numIndices(iFeature)));
+            && (qMax * static_cast<intermSummFPType>(n) > static_cast<intermSummFPType>(_helper.indexedFeatures().numIndices(iFeature)));
 
         if (!_maxLeafNodes && !_useConstFeatures && !_memorySavingMode)
         {
