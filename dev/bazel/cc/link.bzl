@@ -46,16 +46,29 @@ def _merge_static_libs(filename, actions, cc_toolchain,
                        feature_configuration, static_libs, is_windows = False):
     output_file = actions.declare_file(filename)
     if is_windows:
-        args = actions.args()
-        args.use_param_file("@%s", use_always = True)
-        args.set_param_file_format("multiline")
-        args.add("/NOLOGO")
-        args.add("/OUT:" + output_file.path)
-        args.add_all(static_libs)
+        # Drive the merge through the toolchain-provided merge_static_libs.bat,
+        # which calls whichever lib-compatible archiver _find_tools_icx
+        # discovered (llvm-lib or MSVC lib). Mirrors the Linux path's
+        # use of merge_static_libs.sh through the same
+        # cpp_merge_static_libraries action — no hard-coded xilib.exe
+        # (which ships with Intel Fortran, not the C++-only basekit).
+        # actions.run cannot launch .bat files directly on Windows
+        # (CreateProcess requires .exe); wrap with cmd.exe like
+        # release.bzl does for dll_to_implib.bat.
+        merger_path = cc_common.get_tool_for_action(
+            feature_configuration = feature_configuration,
+            action_name = CPP_MERGE_STATIC_LIBRARIES,
+        )
+        bat_args = [output_file.path.replace("/", "\\")] + [
+            f.path.replace("/", "\\") for f in static_libs
+        ]
         actions.run(
-            executable = "xilib.exe",
-            arguments = [args],
-            inputs = static_libs,
+            executable = "cmd.exe",
+            arguments = ["/d", "/c", merger_path.replace("/", "\\")] + bat_args,
+            inputs = depset(
+                direct = static_libs,
+                transitive = [cc_toolchain.all_files],
+            ),
             outputs = [output_file],
             mnemonic = "MergeStaticLibraries",
             use_default_shell_env = True,
@@ -227,9 +240,16 @@ def _static(owner, name, actions, cc_toolchain,
 
 def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
-          def_file=None, is_executable=False, user_link_flags=[]):
+          def_file=None, is_executable=False, user_link_flags=[],
+          is_windows=False):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
-    if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
+    # Windows PE/COFF has no PIC/non-PIC distinction, so cc_module on
+    # Windows routes objects into `objects` only (see dev/bazel/cc.bzl
+    # `disallow_nopic_outputs = not is_windows`). On Linux a dynamic
+    # library with non-PIC objects is a real misconfiguration and must
+    # still fail loudly — pre-commit-0f63dc4bd behavior.
+    if (not is_windows and not is_executable and
+        unpacked_linking_context.objects):
         fail("Dynamic library {} contains non-PIC object files: {}".format(
             name, unpacked_linking_context.objects))
     all_objects = depset(unpacked_linking_context.pic_objects +
@@ -271,12 +291,13 @@ def _link(owner, name, actions, cc_toolchain,
 
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
-             def_file=None, user_link_flags=[]):
+             def_file=None, user_link_flags=[], is_windows=False):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         def_file,
         user_link_flags=user_link_flags,
+        is_windows=is_windows,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None
