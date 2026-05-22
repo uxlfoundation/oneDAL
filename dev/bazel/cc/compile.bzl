@@ -95,8 +95,8 @@ def _normalize_cpu_files(general_cpu_files, special_cpu_files):
 def _normalize_includes(ctx, includes, extra=[]):
     inc_dir = paths.dirname(ctx.build_file_path) + "/"
     gen_dir = ctx.genfiles_dir.path + "/" + inc_dir
-    normalized_includes = (utils.add_prefix(inc_dir, includes) +
-                           utils.add_prefix(gen_dir, includes))
+    normalized_includes = (utils.add_prefix(gen_dir, includes) +
+                           utils.add_prefix(inc_dir, includes))
     normalized_includes = [paths.normalize(x) for x in normalized_includes]
     normalized_includes = utils.unique(normalized_includes + extra)
     return normalized_includes
@@ -134,13 +134,14 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
-def _compile_wrapper(name, ctx, toolchain, feature_config, **kwargs):
+def _compile_wrapper(name, ctx, toolchain, feature_config,
+                     disallow_nopic_outputs = True, **kwargs):
     return cc_common.compile(
         name = name,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
-        disallow_nopic_outputs = True,
+        disallow_nopic_outputs = disallow_nopic_outputs,
         **kwargs,
     )
 

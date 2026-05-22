@@ -34,6 +34,28 @@ test --test_env=FI_PROVIDER_PATH
 # the required environment variable to tests for compatibility:
 test --test_env=LD_LIBRARY_PATH
 
+# Forward MSVC tooling env into Bazel-spawned build actions on Windows.
+# `dll_to_implib.bat` (release.bzl) and other actions that need
+# dumpbin/lib look up VCTOOLSINSTALLDIR to add the MSVC HostX64\x64
+# bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
+# actions that go through cmd-style helpers.
+build --action_env=VCTOOLSINSTALLDIR
+build --action_env=INCLUDE
+build --action_env=LIB
+build --action_env=PATH
+
+# On Windows, tests need PATH to find runtime DLLs from external deps.
+# Bazel matches env-var names case-sensitively while Windows itself stores
+# the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
+# launching shell — forward both spellings so the test wrapper sees a
+# populated value regardless of how the shell exports it.
+test --test_env=PATH
+test --test_env=Path
+
+# Forward DALROOT into tests so they can locate the staged release tree
+# (redist/intel64, lib/intel64) for runtime DLL lookups on Windows.
+test --test_env=DALROOT
+
 # This variable is used to determine location of datasets for testing
 test --test_env=DAAL_DATASETS
 
@@ -110,3 +132,10 @@ build:dpc-private \
 
 test:dpc-private \
     --test_tag_filters="dpc,-public"
+
+
+# On Windows, dev/bazel/toolchains/cc_toolchain_win.bzl selects the custom
+# Intel oneAPI icx/icpx cc_toolchain by default (icx must be on PATH,
+# typically via %ONEAPI_ROOT%\setvars.bat). To fall back to the stock
+# rules_cc MSVC cl auto-config, set ONEDAL_WIN_COMPILER=cl in the
+# environment (or pass --repo_env=ONEDAL_WIN_COMPILER=cl to bazel).
