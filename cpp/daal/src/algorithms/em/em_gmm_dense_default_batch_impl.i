@@ -84,7 +84,7 @@ services::Status EMKernelTask<algorithmFPType, method, cpu>::compute()
         logLikelyhood = 0;
 
         SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [=, &threadBuffer, &safeStat](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [=, &threadBuffer, &safeStat](size_t iBlock) {
             size_t j0                     = iBlock * blockSizeDefault;
             size_t nVectorsInCurrentBlock = blockSizeDefault;
             if (iBlock == nBlocks - 1)
@@ -664,7 +664,7 @@ Status GmmModelFull<algorithmFPType, cpu>::computeSigmaInverse(size_t iteration)
         [=]() -> algorithmFPType * { return service_scalable_calloc<algorithmFPType, cpu>(nFeatures * nFeatures); });
 
     SafeStatus safeStat;
-    daal::threader_for(nComponents, nComponents, [=, &sigma_buff, &safeStat](size_t iComp) {
+    daal::threader_for(nComponents, 1, [=, &sigma_buff, &safeStat](size_t iComp) {
         char uplo = 'U';
         DAAL_INT info;
         DAAL_INT lda                = nFeatures;

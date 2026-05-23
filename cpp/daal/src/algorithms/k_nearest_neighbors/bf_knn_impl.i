@@ -117,7 +117,7 @@ public:
 
         SafeStatus safeStat;
 
-        daal::threader_for(nOuterBlocks, nOuterBlocks, [&](size_t outerBlock) {
+        daal::threader_for(nOuterBlocks, 1, [&](size_t outerBlock) {
             const size_t outerStart = outerBlock * outBlockSize;
             const size_t outerEnd   = outerBlock + 1 == nOuterBlocks ? nTest : outerStart + outBlockSize;
             const size_t outerSize  = outerEnd - outerStart;

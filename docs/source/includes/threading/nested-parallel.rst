@@ -25,7 +25,7 @@
       }
       return localBuffer;
    })
-   daal::threader_for(n, n, [&](size_t i) {
+   daal::threader_for(n, 1, [&](size_t i) {
       float * localBuffer = tls.local();
       if (!localBuffer) {
          // Allocation error happened earlier
@@ -34,7 +34,7 @@
 
       // Initialize localBuffer with some data here
 
-      daal::threader_for(m, m, [&](size_t j) {
+      daal::threader_for(m, 1, [&](size_t j) {
          /* Some work */
       });
 

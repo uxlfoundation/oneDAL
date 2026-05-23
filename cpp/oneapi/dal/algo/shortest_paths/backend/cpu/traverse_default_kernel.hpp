@@ -111,7 +111,7 @@ inline void find_next_bin_index(std::int64_t& curr_bin_index, const BinsVector& 
     std::atomic<std::int64_t> min_nonempty_bucket_index;
     min_nonempty_bucket_index.store(max_bin_count);
 
-    dal::detail::threader_for(local_bins.size(), local_bins.size(), [&](std::int64_t i) {
+    dal::detail::threader_for(local_bins.size(), 1, [&](std::int64_t i) {
         const auto& local_bin = local_bins[i];
         for (std::int64_t bucket_index = 0; bucket_index < local_bin.size(); bucket_index++) {
             if (!local_bin[bucket_index].empty()) {
@@ -138,7 +138,7 @@ inline std::int64_t reduce_to_common_bin(const std::int64_t& curr_bin_index,
                                          BinsVector& local_bins,
                                          SharedBinContainer& shared_bin) {
     std::atomic<std::int64_t> vertex_count_in_shared_bin = 0;
-    dal::detail::threader_for(local_bins.size(), local_bins.size(), [&](std::int64_t i) {
+    dal::detail::threader_for(local_bins.size(), 1, [&](std::int64_t i) {
         auto& local_bin = local_bins[i];
         if (curr_bin_index < local_bin.size()) {
             auto& bucket = local_bin[curr_bin_index];
@@ -167,7 +167,7 @@ struct get_result_from_ralaxing_data<mode::distances, VertexType, EdgeValue> {
         value_type* dist_ = dist_arr.get_mutable_data();
         const auto computed_dist = data.get_distances_ptr();
 
-        dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t i) {
+        dal::detail::threader_for(vertex_count, 4096, [&](std::int64_t i) {
             dist_[i] = computed_dist[i];
         });
 
@@ -191,7 +191,7 @@ struct get_result_from_ralaxing_data<mode::distances_predecessors, VertexType, E
             value_type* dist_ = dist_arr.get_mutable_data();
             vertex_type* pred_ = pred_arr.get_mutable_data();
 
-            dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t i) {
+            dal::detail::threader_for(vertex_count, 4096, [&](std::int64_t i) {
                 dist_[i] = data.get_distance(i);
                 pred_[i] = data.get_predecessor(i);
             });
@@ -206,7 +206,7 @@ struct get_result_from_ralaxing_data<mode::distances_predecessors, VertexType, E
             auto pred_arr = array<vertex_type>::empty(vertex_count);
             vertex_type* pred_ = pred_arr.get_mutable_data();
 
-            dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t i) {
+            dal::detail::threader_for(vertex_count, 4096, [&](std::int64_t i) {
                 pred_[i] = data.get_predecessor(i);
             });
 
@@ -268,7 +268,7 @@ struct delta_stepping {
         while (curr_bin_index != max_bin_count) {
             dal::detail::threader_for(
                 vertex_count_in_shared_bin,
-                vertex_count_in_shared_bin,
+                1,
                 [&](std::int64_t i) {
                     const vertex_type u = shared_bin[i];
                     if (dist.get_distance(u) >= delta * static_cast<value_type>(curr_bin_index)) {
@@ -282,7 +282,7 @@ struct delta_stepping {
                     }
                 });
 
-            dal::detail::threader_for(thread_cnt, thread_cnt, [&](std::int64_t i) {
+            dal::detail::threader_for(thread_cnt, 1, [&](std::int64_t i) {
                 const std::int64_t thread_id = i;
                 auto& local_bin = local_bins[thread_id];
                 while (curr_bin_index < local_bin.size() && !local_bin[curr_bin_index].empty() &&

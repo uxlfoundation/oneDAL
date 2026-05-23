@@ -73,7 +73,7 @@ Status QRDistributedStep2Kernel<algorithmFPType, method, cpu>::compute(const siz
     DAAL_CHECK(Aux2T && RT, ErrorMemoryAllocationFailed);
 
     SafeStatus safeStat;
-    daal::threader_for(nBlocks, nBlocks, [=, &safeStat](int k) {
+    daal::threader_for(nBlocks, 1, [=, &safeStat](int k) {
         ReadRows<algorithmFPType, cpu, NumericTable> mtAux2(*const_cast<NumericTable *>(a[k]), 0, n);
         DAAL_CHECK_BLOCK_STATUS_THR(mtAux2);
         const algorithmFPType * Aux2 = mtAux2.get(); /* Aux2  [nxb][n] */
@@ -98,7 +98,7 @@ Status QRDistributedStep2Kernel<algorithmFPType, method, cpu>::compute(const siz
     const auto ec = compute_QR_on_one_node<algorithmFPType, cpu>(nxb, n, Aux2T, nxb, RT, n);
     DAAL_CHECK_STATUS_VAR(ec);
 
-    daal::threader_for(nBlocks, nBlocks, [=, &safeStat](int k) {
+    daal::threader_for(nBlocks, 1, [=, &safeStat](int k) {
         WriteOnlyRows<algorithmFPType, cpu, NumericTable> mtAux3(r[k], 0, n);
         DAAL_CHECK_BLOCK_STATUS_THR(mtAux3);
         algorithmFPType * Aux3 = mtAux3.get(); /* Aux2  [nxb][n] */

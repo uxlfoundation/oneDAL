@@ -154,7 +154,7 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
     SafeStatus safeStat;
 
     /* Loop over input data blocks */
-    daal::threader_for(numBlocks, numBlocks, [=, &tls, &transformedData, &data, &safeStat](int iBlock) {
+    daal::threader_for(numBlocks, 1, [=, &tls, &transformedData, &data, &safeStat](int iBlock) {
         size_t startRow = iBlock * numRowsInBlock;
         size_t endRow   = startRow + numRowsInBlock;
         if (endRow > numVectors)

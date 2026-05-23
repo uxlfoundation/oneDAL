@@ -56,7 +56,7 @@ services::Status ImplicitALSInitKernelBase<algorithmFPType, cpu>::randFactors(si
     }
 
     daal::SafeStatus safeStatus;
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         const size_t start          = blockSize * iBlock;
         const size_t nElems         = (iBlock != nBlocks - 1) ? blockSize : lastBlockSize;
         algorithmFPType * const arr = itemsFactors + start;

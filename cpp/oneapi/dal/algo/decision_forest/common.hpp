@@ -685,7 +685,7 @@ public:
     template <typename T, typename Visitor>
     void traverse_depth_first(T&& visitor_array) const {
         dal::detail::threader_for(this->get_tree_count(),
-                                  this->get_tree_count(),
+                                  1,
                                   [&](std::int64_t i) {
                                       traverse_depth_first_impl(
                                           i,
@@ -714,7 +714,7 @@ public:
     template <typename T, typename Visitor>
     void traverse_breadth_first(T&& visitor_array) const {
         dal::detail::threader_for(this->get_tree_count(),
-                                  this->get_tree_count(),
+                                  1,
                                   [&](std::int64_t i) {
                                       traverse_breadth_first_impl(
                                           i,

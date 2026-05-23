@@ -255,7 +255,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
     {
         DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.ProcessBlocks);
         /* Compute partial results for each TLS buffer */
-        daal::threader_for(numRowsBlocks, numRowsBlocks, [&](int iBlock) {
+        daal::threader_for(numRowsBlocks, 1, [&](int iBlock) {
             struct tls_moments_data_t<algorithmFPType, cpu> * _td = tls_data.local();
             if (_td->malloc_errors)
             {
@@ -369,7 +369,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
                 const size_t numFeatureBlocks       = _cd.nFeatures / numFeaturesInBlock;
                 const size_t numFeaturesInLastBlock = numFeaturesInBlock + (_cd.nFeatures - numFeatureBlocks * numFeaturesInBlock);
 
-                daal::threader_for(numFeatureBlocks, numFeatureBlocks, [&](int iFeatureBlock) {
+                daal::threader_for(numFeatureBlocks, 1, [&](int iFeatureBlock) {
                     size_t _jstart = iFeatureBlock * numFeaturesInBlock;
                     size_t _jend   = _jstart + ((iFeatureBlock < (numFeatureBlocks - 1)) ? numFeaturesInBlock : numFeaturesInLastBlock);
 

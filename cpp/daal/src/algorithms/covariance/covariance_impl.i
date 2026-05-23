@@ -424,7 +424,7 @@ services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatur
     {
         algorithmFPType * means = sums;
         StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(dataPointer, nFeatures, nVectors, means);
-        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
+        threader_for(nVectors, 64, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
             daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means,
                                                                  dataCentered.get() + vector * nFeatures);
         });
@@ -438,7 +438,7 @@ services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatur
         const DAAL_INT nCols              = nFeatures;
         const algorithmFPType nVectors_fp = nVectors;
         LapackInst<algorithmFPType, cpu>::xxrscl(&nCols, &nVectors_fp, means.get(), &one);
-        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
+        threader_for(nVectors, 64, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
             daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means.get(),
                                                                  dataCentered.get() + vector * nFeatures);
         });
@@ -615,7 +615,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
 
         if (nObsValue == 0)
         {
-            daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
+            daal::threader_for(nFeatures, 16, [=](size_t i) {
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
@@ -631,7 +631,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             algorithmFPType invNObs        = 1.0 / nObsValue;
             algorithmFPType invNewNObs     = 1.0 / (nObsValue + partialNObsValue);
 
-            daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
+            daal::threader_for(nFeatures, 16, [=](size_t i) {
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)

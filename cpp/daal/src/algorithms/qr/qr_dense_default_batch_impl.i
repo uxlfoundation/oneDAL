@@ -234,7 +234,7 @@ Status QRBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na,
         DAAL_CHECK_BLOCK_STATUS(bkA_input);
         const algorithmFPType * A_input = bkA_input.get();
 
-        daal::threader_for(blocks, blocks, [=, &safeStat](int k) {
+        daal::threader_for(blocks, 1, [=, &safeStat](int k) {
             const algorithmFPType * A_block = A_input + k * brows * cols;
             algorithmFPType * Q_block       = Q_output + k * brows * cols;
 
@@ -314,7 +314,7 @@ Status QRBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na,
     /* Step3: calculate Q by merging Q*RB */
     /* ================================== */
 
-    daal::threader_for(blocks, blocks, [=, &safeStat](int k) {
+    daal::threader_for(blocks, 1, [=, &safeStat](int k) {
         algorithmFPType * Q_block = Q_output + k * brows * cols;
 
         /* Last block size brows_last (generally larger than other blocks) */

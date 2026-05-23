@@ -569,7 +569,7 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
     global_stack<Cpu> gstack(pattern->get_vertex_count(), allocator);
     std::int64_t busy_engine_count(array_size);
     std::int64_t cumulative_match_count(0);
-    dal::detail::threader_for(array_size, array_size, [&](const int index) {
+    dal::detail::threader_for(array_size, 1, [&](const int index) {
         engine_array[index].run_and_wait(gstack,
                                          busy_engine_count,
                                          cumulative_match_count,

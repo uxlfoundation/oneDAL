@@ -638,7 +638,7 @@ template <typename algorithmFPType, CpuType cpu, typename DataHelper>
 Status TaskPlusPlusBatchBase<algorithmFPType, cpu, DataHelper>::updateMinDist(const algorithmFPType * aWeights, size_t nTrials)
 {
     SafeStatus safeStat;
-    daal::threader_for(_nBlocks, _nBlocks, [=, &safeStat](size_t iBlock) {
+    daal::threader_for(_nBlocks, 1, [=, &safeStat](size_t iBlock) {
         safeStat |=
             _data.updateMinDistInBlock(_aMinDistAcc.get(), _nBlocks, iBlock, nTrials, _trialBest, aWeights, _lastAddedCenter.get(), _aMinDist.get());
     });
@@ -730,7 +730,7 @@ size_t TaskParallelPlusBatch<algorithmFPType, cpu, DataHelper>::samplePoints(siz
         this->generateProbabilities(_nCandidates, nPt);
     }
     //sample each point independently
-    daal::threader_for(nPt, nPt, [=](size_t iPt) {
+    daal::threader_for(nPt, 1, [=](size_t iPt) {
         const size_t iCandidate     = _nCandidates + iPt;
         algorithmFPType probability = this->_aProbability.get()[iCandidate];
         aPt[iPt]                    = this->findSample(this->overallError() * probability);
@@ -962,7 +962,7 @@ size_t TaskParallelPlusBatch<algorithmFPType, cpu, DataHelper>::calcCenters(size
 {
     const size_t nPt = samplePoints(nRequired, aCenters, iRound);
     //copy points in parallel
-    daal::threader_for(nPt, nPt, [=](size_t iPt) {
+    daal::threader_for(nPt, 1, [=](size_t iPt) {
         const size_t iRow = aCenters[iPt];
         this->_lastAddedCenterNorm2.get()[iPt] =
             algorithmFPType(0.5) * this->_data.copyOneRowCalcSumSq(iRow, this->_lastAddedCenter.get() + iPt * this->_data.dim);

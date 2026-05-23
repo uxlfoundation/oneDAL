@@ -361,7 +361,7 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
     const size_t nBlocks     = ((nThreads < nRows) ? nThreads : 1);
     const size_t sizeOfBlock = nRows / nBlocks + !!(nRows % nBlocks);
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         const size_t iStart = iBlock * sizeOfBlock;
         const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > nRows) ? nRows : iStart + sizeOfBlock);
 
@@ -439,7 +439,7 @@ services::Status computeImpl(const NumericTable * x, const NumericTable * y, con
     services::internal::TArray<size_t, cpu> numElems(par.nTrees);
 
     daal::SafeStatus safeStat;
-    daal::threader_for(par.nTrees, par.nTrees, [&](size_t i) {
+    daal::threader_for(par.nTrees, 1, [&](size_t i) {
         if (!safeStat.ok()) return;
         TaskType * task = tlsTask.local();
         DAAL_CHECK_MALLOC_THR(task);

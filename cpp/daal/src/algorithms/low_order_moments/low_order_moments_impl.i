@@ -512,7 +512,7 @@ Status computeMinMaxAndSumOfSquared(const size_t nFeatures, const size_t nVector
         return tlsData;
     });
 
-    daal::threader_for(nBlocks, nBlocks, [&](int iBlock) {
+    daal::threader_for(nBlocks, 1, [&](int iBlock) {
         struct TslData * localTslData = tslData.local();
         if (!localTslData)
         {

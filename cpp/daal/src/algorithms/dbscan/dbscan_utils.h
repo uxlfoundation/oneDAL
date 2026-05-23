@@ -465,7 +465,7 @@ public:
         DAAL_CHECK_MALLOC(onesWeights);
         daal::services::internal::service_memset_seq<FPType, cpu>(onesWeights, FPType(1), outBlockSize);
 
-        daal::threader_for(nInBlocks, nInBlocks, [&](size_t inBlock) {
+        daal::threader_for(nInBlocks, 1, [&](size_t inBlock) {
             size_t i1    = inBlock * inBlockSize;
             size_t i2    = (inBlock + 1 == nInBlocks ? inRows : i1 + inBlockSize);
             size_t iSize = i2 - i1;
@@ -566,7 +566,7 @@ public:
         size_t outBlockSize = 256;
         size_t nOutBlocks   = outRows / outBlockSize + (outRows % outBlockSize > 0);
 
-        daal::threader_for(nOutBlocks, nOutBlocks, [&](size_t outBlock) {
+        daal::threader_for(nOutBlocks, 1, [&](size_t outBlock) {
             TlsNTask<FPType, cpu> * tlsNTask = nTask->tlsNTask->local();
             DAAL_CHECK_MALLOC_THR(tlsNTask);
 

@@ -85,7 +85,7 @@ struct PostProcessing<lloydDense, algorithmFPType, cpu>
         }
 
         SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [&](int iBlock) {
+        daal::threader_for(nBlocks, 1, [&](int iBlock) {
             algorithmFPType * x_clusters = tlsTask.local();
             DAAL_CHECK_MALLOC_THR(x_clusters);
             const size_t blockSize = (iBlock == nBlocks - 1) ? n - iBlock * blockSizeDefault : blockSizeDefault;
@@ -147,7 +147,7 @@ struct PostProcessing<lloydDense, algorithmFPType, cpu>
         DAAL_CHECK_MALLOC(goalLocalData);
 
         SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [&](const int iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const int iBlock) {
             const size_t blockSize = (iBlock == nBlocks - 1) ? n - iBlock * blockSizeDefault : blockSizeDefault;
 
             ReadRows<algorithmFPType, cpu> mtData(*const_cast<NumericTable *>(ntData), iBlock * blockSizeDefault, blockSize);
@@ -169,7 +169,7 @@ struct PostProcessing<lloydDense, algorithmFPType, cpu>
                 }
             } /* for (size_t k = 0; k < blockSize; k++) */
             goalLocalData[iBlock] = goal;
-        }); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */
+        }); /* daal::threader_for( nBlocks, 1, [=](int k) */
 
         DAAL_CHECK_SAFE_STATUS();
 
@@ -214,7 +214,7 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
         CSRNumericTableIface * ntDataCsr = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(ntData));
         DAAL_CHECK(ntDataCsr, services::ErrorEmptyCSRNumericTable);
 
-        daal::threader_for(nBlocks, nBlocks, [&](int iBlock) {
+        daal::threader_for(nBlocks, 1, [&](int iBlock) {
             algorithmFPType * x_clusters = tlsTask.local();
             DAAL_CHECK_MALLOC_THR(x_clusters);
             const size_t blockSize = (iBlock == nBlocks - 1) ? n - iBlock * blockSizeDefault : blockSizeDefault;
@@ -279,7 +279,7 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
         DAAL_CHECK(ntDataCsr, services::ErrorEmptyCSRNumericTable);
 
         SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [&](const int iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const int iBlock) {
             const size_t blockSize = (iBlock == nBlocks - 1) ? n - iBlock * blockSizeDefault : blockSizeDefault;
 
             ReadRowsCSR<algorithmFPType, cpu> dataBlock(ntDataCsr, iBlock * blockSizeDefault, blockSize);
@@ -308,7 +308,7 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                 }
             } /* for (size_t k = 0; k < blockSize; k++) */
             goalLocalData[iBlock] = goal;
-        }); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */
+        }); /* daal::threader_for( nBlocks, 1, [=](int k) */
         DAAL_CHECK_SAFE_STATUS();
 
         objectiveFunction = algorithmFPType(0);

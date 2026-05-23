@@ -242,7 +242,7 @@ T * service_memset(T * const ptr, const T value, const size_t num)
         nBlocks++;
     }
 
-    threader_for(nBlocks, nBlocks, [&](size_t block) {
+    threader_for(nBlocks, 1, [&](size_t block) {
         size_t end = (block + 1) * blockSize;
         if (end > num)
         {

@@ -107,7 +107,7 @@ double computeSumSOASIMD(NumericTable & table, bool & sumIsFinite, services::Sta
     daal::TlsMem<double, cpu, services::internal::ScalableCalloc<double, cpu> > tlsSum(1);
     daal::TlsMem<bool, cpu, services::internal::ScalableCalloc<bool, cpu> > tlsNotFinite(1);
 
-    daal::threader_for_break(nCols, nCols, [&](size_t i, bool & needBreak) {
+    daal::threader_for_break(nCols, 1, [&](size_t i, bool & needBreak) {
         double * localSum     = tlsSum.local();
         bool * localNotFinite = tlsNotFinite.local();
         DAAL_CHECK_MALLOC_THR(localSum);
@@ -216,7 +216,7 @@ bool checkFinitenessSOASIMD(NumericTable & table, bool allowNaN, services::Statu
 
     daal::TlsMem<bool, cpu, services::internal::ScalableCalloc<bool, cpu> > tlsNotFinite(1);
 
-    daal::threader_for_break(nCols, nCols, [&](size_t i, bool & needBreak) {
+    daal::threader_for_break(nCols, 1, [&](size_t i, bool & needBreak) {
         bool * localNotFinite = tlsNotFinite.local();
         DAAL_CHECK_MALLOC_THR(localNotFinite);
 
