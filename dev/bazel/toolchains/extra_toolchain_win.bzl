@@ -1,4 +1,3 @@
-#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,27 +14,20 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.7.0
-UNPACKED=ec-linux-amd64
-ASSET=$UNPACKED.tar.gz
-CHECKSUMS=checksums.txt
-BASE_LINK=https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION
-
-# Download asset
-wget $BASE_LINK/$ASSET
-
-# Download checksum file
-wget $BASE_LINK/$CHECKSUMS
-
-# Verify checksum file
-if ! grep -E "$ASSET$" $CHECKSUMS | sha256sum --check; then
-    echo "Checksum verification failed"
-    exit 1
-fi
-
-# Install
-mkdir $UNPACKED && tar -xzf "$ASSET" -C $UNPACKED
-mv $UNPACKED/bin/$UNPACKED /usr/local/bin/editorconfig-checker
-
-# Clean up the downloaded files
-rm -rf "$UNPACKED" "$ASSET" "$CHECKSUMS"
+def configure_extra_toolchain_win(repo_ctx, compiler_id):
+    repo_ctx.template(
+        "patch_daal_kernel_defines.cmd",
+        Label("@onedal//dev/bazel/toolchains/tools:patch_daal_kernel_defines.cmd"),
+    )
+    repo_ctx.template(
+        "patch_daal_kernel_defines.ps1",
+        Label("@onedal//dev/bazel/toolchains/tools:patch_daal_kernel_defines.ps1"),
+    )
+    patch_daal_kernel_defines_path = str(repo_ctx.path("patch_daal_kernel_defines.cmd"))
+    repo_ctx.template(
+        "BUILD",
+        Label("@onedal//dev/bazel/toolchains:extra_toolchain_win.tpl.BUILD"),
+        {
+            "%{patch_daal_kernel_defines}": patch_daal_kernel_defines_path,
+        }
+    )

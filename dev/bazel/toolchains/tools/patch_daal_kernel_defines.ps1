@@ -1,4 +1,3 @@
-#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,27 +14,22 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.7.0
-UNPACKED=ec-linux-amd64
-ASSET=$UNPACKED.tar.gz
-CHECKSUMS=checksums.txt
-BASE_LINK=https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION
+param(
+    [Parameter(Mandatory=$true)][string]$InputPath,
+    [Parameter(Mandatory=$true)][string]$OutputPath,
+    [string]$Cpus = ""
+)
 
-# Download asset
-wget $BASE_LINK/$ASSET
+$ErrorActionPreference = "Stop"
 
-# Download checksum file
-wget $BASE_LINK/$CHECKSUMS
+if ([string]::IsNullOrWhiteSpace($Cpus)) {
+    Copy-Item -LiteralPath $InputPath -Destination $OutputPath -Force
+    exit 0
+}
 
-# Verify checksum file
-if ! grep -E "$ASSET$" $CHECKSUMS | sha256sum --check; then
-    echo "Checksum verification failed"
-    exit 1
-fi
+$cpuPattern = ($Cpus -split '\s+' | Where-Object { $_ } | ForEach-Object { [regex]::Escape($_.ToUpperInvariant()) }) -join '|'
+$pattern = "^#define DAAL_KERNEL_($cpuPattern)\b"
 
-# Install
-mkdir $UNPACKED && tar -xzf "$ASSET" -C $UNPACKED
-mv $UNPACKED/bin/$UNPACKED /usr/local/bin/editorconfig-checker
-
-# Clean up the downloaded files
-rm -rf "$UNPACKED" "$ASSET" "$CHECKSUMS"
+(Get-Content -LiteralPath $InputPath) | ForEach-Object {
+    $_ -replace $pattern, ""
+} | Set-Content -LiteralPath $OutputPath -Encoding ASCII

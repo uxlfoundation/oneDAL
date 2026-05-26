@@ -43,6 +43,16 @@ config_setting(
     },
 )
 
+config_setting(
+    name = "backend_config_mkl_linux",
+    flag_values = {
+        ":backend_config": "mkl",
+    },
+    constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
 config_flag(
     name = "test_link_mode",
     build_setting_default = "dev",

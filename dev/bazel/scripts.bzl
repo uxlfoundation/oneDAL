@@ -14,12 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-"""Rules for generating release scripts and configuration files.
-
-Provides:
-  - generate_vars_sh: generates env/vars.sh (Linux/macOS) from a template
-  - generate_pkgconfig: generates lib/pkgconfig/onedal.pc via cpp preprocessor
-"""
+"""Rules for generating release scripts and configuration files."""
 
 load("@onedal//dev/bazel/config:config.bzl", "VersionInfo")
 
@@ -47,11 +42,11 @@ _generate_vars_sh = rule(
         "template": attr.label(
             allow_single_file = True,
             mandatory = True,
-            doc = "Source vars.sh template file (e.g. deploy/local/vars_lnx.sh).",
+            doc = "Source vars.sh template file.",
         ),
         "out": attr.string(
             mandatory = True,
-            doc = "Output path relative to the package (e.g. 'env/vars.sh').",
+            doc = "Output path relative to the package.",
         ),
         "_version_info": attr.label(
             default = "@config//:version",
@@ -61,20 +56,11 @@ _generate_vars_sh = rule(
 )
 
 def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
-    """Generate release environment script from template.
-
-    Substitutes __DAL_MAJOR_BINARY__ and __DAL_MINOR_BINARY__ with the
-    binary ABI version numbers defined in config.bzl.
-
-    Args:
-        name: Target name.
-        out:  Output path (default: 'env/vars.sh').
-    """
+    """Generate release environment script from template."""
     _generate_vars_sh(
         name = name,
         template = select({
-            # TODO: add Windows condition when Windows toolchain is ready.
-            # "@platforms//os:windows": "@onedal//deploy/local:vars_win.bat",
+            "@platforms//os:windows": "@onedal//deploy/local:vars_win.bat",
             "@platforms//os:osx": "@onedal//deploy/local:vars_mac.sh",
             "//conditions:default": "@onedal//deploy/local:vars_lnx.sh",
         }),
@@ -87,44 +73,58 @@ def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
 # ---------------------------------------------------------------------------
 
 def _generate_pkgconfig_impl(ctx):
-    """Generate onedal.pc via the C preprocessor from pkg-config.cpp template.
-
-    Note: deploy/pkg-config/pkg-config.cpp currently hardcodes Version: 2026.0
-    and does not use DAL_MAJOR/MINOR defines. The -D flags below are passed for
-    future compatibility if the template is updated to use them.
-    """
+    """Generate pkg-config files matching deploy/pkg-config/pkg-config.cpp."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
 
-    # pkg-config.cpp uses #if/#define blocks and the cpp preprocessor
-    # to emit different content for static vs dynamic variants.
-    # expand_template is not used here because the template relies on
-    # cpp's conditional compilation, which cannot be replicated with
-    # simple string substitution.
-    # Use gcc -E -P (C preprocessor) instead of cpp directly.
-    # 'cpp' may not find cc1plus in some CI environments; 'gcc -E -P' is more portable.
-    ctx.actions.run_shell(
-        inputs = [ctx.file.template],
-        outputs = [out],
-        command = (
-            "${{CC:-gcc}} -E -P -x c " +
-            "-DDAL_MAJOR_BINARY={binary_major} " +
-            "-DDAL_MINOR_BINARY={binary_minor} " +
-            "-DDAL_MAJOR={major} " +
-            "-DDAL_MINOR={minor} " +
-            "{template} -o {out}"
-        ).format(
-            binary_major = vi.binary_major,
-            binary_minor = vi.binary_minor,
-            major = vi.major,
-            minor = vi.minor,
-            template = ctx.file.template.path,
-            out = out.path,
-        ),
-        mnemonic = "GenPkgConfig",
-        progress_message = "Generating pkg-config file {}".format(out.short_path),
-        use_default_shell_env = True,
-    )
+    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        onedal_libs = (
+            "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
+            if ctx.attr.static else
+            "${libdir}/onedal_dll.lib ${libdir}/onedal_core_dll.lib"
+        )
+        ctx.actions.write(
+            output = out,
+            content = """prefix=${{pcfiledir}}/../../
+exec_prefix=${{prefix}}
+libdir=${{exec_prefix}}/lib/intel64
+includedir=${{prefix}}/include
+
+Name: oneDAL
+Description: oneAPI Data Analytics Library
+Version: {major}.{minor}
+URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
+Libs: {onedal_libs} mkl_core.lib mkl_intel_ilp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
+Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
+""".format(
+                major = vi.major,
+                minor = vi.minor,
+                onedal_libs = onedal_libs,
+            ),
+        )
+    else:
+        ctx.actions.run_shell(
+            inputs = [ctx.file.template],
+            outputs = [out],
+            command = (
+                "${{CC:-gcc}} -E -P -x c " +
+                "-DDAL_MAJOR_BINARY={binary_major} " +
+                "-DDAL_MINOR_BINARY={binary_minor} " +
+                "-DDAL_MAJOR={major} " +
+                "-DDAL_MINOR={minor} " +
+                "{template} -o {out}"
+            ).format(
+                binary_major = vi.binary_major,
+                binary_minor = vi.binary_minor,
+                major = vi.major,
+                minor = vi.minor,
+                template = ctx.file.template.path,
+                out = out.path,
+            ),
+            mnemonic = "GenPkgConfig",
+            progress_message = "Generating pkg-config file {}".format(out.short_path),
+            use_default_shell_env = True,
+        )
     return [DefaultInfo(files = depset([out]))]
 
 _generate_pkgconfig = rule(
@@ -137,25 +137,28 @@ _generate_pkgconfig = rule(
         ),
         "out": attr.string(
             mandatory = True,
-            doc = "Output path relative to the package (e.g. 'lib/pkgconfig/onedal.pc').",
+            doc = "Output path relative to the package.",
+        ),
+        "static": attr.bool(
+            default = False,
+            doc = "Generate a static-library pkg-config file.",
         ),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
 )
 
-def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", **kwargs):
-    """Generate pkg-config .pc file from deploy/pkg-config/pkg-config.cpp.
-
-    Args:
-        name: Target name.
-        out:  Output path (default: 'lib/pkgconfig/onedal.pc').
-    """
+def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", static = False, **kwargs):
+    """Generate pkg-config .pc file from deploy/pkg-config/pkg-config.cpp."""
     _generate_pkgconfig(
         name = name,
         template = "@onedal//deploy/pkg-config:pkg-config.cpp",
         out = out,
+        static = static,
         **kwargs
     )
