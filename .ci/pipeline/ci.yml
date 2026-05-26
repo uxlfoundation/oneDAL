@@ -620,7 +620,7 @@ jobs:
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --cpu=avx2 --release_dpc=false --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release'
   - script: |
       rmdir /S /Q "$(release.dir)" 2>NUL

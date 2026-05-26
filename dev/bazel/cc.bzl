@@ -245,6 +245,7 @@ def _cc_dynamic_lib_impl(ctx):
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
         user_link_flags = ctx.attr.linkopts,
+        is_windows = is_windows,
     )
     default_files = dynamic_outputs.files
     if is_windows:
