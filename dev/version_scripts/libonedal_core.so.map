@@ -837,6 +837,12 @@ global:
         "typeinfo for daal::data_management::interface1::DataCollection";
 
         daal::data_management::interface1::NumericTable::*;
+
+        "vtable for daal::data_management::interface1::NumericTable::BasicStatisticsDataCollection";
+        "vtable for daal::data_management::interface1::MemoryBlock";
+        "typeinfo for daal::data_management::interface1::NumericTable::BasicStatisticsDataCollection";
+        "typeinfo for daal::data_management::interface1::MemoryBlock";
+
         "daal::data_management::interface1::HomogenNumericTable<*>::*";
 
         # The full list of data types supported by HomogenNumericTable is defined
@@ -859,6 +865,31 @@ global:
         "daal::data_management::interface1::HomogenNumericTable<double>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, double const&, daal::services::interface1::Status&)";
         "daal::data_management::interface1::HomogenNumericTable<int>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, int const&, daal::services::interface1::Status&)";
 
+        "vtable for daal::data_management::interface1::HomogenNumericTable<unsigned short>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<unsigned long>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<unsigned long long>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<unsigned int>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<unsigned char>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<short>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<long>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<long long>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<int>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<float>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<double>";
+        "vtable for daal::data_management::interface1::HomogenNumericTable<char>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<unsigned short>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<unsigned long>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<unsigned long long>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<unsigned int>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<unsigned char>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<short>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<long>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<long long>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<int>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<float>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<double>";
+        "typeinfo for daal::data_management::interface1::HomogenNumericTable<char>";
+
         # CSRNumericTable (Compressed Sparse Row)
         "daal::data_management::interface1::CSRNumericTable::*";
         "daal::data_management::interface1::CSRBlockDescriptor<*>::*";
@@ -874,13 +905,25 @@ global:
 
         # AOSNumericTable (Array of Structures)
         daal::data_management::interface1::AOSNumericTable::*;
+
         "vtable for daal::data_management::interface1::AOSNumericTable";
+        "typeinfo for daal::data_management::interface1::AOSNumericTable";
+
+        # ArrowNumericTable (Apache Arrow format)
+        "vtable for daal::data_management::interface1::BaseArrowImmutableNumericTable";
+        "typeinfo for daal::data_management::interface1::BaseArrowImmutableNumericTable";
 
         # MergedNumericTable
         daal::data_management::interface1::MergedNumericTable::*;
 
+        "vtable for daal::data_management::interface1::MergedNumericTable";
+        "typeinfo for daal::data_management::interface1::MergedNumericTable";
+
         # RowMergedNumericTable
         daal::data_management::interface1::RowMergedNumericTable::*;
+
+        "vtable for daal::data_management::interface1::RowMergedNumericTable";
+        "typeinfo for daal::data_management::interface1::RowMergedNumericTable";
 
         # SOANumericTable (Structure of Arrays)
         daal::data_management::interface1::SOANumericTable::*;
@@ -901,10 +944,19 @@ global:
         daal::data_management::interface1::Factory::*;
         daal::data_management::interface1::SerializationIface::*;
 
+        "vtable for daal::data_management::interface1::SerializationIface";
+        "typeinfo for daal::data_management::interface1::SerializationIface";
+
         "daal::data_management::interface1::KeyValueCollection<*>::*";
         "daal::data_management::interface1::KeyValueCollection<daal::data_management::interface1::SerializationIface>::operator[](unsigned long)";
 
+        "vtable for daal::data_management::interface1::KeyValueCollection<daal::data_management::interface1::SerializationIface>";
+        "typeinfo for daal::data_management::interface1::KeyValueCollection<daal::data_management::interface1::SerializationIface>";
+
         "daal::data_management::interface1::SerializableKeyValueCollection<daal::data_management::interface1::SerializationIface>::getSerializationTag() const";
+
+        "vtable for daal::data_management::interface1::SerializableKeyValueCollection<daal::data_management::interface1::SerializationIface>";
+        "typeinfo for daal::data_management::interface1::SerializableKeyValueCollection<daal::data_management::interface1::SerializationIface>";
 
         daal::data_management::ModifierIface::*;
 
@@ -949,6 +1001,9 @@ global:
 
         # KernelErrorCollection vtable
         "vtable for daal::services::interface1::KernelErrorCollection";
+        "vtable for daal::services::interface1::ErrorCollection";
+        "typeinfo for daal::services::interface1::KernelErrorCollection";
+        "typeinfo for daal::services::interface1::ErrorCollection";
 
         daal::services::interface1::Status::*;
 
@@ -956,8 +1011,16 @@ global:
         daal::services::interface1::LibraryVersionInfo*;
         daal::services::interface1::String::*;
 
+        "vtable for daal::services::interface1::String";
+        "vtable for daal::services::interface1::LibraryVersionInfo";
+        "typeinfo for daal::services::interface1::String";
+        "typeinfo for daal::services::interface1::LibraryVersionInfo";
+
         # Environment
         daal::services::interface1::Environment::*;
+
+        "vtable for daal::services::interface1::Environment";
+        "typeinfo for daal::services::interface1::Environment";
 
     };
 

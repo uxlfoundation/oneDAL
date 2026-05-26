@@ -43,16 +43,28 @@ global:
         "oneapi::dal::basic_statistics::detail::get_variance_id()";
         "oneapi::dal::basic_statistics::detail::get_variation_id()";
 
+        "typeinfo for oneapi::dal::basic_statistics::detail::v1::descriptor_base<oneapi::dal::basic_statistics::task::v1::compute>";
+        "typeinfo for oneapi::dal::basic_statistics::v1::compute_input<oneapi::dal::basic_statistics::task::v1::compute>";
+        "typeinfo for oneapi::dal::basic_statistics::v1::partial_compute_input<oneapi::dal::basic_statistics::task::v1::compute>";
+        "vtable for oneapi::dal::basic_statistics::detail::v1::descriptor_base<oneapi::dal::basic_statistics::task::v1::compute>";
+        "vtable for oneapi::dal::basic_statistics::v1::compute_input<oneapi::dal::basic_statistics::task::v1::compute>";
+        "vtable for oneapi::dal::basic_statistics::v1::partial_compute_input<oneapi::dal::basic_statistics::task::v1::compute>";
         # correlation_distance
 
         oneapi::dal::correlation_distance::v1::*;
         oneapi::dal::correlation_distance::detail::v1::*;
 
+        "typeinfo for oneapi::dal::correlation_distance::detail::v1::descriptor_base<oneapi::dal::correlation_distance::task::v1::compute>";
+        "typeinfo for oneapi::dal::correlation_distance::v1::compute_input<oneapi::dal::correlation_distance::task::v1::compute>";
+        "vtable for oneapi::dal::correlation_distance::detail::v1::descriptor_base<oneapi::dal::correlation_distance::task::v1::compute>";
+        "vtable for oneapi::dal::correlation_distance::v1::compute_input<oneapi::dal::correlation_distance::task::v1::compute>";
         # cosine_distance
 
         oneapi::dal::cosine_distance::v1::*;
         oneapi::dal::cosine_distance::detail::v1::*;
 
+        "typeinfo for oneapi::dal::cosine_distance::v1::compute_input<oneapi::dal::cosine_distance::task::v1::compute>";
+        "vtable for oneapi::dal::cosine_distance::v1::compute_input<oneapi::dal::cosine_distance::task::v1::compute>";
         # covariance
 
         oneapi::dal::covariance::v1::*;
@@ -62,6 +74,12 @@ global:
         "oneapi::dal::covariance::detail::get_cov_matrix_id()";
         "oneapi::dal::covariance::detail::get_means_id()";
 
+        "typeinfo for oneapi::dal::covariance::detail::v1::descriptor_base<oneapi::dal::covariance::task::v1::compute>";
+        "typeinfo for oneapi::dal::covariance::v1::compute_input<oneapi::dal::covariance::task::v1::compute>";
+        "typeinfo for oneapi::dal::covariance::v1::partial_compute_input<oneapi::dal::covariance::task::v1::compute>";
+        "vtable for oneapi::dal::covariance::detail::v1::descriptor_base<oneapi::dal::covariance::task::v1::compute>";
+        "vtable for oneapi::dal::covariance::v1::compute_input<oneapi::dal::covariance::task::v1::compute>";
+        "vtable for oneapi::dal::covariance::v1::partial_compute_input<oneapi::dal::covariance::task::v1::compute>";
         # dbscan
 
         oneapi::dal::dbscan::v1::*;
@@ -72,16 +90,44 @@ global:
         "oneapi::dal::dbscan::detail::get_core_observation_indices_id()";
         "oneapi::dal::dbscan::detail::get_responses_id()";
 
+        "typeinfo for oneapi::dal::dbscan::detail::v1::descriptor_base<oneapi::dal::dbscan::task::v1::clustering>";
+        "typeinfo for oneapi::dal::dbscan::v1::compute_input<oneapi::dal::dbscan::task::v1::clustering>";
+        "vtable for oneapi::dal::dbscan::detail::v1::descriptor_base<oneapi::dal::dbscan::task::v1::clustering>";
+        "vtable for oneapi::dal::dbscan::v1::compute_input<oneapi::dal::dbscan::task::v1::clustering>";
         # decision_forest
 
         oneapi::dal::decision_forest::v1::*;
         oneapi::dal::decision_forest::v2::*;
         oneapi::dal::decision_forest::detail::v1::*;
 
+        "typeinfo for oneapi::dal::decision_forest::detail::v1::descriptor_base<oneapi::dal::decision_forest::task::v1::classification>";
+        "typeinfo for oneapi::dal::decision_forest::detail::v1::descriptor_base<oneapi::dal::decision_forest::task::v1::regression>";
+        "typeinfo for oneapi::dal::decision_forest::detail::v1::train_parameters<oneapi::dal::decision_forest::task::v1::classification>";
+        "typeinfo for oneapi::dal::decision_forest::detail::v1::train_parameters<oneapi::dal::decision_forest::task::v1::regression>";
+        "typeinfo for oneapi::dal::decision_forest::v1::infer_input<oneapi::dal::decision_forest::task::v1::classification>";
+        "typeinfo for oneapi::dal::decision_forest::v1::infer_input<oneapi::dal::decision_forest::task::v1::regression>";
+        "typeinfo for oneapi::dal::decision_forest::v2::train_input<oneapi::dal::decision_forest::task::v1::classification>";
+        "typeinfo for oneapi::dal::decision_forest::v2::train_input<oneapi::dal::decision_forest::task::v1::regression>";
+        "vtable for oneapi::dal::decision_forest::detail::v1::descriptor_base<oneapi::dal::decision_forest::task::v1::classification>";
+        "vtable for oneapi::dal::decision_forest::detail::v1::descriptor_base<oneapi::dal::decision_forest::task::v1::regression>";
+        "vtable for oneapi::dal::decision_forest::detail::v1::train_parameters<oneapi::dal::decision_forest::task::v1::classification>";
+        "vtable for oneapi::dal::decision_forest::detail::v1::train_parameters<oneapi::dal::decision_forest::task::v1::regression>";
+        "vtable for oneapi::dal::decision_forest::v1::infer_input<oneapi::dal::decision_forest::task::v1::classification>";
+        "vtable for oneapi::dal::decision_forest::v1::infer_input<oneapi::dal::decision_forest::task::v1::regression>";
+        "vtable for oneapi::dal::decision_forest::v2::train_input<oneapi::dal::decision_forest::task::v1::classification>";
+        "vtable for oneapi::dal::decision_forest::v2::train_input<oneapi::dal::decision_forest::task::v1::regression>";
         # decision_tree
 
         oneapi::dal::decision_tree::v1::*;
 
+        "typeinfo for oneapi::dal::decision_tree::v1::leaf_node_info<oneapi::dal::decision_tree::task::v1::classification>";
+        "typeinfo for oneapi::dal::decision_tree::v1::leaf_node_info<oneapi::dal::decision_tree::task::v1::regression>";
+        "typeinfo for oneapi::dal::decision_tree::v1::split_node_info<oneapi::dal::decision_tree::task::v1::classification>";
+        "typeinfo for oneapi::dal::decision_tree::v1::split_node_info<oneapi::dal::decision_tree::task::v1::regression>";
+        "vtable for oneapi::dal::decision_tree::v1::leaf_node_info<oneapi::dal::decision_tree::task::v1::classification>";
+        "vtable for oneapi::dal::decision_tree::v1::leaf_node_info<oneapi::dal::decision_tree::task::v1::regression>";
+        "vtable for oneapi::dal::decision_tree::v1::split_node_info<oneapi::dal::decision_tree::task::v1::classification>";
+        "vtable for oneapi::dal::decision_tree::v1::split_node_info<oneapi::dal::decision_tree::task::v1::regression>";
         # distances (chebyshev_distance, minkowski_distance)
 
         oneapi::dal::chebyshev_distance::detail::v1::*;
@@ -92,6 +138,10 @@ global:
         oneapi::dal::finiteness_checker::v1::*;
         oneapi::dal::finiteness_checker::detail::v1::*;
 
+        "typeinfo for oneapi::dal::finiteness_checker::detail::v1::descriptor_base<oneapi::dal::finiteness_checker::task::v1::compute>";
+        "typeinfo for oneapi::dal::finiteness_checker::v1::compute_input<oneapi::dal::finiteness_checker::task::v1::compute>";
+        "vtable for oneapi::dal::finiteness_checker::detail::v1::descriptor_base<oneapi::dal::finiteness_checker::task::v1::compute>";
+        "vtable for oneapi::dal::finiteness_checker::v1::compute_input<oneapi::dal::finiteness_checker::task::v1::compute>";
         # kernel functions: linear_kernel, polynomial_kernel, rbf_kernel, sigmoid_kernel
 
         oneapi::dal::linear_kernel::v1::*;
@@ -113,6 +163,12 @@ global:
 
         "oneapi::dal::kmeans::detail::get_compute_exact_objective_function_id()";
 
+        "typeinfo for oneapi::dal::kmeans::detail::v1::descriptor_base<oneapi::dal::kmeans::task::v1::clustering>";
+        "typeinfo for oneapi::dal::kmeans::v1::infer_input<oneapi::dal::kmeans::task::v1::clustering>";
+        "typeinfo for oneapi::dal::kmeans::v1::train_input<oneapi::dal::kmeans::task::v1::clustering>";
+        "vtable for oneapi::dal::kmeans::detail::v1::descriptor_base<oneapi::dal::kmeans::task::v1::clustering>";
+        "vtable for oneapi::dal::kmeans::v1::infer_input<oneapi::dal::kmeans::task::v1::clustering>";
+        "vtable for oneapi::dal::kmeans::v1::train_input<oneapi::dal::kmeans::task::v1::clustering>";
         # knn
 
         oneapi::dal::knn::v1::*;
@@ -131,6 +187,36 @@ global:
         "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::minkowski_distance::descriptor<float, oneapi::dal::minkowski_distance::method::v1::dense> >::get_impl() const";
         "non-virtual thunk to oneapi::dal::knn::detail::v1::distance_impl<oneapi::dal::minkowski_distance::descriptor<double, oneapi::dal::minkowski_distance::method::v1::dense> >::get_impl() const";
 
+        "typeinfo for oneapi::dal::knn::detail::v1::descriptor_base<oneapi::dal::knn::task::v1::classification>";
+        "typeinfo for oneapi::dal::knn::detail::v1::descriptor_base<oneapi::dal::knn::task::v1::regression>";
+        "typeinfo for oneapi::dal::knn::detail::v1::descriptor_base<oneapi::dal::knn::task::v1::search>";
+        "typeinfo for oneapi::dal::knn::detail::v1::distance<oneapi::dal::chebyshev_distance::v1::descriptor<double, oneapi::dal::chebyshev_distance::method::v1::dense, oneapi::dal::chebyshev_distance::task::v1::compute> >";
+        "typeinfo for oneapi::dal::knn::detail::v1::distance<oneapi::dal::chebyshev_distance::v1::descriptor<float, oneapi::dal::chebyshev_distance::method::v1::dense, oneapi::dal::chebyshev_distance::task::v1::compute> >";
+        "typeinfo for oneapi::dal::knn::detail::v1::distance<oneapi::dal::cosine_distance::v1::descriptor<double, oneapi::dal::cosine_distance::method::v1::dense, oneapi::dal::cosine_distance::task::v1::compute> >";
+        "typeinfo for oneapi::dal::knn::detail::v1::distance<oneapi::dal::cosine_distance::v1::descriptor<float, oneapi::dal::cosine_distance::method::v1::dense, oneapi::dal::cosine_distance::task::v1::compute> >";
+        "typeinfo for oneapi::dal::knn::detail::v1::distance<oneapi::dal::minkowski_distance::v1::descriptor<double, oneapi::dal::minkowski_distance::method::v1::dense, oneapi::dal::minkowski_distance::task::v1::compute> >";
+        "typeinfo for oneapi::dal::knn::detail::v1::distance<oneapi::dal::minkowski_distance::v1::descriptor<float, oneapi::dal::minkowski_distance::method::v1::dense, oneapi::dal::minkowski_distance::task::v1::compute> >";
+        "typeinfo for oneapi::dal::knn::v1::infer_input<oneapi::dal::knn::task::v1::classification>";
+        "typeinfo for oneapi::dal::knn::v1::infer_input<oneapi::dal::knn::task::v1::regression>";
+        "typeinfo for oneapi::dal::knn::v1::infer_input<oneapi::dal::knn::task::v1::search>";
+        "typeinfo for oneapi::dal::knn::v1::train_input<oneapi::dal::knn::task::v1::classification>";
+        "typeinfo for oneapi::dal::knn::v1::train_input<oneapi::dal::knn::task::v1::regression>";
+        "typeinfo for oneapi::dal::knn::v1::train_input<oneapi::dal::knn::task::v1::search>";
+        "vtable for oneapi::dal::knn::detail::v1::descriptor_base<oneapi::dal::knn::task::v1::classification>";
+        "vtable for oneapi::dal::knn::detail::v1::descriptor_base<oneapi::dal::knn::task::v1::regression>";
+        "vtable for oneapi::dal::knn::detail::v1::descriptor_base<oneapi::dal::knn::task::v1::search>";
+        "vtable for oneapi::dal::knn::detail::v1::distance<oneapi::dal::chebyshev_distance::v1::descriptor<double, oneapi::dal::chebyshev_distance::method::v1::dense, oneapi::dal::chebyshev_distance::task::v1::compute> >";
+        "vtable for oneapi::dal::knn::detail::v1::distance<oneapi::dal::chebyshev_distance::v1::descriptor<float, oneapi::dal::chebyshev_distance::method::v1::dense, oneapi::dal::chebyshev_distance::task::v1::compute> >";
+        "vtable for oneapi::dal::knn::detail::v1::distance<oneapi::dal::cosine_distance::v1::descriptor<double, oneapi::dal::cosine_distance::method::v1::dense, oneapi::dal::cosine_distance::task::v1::compute> >";
+        "vtable for oneapi::dal::knn::detail::v1::distance<oneapi::dal::cosine_distance::v1::descriptor<float, oneapi::dal::cosine_distance::method::v1::dense, oneapi::dal::cosine_distance::task::v1::compute> >";
+        "vtable for oneapi::dal::knn::detail::v1::distance<oneapi::dal::minkowski_distance::v1::descriptor<double, oneapi::dal::minkowski_distance::method::v1::dense, oneapi::dal::minkowski_distance::task::v1::compute> >";
+        "vtable for oneapi::dal::knn::detail::v1::distance<oneapi::dal::minkowski_distance::v1::descriptor<float, oneapi::dal::minkowski_distance::method::v1::dense, oneapi::dal::minkowski_distance::task::v1::compute> >";
+        "vtable for oneapi::dal::knn::v1::infer_input<oneapi::dal::knn::task::v1::classification>";
+        "vtable for oneapi::dal::knn::v1::infer_input<oneapi::dal::knn::task::v1::regression>";
+        "vtable for oneapi::dal::knn::v1::infer_input<oneapi::dal::knn::task::v1::search>";
+        "vtable for oneapi::dal::knn::v1::train_input<oneapi::dal::knn::task::v1::classification>";
+        "vtable for oneapi::dal::knn::v1::train_input<oneapi::dal::knn::task::v1::regression>";
+        "vtable for oneapi::dal::knn::v1::train_input<oneapi::dal::knn::task::v1::search>";
         # linear_regression
 
         oneapi::dal::linear_regression::v1::*;
@@ -139,6 +225,14 @@ global:
         "oneapi::dal::linear_regression::detail::get_coefficients_id()";
         "oneapi::dal::linear_regression::detail::get_intercept_id()";
 
+        "typeinfo for oneapi::dal::linear_regression::detail::v1::descriptor_base<oneapi::dal::linear_regression::task::v1::regression>";
+        "typeinfo for oneapi::dal::linear_regression::v1::infer_input<oneapi::dal::linear_regression::task::v1::regression>";
+        "typeinfo for oneapi::dal::linear_regression::v1::partial_train_input<oneapi::dal::linear_regression::task::v1::regression>";
+        "typeinfo for oneapi::dal::linear_regression::v1::train_input<oneapi::dal::linear_regression::task::v1::regression>";
+        "vtable for oneapi::dal::linear_regression::detail::v1::descriptor_base<oneapi::dal::linear_regression::task::v1::regression>";
+        "vtable for oneapi::dal::linear_regression::v1::infer_input<oneapi::dal::linear_regression::task::v1::regression>";
+        "vtable for oneapi::dal::linear_regression::v1::partial_train_input<oneapi::dal::linear_regression::task::v1::regression>";
+        "vtable for oneapi::dal::linear_regression::v1::train_input<oneapi::dal::linear_regression::task::v1::regression>";
         # logistic_regression
 
         oneapi::dal::logistic_regression::v1::*;
@@ -150,6 +244,16 @@ global:
         "oneapi::dal::logistic_regression::detail::get_inner_iterations_count_id()";
         "oneapi::dal::logistic_regression::detail::get_iterations_count_id()";
 
+        "typeinfo for oneapi::dal::logistic_regression::detail::v1::descriptor_base<oneapi::dal::logistic_regression::task::v1::classification>";
+        "typeinfo for oneapi::dal::logistic_regression::detail::v1::optimizer<oneapi::dal::newton_cg::v1::descriptor<double, oneapi::dal::newton_cg::method::v1::dense, oneapi::dal::newton_cg::task::v1::compute> >";
+        "typeinfo for oneapi::dal::logistic_regression::detail::v1::optimizer<oneapi::dal::newton_cg::v1::descriptor<float, oneapi::dal::newton_cg::method::v1::dense, oneapi::dal::newton_cg::task::v1::compute> >";
+        "typeinfo for oneapi::dal::logistic_regression::v1::infer_input<oneapi::dal::logistic_regression::task::v1::classification>";
+        "typeinfo for oneapi::dal::logistic_regression::v1::train_input<oneapi::dal::logistic_regression::task::v1::classification>";
+        "vtable for oneapi::dal::logistic_regression::detail::v1::descriptor_base<oneapi::dal::logistic_regression::task::v1::classification>";
+        "vtable for oneapi::dal::logistic_regression::detail::v1::optimizer<oneapi::dal::newton_cg::v1::descriptor<double, oneapi::dal::newton_cg::method::v1::dense, oneapi::dal::newton_cg::task::v1::compute> >";
+        "vtable for oneapi::dal::logistic_regression::detail::v1::optimizer<oneapi::dal::newton_cg::v1::descriptor<float, oneapi::dal::newton_cg::method::v1::dense, oneapi::dal::newton_cg::task::v1::compute> >";
+        "vtable for oneapi::dal::logistic_regression::v1::infer_input<oneapi::dal::logistic_regression::task::v1::classification>";
+        "vtable for oneapi::dal::logistic_regression::v1::train_input<oneapi::dal::logistic_regression::task::v1::classification>";
         # objective_function
 
         oneapi::dal::objective_function::v1::*;
@@ -161,6 +265,14 @@ global:
 
         oneapi::dal::logloss_objective::detail::v1::*;
 
+        "typeinfo for oneapi::dal::objective_function::detail::v1::descriptor_base<oneapi::dal::objective_function::task::v1::compute>";
+        "typeinfo for oneapi::dal::objective_function::detail::v1::objective<oneapi::dal::logloss_objective::v1::descriptor<double, oneapi::dal::logloss_objective::method::v1::dense_batch, oneapi::dal::logloss_objective::task::v1::compute> >";
+        "typeinfo for oneapi::dal::objective_function::detail::v1::objective<oneapi::dal::logloss_objective::v1::descriptor<float, oneapi::dal::logloss_objective::method::v1::dense_batch, oneapi::dal::logloss_objective::task::v1::compute> >";
+        "typeinfo for oneapi::dal::objective_function::v1::compute_input<oneapi::dal::objective_function::task::v1::compute>";
+        "vtable for oneapi::dal::objective_function::detail::v1::descriptor_base<oneapi::dal::objective_function::task::v1::compute>";
+        "vtable for oneapi::dal::objective_function::detail::v1::objective<oneapi::dal::logloss_objective::v1::descriptor<double, oneapi::dal::logloss_objective::method::v1::dense_batch, oneapi::dal::logloss_objective::task::v1::compute> >";
+        "vtable for oneapi::dal::objective_function::detail::v1::objective<oneapi::dal::logloss_objective::v1::descriptor<float, oneapi::dal::logloss_objective::method::v1::dense_batch, oneapi::dal::logloss_objective::task::v1::compute> >";
+        "vtable for oneapi::dal::objective_function::v1::compute_input<oneapi::dal::objective_function::task::v1::compute>";
         # pca
 
         oneapi::dal::pca::v1::*;
@@ -173,6 +285,14 @@ global:
         "oneapi::dal::pca::detail::get_singular_values_id()";
         "oneapi::dal::pca::detail::get_variances_id()";
 
+        "typeinfo for oneapi::dal::pca::detail::v1::descriptor_base<oneapi::dal::pca::task::v1::dim_reduction>";
+        "typeinfo for oneapi::dal::pca::v1::infer_input<oneapi::dal::pca::task::v1::dim_reduction>";
+        "typeinfo for oneapi::dal::pca::v1::partial_train_input<oneapi::dal::pca::task::v1::dim_reduction>";
+        "typeinfo for oneapi::dal::pca::v1::train_input<oneapi::dal::pca::task::v1::dim_reduction>";
+        "vtable for oneapi::dal::pca::detail::v1::descriptor_base<oneapi::dal::pca::task::v1::dim_reduction>";
+        "vtable for oneapi::dal::pca::v1::infer_input<oneapi::dal::pca::task::v1::dim_reduction>";
+        "vtable for oneapi::dal::pca::v1::partial_train_input<oneapi::dal::pca::task::v1::dim_reduction>";
+        "vtable for oneapi::dal::pca::v1::train_input<oneapi::dal::pca::task::v1::dim_reduction>";
         # svm
 
         oneapi::dal::svm::v1::*;
@@ -180,6 +300,46 @@ global:
 
         # =================================== Data Management ==================================
 
+        "typeinfo for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::classification>";
+        "typeinfo for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::nu_classification>";
+        "typeinfo for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::nu_regression>";
+        "typeinfo for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::regression>";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::linear_kernel::v1::descriptor<double, oneapi::dal::linear_kernel::method::v1::dense, oneapi::dal::linear_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::linear_kernel::v1::descriptor<float, oneapi::dal::linear_kernel::method::v1::dense, oneapi::dal::linear_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::polynomial_kernel::v1::descriptor<double, oneapi::dal::polynomial_kernel::method::v1::dense, oneapi::dal::polynomial_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::polynomial_kernel::v1::descriptor<float, oneapi::dal::polynomial_kernel::method::v1::dense, oneapi::dal::polynomial_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::rbf_kernel::v1::descriptor<double, oneapi::dal::rbf_kernel::method::v1::dense, oneapi::dal::rbf_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::rbf_kernel::v1::descriptor<float, oneapi::dal::rbf_kernel::method::v1::dense, oneapi::dal::rbf_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::sigmoid_kernel::v1::descriptor<double, oneapi::dal::sigmoid_kernel::method::v1::dense, oneapi::dal::sigmoid_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::sigmoid_kernel::v1::descriptor<float, oneapi::dal::sigmoid_kernel::method::v1::dense, oneapi::dal::sigmoid_kernel::task::v1::compute> >";
+        "typeinfo for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::classification>";
+        "typeinfo for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::nu_classification>";
+        "typeinfo for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::nu_regression>";
+        "typeinfo for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::regression>";
+        "typeinfo for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::classification>";
+        "typeinfo for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::nu_classification>";
+        "typeinfo for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::nu_regression>";
+        "typeinfo for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::regression>";
+        "vtable for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::classification>";
+        "vtable for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::nu_classification>";
+        "vtable for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::nu_regression>";
+        "vtable for oneapi::dal::svm::detail::v1::descriptor_base<oneapi::dal::svm::task::v1::regression>";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::linear_kernel::v1::descriptor<double, oneapi::dal::linear_kernel::method::v1::dense, oneapi::dal::linear_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::linear_kernel::v1::descriptor<float, oneapi::dal::linear_kernel::method::v1::dense, oneapi::dal::linear_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::polynomial_kernel::v1::descriptor<double, oneapi::dal::polynomial_kernel::method::v1::dense, oneapi::dal::polynomial_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::polynomial_kernel::v1::descriptor<float, oneapi::dal::polynomial_kernel::method::v1::dense, oneapi::dal::polynomial_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::rbf_kernel::v1::descriptor<double, oneapi::dal::rbf_kernel::method::v1::dense, oneapi::dal::rbf_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::rbf_kernel::v1::descriptor<float, oneapi::dal::rbf_kernel::method::v1::dense, oneapi::dal::rbf_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::sigmoid_kernel::v1::descriptor<double, oneapi::dal::sigmoid_kernel::method::v1::dense, oneapi::dal::sigmoid_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::detail::v1::kernel_function<oneapi::dal::sigmoid_kernel::v1::descriptor<float, oneapi::dal::sigmoid_kernel::method::v1::dense, oneapi::dal::sigmoid_kernel::task::v1::compute> >";
+        "vtable for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::classification>";
+        "vtable for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::nu_classification>";
+        "vtable for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::nu_regression>";
+        "vtable for oneapi::dal::svm::v1::infer_input<oneapi::dal::svm::task::v1::regression>";
+        "vtable for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::classification>";
+        "vtable for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::nu_classification>";
+        "vtable for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::nu_regression>";
+        "vtable for oneapi::dal::svm::v1::train_input<oneapi::dal::svm::task::v1::regression>";
         # tables
 
         oneapi::dal::v1::table::*;
@@ -331,4 +491,12 @@ global:
 local:
     # Hide everything else by default
     *;
+
+        # Additional symbols
+        "vtable for std::bad_variant_access";
+        "vtable for std::bad_any_cast";
+        "vtable for std::_Sp_counted_deleter<unsigned char *, std::default_delete<unsigned char[]>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
+        "typeinfo for std::bad_variant_access";
+        "typeinfo for std::bad_any_cast";
+        "typeinfo for std::_Sp_counted_deleter<unsigned char *, std::default_delete<unsigned char[]>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
 };
