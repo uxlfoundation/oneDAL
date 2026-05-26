@@ -24,11 +24,13 @@
 #include "src/externals/service_memory.h"
 #include "src/externals/service_service.h"
 #include "src/services/service_profiler.h"
+#include "src/services/service_memory_tracker.h"
 
 void * daal::services::daal_malloc(size_t size, size_t alignment)
 {
-    // DAAL_PROFILER_SERVICE_TASK(daal_malloc);
-    return daal::internal::ServiceInst::serv_malloc(size, alignment);
+    void * ptr = daal::internal::ServiceInst::serv_malloc(size, alignment);
+    ONEDAL_MEMORY_TRACKER_ALLOC("cpu/daal_malloc", ptr, size);
+    return ptr;
 }
 
 void * daal::services::daal_calloc(size_t size, size_t alignment)
@@ -48,6 +50,7 @@ void * daal::services::daal_calloc(size_t size, size_t alignment)
 
 void daal::services::daal_free(void * ptr)
 {
+    ONEDAL_MEMORY_TRACKER_FREE("cpu/daal_free", ptr);
     daal::internal::ServiceInst::serv_free(ptr);
 }
 

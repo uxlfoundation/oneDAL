@@ -466,6 +466,7 @@ template <typename Float, typename Index, typename Task>
 infer_result<Task> infer_kernel_impl<Float, Index, Task>::operator()(const descriptor_t& desc,
                                                                      const model_t& model,
                                                                      const table& data) {
+    ONEDAL_PROFILER_TASK(df_infer_kernel_impl, queue_);
     validate_input(desc, model, data);
 
     infer_context_t ctx;
