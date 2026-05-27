@@ -241,17 +241,20 @@ def _link(owner, name, actions, cc_toolchain,
     # characters. Full all-ISA DPC DLLs can produce thousands of objects, so
     # aggregate them into one private archive and link it whole-archive.
     if is_windows and not is_executable and object_list:
-        object_archive = _merge_static_libs(
-            filename = name + "_objects.lib",
-            actions = actions,
-            cc_toolchain = cc_toolchain,
-            feature_configuration = feature_configuration,
-            static_libs = object_list,
-            is_windows = True,
-        )
-        object_list = []
-        additional_inputs.append(object_archive)
-        direct_user_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
+        direct_objects = [object_list[0]]
+        archived_objects = object_list[1:]
+        object_list = direct_objects
+        if archived_objects:
+            object_archive = _merge_static_libs(
+                filename = name + "_objects.lib",
+                actions = actions,
+                cc_toolchain = cc_toolchain,
+                feature_configuration = feature_configuration,
+                static_libs = archived_objects,
+                is_windows = True,
+            )
+            additional_inputs.append(object_archive)
+            direct_user_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
 
     all_objects = depset(object_list)
     compilation_outputs = cc_common.create_compilation_outputs(
