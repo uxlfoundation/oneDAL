@@ -573,9 +573,6 @@ standard library implementations.
 Equivalent to Make `COPT` / `CXXFLAGS`. Use `--copt` for C and C++ flags, `--cxxopt` for C++-only flags, and `--linkopt` for linker flags:
 
 ```sh
-# Architecture/optimization flags (C and C++)
-bazel build //:release --copt=-march=native
-
 # Override optimization level (C and C++)
 bazel build //:release --copt=-O2
 
