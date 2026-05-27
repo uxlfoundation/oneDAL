@@ -220,10 +220,12 @@ struct EuclideanDist
         const FPType pivotNorm2 = rowNormSquared(pivotPt, nCols);
 
         // outDists ← scratchRows · pivotPt  (count vector)
-        // GEMV: y = α·op(A)·x + β·y. With trans='N', op(A)=A. We want
-        // y[i] = ⟨scratchRows[i], pivotPt⟩ over nCols, so A is nCols×count
-        // (column-major view of the row-major scratchRows[count×nCols]).
-        const char trans    = 'N';
+        // GEMV: y = α·op(A)·x + β·y. The row-major scratchRows[count×nCols]
+        // is a column-major nCols×count matrix A; we want
+        // y[i] = ⟨scratchRows[i], pivotPt⟩ = Σ_d A[d,i]·pivotPt[d] = (Aᵀ·pivotPt)[i].
+        // So trans='T' with m=nCols (rows of A), n=count (cols of A): x has length m,
+        // y has length n.
+        const char trans    = 'T';
         const DAAL_INT m    = static_cast<DAAL_INT>(nCols);
         const DAAL_INT n    = static_cast<DAAL_INT>(count);
         const FPType alpha  = FPType(1);
