@@ -378,6 +378,30 @@ DF_BATCH_REG_TEST("df reg base check with default params") {
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
+// Reproduces the bug described in this issue:
+// https://github.com/uxlfoundation/oneDAL/issues/3648
+DF_BATCH_REG_TEST("df reg check with large max_bins parameter") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    // requre MSE == 0.0
+    const auto [data, data_test, checker_list] = this->get_reg_dataframe_base(0.0);
+
+    const splitter_mode splitter_mode_val =
+        GENERATE_COPY(splitter_mode::best, splitter_mode::random);
+    auto desc = this->get_default_descriptor();
+
+    desc.set_max_bins(data.get_row_count());
+    desc.set_splitter_mode(splitter_mode_val);
+
+    INFO("splitter node = " +
+         std::string(splitter_mode_val == splitter_mode::best ? "best" : "random"));
+
+    const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+    const auto model = train_result.get_model();
+    this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
 DF_BATCH_REG_TEST("df reg base check with default params and train weights") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
