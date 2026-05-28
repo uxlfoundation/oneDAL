@@ -452,6 +452,11 @@ jobs:
     displayName: 'Check mkl symbols'
 
   - script: |
+      bazel test //cpp/daal:isa_coverage_test \
+                 --cpu=all
+    displayName: 'Check ISA coverage'
+
+  - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
     displayName: 'Clean Bazel cache (expunge)'

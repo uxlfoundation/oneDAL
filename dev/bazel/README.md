@@ -265,14 +265,14 @@ The most used Bazel commands are `build`, `test` and `run`.
 
 ## Build recipes for oneDAL
 ### Build release artifacts
-- To build the library release artifacts (similar to Make build), run:
+- To build the Bazel release artifacts, run:
   ```sh
   bazel build //:release
   ```
   This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries by default.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
-  Make release directories such as `__release_lnx/daal/latest`. The main outputs are in the
+  oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
   same subdirectories: headers under `include`, libraries under `lib/intel64`, environment
   setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
 
