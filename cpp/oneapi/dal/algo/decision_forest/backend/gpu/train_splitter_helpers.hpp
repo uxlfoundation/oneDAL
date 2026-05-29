@@ -166,6 +166,7 @@ struct split_scalar {
     Float right_imp;
     Float imp_dec;
     Float left_weight_sum;
+    Float right_weight_sum;
 
     void clear() {
         ftr_id = impl_const_t::leaf_mark_;
@@ -176,6 +177,7 @@ struct split_scalar {
         right_imp = Float(0);
         imp_dec = -de::limits<Float>::max();
         left_weight_sum = Float(0);
+        right_weight_sum = Float(0);
     }
 
     void copy(const split_scalar& other) {
@@ -187,6 +189,7 @@ struct split_scalar {
         right_imp = other.right_imp;
         imp_dec = other.imp_dec;
         left_weight_sum = other.left_weight_sum;
+        right_weight_sum = other.right_weight_sum;
     }
 };
 
@@ -348,9 +351,15 @@ struct split_smp {
         sub_stat<Float, Index, task_t>(&right_hist[0], &si.left_hist[0], &node_hist[0], buff_size);
 
         sc.right_count = node_row_count - sc.left_count;
-        sc.imp_dec = node_imp_ptr[1] - (si.left_hist[2] + right_hist[2]);
-        if (sc.left_count > 0 && is_weighted) {
-            sc.imp_dec *= (sc.left_weight_sum / sc.left_count);
+        if (is_weighted && node_hist[0] > 0) {
+            const Float total_weight =
+                sc.left_weight_sum + sc.right_weight_sum; // can it be obtained from node_hist?
+            sc.imp_dec = node_imp_ptr[1] - (sc.left_weight_sum * si.left_hist[2] +
+                                            sc.right_weight_sum * right_hist[2]) /
+                                               total_weight;
+        }
+        else {
+            sc.imp_dec = node_imp_ptr[1] - (si.left_hist[2] + right_hist[2]);
         }
     }
 

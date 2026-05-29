@@ -315,7 +315,8 @@ inline Index compute_bin_block_size(sycl::queue& queue, Index hist_prop_count, I
 // Cleans local memory before histogram calculation.
 template <typename hist_type_t, typename Index, typename Float>
 inline void clean_local_hists(hist_type_t* hist,
-                              Float* weights,
+                              Float* l_weights,
+                              Float* r_weights,
                               Index id,
                               Index wg_size,
                               Index hist_prop_count,
@@ -324,7 +325,8 @@ inline void clean_local_hists(hist_type_t* hist,
         hist[i] = hist_type_t(0);
     }
     for (Index i = id; i < bin_block; i += wg_size) {
-        weights[i] = Float(0);
+        l_weights[i] = Float(0);
+        r_weights[i] = Float(0);
     }
 }
 
@@ -349,7 +351,8 @@ struct input_data_arrays {
 // Contains both classification and regression cases.
 template <typename Index, typename Float, typename Task, typename Bin, typename hist_type_t>
 inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
-                              const local_accessor_rw_t<Float>& local_weight,
+                              const local_accessor_rw_t<Float>& local_l_weight,
+                              const local_accessor_rw_t<Float>& local_r_weight,
                               const sycl::nd_item<2>& item,
                               const train_context<Float, Index, Task>& ctx,
                               const Index act_bin_block,
@@ -385,7 +388,7 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
                                      sycl::memory_order_relaxed,
                                      sycl::memory_scope_work_group,
                                      sycl::access::address_space::local_space>
-                        hist_weight(local_weight[bin_id]);
+                        hist_weight(local_l_weight[bin_id]);
                     hist_weight += data.weight_[row_id];
                 }
             }
@@ -429,7 +432,17 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
                                  sycl::memory_order_relaxed,
                                  sycl::memory_scope_work_group,
                                  sycl::access::address_space::local_space>
-                    hist_weight(local_weight[bin_id]);
+                    hist_weight(local_l_weight[bin_id]);
+                hist_weight += weight;
+            }
+        }
+        else {
+            if (is_weighted) {
+                sycl::atomic_ref<Float,
+                                 sycl::memory_order_relaxed,
+                                 sycl::memory_scope_work_group,
+                                 sycl::access::address_space::local_space>
+                    hist_weight(local_r_weight[bin_id]);
                 hist_weight += weight;
             }
         }
@@ -581,6 +594,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
             local_accessor_rw_t<hist_type_t> hist(bin_block * hist_prop_count, cgh);
             local_accessor_rw_t<split_scalar_t> scalars(bin_block, cgh);
             local_accessor_rw_t<Float> l_weight(bin_block, cgh);
+            local_accessor_rw_t<Float> r_weight(bin_block, cgh);
             cgh.parallel_for(nd_range, [=](sycl::nd_item<2> item) {
                 const Index combined_id = item.get_global_id(0);
                 const Index batch_node_id = combined_id / ftr_count;
@@ -625,13 +639,15 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                     hist.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
                 split_scalar_t* const local_scalars =
                     scalars.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-                Float* const local_weight =
+                Float* const local_l_weight =
                     l_weight.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-
+                Float* const local_r_weight =
+                    r_weight.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
                 for (Index bin_ofs = 0; bin_ofs < bin_count; bin_ofs += bin_block) {
                     // Clean histogram before calculating
                     clean_local_hists(local_hist,
-                                      local_weight,
+                                      local_l_weight,
+                                      local_r_weight,
                                       local_id,
                                       local_size,
                                       hist_prop_count,
@@ -641,6 +657,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                     const Index act_bin_block = sycl::min(bin_block, bin_count - bin_ofs);
                     compute_histogram<Index, Float, Task, Bin, hist_type_t>(hist,
                                                                             l_weight,
+                                                                            r_weight,
                                                                             item,
                                                                             ctx,
                                                                             act_bin_block,
@@ -660,7 +677,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                         ts.scalars.ftr_id = ts_ftr_id;
                         ts.scalars.ftr_bin = local_id + bin_ofs;
                         if (is_weighted) {
-                            ts.scalars.left_weight_sum = local_weight[local_id];
+                            ts.scalars.left_weight_sum = local_l_weight[local_id];
+                            ts.scalars.right_weight_sum = local_r_weight[local_id];
                         }
                         ts.init(cur_hist, hist_prop_count);
                         if constexpr (std::is_same_v<Task, task::classification>) {
