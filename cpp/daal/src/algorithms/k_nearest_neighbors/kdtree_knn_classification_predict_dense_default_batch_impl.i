@@ -121,8 +121,6 @@ Status KNNClassificationPredictKernel<algorithmFpType, defaultDense, cpu>::compu
                                                                                    NumericTable * y, NumericTable * indices, NumericTable * distances,
                                                                                    const daal::algorithms::Parameter * par)
 {
-    Status status;
-
     typedef GlobalNeighbors<algorithmFpType, cpu> Neighbors;
     typedef Heap<Neighbors, cpu> MaxHeap;
     typedef kdtree_knn_classification::internal::Stack<SearchNode<algorithmFpType>, cpu> SearchStack;
@@ -172,33 +170,13 @@ Status KNNClassificationPredictKernel<algorithmFpType, defaultDense, cpu>::compu
     {
         MaxHeap heap;
         SearchStack stack;
+        bool initialized = false;
     };
-    daal::tls<Local *> localTLS([&]() -> Local * {
-        Local * const ptr = service_scalable_calloc<Local, cpu>(1);
-        if (ptr)
-        {
-            if (!ptr->heap.init(heapSize))
-            {
-                status.add(services::ErrorMemoryAllocationFailed);
-                service_scalable_free<Local, cpu>(ptr);
-                return nullptr;
-            }
-            if (!ptr->stack.init(stackSize))
-            {
-                status.add(services::ErrorMemoryAllocationFailed);
-                ptr->heap.clear();
-                service_scalable_free<Local, cpu>(ptr);
-                return nullptr;
-            }
-        }
-        else
-        {
-            status.add(services::ErrorMemoryAllocationFailed);
-        }
-        return ptr;
-    });
 
-    DAAL_CHECK_STATUS_OK((status.ok()), status);
+    const int nThreads = daal::threader_get_max_threads_number();
+    services::internal::TArrayScalable<Local, cpu> localTLSArr(nThreads);
+    Local * localTLS = localTLSArr.get();
+    DAAL_CHECK_MALLOC(localTLS);
 
     const auto maxThreads     = threader_get_threads_number();
     const size_t xColumnCount = x->getNumberOfColumns();
@@ -210,87 +188,101 @@ Status KNNClassificationPredictKernel<algorithmFpType, defaultDense, cpu>::compu
     bool isHomogenSOA = checkHomogenSOA<algorithmFpType, cpu>(data, soa_arrays);
 
     daal::threader_for(blockCount, blockCount, [&](int iBlock) {
-        Local * const local = localTLS.local();
-        if (local)
+        const int threadID  = daal::threader_get_max_current_thread_index();
+        Local * const local = &localTLS[threadID];
+        Status s;
+
+        // initialize local heap and stack for the thread
+        if (!local->initialized)
         {
-            services::Status s;
-
-            const size_t first = iBlock * rowsPerBlock;
-            const size_t last  = min<cpu>(static_cast<decltype(xRowCount)>(first + rowsPerBlock), xRowCount);
-
-            const algorithmFpType radius = MaxVal::get();
-            data_management::BlockDescriptor<algorithmFpType> xBD;
-            const_cast<NumericTable &>(*x).getBlockOfRows(first, last - first, readOnly, xBD);
-            const algorithmFpType * const dx = xBD.getBlockPtr();
-
-            data_management::BlockDescriptor<int> indicesBD;
-            data_management::BlockDescriptor<algorithmFpType> distancesBD;
-            if (indices)
+            if (!local->heap.init(heapSize))
             {
-                s = indices->getBlockOfRows(first, last - first, writeOnly, indicesBD);
-                DAAL_CHECK_STATUS_THR(s);
+                safeStat.add(services::ErrorMemoryAllocationFailed);
+                return;
             }
-            if (distances)
+            if (!local->stack.init(stackSize))
             {
-                s = distances->getBlockOfRows(first, last - first, writeOnly, distancesBD);
-                DAAL_CHECK_STATUS_THR(s);
+                safeStat.add(services::ErrorMemoryAllocationFailed);
+                local->heap.clear();
+                return;
             }
-
-            if (labels)
-            {
-                const size_t yColumnCount = y->getNumberOfColumns();
-                data_management::BlockDescriptor<algorithmFpType> yBD;
-                y->getBlockOfRows(first, last - first, writeOnly, yBD);
-                auto * const dy = yBD.getBlockPtr();
-
-                for (size_t i = 0; i < last - first; ++i)
-                {
-                    findNearestNeighbors(&dx[i * xColumnCount], local->heap, local->stack, k, radius, kdTreeTable, rootTreeNodeIndex, data,
-                                         isHomogenSOA, soa_arrays);
-                    s = predict(&(dy[i * yColumnCount]), local->heap, labels, k, voteWeights, modelIndices, indicesBD, distancesBD, i, nClasses);
-                    DAAL_CHECK_STATUS_THR(s)
-                }
-
-                s |= y->releaseBlockOfRows(yBD);
-                DAAL_CHECK_STATUS_THR(s);
-            }
-            else
-            {
-                for (size_t i = 0; i < last - first; ++i)
-                {
-                    findNearestNeighbors(&dx[i * xColumnCount], local->heap, local->stack, k, radius, kdTreeTable, rootTreeNodeIndex, data,
-                                         isHomogenSOA, soa_arrays);
-                    s = predict(nullptr, local->heap, labels, k, voteWeights, modelIndices, indicesBD, distancesBD, i, nClasses);
-                    DAAL_CHECK_STATUS_THR(s)
-                }
-            }
-
-            if (indices)
-            {
-                s |= indices->releaseBlockOfRows(indicesBD);
-            }
-            DAAL_CHECK_STATUS_THR(s);
-            if (distances)
-            {
-                s |= distances->releaseBlockOfRows(distancesBD);
-            }
-            DAAL_CHECK_STATUS_THR(s);
-
-            const_cast<NumericTable &>(*x).releaseBlockOfRows(xBD);
+            local->initialized = true;
         }
+
+        const size_t first = iBlock * rowsPerBlock;
+        const size_t last  = min<cpu>(static_cast<decltype(xRowCount)>(first + rowsPerBlock), xRowCount);
+
+        const algorithmFpType radius = MaxVal::get();
+        data_management::BlockDescriptor<algorithmFpType> xBD;
+        const_cast<NumericTable &>(*x).getBlockOfRows(first, last - first, readOnly, xBD);
+        const algorithmFpType * const dx = xBD.getBlockPtr();
+
+        data_management::BlockDescriptor<int> indicesBD;
+        data_management::BlockDescriptor<algorithmFpType> distancesBD;
+        if (indices)
+        {
+            s = indices->getBlockOfRows(first, last - first, writeOnly, indicesBD);
+            DAAL_CHECK_STATUS_THR(s);
+        }
+        if (distances)
+        {
+            s = distances->getBlockOfRows(first, last - first, writeOnly, distancesBD);
+            DAAL_CHECK_STATUS_THR(s);
+        }
+
+        if (labels)
+        {
+            const size_t yColumnCount = y->getNumberOfColumns();
+            data_management::BlockDescriptor<algorithmFpType> yBD;
+            y->getBlockOfRows(first, last - first, writeOnly, yBD);
+            auto * const dy = yBD.getBlockPtr();
+
+            for (size_t i = 0; i < last - first; ++i)
+            {
+                findNearestNeighbors(&dx[i * xColumnCount], local->heap, local->stack, k, radius, kdTreeTable, rootTreeNodeIndex, data, isHomogenSOA,
+                                     soa_arrays);
+                s = predict(&(dy[i * yColumnCount]), local->heap, labels, k, voteWeights, modelIndices, indicesBD, distancesBD, i, nClasses);
+                DAAL_CHECK_STATUS_THR(s);
+            }
+
+            s = y->releaseBlockOfRows(yBD);
+            DAAL_CHECK_STATUS_THR(s);
+        }
+        else
+        {
+            for (size_t i = 0; i < last - first; ++i)
+            {
+                findNearestNeighbors(&dx[i * xColumnCount], local->heap, local->stack, k, radius, kdTreeTable, rootTreeNodeIndex, data, isHomogenSOA,
+                                     soa_arrays);
+                s = predict(nullptr, local->heap, labels, k, voteWeights, modelIndices, indicesBD, distancesBD, i, nClasses);
+                DAAL_CHECK_STATUS_THR(s);
+            }
+        }
+
+        if (indices)
+        {
+            s = indices->releaseBlockOfRows(indicesBD);
+            DAAL_CHECK_STATUS_THR(s);
+        }
+        if (distances)
+        {
+            s = distances->releaseBlockOfRows(distancesBD);
+            DAAL_CHECK_STATUS_THR(s);
+        }
+
+        const_cast<NumericTable &>(*x).releaseBlockOfRows(xBD);
     });
 
-    DAAL_CHECK_SAFE_STATUS()
-
-    localTLS.reduce([&](Local * ptr) -> void {
-        if (ptr)
+    for (int i = 0; i < nThreads; ++i)
+    {
+        if (localTLS[i].initialized)
         {
-            ptr->stack.clear();
-            ptr->heap.clear();
-            service_scalable_free<Local, cpu>(ptr);
+            localTLS[i].heap.clear();
+            localTLS[i].stack.clear();
         }
-    });
-    return status;
+    }
+
+    return safeStat.detach();
 }
 
 template <typename algorithmFpType, CpuType cpu>

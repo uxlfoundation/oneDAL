@@ -109,11 +109,24 @@ public:
         const size_t inBlockSize  = 128;
         const size_t nOuterBlocks = nTest / outBlockSize + !!(nTest % outBlockSize);
 
-        TlsMem<FPType, cpu> tlsDistances(inBlockSize * outBlockSize);
-        TlsMem<int, cpu> tlsIdx(outBlockSize);
-        TlsMem<FPType, cpu> tlsKDistances(inBlockSize * k);
-        TlsMem<int, cpu> tlsKIndexes(inBlockSize * k);
-        TlsMem<FPType, cpu> tlsVoting(nClasses);
+        const int nThreads = _daal_threader_get_max_threads();
+
+        TArray<FPType, cpu> tlsDistancesArr(nThreads * inBlockSize * outBlockSize);
+        TArray<int, cpu> tlsIdxArr(nThreads * outBlockSize);
+        TArray<FPType, cpu> tlsKDistancesArr(nThreads * inBlockSize * k);
+        TArray<int, cpu> tlsKIndexesArr(nThreads * inBlockSize * k);
+        TArray<FPType, cpu> tlsVotingArr(nThreads * nClasses);
+
+        FPType * const tlsDistances  = tlsDistancesArr.get();
+        int * const tlsIdx           = tlsIdxArr.get();
+        FPType * const tlsKDistances = tlsKDistancesArr.get();
+        int * const tlsKIndexes      = tlsKIndexesArr.get();
+        FPType * const tlsVoting     = tlsVotingArr.get();
+
+        if (!tlsDistances || !tlsIdx || !tlsKDistances || !tlsKIndexes || !tlsVoting)
+        {
+            return services::Status(services::ErrorMemoryAllocationFailed);
+        }
 
         SafeStatus safeStat;
 
@@ -122,9 +135,10 @@ public:
             const size_t outerEnd   = outerBlock + 1 == nOuterBlocks ? nTest : outerStart + outBlockSize;
             const size_t outerSize  = outerEnd - outerStart;
 
-            DAAL_CHECK_STATUS_THR(computeKNearestBlock(dist.get(), outerSize, inBlockSize, outerStart, nTrain, resultsToEvaluate, resultsToCompute,
-                                                       nClasses, k, voteWeights, trainLabel, trainTable, testTable, testLabelTable, indicesTable,
-                                                       distancesTable, tlsDistances, tlsIdx, tlsKDistances, tlsKIndexes, tlsVoting, nOuterBlocks));
+            DAAL_CHECK_STATUS_THR(computeKNearestBlock(dist.get(), outerSize, inBlockSize, outBlockSize, outerStart, nTrain, resultsToEvaluate,
+                                                       resultsToCompute, nClasses, k, voteWeights, trainLabel, trainTable, testTable, testLabelTable,
+                                                       indicesTable, distancesTable, tlsDistances, tlsIdx, tlsKDistances, tlsKIndexes, tlsVoting,
+                                                       nOuterBlocks));
         });
 
         if (resultsToEvaluate & daal::algorithms::classifier::computeClassLabels)
@@ -174,12 +188,12 @@ protected:
     };
 
     services::Status computeKNearestBlock(PairwiseDistances<FPType, cpu> * distancesInstance, const size_t blockSize, const size_t trainBlockSize,
-                                          const size_t startTestIdx, const size_t nTrain, DAAL_UINT64 resultsToEvaluate, DAAL_UINT64 resultsToCompute,
-                                          const size_t nClasses, const size_t k, VoteWeights voteWeights, FPType * trainLabel,
-                                          const NumericTable * trainTable, const NumericTable * testTable, NumericTable * testLabelTable,
-                                          NumericTable * indicesTable, NumericTable * distancesTable, TlsMem<FPType, cpu> & tlsDistances,
-                                          TlsMem<int, cpu> & tlsIdx, TlsMem<FPType, cpu> & tlsKDistances, TlsMem<int, cpu> & tlsKIndexes,
-                                          TlsMem<FPType, cpu> & tlsVoting, size_t nOuterBlocks)
+                                          const size_t outBlockSize, const size_t startTestIdx, const size_t nTrain, DAAL_UINT64 resultsToEvaluate,
+                                          DAAL_UINT64 resultsToCompute, const size_t nClasses, const size_t k, VoteWeights voteWeights,
+                                          FPType * trainLabel, const NumericTable * trainTable, const NumericTable * testTable,
+                                          NumericTable * testLabelTable, NumericTable * indicesTable, NumericTable * distancesTable,
+                                          FPType * tlsDistances, int * const tlsIdx, FPType * const tlsKDistances, int * const tlsKIndexes,
+                                          FPType * const tlsVoting, size_t nOuterBlocks)
     {
         const size_t inBlockSize = trainBlockSize;
         const size_t inRows      = nTrain;
@@ -218,11 +232,11 @@ protected:
             const BruteForceTask * tls = tlsTask.local(tid);
             DAAL_CHECK_MALLOC_THR(tls);
 
-            FPType * distancesBuff = tlsDistances.local();
-            DAAL_CHECK_MALLOC_THR(distancesBuff);
+            const int threadID = daal::threader_get_max_current_thread_index();
 
-            int * idx = tlsIdx.local();
-            DAAL_CHECK_MALLOC_THR(idx);
+            FPType * distancesBuff = tlsDistances + threadID * inBlockSize * outBlockSize;
+
+            int * idx = tlsIdx + threadID * outBlockSize;
 
             FPType * maxs         = tls->maxs;
             HeapType * heapsLocal = tls->heapsData;
@@ -246,11 +260,11 @@ protected:
             }
         });
 
-        int * kIndexes = tlsKIndexes.local();
-        DAAL_CHECK_MALLOC(kIndexes);
+        const int threadID = daal::threader_get_max_current_thread_index();
 
-        FPType * kDistances = tlsKDistances.local();
-        DAAL_CHECK_MALLOC(kDistances);
+        int * kIndexes = tlsKIndexes + threadID * inBlockSize * k;
+
+        FPType * kDistances = tlsKDistances + threadID * inBlockSize * k;
 
         TArrayScalable<HeapType, cpu> heaps(iSize);
 
@@ -317,8 +331,8 @@ protected:
             DAAL_CHECK_BLOCK_STATUS(testLabelRows);
             int * testLabel = testLabelRows.get();
 
-            FPType * voting = tlsVoting.local();
-            DAAL_CHECK_MALLOC(voting);
+            // const int threadID = daal::threader_get_max_current_thread_index();
+            FPType * voting = tlsVoting + threadID * nClasses;
 
             if (voteWeights == VoteWeights::voteUniform)
             {
