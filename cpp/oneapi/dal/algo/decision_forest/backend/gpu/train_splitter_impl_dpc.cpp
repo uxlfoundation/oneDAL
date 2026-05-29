@@ -399,7 +399,8 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
         const Index work_size = local_size / act_bin_block;
         Index count = 0;
         Float sum = 0;
-        Float weight = 0;
+        Float l_weight = 0;
+        Float r_weight = 0;
         const Index bin_id = id % act_bin_block;
         const Index loc_bin_pos = bin_id * hist_prop_count;
         for (Index row_idx = id / act_bin_block; row_idx < row_count; row_idx += work_size) {
@@ -410,7 +411,12 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
                 count++;
                 sum += response;
                 if (is_weighted) {
-                    weight += data.weight_[id];
+                    l_weight += data.weight_[id];
+                }
+            }
+            else {
+                if (is_weighted) {
+                    r_weight += data.weight_[id];
                 }
             }
         }
@@ -432,20 +438,17 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
                                  sycl::memory_order_relaxed,
                                  sycl::memory_scope_work_group,
                                  sycl::access::address_space::local_space>
-                    hist_weight(local_l_weight[bin_id]);
-                hist_weight += weight;
-            }
-        }
-        else {
-            if (is_weighted) {
+                    hist_l_weight(local_l_weight[bin_id]);
+                hist_l_weight += l_weight;
                 sycl::atomic_ref<Float,
                                  sycl::memory_order_relaxed,
                                  sycl::memory_scope_work_group,
                                  sycl::access::address_space::local_space>
-                    hist_weight(local_r_weight[bin_id]);
-                hist_weight += weight;
+                    hist_r_weight(local_r_weight[bin_id]);
+                hist_r_weight += r_weight;
             }
         }
+
         // Finalize regression case by calculating MSE
         item.barrier(sycl::access::fence_space::local_space);
         Float mse = 0;
