@@ -194,7 +194,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                             maximum<Index>());
 
                 const Float rand_val = ftr_rnd_ptr[node_id * selected_ftr_count + ftr_idx];
-                const Index random_bin_ofs = static_cast<Index>(rand_val * (max_bin - min_bin + 1));
+                const Index random_bin_count = sycl::max(max_bin - min_bin, Index(1));
+                const Index random_bin_ofs =
+                    sycl::min(static_cast<Index>(rand_val * random_bin_count),
+                              random_bin_count - Index(1));
                 ts_scal.ftr_bin = min_bin + random_bin_ofs;
 
                 const Index count = Index(bin <= ts_scal.ftr_bin);
