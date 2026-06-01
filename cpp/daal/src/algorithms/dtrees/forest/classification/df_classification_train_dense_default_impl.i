@@ -569,14 +569,14 @@ public:
         if (noWeights)
         {
             return split.featureUnordered ? static_cast<const crtp *>(this)->findSplitCategoricalFeature(
-                                                featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
+                       featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
                                             static_cast<const crtp *>(this)->template findSplitOrderedFeature<true>(
                                                 featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights);
         }
         else
         {
             return split.featureUnordered ? static_cast<const crtp *>(this)->findSplitCategoricalFeature(
-                                                featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
+                       featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
                                             static_cast<const crtp *>(this)->template findSplitOrderedFeature<false>(
                                                 featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights);
         }
@@ -672,7 +672,10 @@ public:
 #endif
 
 protected:
-    size_t nClasses() const { return this->_nClasses; }
+    size_t nClasses() const
+    {
+        return this->_nClasses;
+    }
 
     void computeRightHistogramm(const Histogramm & total, const Histogramm & left, Histogramm & right) const
     {
