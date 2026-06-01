@@ -114,8 +114,8 @@ protected: //enables specific functions for UnorderedRespHelperBest
     {
         intermSummFPType delta = (2. * totalWeights - moveWeights) * imp.var + 2. * (imp.hist[iClass] - totalWeights);
         imp.var                = isZero<intermSummFPType, cpu>((totalWeights - moveWeights) * (totalWeights - moveWeights)) ?
-                                     1. :
-                                     (imp.var + moveWeights * delta / ((totalWeights - moveWeights) * (totalWeights - moveWeights)));
+                      1. :
+                      (imp.var + moveWeights * delta / ((totalWeights - moveWeights) * (totalWeights - moveWeights)));
         imp.hist[iClass] -= moveWeights;
     }
 
@@ -672,10 +672,7 @@ public:
 #endif
 
 protected:
-    size_t nClasses() const
-    {
-        return this->_nClasses;
-    }
+    size_t nClasses() const { return this->_nClasses; }
 
     void computeRightHistogramm(const Histogramm & total, const Histogramm & left, Histogramm & right) const
     {
@@ -1641,7 +1638,7 @@ Status TreeThreadCtx<algorithmFPType, cpu>::finalizeOOBError(const NumericTable 
     DAAL_CHECK_BLOCK_STATUS(y);
     Atomic<size_t> nPredicted(0);
     Atomic<size_t> nError(0);
-    const intermSummFPType eps = services::internal::EpsilonVal<algorithmFPType>::get();
+    const intermSummFPType eps = services::internal::EpsilonVal<intermSummFPType>::get();
     daal::threader_for(nSamples, nSamples, [&](size_t i) {
         const OOBClassificationData * ptr = ((const OOBClassificationData *)this->oobBuf) + i * _nClasses;
         const size_t classLabel(y.get()[i]);
