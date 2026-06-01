@@ -114,8 +114,8 @@ protected: //enables specific functions for UnorderedRespHelperBest
     {
         intermSummFPType delta = (2. * totalWeights - moveWeights) * imp.var + 2. * (imp.hist[iClass] - totalWeights);
         imp.var                = isZero<intermSummFPType, cpu>((totalWeights - moveWeights) * (totalWeights - moveWeights)) ?
-                      1. :
-                      (imp.var + moveWeights * delta / ((totalWeights - moveWeights) * (totalWeights - moveWeights)));
+                                     1. :
+                                     (imp.var + moveWeights * delta / ((totalWeights - moveWeights) * (totalWeights - moveWeights)));
         imp.hist[iClass] -= moveWeights;
     }
 
@@ -569,14 +569,14 @@ public:
         if (noWeights)
         {
             return split.featureUnordered ? static_cast<const crtp *>(this)->findSplitCategoricalFeature(
-                       featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
+                                                featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
                                             static_cast<const crtp *>(this)->template findSplitOrderedFeature<true>(
                                                 featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights);
         }
         else
         {
             return split.featureUnordered ? static_cast<const crtp *>(this)->findSplitCategoricalFeature(
-                       featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
+                                                featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
                                             static_cast<const crtp *>(this)->template findSplitOrderedFeature<false>(
                                                 featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights);
         }
