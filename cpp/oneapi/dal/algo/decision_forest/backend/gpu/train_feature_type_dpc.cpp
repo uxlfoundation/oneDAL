@@ -431,20 +431,15 @@ sycl::event indexed_features<Float, Bin, Index>::operator()(const table& tbl,
     }
 
     sycl::event last_event;
-        for (Index i = 0; i < column_count_; i++) {
-            last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
-            last_event = pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_,
-                                                                          values_nd,
-                                                                          indices_nd,
-                                                                          { last_event });
-            last_event = compute_bins(values_nd,
-                                      indices_nd,
-                                      column_bin_vec_[i],
-                                      entries_[i],
-                                      i,
-                                      { last_event });
-        }
-
+    for (Index i = 0; i < column_count_; i++) {
+        last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
+        last_event = pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_,
+                                                                      values_nd,
+                                                                      indices_nd,
+                                                                      { last_event });
+        last_event =
+            compute_bins(values_nd, indices_nd, column_bin_vec_[i], entries_[i], i, { last_event });
+    }
 
     last_event.wait_and_throw();
 
