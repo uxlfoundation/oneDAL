@@ -1262,7 +1262,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
 
     if (!((leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)) && leftWeights && rightWeights)
     {
-        const intermSummFPType v = left.var + right.var;
+        const intermSummFPType v = leftWeights * left.var + rightWeights * right.var;
         if (v < vBest)
         {
             vBest             = v;
@@ -1278,9 +1278,8 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     split.impurityDecrease = curImpurity.var - vBest / totalWeights;
     split.nLeft            = iBest;
     split.totalWeights     = totalWeights;
-    split.left.var /= (isPositive<intermSummFPType, cpu>(split.leftWeights) ? split.leftWeights : 1.);
-    split.iStart       = 0;
-    split.featureValue = idx;
+    split.iStart           = 0;
+    split.featureValue     = idx;
     return true;
 }
 
