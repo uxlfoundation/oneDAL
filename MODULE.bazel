@@ -143,7 +143,7 @@ dpl_repo(
         "9357c08c5086ae0c5186f4da90764e75587c8f688b78a3a33ad07697af1469d6",
     ],
     strip_prefixes = [
-        "onedpl_devel-2022.10.0.data/data",
+        "onedpl_devel-2022.12.0.data/data",
     ],
 )
 
