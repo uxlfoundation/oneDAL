@@ -650,13 +650,6 @@ def _impl(ctx):
         )],
     )
 
-    # The link tool is lld-link.exe directly (see _find_tools_icx in
-    # cc_toolchain_win.bzl). lld-link uses linker-native MSVC syntax:
-    #   /OUT:<path>     to name the artifact (exe or dll)
-    #   /IMPLIB:<path>  to name the DLL's import library
-    #   /DLL            to build a DLL
-    # These spellings also work when forwarded by icx's clang-cl driver
-    # (which is how the DPC++ link path uses them).
     output_execpath_flags_feature = feature(
         name = "output_execpath_flags",
         flag_sets = [flag_set(
@@ -668,17 +661,34 @@ def _impl(ctx):
         )],
     )
 
+    # Non-DPC links use lld-link.exe directly (see _find_tools_icx in
+    # cc_toolchain_win.bzl), so they need linker-native `/DLL`. DPC++ links go
+    # through the icx driver; use `-shared` there so the driver itself performs
+    # the SYCL link as a DLL link before forwarding linker-native flags.
     shared_flag_feature = feature(
         name = "shared_flag",
-        flag_sets = [flag_set(
-            actions = [
-                ACTION_NAMES.cpp_link_dynamic_library,
-                ACTION_NAMES.cpp_link_nodeps_dynamic_library,
-                ACTION_NAMES.lto_index_for_dynamic_library,
-                ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
-            ],
-            flag_groups = [flag_group(flags = ["/DLL"])],
-        )],
+        flag_sets = [
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp_link_dynamic_library,
+                    ACTION_NAMES.cpp_link_nodeps_dynamic_library,
+                    ACTION_NAMES.lto_index_for_dynamic_library,
+                    ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
+                ],
+                flag_groups = [flag_group(flags = ["/DLL"])],
+                with_features = [with_feature_set(not_features = ["dpc++"])],
+            ),
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp_link_dynamic_library,
+                    ACTION_NAMES.cpp_link_nodeps_dynamic_library,
+                    ACTION_NAMES.lto_index_for_dynamic_library,
+                    ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
+                ],
+                flag_groups = [flag_group(flags = ["-shared"])],
+                with_features = [with_feature_set(features = ["dpc++"])],
+            ),
+        ],
     )
 
     # --- assemble feature list ---------------------------------------------
@@ -730,8 +740,8 @@ def _impl(ctx):
         default_link_flags_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
-        dpc_linker_mode_feature,
         shared_flag_feature,
+        dpc_linker_mode_feature,
         output_execpath_flags_feature,
         user_link_flags_feature,
         default_dynamic_libraries_feature,
