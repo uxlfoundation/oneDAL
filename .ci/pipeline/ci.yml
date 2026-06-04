@@ -632,7 +632,9 @@ jobs:
   - script: |
       if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
-      echo build --disk_cache=$(BAZEL_CACHE_DIR)> "%USERPROFILE%\.bazelrc"
+      set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
+      set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD%> "%USERPROFILE%\.bazelrc"
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
