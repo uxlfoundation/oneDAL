@@ -663,9 +663,8 @@ def _impl(ctx):
 
     # Non-DPC links use lld-link.exe directly (see _find_tools_icx in
     # cc_toolchain_win.bzl), so they can take linker-native `/DLL` directly.
-    # DPC++ links go through the icx driver; `dpc_linker_mode` puts `/link`
-    # before this flag so `/DLL` is forwarded to the underlying linker instead
-    # of being interpreted as a driver input.
+    # DPC++ links go through the icx driver; `/LD` marks the driver-level link
+    # as a DLL link before `/link` switches following options to link.exe.
     shared_flag_feature = feature(
         name = "shared_flag",
         flag_sets = [
@@ -686,10 +685,25 @@ def _impl(ctx):
                     ACTION_NAMES.lto_index_for_dynamic_library,
                     ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
                 ],
-                flag_groups = [flag_group(flags = ["/DLL"])],
+                flag_groups = [flag_group(flags = ["/LD"])],
                 with_features = [with_feature_set(features = ["dpc++"])],
             ),
         ],
+    )
+
+    dpc_linker_shared_flag_feature = feature(
+        name = "dpc_linker_shared_flag",
+        enabled = True,
+        flag_sets = [flag_set(
+            actions = [
+                ACTION_NAMES.cpp_link_dynamic_library,
+                ACTION_NAMES.cpp_link_nodeps_dynamic_library,
+                ACTION_NAMES.lto_index_for_dynamic_library,
+                ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
+            ],
+            flag_groups = [flag_group(flags = ["/DLL"])],
+            with_features = [with_feature_set(features = ["dpc++"])],
+        )],
     )
 
     # --- assemble feature list ---------------------------------------------
@@ -741,8 +755,9 @@ def _impl(ctx):
         default_link_flags_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
-        dpc_linker_mode_feature,
         shared_flag_feature,
+        dpc_linker_mode_feature,
+        dpc_linker_shared_flag_feature,
         output_execpath_flags_feature,
         user_link_flags_feature,
         default_dynamic_libraries_feature,
