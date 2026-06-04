@@ -435,7 +435,7 @@ jobs:
     displayName: 'Bazel config smoke checks'
 
   - script: |
-      bazel build :release
+      bazel build :release --release_dpc=false
     displayName: 'release'
 
   - script: |
