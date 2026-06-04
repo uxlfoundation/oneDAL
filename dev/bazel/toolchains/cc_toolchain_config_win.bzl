@@ -399,10 +399,8 @@ def _impl(ctx):
     )
 
     # DPC++ links go through the icx clang-cl driver so it can add SYCL device
-    # runtime libraries. Keep objects/libraries before `/link`, then put
-    # linker-native MSVC options after it; otherwise icx can treat `/DLL` and
-    # `/OUT:` as driver inputs and invoke link.exe as an executable link, which
-    # fails with LNK1561.
+    # runtime libraries. Keep objects/libraries before `/link`, then put only
+    # linker-native MSVC options after it.
     dpc_linker_mode_feature = feature(
         name = "dpc_linker_mode",
         enabled = True,
@@ -652,19 +650,30 @@ def _impl(ctx):
 
     output_execpath_flags_feature = feature(
         name = "output_execpath_flags",
-        flag_sets = [flag_set(
-            actions = all_link_actions + lto_index_actions,
-            flag_groups = [flag_group(
-                flags = ["/OUT:%{output_execpath}"],
-                expand_if_available = "output_execpath",
-            )],
-        )],
+        flag_sets = [
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(
+                    flags = ["/OUT:%{output_execpath}"],
+                    expand_if_available = "output_execpath",
+                )],
+                with_features = [with_feature_set(not_features = ["dpc++"])],
+            ),
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(
+                    flags = ["-o%{output_execpath}"],
+                    expand_if_available = "output_execpath",
+                )],
+                with_features = [with_feature_set(features = ["dpc++"])],
+            ),
+        ],
     )
 
     # Non-DPC links use lld-link.exe directly (see _find_tools_icx in
     # cc_toolchain_win.bzl), so they can take linker-native `/DLL` directly.
-    # DPC++ links go through the icx driver; `/LD` marks the driver-level link
-    # as a DLL link before `/link` switches following options to link.exe.
+    # DPC++ links go through the icx driver; `-LD` and `-o<dll>` must remain
+    # driver-level flags before `/link`, matching dev/make/common.mk.
     shared_flag_feature = feature(
         name = "shared_flag",
         flag_sets = [
@@ -685,25 +694,10 @@ def _impl(ctx):
                     ACTION_NAMES.lto_index_for_dynamic_library,
                     ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
                 ],
-                flag_groups = [flag_group(flags = ["/LD"])],
+                flag_groups = [flag_group(flags = ["-LD"])],
                 with_features = [with_feature_set(features = ["dpc++"])],
             ),
         ],
-    )
-
-    dpc_linker_shared_flag_feature = feature(
-        name = "dpc_linker_shared_flag",
-        enabled = True,
-        flag_sets = [flag_set(
-            actions = [
-                ACTION_NAMES.cpp_link_dynamic_library,
-                ACTION_NAMES.cpp_link_nodeps_dynamic_library,
-                ACTION_NAMES.lto_index_for_dynamic_library,
-                ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
-            ],
-            flag_groups = [flag_group(flags = ["/DLL"])],
-            with_features = [with_feature_set(features = ["dpc++"])],
-        )],
     )
 
     # --- assemble feature list ---------------------------------------------
@@ -754,11 +748,10 @@ def _impl(ctx):
         compiler_output_flags_feature,
         default_link_flags_feature,
         library_search_directories_feature,
-        libraries_to_link_feature,
         shared_flag_feature,
-        dpc_linker_mode_feature,
-        dpc_linker_shared_flag_feature,
+        libraries_to_link_feature,
         output_execpath_flags_feature,
+        dpc_linker_mode_feature,
         user_link_flags_feature,
         default_dynamic_libraries_feature,
         archiver_flags_feature,
