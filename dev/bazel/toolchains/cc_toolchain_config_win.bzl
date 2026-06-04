@@ -662,9 +662,10 @@ def _impl(ctx):
     )
 
     # Non-DPC links use lld-link.exe directly (see _find_tools_icx in
-    # cc_toolchain_win.bzl), so they need linker-native `/DLL`. DPC++ links go
-    # through the icx driver; use `/LD` there so the driver itself performs
-    # the SYCL link as a DLL link before forwarding linker-native flags.
+    # cc_toolchain_win.bzl), so they can take linker-native `/DLL` directly.
+    # DPC++ links go through the icx driver; `dpc_linker_mode` puts `/link`
+    # before this flag so `/DLL` is forwarded to the underlying linker instead
+    # of being interpreted as a driver input.
     shared_flag_feature = feature(
         name = "shared_flag",
         flag_sets = [
@@ -685,7 +686,7 @@ def _impl(ctx):
                     ACTION_NAMES.lto_index_for_dynamic_library,
                     ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
                 ],
-                flag_groups = [flag_group(flags = ["/LD"])],
+                flag_groups = [flag_group(flags = ["/DLL"])],
                 with_features = [with_feature_set(features = ["dpc++"])],
             ),
         ],
@@ -740,8 +741,8 @@ def _impl(ctx):
         default_link_flags_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
-        shared_flag_feature,
         dpc_linker_mode_feature,
+        shared_flag_feature,
         output_execpath_flags_feature,
         user_link_flags_feature,
         default_dynamic_libraries_feature,
