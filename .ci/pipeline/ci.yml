@@ -601,6 +601,8 @@ jobs:
     platform.type : 'win32e'
     BAZELISK_VERSION: 'v1.28.1'
     BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
+    BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
@@ -617,8 +619,20 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       bash .ci/scripts/describe_system.sh
     displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      # Commit ID is added to a cache key. Caches are immutable by design,
+      # so we always need to change a key to upload the last version
+      # of the Bazel cache. Cache lookup is based on `restoreKeys` option.
+      key: '"$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      restoreKeys: |
+        "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
+      path: $(BAZEL_CACHE_DIR)
+    displayName: 'bazel-cache'
   - script: |
+      if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
+      echo build --disk_cache=$(BAZEL_CACHE_DIR)> "%USERPROFILE%\.bazelrc"
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
@@ -661,6 +675,45 @@ jobs:
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'cpp-examples-thread-release-dynamic'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      if (Test-Path "$(BAZEL_CACHE_DIR)\cache-clean-timestamp") {
+          Write-Host ""
+          Write-Host "Last time the cache is cleaned:"
+          Get-Content "$(BAZEL_CACHE_DIR)\cache-clean-timestamp"
+          Write-Host ""
+      }
+
+      $cacheSizeKb = 0
+      if (Test-Path "$(BAZEL_CACHE_DIR)") {
+          $cacheBytes = (Get-ChildItem "$(BAZEL_CACHE_DIR)" -Recurse -Force -ErrorAction SilentlyContinue |
+              Measure-Object -Property Length -Sum).Sum
+          if ($null -eq $cacheBytes) {
+              $cacheBytes = 0
+          }
+          $cacheSizeKb = [int64]($cacheBytes / 1KB)
+      }
+      $cacheSizeMb = [int64]($cacheSizeKb / 1KB)
+      Write-Host "Bazel cache dir is $(BAZEL_CACHE_DIR)"
+      Write-Host "Bazel cache size is ${cacheSizeMb}Mb"
+      if ($cacheSizeKb -ge [int64]"$(BAZEL_CACHE_MAX_SIZE_KB)") {
+          Write-Host "Run cache cleanup..."
+          Write-Host "Current cache directory content:"
+          Get-ChildItem "$(BAZEL_CACHE_DIR)" -Force | Select-Object -ExpandProperty Name
+          Write-Host "--------------------------------"
+          Write-Host "Remove cache directory"
+          Remove-Item "$(BAZEL_CACHE_DIR)" -Recurse -Force
+          New-Item "$(BAZEL_CACHE_DIR)" -ItemType Directory -Force | Out-Null
+          Write-Host "Write timestamp to the cache"
+          Get-Date | Out-File "$(BAZEL_CACHE_DIR)\cache-clean-timestamp"
+          Write-Host "Current cache directory content:"
+          Get-ChildItem "$(BAZEL_CACHE_DIR)" -Force | Select-Object -ExpandProperty Name
+          Write-Host "--------------------------------"
+      }
+      else {
+          Write-Host "No need for cleanup"
+      }
+    displayName: 'bazel-cache-limit'
 
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL
