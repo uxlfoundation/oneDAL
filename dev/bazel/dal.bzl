@@ -157,7 +157,9 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = lib_tags,
-        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps,
+        # Some dynamic DPC libraries also need host-only objects, e.g. the
+        # Windows delay-load shim for DAAL threading symbols.
+        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + host_deps,
         **kwargs
     )
 
