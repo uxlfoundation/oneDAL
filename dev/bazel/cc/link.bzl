@@ -236,6 +236,7 @@ def _link(owner, name, actions, cc_toolchain,
     object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
     additional_inputs = [def_file] if def_file else []
     direct_user_link_flags = ["@" + def_file.path] if def_file else []
+    direct_libraries_to_link = []
 
     # Windows link.exe rejects response-file lines longer than 131071
     # characters. Full all-ISA DPC DLLs can produce thousands of objects, so
@@ -255,6 +256,13 @@ def _link(owner, name, actions, cc_toolchain,
             )
             additional_inputs.append(object_archive)
             direct_user_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
+            direct_libraries_to_link.append(cc_common.create_library_to_link(
+                actions = actions,
+                cc_toolchain = cc_toolchain,
+                feature_configuration = feature_configuration,
+                static_library = object_archive,
+                pic_static_library = object_archive,
+            ))
 
     all_objects = depset(object_list)
     compilation_outputs = cc_common.create_compilation_outputs(
@@ -269,7 +277,8 @@ def _link(owner, name, actions, cc_toolchain,
     all_user_link_flags = unpacked_user_link_flags + user_link_flags
     linker_input = cc_common.create_linker_input(
         owner = owner,
-        libraries = depset(unpacked_linking_context.libraries_to_link),
+        libraries = depset(direct_libraries_to_link +
+                           unpacked_linking_context.libraries_to_link),
         user_link_flags = depset(all_user_link_flags),
     )
     # TODO: Pass compilations outputs via linking contexts
