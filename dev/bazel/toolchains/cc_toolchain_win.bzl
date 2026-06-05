@@ -200,6 +200,10 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
     link_flags_dpcc = ([
         "-fsycl",
         "-fsycl-device-code-split={}".format(dpcc_code_split),
+        # DPC objects are compiled with -Zl/no default-library directives.
+        # Make the SYCL host runtime explicit so Windows DPC DLL links resolve
+        # the device image registration hooks emitted by icx.
+        "sycl.lib",
     ]) if tools.is_dpc_found else []
 
     repo_ctx.template(
