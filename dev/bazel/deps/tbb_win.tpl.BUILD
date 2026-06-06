@@ -15,6 +15,11 @@ cc_library(
     deps = [":headers"],
 )
 
+filegroup(
+    name = "tbb_runtime",
+    srcs = ["bin/tbb12.dll"],
+)
+
 cc_library(
     name = "tbb_binary",
     deps = [":tbb"],
@@ -25,6 +30,11 @@ cc_library(
     srcs = ["lib/tbbmalloc.lib"],
     data = ["bin/tbbmalloc.dll"],
     deps = [":headers"],
+)
+
+filegroup(
+    name = "tbbmalloc_runtime",
+    srcs = ["bin/tbbmalloc.dll"],
 )
 
 cc_library(

@@ -221,7 +221,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             ccl = ccl,
             mpi_ranks = mpi_ranks,
             deps = [ ":" + module_name ],
-            data = data,
+            data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["host", iface_access_tag],
             args = test_args,
         )
@@ -236,7 +236,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             deps = [
                 ":" + module_name + "_dpc",
             ],
-            data = data,
+            data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["dpc", iface_access_tag],
             args = test_args,
         )
@@ -362,6 +362,20 @@ def _test_deps_on_daal():
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:core_dynamic",
             "@onedal//cpp/daal:threading_release_dynamic",
+        ],
+    })
+
+def _test_runtime_data():
+    return _select({
+        "@config//:test_link_mode_dev": [],
+        "@config//:test_link_mode_release_static": [],
+        "@config//:test_link_mode_release_dynamic": [
+            "@onedal_release//:core_dynamic_runtime",
+            "@onedal_release//:thread_dynamic_runtime",
+            "@onedal_release//:onedal_dynamic_runtime",
+            "@tbb//:tbb_runtime",
+            "@tbb//:tbbmalloc_runtime",
+            "@mkl//:mkl_runtime",
         ],
     })
 
