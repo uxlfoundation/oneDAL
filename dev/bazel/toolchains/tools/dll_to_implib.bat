@@ -69,13 +69,28 @@ rem Keep just <name> (the 4th token) for entries whose first token is a
 rem decimal ordinal. findstr drops headers/footers; the for /f loop
 rem iterates dumpbin's output via a sub-shell so we do not depend on a
 rem temp file.
+set /a EXPORT_COUNT=0
 for /f "tokens=4" %%n in ('dumpbin /nologo /exports "%DLL_IN%" ^| findstr /R /C:"^ *[0-9][0-9]* "') do (
     >>"%DEF_TMP%" echo     %%n
+    set /a EXPORT_COUNT+=1
 )
 
 if not exist "%DEF_TMP%" (
     echo dll_to_implib: failed to write %DEF_TMP%
     exit /b 3
+)
+
+rem Fail loudly when dumpbin produced zero exports — without this guard,
+rem `lib /def:` happily generates an empty import library and the action
+rem succeeds, deferring the breakage to runtime LNK2019 errors much later
+rem in the build. Possible causes: the DLL re-exports symbols only via
+rem forwarders (`name = other_dll.symbol`), uses NONAME ordinals, or the
+rem dumpbin invocation itself failed.
+if "!EXPORT_COUNT!"=="0" (
+    echo dll_to_implib: dumpbin reported no decimal-ordinal exports for "%DLL_IN%"
+    echo dll_to_implib: ^(forwarders, NONAME ordinals, or a missing/corrupt DLL can cause this^)
+    del /Q "%DEF_TMP%" 2>NUL
+    exit /b 5
 )
 
 set "LIB_TOOL=lib"

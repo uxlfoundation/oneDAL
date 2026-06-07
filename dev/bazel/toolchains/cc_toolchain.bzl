@@ -68,8 +68,20 @@ onedal_cc_toolchain = repository_rule(
         "CC",
         "CXX",
         "PATH",
+        # MSYS bash forwards PATH as `Path`; Bazel's `environ` matches
+        # variable names case-sensitively, so list both spellings to make
+        # toolchain repo invalidation insensitive to launching shell.
+        "Path",
         "INCLUDE",
         "LIB",
+        # The Windows icx toolchain bakes INCLUDE/LIB/CMPLR_ROOT into its
+        # cxx_builtin_include_directories and msvc_env feature at repo-rule
+        # eval time; without these in `environ`, a basekit upgrade or a
+        # different setvars.bat invocation would not invalidate the cached
+        # toolchain repo and Bazel would resolve headers/libs against stale
+        # paths.
+        "CMPLR_ROOT",
+        "VCTOOLSINSTALLDIR",
         # Opt-in switch for the Intel oneAPI Windows toolchain:
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
         # back to the rules_cc MSVC cl auto-config.
