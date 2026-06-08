@@ -443,6 +443,9 @@ global:
 
         # other services
 
+        "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_mul_overflow(long const&, long const&)";
+        "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_sum_overflow(long const&, long const&)";
+
         "oneapi::dal::detail::v1::host_policy::host_policy()";
 
         "oneapi::dal::detail::v1::from_daal_cpu_type(int)";
