@@ -202,7 +202,8 @@ static train_result<Task> call_binary_daal_kernel(const context_cpu& ctx,
 
     auto trained_model = convert_from_daal_model<Task, Float>(*daal_model)
                              .set_first_class_response(old_unique_responses.first)
-                             .set_second_class_response(old_unique_responses.second);
+                             .set_second_class_response(old_unique_responses.second)
+                             .set_class_count(2);
 
     return train_result<Task>().set_model(trained_model).set_support_indices(table_support_indices);
 }

@@ -266,6 +266,19 @@ void model<Task>::set_second_class_response_impl(std::int64_t value) {
 }
 
 template <typename Task>
+std::int64_t model<Task>::get_class_count_impl() const {
+    return impl_->class_count;
+}
+
+template <typename Task>
+void model<Task>::set_class_count_impl(std::int64_t value) {
+    if (value <= 1) {
+        throw domain_error(dal::detail::error_messages::class_count_leq_one());
+    }
+    impl_->class_count = value;
+}
+
+template <typename Task>
 void model<Task>::serialize(dal::detail::output_archive& ar) const {
     dal::detail::serialize_polymorphic_shared(impl_, ar);
 }
