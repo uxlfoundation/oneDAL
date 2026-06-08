@@ -147,6 +147,27 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     trained_model->coeffs = trained_model_svm.get_coeffs();
     trained_model->iteration_counts = trained_model_svm.get_iteration_counts();
 
+    // Compute the number of support vectors per class. Support vectors in the
+    // aggregated daal model are stored grouped by class (in increasing class
+    // order), which is what restoration via public setters relies on.
+    {
+        auto sv_idx_arr =
+            convert_from_daal_table_to_array<int>(daal_svm_model->getSupportIndices());
+        auto resp_arr = row_accessor<const Float>{ responses }.pull();
+        const std::int64_t k = static_cast<std::int64_t>(class_count);
+        auto counts_arr = array<std::int32_t>::zeros(k);
+        auto counts_data = counts_arr.get_mutable_data();
+        const auto sv_idx_data = sv_idx_arr.get_data();
+        const auto resp_data = resp_arr.get_data();
+        for (std::int64_t i = 0; i < n_sv; ++i) {
+            const auto cls = static_cast<std::int64_t>(resp_data[sv_idx_data[i]]);
+            ONEDAL_ASSERT(cls >= 0 && cls < k);
+            ++counts_data[cls];
+        }
+        trained_model->n_support_per_class =
+            dal::detail::homogen_table_builder{}.reset(counts_arr, 1, k).build();
+    }
+
     auto m = dal::detail::make_private<model<Task>>(trained_model);
 
     return train_result<Task>().set_model(m).set_support_indices(table_support_indices);
