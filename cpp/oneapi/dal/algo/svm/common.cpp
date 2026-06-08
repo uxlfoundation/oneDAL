@@ -279,6 +279,16 @@ void model<Task>::set_class_count_impl(std::int64_t value) {
 }
 
 template <typename Task>
+const table& model<Task>::get_n_support_per_class_impl() const {
+    return impl_->n_support_per_class;
+}
+
+template <typename Task>
+void model<Task>::set_n_support_per_class_impl(const table& value) {
+    impl_->n_support_per_class = value;
+}
+
+template <typename Task>
 void model<Task>::serialize(dal::detail::output_archive& ar) const {
     dal::detail::serialize_polymorphic_shared(impl_, ar);
 }
