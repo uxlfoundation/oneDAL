@@ -158,7 +158,7 @@ static infer_result<Task> call_daal_kernel(const context_cpu& ctx,
                                            const detail::descriptor_base<Task>& desc,
                                            const model<Task>& trained_model,
                                            const table& data) {
-    const std::int64_t class_count = dal::detail::get_impl(trained_model).class_count;
+    const std::int64_t class_count = desc.get_class_count();
 
     auto kernel_impl = detail::get_kernel_function_impl(desc);
     if (!kernel_impl) {

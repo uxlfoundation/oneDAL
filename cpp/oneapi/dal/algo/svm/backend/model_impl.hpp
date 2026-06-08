@@ -42,7 +42,7 @@ public:
     table biases;
     double first_class_response;
     double second_class_response;
-    std::int64_t class_count = 2;
+    std::int64_t class_count = 0;
     table iteration_counts;
 
     model_impl() = default;
