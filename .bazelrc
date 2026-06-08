@@ -160,11 +160,11 @@ build:dev \
 
 # Configuration: 'dbg'
 # Debug build with assertions enabled.
-# Equivalent to Make: REQDBG=1
+# Equivalent to Make: REQDBG=yes
 # Adds: -g debug symbols, -DDEBUG_ASSERT, -DONEDAL_ENABLE_ASSERT
 #   bazel build //:release --config=dbg
 #   bazel test //cpp/oneapi/dal:tests --config=dbg
-common:dbg \
+build:dbg \
     --compilation_mode=dbg \
     --enable_assert=True
 
@@ -173,7 +173,7 @@ common:dbg \
 # Equivalent to Make: REQDBG=symbols
 # Adds -g to the default opt build; preserves -O2/-O3 optimization.
 #   bazel build //:release --config=dbg-symbols
-common:dbg-symbols \
+build:dbg-symbols \
     --copt=-g \
     --cxxopt=-g
 
@@ -183,7 +183,7 @@ common:dbg-symbols \
 # Equivalent to Make: REQSAN=address
 # Note: combine with --config=dbg for best results (Make recommendation).
 #   bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
-common:asan \
+build:asan \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=address \
@@ -192,7 +192,7 @@ common:asan \
 # Configuration: 'asan-static'
 # AddressSanitizer with static libasan linkage.
 # Equivalent to Make: REQSAN=static
-common:asan-static \
+build:asan-static \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=address \
@@ -204,7 +204,7 @@ common:asan-static \
 # ThreadSanitizer build.
 # Equivalent to Make: REQSAN=thread
 #   bazel test //cpp/oneapi/dal:tests --config=tsan
-common:tsan \
+build:tsan \
     --copt=-fsanitize=thread \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=thread \
@@ -215,7 +215,7 @@ common:tsan \
 # UndefinedBehaviorSanitizer build.
 # Equivalent to Make: REQSAN=undefined
 #   bazel test //cpp/oneapi/dal:tests --config=ubsan
-common:ubsan \
+build:ubsan \
     --copt=-fsanitize=undefined \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=undefined \
@@ -230,13 +230,17 @@ common:ubsan \
 #   bazel build //:release --linkopt=-Wl,--as-needed
 # Or persist in user-local ~/.bazelrc:
 #   build --copt=-your-flag
+# Bazel combines repeated --copt/--cxxopt/--linkopt values from configs and
+# user flags; avoid passing conflicting flags such as multiple optimization
+# levels unless you intentionally want compiler-specific "last option wins"
+# behavior.
 # =============================================================================
 
 # Configuration: 'msan'
 # MemorySanitizer build.
 # Note: Requires a Clang/LLVM toolchain and lld; GCC does not support MSan.
 #   bazel test //cpp/oneapi/dal:tests --config=msan
-common:msan \
+build:msan \
     --copt=-fsanitize=memory \
     --copt=-fsanitize-memory-track-origins \
     --copt=-fno-omit-frame-pointer \
@@ -247,7 +251,7 @@ common:msan \
 # Configuration: 'type'
 # Type sanitizer build.
 # Note: Requires Clang; GCC and ICPX do not support TypeSanitizer.
-common:type \
+build:type \
     --copt=-fsanitize=type \
     --copt=-fsanitize-recover=all \
     --copt=-fno-omit-frame-pointer \

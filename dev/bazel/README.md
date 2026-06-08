@@ -437,7 +437,7 @@ dal_test_suite(
 
 ### Debug build with assertions
 
-Equivalent to Make `REQDBG=1` — adds debug symbols, enables `DEBUG_ASSERT`
+Equivalent to Make `REQDBG=yes` — adds debug symbols, enables `DEBUG_ASSERT`
 and `ONEDAL_ENABLE_ASSERT`:
 
 ```sh
@@ -456,8 +456,7 @@ bazel build //:release --config=dbg-symbols
 > Note: DPC++ targets can be built with debug/sanitizer configurations when
 > the selected compiler/runtime supports them. Debug builds of
 > `libonedal_dpc.so` may still produce excessive debug information and very long
-> link times; for practical DPC++ debugging, the static variant can be easier to
-> work with.
+> link times.
 
 #### Sanitized DPC++ builds
 
@@ -583,6 +582,12 @@ bazel build //:release --cxxopt=-std=c++17
 bazel build //:release --linkopt=-Wl,--as-needed
 ```
 
+Bazel combines repeated `--copt`, `--cxxopt`, and `--linkopt` values from named
+configs and user-provided flags. For example, `--config=dbg-symbols --copt=-O2`
+keeps the config's `-g` flag and also passes the user `-O2` flag. If flags
+conflict, the compiler/toolchain decides how to interpret the final option list,
+so users should avoid conflicting custom flags unless that behavior is intended.
+
 Avoid `-march=native` for release artifacts: oneDAL relies on runtime CPU
 feature dispatching and portable baseline objects. Native architecture flags are
 appropriate only for local experiments where the artifact will run on the same
@@ -601,20 +606,19 @@ build --linkopt=-your-link-flag
 
 ## Make → Bazel Flag Reference
 
-| Make option | Bazel equivalent | Notes |
-|---|---|---|
-| `REQDBG=1` | `--config=dbg` | Debug symbols + assertions |
-| `REQDBG=symbols` | `--config=dbg-symbols` | Debug symbols only |
-| `REQSAN=address` | `--config=asan` | AddressSanitizer |
-| `REQSAN=static` | `--config=asan-static` | ASan with static libasan |
-| `REQSAN=thread` | `--config=tsan` | ThreadSanitizer |
-| `REQSAN=undefined` | `--config=ubsan` | UBSan |
-| `REQSAN=memory` | `--config=msan` | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended) |
-| TypeSanitizer | `--config=type` | Clang-only; GCC/ICPX unsupported |
-| `COMPILER=gnu` | `CC=gcc bazel build ...` | Override compiler via `CC` env |
-| `OPTFLAG=O2` | `--copt=-O2` | Override optimization level |
-| `COPT=-flag` | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only) | Arbitrary compiler flag |
-| `--cpu=<isa>` (Make `PLAT`) | `--cpu=<isa>` | ISA selection |
-| (Make default all ISAs) | `bazel build //:release --cpu=all` | Explicit full ISA coverage |
-| (CI: single ISA) | `--cpu=avx2` | Override for CI speed |
-
+| Make option                    | Bazel equivalent                                             | Notes                                                                      |
+|--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
+| `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
+| `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
+| `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
+| `REQSAN=static`                | `--config=asan-static`                                       | ASan with static libasan                                                   |
+| `REQSAN=thread`                | `--config=tsan`                                              | ThreadSanitizer                                                            |
+| `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
+| `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
+| TypeSanitizer                  | `--config=type`                                              | Clang-only; GCC/ICPX unsupported                                           |
+| `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
+| `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
+| `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
+| `--cpu=<isa>` (Make `PLAT`)    | `--cpu=<isa>`                                                | ISA selection                                                              |
+| (Make default all ISAs)        | `bazel build //:release --cpu=all`                           | Explicit full ISA coverage                                                 |
+| (CI: single ISA)               | `--cpu=avx2`                                                 | Override for CI speed                                                      |
