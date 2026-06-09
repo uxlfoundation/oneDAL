@@ -90,3 +90,10 @@ cc_library(
         "MKL_LP64"
     ],
 )
+
+filegroup(
+    name = "mkl_runtime",
+    srcs = glob([
+        "lib/libmkl*.so*",
+    ], allow_empty = True),
+)

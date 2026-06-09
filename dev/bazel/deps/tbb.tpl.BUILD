@@ -16,11 +16,25 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "tbb_runtime",
+    srcs = glob([
+        "lib/libtbb.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "tbbmalloc_binary",
     srcs = [
         "lib/libtbbmalloc.so.2",
     ],
+)
+
+filegroup(
+    name = "tbbmalloc_runtime",
+    srcs = glob([
+        "lib/libtbbmalloc.so*",
+    ], allow_empty = True),
 )
 
 cc_library(
