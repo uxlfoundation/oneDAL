@@ -139,38 +139,7 @@ public:
 
 /// Minimum GEMM dimension for which AMX-BF16 is profitable.
 /// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
-static constexpr DAAL_INT kBF16MinDim  = 64;
-static constexpr size_t kBF16Alignment = 64;
-
-template <typename T>
-class AlignedBuffer
-{
-public:
-    AlignedBuffer() : _ptr(nullptr) {}
-    explicit AlignedBuffer(size_t size) : _ptr(daal::services::internal::service_malloc<T, DAAL_BASE_CPU>(size, kBF16Alignment)) {}
-    ~AlignedBuffer() { daal::services::daal_free(_ptr); }
-
-    T * get() const { return _ptr; }
-    operator bool() const { return _ptr != nullptr; }
-
-    AlignedBuffer(AlignedBuffer && other) : _ptr(other._ptr) { other._ptr = nullptr; }
-    AlignedBuffer & operator=(AlignedBuffer && other)
-    {
-        if (this != &other)
-        {
-            daal::services::daal_free(_ptr);
-            _ptr       = other._ptr;
-            other._ptr = nullptr;
-        }
-        return *this;
-    }
-
-    AlignedBuffer(const AlignedBuffer &)             = delete;
-    AlignedBuffer & operator=(const AlignedBuffer &) = delete;
-
-private:
-    T * _ptr;
-};
+static constexpr DAAL_INT kBF16MinDim = 64;
 
 inline bool allow_bf16_gemm(DAAL_INT m, DAAL_INT n, DAAL_INT k)
 {
@@ -230,20 +199,20 @@ struct BF16GemmDispatcher<float, cpu>
             const size_t szA = static_cast<size_t>(n) * static_cast<size_t>(k);
             const size_t szB = static_cast<size_t>(m) * static_cast<size_t>(k);
 
-            AlignedBuffer<MKL_BF16> a16(szA);
-            if (!a16)
+            daal::services::internal::TArray<MKL_BF16, cpu> a16(szA);
+            if (!a16.get())
             {
                 computeFallback(a, b, m, n, k, out);
                 return;
             }
             convert_f32_buffer_to_bf16_rne(a, szA, a16.get());
 
-            AlignedBuffer<MKL_BF16> localB16;
+            daal::services::internal::TArray<MKL_BF16, cpu> localB16;
             MKL_BF16 * b16Buffer = b16;
             if (!b16Buffer)
             {
-                localB16 = AlignedBuffer<MKL_BF16>(szB);
-                if (!localB16)
+                localB16.reset(szB);
+                if (!localB16.get())
                 {
                     computeFallback(a, b, m, n, k, out);
                     return;
@@ -469,7 +438,7 @@ private:
 public:
     CosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b, true, true) {}
 
-    virtual ~CosineDistances() override {}
+    ~CosineDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::cosine; }
 
@@ -512,7 +481,7 @@ public:
         : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
-    virtual ~MinkowskiDistances() override {}
+    ~MinkowskiDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::minkowski; }
 
@@ -611,7 +580,7 @@ class ChebyshevDistances : public PairwiseDistances<FPType, cpu>
 public:
     ChebyshevDistances(const NumericTable & a, const NumericTable & b) : _a(a), _b(b) {}
 
-    virtual ~ChebyshevDistances() override {}
+    ~ChebyshevDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::chebyshev; }
 
