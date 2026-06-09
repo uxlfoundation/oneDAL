@@ -275,8 +275,10 @@ file contains the compiler options for the GNU compiler for x86-64 architecture 
 Bazel
 -----
 
-For now, Bazel build is supported only for Linux x86-64 platform
-It provides ``cpu`` `option <https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel#bazel-options>`_
+Bazel build supports Linux x86-64 and regular CPU builds with the MSVC
+compiler on Windows x86-64. ICX and DPC++/SYCL Bazel support on Windows are
+tracked separately and are not enabled yet. Bazel provides the ``cpu``
+`option <https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel#bazel-options>`_
 that allows to specify the list of target architectural extensions.
 
 To add a new architectural extension into Bazel configuration, following steps should be done:

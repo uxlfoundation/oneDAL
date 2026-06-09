@@ -55,16 +55,64 @@ def _collect_default_files(deps):
             files += dep[DefaultInfo].files.to_list()
     return utils.unique_files(files)
 
+def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
+    """Derive a Windows DLL's import library at `lib_dst_path` from `dll_file`.
+
+    Runs `dev/bazel/toolchains/tools/dll_to_implib.bat` which dumps the
+    DLL's exports table and feeds it to `lib /def:` to produce a fresh
+    `.lib`. Mirrors the makefile's `-IMPLIB:<name>_dll.lib` linker flag,
+    which we cannot pass directly through Bazel's cc_common.link()
+    because there is no API to register the side-effect file as an
+    action output. Generating it from the DLL post-link is equivalent.
+    """
+    lib_file = ctx.actions.declare_file(lib_dst_path)
+    exp_file = ctx.actions.declare_file(lib_dst_path[:-len(".lib")] + ".exp")
+    script = ctx.file._dll_to_implib
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [dll_file, script],
+        outputs = [lib_file, exp_file],
+        arguments = [
+            "/d", "/c",
+            "{} {} {} {}".format(
+                script.path.replace("/", "\\"),
+                dll_file.path.replace("/", "\\"),
+                lib_file.path.replace("/", "\\"),
+                exp_file.path.replace("/", "\\"),
+            ),
+        ],
+        use_default_shell_env = True,
+        mnemonic = "DllToImplib",
+        progress_message = "Generating import lib %s" % lib_file.short_path,
+    )
+    return lib_file
+
 def _copy(ctx, src_file, dst_path):
     # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
-    ctx.actions.run(
-        executable = "cp",
-        inputs = [ src_file ],
-        outputs = [ dst_file ],
-        use_default_shell_env = True,
-        arguments = [ src_file.path, dst_file.path ],
-    )
+    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        ctx.actions.run(
+            executable = "cmd.exe",
+            inputs = [ src_file ],
+            outputs = [ dst_file ],
+            use_default_shell_env = True,
+            arguments = [
+                "/d",
+                "/c",
+                'copy /Y "{}" "{}"'.format(
+                    src_file.path.replace("/", "\\"),
+                    dst_file.path.replace("/", "\\"),
+                ),
+            ],
+        )
+    else:
+        ctx.actions.run(
+            executable = "cp",
+            inputs = [ src_file ],
+            outputs = [ dst_file ],
+            use_default_shell_env = True,
+            arguments = [ src_file.path, dst_file.path ],
+        )
     return dst_file
 
 def _try_relativize(path, start):
@@ -125,8 +173,27 @@ def _copy_lib(ctx, prefix, version_info):
     copied as-is like static libraries.
     """
     lib_prefix = paths.join(prefix, "lib", "intel64")
+    redist_prefix = paths.join(prefix, "redist", "intel64")
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
+
+    # On Windows, when the dynamic library rule already emitted a real
+    # import library, use that via rename; otherwise derive it post-link
+    # from the .dll via dumpbin + lib /def.
+    #
+    # rules_cc may expose `<name>.if.lib`, while our cc_dynamic_lib rule
+    # publishes the same file as `<name>_dll.lib`. Both represent the DLL
+    # import library and must be consumed by the DLL branch below, otherwise
+    # the final loop would try to copy `<name>_dll.lib` into the same release
+    # output that the DLL branch is also generating.
+    import_lib_stems = {}
+    if is_windows:
+        for lib in libs:
+            if lib.basename.endswith(".if.lib"):
+                import_lib_stems[lib.basename[:-len(".if.lib")]] = lib
+            elif lib.basename.endswith("_dll.lib"):
+                import_lib_stems[lib.basename[:-len("_dll.lib")]] = lib
 
     for lib in libs:
         # Determine if this is a shared library that needs versioning.
@@ -154,7 +221,58 @@ def _copy_lib(ctx, prefix, version_info):
             # 3. Unversioned symlink: libonedal_core.so -> libonedal_core.so.2
             dst_files.append(_symlink(ctx, lib.basename, major_link_name, lib_prefix))
         else:
-            # Static libs (.a), DLLs (.dll), import libs (.lib) — copy as-is.
+            # Static libs (.a), DLLs (.dll), import libs (.lib).
+            # Windows release layout: place DAAL runtime DLLs under
+            # redist/intel64 (not lib/intel64) and derive each DLL's
+            # import library `<name>_dll.lib` via dumpbin+lib /def — the
+            # makefile route (`-IMPLIB:<name>_dll.lib`) is unreachable
+            # through Bazel's cc_common.link() so we generate the import
+            # lib post-link, matching the Make release contents.
+            if is_windows and lib.extension == "dll":
+                dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
+
+                # `onedal_core.4.dll` -> `onedal_core_dll.lib`
+                base_no_ver = lib.basename
+                if version_info:
+                    suffix = ".{}.dll".format(version_info.binary_major)
+                    if base_no_ver.endswith(suffix):
+                        base_no_ver = base_no_ver[:-len(suffix)] + ".dll"
+                stem = base_no_ver[:-len(".dll")]
+                # The thread import library is not shipped in the Make
+                # DAAL package, mirror that here.
+                if stem == "onedal_thread":
+                    continue
+                implib_name = "{}_dll.lib".format(stem)
+                # Prefer the link-emitted .if.lib (rules_cc MSVC auto-
+                # config writes one alongside every DLL). Fall back to
+                # dumpbin + lib /def: when the toolchain did not emit
+                # one (icx custom config currently does not).
+                source_import_lib = import_lib_stems.get(stem)
+                if source_import_lib:
+                    implib = _copy(
+                        ctx, source_import_lib,
+                        paths.join(lib_prefix, implib_name),
+                    )
+                else:
+                    implib = _make_implib_for_dll(
+                        ctx, lib, paths.join(lib_prefix, implib_name),
+                    )
+                dst_files.append(implib)
+                if version_info and stem == "onedal_core":
+                    versioned_implib_name = "onedal_core_dll.{}.lib".format(
+                        version_info.binary_major,
+                    )
+                    dst_files.append(_copy(
+                        ctx, implib,
+                        paths.join(lib_prefix, versioned_implib_name),
+                    ))
+                continue
+            # Link-emitted import libraries are consumed via the dll branch
+            # above (renamed to `_dll.lib`); skip them here so we do not
+            # declare the same output twice.
+            if is_windows and (lib.basename.endswith(".if.lib") or lib.basename.endswith("_dll.lib")):
+                continue
+
             dst_path = paths.join(lib_prefix, lib.basename)
             dst_files.append(_copy(ctx, lib, dst_path))
 
@@ -173,8 +291,13 @@ def _copy_extra_files(ctx, prefix):
         fail("extra_files and extra_files_dst must have the same length: got {} vs {}".format(
             len(ctx.attr.extra_files), len(ctx.attr.extra_files_dst)))
 
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+
     dst_files = []
-    for dep, dst_subpath in zip(ctx.attr.extra_files, ctx.attr.extra_files_dst):
+    for i, dep in enumerate(ctx.attr.extra_files):
+        dst_subpath = ctx.attr.extra_files_win_dst[i] if is_windows and ctx.attr.extra_files_win_dst[i] != None else ctx.attr.extra_files_dst[i]
+        if not dst_subpath:
+            continue
         srcs = dep[DefaultInfo].files.to_list()
         if len(srcs) != 1:
             fail("extra_files entry '{}' must produce exactly one file, got {}".format(
@@ -182,6 +305,19 @@ def _copy_extra_files(ctx, prefix):
         src = srcs[0]
         dst_path = paths.join(prefix, dst_subpath)
         dst_files.append(_copy(ctx, src, dst_path))
+    return dst_files
+
+def _copy_data(ctx, prefix):
+    """Copy data files (datasets, examples, config) preserving directory structure."""
+    dst_files = []
+    for dep in ctx.attr.data:
+        srcs = dep[DefaultInfo].files.to_list()
+        for src in srcs:
+            # Skip external repo files (e.g., ../mkl_repo...)
+            if src.short_path.startswith("../"):
+                continue
+            dst_path = paths.join(prefix, src.short_path)
+            dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
 def _copy_to_release_impl(ctx):
@@ -192,6 +328,7 @@ def _copy_to_release_impl(ctx):
     files += _copy_include(ctx, prefix)
     files += _copy_lib(ctx, prefix, version_info)
     files += _copy_extra_files(ctx, prefix)
+    files += _copy_data(ctx, prefix)
     return [DefaultInfo(files=depset(files))]
 
 def _release_cpu_all_transition_impl(settings, attr):
@@ -219,6 +356,7 @@ _release = rule(
         "include_prefix": attr.string_list(),
         "include_skip_prefix": attr.string_list(),
         "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
+        "data": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "extra_files": attr.label_list(
             allow_files = False,
             doc = "Additional generated files to include in release. Must be rule targets (not bare file labels). Must be paired 1:1 with extra_files_dst.",
@@ -226,9 +364,21 @@ _release = rule(
         "extra_files_dst": attr.string_list(
             doc = "Destination paths for extra_files, relative to the release root.",
         ),
+        "extra_files_win_dst": attr.string_list(
+            doc = "Windows-specific destination paths for extra_files; empty skips the file on Windows.",
+        ),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
+        "_dll_to_implib": attr.label(
+            default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
+            allow_single_file = True,
+            doc = "Helper that derives a Windows DLL's import library by " +
+                  "running dumpbin+lib /def: post-link.",
         ),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
@@ -266,7 +416,7 @@ headers_filter = rule(
 def release_include(hdrs, skip_prefix="", add_prefix=""):
     return (hdrs, add_prefix, skip_prefix)
 
-def release(name, include, lib, extra_files = []):
+def release(name, include, lib, extra_files = [], data = []):
     """Assemble the oneDAL release directory tree.
 
     Args:
@@ -280,6 +430,12 @@ def release(name, include, lib, extra_files = []):
                            release_extra_file(":release_vars_sh", "env/vars.sh"),
                            release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc"),
                        ]
+        data:        List of filegroup targets to copy preserving directory structure.
+                     Example:
+                       data = [
+                           "//data:datasets",
+                           "//deploy/local:config",
+                       ]
     """
     rule_include = []
     rule_include_prefix = []
@@ -292,9 +448,16 @@ def release(name, include, lib, extra_files = []):
 
     rule_extra_files = []
     rule_extra_files_dst = []
-    for label, dst in extra_files:
+    rule_extra_files_win_dst = []
+    for extra_file in extra_files:
+        if len(extra_file) == 2:
+            label, dst = extra_file
+            win_dst = dst
+        else:
+            label, dst, win_dst = extra_file
         rule_extra_files.append(label)
         rule_extra_files_dst.append(dst)
+        rule_extra_files_win_dst.append(win_dst)
 
     _release(
         name = name,
@@ -302,11 +465,13 @@ def release(name, include, lib, extra_files = []):
         include_prefix = rule_include_prefix,
         include_skip_prefix = rule_include_skip_prefix,
         lib = lib,
+        data = data,
         extra_files = rule_extra_files,
         extra_files_dst = rule_extra_files_dst,
+        extra_files_win_dst = rule_extra_files_win_dst,
     )
 
-def release_extra_file(label, dst_path):
+def release_extra_file(label, dst_path, windows_dst_path = None):
     """Helper to declare an extra file for release().
 
     Args:
@@ -316,4 +481,4 @@ def release_extra_file(label, dst_path):
     Returns:
         A tuple (label, dst_path) for use in release(extra_files=...).
     """
-    return (label, dst_path)
+    return (label, dst_path, dst_path if windows_dst_path == None else windows_dst_path)

@@ -39,7 +39,7 @@ pr:
 
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
-  TBB_VERSION : 'v2021.10.0'
+  TBB_VERSION : 'v2023.0.0'
   VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
@@ -48,7 +48,7 @@ variables:
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/076e961b-2c29-48a8-9203-c96f00e7051b/intel-oneapi-base-toolkit-2025.3.1.35_offline.exe'
+  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/bae85ab1-cfcd-4251-8d42-a0c27949ea33/intel-oneapi-toolkit-2026.0.0.193_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.cpp-dpcpp-common:intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
@@ -161,14 +161,6 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: |
-      # The issue has been solved in 2026.0 release. Remove after updating to MKL 2026.0.
-      # Use custom patched MKLConfig.cmake: fixes TBB target detection and includes gnu_thread support.
-      if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
-          sudo cp .ci/env/MKLConfig.cmake /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
-          echo "Replaced oneAPI MKLConfig.cmake with patched version from .ci/env/"
-      fi
-    displayName: 'Replace MKLConfig.cmake with patched version'
-  - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh
     displayName: 'System info'
@@ -232,12 +224,14 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
     displayName: 'make daal'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
     displayName: 'make onedal_c'
   - script: |
@@ -248,41 +242,36 @@ jobs:
           dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
           onedpl-devel
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
       mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_dpc'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      # The issue has been solved in 2026.0 release. Remove after updating conda packages.
-      # Use custom patched MKLConfig.cmake: fixes TBB target detection and includes gnu_thread support.
-      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
-          cp .ci/env/MKLConfig.cmake "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
-          echo "Replaced MKLConfig.cmake with patched version from .ci/env/"
-      fi
-    displayName: 'Replace MKLConfig.cmake with patched version'
-  - script: |
-      source $(conda info --base)/etc/profile.d/conda.sh
-      conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
     displayName: 'daal/cpp examples'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
     displayName: 'oneapi/dpc examples'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
 
@@ -293,11 +282,11 @@ jobs:
     platform.type : 'lnxriscv64'
     OPENBLAS_VERSION : 'v0.3.27'
     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
-    TBB_VERSION : 'v2021.10.0'
+    TBB_VERSION : 'v2023.0.0'
     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
   pool:
-    vmImage: 'ubuntu-22.04'
+    vmImage: 'ubuntu-24.04'
   steps:
   - script: |
       .ci/env/apt.sh dev-base
@@ -309,11 +298,11 @@ jobs:
       .ci/env/apt.sh llvm-version 18
     displayName: 'llvm 18 installation'
   - script: |
-      .ci/env/apt.sh qemu-deb
+      .ci/env/apt.sh qemu-apt
     displayName: 'qemu-emulation installation'
   - task: Cache@2
     inputs:
-      key: '"riscv64" | "sysroot"'
+      key: '"riscv64" | "sysroot" | "$(SYSROOT_OS)"'
       path: $(SYSROOT_CACHE_DIR)
       cacheHitVar: SYSROOT_RESTORED
   - script: |
@@ -325,7 +314,7 @@ jobs:
     displayName: 'System info'
   - task: Cache@2
     inputs:
-      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64"'
+      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64" | "$(SYSROOT_OS)"'
       path: $(OPENBLAS_CACHE_DIR)
       cacheHitVar: OPENBLAS_RESTORED
   - script: |
@@ -334,7 +323,7 @@ jobs:
     condition: ne(variables.OPENBLAS_RESTORED, 'true')
   - task: Cache@2
     inputs:
-      key: '"clang" | "riscv64" | "tbb" | "$(TBB_VERSION)"'
+      key: '"clang" | "riscv64" | "tbb" | "$(TBB_VERSION)" | "$(SYSROOT_OS)"'
       path: $(TBB_CACHE_DIR)
       cacheHitVar: TBB_RESTORED
   - script: |
@@ -583,6 +572,75 @@ jobs:
           echo "No need for cleanup"
       fi
     displayName: 'bazel-cache-limit'
+
+
+- job: 'WindowsBazel'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_win_bazel_icx'
+    platform.type : 'win32e'
+    BAZELISK_VERSION: 'v1.28.1'
+    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZEL_OUTPUT_USER_ROOT: 'C:\b'
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+  steps:
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: 'Install oneAPI Base Toolkit'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
+      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
+      & "$(BAZELISK_EXE)" version
+    displayName: 'install-bazel'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      bash .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
+      echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
+      echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
+    displayName: 'bazel-configure'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release'
+  - script: |
+      rmdir /S /Q "$(release.dir)" 2>NUL
+      mkdir "$(release.dir)"
+      xcopy /E /I /Y "bazel-bin\release" "$(release.dir)" >NUL
+      echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
+    displayName: 'Prepare standalone release directory'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) Bazel icx build'
+      targetPath: '$(DALROOT)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set PATH=%TEST_PATH%
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'daal-cpp-examples-thread-release-dynamic'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set PATH=%TEST_PATH%
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'cpp-examples-thread-release-dynamic'
 
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL
