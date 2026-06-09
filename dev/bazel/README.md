@@ -615,10 +615,9 @@ build --linkopt=-your-link-flag
 | `REQSAN=thread`                | `--config=tsan`                                              | ThreadSanitizer                                                            |
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
-| TypeSanitizer                  | `--config=type`                                              | Clang-only; GCC/ICPX unsupported                                           |
+| `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
-| `--cpu=<isa>` (Make `PLAT`)    | `--cpu=<isa>`                                                | ISA selection                                                              |
+| `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | (Make default all ISAs)        | `bazel build //:release --cpu=all`                           | Explicit full ISA coverage                                                 |
-| (CI: single ISA)               | `--cpu=avx2`                                                 | Override for CI speed                                                      |
