@@ -134,6 +134,131 @@ test:dpc-private \
     --test_tag_filters="dpc,-public"
 
 
+# Configuration: 'release-dpc'
+# Build release artifacts including DPC++ libs.
+# Use --cpu=all for full ISA coverage, or --cpu=<isa> to restrict for CI speed.
+#   bazel build //:release --cpu=all                       # CPU only, all ISAs
+#   bazel build //:release --config=release-dpc --cpu=all  # with DPC++ libs
+#   bazel build //:release --cpu=avx2                      # CI: avx2 only
+build:release-dpc \
+    --release_dpc=True
+
+
+# Configuration: 'dev'
+# Fast local development build — compiles for the host machine's
+# highest ISA (auto-detected), plus the baseline sse2 variant. Use this
+# to speed up iterative builds. NOT suitable for release/packaging.
+#   bazel build //cpp/oneapi/dal:tests --config=dev
+build:dev \
+    --cpu=auto
+
+
+# =============================================================================
+# Debug and Sanitizer Configurations
+# Equivalent to Make REQDBG / REQSAN options
+# =============================================================================
+
+# Configuration: 'dbg'
+# Debug build with assertions enabled.
+# Equivalent to Make: REQDBG=yes
+# Adds: -g debug symbols, -DDEBUG_ASSERT, -DONEDAL_ENABLE_ASSERT
+#   bazel build //:release --config=dbg
+#   bazel test //cpp/oneapi/dal:tests --config=dbg
+build:dbg \
+    --compilation_mode=dbg \
+    --enable_assert=True
+
+# Configuration: 'dbg-symbols'
+# Debug symbols only — no assertion checking, no -O0.
+# Equivalent to Make: REQDBG=symbols
+# Adds -g to the default opt build; preserves -O2/-O3 optimization.
+#   bazel build //:release --config=dbg-symbols
+build:dbg-symbols \
+    --copt=-g \
+    --cxxopt=-g
+
+
+# Configuration: 'asan'
+# AddressSanitizer build.
+# Equivalent to Make: REQSAN=address
+# Note: combine with --config=dbg for best results (Make recommendation).
+#   bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
+build:asan \
+    --copt=-fsanitize=address \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=address \
+    --config=dbg-symbols
+
+# Configuration: 'asan-static'
+# AddressSanitizer with static libasan linkage.
+# Equivalent to Make: REQSAN=static
+build:asan-static \
+    --copt=-fsanitize=address \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=address \
+    --linkopt=-static-libasan \
+    --config=dbg-symbols
+
+
+# Configuration: 'tsan'
+# ThreadSanitizer build.
+# Equivalent to Make: REQSAN=thread
+#   bazel test //cpp/oneapi/dal:tests --config=tsan
+build:tsan \
+    --copt=-fsanitize=thread \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=thread \
+    --config=dbg-symbols
+
+
+# Configuration: 'ubsan'
+# UndefinedBehaviorSanitizer build.
+# Equivalent to Make: REQSAN=undefined
+#   bazel test //cpp/oneapi/dal:tests --config=ubsan
+build:ubsan \
+    --copt=-fsanitize=undefined \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=undefined \
+    --config=dbg-symbols
+
+
+# =============================================================================
+# Custom flags
+# For injecting arbitrary compiler/linker flags (equivalent to Make COPT/CXXFLAGS):
+#   bazel build //:release --copt=-march=native
+#   bazel build //:release --copt=-O2
+#   bazel build //:release --linkopt=-Wl,--as-needed
+# Or persist in user-local ~/.bazelrc:
+#   build --copt=-your-flag
+# Bazel combines repeated --copt/--cxxopt/--linkopt values from configs and
+# user flags; avoid passing conflicting flags such as multiple optimization
+# levels unless you intentionally want compiler-specific "last option wins"
+# behavior.
+# =============================================================================
+
+# Configuration: 'msan'
+# MemorySanitizer build.
+# Note: Requires a Clang/LLVM toolchain and lld; GCC does not support MSan.
+#   bazel test //cpp/oneapi/dal:tests --config=msan
+build:msan \
+    --copt=-fsanitize=memory \
+    --copt=-fsanitize-memory-track-origins \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=memory \
+    --linkopt=-fuse-ld=lld \
+    --config=dbg-symbols
+
+# Configuration: 'type'
+# Type sanitizer build.
+# Note: Requires Clang; GCC and ICPX do not support TypeSanitizer.
+build:type \
+    --copt=-fsanitize=type \
+    --copt=-fsanitize-recover=all \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=type \
+    --linkopt=-fuse-ld=lld \
+    --config=dbg-symbols
+
 # On Windows, dev/bazel/toolchains/cc_toolchain_win.bzl selects the custom
 # Intel oneAPI icx/icpx cc_toolchain by default (icx must be on PATH,
 # typically via %ONEAPI_ROOT%\setvars.bat). To fall back to the stock
