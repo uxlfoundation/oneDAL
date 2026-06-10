@@ -142,6 +142,8 @@ test:dpc-private \
 #   bazel build //:release                       # CPU + DPC++, all ISAs
 #   bazel build //:release --release_dpc=false   # CPU only, all ISAs
 #   bazel build //:release --cpu=avx2            # CI: avx2 only
+build:release-dpc \
+    --release_dpc=true
 
 # Configuration: 'dev'
 # Fast local development build — compiles only for the host machine's
