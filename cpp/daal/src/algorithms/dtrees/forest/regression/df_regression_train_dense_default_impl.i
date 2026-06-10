@@ -1218,7 +1218,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     ImpurityData left;
     ImpurityData right;
     IndexType iBest = -1;
-    algorithmFPType vBest;
+    intermSummFPType vBest;
     intermSummFPType leftWeights  = 0.;
     intermSummFPType rightWeights = 0.;
     auto aResponse                = this->_aResponse.get();
