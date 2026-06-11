@@ -47,7 +47,6 @@ namespace training
 {
 namespace internal
 {
-
 //////////////////////////////////////////////////////////////////////////////////////////
 // Service class, it uses to keep information about nodes
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -546,7 +545,8 @@ protected:
           _memorySavingMode(false),
           _hyperparameter(hyperparameter)
     {
-        if (_impurityThreshold < _accuracy) _impurityThreshold = _accuracy;
+        if (_impurityThreshold < daal::services::internal::EpsilonVal<intermSummFPType>::get())
+            _impurityThreshold = daal::services::internal::EpsilonVal<intermSummFPType>::get();
 
         _memorySavingMode = indexedFeatures == nullptr;
         const daal::algorithms::decision_forest::training::interface2::Parameter * algParameter =
