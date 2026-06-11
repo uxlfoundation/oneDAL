@@ -374,7 +374,6 @@ def _test_runtime_data():
             "@onedal_release//:thread_dynamic_runtime",
             "@onedal_release//:onedal_dynamic_runtime",
             "@tbb//:tbb_runtime",
-            "@tbb//:tbbmalloc_runtime",
             "@mkl//:mkl_runtime",
         ],
     })

@@ -102,8 +102,8 @@ cc_library(
         "lib/intel64/onedal_parameters_dll.lib",
     ],
     data = [
-        "lib/intel64/onedal.%{version_binary_major}.dll",
-        "lib/intel64/onedal_parameters.%{version_binary_major}.dll",
+        "redist/intel64/onedal.%{version_binary_major}.dll",
+        "redist/intel64/onedal_parameters.%{version_binary_major}.dll",
     ],
     deps = [
         ":headers",

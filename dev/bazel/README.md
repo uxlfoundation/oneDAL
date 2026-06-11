@@ -635,4 +635,4 @@ build --linkopt=-your-link-flag
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
-| (Make default all ISAs)        | `bazel build //:release --cpu=all`                           | Explicit full ISA coverage                                                 |
+| Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
