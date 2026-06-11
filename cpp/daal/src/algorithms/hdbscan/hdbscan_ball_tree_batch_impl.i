@@ -26,8 +26,8 @@
  *      with ball-tree-accelerated nearest-different-component queries
  *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
  *
- * Ball tree vs kd-tree: ball tree uses hypersphere bounds instead of axis-aligned
- * bounding boxes. More robust in high dimensions where kd-tree pruning degrades.
+ * Ball trees can be preferable to kd-trees for some higher-dimensional datasets,
+ * although pruning efficiency still depends on the data distribution and metric.
  * The lower bound for a query point q to a ball (center c, radius r) is:
  *   max(0, dist(q, c) - r)
  */
@@ -126,6 +126,7 @@ static void gatherRows(const algorithmFPType * data, const int * pointIndices, i
 template <typename algorithmFPType>
 static int argmaxArray(const algorithmFPType * arr, int count)
 {
+    DAAL_ASSERT(count > 0);
     algorithmFPType best = arr[0];
     int idx              = 0;
     for (int i = 1; i < count; i++)
@@ -255,7 +256,7 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     }
     node.radius = maxR;
 
-    if (count <= maxLeafSize)
+    if (count <= maxLeafSize || count <= 1)
     {
         return nodeIdx;
     }
@@ -284,8 +285,10 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     int mid = begin + lo;
 
     // Ensure both sides are non-empty
-    if (mid == begin) mid = begin + 1;
-    if (mid == end) mid = end - 1;
+    if (mid == begin || mid == end)
+    {
+        mid = begin + count / 2;
+    }
 
     node.left  = buildBallTree<algorithmFPType, cpu>(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize, distFunc);
     node.right = buildBallTree<algorithmFPType, cpu>(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize, distFunc);
@@ -715,9 +718,31 @@ static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows
                                                         mstTo, mstWeights, distFunc);
 }
 
-// =========================================================================
-// Main HDBSCAN ball-tree compute
-// =========================================================================
+/// Compute HDBSCAN clustering using the ball-tree based batch implementation.
+///
+/// Pipeline: build ball tree -> per-point k-NN core distances -> Boruvka MST
+/// under MRD -> sort + extract clusters via the shared cluster-utils path.
+///
+/// @tparam algorithmFPType Floating-point type used for distances and lambdas
+/// @tparam method          DAAL Method tag (`ballTree`)
+/// @tparam cpu             CPU dispatch tag
+///
+/// @param[in]  ntData                  Input numeric table of size `N x P`
+/// @param[out] ntAssignments           Output `N x 1` table; `-1` is noise, non-negative
+///                                     values are cluster ids in `[0, C)`
+/// @param[out] ntNClusters             Output `1 x 1` table holding the cluster count `C`
+/// @param[in]  minClusterSize          Minimum cluster size threshold (mcs)
+/// @param[in]  minSamples              Number of neighbors used for core distances (k)
+/// @param[in]  pairwiseDistance        Distance metric tag
+/// @param[in]  minkowskiDegree         Minkowski exponent (used only when metric is minkowski)
+/// @param[in]  clusterSelection        0 = Excess of Mass, 1 = leaf
+/// @param[in]  allowSingleCluster      If false, reject root-only EOM outcomes
+/// @param[in]  clusterSelectionEpsilon Distance threshold for the cluster-epsilon merge pass
+/// @param[in]  maxClusterSize          Maximum allowed cluster size; 0 disables the cap
+/// @param[in]  alpha                   Robust single-linkage scaling factor
+/// @param[in]  leafSize                Maximum points per ball-tree leaf
+///
+/// @return Status code
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
@@ -726,9 +751,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                                                                            double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
                                                                            size_t leafSize)
 {
-    const size_t nRows     = ntData->getNumberOfRows();
-    const size_t nCols     = ntData->getNumberOfColumns();
-    const size_t edgeCount = nRows - 1;
+    const size_t nRows = ntData->getNumberOfRows();
+    const size_t nCols = ntData->getNumberOfColumns();
 
     if (nRows < 2 || minClusterSize < 2)
     {
@@ -741,6 +765,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         ncBlock.get()[0] = 0;
         return services::Status();
     }
+
+    const size_t edgeCount = nRows - 1;
 
     ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(dataBlock);

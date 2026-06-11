@@ -193,7 +193,8 @@ namespace v1 {
 ///                intermediate computations. Can be :expr:`float` or
 ///                :expr:`double`.
 /// @tparam Method Tag-type that specifies an implementation of algorithm. Can
-///                be :expr:`method::brute_force` or :expr:`method::kd_tree`.
+///                be :expr:`method::brute_force`, :expr:`method::kd_tree`, or
+///                :expr:`method::ball_tree`.
 /// @tparam Task   Tag-type that specifies the type of the problem to solve. Can
 ///                be :expr:`task::clustering`.
 template <typename Float = float,

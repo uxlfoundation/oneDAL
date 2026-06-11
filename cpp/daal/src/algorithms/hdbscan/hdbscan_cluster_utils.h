@@ -22,7 +22,6 @@
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
-#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -215,8 +214,9 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, const int * no
         int node;
         int cluster;
     };
-    const size_t nDendroNodes = nRows - 1;
-    TArray<StackItem, cpu> mainStackArr(nDendroNodes + 1);
+    // Worst-case stack depth: every survivor rebuilds itself on the stack,
+    // so a 2*nRows budget covers the patho cases without bounds checks.
+    TArray<StackItem, cpu> mainStackArr(2 * nRows);
     StackItem * mainStack     = mainStackArr.get();
     int mainStackTop          = 0;
     mainStack[mainStackTop++] = { root, dendroToCluster[root] };
@@ -691,7 +691,7 @@ static void buildDendroParent(const int * leftChild, const int * rightChild, siz
 ///     in the condensed tree, OR
 ///   - -1 if no such ancestor exists (the point is "noise").
 ///
-/// Two passes over the points, both parallelized via daal::threader_for:
+/// Two sequential passes over the points:
 ///   1) Points that fell out of a cluster directly (pointFellFrom[i] >= 0):
 ///      look up the resolved label of their drop cluster in O(1).
 ///   2) Points that never fell out before the root cluster: walk up the
@@ -749,18 +749,19 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
     int * resolvedLabel = resolvedLabelArr.get();
     resolveClusterLabels(rootCid, nClusters, isSelected, clusterLabel, clusterParent, resolvedLabel);
 
-    const int iNRows = static_cast<int>(nRows);
-    daal::threader_for(iNRows, iNRows, [&](size_t i) {
+    for (size_t i = 0; i < nRows; i++)
+    {
         const int c    = pointFellFrom[i];
         assignments[i] = (c >= rootCid && c < nClusters) ? resolvedLabel[c] : -1;
-    });
+    }
 
     TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
     buildDendroParent(leftChild, rightChild, nRows, totalNodes, dendroParent);
 
-    daal::threader_for(iNRows, iNRows, [&](size_t i) {
-        if (pointFellFrom[i] >= 0) return;
+    for (size_t i = 0; i < nRows; i++)
+    {
+        if (pointFellFrom[i] >= 0) continue;
 
         int nid = static_cast<int>(i);
         while (nid >= 0 && nid < static_cast<int>(totalNodes))
@@ -773,7 +774,7 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
             }
             nid = dendroParent[nid];
         }
-    });
+    }
 
     return labelCounter;
 }

@@ -573,9 +573,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                                                                            double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
                                                                            size_t leafSize)
 {
-    const size_t nRows     = ntData->getNumberOfRows();
-    const size_t nCols     = ntData->getNumberOfColumns();
-    const size_t edgeCount = nRows - 1;
+    const size_t nRows = ntData->getNumberOfRows();
+    const size_t nCols = ntData->getNumberOfColumns();
 
     if (nRows < 2 || minClusterSize < 2)
     {
@@ -588,6 +587,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         ncBlock.get()[0] = 0;
         return services::Status();
     }
+
+    const size_t edgeCount = nRows - 1;
 
     ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(dataBlock);

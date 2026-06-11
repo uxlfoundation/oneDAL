@@ -66,9 +66,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                                                                            double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
                                                                            size_t leafSize)
 {
-    const size_t nRows     = ntData->getNumberOfRows();
-    const size_t nCols     = ntData->getNumberOfColumns();
-    const size_t edgeCount = nRows - 1;
+    const size_t nRows = ntData->getNumberOfRows();
+    const size_t nCols = ntData->getNumberOfColumns();
 
     if (nRows < 2 || minClusterSize < 2)
     {
@@ -82,6 +81,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         ncBlock.get()[0] = 0;
         return services::Status();
     }
+
+    const size_t edgeCount = nRows - 1;
 
     ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(dataBlock);
@@ -109,15 +110,26 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // call site driven by the metric tag.
     if (pairwiseDistance == PairwiseDistanceType::euclidean)
     {
-        EuclideanDistances<algorithmFPType, cpu> dist(*ntData, *ntData, /*squared=*/false);
+        // Compute squared L2 first, then clamp(0, .) + vSqrt ourselves. The
+        // shared `squared=false` path inside computeBatch does the vSqrt without
+        // the max(0, .) clamp that finalize() applies, so FP round-off on the
+        // diagonal (and on near-duplicate rows) produces NaN. Routing through
+        // squared=true + manual finalize keeps every entry well-defined and
+        // forces the diagonal to a clean zero.
+        EuclideanDistances<algorithmFPType, cpu> dist(*ntData, *ntData, /*squared=*/true);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
+        DAAL_CHECK_STATUS_VAR(dist.finalize(nRows * nRows, distMatrix));
+        for (size_t i = 0; i < nRows; i++) distMatrix[i * nRows + i] = algorithmFPType(0);
     }
     else if (pairwiseDistance == PairwiseDistanceType::cosine)
     {
         CosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
+        // Zero-norm rows make 1 - dot/(aa*bb) divide by zero; FP round-off can
+        // also push the diagonal away from a clean zero. Defensive cleanup.
+        for (size_t i = 0; i < nRows; i++) distMatrix[i * nRows + i] = algorithmFPType(0);
     }
     else if (pairwiseDistance == PairwiseDistanceType::manhattan)
     {

@@ -83,16 +83,22 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                      degree,
                                                      { dist_alloc_event });
 
-    // Step 1b: Apply alpha scaling to distance matrix (robust single linkage)
+    // Step 1b: Apply alpha scaling to distance matrix (robust single linkage).
+    // For Euclidean the matrix currently holds squared L2 (sqrt is done later
+    // by compute_core_distances / compute_mrd_matrix), so to scale the final
+    // distance d -> d/alpha we have to scale the squared values by 1/alpha^2.
+    // Other metrics already hold final distances, so 1/alpha is correct.
     sycl::event alpha_event = dist_event;
     if (alpha != 1.0) {
-        const Float inv_alpha = static_cast<Float>(1.0 / alpha);
+        const Float scale = (metric == distance_metric::euclidean)
+                                ? static_cast<Float>(1.0 / (alpha * alpha))
+                                : static_cast<Float>(1.0 / alpha);
         Float* dist_ptr = dist_matrix.get_mutable_data();
         const std::int64_t total_dist = row_count * row_count;
         alpha_event = queue.submit([&](sycl::handler& h) {
             h.depends_on({ dist_event });
             h.parallel_for(sycl::range<1>(total_dist), [=](sycl::id<1> idx) {
-                dist_ptr[idx[0]] *= inv_alpha;
+                dist_ptr[idx[0]] *= scale;
             });
         });
     }
