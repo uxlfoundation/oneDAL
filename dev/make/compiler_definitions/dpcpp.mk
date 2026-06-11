@@ -73,7 +73,7 @@ endif
 # SYCL debug device-code small enough for the CI runner to link libonedal_dpc.so
 # under REQDBG. Full -g blew past the linker memory budget after the HDBSCAN
 # GPU kernels landed.
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-gline-tables-only -fdebug-types-section) -fno-system-debug
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-fdebug-types-section) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
