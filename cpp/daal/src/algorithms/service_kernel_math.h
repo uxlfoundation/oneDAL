@@ -135,7 +135,7 @@ public:
 //  - Primary template handles all non-float types with zero overhead.
 // ---------------------------------------------------------------------------
 
-#ifndef DAAL_REF
+#if !defined(DAAL_REF) && defined(__AVX512F__)
 
 /// Minimum GEMM dimension for which AMX-BF16 is profitable.
 /// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
@@ -239,7 +239,7 @@ private:
     }
 };
 
-#endif // !DAAL_REF
+#endif // !defined(DAAL_REF) && defined(__AVX512F__)
 
 // compute: sum(A^2, 2) + sum(B^2, 2) -2*A*B'
 template <typename FPType, CpuType cpu>
@@ -408,7 +408,7 @@ protected:
 
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
-#ifndef DAAL_REF
+#if !defined(DAAL_REF) && defined(__AVX512F__)
         BF16GemmDispatcher<FPType, cpu>::compute(a, b, static_cast<DAAL_INT>(nRowsB), static_cast<DAAL_INT>(nRowsA), static_cast<DAAL_INT>(nColsA),
                                                  out);
 #else

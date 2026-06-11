@@ -51,7 +51,7 @@ namespace
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
 /// Recognised values: "ALLOW_BF16" / "allow_bf16" and "REQUIRE_BF16" / "require_bf16".
-/// Everything else → strict.
+/// Everything else -> strict.
 static daal::internal::Float32MatmulPrecision parse_env_precision()
 {
     const char * val = std::getenv("ONEDAL_FLOAT32_MATMUL_PRECISION");
@@ -73,8 +73,8 @@ static std::atomic<int> g_float32_matmul_precision { static_cast<int>(parse_env_
 } // anonymous namespace
 
 /// Return the currently requested float32 matmul precision.
-/// This is a plain atomic load — no hardware queries.
-DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision()
+/// This is a plain atomic load -- no hardware queries.
+daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision()
 {
     return static_cast<daal::internal::Float32MatmulPrecision>(g_float32_matmul_precision.load(std::memory_order_relaxed));
 }
@@ -82,7 +82,7 @@ DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_preci
 /// Set the float32 matmul precision hint.
 /// Stores the requested level directly; dispatchers combine it with runtime
 /// hardware capability checks.
-DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p)
+void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p)
 {
     g_float32_matmul_precision.store(static_cast<int>(p), std::memory_order_relaxed);
 }

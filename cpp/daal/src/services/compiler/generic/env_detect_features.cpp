@@ -312,10 +312,10 @@ DAAL_UINT64 __daal_internal_serv_cpu_feature_detect()
     {
         DAAL_TEST_CPU_FEATURE(result, 7, 1, 0, 5, daal::internal::CpuFeature::avx512_bf16);
         DAAL_TEST_CPU_FEATURE(result, 7, 0, 2, 11, daal::internal::CpuFeature::avx512_vnni);
-    }
-    if (check_amx_bf16_features())
-    {
-        result |= daal::internal::CpuFeature::amx_bf16;
+        if (check_amx_bf16_features())
+        {
+            result |= daal::internal::CpuFeature::amx_bf16;
+        }
     }
     DAAL_TEST_CPU_FEATURE(result, 1, 0, 2, 7, daal::internal::CpuFeature::sstep);
     DAAL_TEST_CPU_FEATURE(result, 6, 0, 0, 1, daal::internal::CpuFeature::tb);
@@ -333,7 +333,7 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     return result;
 }
 
-DAAL_EXPORT bool daal_has_amx_bf16()
+bool daal_has_amx_bf16()
 {
     return (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
 }
@@ -381,7 +381,7 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     return daal::internal::CpuFeature::unknown;
 }
 
-DAAL_EXPORT bool daal_has_amx_bf16()
+bool daal_has_amx_bf16()
 {
     return false;
 }
@@ -412,7 +412,7 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     return daal::internal::CpuFeature::unknown;
 }
 
-DAAL_EXPORT bool daal_has_amx_bf16()
+bool daal_has_amx_bf16()
 {
     return false;
 }
