@@ -86,7 +86,7 @@ public:
     }
 };
 
-using pca_types = COMBINE_TYPES((float, double), (method::cov, method::svd));
+using pca_types = COMBINE_TYPES((float, double), (method::cov, pca::method::svd));
 TEMPLATE_LIST_TEST_M(pca_serialization_test,
                      "serialize/deserialize pca model",
                      "[pca]",
