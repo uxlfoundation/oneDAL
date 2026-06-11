@@ -63,17 +63,17 @@ jobs:
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Checkout oneTBB
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
@@ -140,17 +140,17 @@ jobs:
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Checkout oneTBB
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
