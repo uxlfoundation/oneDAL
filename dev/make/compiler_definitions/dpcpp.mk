@@ -68,7 +68,12 @@ endif
 
 
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+# -gline-tables-only + -fdebug-types-section keep file:line info for backtraces
+# / asan but drop full DWARF type entries and dedup the rest, which keeps the
+# SYCL debug device-code small enough for the CI runner to link libonedal_dpc.so
+# under REQDBG. Full -g blew past the linker memory budget after the HDBSCAN
+# GPU kernels landed.
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-gline-tables-only -fdebug-types-section) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
