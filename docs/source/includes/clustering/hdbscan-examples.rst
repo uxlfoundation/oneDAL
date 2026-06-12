@@ -1,4 +1,4 @@
-.. Copyright 2021 Intel Corporation
+.. Copyright contributors to the oneDAL project
 ..
 .. Licensed under the Apache License, Version 2.0 (the "License");
 .. you may not use this file except in compliance with the License.
@@ -12,16 +12,11 @@
 .. See the License for the specific language governing permissions and
 .. limitations under the License.
 
-==========
-Clustering
-==========
+.. tabs::
 
-This chapter describes programming interfaces of the clustering algorithms implemented in |short_name|:
+   .. group-tab:: oneAPI DPC++
 
-.. toctree::
-   :titlesonly:
+      Batch Processing:
 
-   dbscan.rst
-   hdbscan.rst
-   kmeans.rst
-   kmeans-init.rst
+      - :ref:`dpc_hdbscan_brute_force_batch.cpp`
+      - :ref:`dpc_hdbscan_kd_tree_batch.cpp`

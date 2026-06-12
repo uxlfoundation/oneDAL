@@ -209,6 +209,7 @@ daal_algorithms(
         "dtrees/gbt/regression",
         "dtrees/gbt/classification",
         "elastic_net",
+        "hdbscan",
         "em",
         "engines",
         "implicit_als",

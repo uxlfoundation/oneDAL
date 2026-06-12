@@ -1,0 +1,113 @@
+/*******************************************************************************
+* Copyright contributors to the oneDAL project
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
+
+#include <sycl/sycl.hpp>
+#include <chrono>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
+
+#ifndef ONEDAL_DATA_PARALLEL
+#define ONEDAL_DATA_PARALLEL
+#endif
+
+#include "oneapi/dal/algo/hdbscan.hpp"
+#include "oneapi/dal/io/csv.hpp"
+
+#include "example_util/utils.hpp"
+
+namespace dal = oneapi::dal;
+
+void run(sycl::queue& q) {
+    // Allow overriding data path and parameters via environment variables
+    const char* data_env = std::getenv("HDBSCAN_DATA_PATH");
+    const std::string data_file_name =
+        data_env ? std::string(data_env) : get_data_path("data/hdbscan_dense.csv");
+
+    const char* mcs_env = std::getenv("HDBSCAN_MIN_CLUSTER_SIZE");
+    const std::int64_t min_cluster_size = mcs_env ? std::atol(mcs_env) : 15;
+
+    const char* ms_env = std::getenv("HDBSCAN_MIN_SAMPLES");
+    const std::int64_t min_samples = ms_env ? std::atol(ms_env) : 10;
+
+    const char* metric_env = std::getenv("HDBSCAN_METRIC");
+    const std::string metric_str = metric_env ? std::string(metric_env) : "euclidean";
+
+    const char* degree_env = std::getenv("HDBSCAN_DEGREE");
+    const double degree = degree_env ? std::atof(degree_env) : 2.0;
+
+    const auto x_data = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
+
+    std::cout << "Data dimensions: " << x_data.get_row_count() << " x " << x_data.get_column_count()
+              << std::endl;
+    std::cout << "Parameters: min_cluster_size=" << min_cluster_size
+              << ", min_samples=" << min_samples << ", metric=" << metric_str
+              << ", degree=" << degree << std::endl;
+
+    auto hdbscan_desc = dal::hdbscan::descriptor<float>(min_cluster_size, min_samples);
+    hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
+
+    // Set metric
+    if (metric_str == "manhattan") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::manhattan);
+    }
+    else if (metric_str == "minkowski") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::minkowski);
+        hdbscan_desc.set_degree(degree);
+    }
+    else if (metric_str == "chebyshev") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::chebyshev);
+    }
+    else if (metric_str == "cosine") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::cosine);
+    }
+
+    // Warmup run
+    dal::compute(q, hdbscan_desc, x_data);
+
+    // Timed run
+    auto t0 = std::chrono::high_resolution_clock::now();
+    const auto result = dal::compute(q, hdbscan_desc, x_data);
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+    std::cout << "Cluster count: " << result.get_cluster_count() << std::endl;
+    std::cout << "Time: " << std::fixed << std::setprecision(1) << ms << " ms" << std::endl;
+
+    // Output labels in machine-readable format
+    const auto responses = result.get_responses();
+    const auto acc = dal::row_accessor<const std::int32_t>(responses);
+    const auto labels = acc.pull({ 0, -1 });
+    const std::int32_t* lbl_ptr = labels.get_data();
+    const std::int64_t n = responses.get_row_count();
+
+    std::cout << "Labels:";
+    for (std::int64_t i = 0; i < n; i++) {
+        std::cout << " " << lbl_ptr[i];
+    }
+    std::cout << std::endl;
+}
+
+int main(int argc, char const* argv[]) {
+    for (auto d : list_devices()) {
+        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
+                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
+                  << std::endl;
+        auto q = sycl::queue{ d };
+        run(q);
+    }
+    return 0;
+}
