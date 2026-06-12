@@ -44,10 +44,10 @@
    ```
 
 ## Install Bazel on Windows
-Windows Bazel support currently covers the regular C++/CPU build with the MSVC
-compiler. DPC++/SYCL builds on Windows are not wired yet; see the tracking issue
-for the remaining `sycl/sycl.hpp`, oneAPI compiler, runtime library and device
-flag work.
+Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
+and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
+Running DPC++ examples and tests on Windows still needs separate device/runtime
+validation.
 
 1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
 
@@ -304,9 +304,9 @@ The most used Bazel commands are `build`, `test` and `run`.
   bazelisk.exe build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures
   ```
 
-- To run all oneAPI DPC++ examples ... It's not implemented yet. Windows DPC++
-  support is also not implemented yet and is tracked separately from the CPU
-  Windows Bazel build.
+- Running all oneAPI DPC++ examples is not implemented yet. Windows release
+  artifact builds can include DPC++ libraries, but Windows DPC++ example/test
+  execution still needs separate device/runtime validation.
 
 ### Run oneAPI tests
 - To run all test use the following commands:
