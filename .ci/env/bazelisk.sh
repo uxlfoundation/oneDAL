@@ -16,37 +16,17 @@
 #===============================================================================
 
 BAZELISK_VERSION=v1.29.0
-# collect information about the bazelisk release
-BAZELISK_JSON=$(wget -qO- \
-  --header="Accept: application/vnd.github+json" \
-  ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
-  --header="X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$BAZELISK_VERSION)
-if [ $? -ne 0 ] || [ -z "$BAZELISK_JSON" ]; then
-  echo ":error: Failed to fetch Bazelisk release information from GitHub API." >&2
-  exit 1
-fi
-
-# extract SHA256 from json
-SHA256=""
-found=""
-while IFS= read -r line; do
-  if [[ $line == *'"name": "bazelisk-linux-amd64"'* ]]; then
-    found=1
-  elif [[ $found && $line == *'"digest":'* ]]; then
-    SHA256=$(echo "$line" | sed -n 's/.*"sha256:\([^"]*\)".*/\1/p')
-    break
-  fi
-done < <(printf '%s\n' "$BAZELISK_JSON")
-SHA256+="  bazelisk-linux-amd64"
+BAZELISK_BINARY=bazelisk-linux-amd64
+BAZELISK_SHA256=5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992
 
 # Download Bazelisk
-wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/bazelisk-linux-amd64
-echo $SHA256
-echo ${SHA256} | sha256sum --check
+wget --tries=5 --waitretry=5 --retry-connrefused \
+  "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/${BAZELISK_BINARY}"
+echo "${BAZELISK_SHA256}  ${BAZELISK_BINARY}"
+echo "${BAZELISK_SHA256}  ${BAZELISK_BINARY}" | sha256sum --check
 # "Install" bazelisk
-chmod +x bazelisk-linux-amd64
+chmod +x "${BAZELISK_BINARY}"
 mkdir -p bazel/bin
-mv bazelisk-linux-amd64 bazel/bin/bazel
+mv "${BAZELISK_BINARY}" bazel/bin/bazel
 export BAZEL_VERSION=$(./bazel/bin/bazel --version | awk '{print $2}')
 export PATH=$PATH:$(pwd)/bazel/bin
