@@ -415,7 +415,7 @@ jobs:
       # Display oneDAL build configuration
       bazel build @config//:dump
       echo
-      cat bazel-bin/external/+_repo_rules+config/config.json
+      cat bazel-bin/external/+declare_onedal_config+config/config.json
       echo
     displayName: 'bazel-configure'
 
@@ -524,10 +524,12 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      export LD_LIBRARY_PATH="$(DALROOT)/lib/intel64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
-                 --test_env DALROOT
+                 --test_env DALROOT \
+                 --test_env LD_LIBRARY_PATH
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
@@ -536,10 +538,12 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      export LD_LIBRARY_PATH="$(DALROOT)/lib/intel64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
-                 --test_env DALROOT
+                 --test_env DALROOT \
+                 --test_env LD_LIBRARY_PATH
     displayName: 'cpp-examples-thread-release-dynamic'
 
   - script: |
