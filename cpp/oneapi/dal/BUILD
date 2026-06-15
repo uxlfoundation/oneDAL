@@ -92,6 +92,7 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
+    dpc_lib_tags = ["dal", "daal"],
     dal_deps = [
         ":core",
         ":optional",
