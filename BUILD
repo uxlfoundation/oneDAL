@@ -65,13 +65,21 @@ filegroup(
 )
 
 filegroup(
+    name = "release_mpi_daal_lst_linux",
+    srcs = ["samples/daal/cpp/mpi/daal_lnx.lst"],
+)
+
+filegroup(
+    name = "release_mpi_makefile_linux",
+    srcs = ["samples/daal/cpp/mpi/makefile_lnx"],
+)
+
+filegroup(
     name = "release_package_files",
     srcs = glob([
         "examples/cmake/setup_examples.cmake",
         "samples/cmake/*.cmake",
         "samples/daal/cpp/mpi/CMakeLists.txt",
-        "samples/daal/cpp/mpi/daal.lst.bat",
-        "samples/daal/cpp/mpi/launcher.bat",
         "samples/daal/cpp/mpi/license.txt",
         "samples/daal/cpp/mpi/resources/*",
         "samples/daal/cpp/mpi/sources/*.cpp",
@@ -82,7 +90,13 @@ filegroup(
         "samples/oneapi/cpp/mpi/CMakeLists.txt",
         "samples/oneapi/cpp/mpi/sources/*.cpp",
         "samples/oneapi/cpp/mpi/sources/*.hpp",
-    ]),
+    ]) + select({
+        ":windows": glob([
+            "samples/daal/cpp/mpi/daal.lst.bat",
+            "samples/daal/cpp/mpi/launcher.bat",
+        ]),
+        "//conditions:default": [],
+    }),
 )
 
 release(
@@ -123,17 +137,21 @@ release(
         "//data:datasets",
         ":release_package_files",
         "//examples/daal/cpp:release_files",
+        "//examples/oneapi/cpp:release_files",
     ],
     extra_files = [
         release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),
-        release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
-        release_extra_file(":release_pkgconfig_dynamic_threading_host", "", windows_dst_path = "lib/pkgconfig/dal-dynamic-threading-host.pc"),
-        release_extra_file(":release_pkgconfig_static_threading_host", "", windows_dst_path = "lib/pkgconfig/dal-static-threading-host.pc"),
+        release_extra_file(":release_pkgconfig", "", windows_dst_path = "lib/pkgconfig/onedal.pc"),
+        release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc", windows_dst_path = ""),
+        release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc", windows_dst_path = ""),
         release_extra_file("//deploy/local:config_file", "config/config.txt"),
+        release_extra_file("//deploy/local:modulefile_dal", "modulefiles/dal", windows_dst_path = ""),
+        release_extra_file(":release_mpi_daal_lst_linux", "samples/daal/cpp/mpi/daal.lst", windows_dst_path = ""),
+        release_extra_file(":release_mpi_makefile_linux", "samples/daal/cpp/mpi/makefile", windows_dst_path = ""),
         release_extra_file(":release_cmake_config", "lib/cmake/oneDAL/oneDALConfig.cmake"),
         release_extra_file(":release_cmake_config_version", "lib/cmake/oneDAL/oneDALConfigVersion.cmake"),
-        release_extra_file(":release_nuspec_devel", "nuspec/inteldal.devel.win-x64.nuspec", windows_dst_path = "nuspec/inteldal.devel.win-x64.nuspec"),
-        release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.win-x64.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
-        release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.win-x64.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
+        release_extra_file(":release_nuspec_devel", "nuspec/inteldal.devel.linux.nuspec", windows_dst_path = "nuspec/inteldal.devel.win-x64.nuspec"),
+        release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
+        release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
     ],
 )

@@ -111,6 +111,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
             "oneapi/",
         ],
         exclude = [
+            "_dal_cpu_dispatcher_gen.hpp",
             "backend/",
             "test/",
             # Exclude all external-repository headers.  _match_file_name uses
@@ -124,7 +125,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
     )
 
 def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
-                   dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal"],
+                   dpc_deps=[], extra_deps=[], lib_tags=["dal"],
                    features=[], **kwargs):
     cc_static_lib(
         name = name,
@@ -143,7 +144,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal", "mkl_embed"],
+                    dpc_deps=[], extra_deps=[], lib_tags=["dal"],
                     features=[], **kwargs):
     cc_dynamic_lib(
         name = name,

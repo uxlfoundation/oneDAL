@@ -292,8 +292,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.cc,
-                    "-Wl,-no-as-needed",
-                    "-no-as-needed",
+                    "-Wl,--as-needed",
+                    "--as-needed",
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
@@ -327,8 +327,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.dpcc,
-                    "-Wl,-no-as-needed",
-                    "-no-as-needed",
+                    "-Wl,--as-needed",
+                    "--as-needed",
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
