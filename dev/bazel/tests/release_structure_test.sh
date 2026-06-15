@@ -27,6 +27,7 @@ set -euo pipefail
 
 RELEASE_DIR="${1:-bazel-bin/release/daal/latest}"
 LIB_DIR="${RELEASE_DIR}/lib/intel64"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PASS=0
 FAIL=0
 
@@ -141,28 +142,10 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. vars.sh
+# 3. Common package metadata checks
 # ---------------------------------------------------------------------------
-echo ""
-echo "=== vars.sh ==="
-
-VARS_SH="${RELEASE_DIR}/env/vars.sh"
-if [ -f "$VARS_SH" ]; then
-    _pass "env/vars.sh exists"
-    if grep -q "DAL_MAJOR_BINARY" "$VARS_SH"; then
-        _pass "vars.sh contains DAL_MAJOR_BINARY"
-    else
-        _fail "vars.sh missing DAL_MAJOR_BINARY"
-    fi
-    # Check no unresolved placeholders
-    if grep -q "__DAL_MAJOR_BINARY__\|__DAL_MINOR_BINARY__" "$VARS_SH"; then
-        _fail "vars.sh still has unresolved placeholders"
-    else
-        _pass "vars.sh has no unresolved placeholders"
-    fi
-else
-    _fail "env/vars.sh not found at ${VARS_SH}"
-fi
+"${SCRIPT_DIR}/../../release_tests/package_metadata_test.sh" "${RELEASE_DIR}" || \
+    _fail "package metadata checks failed"
 
 # ---------------------------------------------------------------------------
 # 4. modulefile
@@ -192,51 +175,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. pkg-config
-# ---------------------------------------------------------------------------
-echo ""
-echo "=== pkg-config ==="
-
-if ${IS_LINUX}; then
-    for pc_name in dal-dynamic-threading-host.pc dal-static-threading-host.pc; do
-        PC_FILE="${RELEASE_DIR}/lib/pkgconfig/${pc_name}"
-        if [ -f "$PC_FILE" ]; then
-            _pass "lib/pkgconfig/${pc_name} exists"
-            if grep -q "^Name:" "$PC_FILE"; then
-                _pass "${pc_name} has Name field"
-            else
-                _fail "${pc_name} missing Name field"
-            fi
-            if grep -q "^Libs:" "$PC_FILE"; then
-                _pass "${pc_name} has Libs field"
-            else
-                _fail "${pc_name} missing Libs field"
-            fi
-        else
-            _fail "lib/pkgconfig/${pc_name} not found"
-        fi
-    done
-else
-    PC_FILE="${RELEASE_DIR}/lib/pkgconfig/onedal.pc"
-    if [ -f "$PC_FILE" ]; then
-        _pass "lib/pkgconfig/onedal.pc exists"
-        if grep -q "^Name:" "$PC_FILE"; then
-            _pass "onedal.pc has Name field"
-        else
-            _fail "onedal.pc missing Name field"
-        fi
-        if grep -q "^Libs:" "$PC_FILE"; then
-            _pass "onedal.pc has Libs field"
-        else
-            _fail "onedal.pc missing Libs field"
-        fi
-    else
-        _fail "lib/pkgconfig/onedal.pc not found"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# 6. No external dependency headers in include/
+# 5. No external dependency headers in include/
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== No external headers in release include/ ==="
