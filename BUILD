@@ -4,8 +4,9 @@ load("@onedal//dev/bazel:release.bzl",
     "release_extra_file",
 )
 load("@onedal//dev/bazel:scripts.bzl",
-    "generate_vars_sh",
+    "generate_modulefile",
     "generate_pkgconfig",
+    "generate_vars_sh",
 )
 
 config_setting(
@@ -16,6 +17,11 @@ config_setting(
 generate_vars_sh(
     name = "release_vars_sh",
     out = "env/vars.sh",
+)
+
+generate_modulefile(
+    name = "release_modulefile_dal",
+    out = "modulefiles/dal",
 )
 
 generate_pkgconfig(
@@ -145,7 +151,7 @@ release(
         release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc", windows_dst_path = ""),
         release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc", windows_dst_path = ""),
         release_extra_file("//deploy/local:config_file", "config/config.txt"),
-        release_extra_file("//deploy/local:modulefile_dal", "modulefiles/dal", windows_dst_path = ""),
+        release_extra_file(":release_modulefile_dal", "modulefiles/dal", windows_dst_path = ""),
         release_extra_file(":release_mpi_daal_lst_linux", "samples/daal/cpp/mpi/daal.lst", windows_dst_path = ""),
         release_extra_file(":release_mpi_makefile_linux", "samples/daal/cpp/mpi/makefile", windows_dst_path = ""),
         release_extra_file(":release_cmake_config", "lib/cmake/oneDAL/oneDALConfig.cmake"),

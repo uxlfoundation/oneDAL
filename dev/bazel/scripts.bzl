@@ -19,11 +19,11 @@
 load("@onedal//dev/bazel/config:config.bzl", "VersionInfo")
 
 # ---------------------------------------------------------------------------
-# vars.sh
+# Versioned template files
 # ---------------------------------------------------------------------------
 
-def _generate_vars_sh_impl(ctx):
-    """Expand vars.sh template substituting binary version placeholders."""
+def _generate_versioned_template_impl(ctx):
+    """Expand a release template substituting binary version placeholders."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.expand_template(
@@ -36,13 +36,13 @@ def _generate_vars_sh_impl(ctx):
     )
     return [DefaultInfo(files = depset([out]))]
 
-_generate_vars_sh = rule(
-    implementation = _generate_vars_sh_impl,
+_generate_versioned_template = rule(
+    implementation = _generate_versioned_template_impl,
     attrs = {
         "template": attr.label(
             allow_single_file = True,
             mandatory = True,
-            doc = "Source vars.sh template file.",
+            doc = "Source release template file.",
         ),
         "out": attr.string(
             mandatory = True,
@@ -57,13 +57,22 @@ _generate_vars_sh = rule(
 
 def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
     """Generate release environment script from template."""
-    _generate_vars_sh(
+    _generate_versioned_template(
         name = name,
         template = select({
             "@platforms//os:windows": "@onedal//deploy/local:vars_win.bat",
             "@platforms//os:osx": "@onedal//deploy/local:vars_mac.sh",
             "//conditions:default": "@onedal//deploy/local:vars_lnx.sh",
         }),
+        out = out,
+        **kwargs
+    )
+
+def generate_modulefile(name, out = "modulefiles/dal", **kwargs):
+    """Generate Linux modulefile from template."""
+    _generate_versioned_template(
+        name = name,
+        template = "@onedal//deploy/local:dal",
         out = out,
         **kwargs
     )
@@ -81,7 +90,7 @@ def _generate_pkgconfig_impl(ctx):
         onedal_libs = (
             "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
             if ctx.attr.static else
-            "${libdir}/onedal_dll.lib ${libdir}/onedal_core_dll.lib"
+            "${libdir}/onedal_dll.lib ${libdir}/onedal_parameters_dll.lib ${libdir}/onedal_core_dll.lib"
         )
         ctx.actions.write(
             output = out,

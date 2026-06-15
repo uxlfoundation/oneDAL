@@ -64,8 +64,8 @@ set dalroot "$componentroot"
 set daal_target_arch "intel64"
 
 # Setup environment variables
-setenv          DAL_MAJOR_BINARY   1
-setenv          DAL_MINOR_BINARY   1
+setenv          DAL_MAJOR_BINARY   __DAL_MAJOR_BINARY__
+setenv          DAL_MINOR_BINARY   __DAL_MINOR_BINARY__
 setenv          DALROOT            "$dalroot"
 
 prepend-path    LD_LIBRARY_PATH    "$dalroot/lib"
