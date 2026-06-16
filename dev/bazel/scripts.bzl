@@ -89,13 +89,13 @@ def _generate_cmake_config_impl(ctx):
         output = out,
         substitutions = {
             "@DAL_ROOT_REL_PATH@": "../../..",
-            "@VERSIONS_SET@": "TRUE",
-            "@DAL_VER_MAJOR_BIN@": vi.binary_major,
-            "@DAL_VER_MINOR_BIN@": vi.binary_minor,
+            "@VERSIONS_SET@": "FALSE",
+            "@DAL_VER_MAJOR_BIN@": "",
+            "@DAL_VER_MINOR_BIN@": "",
             "@ARCH_DIR_ONEDAL@": "intel64",
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
-            "@oneDAL_VERSION@": "{}.{}.{}.0".format(vi.major, vi.minor, vi.update),
+            "@oneDAL_VERSION@": "",
         },
     )
     return [DefaultInfo(files = depset([out]))]
@@ -158,28 +158,40 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
             ),
         )
     else:
-        ctx.actions.run_shell(
-            inputs = [ctx.file.template],
-            outputs = [out],
-            command = (
-                "${{CC:-gcc}} -E -P -x c " +
-                ("-DSTATIC " if ctx.attr.static else "") +
-                "-DDAL_MAJOR_BINARY={binary_major} " +
-                "-DDAL_MINOR_BINARY={binary_minor} " +
-                "-DDAL_MAJOR={major} " +
-                "-DDAL_MINOR={minor} " +
-                "{template} -o {out}"
-            ).format(
-                binary_major = vi.binary_major,
-                binary_minor = vi.binary_minor,
+        suffix = "a" if ctx.attr.static else "so"
+        ctx.actions.write(
+            output = out,
+            content = """#===============================================================================
+# Copyright contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+prefix=${{pcfiledir}}/../../
+exec_prefix=${{prefix}}
+libdir=${{exec_prefix}}/lib/intel64
+includedir=${{prefix}}/include
+
+Name: oneDAL
+Description: oneAPI Data Analytics Library
+Version: {major}.{minor}
+URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
+Libs: ${{libdir}}/libonedal.{suffix} ${{libdir}}/libonedal_core.{suffix} ${{libdir}}/libonedal_thread.{suffix} ${{libdir}}/libonedal_parameters.{suffix} -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
+Cflags: -std=c++17 -Wno-deprecated-declarations -I${{includedir}}
+""".format(
                 major = vi.major,
                 minor = vi.minor,
-                template = ctx.file.template.path,
-                out = out.path,
+                suffix = suffix,
             ),
-            mnemonic = "GenPkgConfig",
-            progress_message = "Generating pkg-config file {}".format(out.short_path),
-            use_default_shell_env = True,
         )
     return [DefaultInfo(files = depset([out]))]
 

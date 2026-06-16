@@ -102,7 +102,7 @@ dal_dynamic_lib(
     host_deps = select({
         "@platforms//os:windows": [
             ":static_parameters",
-            "@onedal//cpp/daal:core_embed",
+            "@onedal//cpp/daal:core_dynamic",
         ],
         "//conditions:default": [],
     }),
