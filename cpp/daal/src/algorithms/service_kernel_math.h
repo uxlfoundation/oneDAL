@@ -221,9 +221,9 @@ struct BF16GemmDispatcher<float, cpu>
                 convert_f32_buffer_to_bf16_rne(b, szB, b16Buffer);
             }
 
-            // Column-major call computing C = B * A^T.
-            // B is stored as m x k with ld=m, A as n x k with ld=n.
-            cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, m, n, k, 1.0f, b16Buffer, m, a16.get(), n, 0.0f, out, m);
+            // Row-major call computing C^T = A * B^T.
+            // A is stored as n x k with ld=k, B as m x k with ld=k, C as n x m with ld=m.
+            cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, n, m, k, 1.0f, a16.get(), k, b16Buffer, k, 0.0f, out, m);
             return;
         }
 
