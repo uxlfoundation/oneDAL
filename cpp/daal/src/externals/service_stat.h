@@ -136,7 +136,7 @@ struct Statistics
         const fpType invSum = 1 / (sum);
 
         // calcultate weightd means from sums
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD
         for (size_t i = 0; i < nCols; i++)
         {
             weightedSum[i] = weightedSum[i] * invSum;

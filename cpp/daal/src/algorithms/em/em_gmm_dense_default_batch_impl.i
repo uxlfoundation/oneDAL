@@ -237,7 +237,6 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
         }
     }
 
-    t.partLogLikelyhood        = 0;
     algorithmFPType * maxInRow = t.rowSum;
     PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
@@ -273,12 +272,13 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
         }
     }
 
-    PRAGMA_OMP_SIMD
-    PRAGMA_VECTOR_ALWAYS
+    algorithmFPType likelyhood(0.0);
+    PRAGMA_OMP_SIMD_ARGS(reduction(+ : likelyhood))
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {
-        t.partLogLikelyhood += maxInRow[i];
+        likelyhood += maxInRow[i];
     }
+    t.partLogLikelyhood = likelyhood;
 
     PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
