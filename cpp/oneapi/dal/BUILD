@@ -92,15 +92,22 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
+    lib_tags = select({
+        # Windows does not allow unresolved DLL symbols. Keep DAAL services
+        # and data-management objects in onedal.dll there, while Linux keeps
+        # depending on onedal_core.so for release parity.
+        "@platforms//os:windows": ["dal", "daal"],
+        "//conditions:default": ["dal"],
+    }),
     dpc_lib_tags = ["dal", "daal"],
     dal_deps = [
         ":core",
         ":optional",
     ],
-    # On Windows, onedal.dll must link against onedal_core.dll import library
-    # because oneAPI objects reference DAAL services/data-management symbols.
+    # On Windows, DAAL objects embedded into onedal.dll still need the
+    # delay-load threading shim used by onedal_core.dll.
     host_deps = select({
-        "@platforms//os:windows": ["@onedal//cpp/daal:core_dynamic"],
+        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
         "//conditions:default": [],
     }),
 )

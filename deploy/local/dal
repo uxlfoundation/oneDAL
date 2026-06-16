@@ -68,8 +68,8 @@ setenv          DAL_MAJOR_BINARY   __DAL_MAJOR_BINARY__
 setenv          DAL_MINOR_BINARY   __DAL_MINOR_BINARY__
 setenv          DALROOT            "$dalroot"
 
-prepend-path    LD_LIBRARY_PATH    "$dalroot/lib"
-prepend-path    LIBRARY_PATH       "$dalroot/lib"
+prepend-path    LD_LIBRARY_PATH    "$dalroot/lib/$daal_target_arch"
+prepend-path    LIBRARY_PATH       "$dalroot/lib/$daal_target_arch"
 prepend-path    CPLUS_INCLUDE_PATH "$dalroot/include/dal"
 prepend-path    CMAKE_PREFIX_PATH  "$dalroot"
 prepend-path    PKG_CONFIG_PATH    "$dalroot/lib/pkgconfig"

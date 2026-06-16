@@ -255,7 +255,14 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 
 
 def _cc_dynamic_lib_impl(ctx):
-    toolchain, feature_config = _init_cc_rule(ctx)
+    toolchain, feature_config = _init_cc_rule(ctx, features=[
+        # Keep produced shared libraries free of dynamic Bazel deps on Linux.
+        # Release-dynamic tests provide standalone oneDAL libs through
+        # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
+        # live in test runfiles; DT_NEEDED entries on those deps are not
+        # resolved through the executable RUNPATH.
+        "do_not_link_dynamic_dependencies",
+    ])
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
