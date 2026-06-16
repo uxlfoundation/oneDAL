@@ -4,6 +4,7 @@ load("@onedal//dev/bazel:release.bzl",
     "release_extra_file",
 )
 load("@onedal//dev/bazel:scripts.bzl",
+    "generate_cmake_config",
     "generate_modulefile",
     "generate_pkgconfig",
     "generate_vars_sh",
@@ -45,14 +46,16 @@ filegroup(
     srcs = ["@onedal//cpp/oneapi/dal:public_includes"],
 )
 
-filegroup(
+generate_cmake_config(
     name = "release_cmake_config",
-    srcs = ["cmake/templates/oneDALConfig.cmake.in"],
+    template = "cmake/templates/oneDALConfig.cmake.in",
+    out = "lib/cmake/oneDAL/oneDALConfig.cmake",
 )
 
-filegroup(
+generate_cmake_config(
     name = "release_cmake_config_version",
-    srcs = ["cmake/templates/oneDALConfigVersion.cmake.in"],
+    template = "cmake/templates/oneDALConfigVersion.cmake.in",
+    out = "lib/cmake/oneDAL/oneDALConfigVersion.cmake",
 )
 
 filegroup(

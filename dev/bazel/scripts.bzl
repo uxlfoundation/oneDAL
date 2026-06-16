@@ -78,6 +78,52 @@ def generate_modulefile(name, out = "modulefiles/dal", **kwargs):
     )
 
 # ---------------------------------------------------------------------------
+# CMake package config
+# ---------------------------------------------------------------------------
+
+def _generate_cmake_config_impl(ctx):
+    vi = ctx.attr._version_info[VersionInfo]
+    out = ctx.actions.declare_file(ctx.attr.out)
+    ctx.actions.expand_template(
+        template = ctx.file.template,
+        output = out,
+        substitutions = {
+            "@DAL_ROOT_REL_PATH@": "../../..",
+            "@VERSIONS_SET@": "TRUE",
+            "@DAL_VER_MAJOR_BIN@": vi.binary_major,
+            "@DAL_VER_MINOR_BIN@": vi.binary_minor,
+            "@ARCH_DIR_ONEDAL@": "intel64",
+            "@DLL_REL_PATH@": "redist",
+            "@INC_REL_PATH@": "include",
+            "@oneDAL_VERSION@": "{}.{}.{}.0".format(vi.major, vi.minor, vi.update),
+        },
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+_generate_cmake_config = rule(
+    implementation = _generate_cmake_config_impl,
+    attrs = {
+        "template": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "out": attr.string(mandatory = True),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
+    },
+)
+
+def generate_cmake_config(name, template, out, **kwargs):
+    _generate_cmake_config(
+        name = name,
+        template = template,
+        out = out,
+        **kwargs
+    )
+
+# ---------------------------------------------------------------------------
 # pkg-config
 # ---------------------------------------------------------------------------
 
@@ -117,6 +163,7 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
             outputs = [out],
             command = (
                 "${{CC:-gcc}} -E -P -x c " +
+                ("-DSTATIC " if ctx.attr.static else "") +
                 "-DDAL_MAJOR_BINARY={binary_major} " +
                 "-DDAL_MINOR_BINARY={binary_minor} " +
                 "-DDAL_MAJOR={major} " +
