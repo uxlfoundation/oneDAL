@@ -177,11 +177,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     algorithmFPType * coreDistances = coreDistsVec.get();
     DAAL_CHECK_MALLOC(coreDistances);
 
-    // Core distance is the distance to the `minSamples`-th nearest neighbor,
-    // where the point itself (distance 0) counts as the 0-th neighbor. After
-    // sorting the row of pairwise distances, element `[minSamples]` is the
-    // answer. Clamp to the last index when `minSamples >= nRows`.
-    const size_t t = (minSamples >= nRows) ? nRows - 1 : minSamples;
+    // Core distance is the distance to the `minSamples`-th nearest neighbor in
+    // the canonical HDBSCAN definition (Campello 2013), counting the point
+    // itself as neighbor #1. The dense path sorts the full pairwise row, where
+    // self is at index 0, so the answer sits at index `minSamples - 1`. Heap-
+    // based paths (kd/ball-tree, GPU) use a different convention because their
+    // top-k structure includes self as one of the k entries; do not align this
+    // index with theirs.
+    const size_t target = (minSamples > 0) ? minSamples - 1 : 0;
+    const size_t t      = (target >= nRows) ? nRows - 1 : target;
 
     {
         daal::TlsMem<algorithmFPType, cpu> tlsBuf(nRows);

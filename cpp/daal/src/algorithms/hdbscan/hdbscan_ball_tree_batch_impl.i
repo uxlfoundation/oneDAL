@@ -545,13 +545,13 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
                                           BallNode<algorithmFPType> * nodes, int * pointIndices, int totalTreeNodes, algorithmFPType * coreDistances,
                                           int * mstFrom, int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc)
 {
-    // Core distance is the distance to the `minSamples`-th nearest neighbor,
-    // counting the query point itself (distance 0) as the 0-th neighbor. The
-    // ball-tree traversal pushes the query point into the heap along with
-    // every other leaf point, so the heap must hold `minSamples + 1` entries;
-    // the root of the max-heap is then the `minSamples`-th non-self neighbor.
-    const size_t k64 = (minSamples + 1 > nRows) ? nRows : minSamples + 1;
-    const int k      = static_cast<int>(k64);
+    // Canonical HDBSCAN core distance (Campello 2013): the distance to the
+    // `minSamples`-th nearest neighbor counting the query point itself as
+    // neighbor #1. The ball-tree traversal pushes the query point into the
+    // heap along with the other leaf points, so a heap of size `minSamples`
+    // holds {self + (minSamples - 1) non-self}, and the heap top is the
+    // `minSamples`-th-including-self answer.
+    const int k = static_cast<int>(minSamples);
 
     // Step 2: Core distances via k-NN on ball tree
     daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {

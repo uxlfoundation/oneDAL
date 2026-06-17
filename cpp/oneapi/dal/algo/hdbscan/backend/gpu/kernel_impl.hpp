@@ -190,12 +190,13 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    // Core distance is the distance to the `min_samples`-th nearest neighbor,
-    // counting the query point itself (distance 0) as the 0-th neighbor. The
-    // distance row contains the self-entry on the diagonal, so the k-smallest
-    // selection must include it: pick `min_samples + 1` and read element
-    // `[k - 1]`, which is the `min_samples`-th non-self neighbor.
-    const std::int64_t k = (min_samples + 1 > n) ? n : min_samples + 1;
+    // Canonical HDBSCAN core distance (Campello 2013): the distance to the
+    // `min_samples`-th nearest neighbor counting the query point itself as
+    // neighbor #1. `kselect_by_rows` operates on a row that contains the
+    // zero self-distance on the diagonal, so a k-smallest selection of size
+    // `min_samples` returns {self + (min_samples - 1) non-self}, and the
+    // largest entry (`[k - 1]`) is the `min_samples`-th-including-self answer.
+    const std::int64_t k = min_samples;
 
     auto [ksel_vals, ksel_vals_event] =
         pr::ndarray<Float, 2>::zeros(queue, { n, k }, sycl::usm::alloc::device);
