@@ -194,17 +194,6 @@ daal_module(
     ],
 )
 
-daal_module(
-    name = "core_embed",
-    lib_tag = "dal",
-    override_deps_lib_tag = True,
-    deps = [
-        ":services",
-        ":data_management",
-        ":services_win_dll_shim",
-    ],
-)
-
 daal_algorithms(
     name = "all_algorithms",
     algorithms = [

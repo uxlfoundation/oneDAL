@@ -92,18 +92,31 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
-    lib_tags = ["dal"],
+    # On Windows, onedal.dll must resolve all DAAL algorithm symbols at link
+    # time (lld-link does not allow unresolved externals), so embed the same
+    # DAAL-tagged objects the DPC variant does. On Linux, libonedal.so resolves
+    # DAAL symbols at runtime via DT_NEEDED libonedal_core.so, so the host-only
+    # build keeps just the "dal" tag to avoid duplicating DAAL into onedal.so.
+    lib_tags = select({
+        "@platforms//os:windows": ["dal", "daal"],
+        "//conditions:default": ["dal"],
+    }),
     dpc_lib_tags = ["dal", "daal"],
     dal_deps = [
         ":core",
         ":optional",
     ],
-    # On Windows, onedal.dll must resolve parameter symbols at link time.
+    # On Windows, onedal.dll must resolve all externals at link time:
+    #   - static_parameters: parameter symbols not part of any other dep tree.
+    #   - services_win_dll_shim: delay-load stubs for threading entry points
+    #     (e.g. `_threaded_scalable_*`, `_daal_static_threader_reduce`) that
+    #     the embedded DAAL kernel objects reference. The real TBB-backed
+    #     symbols live in onedal_thread.dll. Mirrors onedal_core.dll above
+    #     and the original Make build.
     host_deps = select({
         "@platforms//os:windows": [
             ":static_parameters",
-            "@onedal//cpp/daal:core_embed",
-            "@onedal//cpp/daal:core_dynamic",
+            "@onedal//cpp/daal:services_win_dll_shim",
         ],
         "//conditions:default": [],
     }),
