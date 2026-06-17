@@ -367,19 +367,25 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 
 /// Run the Excess-of-Mass cluster selection pass on the condensed tree.
 ///
-/// Iterates clusters in decreasing id order (children before parents). For each
-/// non-leaf cluster, compares the parent's stability against the sum of its
-/// children's stabilities. If children win, the parent is unselected and its
-/// stability is replaced by the sum (so its grandparent sees the propagated
-/// score). If the parent wins, every descendant is unselected via an explicit
-/// stack walk over `childOffset`/`childList`. Clusters whose size exceeds
-/// `mcsMax` get parentStab forced to 0, so they cannot beat their children.
+/// Iterates clusters in decreasing id order (children before parents) down to
+/// `treeTop` (inclusive). For each non-leaf cluster, compares the parent's
+/// stability against the sum of its children's stabilities. If children win,
+/// the parent is unselected and its stability is replaced by the sum (so its
+/// grandparent sees the propagated score). If the parent wins, every
+/// descendant is unselected via an explicit stack walk over
+/// `childOffset`/`childList`. Oversized clusters (size > `mcsMax`) are forced
+/// onto the children-win branch unconditionally.
+///
+/// `treeTop` controls whether the root cluster participates. When the caller
+/// allows a single-cluster outcome, `treeTop == rootCid` and the root may win
+/// EOM. Otherwise, `treeTop == rootCid + 1` and the root is never visited;
+/// it must be deselected up front by the caller.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster stabilities
 /// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]     nClusters     Total cluster count
-/// @param[in]     rootCid       Root cluster id (== `nRows`)
+/// @param[in]     treeTop       Lowest cluster id to visit (rootCid or rootCid+1)
 /// @param[in]     mcsMax        Maximum allowed cluster size (`MaxVal<int>` if uncapped)
 /// @param[in,out] stability     Per-cluster stability; updated in place with propagated child sums
 /// @param[in]     clusterSz     Per-cluster point counts, length `nClusters`
@@ -390,19 +396,19 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 /// @param[in,out] descStack     Scratch stack for the descendant-unselect walk, length `nClusters`
 /// @param[in,out] isSelected    Selection mask updated in place, length `nClusters`
 template <typename algorithmFPType, CpuType cpu>
-static void runEomSelection(int nClusters, int rootCid, int mcsMax, algorithmFPType * stability, const int * clusterSz, const char * isLeafCluster,
+static void runEomSelection(int nClusters, int treeTop, int mcsMax, algorithmFPType * stability, const int * clusterSz, const char * isLeafCluster,
                             const int * childOffset, const int * childCount, const int * childList, int * descStack, char * isSelected)
 {
-    for (int c = nClusters - 1; c >= rootCid; c--)
+    for (int c = nClusters - 1; c >= treeTop; c--)
     {
         if (isLeafCluster[c]) continue;
 
         algorithmFPType childSum = algorithmFPType(0);
         for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
 
-        const algorithmFPType parentStab = (clusterSz[c] > mcsMax) ? algorithmFPType(0) : stability[c];
+        const bool oversized = (clusterSz[c] > mcsMax);
 
-        if (childSum > parentStab)
+        if (oversized || childSum > stability[c])
         {
             isSelected[c] = 0;
             stability[c]  = childSum;
@@ -428,6 +434,10 @@ static void runEomSelection(int nClusters, int rootCid, int mcsMax, algorithmFPT
 /// is unselected and its parent is selected instead. Repeats until no further
 /// changes (the parent itself may then be too dense and get promoted again).
 ///
+/// When the parent is the root cluster and `allowSingleCluster=false`, the
+/// promotion is skipped — promoting up to the root would silently override the
+/// caller's request that single-cluster outcomes be rejected.
+///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas
 /// @tparam cpu             CPU dispatch tag
 ///
@@ -438,10 +448,12 @@ static void runEomSelection(int nClusters, int rootCid, int mcsMax, algorithmFPT
 /// @param[in]     rootCid                Root cluster id (== `nRows`)
 /// @param[in]     lambdaBirth            Birth lambda per cluster, length `nClusters`
 /// @param[in]     clusterSelectionEpsilon Distance threshold; clusters with birth distance below this are merged into parent
+/// @param[in]     allowSingleCluster     If false, never promote up to the root
 /// @param[in,out] isSelected             Selection mask updated in place, length `nClusters`
 template <typename algorithmFPType, CpuType cpu>
 static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, int nClusters, int rootCid,
-                                         const algorithmFPType * lambdaBirth, double clusterSelectionEpsilon, char * isSelected)
+                                         const algorithmFPType * lambdaBirth, double clusterSelectionEpsilon, bool allowSingleCluster,
+                                         char * isSelected)
 {
     TArray<int, cpu> clusterParentArr(nClusters);
     int * clusterParent = clusterParentArr.get();
@@ -464,12 +476,13 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
             if (birthDist < eps)
             {
                 const int parent = clusterParent[c];
-                if (parent >= rootCid && parent < nClusters)
-                {
-                    isSelected[c]      = 0;
-                    isSelected[parent] = 1;
-                    changed            = true;
-                }
+                if (parent < rootCid || parent >= nClusters) continue;
+                // Refuse to promote into the root when the caller forbids a
+                // single-cluster outcome; keep the current cluster instead.
+                if (parent == rootCid && !allowSingleCluster) continue;
+                isSelected[c]      = 0;
+                isSelected[parent] = 1;
+                changed            = true;
             }
         }
     }
@@ -514,37 +527,6 @@ static void fillChildList(const CondensedEdge * condensed, size_t nCondensed, si
         {
             childList[childOffset[e.parent] + fillCursor[e.parent]] = e.child;
             fillCursor[e.parent]++;
-        }
-    }
-}
-
-/// Reject the "single-cluster" outcome when `allow_single_cluster=false`.
-///
-/// If EOM selected only the root cluster and the root has cluster-children,
-/// unselect the root and select all its direct children instead. No-op
-/// otherwise.
-///
-/// @param[in]     nClusters     Total cluster count
-/// @param[in]     rootCid       Root cluster id
-/// @param[in]     isLeafCluster Leaf-cluster mask, length `nClusters`
-/// @param[in]     childOffset   CSR child offsets, length `nClusters + 1`
-/// @param[in]     childCount    Per-cluster cluster-child counts, length `nClusters`
-/// @param[in]     childList     CSR child cluster ids, length `childOffset[nClusters]`
-/// @param[in,out] isSelected    Selection mask updated in place, length `nClusters`
-static void enforceAllowSingleCluster(int nClusters, int rootCid, const char * isLeafCluster, const int * childOffset, const int * childCount,
-                                      const int * childList, char * isSelected)
-{
-    int selectedCount = 0;
-    for (int c = rootCid; c < nClusters; c++)
-    {
-        if (isSelected[c]) selectedCount++;
-    }
-    if (selectedCount == 1 && isSelected[rootCid] && !isLeafCluster[rootCid])
-    {
-        isSelected[rootCid] = 0;
-        for (int ci = childOffset[rootCid]; ci < childOffset[rootCid] + childCount[rootCid]; ci++)
-        {
-            isSelected[childList[ci]] = 1;
         }
     }
 }
@@ -606,10 +588,19 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 
     const int mcsMax = (maxClusterSize > 0) ? static_cast<int>(maxClusterSize) : MaxVal<int>::get();
 
+    // Seed isSelected: every internal cluster id starts selected and EOM only
+    // deselects. Leaf-mode resets the mask before picking leaves directly.
+    // The root is included only when allowSingleCluster permits it; otherwise
+    // EOM never visits it and it stays deselected.
     for (int c = 0; c < nClusters; c++)
     {
-        isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
+        isSelected[c] = 0;
     }
+    for (int c = rootCid + 1; c < nClusters; c++)
+    {
+        if (clusterSz[c] >= mcs) isSelected[c] = 1;
+    }
+    if (allowSingleCluster && clusterSz[rootCid] >= mcs) isSelected[rootCid] = 1;
 
     if (clusterSelection == 1)
     {
@@ -620,21 +611,17 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
     }
     else
     {
+        const int treeTop = allowSingleCluster ? rootCid : (rootCid + 1);
         TArray<int, cpu> descStackArr(nClusters);
         int * descStack = descStackArr.get();
-        runEomSelection<algorithmFPType, cpu>(nClusters, rootCid, mcsMax, stability, clusterSz, isLeafCluster, childOffset, childCount, childList,
+        runEomSelection<algorithmFPType, cpu>(nClusters, treeTop, mcsMax, stability, clusterSz, isLeafCluster, childOffset, childCount, childList,
                                               descStack, isSelected);
-    }
-
-    if (!allowSingleCluster)
-    {
-        enforceAllowSingleCluster(nClusters, rootCid, isLeafCluster, childOffset, childCount, childList, isSelected);
     }
 
     if (clusterSelectionEpsilon > 0.0)
     {
         applyClusterSelectionEpsilon<algorithmFPType, cpu>(condensed, nCondensed, nRows, nClusters, rootCid, lambdaBirth, clusterSelectionEpsilon,
-                                                           isSelected);
+                                                           allowSingleCluster, isSelected);
     }
 }
 

@@ -421,7 +421,13 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
                                   algorithmFPType * coreDistances, int * mstFrom, int * mstTo, algorithmFPType * mstWeights,
                                   const DistFunc & distFunc)
 {
-    const int k = static_cast<int>(minSamples);
+    // Core distance is the distance to the `minSamples`-th nearest neighbor,
+    // counting the query point itself (distance 0) as the 0-th neighbor. The
+    // kd-tree traversal pushes the query point into the heap along with every
+    // other leaf point, so the heap must hold `minSamples + 1` entries; the
+    // root of the max-heap is then the `minSamples`-th non-self neighbor.
+    const size_t k64 = (minSamples + 1 > nRows) ? nRows : minSamples + 1;
+    const int k      = static_cast<int>(k64);
 
     // Step 2: Compute core distances via k-NN queries on the kd-tree
     daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {

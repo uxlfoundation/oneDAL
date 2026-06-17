@@ -93,9 +93,13 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
 
-    // Step 1: Blocked core distance computation on GPU
+    // Step 1: Blocked core distance computation on GPU.
+    // Core distance is the distance to the `min_samples`-th nearest neighbor
+    // including the query point itself (distance 0) at index 0. The blocked
+    // distance row contains the self-entry, so the k-smallest selection must
+    // include it: pick `min_samples + 1` and read element `[k - 1]`.
     const std::int64_t block_size = choose_block_size(row_count, sizeof(Float));
-    const std::int64_t k = min_samples;
+    const std::int64_t k = (min_samples + 1 > row_count) ? row_count : min_samples + 1;
     const bool needs_sqrt = (metric == distance_metric::euclidean);
 
     auto [core_distances, core_dist_event] =

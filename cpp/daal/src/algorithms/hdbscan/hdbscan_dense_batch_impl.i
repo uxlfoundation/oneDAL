@@ -177,8 +177,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     algorithmFPType * coreDistances = coreDistsVec.get();
     DAAL_CHECK_MALLOC(coreDistances);
 
-    const size_t target = (minSamples > 0) ? minSamples - 1 : 0;
-    const size_t t      = (target >= nRows) ? nRows - 1 : target;
+    // Core distance is the distance to the `minSamples`-th nearest neighbor,
+    // where the point itself (distance 0) counts as the 0-th neighbor. After
+    // sorting the row of pairwise distances, element `[minSamples]` is the
+    // answer. Clamp to the last index when `minSamples >= nRows`.
+    const size_t t = (minSamples >= nRows) ? nRows - 1 : minSamples;
 
     {
         daal::TlsMem<algorithmFPType, cpu> tlsBuf(nRows);

@@ -190,7 +190,12 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    const std::int64_t k = min_samples;
+    // Core distance is the distance to the `min_samples`-th nearest neighbor,
+    // counting the query point itself (distance 0) as the 0-th neighbor. The
+    // distance row contains the self-entry on the diagonal, so the k-smallest
+    // selection must include it: pick `min_samples + 1` and read element
+    // `[k - 1]`, which is the `min_samples`-th non-self neighbor.
+    const std::int64_t k = (min_samples + 1 > n) ? n : min_samples + 1;
 
     auto [ksel_vals, ksel_vals_event] =
         pr::ndarray<Float, 2>::zeros(queue, { n, k }, sycl::usm::alloc::device);
@@ -1141,6 +1146,11 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                 w.ilc_ptr[c] = 1;
                 w.is_ptr[c] = 1;
             }
+            // Root participates in EOM only when single-cluster outcomes are
+            // allowed; otherwise it must never be picked, so deselect up front
+            // and skip it in the EOM bottom-up sweep below.
+            if (!w.allow_single_cluster)
+                w.is_ptr[root_cid] = 0;
             w.csz_ptr[root_cid] = static_cast<std::int32_t>(w.row_count);
 
             for (std::int32_t i = 0; i < cond_count; i++) {
@@ -1178,7 +1188,8 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                 }
             }
             else {
-                for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
+                const std::int32_t tree_top = w.allow_single_cluster ? root_cid : (root_cid + 1);
+                for (std::int32_t c = n_clusters - 1; c >= tree_top; c--) {
                     if (w.ilc_ptr[c])
                         continue;
 
@@ -1188,9 +1199,9 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                     if (w.cc1_ptr[c] >= 0)
                         child_sum += w.stab_ptr[w.cc1_ptr[c]];
 
-                    const Float parent_stab = (w.csz_ptr[c] > mcs_max) ? Float(0) : w.stab_ptr[c];
+                    const bool oversized = (w.csz_ptr[c] > mcs_max);
 
-                    if (child_sum > parent_stab) {
+                    if (oversized || child_sum > w.stab_ptr[c]) {
                         w.is_ptr[c] = 0;
                         w.stab_ptr[c] = child_sum;
                     }
@@ -1212,21 +1223,6 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                 }
             }
 
-            if (!w.allow_single_cluster) {
-                std::int32_t sel_count = 0;
-                for (std::int32_t c = root_cid; c < n_clusters; c++) {
-                    if (w.is_ptr[c])
-                        sel_count++;
-                }
-                if (sel_count == 1 && w.is_ptr[root_cid] && !w.ilc_ptr[root_cid]) {
-                    w.is_ptr[root_cid] = 0;
-                    if (w.cc0_ptr[root_cid] >= 0)
-                        w.is_ptr[w.cc0_ptr[root_cid]] = 1;
-                    if (w.cc1_ptr[root_cid] >= 0)
-                        w.is_ptr[w.cc1_ptr[root_cid]] = 1;
-                }
-            }
-
             for (std::int32_t i = 0; i < cond_count; i++) {
                 if (w.cond_c_ptr[i] >= w.row_count)
                     w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
@@ -1244,11 +1240,15 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                             (w.lb_ptr[c] > Float(0)) ? Float(1) / w.lb_ptr[c] : Float(0);
                         if (birth_dist < eps) {
                             const std::int32_t parent = w.cprt_ptr[c];
-                            if (parent >= root_cid && parent < n_clusters) {
-                                w.is_ptr[c] = 0;
-                                w.is_ptr[parent] = 1;
-                                changed = true;
-                            }
+                            if (parent < root_cid || parent >= n_clusters)
+                                continue;
+                            // Refuse to promote into the root when the caller
+                            // forbids a single-cluster outcome.
+                            if (parent == root_cid && !w.allow_single_cluster)
+                                continue;
+                            w.is_ptr[c] = 0;
+                            w.is_ptr[parent] = 1;
+                            changed = true;
                         }
                     }
                 }
@@ -1401,7 +1401,11 @@ inline sycl::event extract_clusters(sycl::queue& queue,
 
     const std::int64_t edge_count = row_count - 1;
     const std::int64_t total_nodes = 2 * row_count - 1;
-    const std::int64_t max_condensed = 2 * row_count;
+    // Worst-case condensed-tree edges: up to 2*(nClusters-1) cluster->cluster
+    // edges (each non-root cluster is created by a real split) plus up to
+    // `row_count` fallen-leaf edges (every original point falls at most once).
+    // With nClusters ≤ row_count, the bound is `3*row_count - 2`.
+    const std::int64_t max_condensed = 3 * row_count;
     const std::int64_t max_clusters = total_nodes;
 
     // Allocate working memory on device
