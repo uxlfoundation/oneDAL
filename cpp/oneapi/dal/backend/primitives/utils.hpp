@@ -22,8 +22,10 @@
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include <iostream>
 
 namespace oneapi::dal::backend::primitives {
+
 
 /// Convert a table to a 2D ndarray
 ///
@@ -180,11 +182,21 @@ inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
                                                  q,
                                                  table.get_row_count());
     [[maybe_unused]] const auto layout = table.get_data_layout();
+
+    if (layout == decltype(layout)::row_major) {
+        std::cerr << "Layout is row major\n";
+    }
+    if (layout == decltype(layout)::column_major) {
+        std::cerr << "Layout is column major\n";
+    }
+
     if constexpr (order == ndorder::c) {
+        std::cerr << "Order is row major\n";
         ONEDAL_ASSERT(layout == decltype(layout)::row_major);
         return table2ndarray_rm<Type>(q, table, alloc);
     }
     else {
+        std::cerr << "Order is column major\n";
         ONEDAL_ASSERT(layout == decltype(layout)::column_major);
         return table2ndarray_cm<Type>(q, table, alloc);
     }
@@ -233,6 +245,43 @@ inline ndarray<Type, 1> table2ndarray_1d(sycl::queue& q,
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull(q, { 0, -1 }, alloc);
     return ndarray<Type, 1>::wrap(data, { data.get_count() });
+}
+
+/// Flatten a homogen_table into a 1D ndarray.
+/// Zero-copy when the data is already accessible on the target device;
+/// copies to device memory otherwise.
+/// The element order in the result depends on the table's data layout —
+/// row-major tables yield row-wise traversal, column-major tables yield
+/// column-wise traversal. This is suitable for element-wise operations
+/// (e.g. finiteness checks) where traversal order does not matter.
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input homogen_table.
+/// @param alloc The requested USM allocation type.
+///
+/// @return A 1D ndarray over the table's data.
+template <typename Type>
+inline ndarray<Type, 1> table_flatten(sycl::queue& q,
+                                      const table& table,
+                                      sycl::usm::alloc alloc = sycl::usm::alloc::device) {
+    ONEDAL_ASSERT(table.get_kind() == homogen_table::kind());
+    const auto& ht = static_cast<const homogen_table&>(table);
+    const Type* ptr = reinterpret_cast<const Type*>(ht.get_data());
+    const std::int64_t count = table.get_row_count() * table.get_column_count();
+
+    const auto ptr_type = sycl::get_pointer_type(ptr, q.get_context());
+    const bool on_device = (ptr_type == sycl::usm::alloc::device ||
+                            ptr_type == sycl::usm::alloc::shared);
+
+    if (on_device) {
+        return ndarray<Type, 1>::wrap(ptr, { count });
+    }
+
+    auto result = ndarray<Type, 1>::empty(q, { count }, alloc);
+    dal::backend::copy(q, result.get_mutable_data(), ptr, count).wait_and_throw();
+    return result;
 }
 #endif
 

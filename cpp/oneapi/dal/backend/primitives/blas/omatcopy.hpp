@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright 2024 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,6 +16,20 @@
 
 #pragma once
 
-#include "oneapi/dal/backend/primitives/blas/gemm.hpp"
-#include "oneapi/dal/backend/primitives/blas/omatcopy.hpp"
-#include "oneapi/dal/backend/primitives/blas/syrk.hpp"
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/blas/misc.hpp"
+
+namespace oneapi::dal::backend::primitives {
+
+#ifdef ONEDAL_DATA_PARALLEL
+
+template <typename Float, ndorder src_order, ndorder dst_order>
+sycl::event omatcopy(sycl::queue& queue,
+                     const ndview<Float, 2, src_order>& src,
+                     ndview<Float, 2, dst_order>& dst,
+                     Float alpha = Float(1),
+                     const event_vector& deps = {});
+
+#endif
+
+} // namespace oneapi::dal::backend::primitives
