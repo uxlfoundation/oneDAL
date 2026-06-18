@@ -137,6 +137,11 @@ dal_dynamic_lib(
     dal_deps = [
         ":dynamic",
         "@onedal//cpp/oneapi/dal/algo:parameters",
+        # The logistic regression parameter objects instantiate default
+        # optimizer wrappers implemented in the algorithm detail module. Linux
+        # keeps this resolved through libonedal.so, but Windows DLL links must
+        # see the implementation directly when building onedal_parameters.dll.
+        "@onedal//cpp/oneapi/dal/algo/logistic_regression/detail",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
     host_deps = select({
