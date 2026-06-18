@@ -392,22 +392,32 @@ global:
 
         oneapi::dal::detail::v1::error_messages::*;
 
+        "vtable for oneapi::dal::v1::device_bad_alloc";
         "vtable for oneapi::dal::v1::domain_error";
         "vtable for oneapi::dal::v1::host_bad_alloc";
         "vtable for oneapi::dal::v1::internal_error";
         "vtable for oneapi::dal::v1::invalid_argument";
+        "vtable for oneapi::dal::v1::logic_error";
         "vtable for oneapi::dal::v1::out_of_range";
         "vtable for oneapi::dal::v1::range_error";
+        "vtable for oneapi::dal::v1::runtime_error";
+        "vtable for oneapi::dal::v1::system_error";
         "vtable for oneapi::dal::v1::unimplemented";
         "vtable for oneapi::dal::v1::uninitialized_optional_result";
+        "vtable for oneapi::dal::v1::unsupported_device";
+        "typeinfo for oneapi::dal::v1::device_bad_alloc";
         "typeinfo for oneapi::dal::v1::domain_error";
         "typeinfo for oneapi::dal::v1::host_bad_alloc";
         "typeinfo for oneapi::dal::v1::internal_error";
         "typeinfo for oneapi::dal::v1::invalid_argument";
+        "typeinfo for oneapi::dal::v1::logic_error";
         "typeinfo for oneapi::dal::v1::out_of_range";
         "typeinfo for oneapi::dal::v1::range_error";
+        "typeinfo for oneapi::dal::v1::runtime_error";
+        "typeinfo for oneapi::dal::v1::system_error";
         "typeinfo for oneapi::dal::v1::unimplemented";
         "typeinfo for oneapi::dal::v1::uninitialized_optional_result";
+        "typeinfo for oneapi::dal::v1::unsupported_device";
 
         "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_mul_overflow(long const&, long const&)";
 
@@ -444,22 +454,29 @@ global:
         "oneapi::dal::preview::detail::check_if_pointer_matches_queue(sycl::_V1::queue const&, void const*)";
 
 
-        # other services
+        # Infrastructure vtables/typeinfo
+        "vtable for oneapi::dal::detail::v1::host_policy";
+        "vtable for oneapi::dal::detail::system_parameters";
+        "vtable for oneapi::dal::detail::v2::chunked_array_base";
+        "vtable for oneapi::dal::v2::chunked_array<unsigned char>";
+        "vtable for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
+        "vtable for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
+        "typeinfo for oneapi::dal::detail::v1::host_policy";
+        "typeinfo for oneapi::dal::detail::system_parameters";
+        "typeinfo for oneapi::dal::detail::v2::chunked_array_base";
+        "typeinfo for oneapi::dal::v2::chunked_array<unsigned char>";
+        "typeinfo for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
+        "typeinfo for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
 
-        "oneapi::dal::detail::v1::host_policy::host_policy()";
+        # Chunked array DPC++ template methods
+        "oneapi::dal::detail::v2::array_impl<unsigned char> oneapi::dal::detail::v2::chunked_array_base::flatten_impl<oneapi::dal::detail::v1::data_parallel_policy, oneapi::dal::detail::v1::data_parallel_allocator<unsigned char> >(oneapi::dal::detail::v1::data_parallel_policy const&, oneapi::dal::detail::v1::data_parallel_allocator<unsigned char> const&) const";
+        "oneapi::dal::detail::v2::array_impl<unsigned char> oneapi::dal::detail::v2::chunked_array_base::flatten_impl<oneapi::dal::detail::v1::default_host_policy, oneapi::dal::detail::v1::host_allocator<unsigned char> >(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::v1::host_allocator<unsigned char> const&) const";
+        "oneapi::dal::detail::v2::array_impl<unsigned char const*> oneapi::dal::detail::v2::chunked_array_base::get_data_impl<oneapi::dal::detail::v1::data_parallel_policy, oneapi::dal::detail::v1::data_parallel_allocator<unsigned char const*> >(oneapi::dal::detail::v1::data_parallel_policy const&, oneapi::dal::detail::v1::data_parallel_allocator<unsigned char const*> const&) const";
+        "oneapi::dal::detail::v2::array_impl<unsigned char const*> oneapi::dal::detail::v2::chunked_array_base::get_data_impl<oneapi::dal::detail::v1::default_host_policy, oneapi::dal::detail::v1::host_allocator<unsigned char const*> >(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::v1::host_allocator<unsigned char const*> const&) const";
+        "oneapi::dal::detail::v2::array_impl<unsigned char*> oneapi::dal::detail::v2::chunked_array_base::get_mutable_data_impl<oneapi::dal::detail::v1::data_parallel_policy, oneapi::dal::detail::v1::data_parallel_allocator<unsigned char*> >(oneapi::dal::detail::v1::data_parallel_policy const&, oneapi::dal::detail::v1::data_parallel_allocator<unsigned char*> const&) const";
+        "oneapi::dal::detail::v2::array_impl<unsigned char*> oneapi::dal::detail::v2::chunked_array_base::get_mutable_data_impl<oneapi::dal::detail::v1::default_host_policy, oneapi::dal::detail::v1::host_allocator<unsigned char*> >(oneapi::dal::detail::v1::default_host_policy const&, oneapi::dal::detail::v1::host_allocator<unsigned char*> const&) const";
 
-        "oneapi::dal::detail::v1::data_parallel_policy::init_impl(sycl::_V1::queue const&)";
-
-        "oneapi::dal::detail::v1::from_daal_cpu_type(int)";
-
-        "oneapi::dal::detail::v1::to_string[abi:cxx11](oneapi::dal::detail::v1::cpu_extension)";
-    };
-
-local:
-    # Hide everything else by default
-    *;
-
-        # Additional symbols
+        # STL vtables/typeinfo required for cross-DSO exception handling and shared_ptr
         "vtable for std::bad_variant_access";
         "vtable for std::bad_optional_access";
         "vtable for std::bad_any_cast";
@@ -469,12 +486,6 @@ local:
         "vtable for std::_Sp_counted_ptr_inplace<std::array<double, 1UL>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
         "vtable for std::_Sp_counted_ptr_inplace<int, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
         "vtable for std::_Sp_counted_deleter<unsigned char *, std::default_delete<unsigned char[]>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
-        "void* _onedal_new_mutex()";
-        "void* _onedal_get_tls_local(void*)";
-        "void _onedal_unlock_mutex(void*)";
-        "void _onedal_lock_mutex(void*)";
-        "void _onedal_del_tls_ptr(void*)";
-        "void _onedal_del_mutex(void*)";
         "typeinfo for std::bad_variant_access";
         "typeinfo for std::bad_optional_access";
         "typeinfo for std::bad_any_cast";
@@ -484,6 +495,155 @@ local:
         "typeinfo for std::_Sp_counted_ptr_inplace<std::array<double, 1UL>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
         "typeinfo for std::_Sp_counted_ptr_inplace<int, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
         "typeinfo for std::_Sp_counted_deleter<unsigned char *, std::default_delete<unsigned char[]>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
-        "int _onedal_threader_get_max_threads()";
-        "int _onedal_threader_get_current_thread_index()";
+
+        # ================================ Graph Algorithms (preview) ==============================
+
+        # connected_components
+        "oneapi::dal::preview::connected_components::detail::descriptor_base*";
+        "oneapi::dal::preview::connected_components::detail::afforest*";
+        "oneapi::dal::preview::connected_components::vertex_partitioning_result*";
+
+        # jaccard
+        "oneapi::dal::preview::jaccard::detail::descriptor_base*";
+        "oneapi::dal::preview::jaccard::vertex_similarity_result*";
+
+        # louvain
+        "oneapi::dal::preview::louvain::detail::descriptor_base*";
+        "oneapi::dal::preview::louvain::detail::louvain_kernel*";
+        "oneapi::dal::preview::louvain::vertex_partitioning_result*";
+
+        # shortest_paths
+        "oneapi::dal::preview::shortest_paths::detail::descriptor_base*";
+        "oneapi::dal::preview::shortest_paths::detail::delta_stepping*";
+        "oneapi::dal::preview::shortest_paths::detail::delta_stepping_with_pred*";
+        "oneapi::dal::preview::shortest_paths::traverse_result*";
+
+        # subgraph_isomorphism
+        "oneapi::dal::preview::subgraph_isomorphism::detail::descriptor_base*";
+        "oneapi::dal::preview::subgraph_isomorphism::graph_matching_result*";
+
+        # triangle_counting
+        "oneapi::dal::preview::triangle_counting::detail::descriptor_base*";
+        "oneapi::dal::preview::triangle_counting::detail::triangle_counting*";
+        "oneapi::dal::preview::triangle_counting::vertex_ranking_result*";
+
+        # graph topology
+        "oneapi::dal::preview::detail::topology<int>::*";
+
+        # ============================= SPMD communicator<none> ================================
+
+        "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::*";
+        "oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none>::*";
+        "vtable for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "vtable for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "typeinfo for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "typeinfo for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+
+        "oneapi::dal::preview::spmd::v1::communication_error::*";
+
+        # other services
+
+        "oneapi::dal::detail::v1::host_policy::host_policy()";
+        "oneapi::dal::detail::v1::host_policy::get_enabled_cpu_extensions() const";
+
+        "oneapi::dal::detail::v1::data_parallel_policy::init_impl(sycl::_V1::queue const&)";
+
+        "oneapi::dal::detail::v1::from_daal_cpu_type(int)";
+
+        "oneapi::dal::detail::v1::to_string[abi:cxx11](oneapi::dal::detail::v1::cpu_extension)";
+    };
+
+    # Threading C-linkage functions (must be outside extern "C++")
+    _onedal_del_mutex;
+    _onedal_del_tls_ptr;
+    _onedal_get_tls_local;
+    _onedal_get_tls_ptr;
+    _onedal_lock_mutex;
+    _onedal_new_mutex;
+    _onedal_parallel_reduce_int32_int64;
+    _onedal_parallel_reduce_int32_int64_simple;
+    _onedal_parallel_reduce_int32ptr_int64_simple;
+    _onedal_parallel_reduce_tls;
+    _onedal_reduce_tls;
+    _onedal_threader_for;
+    _onedal_threader_for_blocked_size;
+    _onedal_threader_for_int32ptr;
+    _onedal_threader_for_int64;
+    _onedal_threader_for_simple;
+    _onedal_threader_get_current_thread_index;
+    _onedal_threader_get_max_threads;
+    _onedal_unlock_mutex;
+
+    # STL typeinfo names (mangled)
+    _ZTSSt18bad_variant_access;
+    _ZTSSt19bad_optional_access;
+    _ZTSSt12bad_any_cast;
+    _ZTSSt23_Sp_counted_ptr_inplaceIN4sycl3_V15eventESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt23_Sp_counted_ptr_inplaceISt5arrayIdLm1EESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt23_Sp_counted_ptr_inplaceISt5arrayIfLm1EESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt23_Sp_counted_ptr_inplaceISt5arrayIlLm1EESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt23_Sp_counted_ptr_inplaceIiSaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt19_Sp_counted_deleterIPhSt14default_deleteIA_hESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt19_Sp_make_shared_tag;
+    _ZTSSt14default_deleteIA_hE;
+    _ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZZNSt19_Sp_make_shared_tag5_S_tiEvE5__tag;
+
+    # Additional STL _ZTI symbols (typeinfo for function types and internal classes)
+    _ZTIFiRKN4sycl3_V16deviceEE;
+    _ZTIFvN4sycl3_V114exception_listEE;
+    _ZTIPFiRKN4sycl3_V16deviceEE;
+    _ZTIPFvN4sycl3_V114exception_listEE;
+    _ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt12bad_any_cast;
+    _ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt18bad_variant_access;
+    _ZTISt19_Sp_counted_deleterIPhSt14default_deleteIA_hESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt19bad_optional_access;
+    _ZTISt23_Sp_counted_ptr_inplaceIN4sycl3_V15eventESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt23_Sp_counted_ptr_inplaceISt5arrayIdLm1EESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt23_Sp_counted_ptr_inplaceISt5arrayIfLm1EESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt23_Sp_counted_ptr_inplaceISt5arrayIlLm1EESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt23_Sp_counted_ptr_inplaceIiSaIvELN9__gnu_cxx12_Lock_policyE2EE;
+
+    # Additional STL _ZTS symbols (typeinfo names for function types)
+    _ZTSFiRKN4sycl3_V16deviceEE;
+    _ZTSFvN4sycl3_V114exception_listEE;
+    _ZTSPFiRKN4sycl3_V16deviceEE;
+    _ZTSPFvN4sycl3_V114exception_listEE;
+
+    # Guard variable for host_policy::get_default() singleton
+    _ZGVZN6oneapi3dal6detail2v111host_policy11get_defaultEvE8instance;
+
+    # Non-virtual thunks (SVM kernel_function and objective_function)
+    _ZThn8_N6oneapi3dal3svm6detail2v115kernel_function*;
+    _ZThn8_NK6oneapi3dal3svm6detail2v115kernel_function*;
+    _ZThn8_NK6oneapi3dal18objective_function6detail2v1*;
+
+    # Backend primitives static constexpr members (needed for ODR-use in SYCL kernels)
+    _ZN6oneapi3dal7backend10primitives10radix_sort*;
+    _ZN6oneapi3dal7backend10primitives26radix_sort_indices_inplace*;
+
+    # Backend primitives vtables/typeinfo (needed for polymorphic dispatch in SYCL kernels)
+    _ZTVN6oneapi3dal7backend10primitives*;
+    _ZTIN6oneapi3dal7backend10primitives*;
+    _ZTSN6oneapi3dal7backend10primitives*;
+
+    # STL template instantiations (exception handling, containers, utilities)
+    _ZNSt15__exception_ptr12__dest_thunkIN6oneapi3dal7preview4spmd2v114coworker_errorEEEvPv;
+    _ZSt18make_exception_ptrIN6oneapi3dal7preview4spmd2v114coworker_errorEENSt15__exception_ptr13exception_ptrET_;
+    _ZNSt23mersenne_twister_engine*;
+    _ZNSt24uniform_int_distribution*;
+    _ZNSt3any17_Manager_internal*;
+    _ZNSt7__cxx119to_string*;
+    _ZNSt8_Rb_tree*;
+    _ZSt20__throw_bad_any_castv;
+    _ZSt27__throw_bad_optional_accessv;
+    _ZSt8_DestroyIPN4sycl3_V15eventEEvT_S4_;
+    _ZStplIcSt11char_traitsIcESaIcEENSt7__cxx1112basic_stringIT_T0_T1_EE*;
+
+local:
+    # Hide everything else by default
+    *;
 };

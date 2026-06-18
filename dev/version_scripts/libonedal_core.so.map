@@ -1240,6 +1240,130 @@ global:
     "_ZN4daal15data_management9interface17Factory15_v1_ObjectTypes8_entriesEv";
     "_ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE17_M_realloc_insertIJS5_EEEvN9__gnu_cxx17__normal_iteratorIPS5_S7_EEDpOT_";
 
+    # std::vector<std::string>::emplace_back instantiation
+    _ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE12emplace_backIJS5_EEERS5_DpOT_;
+
+    # Virtual thunks for multiple-inheritance classes
+    _ZThn40_NK4daal10algorithms11elastic_net8training10interface15Input*;
+    _ZThn40_NK4daal10algorithms16lasso_regression8training10interface15Input*;
+    _ZThn40_NK4daal10algorithms16ridge_regression8training10interface1*;
+    _ZThn40_NK4daal10algorithms17linear_regression8training10interface1*;
+    _ZThn8_N4daal10algorithms15decision_forest*;
+
+    # Vtable symbols (_ZTV) for DAAL algorithm classes
+    _ZTVN4daal10algorithms10classifier*;
+    _ZTVN4daal10algorithms10covariance*;
+    _ZTVN4daal10algorithms10interface1*;
+    _ZTVN4daal10algorithms10pivoted_qr*;
+    _ZTVN4daal10algorithms10regression*;
+    _ZTVN4daal10algorithms11elastic_net*;
+    _ZTVN4daal10algorithms12implicit_als*;
+    _ZTVN4daal10algorithms12linear_model*;
+    _ZTVN4daal10algorithms13normalization*;
+    _ZTVN4daal10algorithms15cosine_distance*;
+    _ZTVN4daal10algorithms15decision_forest*;
+    _ZTVN4daal10algorithms15kernel_function*;
+    _ZTVN4daal10algorithms16lasso_regression*;
+    _ZTVN4daal10algorithms16ridge_regression*;
+    _ZTVN4daal10algorithms17linear_regression*;
+    _ZTVN4daal10algorithms17low_order_moments*;
+    _ZTVN4daal10algorithms19logistic_regression*;
+    _ZTVN4daal10algorithms19optimization_solver*;
+    _ZTVN4daal10algorithms20correlation_distance*;
+    _ZTVN4daal10algorithms21bf_knn_classification*;
+    _ZTVN4daal10algorithms22multi_class_classifier*;
+    _ZTVN4daal10algorithms25kdtree_knn_classification*;
+    _ZTVN4daal10algorithms2qr*;
+    _ZTVN4daal10algorithms3gbt*;
+    _ZTVN4daal10algorithms3pca*;
+    _ZTVN4daal10algorithms3svd*;
+    _ZTVN4daal10algorithms3svm*;
+    _ZTVN4daal10algorithms6dbscan*;
+    _ZTVN4daal10algorithms6em_gmm*;
+    _ZTVN4daal10algorithms6kmeans*;
+    _ZTVN4daal10algorithms7engines*;
+    _ZTVN4daal10algorithms8cholesky*;
+    _ZTVN4daal15data_management*;
+    _ZTVN4daal4BaseE;
+    _ZTVN4daal4taskE;
+    _ZTVN4daal8services*;
+
+    # RTTI typeinfo symbols (_ZTI) for DAAL algorithm classes
+    _ZTIN4daal10algorithms10classifier*;
+    _ZTIN4daal10algorithms10covariance*;
+    _ZTIN4daal10algorithms10interface1*;
+    _ZTIN4daal10algorithms10pivoted_qr*;
+    _ZTIN4daal10algorithms10regression*;
+    _ZTIN4daal10algorithms11elastic_net*;
+    _ZTIN4daal10algorithms12implicit_als*;
+    _ZTIN4daal10algorithms12linear_model*;
+    _ZTIN4daal10algorithms13normalization*;
+    _ZTIN4daal10algorithms15cosine_distance*;
+    _ZTIN4daal10algorithms15decision_forest*;
+    _ZTIN4daal10algorithms15kernel_function*;
+    _ZTIN4daal10algorithms16lasso_regression*;
+    _ZTIN4daal10algorithms16ridge_regression*;
+    _ZTIN4daal10algorithms17linear_regression*;
+    _ZTIN4daal10algorithms17low_order_moments*;
+    _ZTIN4daal10algorithms19logistic_regression*;
+    _ZTIN4daal10algorithms19optimization_solver*;
+    _ZTIN4daal10algorithms20correlation_distance*;
+    _ZTIN4daal10algorithms21bf_knn_classification*;
+    _ZTIN4daal10algorithms22multi_class_classifier*;
+    _ZTIN4daal10algorithms25kdtree_knn_classification*;
+    _ZTIN4daal10algorithms2qr*;
+    _ZTIN4daal10algorithms3gbt*;
+    _ZTIN4daal10algorithms3pca*;
+    _ZTIN4daal10algorithms3svd*;
+    _ZTIN4daal10algorithms3svm*;
+    _ZTIN4daal10algorithms6dbscan*;
+    _ZTIN4daal10algorithms6em_gmm*;
+    _ZTIN4daal10algorithms6kmeans*;
+    _ZTIN4daal10algorithms7engines*;
+    _ZTIN4daal10algorithms8cholesky*;
+    _ZTIN4daal15data_management*;
+    _ZTIN4daal4BaseE;
+    _ZTIN4daal4taskE;
+    _ZTIN4daal8services*;
+
+    # RTTI typeinfo name symbols (_ZTS) for DAAL algorithm classes
+    _ZTSN4daal10algorithms10classifier*;
+    _ZTSN4daal10algorithms10covariance*;
+    _ZTSN4daal10algorithms10interface1*;
+    _ZTSN4daal10algorithms10pivoted_qr*;
+    _ZTSN4daal10algorithms10regression*;
+    _ZTSN4daal10algorithms11elastic_net*;
+    _ZTSN4daal10algorithms12implicit_als*;
+    _ZTSN4daal10algorithms12linear_model*;
+    _ZTSN4daal10algorithms13normalization*;
+    _ZTSN4daal10algorithms15cosine_distance*;
+    _ZTSN4daal10algorithms15decision_forest*;
+    _ZTSN4daal10algorithms15kernel_function*;
+    _ZTSN4daal10algorithms16lasso_regression*;
+    _ZTSN4daal10algorithms16ridge_regression*;
+    _ZTSN4daal10algorithms17linear_regression*;
+    _ZTSN4daal10algorithms17low_order_moments*;
+    _ZTSN4daal10algorithms19logistic_regression*;
+    _ZTSN4daal10algorithms19optimization_solver*;
+    _ZTSN4daal10algorithms20correlation_distance*;
+    _ZTSN4daal10algorithms21bf_knn_classification*;
+    _ZTSN4daal10algorithms22multi_class_classifier*;
+    _ZTSN4daal10algorithms25kdtree_knn_classification*;
+    _ZTSN4daal10algorithms2qr*;
+    _ZTSN4daal10algorithms3gbt*;
+    _ZTSN4daal10algorithms3pca*;
+    _ZTSN4daal10algorithms3svd*;
+    _ZTSN4daal10algorithms3svm*;
+    _ZTSN4daal10algorithms6dbscan*;
+    _ZTSN4daal10algorithms6em_gmm*;
+    _ZTSN4daal10algorithms6kmeans*;
+    _ZTSN4daal10algorithms7engines*;
+    _ZTSN4daal10algorithms8cholesky*;
+    _ZTSN4daal15data_management*;
+    _ZTSN4daal4BaseE;
+    _ZTSN4daal4taskE;
+    _ZTSN4daal8services*;
+
 local:
     # Hide everything else by default
     *;

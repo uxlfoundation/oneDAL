@@ -425,21 +425,27 @@ global:
         "vtable for oneapi::dal::v1::device_bad_alloc";
         "vtable for oneapi::dal::v1::internal_error";
         "vtable for oneapi::dal::v1::invalid_argument";
+        "vtable for oneapi::dal::v1::logic_error";
         "vtable for oneapi::dal::v1::out_of_range";
         "vtable for oneapi::dal::v1::range_error";
+        "vtable for oneapi::dal::v1::runtime_error";
         "vtable for oneapi::dal::v1::system_error";
         "vtable for oneapi::dal::v1::unimplemented";
         "vtable for oneapi::dal::v1::uninitialized_optional_result";
+        "vtable for oneapi::dal::v1::unsupported_device";
         "typeinfo for oneapi::dal::v1::domain_error";
         "typeinfo for oneapi::dal::v1::host_bad_alloc";
         "typeinfo for oneapi::dal::v1::device_bad_alloc";
+        "typeinfo for oneapi::dal::v1::logic_error";
         "typeinfo for oneapi::dal::v1::system_error";
         "typeinfo for oneapi::dal::v1::internal_error";
         "typeinfo for oneapi::dal::v1::invalid_argument";
         "typeinfo for oneapi::dal::v1::out_of_range";
         "typeinfo for oneapi::dal::v1::range_error";
+        "typeinfo for oneapi::dal::v1::runtime_error";
         "typeinfo for oneapi::dal::v1::unimplemented";
         "typeinfo for oneapi::dal::v1::uninitialized_optional_result";
+        "typeinfo for oneapi::dal::v1::unsupported_device";
 
         # other services
 
@@ -458,6 +464,20 @@ global:
         # Policy methods
         "oneapi::dal::detail::v1::host_policy::get_enabled_cpu_extensions() const";
         "oneapi::dal::detail::v1::host_policy::set_enabled_cpu_extensions_impl(oneapi::dal::detail::v1::cpu_extension const&)";
+
+        # Infrastructure vtables/typeinfo
+        "vtable for oneapi::dal::detail::v1::host_policy";
+        "vtable for oneapi::dal::detail::system_parameters";
+        "vtable for oneapi::dal::detail::v2::chunked_array_base";
+        "vtable for oneapi::dal::v2::chunked_array<unsigned char>";
+        "vtable for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "vtable for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
+        "typeinfo for oneapi::dal::detail::v1::host_policy";
+        "typeinfo for oneapi::dal::detail::system_parameters";
+        "typeinfo for oneapi::dal::detail::v2::chunked_array_base";
+        "typeinfo for oneapi::dal::v2::chunked_array<unsigned char>";
+        "typeinfo for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "typeinfo for oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
 
         # Exception what() methods (critical for vtables)
         "oneapi::dal::v1::device_bad_alloc::what() const";
@@ -542,6 +562,29 @@ global:
         "vtable for oneapi::dal::preview::spmd::v1::coworker_error";
         "typeinfo for oneapi::dal::preview::spmd::v1::coworker_error";
 
+        "vtable for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "vtable for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
+        "typeinfo for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none>";
+        "typeinfo for oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::usm>";
+
+        # Graph algorithm vtables/typeinfo
+        "vtable for oneapi::dal::preview::connected_components::detail::descriptor_base<oneapi::dal::preview::connected_components::task::vertex_partitioning>";
+        "vtable for oneapi::dal::preview::jaccard::detail::descriptor_base<oneapi::dal::preview::jaccard::task::all_vertex_pairs>";
+        "vtable for oneapi::dal::preview::louvain::detail::descriptor_base<oneapi::dal::preview::louvain::task::vertex_partitioning>";
+        "vtable for oneapi::dal::preview::shortest_paths::detail::descriptor_base<oneapi::dal::preview::shortest_paths::task::one_to_all>";
+        "vtable for oneapi::dal::preview::subgraph_isomorphism::detail::descriptor_base<oneapi::dal::preview::subgraph_isomorphism::task::compute>";
+        "vtable for oneapi::dal::preview::triangle_counting::detail::descriptor_base<oneapi::dal::preview::triangle_counting::task::global>";
+        "vtable for oneapi::dal::preview::triangle_counting::detail::descriptor_base<oneapi::dal::preview::triangle_counting::task::local>";
+        "vtable for oneapi::dal::preview::triangle_counting::detail::descriptor_base<oneapi::dal::preview::triangle_counting::task::local_and_global>";
+        "typeinfo for oneapi::dal::preview::connected_components::detail::descriptor_base<oneapi::dal::preview::connected_components::task::vertex_partitioning>";
+        "typeinfo for oneapi::dal::preview::jaccard::detail::descriptor_base<oneapi::dal::preview::jaccard::task::all_vertex_pairs>";
+        "typeinfo for oneapi::dal::preview::louvain::detail::descriptor_base<oneapi::dal::preview::louvain::task::vertex_partitioning>";
+        "typeinfo for oneapi::dal::preview::shortest_paths::detail::descriptor_base<oneapi::dal::preview::shortest_paths::task::one_to_all>";
+        "typeinfo for oneapi::dal::preview::subgraph_isomorphism::detail::descriptor_base<oneapi::dal::preview::subgraph_isomorphism::task::compute>";
+        "typeinfo for oneapi::dal::preview::triangle_counting::detail::descriptor_base<oneapi::dal::preview::triangle_counting::task::global>";
+        "typeinfo for oneapi::dal::preview::triangle_counting::detail::descriptor_base<oneapi::dal::preview::triangle_counting::task::local>";
+        "typeinfo for oneapi::dal::preview::triangle_counting::detail::descriptor_base<oneapi::dal::preview::triangle_counting::task::local_and_global>";
+
         "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::get_communicator() const";
         "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::spmd_policy_base(oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none> const&)";
         "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::usm>::get_communicator() const";
@@ -576,21 +619,44 @@ global:
         std::_Rb_tree_iterator*;
         "std::_Rb_tree_iterator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const>, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> > >::_M_insert_unique_<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> const&, std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const>, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> > >::_Alloc_node>(std::_Rb_tree_const_iterator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> >, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> const&, std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const>, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const> > >::_Alloc_node&)";
 
-        # Explicitly exclude backend implementation
-
-        "!oneapi::dal::backend::*";
-        "!oneapi::dal::*::backend::*";
-    };
-
-local:
-    # Hide everything else by default
-    *;
-
-        # Additional symbols
+        # STL vtables/typeinfo required for cross-DSO exception handling and shared_ptr
         "vtable for std::bad_variant_access";
         "vtable for std::bad_any_cast";
         "vtable for std::_Sp_counted_deleter<unsigned char *, std::default_delete<unsigned char[]>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
         "typeinfo for std::bad_variant_access";
         "typeinfo for std::bad_any_cast";
         "typeinfo for std::_Sp_counted_deleter<unsigned char *, std::default_delete<unsigned char[]>, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>";
+
+        # Explicitly exclude backend implementation
+
+        "!oneapi::dal::backend::*";
+        "!oneapi::dal::*::backend::*";
+    };
+
+    # Guard variables and mangled symbols (must be outside extern "C++")
+    _ZGVZN6oneapi3dal6detail2v111host_policy11get_defaultEvE8instance;
+
+    # STL typeinfo (mangled, required for cross-DSO RTTI)
+    _ZTISt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt12bad_any_cast;
+    _ZTISt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTISt18bad_variant_access;
+    _ZTISt19_Sp_counted_deleterIPhSt14default_deleteIA_hESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+
+    # STL typeinfo names (mangled)
+    _ZTSSt11_Mutex_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt12bad_any_cast;
+    _ZTSSt14default_deleteIA_hE;
+    _ZTSSt16_Sp_counted_baseILN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt18bad_variant_access;
+    _ZTSSt19_Sp_counted_deleterIPhSt14default_deleteIA_hESaIvELN9__gnu_cxx12_Lock_policyE2EE;
+    _ZTSSt19_Sp_make_shared_tag;
+    _ZZNSt19_Sp_make_shared_tag5_S_tiEvE5__tag;
+
+    # std::vector<std::string>::_M_realloc_append (emplace_back instantiation)
+    _ZNSt6vectorIN6oneapi3dal2v15tableESaIS3_EE17_M_realloc_appendIJRKS3_EEEvDpOT_;
+
+local:
+    # Hide everything else by default
+    *;
 };
