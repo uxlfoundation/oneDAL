@@ -101,7 +101,7 @@ dal_dynamic_lib(
         "@platforms//os:windows": ["dal", "daal"],
         "//conditions:default": ["dal"],
     }),
-    dpc_lib_tags = ["dal", "daal"],
+    dpc_lib_tags = ["dal", "daal", "mkl_embed"],
     dal_deps = [
         ":core",
         ":optional",
