@@ -87,6 +87,7 @@ struct BallNode
 /// (xxgemv needs the operand row block to be a contiguous matrix).
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]  data         Row-major input buffer of size `nRows × nCols`
 /// @param[in]  pointIndices Permutation array; rows `[begin, end)` are gathered
@@ -94,7 +95,7 @@ struct BallNode
 /// @param[in]  end          Last index (exclusive) into `pointIndices`
 /// @param[in]  nCols        Number of features
 /// @param[out] scratchRows  Output, row-major `(end - begin) × nCols`
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static void gatherRows(const algorithmFPType * data, const int * pointIndices, int begin, int end, int nCols, algorithmFPType * scratchRows)
 {
     const int count = end - begin;
@@ -115,12 +116,13 @@ static void gatherRows(const algorithmFPType * data, const int * pointIndices, i
 /// becomes a straight-line scalar reduction over a contiguous array.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in] arr   Input array, length `count`
 /// @param[in] count Number of entries (must be >= 1)
 ///
 /// @return Index of the maximum element
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static int argmaxArray(const algorithmFPType * arr, int count)
 {
     DAAL_ASSERT(count > 0);
@@ -164,7 +166,7 @@ static int blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmF
                                int nCols, const DistFunc & distFunc, algorithmFPType * outDists)
 {
     distFunc.template blockDist<cpu>(pivotPt, scratchRows, rowNorms2, count, nCols, outDists);
-    return argmaxArray(outDists, count);
+    return argmaxArray<algorithmFPType, cpu>(outDists, count);
 }
 
 /// Recursively build a ball-tree node for `pointIndices[begin..end)`.
@@ -228,9 +230,9 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     algorithmFPType * d3          = d3Arr.get();
     if (!scratchRows || !rowNorms2 || !d2 || !d3) return nodeIdx;
 
-    gatherRows(data, pointIndices, begin, end, nCols, scratchRows);
+    gatherRows<algorithmFPType, cpu>(data, pointIndices, begin, end, nCols, scratchRows);
     // Cache ‖x_i‖² once per node; reused by all three pivot sweeps when DistFunc is Euclidean.
-    rowNormsSquared(scratchRows, count, nCols, rowNorms2);
+    rowNormsSquared<algorithmFPType, cpu>(scratchRows, count, nCols, rowNorms2);
 
     // Pick pivot1 = first point. Find pivot2 = argmax dist(pivot1, ·); pos is the
     // offset into scratchRows / pointIndices[begin..end). d3 is scratch for this
@@ -321,7 +323,7 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
 
     // Prune: if the closest point in the ball is farther than current k-th NN
-    const algorithmFPType distToCenter = distFunc.pointDist(queryPoint, data + node.centerIdx * nCols, nCols);
+    const algorithmFPType distToCenter = distFunc.template pointDist<cpu>(queryPoint, data + node.centerIdx * nCols, nCols);
     const algorithmFPType lowerBound   = (distToCenter > node.radius) ? (distToCenter - node.radius) : algorithmFPType(0);
     if (lowerBound >= heap.maxDist()) return;
 
@@ -330,25 +332,25 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
             const int pi               = pointIndices[i];
-            const algorithmFPType dist = distFunc.pointDist(queryPoint, data + pi * nCols, nCols);
+            const algorithmFPType dist = distFunc.template pointDist<cpu>(queryPoint, data + pi * nCols, nCols);
             heap.push(dist, pi);
         }
         return;
     }
 
     // Visit nearer child first
-    const algorithmFPType dLeft  = distFunc.pointDist(queryPoint, data + nodes[node.left].centerIdx * nCols, nCols);
-    const algorithmFPType dRight = distFunc.pointDist(queryPoint, data + nodes[node.right].centerIdx * nCols, nCols);
+    const algorithmFPType dLeft  = distFunc.template pointDist<cpu>(queryPoint, data + nodes[node.left].centerIdx * nCols, nCols);
+    const algorithmFPType dRight = distFunc.template pointDist<cpu>(queryPoint, data + nodes[node.right].centerIdx * nCols, nCols);
 
     if (dLeft <= dRight)
     {
-        knnQueryBallTree(data, nCols, nodes, pointIndices, queryPoint, node.left, heap, distFunc);
-        knnQueryBallTree(data, nCols, nodes, pointIndices, queryPoint, node.right, heap, distFunc);
+        knnQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, node.left, heap, distFunc);
+        knnQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, node.right, heap, distFunc);
     }
     else
     {
-        knnQueryBallTree(data, nCols, nodes, pointIndices, queryPoint, node.right, heap, distFunc);
-        knnQueryBallTree(data, nCols, nodes, pointIndices, queryPoint, node.left, heap, distFunc);
+        knnQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, node.right, heap, distFunc);
+        knnQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, node.left, heap, distFunc);
     }
 }
 
@@ -361,6 +363,7 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
 /// aggregate without a second pass.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]  nodes           Ball-tree nodes
 /// @param[in]  pointIndices    Point-index permutation
@@ -369,7 +372,7 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
 /// @param[in]  nodeIdx         Subtree root (caller passes 0)
 ///
 /// @return Min core distance found in this subtree
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPType> * nodes, const int * pointIndices,
                                                    const algorithmFPType * coreDistances, algorithmFPType * minCoreDistNode, int nodeIdx)
 {
@@ -385,9 +388,10 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
         minCoreDistNode[nodeIdx] = minCD;
         return minCD;
     }
-    const algorithmFPType leftMin  = computeMinCoreDistsBallTree(nodes, pointIndices, coreDistances, minCoreDistNode, node.left);
-    const algorithmFPType rightMin = computeMinCoreDistsBallTree(nodes, pointIndices, coreDistances, minCoreDistNode, node.right);
-    minCoreDistNode[nodeIdx]       = (leftMin < rightMin) ? leftMin : rightMin;
+    const algorithmFPType leftMin = computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, node.left);
+    const algorithmFPType rightMin =
+        computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, node.right);
+    minCoreDistNode[nodeIdx] = (leftMin < rightMin) ? leftMin : rightMin;
     return minCoreDistNode[nodeIdx];
 }
 
@@ -399,6 +403,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
 /// that match the query's component.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in,out] nodes        Ball-tree nodes (component ids written in place)
 /// @param[in]     pointIndices Point-index permutation
@@ -406,7 +411,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
 /// @param[in]     nodeIdx      Subtree root (caller passes 0)
 ///
 /// @return Shared component id of this subtree, or -1 if mixed
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const int * pointIndices, const int * componentOf, int nodeIdx)
 {
     BallNode<algorithmFPType> & node = nodes[nodeIdx];
@@ -424,8 +429,8 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
         node.componentId = firstComp;
         return firstComp;
     }
-    const int leftComp  = updateNodeComponentsBallTree(nodes, pointIndices, componentOf, node.left);
-    const int rightComp = updateNodeComponentsBallTree(nodes, pointIndices, componentOf, node.right);
+    const int leftComp  = updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.left);
+    const int rightComp = updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.right);
     if (leftComp >= 0 && leftComp == rightComp)
     {
         node.componentId = leftComp;
@@ -447,6 +452,7 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
 /// robust single linkage); core distances are left unscaled.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 /// @tparam DistFunc        Metric functor exposing `pointDist`
 ///
 /// @param[in]     data            Row-major input buffer
@@ -465,7 +471,7 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
 /// @param[in,out] bestIdx         Index of the best different-component candidate so far
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
-template <typename algorithmFPType, typename DistFunc>
+template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
                                            const algorithmFPType * coreDistances, const algorithmFPType * minCoreDistNode, const int * componentOf,
                                            const algorithmFPType * queryPoint, int queryIdx, algorithmFPType queryCoreD, int queryComponent,
@@ -476,7 +482,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
     if (node.componentId == queryComponent) return;
 
     // Ball-tree MRD lower bound: max(dist_to_center - radius, 0) * invAlpha then max with cores
-    const algorithmFPType distToCenter = distFunc.pointDist(queryPoint, data + node.centerIdx * nCols, nCols);
+    const algorithmFPType distToCenter = distFunc.template pointDist<cpu>(queryPoint, data + node.centerIdx * nCols, nCols);
     const algorithmFPType bboxMin      = (distToCenter > node.radius) ? (distToCenter - node.radius) : algorithmFPType(0);
     algorithmFPType mrdLB              = bboxMin * invAlpha;
     if (queryCoreD > mrdLB) mrdLB = queryCoreD;
@@ -490,7 +496,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
             const int pi = pointIndices[i];
             if (componentOf[pi] == queryComponent) continue;
 
-            const algorithmFPType dist = distFunc.pointDist(queryPoint, data + pi * nCols, nCols);
+            const algorithmFPType dist = distFunc.template pointDist<cpu>(queryPoint, data + pi * nCols, nCols);
             algorithmFPType mrd        = dist * invAlpha;
             if (queryCoreD > mrd) mrd = queryCoreD;
             if (coreDistances[pi] > mrd) mrd = coreDistances[pi];
@@ -505,16 +511,16 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
     }
 
     // Visit nearer child first
-    const algorithmFPType dLeft  = distFunc.pointDist(queryPoint, data + nodes[node.left].centerIdx * nCols, nCols);
-    const algorithmFPType dRight = distFunc.pointDist(queryPoint, data + nodes[node.right].centerIdx * nCols, nCols);
+    const algorithmFPType dLeft  = distFunc.template pointDist<cpu>(queryPoint, data + nodes[node.left].centerIdx * nCols, nCols);
+    const algorithmFPType dRight = distFunc.template pointDist<cpu>(queryPoint, data + nodes[node.right].centerIdx * nCols, nCols);
 
     const int nearChild = (dLeft <= dRight) ? node.left : node.right;
     const int farChild  = (dLeft <= dRight) ? node.right : node.left;
 
-    nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx, queryCoreD,
-                                   queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
-    nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx, queryCoreD,
-                                   queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
+    nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint,
+                                                         queryIdx, queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
+    nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint,
+                                                         queryIdx, queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
 }
 
 /// Compute core distances and the MST under MRD on a ball tree.
@@ -575,7 +581,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
     algorithmFPType * minCoreDistNode = minCoreDistNodeVec.get();
     if (!minCoreDistNode) return;
-    computeMinCoreDistsBallTree(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
+    computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
     TArray<int, cpu> ufParentVec(nRows);
@@ -627,7 +633,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
         }
     };
 
-    updateNodeComponentsBallTree(nodes, pointIndices, componentOf, 0);
+    updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
 
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
@@ -643,8 +649,9 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
             algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             int bestIdx                      = -1;
 
-            nearestMrdBoruvkaQueryBallTree(data, iNCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPt,
-                                           static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc, invAlpha);
+            nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, iNCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf,
+                                                                 queryPt, static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc,
+                                                                 invAlpha);
 
             pointBestMrd[i] = bestMrd;
             pointBestIdx[i] = bestIdx;
@@ -692,7 +699,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 
         daal::threader_for(iNRows, iNRows, [&](size_t i) { componentOf[i] = ufFind(static_cast<int>(i)); });
 
-        updateNodeComponentsBallTree(nodes, pointIndices, componentOf, 0);
+        updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
 }
 

@@ -90,6 +90,7 @@ struct KdNode
 /// kd-tree pruning.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]     data         Row-major input buffer of size `nRows × nCols`
 /// @param[in,out] pointIndices Permutation of input row ids; reordered in place
@@ -103,7 +104,7 @@ struct KdNode
 /// @param[out]    bboxHi       Per-node upper bbox bounds, length `totalNodes × nCols`
 ///
 /// @return Index of the node created by this call
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static int buildKdTree(const algorithmFPType * data, int * pointIndices, int begin, int end, int nCols, KdNode<algorithmFPType> * nodes,
                        int & nextNode, int maxLeafSize, algorithmFPType * bboxLo, algorithmFPType * bboxHi)
 {
@@ -155,8 +156,8 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
 
     node.splitVal = data[pointIndices[mid] * nCols + bestDim];
 
-    node.left  = buildKdTree(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
-    node.right = buildKdTree(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
+    node.left  = buildKdTree<algorithmFPType, cpu>(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
+    node.right = buildKdTree<algorithmFPType, cpu>(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
 
     return nodeIdx;
 }
@@ -192,7 +193,7 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
         {
             const int pi                = pointIndices[i];
             const algorithmFPType * row = data + pi * nCols;
-            const algorithmFPType dist  = distFunc.pointDist(queryPoint, row, nCols);
+            const algorithmFPType dist  = distFunc.template pointDist<cpu>(queryPoint, row, nCols);
             heap.push(dist, pi);
         }
         return;
@@ -204,13 +205,13 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
     const int nearChild = (diff <= 0) ? node.left : node.right;
     const int farChild  = (diff <= 0) ? node.right : node.left;
 
-    knnQuery(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap, distFunc);
+    knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap, distFunc);
 
     // Prune: only visit far subtree if the splitting plane is closer than current k-th NN
-    const algorithmFPType pd = distFunc.planeDist(diff);
+    const algorithmFPType pd = distFunc.template planeDist<cpu>(diff);
     if (pd < heap.maxDist())
     {
-        knnQuery(data, nCols, nodes, pointIndices, queryPoint, farChild, heap, distFunc);
+        knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, farChild, heap, distFunc);
     }
 }
 
@@ -220,6 +221,7 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
 /// Boruvka MRD queries (`MRD >= max(coreQ, minCoreDistNode[subtree], minDist)`).
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]  nodes           kd-tree nodes
 /// @param[in]  pointIndices    Point-index permutation
@@ -228,7 +230,7 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
 /// @param[in]  nodeIdx         Index of the subtree root (caller passes 0 for the root)
 ///
 /// @return Min core distance found in this subtree
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes, const int * pointIndices, const algorithmFPType * coreDistances,
                                            algorithmFPType * minCoreDistNode, int nodeIdx)
 {
@@ -244,8 +246,8 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
         minCoreDistNode[nodeIdx] = minCD;
         return minCD;
     }
-    const algorithmFPType leftMin  = computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, node.left);
-    const algorithmFPType rightMin = computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, node.right);
+    const algorithmFPType leftMin  = computeMinCoreDists<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, node.left);
+    const algorithmFPType rightMin = computeMinCoreDists<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, node.right);
     minCoreDistNode[nodeIdx]       = (leftMin < rightMin) ? leftMin : rightMin;
     return minCoreDistNode[nodeIdx];
 }
@@ -258,6 +260,7 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
 /// let later MRD queries prune entire subtrees.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in,out] nodes        kd-tree nodes (component ids written in place)
 /// @param[in]     pointIndices Point-index permutation
@@ -265,7 +268,7 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
 /// @param[in]     nodeIdx      Index of the subtree root (caller passes 0)
 ///
 /// @return The shared component id of this subtree, or -1 if mixed
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * pointIndices, const int * componentOf, int nodeIdx)
 {
     KdNode<algorithmFPType> & node = nodes[nodeIdx];
@@ -284,8 +287,8 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
         node.componentId = firstComp;
         return firstComp;
     }
-    const int leftComp  = updateNodeComponents(nodes, pointIndices, componentOf, node.left);
-    const int rightComp = updateNodeComponents(nodes, pointIndices, componentOf, node.right);
+    const int leftComp  = updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.left);
+    const int rightComp = updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.right);
     if (leftComp >= 0 && leftComp == rightComp)
     {
         node.componentId = leftComp;
@@ -308,6 +311,7 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
 /// robust single linkage); core distances are left unscaled.
 ///
 /// @tparam algorithmFPType Floating-point type
+/// @tparam cpu             CPU dispatch tag
 /// @tparam DistFunc        Metric functor exposing `pointDist` and `bboxLowerBound`
 ///
 /// @param[in]     data            Row-major input buffer
@@ -328,7 +332,7 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
 /// @param[in,out] bestIdx         Index of the best different-component point so far
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
-template <typename algorithmFPType, typename DistFunc>
+template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
                                    const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
                                    const algorithmFPType * minCoreDistNode, const int * componentOf, const algorithmFPType * queryPoint, int queryIdx,
@@ -344,7 +348,7 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
     {
         const algorithmFPType * lo    = bboxLo + nodeIdx * nCols;
         const algorithmFPType * hi    = bboxHi + nodeIdx * nCols;
-        const algorithmFPType minDist = distFunc.bboxLowerBound(queryPoint, lo, hi, nCols);
+        const algorithmFPType minDist = distFunc.template bboxLowerBound<cpu>(queryPoint, lo, hi, nCols);
 
         // MRD(q, p) = max(core_q, core_p, dist(q,p) * invAlpha)
         // >= max(core_q, minCoreDist_subtree, minDist * invAlpha)
@@ -364,7 +368,7 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
             if (componentOf[pi] == queryComponent) continue;
 
             const algorithmFPType * row = data + pi * nCols;
-            const algorithmFPType dist  = distFunc.pointDist(queryPoint, row, nCols);
+            const algorithmFPType dist  = distFunc.template pointDist<cpu>(queryPoint, row, nCols);
 
             algorithmFPType mrd = dist * invAlpha;
             if (queryCoreD > mrd) mrd = queryCoreD;
@@ -386,10 +390,10 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
     const int nearChild = (diff <= 0) ? node.left : node.right;
     const int farChild  = (diff <= 0) ? node.right : node.left;
 
-    nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                           queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
-    nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                           queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
+    nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf,
+                                                 queryPoint, queryIdx, queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
+    nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf,
+                                                 queryPoint, queryIdx, queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
 }
 
 /// Compute core distances and the MST under MRD on a kd-tree, templated on metric.
@@ -453,7 +457,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
     algorithmFPType * minCoreDistNode = minCoreDistNodeVec.get();
     if (!minCoreDistNode) return;
-    computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
+    computeMinCoreDists<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
     const size_t edgeCount = nRows - 1;
@@ -508,7 +512,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
         }
     };
 
-    updateNodeComponents(nodes, pointIndices, componentOf, 0);
+    updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
 
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
@@ -524,8 +528,9 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
             algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             int bestIdx                      = -1;
 
-            nearestMrdBoruvkaQuery(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPt,
-                                   static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc, invAlpha);
+            nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode,
+                                                         componentOf, queryPt, static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc,
+                                                         invAlpha);
 
             pointBestMrd[i] = bestMrd;
             pointBestIdx[i] = bestIdx;
@@ -574,7 +579,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 
         daal::threader_for(iNRows, iNRows, [&](size_t i) { componentOf[i] = ufFind(static_cast<int>(i)); });
 
-        updateNodeComponents(nodes, pointIndices, componentOf, 0);
+        updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
 }
 
@@ -636,7 +641,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(bboxHi);
 
     int nextNode = 0;
-    buildKdTree(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
+    buildKdTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize, bboxLo,
+                                      bboxHi);
     const int totalTreeNodes = nextNode;
 
     // =========================================================================

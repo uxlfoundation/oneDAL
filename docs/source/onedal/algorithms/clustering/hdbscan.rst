@@ -49,6 +49,7 @@ The following distance metrics are supported via the ``metric`` parameter:
    :widths: 20 40 20
 
    * - Metric
+     - Definition
      - Methods
    * - Euclidean (default)
      - :math:`d(x, y) = \sqrt{\sum_i (x_i - y_i)^2}`
