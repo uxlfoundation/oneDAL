@@ -92,13 +92,14 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
-    # On Windows, onedal.dll must resolve all DAAL algorithm symbols at link
-    # time (lld-link does not allow unresolved externals), so embed the same
-    # DAAL-tagged objects the DPC variant does. On Linux, libonedal.so resolves
-    # DAAL symbols at runtime via DT_NEEDED libonedal_core.so, so the host-only
-    # build keeps just the "dal" tag to avoid duplicating DAAL into onedal.so.
+    # On Windows, onedal.dll must resolve all DAAL algorithm and MKL backend
+    # symbols at link time (lld-link does not allow unresolved externals), so
+    # embed the same DAAL/MKL-tagged inputs the DPC variant does. On Linux,
+    # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
+    # libonedal_core.so, so the host-only build keeps just the "dal" tag to
+    # avoid duplicating DAAL into onedal.so.
     lib_tags = select({
-        "@platforms//os:windows": ["dal", "daal"],
+        "@platforms//os:windows": ["dal", "daal", "mkl_embed"],
         "//conditions:default": ["dal"],
     }),
     dpc_lib_tags = ["dal", "daal", "mkl_embed"],
