@@ -32,9 +32,6 @@
  *   max(0, dist(q, c) - r)
  */
 
-#include <algorithm>
-#include <cmath>
-
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
@@ -68,17 +65,17 @@ using daal::services::internal::TArrayScalable;
 /// query `q` to any point in the ball is `max(0, dist(q, center) - radius)`,
 /// which is what makes ball trees more robust than kd-trees in high dimensions.
 ///
-/// @tparam FPType Floating-point type
-template <typename FPType>
+/// @tparam algorithmFPType Floating-point type
+template <typename algorithmFPType>
 struct BallNode
 {
-    int left;        ///< Index of left child node (-1 for leaf)
-    int right;       ///< Index of right child node (-1 for leaf)
-    int pointBegin;  ///< Begin of the node's point-index range
-    int pointEnd;    ///< End (exclusive) of the node's point-index range
-    int centerIdx;   ///< Index of the pivot point used as approximate center
-    FPType radius;   ///< Max distance from center to any point in this ball
-    int componentId; ///< -1 = mixed components, >= 0 = uniform Boruvka component
+    int left;               ///< Index of left child node (-1 for leaf)
+    int right;              ///< Index of right child node (-1 for leaf)
+    int pointBegin;         ///< Begin of the node's point-index range
+    int pointEnd;           ///< End (exclusive) of the node's point-index range
+    int centerIdx;          ///< Index of the pivot point used as approximate center
+    algorithmFPType radius; ///< Max distance from center to any point in this ball
+    int componentId;        ///< -1 = mixed components, >= 0 = uniform Boruvka component
 };
 
 /// Gather `pointIndices[begin..end)` rows from `data` into a contiguous
@@ -144,7 +141,7 @@ static int argmaxArray(const algorithmFPType * arr, int count)
 ///
 /// Delegates the distance sweep to `distFunc.blockDist`. For EuclideanDist
 /// this is one BLAS xxgemv + vSqrt finalize over the contiguous scratch
-/// buffer; row norms² come from `rowNorms2` (pre-cached once per node by the
+/// buffer; row norms^2 come from `rowNorms2` (pre-cached once per node by the
 /// caller). For other metrics blockDist falls back to a vectorized per-row
 /// inner loop. The argmax is a separate scalar reduction over the resulting
 /// array.

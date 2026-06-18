@@ -26,5 +26,5 @@ to choose an epsilon parameter and can find clusters of varying densities.
 =============== =========================== ======== =========== ============
  **Operation**  **Computational methods**     **Programming Interface**
 --------------- --------------------------- ---------------------------------
-   |c_math|     Brute-force, k-d tree        |c_op|   |c_input|   |c_result|
+   |c_math|     Bf, kd tree, ball tree       |c_op|   |c_input|   |c_result|
 =============== =========================== ======== =========== ============

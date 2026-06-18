@@ -30,7 +30,7 @@ namespace oneapi::dal::hdbscan::backend {
 ///
 /// @tparam Float  Floating-point type
 /// @tparam Method Method tag (`method::brute_force`, `method::kd_tree`, `method::ball_tree`)
-/// @tparam Task   Task tag (currently `task::compute`)
+/// @tparam Task   Task tag (currently `task::clustering`)
 template <typename Float, typename Method, typename Task>
 struct compute_kernel_cpu {
     /// Run the HDBSCAN compute pipeline on the CPU.

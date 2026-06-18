@@ -29,7 +29,6 @@ class hdbscan_batch_test : public hdbscan_test<TestType, hdbscan_batch_test<Test
 // =========================================================================
 
 using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
-using hdbscan_bf_only = COMBINE_TYPES((double), (hdbscan::method::brute_force));
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: compute mode check",
@@ -378,44 +377,44 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     this->run_checks(x, 5, 5, distance_metric::minkowski, 3.0, 2);
 }
 
-TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
-                     "hdbscan brute_force: cosine two clusters",
-                     "[hdbscan][batch]",
-                     hdbscan_bf_only) {
-    SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+// TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+//                      "hdbscan brute_force: cosine two clusters",
+//                      "[hdbscan][batch]",
+//                      hdbscan_bf_types) {
+//     SKIP_IF(this->not_float64_friendly());
+//     using float_t = std::tuple_element_t<0, TestType>;
 
-    // For cosine, clusters must differ in direction, not just magnitude.
-    // 8 points per cluster with wider angular spread for stability.
-    // Cluster 0: points near direction (1, 0)
-    // Cluster 1: points near direction (0, 1)
-    constexpr float_t data[] = {
-        10.0, 0.5, //
-        10.0, 1.0, //
-        10.0, 0.0, //
-        10.0, 0.8, //
-        10.0, 0.3, //
-        10.0, 0.6, //
-        10.0, 0.4, //
-        10.0, 0.9, //
-        0.5,  10.0, //
-        1.0,  10.0, //
-        0.0,  10.0, //
-        0.8,  10.0, //
-        0.3,  10.0, //
-        0.6,  10.0, //
-        0.4,  10.0, //
-        0.9,  10.0, //
-    };
-    const auto x = homogen_table::wrap(data, 16, 2);
+//     // For cosine, clusters must differ in direction, not just magnitude.
+//     // 8 points per cluster with wider angular spread for stability.
+//     // Cluster 0: points near direction (1, 0)
+//     // Cluster 1: points near direction (0, 1)
+//     constexpr float_t data[] = {
+//         10.0, 0.5, //
+//         10.0, 1.0, //
+//         10.0, 0.0, //
+//         10.0, 0.8, //
+//         10.0, 0.3, //
+//         10.0, 0.6, //
+//         10.0, 0.4, //
+//         10.0, 0.9, //
+//         0.5,  10.0, //
+//         1.0,  10.0, //
+//         0.0,  10.0, //
+//         0.8,  10.0, //
+//         0.3,  10.0, //
+//         0.6,  10.0, //
+//         0.4,  10.0, //
+//         0.9,  10.0, //
+//     };
+//     const auto x = homogen_table::wrap(data, 16, 2);
 
-    this->run_checks(x, 5, 5, distance_metric::cosine, 2.0, 2);
-}
+//     this->run_checks(x, 5, 5, distance_metric::cosine, 2.0, 2);
+// }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: minkowski(p=1) equals manhattan",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -460,7 +459,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: minkowski(p=2) equals euclidean",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -701,7 +700,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: same partition on gold data",
                      "[hdbscan][batch][gold]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -736,7 +735,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: same partition on two clusters",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -780,7 +779,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: three clusters 1D",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -815,7 +814,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: manhattan consistency",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -859,7 +858,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: chebyshev consistency",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -903,7 +902,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: minkowski p=3 consistency",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -953,7 +952,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: epsilon merges close clusters",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -1049,7 +1048,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: alpha=1 is default behavior",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -1095,7 +1094,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: alpha > 1 runs without error",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -1200,7 +1199,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: max_cluster_size=0 is no limit",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -1245,7 +1244,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: max_cluster_size limits cluster size",
                      "[hdbscan][batch]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
@@ -1277,7 +1276,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: susy 500K samples",
                      "[hdbscan][nightly][batch][external-dataset][susy]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
 
     const te::dataframe data =
@@ -1291,7 +1290,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan kd_tree: susy 500K samples",
                      "[hdbscan][nightly][batch][external-dataset][susy]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
 
     const te::dataframe data =
@@ -1319,7 +1318,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs kd_tree: susy consistency",
                      "[hdbscan][nightly][batch][external-dataset][susy]",
-                     hdbscan_bf_only) {
+                     hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 

@@ -197,7 +197,7 @@ MSG(objective_function_value_lt_zero, "Objective function value is lower than ze
 
 /* HDBSCAN */
 MSG(hdbscan_metric_not_compatible_with_kd_tree,
-    "HDBSCAN cosine metric is not compatible with kd_tree method")
+    "HDBSCAN cosine metric is not compatible with kd_tree or ball_tree methods")
 MSG(hdbscan_min_cluster_size_lt_two, "HDBSCAN min_cluster_size must be at least 2")
 MSG(hdbscan_min_samples_lt_one, "HDBSCAN min_samples must be at least 1")
 MSG(hdbscan_minkowski_degree_leq_zero, "HDBSCAN Minkowski degree must be greater than zero")

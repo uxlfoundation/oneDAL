@@ -34,7 +34,7 @@ public:
     static constexpr std::int64_t row_count = 5;
 
     auto get_descriptor() const {
-        return hdbscan::descriptor<float, Method>(5, 5);
+        return hdbscan::descriptor<Float, Method>(5, 5);
     }
 
     table get_data() const {
@@ -42,7 +42,7 @@ public:
     }
 
 private:
-    static constexpr std::array<float, row_count* 2> compute_data_ = { 1.0, 1.0, 2.0, 2.0, 1.0,
+    static constexpr std::array<Float, row_count* 2> compute_data_ = { 1.0, 1.0, 2.0, 2.0, 1.0,
                                                                        2.0, 2.0, 1.0, 1.5, 1.5 };
 };
 

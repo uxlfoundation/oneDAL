@@ -282,9 +282,8 @@ public:
         return *this;
     }
 
-    /// Whether to allow a single cluster result.
-    /// When false (default), if only the root cluster is selected,
-    /// its children are selected instead.
+    /// When false (default), the root cluster of the condensed tree is never selected.
+    /// When true, the root cluster may be selected if it meets `min_cluster_size`.
     bool get_allow_single_cluster() const {
         return base_t::get_allow_single_cluster();
     }

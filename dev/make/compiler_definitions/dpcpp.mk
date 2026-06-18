@@ -68,8 +68,7 @@ endif
 
 
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
-
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7) -fno-system-debug
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
