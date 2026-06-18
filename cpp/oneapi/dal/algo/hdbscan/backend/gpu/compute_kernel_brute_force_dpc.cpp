@@ -37,10 +37,10 @@ using input_t = compute_input<task::clustering>;
 
 /// Run the brute-force HDBSCAN GPU pipeline for a single floating-point type.
 ///
-/// Pipeline: pairwise distance matrix -> alpha scaling (if `alpha != 1.0`)
-/// -> core distances via k-select -> in-place MRD matrix -> GPU Boruvka MST
-/// (`build_mst`) -> radix sort by weight -> `extract_clusters`. Outputs
-/// per-point responses and the cluster count.
+/// Pipeline: pairwise distance matrix -> core distances via k-select ->
+/// in-place MRD matrix (alpha is applied only to dist inside MRD) -> GPU
+/// Boruvka MST (`build_mst`) -> radix sort by weight -> `extract_clusters`.
+/// Outputs per-point responses and the cluster count.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -83,27 +83,9 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                      degree,
                                                      { dist_alloc_event });
 
-    // Step 1b: Apply alpha scaling to distance matrix (robust single linkage).
-    // For Euclidean the matrix currently holds squared L2 (sqrt is done later
-    // by compute_core_distances / compute_mrd_matrix), so to scale the final
-    // distance d -> d/alpha we have to scale the squared values by 1/alpha^2.
-    // Other metrics already hold final distances, so 1/alpha is correct.
-    sycl::event alpha_event = dist_event;
-    if (alpha != 1.0) {
-        const Float scale = (metric == distance_metric::euclidean)
-                                ? static_cast<Float>(1.0 / (alpha * alpha))
-                                : static_cast<Float>(1.0 / alpha);
-        Float* dist_ptr = dist_matrix.get_mutable_data();
-        const std::int64_t total_dist = row_count * row_count;
-        alpha_event = queue.submit([&](sycl::handler& h) {
-            h.depends_on({ dist_event });
-            h.parallel_for(sycl::range<1>(total_dist), [=](sycl::id<1> idx) {
-                dist_ptr[idx[0]] *= scale;
-            });
-        });
-    }
-
-    // Step 2: Compute core distances from the distance matrix
+    // Step 2: Compute core distances from the unscaled distance matrix.
+    // Per the canonical HDBSCAN definition, alpha must NOT touch the k-NN
+    // core distance — it scales only the dist term inside MRD (Step 3).
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
 
@@ -113,13 +95,14 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                     min_samples,
                                                     row_count,
                                                     metric,
-                                                    { alpha_event, core_dist_event });
+                                                    { dist_event, core_dist_event });
 
-    // Step 3: Transform distances into MRD matrix in-place
+    // Step 3: Transform distances into MRD matrix in-place, applying 1/alpha
+    // only to the dist(i,j) term inside the max with core_i, core_j.
     auto& mrd_matrix = dist_matrix;
 
     auto mrd_compute_event =
-        compute_mrd_matrix<Float>(queue, core_distances, mrd_matrix, metric, { core_event });
+        compute_mrd_matrix<Float>(queue, core_distances, mrd_matrix, metric, alpha, { core_event });
 
     // Step 4: Build MST using GPU Boruvka's algorithm with precomputed MRD matrix
     auto [mst_from, mst_from_event] =

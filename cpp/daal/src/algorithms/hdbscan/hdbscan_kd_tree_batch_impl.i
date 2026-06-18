@@ -299,10 +299,13 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
 ///
 /// Three-level pruning:
 ///   1. skip subtrees whose `componentId` matches the query's component;
-///   2. skip subtrees whose `max(coreQ, minCoreDistNode, bboxMinDist)` is not
-///      smaller than the current best MRD;
+///   2. skip subtrees whose `max(coreQ, minCoreDistNode, bboxMinDist * invAlpha)`
+///      is not smaller than the current best MRD;
 ///   3. visit the nearer child first to tighten `bestMrd`, then the far child
 ///      only if its plane distance still permits an improvement.
+///
+/// Alpha is applied only to the dist(q,p) term inside MRD (canonical HDBSCAN
+/// robust single linkage); core distances are left unscaled.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam DistFunc        Metric functor exposing `pointDist` and `bboxLowerBound`
@@ -323,13 +326,14 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
 /// @param[in]     nodeIdx         Index of the subtree root to visit (caller passes 0)
 /// @param[in,out] bestMrd         Best MRD found so far (caller seeds with `+inf`)
 /// @param[in,out] bestIdx         Index of the best different-component point so far
-/// @param[in]     distFunc        Metric functor instance
+/// @param[in]     distFunc        Metric functor instance (unscaled metric)
+/// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
 template <typename algorithmFPType, typename DistFunc>
 static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
                                    const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
                                    const algorithmFPType * minCoreDistNode, const int * componentOf, const algorithmFPType * queryPoint, int queryIdx,
                                    algorithmFPType queryCoreD, int queryComponent, int nodeIdx, algorithmFPType & bestMrd, int & bestIdx,
-                                   const DistFunc & distFunc)
+                                   const DistFunc & distFunc, algorithmFPType invAlpha)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -342,8 +346,9 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
         const algorithmFPType * hi    = bboxHi + nodeIdx * nCols;
         const algorithmFPType minDist = distFunc.bboxLowerBound(queryPoint, lo, hi, nCols);
 
-        // MRD(q, p) = max(core_q, core_p, dist(q,p)) >= max(core_q, minCoreDist_subtree, minDist)
-        algorithmFPType mrdLB = minDist;
+        // MRD(q, p) = max(core_q, core_p, dist(q,p) * invAlpha)
+        // >= max(core_q, minCoreDist_subtree, minDist * invAlpha)
+        algorithmFPType mrdLB = minDist * invAlpha;
         if (queryCoreD > mrdLB) mrdLB = queryCoreD;
         if (minCoreDistNode[nodeIdx] > mrdLB) mrdLB = minCoreDistNode[nodeIdx];
 
@@ -361,7 +366,7 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
             const algorithmFPType * row = data + pi * nCols;
             const algorithmFPType dist  = distFunc.pointDist(queryPoint, row, nCols);
 
-            algorithmFPType mrd = dist;
+            algorithmFPType mrd = dist * invAlpha;
             if (queryCoreD > mrd) mrd = queryCoreD;
             if (coreDistances[pi] > mrd) mrd = coreDistances[pi];
 
@@ -382,9 +387,9 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
     const int farChild  = (diff <= 0) ? node.right : node.left;
 
     nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                           queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc);
+                           queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
     nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                           queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc);
+                           queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
 }
 
 /// Compute core distances and the MST under MRD on a kd-tree, templated on metric.
@@ -414,13 +419,18 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
 /// @param[out]    mstFrom         Source endpoint per MST edge, length `nRows - 1`
 /// @param[out]    mstTo           Target endpoint per MST edge, length `nRows - 1`
 /// @param[out]    mstWeights      Edge weights (MRD), length `nRows - 1`
-/// @param[in]     distFunc        Metric functor instance
+/// @param[in]     distFunc        Metric functor instance (unscaled metric)
+/// @param[in]     alpha           Robust single-linkage scaling factor; applied
+///                                only to dist(q,p) inside MRD (not to k-NN
+///                                core distances or to the metric used for tree
+///                                queries)
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
                                   int * pointIndices, int totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,
                                   algorithmFPType * coreDistances, int * mstFrom, int * mstTo, algorithmFPType * mstWeights,
-                                  const DistFunc & distFunc)
+                                  const DistFunc & distFunc, double alpha)
 {
+    const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
     // Canonical HDBSCAN core distance (Campello 2013): the distance to the
     // `minSamples`-th nearest neighbor counting the query point itself as
     // neighbor #1. The kd-tree traversal pushes the query point into the heap
@@ -515,7 +525,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
             int bestIdx                      = -1;
 
             nearestMrdBoruvkaQuery(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPt,
-                                   static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc);
+                                   static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc, invAlpha);
 
             pointBestMrd[i] = bestMrd;
             pointBestIdx[i] = bestIdx;
@@ -647,47 +657,29 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
-    const bool useAlpha = (alpha != 1.0);
-
     using algorithms::internal::PairwiseDistanceType;
 
+    // Robust single linkage: alpha is applied only to dist(q,p) inside MRD
+    // (canonical HDBSCAN). The metric used for k-NN core distances and for
+    // kd-tree pruning is left unscaled.
     switch (pairwiseDistance)
     {
     case PairwiseDistanceType::manhattan:
-        if (useAlpha)
-            computeCoreDistAndMst<algorithmFPType, cpu>(
-                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, ManhattanDist<algorithmFPType> >(ManhattanDist<algorithmFPType> {}, alpha));
-        else
-            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                        coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {});
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {}, alpha);
         break;
     case PairwiseDistanceType::minkowski:
-        if (useAlpha)
-            computeCoreDistAndMst<algorithmFPType, cpu>(
-                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, MinkowskiDist<algorithmFPType> >(MinkowskiDist<algorithmFPType>(minkowskiDegree), alpha));
-        else
-            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                        coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(minkowskiDegree));
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(minkowskiDegree),
+                                                    alpha);
         break;
     case PairwiseDistanceType::chebyshev:
-        if (useAlpha)
-            computeCoreDistAndMst<algorithmFPType, cpu>(
-                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, ChebyshevDist<algorithmFPType> >(ChebyshevDist<algorithmFPType> {}, alpha));
-        else
-            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                        coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {});
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {}, alpha);
         break;
     default: // euclidean
-        if (useAlpha)
-            computeCoreDistAndMst<algorithmFPType, cpu>(
-                data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi, coreDistances, mstFrom, mstTo, mstWeights,
-                AlphaScaledDist<algorithmFPType, EuclideanDist<algorithmFPType> >(EuclideanDist<algorithmFPType> {}, alpha));
-        else
-            computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                        coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {});
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
         break;
     }
 

@@ -190,6 +190,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     auto [mst_weights, mst_weights_event] =
         pr::ndarray<Float, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
 
+    // Robust single linkage: alpha is applied only to dist(i,j) inside MRD
+    // by build_mst_otf (canonical HDBSCAN). Core distances stay unscaled.
     auto mst_event =
         build_mst_otf<Float>(queue,
                              data_nd,
@@ -201,20 +203,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
                              col_count,
                              metric,
                              degree,
+                             alpha,
                              { prev_block_event, mst_from_event, mst_to_event, mst_weights_event });
-
-    // Step 2b: Apply alpha scaling to MST weights
-    if (alpha != 1.0) {
-        const Float inv_alpha = static_cast<Float>(1.0 / alpha);
-        Float* w_ptr = mst_weights.get_mutable_data();
-        auto alpha_event = queue.submit([&](sycl::handler& h) {
-            h.depends_on({ mst_event });
-            h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
-                w_ptr[idx[0]] *= inv_alpha;
-            });
-        });
-        mst_event = alpha_event;
-    }
 
     // Step 3: Sort MST edges by weight
     auto sort_event =

@@ -143,11 +143,11 @@ static int argmaxArray(const algorithmFPType * arr, int count)
 /// Compute distances from `pivotPt` to a contiguous row block and return the argmax.
 ///
 /// Delegates the distance sweep to `distFunc.blockDist`. For EuclideanDist
-/// (and AlphaScaledDist<EuclideanDist>) this is one BLAS xxgemv + vSqrt
-/// finalize over the contiguous scratch buffer; row norms² come from
-/// `rowNorms2` (pre-cached once per node by the caller). For other metrics
-/// blockDist falls back to a vectorized per-row inner loop. The argmax is a
-/// separate scalar reduction over the resulting array.
+/// this is one BLAS xxgemv + vSqrt finalize over the contiguous scratch
+/// buffer; row norms² come from `rowNorms2` (pre-cached once per node by the
+/// caller). For other metrics blockDist falls back to a vectorized per-row
+/// inner loop. The argmax is a separate scalar reduction over the resulting
+/// array.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -442,8 +442,12 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
 ///
 /// Prunes subtrees whose `componentId` matches the query's component, or whose
 /// MRD lower bound `max(coreDist(q), minCoreDistNode[S], max(0, dist(q,
-/// center) - radius))` is not smaller than the current `bestMrd`. Visits the
-/// nearer child first to tighten `bestMrd` before exploring the other side.
+/// center) - radius) * invAlpha)` is not smaller than the current `bestMrd`.
+/// Visits the nearer child first to tighten `bestMrd` before exploring the
+/// other side.
+///
+/// Alpha is applied only to the dist(q,p) term inside MRD (canonical HDBSCAN
+/// robust single linkage); core distances are left unscaled.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam DistFunc        Metric functor exposing `pointDist`
@@ -462,20 +466,22 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
 /// @param[in]     nodeIdx         Subtree root (caller passes 0)
 /// @param[in,out] bestMrd         Best MRD found so far (caller seeds with `+inf`)
 /// @param[in,out] bestIdx         Index of the best different-component candidate so far
-/// @param[in]     distFunc        Metric functor instance
+/// @param[in]     distFunc        Metric functor instance (unscaled metric)
+/// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
 template <typename algorithmFPType, typename DistFunc>
 static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
                                            const algorithmFPType * coreDistances, const algorithmFPType * minCoreDistNode, const int * componentOf,
                                            const algorithmFPType * queryPoint, int queryIdx, algorithmFPType queryCoreD, int queryComponent,
-                                           int nodeIdx, algorithmFPType & bestMrd, int & bestIdx, const DistFunc & distFunc)
+                                           int nodeIdx, algorithmFPType & bestMrd, int & bestIdx, const DistFunc & distFunc, algorithmFPType invAlpha)
 {
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
 
     if (node.componentId == queryComponent) return;
 
-    // Ball-tree MRD lower bound: max(dist_to_center - radius, 0) then max with cores
+    // Ball-tree MRD lower bound: max(dist_to_center - radius, 0) * invAlpha then max with cores
     const algorithmFPType distToCenter = distFunc.pointDist(queryPoint, data + node.centerIdx * nCols, nCols);
-    algorithmFPType mrdLB              = (distToCenter > node.radius) ? (distToCenter - node.radius) : algorithmFPType(0);
+    const algorithmFPType bboxMin      = (distToCenter > node.radius) ? (distToCenter - node.radius) : algorithmFPType(0);
+    algorithmFPType mrdLB              = bboxMin * invAlpha;
     if (queryCoreD > mrdLB) mrdLB = queryCoreD;
     if (minCoreDistNode[nodeIdx] > mrdLB) mrdLB = minCoreDistNode[nodeIdx];
     if (mrdLB >= bestMrd) return;
@@ -488,7 +494,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
             if (componentOf[pi] == queryComponent) continue;
 
             const algorithmFPType dist = distFunc.pointDist(queryPoint, data + pi * nCols, nCols);
-            algorithmFPType mrd        = dist;
+            algorithmFPType mrd        = dist * invAlpha;
             if (queryCoreD > mrd) mrd = queryCoreD;
             if (coreDistances[pi] > mrd) mrd = coreDistances[pi];
 
@@ -509,9 +515,9 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
     const int farChild  = (dLeft <= dRight) ? node.right : node.left;
 
     nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx, queryCoreD,
-                                   queryComponent, nearChild, bestMrd, bestIdx, distFunc);
+                                   queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
     nearestMrdBoruvkaQueryBallTree(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint, queryIdx, queryCoreD,
-                                   queryComponent, farChild, bestMrd, bestIdx, distFunc);
+                                   queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
 }
 
 /// Compute core distances and the MST under MRD on a ball tree.
@@ -539,12 +545,17 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
 /// @param[out]    mstFrom        Source endpoint per MST edge, length `nRows - 1`
 /// @param[out]    mstTo          Target endpoint per MST edge, length `nRows - 1`
 /// @param[out]    mstWeights     Edge weights (MRD), length `nRows - 1`
-/// @param[in]     distFunc       Metric functor instance
+/// @param[in]     distFunc       Metric functor instance (unscaled metric)
+/// @param[in]     alpha          Robust single-linkage scaling factor; applied
+///                               only to dist(q,p) inside MRD (not to k-NN
+///                               core distances or to the metric used for tree
+///                               queries)
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples,
                                           BallNode<algorithmFPType> * nodes, int * pointIndices, int totalTreeNodes, algorithmFPType * coreDistances,
-                                          int * mstFrom, int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc)
+                                          int * mstFrom, int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
 {
+    const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
     // Canonical HDBSCAN core distance (Campello 2013): the distance to the
     // `minSamples`-th nearest neighbor counting the query point itself as
     // neighbor #1. The ball-tree traversal pushes the query point into the
@@ -636,7 +647,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
             int bestIdx                      = -1;
 
             nearestMrdBoruvkaQueryBallTree(data, iNCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPt,
-                                           static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc);
+                                           static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc, invAlpha);
 
             pointBestMrd[i] = bestMrd;
             pointBestIdx[i] = bestIdx;
@@ -691,9 +702,9 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 /// Build the ball tree then compute core distances + Boruvka MST under MRD.
 ///
 /// Single entry point used by the per-metric switch in compute(): each
-/// pairwise-distance value (and its alpha-scaled variant) instantiates this
-/// template once. Sequential build keeps the node-array layout deterministic
-/// across runs.
+/// pairwise-distance value instantiates this template once. Alpha is applied
+/// only to dist(q,p) inside MRD, not to the metric used for the build / k-NN. Sequential build
+/// keeps the node-array layout deterministic across runs.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -710,18 +721,20 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 /// @param[out]    mstFrom       Source endpoint per MST edge, length `nRows - 1`
 /// @param[out]    mstTo         Target endpoint per MST edge, length `nRows - 1`
 /// @param[out]    mstWeights    Edge weights (MRD), length `nRows - 1`
-/// @param[in]     distFunc      Metric functor instance
+/// @param[in]     distFunc      Metric functor instance (unscaled metric)
+/// @param[in]     alpha         Robust single-linkage scaling factor; applied
+///                              only to dist(q,p) inside MRD
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, int maxLeafSize,
                                       BallNode<algorithmFPType> * nodes, int * pointIndices, algorithmFPType * coreDistances, int * mstFrom,
-                                      int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc)
+                                      int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
 {
     int nextNode = 0;
     buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize,
                                         distFunc);
     const int totalTreeNodes = nextNode;
     computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, distFunc);
+                                                        mstTo, mstWeights, distFunc, alpha);
 }
 
 /// Compute HDBSCAN clustering using the ball-tree based batch implementation.
@@ -805,53 +818,34 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
-    const bool useAlpha = (alpha != 1.0);
-
-    using FP        = algorithmFPType;
-    using Eucl      = EuclideanDist<FP>;
-    using Manh      = ManhattanDist<FP>;
-    using Mink      = MinkowskiDist<FP>;
-    using Cheb      = ChebyshevDist<FP>;
-    using AlphaManh = AlphaScaledDist<FP, Manh>;
-    using AlphaMink = AlphaScaledDist<FP, Mink>;
-    using AlphaCheb = AlphaScaledDist<FP, Cheb>;
-    using AlphaEucl = AlphaScaledDist<FP, Eucl>;
+    using FP   = algorithmFPType;
+    using Eucl = EuclideanDist<FP>;
+    using Manh = ManhattanDist<FP>;
+    using Mink = MinkowskiDist<FP>;
+    using Cheb = ChebyshevDist<FP>;
 
     using algorithms::internal::PairwiseDistanceType;
 
+    // Robust single linkage: alpha is applied only to dist(q,p) inside MRD
+    // (canonical HDBSCAN). The metric used for ball-tree build, k-NN core
+    // distances, and pruning is left unscaled.
     switch (pairwiseDistance)
     {
     case PairwiseDistanceType::manhattan:
-        if (useAlpha)
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, AlphaManh(Manh(), alpha));
-        else
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, Manh());
+        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
+                                                        mstTo, mstWeights, Manh(), alpha);
         break;
     case PairwiseDistanceType::minkowski:
-        if (useAlpha)
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, AlphaMink(Mink(minkowskiDegree), alpha));
-        else
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, Mink(minkowskiDegree));
+        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
+                                                        mstTo, mstWeights, Mink(minkowskiDegree), alpha);
         break;
     case PairwiseDistanceType::chebyshev:
-        if (useAlpha)
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, AlphaCheb(Cheb(), alpha));
-        else
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, Cheb());
+        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
+                                                        mstTo, mstWeights, Cheb(), alpha);
         break;
     default: // euclidean
-        if (useAlpha)
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, AlphaEucl(Eucl(), alpha));
-        else
-            runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                            mstTo, mstWeights, Eucl());
+        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
+                                                        mstTo, mstWeights, Eucl(), alpha);
         break;
     }
 

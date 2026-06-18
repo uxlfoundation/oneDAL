@@ -19,9 +19,10 @@
  * HDBSCAN brute-force implementation.
  *
  * The approach:
- *   1. Compute full pairwise distance matrix via GEMM (with alpha scaling)
+ *   1. Compute full pairwise distance matrix via GEMM
  *   2. Compute core distances (k-th nearest neighbor distance per point)
- *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm
+ *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm,
+ *      applying 1/alpha only to the dist term inside MRD = max(coreI, coreJ, dist/alpha)
  *   4. Sort MST + extract clusters via condensed tree + EOM/leaf (shared code)
  *
  * Complexity: O(N^2) for distance matrix, O(N^2 * log N) worst case for Boruvka's MST.
@@ -148,29 +149,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // =========================================================================
-    // Step 1b: Apply alpha scaling (robust single linkage)
-    // =========================================================================
-    if (alpha != 1.0)
-    {
-        const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
-        const size_t totalDist         = nRows * nRows;
-        const size_t alphaBlockSize    = 4096;
-        const size_t nAlphaBlocks      = (totalDist + alphaBlockSize - 1) / alphaBlockSize;
-
-        daal::threader_for(nAlphaBlocks, nAlphaBlocks, [&](size_t iBlock) {
-            const size_t begin = iBlock * alphaBlockSize;
-            const size_t end   = (begin + alphaBlockSize > totalDist) ? totalDist : begin + alphaBlockSize;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t idx = begin; idx < end; idx++)
-            {
-                distMatrix[idx] *= invAlpha;
-            }
-        });
-    }
-
-    // =========================================================================
     // Step 2: Compute core distances (k-th nearest neighbor distance per point)
+    //
+    // Note: alpha scaling is applied later, only to dist(a,b) inside MRD
+    // (Step 3). Per the canonical HDBSCAN definition, core distances must be
+    // derived from the unscaled pairwise distance matrix.
     // =========================================================================
 
     TArray<algorithmFPType, cpu> coreDistsVec(nRows);
@@ -283,6 +266,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         size_t edgesAdded    = 0;
         size_t numComponents = nRows;
 
+        // Robust single linkage: scale only the pairwise dist term inside MRD
+        // (canonical HDBSCAN), not the full distance matrix or core distances.
+        // MRD(a, b) = max(core(a), core(b), dist(a, b) / alpha)
+        const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
+
         while (numComponents > 1)
         {
             // Phase 1: For each point, find nearest different-component neighbor under MRD
@@ -296,7 +284,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                 for (size_t j = 0; j < nRows; j++)
                 {
                     if (componentOf[j] == myComp) continue;
-                    algorithmFPType mrd = mrdRow[j];
+                    algorithmFPType mrd = mrdRow[j] * invAlpha;
                     mrd                 = (coreI > mrd) ? coreI : mrd;
                     mrd                 = (coreDistances[j] > mrd) ? coreDistances[j] : mrd;
                     if (mrd < bestMrd)

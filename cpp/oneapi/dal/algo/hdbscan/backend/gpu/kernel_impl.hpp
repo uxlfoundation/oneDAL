@@ -225,17 +225,21 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
 
 /// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
 ///
-/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j))`. For
+/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j) / alpha)`.
+/// Per the canonical HDBSCAN robust single-linkage definition, alpha scales
+/// only the pairwise dist term inside the `max`, not the core distances. For
 /// `euclidean`, the input matrix holds squared L2 values so a `sqrt(max(·, 0))`
-/// is applied per entry before the `max`. For other metrics the values are
-/// already final distances.
+/// is applied per entry before the alpha scale and the `max`. For other
+/// metrics the values are already final distances.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]     queue          The SYCL queue
-/// @param[in]     core_distances Per-point core distances, length `n`
+/// @param[in]     core_distances Per-point core distances, length `n` (unscaled)
 /// @param[in,out] mrd_matrix     Distance matrix `n × n`, overwritten with MRD values
 /// @param[in]     metric         Distance metric tag (controls the sqrt finalize)
+/// @param[in]     alpha          Robust single-linkage scaling factor; applied
+///                               only to dist(i,j) inside MRD
 /// @param[in]     deps           Events that must complete before submission
 ///
 /// @return Event signaling completion
@@ -244,6 +248,7 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
                                       const pr::ndview<Float, 1>& core_distances,
                                       pr::ndview<Float, 2>& mrd_matrix,
                                       distance_metric metric,
+                                      double alpha,
                                       const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_mrd_matrix, queue);
 
@@ -256,6 +261,7 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
     const Float* core_ptr = core_distances.get_data();
     Float* mrd_ptr = mrd_matrix.get_mutable_data();
     const bool needs_sqrt = (metric == distance_metric::euclidean);
+    const Float inv_alpha = static_cast<Float>(1.0 / alpha);
 
     auto mrd_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
@@ -268,7 +274,7 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
                                        : mrd_ptr[i * n + j];
             const Float cd_i = core_ptr[i];
             const Float cd_j = core_ptr[j];
-            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d);
+            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
         });
     });
 
@@ -328,18 +334,23 @@ inline sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
 /// ball-tree GPU backends to avoid the `O(n²)` storage of a precomputed
 /// matrix.
 ///
+/// `MRD(i, j) = max(core_i, core_j, dist(i, j) * inv_alpha)` per the
+/// canonical HDBSCAN robust single-linkage definition; alpha scales only the
+/// pairwise dist term, not the core distances.
+///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue           The SYCL queue
 /// @param[in]  data_ptr        Row-major input buffer, size `n × col_count`
 /// @param[in]  col_count       Number of features
-/// @param[in]  core_ptr        Per-point core distances, length `n`
+/// @param[in]  core_ptr        Per-point core distances, length `n` (unscaled)
 /// @param[in]  comp_ptr        Per-point component id, length `n`
 /// @param[out] pt_best_mrd_ptr Per-point best MRD, length `n`
 /// @param[out] pt_best_idx_ptr Per-point best different-component point index, length `n`
 /// @param[in]  n               Number of points
 /// @param[in]  metric_id       0=euclidean, 1=manhattan, 2=minkowski, 3=chebyshev
 /// @param[in]  degree          Minkowski degree (used only when `metric_id == 2`)
+/// @param[in]  inv_alpha       `1.0 / alpha`, applied only to dist(i,j) inside MRD
 /// @param[in]  deps            Events that must complete before submission
 ///
 /// @return Event signaling completion
@@ -354,6 +365,7 @@ inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
                                             std::int64_t n,
                                             std::int32_t metric_id,
                                             Float degree,
+                                            Float inv_alpha,
                                             const bk::event_vector& deps) {
     const std::int64_t d = col_count;
     return queue.submit([&](sycl::handler& h) {
@@ -399,7 +411,7 @@ inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
                     }
                     dist = sycl::sqrt(sycl::fmax(sum, Float(0)));
                 }
-                Float mrd = sycl::fmax(sycl::fmax(my_core, core_ptr[j]), dist);
+                Float mrd = sycl::fmax(sycl::fmax(my_core, core_ptr[j]), dist * inv_alpha);
                 if (mrd < best_m) {
                     best_m = mrd;
                     best_j = static_cast<std::int32_t>(j);
@@ -696,6 +708,8 @@ inline sycl::event build_mst(sycl::queue& queue,
 /// @param[in]  col_count      Number of features `d`
 /// @param[in]  metric         Distance metric tag
 /// @param[in]  degree         Minkowski degree (used only when `metric == minkowski`)
+/// @param[in]  alpha          Robust single-linkage scaling factor; applied
+///                            only to dist(i,j) inside MRD (default 1.0)
 /// @param[in]  deps           Events that must complete before submission
 ///
 /// @return Event signaling completion of the final Boruvka round
@@ -710,6 +724,7 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
                                  std::int64_t col_count,
                                  distance_metric metric,
                                  double degree,
+                                 double alpha,
                                  const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.build_mst_otf, queue);
 
@@ -767,6 +782,7 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
     const Float* data_ptr = data.get_data();
     const Float* core_ptr = core_distances.get_data();
     const Float deg_f = static_cast<Float>(degree);
+    const Float inv_alpha = static_cast<Float>(1.0 / alpha);
     const std::int32_t max_rounds = 64;
     sycl::event last_event = init_event;
 
@@ -781,6 +797,7 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
                                                           n,
                                                           metric_id,
                                                           deg_f,
+                                                          inv_alpha,
                                                           { last_event });
 
         auto merge_event = boruvka_merge_components<Float>(queue,
