@@ -218,10 +218,13 @@ inline sycl::event memcpy_host2usm(sycl::queue& queue,
                                    void* dest_usm,
                                    const void* src_host,
                                    std::size_t size,
-                                   const event_vector& deps = {}) {
+                                   const event_vector& deps = {}) {                                
     ONEDAL_ASSERT(is_known_usm(queue, dest_usm));
 
-    sycl::event memcpy_event = memcpy(queue, dest_usm, src_host, size, deps);
+    sycl::event memcpy_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.memcpy(dest_usm, src_host, size);
+    });
     memcpy_event.wait_and_throw();
     return memcpy_event;
 }
@@ -233,7 +236,10 @@ inline sycl::event memcpy_usm2host(sycl::queue& queue,
                                    const event_vector& deps = {}) {
     ONEDAL_ASSERT(is_known_usm(queue, src_usm));
 
-    sycl::event memcpy_event = memcpy(queue, dest_host, src_usm, size, deps);
+    sycl::event memcpy_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.memcpy(dest_host, src_usm, size);
+    });
     memcpy_event.wait_and_throw();
     return memcpy_event;
 }
