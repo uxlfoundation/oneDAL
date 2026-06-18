@@ -126,7 +126,10 @@ dal_dynamic_lib(
 dal_dynamic_lib(
     name = "dynamic_parameters",
     lib_name = "onedal_parameters",
-    lib_tags = ["parameters"],
+    lib_tags = select({
+        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "//conditions:default": ["parameters"],
+    }),
     dpc_lib_tags = select({
         "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
         "//conditions:default": ["parameters"],
