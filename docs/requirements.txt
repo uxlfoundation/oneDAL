@@ -6,6 +6,7 @@ chardet==7.0.0
 click==8.3.1
 colorama==0.4.6
 docutils~=0.21.2
+defusedxml==0.7.1
 idna==3.15
 imagesize==2.0.0
 importlib-metadata==9.0.0

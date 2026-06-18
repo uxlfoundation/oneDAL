@@ -39,6 +39,39 @@ load("@onedal//dev/bazel/cc:link.bzl",
 
 ModuleInfo = onedal_cc_common.ModuleInfo
 
+def _collect_runfiles(deps):
+    runfiles = []
+    for dep in deps:
+        if DefaultInfo in dep:
+            runfiles.append(dep[DefaultInfo].default_runfiles)
+            runfiles.append(dep[DefaultInfo].data_runfiles)
+    return runfiles
+
+def _copy_windows_runtime_files(ctx, files, is_windows):
+    if not is_windows or not ctx.attr._is_test:
+        return []
+    outputs = []
+    for src in files:
+        if src.extension.lower() != "dll":
+            continue
+        out = ctx.actions.declare_file(src.basename)
+        ctx.actions.run(
+            executable = "cmd.exe",
+            inputs = [src],
+            outputs = [out],
+            arguments = [
+                "/d",
+                "/c",
+                'copy /Y "{}" "{}"'.format(
+                    src.path.replace("/", "\\"),
+                    out.path.replace("/", "\\"),
+                ),
+            ],
+            use_default_shell_env = True,
+        )
+        outputs.append(out)
+    return outputs
+
 def _init_cc_rule(ctx, features=[], disable_features=[]):
     toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
     cc_toolchain = toolchain.cc
@@ -100,7 +133,10 @@ def _cc_module_impl(ctx):
         compilation_context = compilation_context,
         tagged_linking_contexts = tagged_linking_contexts,
     )
-    return [module_info]
+    default_info = DefaultInfo(
+        runfiles = ctx.runfiles().merge_all(_collect_runfiles(ctx.attr.deps)),
+    )
+    return [module_info, default_info]
 
 _cc_module = rule(
     implementation = _cc_module_impl,
@@ -245,6 +281,7 @@ def _cc_dynamic_lib_impl(ctx):
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
         user_link_flags = ctx.attr.linkopts,
+        is_windows = is_windows,
     )
     default_files = dynamic_outputs.files
     if is_windows:
@@ -305,6 +342,9 @@ def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
         return
     toolchain, feature_config = _init_cc_rule(ctx)
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
         tagged_linking_contexts, ctx.attr.lib_tags)
@@ -317,10 +357,11 @@ def _cc_exec_impl(ctx):
         linking_contexts = linking_contexts,
         user_link_flags = ctx.attr.user_link_flags,
     )
+    runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data, is_windows)
     default_info = DefaultInfo(
-        files = depset([ executable ]),
-        runfiles = ctx.runfiles(
-            files = ctx.files.data,
+        files = depset([executable] + runtime_files),
+        runfiles = ctx.runfiles(files = ctx.files.data + runtime_files).merge_all(
+            _collect_runfiles(ctx.attr.deps + ctx.attr.data),
         ),
         executable = executable,
     )
@@ -333,6 +374,10 @@ cc_test = rule(
         "deps": attr.label_list(),
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
+        "_is_test": attr.bool(default=True),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
@@ -346,6 +391,10 @@ cc_executable = rule(
         "deps": attr.label_list(),
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
+        "_is_test": attr.bool(default=False),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],

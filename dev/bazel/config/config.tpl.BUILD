@@ -131,7 +131,7 @@ config_setting(
 
 config_bool_flag(
     name = "release_dpc",
-    build_setting_default = False,
+    build_setting_default = True,
 )
 
 config_bool_flag(
