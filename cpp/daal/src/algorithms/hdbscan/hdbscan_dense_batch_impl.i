@@ -345,7 +345,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // =========================================================================
-    // Steps 4-5: Sort MST + Extract clusters (shared with kd_tree)
+    // Steps 4-5: Sort MST + Extract clusters
     // =========================================================================
 
     WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
