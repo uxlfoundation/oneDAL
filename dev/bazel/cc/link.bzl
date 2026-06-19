@@ -42,17 +42,17 @@ def _filter_user_link_flags(feature_configuration, user_link_flags):
         return filtered_flags
     return user_link_flags
 
-def _def_file_link_flags(def_file):
+def _def_file_link_flags(def_file, direct_user_link_flags):
     """Generate linker flags for a definition/version script file.
 
     On Linux, .map files are passed as version scripts via -Wl,--version-script.
     On Windows, .def files are passed as response files via @path.
     """
     if not def_file:
-        return []
+        return direct_user_link_flags
     if def_file.path.endswith(".map"):
-        return ["-Wl,--version-script," + def_file.path]
-    return ["@" + def_file.path]
+        return ["-Wl,--version-script," + def_file.path] + direct_user_link_flags
+    return ["@" + def_file.path] + direct_user_link_flags
 
 def _merge_static_libs(filename, actions, cc_toolchain,
                        feature_configuration, static_libs, is_windows = False):
@@ -308,7 +308,7 @@ def _link(owner, name, actions, cc_toolchain,
         linking_contexts = [linking_context],
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
-        user_link_flags = _def_file_link_flags(def_file),
+        user_link_flags = _def_file_link_flags(def_file, direct_user_link_flags),
         additional_inputs = [def_file, additional_inputs] if def_file else additional_inputs,
     )
     return unpacked_linking_context, linking_outputs
