@@ -821,7 +821,7 @@ jobs:
     condition: failed()
     continueOnError: true
 
-  
+
 - job: 'WindowsMakeIntel'
   timeoutInMinutes: 0
   variables:
