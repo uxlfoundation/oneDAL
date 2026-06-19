@@ -21,7 +21,6 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/lapack.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
-#include "oneapi/dal/backend/primitives/blas/omatcopy.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
 
@@ -168,49 +167,16 @@ static train_result<Task> call_dal_kernel(const context_gpu& ctx,
     return result;
 }
 
-template <typename Float>
-static pr::ndarray<Float, 2> table_to_device_rm(sycl::queue& queue, const table& t) {
-    constexpr auto alloc = sycl::usm::alloc::device;
-    const auto rows = t.get_row_count();
-    const auto cols = t.get_column_count();
-
-    if (t.get_kind() == homogen_table::kind()) {
-        const auto& ht = static_cast<const homogen_table&>(t);
-        const Float* ptr = reinterpret_cast<const Float*>(ht.get_data());
-        const auto ptr_type = sycl::get_pointer_type(ptr, queue.get_context());
-        const bool on_device = (ptr_type == sycl::usm::alloc::device ||
-                                ptr_type == sycl::usm::alloc::shared);
-
-        if (t.get_data_layout() == data_layout::column_major) {
-            pr::ndarray<Float, 2, pr::ndorder::f> src;
-            if (on_device) {
-                src = pr::ndarray<Float, 2, pr::ndorder::f>::wrap(ptr, { rows, cols });
-            }
-            else {
-                src = pr::ndarray<Float, 2, pr::ndorder::f>::empty(queue, { rows, cols }, alloc);
-                queue.copy<Float>(ptr, src.get_mutable_data(), rows * cols).wait_and_throw();
-            }
-            auto dst = pr::ndarray<Float, 2>::empty(queue, { rows, cols }, alloc);
-            pr::omatcopy(queue, src, dst, Float(1)).wait_and_throw();
-            return dst;
-        }
-
-        if (on_device) {
-            return pr::ndarray<Float, 2, pr::ndorder::c>::wrap(ptr, { rows, cols });
-        }
-    }
-    return pr::table2ndarray_rm<Float>(queue, t, alloc);
-}
-
 template <typename Float, typename Task>
 static train_result<Task> train(const context_gpu& ctx,
                                 const detail::descriptor_base<Task>& desc,
                                 const detail::train_parameters<Task>& params,
                                 const train_input<Task>& input) {
     auto& queue = ctx.get_queue();
+    constexpr auto alloc = sycl::usm::alloc::device;
 
-    const auto data_nd = table_to_device_rm<Float>(queue, input.get_data());
-    const auto resp_nd = table_to_device_rm<Float>(queue, input.get_responses());
+    const auto data_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_data(), alloc);
+    const auto resp_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
 
     const auto data_rows = data_nd.get_dimension(0);
     const auto data_cols = data_nd.get_dimension(1);
