@@ -54,6 +54,12 @@ BINARY_SUFFIXES = {
     ".so",
 }
 
+NORMALIZED_TEXT_LINES = {
+    "include/services/library_version_info.h": (
+        "__INTEL_DAAL_BUILD_DATE",
+    ),
+}
+
 
 def rel(path, root):
     return path.relative_to(root).as_posix()
@@ -95,6 +101,22 @@ def is_text_path(path):
     return False
 
 
+def read_normalized_text(root, path):
+    content = (root / path).read_text(encoding="utf-8", errors="surrogateescape")
+    prefixes = NORMALIZED_TEXT_LINES.get(path, ())
+    if not prefixes:
+        return content
+    normalized = []
+    for line in content.splitlines(keepends=True):
+        stripped = line.lstrip()
+        if any(stripped.startswith(f"#define {prefix} ") for prefix in prefixes):
+            newline = "\n" if line.endswith("\n") else ""
+            normalized.append(f"#define {stripped.split()[1]} <normalized>{newline}")
+        else:
+            normalized.append(line)
+    return "".join(normalized)
+
+
 def compare_sets(name, make_values, bazel_values, limit):
     errors = 0
     only_make = sorted(make_values - bazel_values)
@@ -124,7 +146,11 @@ def compare_text_files(make_root, bazel_root, files, limit):
         compared += 1
         make_path = make_root / path
         bazel_path = bazel_root / path
-        if not filecmp.cmp(make_path, bazel_path, shallow=False):
+        if path in NORMALIZED_TEXT_LINES:
+            equal = read_normalized_text(make_root, path) == read_normalized_text(bazel_root, path)
+        else:
+            equal = filecmp.cmp(make_path, bazel_path, shallow=False)
+        if not equal:
             mismatches.append(path)
 
     if mismatches:
