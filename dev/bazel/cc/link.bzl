@@ -309,7 +309,7 @@ def _link(owner, name, actions, cc_toolchain,
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
         user_link_flags = _def_file_link_flags(def_file, direct_user_link_flags),
-        additional_inputs = [def_file, additional_inputs] if def_file else additional_inputs,
+        additional_inputs = additional_inputs,
     )
     return unpacked_linking_context, linking_outputs
 
