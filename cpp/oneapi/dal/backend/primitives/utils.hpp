@@ -23,9 +23,6 @@
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
-#ifdef ONEDAL_DATA_PARALLEL
-#include "oneapi/dal/backend/primitives/blas/omatcopy.hpp"
-#endif // ONEDAL_DATA_PARALLEL
 
 namespace oneapi::dal::backend::primitives {
 
@@ -90,8 +87,6 @@ inline bool is_ptr_accessible(sycl::queue& q, const Type* ptr, sycl::usm::alloc 
 }
 
 /// Transpose a 2D ndarray from one order to another.
-/// Uses MKL omatcopy for float/double (optimized), falls back to
-/// element-wise copy kernel for other types (e.g. int32).
 ///
 /// @tparam Type      The element type.
 /// @tparam src_order The source ndorder.
@@ -104,15 +99,9 @@ inline bool is_ptr_accessible(sycl::queue& q, const Type* ptr, sycl::usm::alloc 
 /// @return Event indicating completion of the transpose.
 template <typename Type, ndorder src_order, ndorder dst_order>
 inline sycl::event transpose_copy(sycl::queue& q,
-                             const ndview<Type, 2, src_order>& src,
-                             ndview<Type, 2, dst_order>& dst,
-                             const event_vector& deps = {}) {
-    // if constexpr (std::is_same_v<Type, float> || std::is_same_v<Type, double>) {
-    //     return omatcopy(q, src, dst, Type(1), deps);
-    // }
-    // else {
-    //     return copy(q, dst, src, deps);
-    // }
+                                  const ndview<Type, 2, src_order>& src,
+                                  ndview<Type, 2, dst_order>& dst,
+                                  const event_vector& deps = {}) {
     return copy(q, dst, src, deps);
 }
 
@@ -160,7 +149,7 @@ inline ndarray<Type, 2, order> homogen_table_to_same_order_ndarray(sycl::queue& 
 /// For homogeneous tables:
 ///   - row-major + same alloc: zero-copy wrap of raw pointer
 ///   - row-major + different alloc: flat copy to target device
-///   - column-major: transpose via single kernel (omatcopy for float/double, copy for others)
+///   - column-major: transpose via single kernel
 /// For heterogeneous tables: uses row_accessor which handles per-column type conversion.
 ///
 /// @tparam Type The type of the memory block elements within the ndarray.
@@ -204,7 +193,7 @@ inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
 /// For homogeneous tables:
 ///   - column-major + same alloc: zero-copy wrap of raw pointer
 ///   - column-major + different alloc: flat copy to target device
-///   - row-major: transpose via single kernel (omatcopy for float/double, copy for others)
+///   - row-major: transpose via single kernel
 /// For heterogeneous tables: uses row_accessor then transposes.
 ///
 /// @tparam Type The type of the memory block elements within the ndarray.
@@ -302,7 +291,7 @@ inline auto table2ndarray_variant(sycl::queue& q, const table& table, sycl::usm:
 
 /// Convert a table to a 1D ndarray with row-major element order.
 /// For homogeneous tables: uses optimized path via table2ndarray_rm
-/// (zero-copy for row-major on device, omatcopy for column-major).
+/// (zero-copy for row-major on device, transpose for column-major).
 /// For heterogeneous tables: falls back to row_accessor.
 ///
 /// @tparam Type The type of the memory block elements within the ndarray.
