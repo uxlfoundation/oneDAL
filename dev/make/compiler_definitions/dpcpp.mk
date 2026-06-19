@@ -68,7 +68,11 @@ endif
 
 
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+# Linux REQDBG: keep full -g but split DWARF into per-object .dwo files and
+# zstd-compress debug sections so the linker peak RAM stays within CI runner
+# budgets. The .dwo files live next to the .o files; debuggers find them via
+# the gdb_index. Windows path unchanged.
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g -gsplit-dwarf -gz=zstd) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
@@ -82,6 +86,12 @@ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
+# REQDBG: build a gdb_index so split-DWARF .dwo files are referenceable from
+# the final shared object. Both ld.bfd and ld.lld accept --gdb-index. The
+# `comma :=` indirection escapes the literal comma inside the linker spec
+# so $(if) doesn't split the argument list on it.
+comma := ,
+link.dynamic.lnx.dpcpp += $(if $(REQDBG),-Wl$(comma)--gdb-index)
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)

@@ -102,12 +102,37 @@ void run(sycl::queue& q) {
 }
 
 int main(int argc, char const* argv[]) {
+    auto async_handler = [](sycl::exception_list el) {
+        for (std::exception_ptr e : el) {
+            try {
+                std::rethrow_exception(e);
+            }
+            catch (const sycl::exception& ex) {
+                std::cerr << "[SYCL async] " << ex.what() << " (code=" << ex.code().value() << ")"
+                          << std::endl;
+            }
+            catch (const std::exception& ex) {
+                std::cerr << "[std async] " << ex.what() << std::endl;
+            }
+        }
+    };
     for (auto d : list_devices()) {
         std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
                   << ", " << d.get_info<sycl::info::device::name>() << "\n"
                   << std::endl;
-        auto q = sycl::queue{ d };
-        run(q);
+        auto q = sycl::queue{ d, async_handler };
+        try {
+            run(q);
+        }
+        catch (const sycl::exception& ex) {
+            std::cerr << "[SYCL sync] " << ex.what() << " (code=" << ex.code().value() << ")"
+                      << std::endl;
+            return 1;
+        }
+        catch (const std::exception& ex) {
+            std::cerr << "[std sync] " << ex.what() << std::endl;
+            return 1;
+        }
     }
     return 0;
 }

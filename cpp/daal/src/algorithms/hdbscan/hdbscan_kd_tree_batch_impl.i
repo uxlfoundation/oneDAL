@@ -31,9 +31,6 @@
  * Memory: O(N * D * tree_nodes) for bounding boxes + O(N) working arrays.
  */
 
-#include <algorithm>
-#include <cmath>
-
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"

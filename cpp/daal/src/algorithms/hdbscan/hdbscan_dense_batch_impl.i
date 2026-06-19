@@ -29,9 +29,6 @@
  * Memory:     O(N^2) for the distance matrix.
  */
 
-#include <algorithm>
-#include <cmath>
-
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
