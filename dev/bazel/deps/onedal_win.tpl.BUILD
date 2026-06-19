@@ -68,6 +68,13 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "core_dynamic_runtime",
+    srcs = [
+        "redist/intel64/onedal_core.%{version_binary_major}.dll",
+    ],
+)
+
 cc_library(
     name = "thread_dynamic",
     srcs = [],
@@ -81,6 +88,13 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "thread_dynamic_runtime",
+    srcs = [
+        "redist/intel64/onedal_thread.%{version_binary_major}.dll",
+    ],
+)
+
 cc_library(
     name = "onedal_dynamic",
     srcs = [
@@ -88,13 +102,21 @@ cc_library(
         "lib/intel64/onedal_parameters_dll.lib",
     ],
     data = [
-        "lib/intel64/onedal.%{version_binary_major}.dll",
-        "lib/intel64/onedal_parameters.%{version_binary_major}.dll",
+        "redist/intel64/onedal.%{version_binary_major}.dll",
+        "redist/intel64/onedal_parameters.%{version_binary_major}.dll",
     ],
     deps = [
         ":headers",
         "@mkl//:mkl_static",
     ],
+)
+
+filegroup(
+    name = "onedal_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/onedal*.dll",
+        "redist/intel64/onedal*.dll",
+    ], allow_empty = True),
 )
 
 cc_library(

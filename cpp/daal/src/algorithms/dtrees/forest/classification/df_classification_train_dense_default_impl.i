@@ -1641,7 +1641,7 @@ Status TreeThreadCtx<algorithmFPType, cpu>::finalizeOOBError(const NumericTable 
     DAAL_CHECK_BLOCK_STATUS(y);
     Atomic<size_t> nPredicted(0);
     Atomic<size_t> nError(0);
-    const intermSummFPType eps = services::internal::EpsilonVal<algorithmFPType>::get();
+    const intermSummFPType eps = services::internal::EpsilonVal<intermSummFPType>::get();
     daal::threader_for(nSamples, nSamples, [&](size_t i) {
         const OOBClassificationData * ptr = ((const OOBClassificationData *)this->oobBuf) + i * _nClasses;
         const size_t classLabel(y.get()[i]);
