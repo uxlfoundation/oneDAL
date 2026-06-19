@@ -66,13 +66,13 @@ services::Status EMKernelTask<algorithmFPType, method, cpu>::compute()
     DAAL_CHECK_STATUS(s, setStartValues())
 
     double diff             = 2 * threshold + 1;
-    double oldLogLikelyhood = 0;
+    double oldLogLikelihood = 0;
 
     daal::tls<Task<algorithmFPType, cpu> *> threadBuffer([=]() -> Task<algorithmFPType, cpu> * {
         return new Task<algorithmFPType, cpu>(dataTable, blockSizeDefault, nFeatures, nComponents, logAlpha, means, covs.get());
     });
     int & iterCounter               = iterCounterArray[0];
-    algorithmFPType & logLikelyhood = logLikelyhoodArray[0];
+    algorithmFPType & logLikelihood = logLikelihoodArray[0];
     while (diff > threshold && iterCounter < maxIterations)
     {
         DAAL_CHECK_STATUS(s, covs->computeSigmaInverse(iterCounter))
@@ -81,7 +81,7 @@ services::Status EMKernelTask<algorithmFPType, method, cpu>::compute()
 
         MathInst<algorithmFPType, cpu>::vLog(nComponents, alpha, logAlpha); // inplace: same memory as alpha
 
-        logLikelyhood = 0;
+        logLikelihood = 0;
 
         SafeStatus safeStat;
         daal::threader_for(nBlocks, nBlocks, [=, &threadBuffer, &safeStat](size_t iBlock) {
@@ -101,7 +101,7 @@ services::Status EMKernelTask<algorithmFPType, method, cpu>::compute()
 
             stepE(nVectorsInCurrentBlock, t, par.covarianceStorage);
 
-            t.logLikelyhood += computePartialLogLikelyhood(nVectorsInCurrentBlock, t);
+            t.logLikelihood += computePartialLogLikelihood(nVectorsInCurrentBlock, t);
 
             localStatus |= stepM_partial(nVectorsInCurrentBlock, t, par.covarianceStorage);
             DAAL_CHECK_STATUS_THR(localStatus);
@@ -110,9 +110,9 @@ services::Status EMKernelTask<algorithmFPType, method, cpu>::compute()
 
         setResultToZero();
 
-        threadBuffer.reduce([=, &logLikelyhood](Task<algorithmFPType, cpu> * e) -> void {
-            logLikelyhood += e->logLikelyhood;
-            e->logLikelyhood = 0;
+        threadBuffer.reduce([=, &logLikelihood](Task<algorithmFPType, cpu> * e) -> void {
+            logLikelihood += e->logLikelihood;
+            e->logLikelihood = 0;
             for (size_t k = 0; k < nComponents; k++)
             {
                 if (e->mergedWSums[k] > MinVal<algorithmFPType>::get())
@@ -123,15 +123,15 @@ services::Status EMKernelTask<algorithmFPType, method, cpu>::compute()
             }
             e->setMergedToZero();
         });
-        logLikelyhood -= logLikelyhoodCorrection;
+        logLikelihood -= logLikelihoodCorrection;
 
         DAAL_CHECK_STATUS(s, stepM_merge(iterCounter))
 
         if (iterCounter > 0)
         {
-            diff = logLikelyhood - oldLogLikelyhood;
+            diff = logLikelihood - oldLogLikelihood;
         }
-        oldLogLikelyhood = logLikelyhood;
+        oldLogLikelihood = logLikelihood;
 
         iterCounter++;
     }
@@ -272,13 +272,13 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
         }
     }
 
-    algorithmFPType likelyhood(0.0);
-    PRAGMA_OMP_SIMD_ARGS(reduction(+ : likelyhood))
+    algorithmFPType likelihood(0.0);
+    PRAGMA_OMP_SIMD_ARGS(reduction(+ : likelihood))
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {
-        likelyhood += maxInRow[i];
+        likelihood += maxInRow[i];
     }
-    t.partLogLikelyhood = likelyhood;
+    t.partLogLikelihood = likelihood;
 
     PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
@@ -327,13 +327,13 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
  */
 
 template <typename algorithmFPType, Method method, CpuType cpu>
-algorithmFPType EMKernelTask<algorithmFPType, method, cpu>::computePartialLogLikelyhood(const size_t nVectorsInCurrentBlock,
+algorithmFPType EMKernelTask<algorithmFPType, method, cpu>::computePartialLogLikelihood(const size_t nVectorsInCurrentBlock,
                                                                                         Task<algorithmFPType, cpu> & t)
 {
     algorithmFPType * logRowSumInv = t.rowSumInv;
     MathInst<algorithmFPType, cpu>::vLog(nVectorsInCurrentBlock, t.rowSumInv, logRowSumInv);
 
-    algorithmFPType loglikPartial = t.partLogLikelyhood;
+    algorithmFPType loglikPartial = t.partLogLikelihood;
     PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
@@ -430,7 +430,7 @@ EMKernelTask<algorithmFPType, method, cpu>::EMKernelTask(NumericTable & dataTabl
       nComponents(par.nComponents)
 {
     algorithmFPType pi      = 3.1415926535897932384626433;
-    logLikelyhoodCorrection = 0.5 * nVectors * nFeatures * MathInst<algorithmFPType, cpu>::sLog(2 * pi);
+    logLikelihoodCorrection = 0.5 * nVectors * nFeatures * MathInst<algorithmFPType, cpu>::sLog(2 * pi);
 
     nBlocks = nVectors / blockSizeDefault;
     nBlocks += (nBlocks * blockSizeDefault != nVectors);
@@ -483,8 +483,8 @@ Status EMKernelTask<algorithmFPType, method, cpu>::initialize()
     DAAL_CHECK(iterCounterArray, ErrorMemoryAllocationFailed);
     iterCounterArray[0] = 0;
 
-    logLikelyhoodArray = goalFunctionBD.set(resultGoalFunction, 0, 1);
-    DAAL_CHECK(logLikelyhoodArray, ErrorMemoryAllocationFailed);
+    logLikelihoodArray = goalFunctionBD.set(resultGoalFunction, 0, 1);
+    DAAL_CHECK(logLikelihoodArray, ErrorMemoryAllocationFailed);
 
     covs = initializeCovariances();
     DAAL_CHECK(covs, ErrorMemoryAllocationFailed);
