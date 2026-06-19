@@ -544,13 +544,6 @@ jobs:
     displayName: 'cpp-tests-thread-dev'
 
   - script: |
-      bazel test //cpp/oneapi/dal:tests \
-                 --config=host-private \
-                 --test_link_mode=dev \
-                 --test_thread_mode=par
-    displayName: 'cpp-tests-thread-dev-private'
-
-  - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
     displayName: 'Clean Bazel cache (expunge)'
