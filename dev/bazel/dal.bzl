@@ -124,7 +124,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
     )
 
 def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
-                   dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                   dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal"],
                    features=[], **kwargs):
     cc_static_lib(
         name = name,
@@ -143,7 +143,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                    dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal", "mkl_embed"],
                     features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
@@ -157,7 +157,9 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = lib_tags,
-        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps,
+        # Some dynamic DPC libraries also need host-only objects, e.g. the
+        # Windows delay-load shim for DAAL threading symbols.
+        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + host_deps,
         **kwargs
     )
 
@@ -219,7 +221,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             ccl = ccl,
             mpi_ranks = mpi_ranks,
             deps = [ ":" + module_name ],
-            data = data,
+            data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["host", iface_access_tag],
             args = test_args,
         )
@@ -234,7 +236,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             deps = [
                 ":" + module_name + "_dpc",
             ],
-            data = data,
+            data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["dpc", iface_access_tag],
             args = test_args,
         )
@@ -360,6 +362,19 @@ def _test_deps_on_daal():
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:core_dynamic",
             "@onedal//cpp/daal:threading_release_dynamic",
+        ],
+    })
+
+def _test_runtime_data():
+    return _select({
+        "@config//:test_link_mode_dev": [],
+        "@config//:test_link_mode_release_static": [],
+        "@config//:test_link_mode_release_dynamic": [
+            "@onedal_release//:core_dynamic_runtime",
+            "@onedal_release//:thread_dynamic_runtime",
+            "@onedal_release//:onedal_dynamic_runtime",
+            "@tbb//:tbb_runtime",
+            "@mkl//:mkl_runtime",
         ],
     })
 
@@ -507,7 +522,7 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
         },
         copts = copts + select({
-            "@platforms//os:windows": [],
+            "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = local_defines + [
@@ -612,11 +627,11 @@ def _expand_select(deps):
             expanded += [dep]
     return expanded
 
-def daal_example_suite(name, srcs, **kwargs):
+def daal_example_suite(name, srcs, use_onedal_release_libs=False, **kwargs):
     dal_example_suite(
         name = name,
         srcs = srcs,
-        use_onedal_release_libs = False,
+        use_onedal_release_libs = use_onedal_release_libs,
         is_daal = True,
         **kwargs,
     )

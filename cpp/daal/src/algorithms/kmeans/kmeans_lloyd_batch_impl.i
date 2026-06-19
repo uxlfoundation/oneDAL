@@ -144,6 +144,12 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         {
             DAAL_PROFILER_TASK(kmeansMergeReduceCentroids);
 
+            // Read previous centroids from `inClusters`, not from the
+            // write-only `clusters` buffer: on the very first iteration
+            // `clusters` is the user-supplied result table whose contents
+            // are uninitialized prior to being written. From iteration 1
+            // onward `inClusters == clusters` (set at the end of the loop),
+            // so the L2-norm of the centroid shift is unchanged.
             for (size_t i = 0; i < nClusters; i++)
             {
                 if (clusterS0[i] > 0)
@@ -155,7 +161,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     for (size_t j = 0; j < p; j++)
                     {
                         const algorithmFPType newCluster = clusterS1[i * p + j] * coeff;
-                        const algorithmFPType dist       = clusters[i * p + j] - newCluster;
+                        const algorithmFPType dist       = inClusters[i * p + j] - newCluster;
                         l2Norm += dist * dist;
                         clusters[i * p + j] = newCluster;
                     }
@@ -171,7 +177,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {
-                        const algorithmFPType dist = clusters[i * p + j] - row[j];
+                        const algorithmFPType dist = inClusters[i * p + j] - row[j];
                         l2Norm += dist * dist;
                     }
                     result |=

@@ -4,6 +4,17 @@ load("@onedal//dev/bazel:dal.bzl",
     "daal_algo_example_suite",
 )
 
+filegroup(
+    name = "release_files",
+    visibility = ["//visibility:public"],
+    srcs = glob([
+        "CMakeLists.txt",
+        "target_excludes.cmake",
+        "source/**/*.cpp",
+        "source/**/*.h",
+    ]),
+)
+
 dal_module(
     name = "example_util",
     hdrs = glob(["source/utils/*.h"]),

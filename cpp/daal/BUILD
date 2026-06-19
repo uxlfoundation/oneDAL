@@ -1,4 +1,5 @@
 package(default_visibility = ["//visibility:public"])
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@onedal//dev/bazel:dal.bzl",
     "dal_test_suite",
     "dal_collect_test_suites",
@@ -11,7 +12,6 @@ load("@onedal//dev/bazel:daal.bzl",
     "daal_generate_version",
     "daal_patch_kernel_defines",
 )
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 daal_module(
     name = "microvmlipp",
@@ -120,6 +120,27 @@ daal_module(
         ":service_headers",
         ":threading_headers",
         ":microvmlipp",
+    ],
+)
+
+# Windows-only shim that defines `_threaded_scalable_{malloc,free,...}`
+# and `_daal_static_threader_reduce` entry points, which delay-load
+# `onedal_thread.dll` at runtime. The Makefile pulls
+# `core_threading_win_dll.o` into the dynamic core on Windows only
+# (makefile:507-509). Linux resolves these symbols against
+# `libonedal_thread.so` at executable link, so the shim is unused there.
+# Each Windows DLL that holds DAAL algorithm code needs its own copy of
+# this shim (LNK2001 if missing, but separate output binaries never
+# collide on LNK1169 because each DLL gets its own .obj set).
+daal_module(
+    name = "services_win_dll_shim",
+    srcs = select({
+        "@platforms//os:windows": glob(["src/externals/**/*_win_dll.cpp"]),
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":service_headers",
+        ":threading_headers",
     ],
 )
 
@@ -244,7 +265,18 @@ daal_dynamic_lib(
     deps = [
         ":core",
         ":all_algorithms",
-    ],
+    ] + select({
+        # MSVC requires all DLL symbols to be resolved at link time. On
+        # Windows the threading entry points come from
+        # `services_win_dll_shim` (which delay-loads onedal_thread.dll)
+        # rather than from `:threading_tbb` directly — pulling in
+        # threading_tbb here would duplicate every threading symbol with
+        # the shim and trigger LNK2005. Mirrors makefile:507-509: only
+        # `core_threading_win_dll.o` lands in the dynamic core; the real
+        # TBB-backed threading objects live in onedal_thread.dll.
+        "@platforms//os:windows": [":services_win_dll_shim"],
+        "//conditions:default": [],
+    }),
 )
 
 daal_dynamic_lib(
@@ -322,3 +354,10 @@ sh_test(
     }) + ["@platforms//os:linux"],
 )
 
+sh_test(
+    name = "isa_coverage_test",
+    srcs = ["@onedal//dev/bazel/tests:isa_coverage_test.sh"],
+    args = ["$(location :core_dynamic)"],
+    data = [":core_dynamic"],
+    target_compatible_with = ["@platforms//os:linux"],
+)

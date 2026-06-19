@@ -345,6 +345,57 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     }
 }
 
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "KMeans sparse repeated runs are deterministic",
+                     "[kmeans][batch]",
+                     kmeans_types_csr) {
+    SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Guards against uninitialized reads in the centroid-shift path:
+    // the same input + initial centroids must produce identical
+    // centroids and objective value across independent train() calls.
+    constexpr std::int64_t cluster_count = 16;
+    constexpr std::int64_t row_count = 200;
+    constexpr std::int64_t column_count = 100;
+    constexpr std::int64_t max_iter = 10;
+    constexpr float accuracy_threshold = 0.01;
+    constexpr float nnz_fraction = 0.05;
+    constexpr int trials = 5;
+
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+
+    auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count,
+                                                                  row_count,
+                                                                  column_count,
+                                                                  nnz_fraction,
+                                                                  this->data_indexing_);
+    const auto data = input.get_data(this->get_policy());
+    const auto initial_centroids = input.get_initial_centroids();
+    auto desc = this->get_descriptor(cluster_count, max_iter, accuracy_threshold);
+
+    const auto baseline = this->train(desc, data, initial_centroids);
+    const auto baseline_centroids =
+        row_accessor<const Float>(baseline.get_model().get_centroids()).pull({ 0, -1 });
+    const double baseline_obj = baseline.get_objective_function_value();
+    const std::int64_t baseline_iters = baseline.get_iteration_count();
+
+    for (int t = 1; t < trials; ++t) {
+        const auto trial = this->train(desc, data, initial_centroids);
+        REQUIRE(trial.get_iteration_count() == baseline_iters);
+        REQUIRE(trial.get_objective_function_value() == baseline_obj);
+
+        const auto trial_centroids =
+            row_accessor<const Float>(trial.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(trial_centroids.get_count() == baseline_centroids.get_count());
+        for (std::int64_t i = 0; i < baseline_centroids.get_count(); ++i) {
+            REQUIRE(trial_centroids[i] == baseline_centroids[i]);
+        }
+    }
+}
+
 #ifdef ONEDAL_DATA_PARALLEL
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,

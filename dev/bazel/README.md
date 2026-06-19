@@ -18,7 +18,7 @@
 ## Install Bazel on Linux
 1. Download Bazelisk
    ```sh
-   wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.28.1/bazelisk-linux-amd64
+   wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
    ```
    > Note: If you are using proxy don't forget to set
    `http_proxy` and `https_proxy` environment variables
@@ -41,6 +41,45 @@
    ```sh
    export PATH=<my-user-dir-on-local-disk>/bin:$PATH
    bazel --version
+   ```
+
+## Install Bazel on Windows
+Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
+and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
+Running DPC++ examples and tests on Windows still needs separate device/runtime
+validation.
+
+1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
+
+2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
+   it in the repository root as `bazelisk.exe`.
+   ```bat
+   set BAZELISK_VERSION=v1.28.1
+   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
+   bazelisk.exe version
+   ```
+
+3. For `bazel test` on Windows, set `BAZEL_SH` to a Bash executable. Git for
+   Windows is sufficient.
+   ```bat
+   set BAZEL_SH=C:\Program Files\Git\bin\bash.exe
+   ```
+
+4. Run Bazel from a Visual Studio Developer Command Prompt, or initialize the
+   MSVC environment explicitly before invoking Bazel.
+   ```bat
+   call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+   bazelisk.exe build //:release --verbose_failures
+   ```
+
+5. For tests that run executables linked with MKL/TBB, make the downloaded
+   runtime DLLs visible through `PATH` and pass the environment to Bazel tests.
+   Bazel downloads these dependencies into its external repository cache.
+   ```bat
+   for /f "delims=" %i in ('bazelisk.exe info output_base') do set BAZEL_OUTPUT_BASE=%i
+   set PATH=%BAZEL_OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%BAZEL_OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+
+   bazelisk.exe test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors
    ```
 
 ### Compiler choice
@@ -225,13 +264,49 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```
 
 ## Build recipes for oneDAL
+### Build release artifacts
+- To build the Bazel release artifacts, run:
+  ```sh
+  bazel build //:release
+  ```
+  This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries by default.
+
+  The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
+  oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
+  same subdirectories: headers under `include`, libraries under `lib/intel64`, environment
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
+
+  - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
+    ```sh
+    bazel build //:release --cpu=avx2
+    ```
+  - To disable building DPC++ libraries, use `--release_dpc=false`:
+    ```sh
+    bazel build //:release --release_dpc=false
+    ```
+
+- On Windows, run from the Visual Studio Developer Command Prompt described
+  above:
+  ```bat
+  bazelisk.exe build //:release --verbose_failures
+  ```
+
+  The resulting release tree is under `bazel-bin/release/daal/latest`.
+
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
   ```sh
   bazel test //examples/oneapi/cpp:all
   ```
 
-- To run all oneAPI DPC++ examples ... It's not implemented yet...
+- On Windows, start with HOST example smoke builds:
+  ```bat
+  bazelisk.exe build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures
+  ```
+
+- Running all oneAPI DPC++ examples is not implemented yet. Windows release
+  artifact builds can include DPC++ libraries, but Windows DPC++ example/test
+  execution still needs separate device/runtime validation.
 
 ### Run oneAPI tests
 - To run all test use the following commands:
@@ -372,3 +447,192 @@ dal_test_suite(
 
 ## What is missing in this guide
 - How to get make-like release structure
+
+## Debug and Sanitizer Builds
+
+### Debug build with assertions
+
+Equivalent to Make `REQDBG=yes` — adds debug symbols, enables `DEBUG_ASSERT`
+and `ONEDAL_ENABLE_ASSERT`:
+
+```sh
+bazel build //:release --config=dbg
+bazel test //cpp/oneapi/dal:tests --config=dbg
+```
+
+### Debug symbols only (no assertion checks)
+
+Equivalent to Make `REQDBG=symbols`:
+
+```sh
+bazel build //:release --config=dbg-symbols
+```
+
+> Note: DPC++ targets can be built with debug/sanitizer configurations when
+> the selected compiler/runtime supports them. Debug builds of
+> `libonedal_dpc.so` may still produce excessive debug information and very long
+> link times.
+
+#### Sanitized DPC++ builds
+
+DPC++ libraries can be combined with sanitizers (ASan, TSAN, UBSan) when the
+DPC++ runtime supports them. Use `--release_dpc=True` alongside the sanitizer config:
+
+```sh
+bazel build //:release --config=asan --release_dpc=True --cpu=all
+bazel test //cpp/oneapi/dal:tests --config=ubsan --release_dpc=True
+```
+
+### AddressSanitizer (ASan)
+
+Equivalent to Make `REQSAN=address`. Sanitizers do not automatically enable assertions or unoptimized debug builds. It is highly recommended to combine them with `--config=dbg` (for full debug + assertions) or `--enable_assert=True`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
+```
+
+For static libasan linkage (equivalent to Make `REQSAN=static`):
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=asan-static --config=dbg
+```
+
+### ThreadSanitizer (TSan)
+
+Equivalent to Make `REQSAN=thread`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=tsan
+```
+
+### UndefinedBehaviorSanitizer (UBSan)
+
+Equivalent to Make `REQSAN=undefined`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=ubsan
+```
+
+### MemorySanitizer (MSan)
+
+Equivalent to Make `REQSAN=memory`. Requires a Clang/LLVM toolchain and lld;
+GCC does not support MSan. The `msan` config enables
+`-fsanitize-memory-track-origins` for better origin diagnostics and passes
+`--linkopt=-fuse-ld=lld` for the linker.
+
+Bazel applies the sanitizer flags to the oneDAL build, but it does not make the
+rest of the toolchain and dependencies (for example `libstdc++`) MSan-instrumented.
+Uninstrumented dependencies can produce false positives or incomplete reports;
+use an MSan-instrumented sysroot/runtime when investigating MSan findings.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=msan
+```
+
+### Type Sanitizer
+
+The `type` config enables Clang TypeSanitizer and adds
+`-fsanitize-recover=all` so the runtime can report multiple findings in one run.
+GCC and ICPX do not support TypeSanitizer.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=type
+```
+
+
+---
+
+## Release Build
+
+Build the full release artifact with all ISA variants (sse2, avx2, avx512):
+
+```sh
+bazel build //:release --cpu=all
+```
+
+By default, `--cpu=auto` builds the baseline `sse2` variant plus the detected
+host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
+restrict coverage (e.g., for faster CI):
+
+```sh
+bazel build //:release --cpu=avx2
+```
+
+To include DPC++ libraries:
+
+```sh
+bazel build //:release --config=release-dpc --cpu=all
+```
+
+---
+
+### Standard Library Assertions
+
+To enable GNU libstdc++ assertions (e.g., `std::vector` bounds checking),
+inject the preprocessor macro via `--cxxopt` (C++-only flag):
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=dbg --cxxopt=-D_GLIBCXX_DEBUG
+```
+
+This applies only when the build uses GNU libstdc++ headers (for example GCC,
+or ICX configured to use libstdc++). If ICX is configured to use libc++ (default
+on some systems), this flag will have no effect. It is not portable to non-GNU
+standard library implementations.
+
+---
+
+## Custom Compiler and Linker Flags
+
+Equivalent to Make `COPT` / `CXXFLAGS`. Use `--copt` for C and C++ flags, `--cxxopt` for C++-only flags, and `--linkopt` for linker flags:
+
+```sh
+# Override optimization level (C and C++)
+bazel build //:release --copt=-O2
+
+# C++-only preprocessor/language flags
+bazel build //:release --cxxopt=-std=c++17
+
+# Add a linker flag
+bazel build //:release --linkopt=-Wl,--as-needed
+```
+
+Bazel combines repeated `--copt`, `--cxxopt`, and `--linkopt` values from named
+configs and user-provided flags. For example, `--config=dbg-symbols --copt=-O2`
+keeps the config's `-g` flag and also passes the user `-O2` flag. If flags
+conflict, the compiler/toolchain decides how to interpret the final option list,
+so users should avoid conflicting custom flags unless that behavior is intended.
+
+Avoid `-march=native` for release artifacts: oneDAL relies on runtime CPU
+feature dispatching and portable baseline objects. Native architecture flags are
+appropriate only for local experiments where the artifact will run on the same
+machine.
+
+To make flags permanent for your local environment, add them to `~/.bazelrc`:
+
+```
+# ~/.bazelrc (user-local, not committed)
+build --copt=-your-c-and-cxx-flag
+build --cxxopt=-your-cxx-only-flag
+build --linkopt=-your-link-flag
+```
+
+---
+
+## Make → Bazel Flag Reference
+
+| Make option                    | Bazel equivalent                                             | Notes                                                                      |
+|--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
+| `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
+| `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
+| `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
+| `REQSAN=static`                | `--config=asan-static`                                       | ASan with static libasan                                                   |
+| `REQSAN=thread`                | `--config=tsan`                                              | ThreadSanitizer                                                            |
+| `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
+| `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
+| `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
+| `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
+| `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
+| `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
+| `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
+| Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |

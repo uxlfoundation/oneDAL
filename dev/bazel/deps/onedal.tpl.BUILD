@@ -5,7 +5,7 @@ cc_library(
     hdrs = glob([
         "include/**/*.h",
         "include/oneapi/**/*.hpp",
-    ]),
+    ], allow_empty = True),
     includes = [ "include" ],
 )
 
@@ -71,6 +71,13 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "core_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal_core.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "thread_dynamic",
     srcs = glob([
@@ -81,6 +88,13 @@ cc_library(
         "@tbb//:tbb_binary",
         "@tbb//:tbbmalloc_binary",
     ],
+)
+
+filegroup(
+    name = "thread_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal_thread.so*",
+    ], allow_empty = True),
 )
 
 cc_library(
@@ -96,6 +110,14 @@ cc_library(
         ":headers",
         "@mkl//:mkl_static",
     ],
+)
+
+filegroup(
+    name = "onedal_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal.so*",
+        "lib/intel64/libonedal_parameters.so*",
+    ], allow_empty = True),
 )
 
 cc_library(

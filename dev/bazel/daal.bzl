@@ -53,7 +53,7 @@ def daal_module(name, features=[], lib_tag="daal",
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
         copts = copts + select({
-            "@platforms//os:windows": [],
+            "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = select({
@@ -81,7 +81,7 @@ _MKL_EXCLUDE_LIBS_FLAGS = select({
     # MKL objects embedded via --whole-archive are not re-exported.
     # This matches Make's behaviour (see dev/make/deps.mk MKL linkage).
     # GNU ld only; not supported on Windows (MSVC) or macOS (Apple ld).
-    "@config//:backend_config_mkl": [
+    "@config//:backend_config_mkl_linux": [
         "-Wl,--exclude-libs=libmkl_tbb_thread.a",
         "-Wl,--exclude-libs=libmkl_core.a",
         "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
