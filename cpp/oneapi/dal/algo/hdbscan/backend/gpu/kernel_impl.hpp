@@ -90,7 +90,9 @@ struct cluster_work_ptrs {
     std::int64_t total_nodes;
     std::int32_t cluster_selection; // 0 = EOM, 1 = leaf
     bool allow_single_cluster;
-    double cluster_selection_epsilon;
+    // Stored as `Float` (not `double`) so the SYCL kernels that capture this
+    // struct by value don't pull in `aspect::fp64` when `Float = float`.
+    Float cluster_selection_epsilon;
     std::int64_t max_cluster_size;
 };
 
@@ -1246,8 +1248,8 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                     w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
             }
 
-            if (w.cluster_selection_epsilon > 0.0) {
-                const Float eps = static_cast<Float>(w.cluster_selection_epsilon);
+            if (w.cluster_selection_epsilon > Float(0)) {
+                const Float eps = w.cluster_selection_epsilon;
                 bool changed = true;
                 while (changed) {
                     changed = false;
@@ -1410,7 +1412,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
                                     const bk::event_vector& deps = {},
                                     std::int32_t cluster_selection = 0,
                                     bool allow_single_cluster = false,
-                                    double cluster_selection_epsilon = 0.0,
+                                    Float cluster_selection_epsilon = Float(0),
                                     std::int64_t max_cluster_size = 0) {
     ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 

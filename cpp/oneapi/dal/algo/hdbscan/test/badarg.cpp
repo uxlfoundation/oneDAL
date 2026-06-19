@@ -27,7 +27,7 @@ namespace oneapi::dal::hdbscan::test {
 namespace te = dal::test::engine;
 
 template <typename TestType>
-class hdbscan_badarg_test : public te::algo_fixture {
+class hdbscan_badarg_test : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
 public:
     using Float = std::tuple_element_t<0, TestType>;
     using Method = std::tuple_element_t<1, TestType>;
@@ -78,10 +78,12 @@ HDBSCAN_BF_BADARG_TEST("brute_force: throws if min_samples is less than 1") {
 }
 
 HDBSCAN_BF_BADARG_TEST("brute_force: throws if data is empty") {
+    SKIP_IF(this->not_float64_friendly());
     REQUIRE_THROWS_AS(this->compute(this->get_descriptor(), table{}), invalid_argument);
 }
 
 HDBSCAN_BF_BADARG_TEST("brute_force: accepts valid data") {
+    SKIP_IF(this->not_float64_friendly());
     REQUIRE_NOTHROW(this->compute(this->get_descriptor(), this->get_data()));
 }
 
@@ -120,6 +122,7 @@ HDBSCAN_BF_BADARG_TEST("brute_force: throws if degree is negative") {
 }
 
 HDBSCAN_BF_BADARG_TEST("brute_force: cosine metric computes successfully") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::cosine);
     REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
 }
@@ -204,24 +207,29 @@ HDBSCAN_KD_BADARG_TEST("kd_tree: throws if min_samples is less than 1") {
 }
 
 HDBSCAN_KD_BADARG_TEST("kd_tree: throws if data is empty") {
+    SKIP_IF(this->not_float64_friendly());
     REQUIRE_THROWS_AS(this->compute(this->get_descriptor(), table{}), invalid_argument);
 }
 
 HDBSCAN_KD_BADARG_TEST("kd_tree: accepts valid data") {
+    SKIP_IF(this->not_float64_friendly());
     REQUIRE_NOTHROW(this->compute(this->get_descriptor(), this->get_data()));
 }
 
 HDBSCAN_KD_BADARG_TEST("kd_tree: accepts manhattan metric") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::manhattan);
     REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
 }
 
 HDBSCAN_KD_BADARG_TEST("kd_tree: accepts chebyshev metric") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::chebyshev);
     REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
 }
 
 HDBSCAN_KD_BADARG_TEST("kd_tree: throws if cosine metric is used") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::cosine);
     REQUIRE_THROWS_AS(this->compute(desc, this->get_data()), invalid_argument);
 }
@@ -290,24 +298,29 @@ HDBSCAN_BT_BADARG_TEST("ball_tree: throws if min_samples is less than 1") {
 }
 
 HDBSCAN_BT_BADARG_TEST("ball_tree: throws if data is empty") {
+    SKIP_IF(this->not_float64_friendly());
     REQUIRE_THROWS_AS(this->compute(this->get_descriptor(), table{}), invalid_argument);
 }
 
 HDBSCAN_BT_BADARG_TEST("ball_tree: accepts valid data") {
+    SKIP_IF(this->not_float64_friendly());
     REQUIRE_NOTHROW(this->compute(this->get_descriptor(), this->get_data()));
 }
 
 HDBSCAN_BT_BADARG_TEST("ball_tree: accepts manhattan metric") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::manhattan);
     REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
 }
 
 HDBSCAN_BT_BADARG_TEST("ball_tree: accepts chebyshev metric") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::chebyshev);
     REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
 }
 
 HDBSCAN_BT_BADARG_TEST("ball_tree: throws if cosine metric is used") {
+    SKIP_IF(this->not_float64_friendly());
     auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::cosine);
     REQUIRE_THROWS_AS(this->compute(desc, this->get_data()), invalid_argument);
 }

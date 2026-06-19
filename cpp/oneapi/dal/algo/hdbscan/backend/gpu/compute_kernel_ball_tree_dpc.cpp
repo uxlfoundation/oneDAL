@@ -87,7 +87,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     const std::int32_t cluster_selection =
         (desc.get_cluster_selection() == cluster_selection_method::leaf) ? 1 : 0;
     const bool allow_single_cluster = desc.get_allow_single_cluster();
-    const double cluster_selection_epsilon = desc.get_cluster_selection_epsilon();
+    const Float cluster_selection_epsilon =
+        static_cast<Float>(desc.get_cluster_selection_epsilon());
     const std::int64_t max_cluster_size = desc.get_max_cluster_size();
     const double alpha = desc.get_alpha();
 
