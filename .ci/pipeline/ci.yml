@@ -524,7 +524,7 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
-      export LD_LIBRARY_PATH="$(DALROOT)/lib/intel64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+      . "$(DALROOT)/env/vars.sh"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
@@ -538,7 +538,7 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
-      export LD_LIBRARY_PATH="$(DALROOT)/lib/intel64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+      . "$(DALROOT)/env/vars.sh"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
