@@ -90,7 +90,7 @@ COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
-                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=1
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 # REQDBG: build a gdb_index so split-DWARF .dwo files are referenceable from
 # the final shared object. Both ld.bfd and ld.lld accept --gdb-index.
