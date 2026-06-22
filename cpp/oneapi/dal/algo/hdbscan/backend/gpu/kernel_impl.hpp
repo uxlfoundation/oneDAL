@@ -901,14 +901,19 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
     ONEDAL_PROFILER_TASK(hdbscan.sort_mst_by_weight, queue);
 
     ONEDAL_ASSERT(edge_count > 0);
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN edge_count=" << edge_count << std::endl;
 
     // Create index array [0, 1, 2, ..., edge_count-1]
     using Index = std::uint32_t;
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN alloc indices" << std::endl;
     auto [indices, indices_event] =
         pr::ndarray<Index, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    indices_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][sort_mst] END   alloc indices ok" << std::endl;
 
     Index* ind_ptr = indices.get_mutable_data();
     sycl::event ind_alloc_event = indices_event;
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN iota fill" << std::endl;
     auto iota_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.depends_on({ ind_alloc_event });
@@ -916,16 +921,25 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
             ind_ptr[idx[0]] = static_cast<Index>(idx[0]);
         });
     });
+    iota_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][sort_mst] END   iota fill ok" << std::endl;
 
     // Sort weights with corresponding indices using radix sort
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN radix_sort_indices_inplace" << std::endl;
     pr::radix_sort_indices_inplace<Float, Index> sorter(queue);
     auto sort_event = sorter(mst_weights, indices, { iota_event });
+    sort_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][sort_mst] END   radix_sort_indices_inplace ok" << std::endl;
 
     // Permute mst_from and mst_to according to sorted indices
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN alloc sorted_from/sorted_to" << std::endl;
     auto [sorted_from, sf_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [sorted_to, st_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    sf_event.wait_and_throw();
+    st_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][sort_mst] END   alloc sorted_from/sorted_to ok" << std::endl;
 
     const std::int32_t* from_ptr = mst_from.get_data();
     const std::int32_t* to_ptr = mst_to.get_data();
@@ -935,6 +949,7 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
 
     sycl::event sf_alloc_event = sf_event;
     sycl::event st_alloc_event = st_event;
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN permute endpoints" << std::endl;
     auto permute_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ sort_event, sf_alloc_event, st_alloc_event });
         h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
@@ -944,11 +959,14 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
             st_ptr[i] = to_ptr[orig];
         });
     });
+    permute_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][sort_mst] END   permute endpoints ok" << std::endl;
 
     // Copy permuted results back into mst_from and mst_to
     std::int32_t* mst_from_ptr = mst_from.get_mutable_data();
     std::int32_t* mst_to_ptr = mst_to.get_mutable_data();
 
+    std::cout << "[hdbscan-gpu][sort_mst] BEGIN copy back to mst_from/mst_to" << std::endl;
     auto copy_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ permute_event });
         h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
@@ -957,6 +975,9 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
             mst_to_ptr[i] = st_ptr[i];
         });
     });
+    copy_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][sort_mst] END   copy back ok" << std::endl;
+    std::cout << "[hdbscan-gpu][sort_mst] DONE" << std::endl;
 
     return copy_event;
 }

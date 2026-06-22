@@ -71,8 +71,14 @@ endif
 # Linux REQDBG: keep full -g but split DWARF into per-object .dwo files and
 # zstd-compress debug sections so the linker peak RAM stays within CI runner
 # budgets. The .dwo files live next to the .o files; debuggers find them via
-# the gdb_index. Windows path unchanged.
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g -gsplit-dwarf -gz=zstd) -fno-system-debug
+# the gdb_index.
+#  -fdebug-types-section: emit type descriptions into a dedup'able COMDAT
+#    section. Cuts both per-TU compile RAM and link-time string-merge RAM
+#    significantly on heavily-templated SYCL TUs.
+#  -ggnu-pubnames: feeds the .gdb_index linker pass with name lookup tables
+#    so debugger symbol resolution stays fast across split DWARF.
+# Windows path unchanged.
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g -gsplit-dwarf -gz=zstd -fdebug-types-section -ggnu-pubnames) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
@@ -87,11 +93,14 @@ link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 # REQDBG: build a gdb_index so split-DWARF .dwo files are referenceable from
-# the final shared object. Both ld.bfd and ld.lld accept --gdb-index. The
-# `comma :=` indirection escapes the literal comma inside the linker spec
-# so $(if) doesn't split the argument list on it.
+# the final shared object. Both ld.bfd and ld.lld accept --gdb-index.
+# Add --no-keep-memory and --reduce-memory-overheads to keep the linker from
+# mmap'ing the full input set; trades a few seconds of link time for ~30-40%
+# lower peak RSS, which is what kept the libonedal_dpc.so link from finishing
+# on small CI runners. The `comma :=` indirection escapes the literal comma
+# inside the linker spec so $(if) doesn't split the argument list on it.
 comma := ,
-link.dynamic.lnx.dpcpp += $(if $(REQDBG),-Wl$(comma)--gdb-index)
+link.dynamic.lnx.dpcpp += $(if $(REQDBG),-Wl$(comma)--gdb-index -Wl$(comma)--no-keep-memory -Wl$(comma)--reduce-memory-overheads)
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
