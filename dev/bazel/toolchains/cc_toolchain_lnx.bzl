@@ -404,6 +404,10 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     # Prefer -O1 because -O0 code may be painfully slow
                     "-O1",
 
+                    # Disable loop transformation warnings that appear with -O1
+                    # and are treated as errors in dbg configuration
+                    "-Wno-pass-failed",
+
                     # oneDAL specific defined to enabled assertions
                     "-DDEBUG_ASSERT",
                 ],

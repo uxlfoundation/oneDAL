@@ -78,13 +78,12 @@ services::Status ComputeInvSigmas(NumericTable * pVariances, TArray<algorithmFPT
         DAAL_CHECK_BLOCK_STATUS(dataRows);
         const algorithmFPType * pRawVariances = dataRows.get();
 
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
+        daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrt(numFeatures, pRawVariances, pInvSigmas);
+        /* If variance is equal to 0, set inverse square root to 0 to avoid infinity */
+        PRAGMA_OMP_SIMD
         for (size_t varianceId = 0; varianceId < numFeatures; ++varianceId)
         {
-            pInvSigmas[varianceId] = pRawVariances[varianceId] ?
-                                         algorithmFPType(1.0) / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(pRawVariances[varianceId]) :
-                                         algorithmFPType(0.0);
+            pInvSigmas[varianceId] = pRawVariances[varianceId] ? pInvSigmas[varianceId] : algorithmFPType(0.0);
         }
     }
     return status;
@@ -181,15 +180,13 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
             for (size_t rowId = 0; rowId < numRows; ++rowId)
             {
                 /* compute centering if numMeans != 0 */
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t colId = 0; colId < numMeans; ++colId)
                 {
                     pCopyBlock[rowId * numMeans + colId] = pDataBlock[rowId * numMeans + colId] - pRawMeans[colId];
                 }
                 /* compute normalization to unit variance if numInvSigmas!= 0 */
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t colId = 0; colId < numInvSigmas; ++colId)
                 {
                     pCopyBlock[rowId * numInvSigmas + colId] = pNormBlock[rowId * numInvSigmas + colId] * pInvSigmas[colId];
@@ -203,8 +200,7 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
         {
             for (size_t rowId = 0; rowId < numRows; ++rowId)
             {
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t colId = 0; colId < numComponents; ++colId)
                 {
                     pTransformedBlock[rowId * numComponents + colId] = pTransformedBlock[rowId * numComponents + colId] * pInvEigenvalues[colId];
