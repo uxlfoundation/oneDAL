@@ -49,7 +49,13 @@ JOB_FLAG := $(filter -j%, $(subst -j ,-j,$(shell ps T | grep "^\s*$(MAKE_PID).*$
 MAKE_JOBS := $(subst -j,,$(JOB_FLAG))
 MAKE_JOBS := $(if $(filter $(MAKE_JOBS),$(shell seq 1 999)),$(MAKE_JOBS),$(shell nproc))
 
-SYCL_LINK_PRL := $(MAKE_JOBS)
+# SYCL_LINK_PRL controls -fsycl-max-parallel-link-jobs: how many SYCL
+# device-code finalizer subprocesses a single link command spawns. Each
+# finalizer can hit ~1-2 GB at peak, so pinning this to MAKE_JOBS produces OOM
+# kills during libonedal_dpc.so link on small CI runners. Default keeps current
+# behavior; override with `SYCL_LINK_PRL=4 make onedal_dpc -j20` on
+# RAM-constrained runners.
+SYCL_LINK_PRL ?= $(MAKE_JOBS)
 
 COMPILER_is_$(COMPILER)            := yes
 COMPILER_is_cross                  := $(if $(filter $(PLAT),$(IDENTIFIED_PLAT)),no,yes)

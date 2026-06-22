@@ -24,6 +24,8 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 
+#include <iostream>
+
 namespace oneapi::dal::hdbscan::backend {
 
 namespace bk = oneapi::dal::backend;
@@ -56,6 +58,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     ONEDAL_PROFILER_TASK(hdbscan.compute, ctx.get_queue());
 
     auto& queue = ctx.get_queue();
+    std::cout << "[hdbscan-gpu][brute_force] enter compute_kernel_dense_impl" << std::endl;
 
     const std::int64_t row_count = local_data.get_row_count();
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
@@ -70,26 +73,47 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         static_cast<Float>(desc.get_cluster_selection_epsilon());
     const std::int64_t max_cluster_size = desc.get_max_cluster_size();
     const double alpha = desc.get_alpha();
+    std::cout << "[hdbscan-gpu][brute_force] descriptor read: row_count=" << row_count
+              << " min_cluster_size=" << min_cluster_size << " min_samples=" << min_samples
+              << " edge_count=" << edge_count << " metric=" << static_cast<int>(metric)
+              << " degree=" << degree << " cluster_selection=" << cluster_selection
+              << " allow_single_cluster=" << allow_single_cluster
+              << " cluster_selection_epsilon=" << static_cast<double>(cluster_selection_epsilon)
+              << " max_cluster_size=" << max_cluster_size << " alpha=" << alpha << std::endl;
 
+    std::cout << "[hdbscan-gpu][brute_force] step0 BEGIN table2ndarray" << std::endl;
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
+    queue.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step0 END   table2ndarray ok" << std::endl;
 
     // Step 1: Compute pairwise distance matrix
+    std::cout << "[hdbscan-gpu][brute_force] step1 BEGIN alloc dist_matrix (" << row_count << " x "
+              << row_count << ")" << std::endl;
     auto [dist_matrix, dist_alloc_event] =
         pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
+    dist_alloc_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step1 END   alloc dist_matrix ok" << std::endl;
 
+    std::cout << "[hdbscan-gpu][brute_force] step2 BEGIN compute_distance_matrix" << std::endl;
     auto dist_event = compute_distance_matrix<Float>(queue,
                                                      data_nd,
                                                      dist_matrix,
                                                      metric,
                                                      degree,
                                                      { dist_alloc_event });
+    dist_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step2 END   compute_distance_matrix ok" << std::endl;
 
     // Step 2: Compute core distances from the unscaled distance matrix.
     // Per the canonical HDBSCAN definition, alpha must NOT touch the k-NN
     // core distance — it scales only the dist term inside MRD (Step 3).
+    std::cout << "[hdbscan-gpu][brute_force] step3 BEGIN alloc core_distances" << std::endl;
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
+    core_dist_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step3 END   alloc core_distances ok" << std::endl;
 
+    std::cout << "[hdbscan-gpu][brute_force] step4 BEGIN compute_core_distances" << std::endl;
     auto core_event = compute_core_distances<Float>(queue,
                                                     dist_matrix,
                                                     core_distances,
@@ -97,22 +121,34 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                     row_count,
                                                     metric,
                                                     { dist_event, core_dist_event });
+    core_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step4 END   compute_core_distances ok" << std::endl;
 
     // Step 3: Transform distances into MRD matrix in-place, applying 1/alpha
     // only to the dist(i,j) term inside the max with core_i, core_j.
     auto& mrd_matrix = dist_matrix;
 
+    std::cout << "[hdbscan-gpu][brute_force] step5 BEGIN compute_mrd_matrix" << std::endl;
     auto mrd_compute_event =
         compute_mrd_matrix<Float>(queue, core_distances, mrd_matrix, metric, alpha, { core_event });
+    mrd_compute_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step5 END   compute_mrd_matrix ok" << std::endl;
 
     // Step 4: Build MST using GPU Boruvka's algorithm with precomputed MRD matrix
+    std::cout << "[hdbscan-gpu][brute_force] step6 BEGIN alloc mst_from/to/weights (" << edge_count
+              << " edges)" << std::endl;
     auto [mst_from, mst_from_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_to, mst_to_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_weights, mst_weights_event] =
         pr::ndarray<Float, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    mst_from_event.wait_and_throw();
+    mst_to_event.wait_and_throw();
+    mst_weights_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step6 END   alloc mst arrays ok" << std::endl;
 
+    std::cout << "[hdbscan-gpu][brute_force] step7 BEGIN build_mst (Boruvka)" << std::endl;
     auto mst_event =
         build_mst<Float>(queue,
                          mrd_matrix,
@@ -121,15 +157,24 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                          mst_weights,
                          row_count,
                          { mrd_compute_event, mst_from_event, mst_to_event, mst_weights_event });
+    mst_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step7 END   build_mst ok" << std::endl;
 
     // Step 5: Sort MST edges by weight using radix sort primitive
+    std::cout << "[hdbscan-gpu][brute_force] step8 BEGIN sort_mst_by_weight" << std::endl;
     auto sort_event =
         sort_mst_by_weight<Float>(queue, mst_from, mst_to, mst_weights, edge_count, { mst_event });
+    sort_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step8 END   sort_mst_by_weight ok" << std::endl;
 
     // Step 6: Extract flat clusters using EOM on device
+    std::cout << "[hdbscan-gpu][brute_force] step9 BEGIN alloc arr_responses" << std::endl;
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
+    responses_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step9 END   alloc arr_responses ok" << std::endl;
 
+    std::cout << "[hdbscan-gpu][brute_force] step10 BEGIN extract_clusters" << std::endl;
     auto cluster_event = extract_clusters<Float>(queue,
                                                  mst_from,
                                                  mst_to,
@@ -143,8 +188,10 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                  cluster_selection_epsilon,
                                                  max_cluster_size);
     cluster_event.wait_and_throw();
+    std::cout << "[hdbscan-gpu][brute_force] step10 END   extract_clusters ok" << std::endl;
 
     // Count clusters via GPU max reduction
+    std::cout << "[hdbscan-gpu][brute_force] step11 BEGIN max-label reduction" << std::endl;
     auto [max_label_arr, ml_ev] =
         pr::ndarray<std::int32_t, 1>::full(queue, 1, -1, sycl::usm::alloc::device);
     sycl::event ml_alloc_ev = ml_ev;
@@ -161,11 +208,17 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
             ml_ptr[0] = mx;
         });
     });
+    reduce_event.wait_and_throw();
     auto max_label_host = max_label_arr.to_host(queue, { reduce_event });
     const std::int32_t max_label = max_label_host.get_data()[0];
     const std::int64_t cluster_count = (max_label >= 0) ? (max_label + 1) : 0;
+    std::cout << "[hdbscan-gpu][brute_force] step11 END   max_label=" << max_label
+              << " cluster_count=" << cluster_count << std::endl;
 
-    return make_results<Float>(queue, desc, arr_responses, cluster_count, local_data);
+    std::cout << "[hdbscan-gpu][brute_force] step12 BEGIN make_results" << std::endl;
+    auto out = make_results<Float>(queue, desc, arr_responses, cluster_count, local_data);
+    std::cout << "[hdbscan-gpu][brute_force] step12 END   make_results ok" << std::endl;
+    return out;
 }
 
 template <typename Float>

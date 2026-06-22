@@ -39,6 +39,7 @@ show_help() {
 --sysroot:The sysroot to use, in the case that clang is used as the cross-compiler
 --debug:Set build debug mode flag
 --jobs:The number of parallel threads to use for oneDAL building
+--sycl-link-jobs:Cap on -fsycl-max-parallel-link-jobs (SYCL device-code finalizer subprocesses per link command). Default unset = use --jobs. Lower this on RAM-constrained CI runners to avoid OOM during libonedal_dpc.so link
 '
 }
 
@@ -87,6 +88,9 @@ while [[ $# -gt 0 ]]; do
         shift;;
         --jobs)
         jobs="$2"
+        shift;;
+        --sycl-link-jobs)
+        sycl_link_jobs="$2"
         shift;;
         --help)
         show_help
@@ -281,6 +285,10 @@ fi
 
 if [ -n "${use_debug}" ]; then
     make_options+=(REQDBG="${use_debug}")
+fi
+
+if [ -n "${sycl_link_jobs}" ]; then
+    make_options+=(SYCL_LINK_PRL="${sycl_link_jobs}")
 fi
 
 echo "Calling make"
