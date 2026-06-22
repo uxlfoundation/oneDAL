@@ -247,7 +247,7 @@ def _link(owner, name, actions, cc_toolchain,
             name, unpacked_linking_context.objects))
     object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
     additional_inputs = [def_file] if def_file else []
-    direct_user_link_flags = ["@" + def_file.path] if def_file else []
+    direct_user_link_flags = []
     direct_libraries_to_link = []
 
     # Windows link.exe rejects response-file lines longer than 131071
