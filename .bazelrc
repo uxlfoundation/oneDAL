@@ -40,9 +40,15 @@ test --test_env=LD_LIBRARY_PATH
 # bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
 # actions that go through cmd-style helpers.
 build --action_env=VCTOOLSINSTALLDIR
+build --action_env=CMPLR_ROOT
 build --action_env=INCLUDE
 build --action_env=LIB
 build --action_env=PATH
+# MSYS bash forwards `PATH` as `Path` and the env-var name match is
+# case-sensitive in Bazel — same dual-spelling rationale as the test
+# section below: forward both so build actions see a populated value
+# regardless of how the launching shell exports it.
+build --action_env=Path
 
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores

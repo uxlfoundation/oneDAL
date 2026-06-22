@@ -29,6 +29,9 @@
 #   * Link driven through icx with `-link` forwarding to lld-link.exe.
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+load("@onedal//dev/bazel/toolchains:action_names.bzl",
+    "CPP_MERGE_STATIC_LIBRARIES"
+)
 
 load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "feature",
@@ -174,6 +177,20 @@ def _impl(ctx):
         tools = [tool(path = ctx.attr.ar_path)],
     )
 
+    # Windows analogue of the cpp_merge_static_libraries action wired up
+    # in cc_toolchain_config_lnx.bzl: drives a small batch wrapper that
+    # invokes whichever lib-compatible tool the toolchain discovered
+    # (llvm-lib or MSVC lib) — matches the Linux merge_static_libs.sh
+    # path so dev/bazel/cc/link.bzl can route both platforms through the
+    # same `cc_common.get_tool_for_action` call instead of hard-coding
+    # `xilib.exe`.
+    cpp_merge_static_libraries_action = action_config(
+        action_name = CPP_MERGE_STATIC_LIBRARIES,
+        tools = [
+            tool(path = ctx.attr.ar_merge_path)
+        ],
+    )
+
     action_configs = [
         assemble_action,
         preprocess_assemble_action,
@@ -184,6 +201,7 @@ def _impl(ctx):
         cpp_link_nodeps_dynamic_library_action,
         cpp_link_dynamic_library_action,
         cpp_link_static_library_action,
+        cpp_merge_static_libraries_action,
     ]
 
     # --- features -----------------------------------------------------------
@@ -821,6 +839,7 @@ cc_toolchain_config = rule(
         "cc_link_path": attr.string(mandatory = True),
         "dpcc_link_path": attr.string(mandatory = True),
         "ar_path": attr.string(mandatory = True),
+        "ar_merge_path": attr.string(mandatory = True),
         "cxx_builtin_include_directories": attr.string_list(),
         "compile_flags_cc": attr.string_list(),
         "compile_flags_dpcc": attr.string_list(),

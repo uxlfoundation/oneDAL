@@ -44,6 +44,26 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
             tool_path = repo_ctx.path("tool_not_found_{}.bat".format(tool_name))
     return str(tool_path), is_found
 
+def _create_ar_merge_tool(repo_ctx, ar_path):
+    """Stage merge_static_libs.bat with the discovered archiver baked in.
+
+    Mirrors `_create_ar_merge_tool` in cc_toolchain_lnx.bzl. The shipped
+    `merge_static_libs_win.tpl.bat` is a thin wrapper that calls the same
+    `lib`-compatible archiver picked up by `_find_tools_icx`. Wiring this
+    through the toolchain (instead of hard-coding `xilib.exe` in the
+    Starlark caller) lets dev/bazel/cc/link.bzl resolve the merge tool
+    via `cc_common.get_tool_for_action` exactly like Linux does — one
+    code path for both platforms, and no dependency on xilib being on
+    PATH (it ships with Intel Fortran, not the C++-only basekit).
+    """
+    ar_merge_name = "merge_static_libs.bat"
+    repo_ctx.template(
+        ar_merge_name,
+        Label("@onedal//dev/bazel/toolchains/tools:merge_static_libs_win.tpl.bat"),
+        {"%{ar_path}": ar_path.replace("/", "\\")},
+    )
+    return str(repo_ctx.path(ar_merge_name))
+
 def _find_tools_icx(repo_ctx):
     # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
     # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
@@ -56,14 +76,30 @@ def _find_tools_icx(repo_ctx):
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
     # Host link tool: prefer lld-link.exe (ships next to icx in oneAPI),
     # fall back to MSVC's link.exe — both accept the same flag syntax and
-    # multi-line response files.
+    # multi-line response files. Surface the choice in the toolchain
+    # bootstrap log so the silent fallback isn't a debugging mystery
+    # later: oneAPI ships lld-link, so missing it almost always means
+    # `setvars.bat` was not sourced.
     cc_link_path, lld_found = _find_tool(repo_ctx, "lld-link", mandatory = False)
-    if not lld_found:
+    if lld_found:
+        # buildifier: disable=print
+        print("oneDAL Windows toolchain: using lld-link at {}".format(cc_link_path))
+    else:
         cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
+        # buildifier: disable=print
+        print(
+            ("oneDAL Windows toolchain: lld-link not on PATH; falling back " +
+             "to MSVC link at {}. (Did you forget to source oneAPI " +
+             "setvars.bat?)").format(cc_link_path),
+        )
     # Static archiver: same as before, llvm-lib first then MSVC lib.
-    ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
-    if not ar_path or ar_path.endswith("tool_not_found_llvm-lib.bat"):
+    ar_path, llvm_lib_found = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
+    if not llvm_lib_found:
         ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
+    # Merge tool: thin batch wrapper that drives the same archiver. See
+    # _create_ar_merge_tool for why this is wired through the toolchain
+    # rather than hard-coded in dev/bazel/cc/link.bzl.
+    ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,
@@ -73,6 +109,7 @@ def _find_tools_icx(repo_ctx):
         cc_link = cc_link_path,
         dpcc_link = dpcc_path,
         ar = ar_path,
+        ar_merge = ar_merge_path,
         is_dpc_found = dpcpp_found,
     )
 
@@ -228,6 +265,7 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
             "%{cc_link_path}": tools.cc_link,
             "%{dpcc_link_path}": tools.dpcc_link,
             "%{ar_path}": tools.ar,
+            "%{ar_merge_path}": tools.ar_merge,
             "%{cxx_builtin_include_directories}": get_starlark_list(
                 builtin_include_directories,
             ),

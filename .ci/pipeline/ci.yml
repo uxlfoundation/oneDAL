@@ -649,12 +649,6 @@ jobs:
       xcopy /E /I /Y "bazel-bin\release" "$(release.dir)" >NUL
       echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
     displayName: 'Prepare standalone release directory'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) Bazel icx build'
-      targetPath: '$(DALROOT)'
-    displayName: 'Upload build artifacts'
-    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
@@ -849,6 +843,12 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\build.bat onedal_dpc icx avx2
     displayName: 'make onedal_dpc'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) icx build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib icx cmake
@@ -865,6 +865,65 @@ jobs:
       tree -h -I include __nuget/inteldal*/
       ls -lh __nuget/inteldal*.nupkg
     displayName: 'nuget pkg'
+
+
+- job: 'WindowsBazelOnMake'
+  dependsOn: WindowsMakeIntel
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_win'
+    platform.type : 'win32e'
+    BAZELISK_VERSION: 'v1.28.1'
+    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZEL_OUTPUT_USER_ROOT: 'C:\b'
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+  steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: '$(platform.type) icx build'
+      path: '$(Build.Repository.LocalPath)\$(release.dir)'
+    displayName: 'Download icx build artifact'
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: 'Install oneAPI Base Toolkit'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
+      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
+      & "$(BAZELISK_EXE)" version
+    displayName: 'install-bazel'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      bash .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
+      echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
+      echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
+      echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
+    displayName: 'bazel-configure'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set PATH=%TEST_PATH%
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'daal-cpp-examples-thread-release-dynamic'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
+      set /p OUTPUT_BASE=<output_base.txt
+      set "OUTPUT_BASE=%OUTPUT_BASE:/=\%"
+      set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
+      set PATH=%TEST_PATH%
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'cpp-examples-thread-release-dynamic'
 
 
 - job: WindowsSklearnex

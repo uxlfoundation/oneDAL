@@ -54,6 +54,7 @@ cc_toolchain_config(
     cc_link_path = "%{cc_link_path}",
     dpcc_link_path = "%{dpcc_link_path}",
     ar_path = "%{ar_path}",
+    ar_merge_path = "%{ar_merge_path}",
     cxx_builtin_include_directories = [%{cxx_builtin_include_directories}],
     compile_flags_cc = [%{compile_flags_cc}],
     compile_flags_dpcc = [%{compile_flags_dpcc}],
