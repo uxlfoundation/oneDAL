@@ -144,12 +144,13 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
                     dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal", "mkl_embed"],
-                    features=[], **kwargs):
+                    features=[], def_file=None, dpc_def_file=None,**kwargs):
     cc_dynamic_lib(
         name = name,
         lib_name = lib_name,
         lib_tags = lib_tags,
         deps = dal_deps + extra_deps + host_deps,
+        def_file = def_file,
         **kwargs
     )
     cc_dynamic_lib(
@@ -157,6 +158,7 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = lib_tags,
+        def_file = dpc_def_file,
         # Some dynamic DPC libraries also need host-only objects, e.g. the
         # Windows delay-load shim for DAAL threading symbols.
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + host_deps,
