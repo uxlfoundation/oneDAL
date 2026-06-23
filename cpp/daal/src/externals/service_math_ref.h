@@ -137,6 +137,12 @@ struct RefMath<double, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
     }
 
+    static void vInvSqrt(SizeType n, const double * a, double * b)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) b[i] = 1.0 / sqrt(a[i]);
+    }
+
     static void vInvSqrtI(SizeType n, const double * a, const SizeType inca, double * b, const SizeType incb)
     {
 #pragma omp simd
@@ -327,6 +333,12 @@ struct RefMath<float, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vInvSqrt(SizeType n, const float * a, float * b)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) b[i] = 1.0f / sqrtf(a[i]);
     }
 
     static void vInvSqrtI(SizeType n, const float * a, const SizeType inca, float * b, const SizeType incb)
