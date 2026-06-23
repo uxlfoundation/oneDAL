@@ -27,8 +27,6 @@
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
 #include "oneapi/dal/backend/primitives/sort/sort.hpp"
 
-#include <iostream>
-
 namespace oneapi::dal::hdbscan::backend {
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -647,12 +645,9 @@ inline sycl::event build_mst(sycl::queue& queue,
     const Float* mrd_ptr = mrd_matrix.get_data();
     const std::int32_t max_rounds = 64;
     sycl::event last_event = init_event;
-    std::cout << "[hdbscan-gpu][build_mst] BEGIN init wait" << std::endl;
     init_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][build_mst] END   init ok" << std::endl;
 
     for (std::int32_t round = 0; round < max_rounds; round++) {
-        std::cout << "[hdbscan-gpu][build_mst] round " << round << " BEGIN find" << std::endl;
         // Step A: parallel find nearest different-component neighbor
         auto find_event = boruvka_find_nearest_mrd<Float>(queue,
                                                           mrd_ptr,
@@ -662,9 +657,7 @@ inline sycl::event build_mst(sycl::queue& queue,
                                                           n,
                                                           { last_event });
         find_event.wait_and_throw();
-        std::cout << "[hdbscan-gpu][build_mst] round " << round << " END   find ok" << std::endl;
 
-        std::cout << "[hdbscan-gpu][build_mst] round " << round << " BEGIN merge" << std::endl;
         // Step B: reduce + merge (single_task — O(N) work)
         auto merge_event = boruvka_merge_components<Float>(queue,
                                                            comp_ptr,
@@ -683,21 +676,15 @@ inline sycl::event build_mst(sycl::queue& queue,
                                                            n,
                                                            { find_event });
         merge_event.wait_and_throw();
-        std::cout << "[hdbscan-gpu][build_mst] round " << round << " END   merge ok" << std::endl;
 
-        std::cout << "[hdbscan-gpu][build_mst] round " << round << " BEGIN compress" << std::endl;
         // Step C: parallel path compression
         auto compress_event =
             boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
         compress_event.wait_and_throw();
-        std::cout << "[hdbscan-gpu][build_mst] round " << round << " END   compress ok"
-                  << std::endl;
 
         // Check termination
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
         const std::int32_t nc = num_comp_host.get_data()[0];
-        std::cout << "[hdbscan-gpu][build_mst] round " << round
-                  << " num_components_remaining=" << nc << std::endl;
         if (nc <= 1) {
             last_event = compress_event;
             break;
@@ -805,15 +792,9 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
     const Float inv_alpha = static_cast<Float>(1.0 / alpha);
     const std::int32_t max_rounds = 64;
     sycl::event last_event = init_event;
-    std::cout << "[hdbscan-gpu][build_mst_otf] BEGIN init wait metric_id=" << metric_id
-              << " deg_f=" << static_cast<double>(deg_f)
-              << " inv_alpha=" << static_cast<double>(inv_alpha) << std::endl;
     init_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][build_mst_otf] END   init ok" << std::endl;
 
     for (std::int32_t round = 0; round < max_rounds; round++) {
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round << " BEGIN find_otf"
-                  << std::endl;
         auto find_event = boruvka_find_nearest_otf<Float>(queue,
                                                           data_ptr,
                                                           col_count,
@@ -827,10 +808,7 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
                                                           inv_alpha,
                                                           { last_event });
         find_event.wait_and_throw();
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round << " END   find_otf ok"
-                  << std::endl;
 
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round << " BEGIN merge" << std::endl;
         auto merge_event = boruvka_merge_components<Float>(queue,
                                                            comp_ptr,
                                                            uf_parent_ptr,
@@ -848,21 +826,13 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
                                                            n,
                                                            { find_event });
         merge_event.wait_and_throw();
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round << " END   merge ok"
-                  << std::endl;
 
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round << " BEGIN compress"
-                  << std::endl;
         auto compress_event =
             boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
         compress_event.wait_and_throw();
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round << " END   compress ok"
-                  << std::endl;
 
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
         const std::int32_t nc = num_comp_host.get_data()[0];
-        std::cout << "[hdbscan-gpu][build_mst_otf] round " << round
-                  << " num_components_remaining=" << nc << std::endl;
         if (nc <= 1) {
             last_event = compress_event;
             break;
@@ -901,19 +871,15 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
     ONEDAL_PROFILER_TASK(hdbscan.sort_mst_by_weight, queue);
 
     ONEDAL_ASSERT(edge_count > 0);
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN edge_count=" << edge_count << std::endl;
 
     // Create index array [0, 1, 2, ..., edge_count-1]
     using Index = std::uint32_t;
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN alloc indices" << std::endl;
     auto [indices, indices_event] =
         pr::ndarray<Index, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     indices_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][sort_mst] END   alloc indices ok" << std::endl;
 
     Index* ind_ptr = indices.get_mutable_data();
     sycl::event ind_alloc_event = indices_event;
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN iota fill" << std::endl;
     auto iota_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.depends_on({ ind_alloc_event });
@@ -922,24 +888,19 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
         });
     });
     iota_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][sort_mst] END   iota fill ok" << std::endl;
 
     // Sort weights with corresponding indices using radix sort
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN radix_sort_indices_inplace" << std::endl;
     pr::radix_sort_indices_inplace<Float, Index> sorter(queue);
     auto sort_event = sorter(mst_weights, indices, { iota_event });
     sort_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][sort_mst] END   radix_sort_indices_inplace ok" << std::endl;
 
     // Permute mst_from and mst_to according to sorted indices
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN alloc sorted_from/sorted_to" << std::endl;
     auto [sorted_from, sf_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [sorted_to, st_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     sf_event.wait_and_throw();
     st_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][sort_mst] END   alloc sorted_from/sorted_to ok" << std::endl;
 
     const std::int32_t* from_ptr = mst_from.get_data();
     const std::int32_t* to_ptr = mst_to.get_data();
@@ -949,7 +910,6 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
 
     sycl::event sf_alloc_event = sf_event;
     sycl::event st_alloc_event = st_event;
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN permute endpoints" << std::endl;
     auto permute_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ sort_event, sf_alloc_event, st_alloc_event });
         h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
@@ -960,13 +920,11 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
         });
     });
     permute_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][sort_mst] END   permute endpoints ok" << std::endl;
 
     // Copy permuted results back into mst_from and mst_to
     std::int32_t* mst_from_ptr = mst_from.get_mutable_data();
     std::int32_t* mst_to_ptr = mst_to.get_mutable_data();
 
-    std::cout << "[hdbscan-gpu][sort_mst] BEGIN copy back to mst_from/mst_to" << std::endl;
     auto copy_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ permute_event });
         h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
@@ -976,8 +934,6 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
         });
     });
     copy_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][sort_mst] END   copy back ok" << std::endl;
-    std::cout << "[hdbscan-gpu][sort_mst] DONE" << std::endl;
 
     return copy_event;
 }
@@ -1488,17 +1444,8 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     // With nClusters ≤ row_count, the bound is `3*row_count - 2`.
     const std::int64_t max_condensed = 3 * row_count;
     const std::int64_t max_clusters = total_nodes;
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN row_count=" << row_count
-              << " edge_count=" << edge_count << " total_nodes=" << total_nodes
-              << " max_condensed=" << max_condensed << " max_clusters=" << max_clusters
-              << " min_cluster_size=" << min_cluster_size
-              << " cluster_selection=" << cluster_selection
-              << " allow_single_cluster=" << allow_single_cluster
-              << " cluster_selection_epsilon=" << static_cast<double>(cluster_selection_epsilon)
-              << " max_cluster_size=" << max_cluster_size << std::endl;
 
     // Allocate working memory on device
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN allocate union-find arrays" << std::endl;
     auto [uf_parent, uf_parent_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
     auto [comp_size, comp_size_ev] =
@@ -1506,9 +1453,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     auto [comp_to_node, comp_to_node_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
     queue.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   allocate union-find arrays" << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN allocate dendrogram arrays" << std::endl;
     auto [node_size, ns_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
     auto [left_child, lc_ev] =
@@ -1520,10 +1465,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     auto [dendro_to_cluster, dtc_ev] =
         pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
     queue.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   allocate dendrogram arrays" << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN allocate condensed-tree arrays ("
-              << max_condensed << ")" << std::endl;
     auto [cond_parent, cp_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
     auto [cond_child, cc_ev] =
@@ -1535,11 +1477,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     auto [cond_count_arr, cca_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     queue.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   allocate condensed-tree arrays"
-              << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN allocate per-cluster arrays ("
-              << max_clusters << ")" << std::endl;
     auto [stability, stab_ev] =
         pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
     auto [lambda_birth, lb_ev] =
@@ -1559,9 +1497,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     auto [child_clusters_1, cc1_ev] =
         pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
     queue.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   allocate per-cluster arrays" << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN allocate point/scratch arrays" << std::endl;
     auto [point_fell_from, pff_ev] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
     auto [dendro_parent, dp_ev] =
@@ -1577,7 +1513,6 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     auto [n_clusters_arr, nca_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     queue.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   allocate point/scratch arrays" << std::endl;
 
     // Collect all allocation events into a single dependency vector
     bk::event_vector all_events = deps;
@@ -1632,32 +1567,17 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     w.max_cluster_size = max_cluster_size;
 
     // Submit kernels via helpers
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN phase1 build_dendrogram_kernels"
-              << std::endl;
     auto k2_event = build_dendrogram_kernels<Float>(queue, w, all_events);
     k2_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   phase1 build_dendrogram_kernels ok"
-              << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN phase2 build_condensed_tree_kernel"
-              << std::endl;
     auto k3a_event = build_condensed_tree_kernel<Float>(queue, w, { k2_event });
     k3a_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   phase2 build_condensed_tree_kernel ok"
-              << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN phase3 eom_select_clusters_kernel"
-              << std::endl;
     auto k3b_event = eom_select_clusters_kernel<Float>(queue, w, { k3a_event });
     k3b_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   phase3 eom_select_clusters_kernel ok"
-              << std::endl;
 
-    std::cout << "[hdbscan-gpu][extract_clusters] BEGIN phase4 assign_label_kernels" << std::endl;
     auto k4_event = assign_label_kernels<Float>(queue, w, { k3b_event });
     k4_event.wait_and_throw();
-    std::cout << "[hdbscan-gpu][extract_clusters] END   phase4 assign_label_kernels ok"
-              << std::endl;
     return k4_event;
 }
 
