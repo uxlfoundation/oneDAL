@@ -159,6 +159,7 @@ outputs:
       source_files:
         - examples
         - data
+        - dev/release_tests/package_metadata_test.sh
         - .ci/env/MKLConfig.cmake
       script: test-devel.sh  # [linux]
     about:

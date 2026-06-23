@@ -7,6 +7,7 @@ load("@onedal//dev/bazel:dal.bzl",
 dal_module(
     name = "cpu",
     auto = True,
+    lib_tag = "parameters",
     dal_deps = [
         "@onedal//cpp/oneapi/dal/algo/pca:core",
     ],

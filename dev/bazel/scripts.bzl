@@ -19,11 +19,11 @@
 load("@onedal//dev/bazel/config:config.bzl", "VersionInfo")
 
 # ---------------------------------------------------------------------------
-# vars.sh
+# Versioned template files
 # ---------------------------------------------------------------------------
 
-def _generate_vars_sh_impl(ctx):
-    """Expand vars.sh template substituting binary version placeholders."""
+def _generate_versioned_template_impl(ctx):
+    """Expand a release template substituting binary version placeholders."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.expand_template(
@@ -36,13 +36,13 @@ def _generate_vars_sh_impl(ctx):
     )
     return [DefaultInfo(files = depset([out]))]
 
-_generate_vars_sh = rule(
-    implementation = _generate_vars_sh_impl,
+_generate_versioned_template = rule(
+    implementation = _generate_versioned_template_impl,
     attrs = {
         "template": attr.label(
             allow_single_file = True,
             mandatory = True,
-            doc = "Source vars.sh template file.",
+            doc = "Source release template file.",
         ),
         "out": attr.string(
             mandatory = True,
@@ -57,13 +57,68 @@ _generate_vars_sh = rule(
 
 def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
     """Generate release environment script from template."""
-    _generate_vars_sh(
+    _generate_versioned_template(
         name = name,
         template = select({
             "@platforms//os:windows": "@onedal//deploy/local:vars_win.bat",
             "@platforms//os:osx": "@onedal//deploy/local:vars_mac.sh",
             "//conditions:default": "@onedal//deploy/local:vars_lnx.sh",
         }),
+        out = out,
+        **kwargs
+    )
+
+def generate_modulefile(name, out = "modulefiles/dal", **kwargs):
+    """Generate Linux modulefile from template."""
+    _generate_versioned_template(
+        name = name,
+        template = "@onedal//deploy/local:dal",
+        out = out,
+        **kwargs
+    )
+
+# ---------------------------------------------------------------------------
+# CMake package config
+# ---------------------------------------------------------------------------
+
+def _generate_cmake_config_impl(ctx):
+    vi = ctx.attr._version_info[VersionInfo]
+    out = ctx.actions.declare_file(ctx.attr.out)
+    ctx.actions.expand_template(
+        template = ctx.file.template,
+        output = out,
+        substitutions = {
+            "@DAL_ROOT_REL_PATH@": "../../..",
+            "@VERSIONS_SET@": "FALSE",
+            "@DAL_VER_MAJOR_BIN@": "",
+            "@DAL_VER_MINOR_BIN@": "",
+            "@ARCH_DIR_ONEDAL@": "intel64",
+            "@DLL_REL_PATH@": "redist",
+            "@INC_REL_PATH@": "include",
+            "@oneDAL_VERSION@": "",
+        },
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+_generate_cmake_config = rule(
+    implementation = _generate_cmake_config_impl,
+    attrs = {
+        "template": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "out": attr.string(mandatory = True),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
+    },
+)
+
+def generate_cmake_config(name, template, out, **kwargs):
+    _generate_cmake_config(
+        name = name,
+        template = template,
         out = out,
         **kwargs
     )
@@ -81,7 +136,7 @@ def _generate_pkgconfig_impl(ctx):
         onedal_libs = (
             "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
             if ctx.attr.static else
-            "${libdir}/onedal_dll.lib ${libdir}/onedal_core_dll.lib"
+            "${libdir}/onedal_dll.lib ${libdir}/onedal_parameters_dll.lib ${libdir}/onedal_core_dll.lib"
         )
         ctx.actions.write(
             output = out,
@@ -103,27 +158,40 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
             ),
         )
     else:
-        ctx.actions.run_shell(
-            inputs = [ctx.file.template],
-            outputs = [out],
-            command = (
-                "${{CC:-gcc}} -E -P -x c " +
-                "-DDAL_MAJOR_BINARY={binary_major} " +
-                "-DDAL_MINOR_BINARY={binary_minor} " +
-                "-DDAL_MAJOR={major} " +
-                "-DDAL_MINOR={minor} " +
-                "{template} -o {out}"
-            ).format(
-                binary_major = vi.binary_major,
-                binary_minor = vi.binary_minor,
+        suffix = "a" if ctx.attr.static else "so"
+        ctx.actions.write(
+            output = out,
+            content = """#===============================================================================
+# Copyright contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+prefix=${{pcfiledir}}/../../
+exec_prefix=${{prefix}}
+libdir=${{exec_prefix}}/lib/intel64
+includedir=${{prefix}}/include
+
+Name: oneDAL
+Description: oneAPI Data Analytics Library
+Version: {major}.{minor}
+URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
+Libs: ${{libdir}}/libonedal.{suffix} ${{libdir}}/libonedal_core.{suffix} ${{libdir}}/libonedal_thread.{suffix} ${{libdir}}/libonedal_parameters.{suffix} -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
+Cflags: -std=c++17 -Wno-deprecated-declarations -I${{includedir}}
+""".format(
                 major = vi.major,
                 minor = vi.minor,
-                template = ctx.file.template.path,
-                out = out.path,
+                suffix = suffix,
             ),
-            mnemonic = "GenPkgConfig",
-            progress_message = "Generating pkg-config file {}".format(out.short_path),
-            use_default_shell_env = True,
         )
     return [DefaultInfo(files = depset([out]))]
 

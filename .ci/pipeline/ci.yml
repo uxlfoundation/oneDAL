@@ -415,7 +415,7 @@ jobs:
       # Display oneDAL build configuration
       bazel build @config//:dump
       echo
-      cat bazel-bin/external/+_repo_rules+config/config.json
+      cat bazel-bin/external/+declare_onedal_config+config/config.json
       echo
     displayName: 'bazel-configure'
 
@@ -524,10 +524,12 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      . "$(DALROOT)/env/vars.sh"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
-                 --test_env DALROOT
+                 --test_env DALROOT \
+                 --test_env LD_LIBRARY_PATH
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
@@ -536,10 +538,12 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      . "$(DALROOT)/env/vars.sh"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
-                 --test_env DALROOT
+                 --test_env DALROOT \
+                 --test_env LD_LIBRARY_PATH
     displayName: 'cpp-examples-thread-release-dynamic'
 
   - script: |
@@ -593,6 +597,27 @@ jobs:
       fi
     displayName: 'bazel-cache-limit'
 
+- job: 'LinuxReleaseCompare'
+  dependsOn:
+  - LinuxMakeGNU_MKL
+  - LinuxBazel
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'lnx32e build'
+      path: '$(Pipeline.Workspace)/make'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'lnx32e Bazel build'
+      path: '$(Pipeline.Workspace)/bazel'
+  - script: |
+      python3 dev/release_tests/compare_release_trees.py \
+        --platform linux \
+        --make "$(Pipeline.Workspace)/make/daal/latest" \
+        --bazel "$(Pipeline.Workspace)/bazel"
+    displayName: 'Compare Make and Bazel release trees'
 
 - job: 'WindowsBazel'
   timeoutInMinutes: 0
@@ -849,6 +874,12 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\build.bat onedal_dpc icx avx2
     displayName: 'make onedal_dpc'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) icx build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload Intel build artifacts'
+    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib icx cmake
@@ -865,6 +896,30 @@ jobs:
       tree -h -I include __nuget/inteldal*/
       ls -lh __nuget/inteldal*.nupkg
     displayName: 'nuget pkg'
+
+- job: 'WindowsReleaseCompare'
+  dependsOn:
+  - WindowsMakeIntel
+  - WindowsBazel
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+  steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'win32e icx build'
+      path: '$(Pipeline.Workspace)\make'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'win32e Bazel icx build'
+      path: '$(Pipeline.Workspace)\bazel'
+  - powershell: |
+      python dev/release_tests/compare_release_trees.py `
+        --platform windows `
+        --structure-only `
+        --make "$(Pipeline.Workspace)\make\daal\latest" `
+        --bazel "$(Pipeline.Workspace)\bazel"
+    displayName: 'Compare Make and Bazel release tree structure'
+    continueOnError: true
 
 
 - job: WindowsSklearnex
