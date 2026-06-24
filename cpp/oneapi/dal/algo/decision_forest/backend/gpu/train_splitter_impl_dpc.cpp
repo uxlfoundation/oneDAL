@@ -194,7 +194,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                             maximum<Index>());
 
                 const Float rand_val = ftr_rnd_ptr[node_id * selected_ftr_count + ftr_idx];
-                const Index random_bin_ofs = static_cast<Index>(rand_val * (max_bin - min_bin + 1));
+                const Index random_bin_count = sycl::max(max_bin - min_bin, Index(1));
+                const Index random_bin_ofs =
+                    sycl::min(static_cast<Index>(rand_val * random_bin_count),
+                              random_bin_count - Index(1));
                 ts_scal.ftr_bin = min_bin + random_bin_ofs;
 
                 const Index count = Index(bin <= ts_scal.ftr_bin);
@@ -693,11 +696,13 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                         }
                     }
                     // Select best split among bin block
-                    for (Index i = act_bin_block / 2; i > 0; i >>= 1) {
+                    for (Index offset = 1; offset < act_bin_block; offset <<= 1) {
                         item.barrier(sycl::access::fence_space::local_space);
-                        if (local_id < i && (local_id + i) < act_bin_block) {
+                        const Index reduce_mask = (offset << 1) - 1;
+                        if (((local_id & reduce_mask) == 0) &&
+                            (local_id + offset < act_bin_block)) {
                             split_scalar_t& s1 = local_scalars[local_id];
-                            split_scalar_t& s2 = local_scalars[local_id + i];
+                            split_scalar_t& s2 = local_scalars[local_id + offset];
                             if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
                                 s1.copy(s2);
                             }
@@ -757,14 +762,16 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
             }
 
             // Select best split among working group
-            for (Index i = local_size / 2; i > 0; i >>= 1) {
+            const Index reduce_count = sycl::min(local_size, ftr_count);
+            for (Index offset = 1; offset < reduce_count; offset <<= 1) {
                 item.barrier(sycl::access::fence_space::local_space);
-                if (local_id < i && (local_id + i) < ftr_count) {
+                const Index reduce_mask = (offset << 1) - 1;
+                if (((local_id & reduce_mask) == 0) && (local_id + offset < reduce_count)) {
                     split_scalar_t& s1 = node_splits[local_id];
-                    split_scalar_t& s2 = node_splits[local_id + i];
+                    split_scalar_t& s2 = node_splits[local_id + offset];
                     if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
                         s1.copy(s2);
-                        ftr_indices[local_id] = ftr_indices[local_id + i];
+                        ftr_indices[local_id] = ftr_indices[local_id + offset];
                     }
                 }
             }

@@ -78,7 +78,7 @@ public:
     Status stepM_merge(size_t iteration);
 
     static void stepE(const size_t nVectorsInCurrentBlock, Task<algorithmFPType, cpu> & t, em_gmm::CovarianceStorageId covType);
-    static algorithmFPType computePartialLogLikelyhood(const size_t nVectorsInCurrentBlock, Task<algorithmFPType, cpu> & t);
+    static algorithmFPType computePartialLogLikelihood(const size_t nVectorsInCurrentBlock, Task<algorithmFPType, cpu> & t);
     static Status stepM_partial(const size_t nVectorsInCurrentBlock, Task<algorithmFPType, cpu> & t, em_gmm::CovarianceStorageId covType);
     static void stepM_mergePartialSums(algorithmFPType * cp_n, algorithmFPType * cp_m, algorithmFPType * mean_n, algorithmFPType * mean_m,
                                        algorithmFPType & w_n, algorithmFPType & w_m, size_t nFeatures, GmmModel<algorithmFPType, cpu> * covs);
@@ -87,7 +87,7 @@ public:
     algorithmFPType * means;
     algorithmFPType * logAlpha;
     int * iterCounterArray;
-    algorithmFPType * logLikelyhoodArray;
+    algorithmFPType * logLikelihoodArray;
 
     size_t blockSizeDefault;
     size_t nBlocks;
@@ -95,7 +95,7 @@ public:
     const DAAL_INT nFeatures;
     const DAAL_INT nVectors;
     const DAAL_INT nComponents;
-    algorithmFPType logLikelyhoodCorrection;
+    algorithmFPType logLikelihoodCorrection;
     const DAAL_INT maxIterations;
     const algorithmFPType threshold;
     TArray<WriteRows<algorithmFPType, cpu, NumericTable>, cpu> covsPtr;

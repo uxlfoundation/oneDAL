@@ -89,10 +89,10 @@ class PropertyTransformer(doxypy.TransformerPass):
     def _get_properties_info(cls, node):
         getters = OrderedDict(cls._get_access_methods(node, 'get'))
         setters = OrderedDict(cls._get_access_methods(node, 'set'))
-        intersection = getters.keys() & setters.keys()
         PropertyInfo = namedtuple('PropertyInfo', ['getter', 'setter'])
-        for name in intersection:
-            yield name, PropertyInfo(getters[name], setters[name])
+        for name, getter in getters.items():
+            if name in setters:
+                yield name, PropertyInfo(getter, setters[name])
 
     @classmethod
     def _get_access_methods(cls, node, direction):

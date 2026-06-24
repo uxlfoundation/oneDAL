@@ -5,7 +5,7 @@ cc_library(
     hdrs = glob([
         "include/**/*.h",
         "include/oneapi/**/*.hpp",
-    ], allow_empty=True),
+    ], allow_empty = True),
     includes = [ "include" ],
 )
 
@@ -43,15 +43,26 @@ cc_library(
     ],
     deps = [
         ":headers",
-        "@mkl//:mkl_core",
+    ],
+)
+
+cc_library(
+    name = "onedal_static_dpc",
+    srcs = [
+        "lib/intel64/libonedal_dpc.a",
+        "lib/intel64/libonedal_parameters_dpc.a",
+    ],
+    deps = [
+        ":headers",
+        "@mkl//:mkl_dpc",
     ],
 )
 
 cc_library(
     name = "core_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal_core.so*",
-    ], allow_empty=True),
+        "lib/intel64/libonedal_core.so.%{version_binary_major}",
+    ]),
     deps = [
         ":headers",
         # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
@@ -60,11 +71,18 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "core_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal_core.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "thread_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal_thread.so*",
-    ], allow_empty=True),
+        "lib/intel64/libonedal_thread.so.%{version_binary_major}",
+    ]),
     deps = [
         ":headers",
         "@tbb//:tbb_binary",
@@ -72,23 +90,41 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "thread_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal_thread.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "onedal_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal.so*",
-        "lib/intel64/libonedal_parameters.so*",
-    ], allow_empty=True),
+        # Link through the SONAME symlinks. Bazel's _solib runfiles then expose
+        # names like libonedal.so.4, matching DT_NEEDED in test executables.
+        "lib/intel64/libonedal.so.%{version_binary_major}",
+        "lib/intel64/libonedal_parameters.so.%{version_binary_major}",
+    ]),
     deps = [
         ":headers",
         "@mkl//:mkl_static",
     ],
 )
 
+filegroup(
+    name = "onedal_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal.so*",
+        "lib/intel64/libonedal_parameters.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "onedal_dynamic_dpc",
     srcs = glob([
-        "lib/intel64/libonedal_dpc.so*",
-        "lib/intel64/libonedal_parameters_dpc.so*",
+        "lib/intel64/libonedal_dpc.so.%{version_binary_major}",
+        # Link through the SONAME symlink for the same _solib/runfiles reason.
+        "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}",
     ], allow_empty=True),
     deps = [
         ":headers",

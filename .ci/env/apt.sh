@@ -32,12 +32,12 @@ function add_repo {
 
 function install_dpcpp {
     # DPC++ compiler version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2025.3.3-30 intel-oneapi-runtime-libs
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.0.0-947 intel-oneapi-runtime-libs
 }
 
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-tbb-devel=2022.3.1-400
+    sudo apt-get install -y intel-oneapi-tbb-devel=2023.0.0-724
 }
 
 function install_dpl {
@@ -46,7 +46,7 @@ function install_dpl {
 
 function install_mkl {
     # MKL version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-mkl-devel=2025.3.1-8
+    sudo apt-get install -y intel-oneapi-mkl-devel=2026.0.0-908
     install_tbb
     install_dpl
 }
@@ -69,7 +69,8 @@ function install_gnu-cross-compilers {
 }
 
 function install_qemu_emulation_apt {
-    sudo apt-get install -y qemu-user-static
+    sudo apt-get install -f -y
+    sudo apt-get install -y qemu-user-static qemu-user binfmt-support
 }
 
 function install_opencl_apt {
@@ -77,10 +78,8 @@ function install_opencl_apt {
 }
 
 function install_qemu_emulation_deb {
-    # get last version of qemu listed on debian, changes may need to occur to this with version 10 of qemu
-    found_version=$(wget -q http://ftp.debian.org/debian/pool/main/q/qemu/ -O - | grep -oP "(?<=\")$1_.*_amd64.deb(?=\")" | tail -1)
-    wget http://ftp.debian.org/debian/pool/main/q/qemu/${found_version}
-    sudo dpkg -i ${found_version}
+    sudo apt-get install -f -y
+    sudo apt-get install -y qemu-user qemu-user-binfmt qemu-user-static
     sudo systemctl restart systemd-binfmt.service
 }
 
@@ -102,7 +101,7 @@ function build_sysroot {
     mkdir -p "$1"
     pushd "$1" || exit
     sudo apt-get install -y debootstrap build-essential
-    sudo debootstrap --arch="$2" --verbose --include=fakeroot,symlinks,libatomic1 --resolve-deps --variant=minbase --components=main,universe "$3" "$4"
+    sudo debootstrap --arch="$2" --verbose --include=fakeroot,symlinks,libatomic1,libstdc++6 --resolve-deps --variant=minbase --components=main,universe "$3" "$4"
     sudo chroot "$4" symlinks -cr .
     sudo chown "${USER}" -R "$4"
     rm -rf "${4:?}"/{dev,proc,run,sys,var}
@@ -163,9 +162,7 @@ elif [ "${component}" == "qemu-apt" ]; then
     install_qemu_emulation_apt
 elif [ "${component}" == "qemu-deb" ]; then
     update
-    install_qemu_emulation_deb qemu-user
-    install_qemu_emulation_deb qemu-user-binfmt
-    install_qemu_emulation_deb qemu-user-static
+    install_qemu_emulation_deb
 elif [ "${component}" == "llvm-version" ] ; then
     update
     install_llvm_version "$2"

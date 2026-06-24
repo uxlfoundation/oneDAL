@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0 # fetch tags for conda-build
       - name: System Info
@@ -64,13 +64,11 @@ jobs:
           conda config --add channels conda-forge
           conda config --set channel_priority strict
           conda update -y -q conda python
-      - name: Conda create
-        run: conda create -y -q -n build-env conda-build
+          conda install -y -q -n base conda-build
       - name: Conda build and test
         run: |
-          . /usr/share/miniconda/etc/profile.d/conda.sh
-          conda activate build-env
-          conda build . --variants "{cxx_compiler: ${{ matrix.cxx_compiler }}, cxx_compiler_version: ${{ matrix.cxx_compiler_version }}}"
+          conda build . \
+            --variants "{cxx_compiler: ${{ matrix.cxx_compiler }}, cxx_compiler_version: ${{ matrix.cxx_compiler_version }}}"
         env:
           # Note: AVX2 is used as the most common denominator for CI systems
           REQCPU: avx2

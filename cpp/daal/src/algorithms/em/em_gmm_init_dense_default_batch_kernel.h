@@ -162,8 +162,8 @@ private:
     double accuracyThreshold;
     HomogenNTPtr alpha;
     HomogenNTPtr means;
-    algorithmFPType loglikelyhood;
-    algorithmFPType maxLoglikelyhood;
+    algorithmFPType loglikelihood;
+    algorithmFPType maxLoglikelihood;
     algorithmFPType * varianceArray;
     TArray<algorithmFPType, cpu> varianceArrayPtr;
     TArray<int, cpu> selectedSetPtr;
@@ -180,7 +180,7 @@ public:
     virtual ~EMforKernel() {}
 
     ErrorID run(data_management::NumericTable & inputData, data_management::NumericTable & inputWeights, data_management::NumericTable & inputMeans,
-                data_management::DataCollectionPtr & inputCov, const em_gmm::CovarianceStorageId covType, algorithmFPType & loglikelyhood);
+                data_management::DataCollectionPtr & inputCov, const em_gmm::CovarianceStorageId covType, algorithmFPType & loglikelihood);
 };
 
 } // namespace internal

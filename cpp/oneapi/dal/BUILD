@@ -82,8 +82,8 @@ dal_static_lib(
 dal_static_lib(
     name = "static_parameters",
     lib_name = "onedal_parameters",
+    lib_tags = ["parameters"],
     dal_deps = [
-        ":static",
         "@onedal//cpp/oneapi/dal/algo:parameters",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
@@ -92,20 +92,62 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
+    # On Windows, onedal.dll must resolve all DAAL algorithm and MKL backend
+    # symbols at link time (lld-link does not allow unresolved externals), so
+    # embed the same DAAL/MKL-tagged inputs the DPC variant does. On Linux,
+    # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
+    # libonedal_core.so, so the host-only build keeps just the "dal" tag to
+    # avoid duplicating DAAL into onedal.so.
+    lib_tags = select({
+        "@platforms//os:windows": ["dal", "daal", "mkl_embed"],
+        "//conditions:default": ["dal"],
+    }),
+    dpc_lib_tags = ["dal", "daal", "mkl_embed"],
     dal_deps = [
         ":core",
         ":optional",
     ],
+    # On Windows, onedal.dll must resolve all externals at link time:
+    #   - static_parameters: parameter symbols not part of any other dep tree.
+    #   - services_win_dll_shim: delay-load stubs for threading entry points
+    #     (e.g. `_threaded_scalable_*`, `_daal_static_threader_reduce`) that
+    #     the embedded DAAL kernel objects reference. The real TBB-backed
+    #     symbols live in onedal_thread.dll. Mirrors onedal_core.dll above
+    #     and the original Make build.
+    host_deps = select({
+        "@platforms//os:windows": [
+            ":static_parameters",
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 dal_dynamic_lib(
     name = "dynamic_parameters",
     lib_name = "onedal_parameters",
+    lib_tags = select({
+        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "//conditions:default": ["parameters"],
+    }),
+    dpc_lib_tags = select({
+        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "//conditions:default": ["parameters"],
+    }),
     dal_deps = [
         ":dynamic",
         "@onedal//cpp/oneapi/dal/algo:parameters",
+        # The logistic regression parameter objects instantiate default
+        # optimizer wrappers implemented in the algorithm detail module. Linux
+        # keeps this resolved through libonedal.so, but Windows DLL links must
+        # see the implementation directly when building onedal_parameters.dll.
+        "@onedal//cpp/oneapi/dal/algo/logistic_regression/detail",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
+    host_deps = select({
+        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
+        "//conditions:default": [],
+    }),
 )
 
 filegroup(
