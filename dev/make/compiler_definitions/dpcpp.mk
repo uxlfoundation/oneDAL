@@ -68,7 +68,10 @@ endif
 
 
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+# ABI-safe debug-size reductions for the host side of DPC++: zstd-compress .debug_*
+# sections and dedup DWARF type DIEs. Device-side debug info is controlled separately
+# via --offload-compress / --offload-compression-level on the link line.
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g -gz=zstd -fdebug-types-section) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
