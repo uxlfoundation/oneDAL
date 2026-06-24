@@ -17,7 +17,10 @@
 
 import argparse
 import filecmp
+import re
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -52,6 +55,11 @@ BINARY_SUFFIXES = {
     ".lib",
     ".pdb",
     ".so",
+}
+
+SHARED_LIBRARY_SUFFIXES = {
+    "linux": (".so",),
+    "windows": (".dll",),
 }
 
 NORMALIZED_TEXT_LINES = {
@@ -135,6 +143,22 @@ def compare_sets(name, make_values, bazel_values, limit):
     return errors
 
 
+def compare_link_targets(make_links, bazel_links, limit):
+    errors = 0
+    common_links = set(make_links).intersection(bazel_links)
+    bad_links = [
+        path for path in sorted(common_links)
+        if make_links[path] != bazel_links[path]
+    ]
+    if bad_links:
+        errors += len(bad_links)
+        print(f"Symlink target mismatches: {len(bad_links)}")
+        for path in bad_links[:limit]:
+            print(f"  ! {path}: Make -> {make_links[path]}, Bazel -> {bazel_links[path]}")
+    print(f"Compared symlink targets: {len(common_links)}")
+    return errors
+
+
 def compare_text_files(make_root, bazel_root, files, limit):
     errors = 0
     mismatches = []
@@ -162,6 +186,135 @@ def compare_text_files(make_root, bazel_root, files, limit):
     return errors
 
 
+def run_tool(args):
+    result = subprocess.run(
+        args,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        errors="replace",
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+    return result.stdout
+
+
+def read_linux_exports(path):
+    nm = shutil.which("nm")
+    if nm:
+        output = run_tool([nm, "-D", "--defined-only", str(path)])
+        symbols = set()
+        for line in output.splitlines():
+            parts = line.split()
+            if len(parts) >= 3:
+                symbols.add(parts[-1].split("@", 1)[0])
+        return symbols
+
+    readelf = shutil.which("readelf")
+    if readelf:
+        output = run_tool([readelf, "-Ws", str(path)])
+        symbols = set()
+        for line in output.splitlines():
+            parts = line.split()
+            if len(parts) >= 8 and parts[3] == "FUNC" and parts[6] != "UND":
+                symbols.add(parts[7].split("@", 1)[0])
+        return symbols
+
+    raise RuntimeError("neither nm nor readelf is available")
+
+
+def read_windows_exports(path):
+    dumpbin = shutil.which("dumpbin")
+    if dumpbin:
+        output = run_tool([dumpbin, "/NOLOGO", "/EXPORTS", str(path)])
+        symbols = set()
+        in_exports = False
+        for line in output.splitlines():
+            if "ordinal" in line and "hint" in line and "RVA" in line:
+                in_exports = True
+                continue
+            if not in_exports:
+                continue
+            stripped = line.strip()
+            if not stripped or stripped.startswith("Summary"):
+                continue
+            parts = stripped.split()
+            if len(parts) >= 4 and parts[0].isdigit():
+                symbols.add(parts[3].split("=", 1)[0])
+        return symbols
+
+    llvm_nm = shutil.which("llvm-nm")
+    if llvm_nm:
+        output = run_tool([llvm_nm, "--defined-only", "--extern-only", str(path)])
+        symbols = set()
+        for line in output.splitlines():
+            parts = line.split()
+            if len(parts) >= 3 and re.match(r"^[A-Za-z]$", parts[-2]):
+                symbols.add(parts[-1])
+        return symbols
+
+    raise RuntimeError("neither dumpbin nor llvm-nm is available")
+
+
+def read_exports(platform, path):
+    if platform == "linux":
+        return read_linux_exports(path)
+    if platform == "windows":
+        return read_windows_exports(path)
+    raise ValueError(f"unsupported platform: {platform}")
+
+
+def is_shared_library(platform, path):
+    if platform == "linux":
+        return ".so" in Path(path).name
+    suffixes = SHARED_LIBRARY_SUFFIXES[platform]
+    return Path(path).suffix.lower() in suffixes
+
+
+def compare_shared_library_exports(platform, make_root, bazel_root, files, limit):
+    errors = 0
+    compared = 0
+    mismatches = []
+    unreadable = []
+
+    for path in sorted(files):
+        if not is_shared_library(platform, path):
+            continue
+        compared += 1
+        make_path = make_root / path
+        bazel_path = bazel_root / path
+        try:
+            make_exports = read_exports(platform, make_path)
+            bazel_exports = read_exports(platform, bazel_path)
+        except RuntimeError as err:
+            unreadable.append((path, str(err)))
+            continue
+        only_make = make_exports - bazel_exports
+        only_bazel = bazel_exports - make_exports
+        if only_make or only_bazel:
+            mismatches.append((path, only_make, only_bazel))
+
+    if unreadable:
+        errors += len(unreadable)
+        print(f"Shared library export read failures: {len(unreadable)}")
+        for path, err in unreadable[:limit]:
+            print(f"  ! {path}: {err}")
+
+    if mismatches:
+        errors += len(mismatches)
+        print(f"Shared library export mismatches: {len(mismatches)}")
+        for path, only_make, only_bazel in mismatches[:limit]:
+            print(f"  ! {path}: Make-only={len(only_make)}, Bazel-only={len(only_bazel)}")
+            for symbol in sorted(only_make)[:limit]:
+                print(f"    - {symbol}")
+            for symbol in sorted(only_bazel)[:limit]:
+                print(f"    + {symbol}")
+
+    print(f"Compared shared library exports: {compared}")
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compare Make and Bazel oneDAL release trees.",
@@ -169,9 +322,12 @@ def main():
     parser.add_argument("--make", required=True, type=Path)
     parser.add_argument("--bazel", required=True, type=Path)
     parser.add_argument("--platform", choices=("linux", "windows"), required=True)
+    parser.add_argument("--check-level", type=int, choices=range(1, 5), default=4)
     parser.add_argument("--structure-only", action="store_true")
     parser.add_argument("--summary-limit", type=int, default=50)
     args = parser.parse_args()
+    if args.structure_only:
+        args.check_level = 1
 
     make_root = args.make.resolve()
     bazel_root = args.bazel.resolve()
@@ -193,25 +349,36 @@ def main():
     print(f"Make:  {len(make_dirs)} dirs, {len(make_files)} files, {len(make_links)} links")
     print(f"Bazel: {len(bazel_dirs)} dirs, {len(bazel_files)} files, {len(bazel_links)} links")
 
+    print(f"Check level: {args.check_level}")
+
     errors = 0
+    print("")
+    print("=== level 1: release tree entries ===")
     errors += compare_sets("directories", make_dirs, bazel_dirs, args.summary_limit)
     errors += compare_sets("files", make_files, bazel_files, args.summary_limit)
     errors += compare_sets("symlinks", set(make_links), set(bazel_links), args.summary_limit)
 
-    common_links = set(make_links).intersection(bazel_links)
-    bad_links = [
-        path for path in sorted(common_links)
-        if make_links[path] != bazel_links[path]
-    ]
-    if bad_links:
-        errors += len(bad_links)
-        print(f"Symlink target mismatches: {len(bad_links)}")
-        for path in bad_links[:args.summary_limit]:
-            print(f"  ! {path}: Make -> {make_links[path]}, Bazel -> {bazel_links[path]}")
+    if args.check_level >= 2:
+        print("")
+        print("=== level 2: symlink targets ===")
+        errors += compare_link_targets(make_links, bazel_links, args.summary_limit)
 
-    if not args.structure_only:
-        common_files = make_files.intersection(bazel_files)
+    common_files = make_files.intersection(bazel_files)
+    if args.check_level >= 3:
+        print("")
+        print("=== level 3: text file contents ===")
         errors += compare_text_files(make_root, bazel_root, common_files, args.summary_limit)
+
+    if args.check_level >= 4:
+        print("")
+        print("=== level 4: shared library exports ===")
+        errors += compare_shared_library_exports(
+            args.platform,
+            make_root,
+            bazel_root,
+            common_files,
+            args.summary_limit,
+        )
 
     if errors:
         print(f"Release comparison failed: {errors} difference(s)")
