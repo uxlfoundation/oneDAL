@@ -14,5 +14,17 @@ dal_module(
 
 dal_module(
     name = "common",
-    hdrs = glob(["*.hpp"]),
+    hdrs = glob(["*.hpp"]) + [
+        "@onedal//cpp/oneapi/dal:cpu_dispatcher",
+    ],
+    dal_deps = [
+        "@onedal//cpp/oneapi/dal:common",
+        "@onedal//cpp/oneapi/dal/backend/primitives:common",
+    ],
+    srcs = [
+        "sign_flip_cpu.cpp",
+    ],
+    extra_deps = [
+        "@onedal//cpp/oneapi:include_root",
+    ],
 )

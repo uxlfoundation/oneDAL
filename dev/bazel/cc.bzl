@@ -290,6 +290,7 @@ def _cc_dynamic_lib_impl(ctx):
         user_link_flags = linux_soname_flags + linux_linker_script_flags + ctx.attr.linkopts,
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts,
+        is_dpc = ctx.attr.lib_name.endswith("_dpc") or ctx.label.name.endswith("_dpc"),
     )
     default_files = dynamic_outputs.files
     if is_windows:
