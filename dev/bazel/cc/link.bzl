@@ -228,43 +228,38 @@ def _static(owner, name, actions, cc_toolchain,
 def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
           def_file=None, is_executable=False, user_link_flags=[],
-          is_windows=False, additional_inputs=[]):
+          is_windows=False, additional_inputs=[], is_dpc=False):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
             name, unpacked_linking_context.objects))
-    object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
-    additional_inputs = ([def_file] if def_file else []) + additional_inputs
-    direct_user_link_flags = ["@" + def_file.path] if def_file else []
-    direct_libraries_to_link = []
-
-    # Windows link.exe rejects response-file lines longer than 131071
-    # characters. Full all-ISA DPC DLLs can produce thousands of objects, so
-    # aggregate them into one private archive and link it whole-archive.
-    if is_windows and not is_executable and object_list:
-        direct_objects = [object_list[0]]
-        archived_objects = object_list[1:]
-        object_list = direct_objects
-        if archived_objects:
-            object_archive = _merge_static_libs(
-                filename = name + "_objects.lib",
-                actions = actions,
-                cc_toolchain = cc_toolchain,
-                feature_configuration = feature_configuration,
-                static_libs = archived_objects,
-                is_windows = True,
-            )
-            additional_inputs.append(object_archive)
-            direct_user_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
-            direct_libraries_to_link.append(cc_common.create_library_to_link(
-                actions = actions,
-                cc_toolchain = cc_toolchain,
-                feature_configuration = feature_configuration,
-                static_library = object_archive,
-                pic_static_library = object_archive,
-            ))
-
-    all_objects = depset(object_list)
+    all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
+    libraries_to_link = unpacked_linking_context.libraries_to_link
+    object_archive_link_flags = []
+    additional_link_inputs = list(additional_inputs)
+    if is_windows and all_object_list and not is_executable:
+        object_archive = _merge_static_libs(
+            filename = name + "_objects.lib",
+            actions = actions,
+            cc_toolchain = cc_toolchain,
+            feature_configuration = feature_configuration,
+            static_libs = all_object_list,
+            is_windows = True,
+        )
+        object_archive_to_link = cc_common.create_library_to_link(
+            actions = actions,
+            cc_toolchain = cc_toolchain,
+            feature_configuration = feature_configuration,
+            static_library = object_archive,
+            pic_static_library = object_archive,
+        )
+        libraries_to_link = [object_archive_to_link] + libraries_to_link
+        if is_dpc:
+            object_archive_link_flags.append("/link")
+        object_archive_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
+        additional_link_inputs.append(object_archive)
+        all_object_list = []
+    all_objects = depset(all_object_list)
     compilation_outputs = cc_common.create_compilation_outputs(
         objects = all_objects,
         pic_objects = all_objects,
@@ -274,11 +269,10 @@ def _link(owner, name, actions, cc_toolchain,
         unpacked_linking_context.user_link_flags
     )
     # Merge user_link_flags from both linking context and function parameters
-    all_user_link_flags = unpacked_user_link_flags + user_link_flags
+    all_user_link_flags = unpacked_user_link_flags + user_link_flags + object_archive_link_flags
     linker_input = cc_common.create_linker_input(
         owner = owner,
-        libraries = depset(direct_libraries_to_link +
-                           unpacked_linking_context.libraries_to_link),
+        libraries = depset(libraries_to_link),
         user_link_flags = depset(all_user_link_flags),
     )
     # TODO: Pass compilations outputs via linking contexts
@@ -296,14 +290,15 @@ def _link(owner, name, actions, cc_toolchain,
         linking_contexts = [linking_context],
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
-        user_link_flags = direct_user_link_flags,
-        additional_inputs = additional_inputs,
+        user_link_flags = ["@" + def_file.path] if def_file else [],
+        additional_inputs = ([def_file] if def_file else []) + additional_link_inputs,
     )
     return unpacked_linking_context, linking_outputs
 
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
-             def_file=None, user_link_flags=[], is_windows=False, additional_inputs=[]):
+             def_file=None, user_link_flags=[], is_windows=False,
+             additional_inputs=[], is_dpc=False):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
@@ -311,6 +306,7 @@ def _dynamic(owner, name, actions, cc_toolchain,
         user_link_flags=user_link_flags,
         is_windows=is_windows,
         additional_inputs=additional_inputs,
+        is_dpc=is_dpc,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None
@@ -358,6 +354,7 @@ def _executable(owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         is_executable = True,
         user_link_flags = user_link_flags,
+        is_windows = False,
     )
     if not linking_outputs.executable:
         return utils.warn("'{}' executable does not contain any " +
