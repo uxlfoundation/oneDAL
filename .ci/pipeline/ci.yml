@@ -64,6 +64,9 @@ jobs:
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
+    - checkout: self
+      fetchTags: false
+      persistCredentials: true
     - script: |
         .ci/env/apt.sh clang-format
         .ci/env/editorconfig-checker.sh
@@ -85,6 +88,9 @@ jobs:
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: |
       .ci/env/apt.sh dev-base
     displayName: 'apt-get install'
@@ -151,6 +157,9 @@ jobs:
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: |
       .ci/env/apt.sh dev-base
     displayName: 'apt-get install'
@@ -201,6 +210,9 @@ jobs:
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: |
       .ci/env/apt.sh miniforge
     displayName: 'apt-get install'
@@ -288,6 +300,9 @@ jobs:
   pool:
     vmImage: 'ubuntu-24.04'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: |
       .ci/env/apt.sh dev-base
     displayName: 'apt-get install'
@@ -377,6 +392,9 @@ jobs:
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: |
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
@@ -632,6 +650,9 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
   - powershell: |
@@ -791,6 +812,9 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: Install oneAPI Base Toolkit
   - script: |
@@ -855,6 +879,9 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
+  - checkout: self
+    fetchTags: false
+    persistCredentials: true
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: Install oneAPI Base Toolkit
   - script: |
