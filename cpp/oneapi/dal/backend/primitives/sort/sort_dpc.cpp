@@ -24,25 +24,22 @@
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Wkeyword-macro"
 
 // Workaround: some oneTBB versions annotate the override of
-// std::exception::what() with __TBB_EXPORTED_METHOD (= __thiscall on win-x86),
-// while newer MSVC vcruntime_exception.h declares the base with the default
-// calling convention. Recent clang/icx promotes calling-convention mismatch
-// on virtual overrides to a hard error, which #pragma diagnostic cannot
-// silence. Neutralize the macro before TBB's config establishes it.
-#if defined(_WIN32) || defined(_WIN64)
-#ifdef __TBB_EXPORTED_METHOD
-#undef __TBB_EXPORTED_METHOD
-#endif
-#define __TBB_EXPORTED_METHOD
-#ifdef __TBB_EXPORTED_FUNC
-#undef __TBB_EXPORTED_FUNC
-#endif
-#define __TBB_EXPORTED_FUNC
+// std::exception::what() with __TBB_EXPORTED_METHOD, which on Windows-x86
+// expands to `__thiscall`. Newer MSVC vcruntime_exception.h declares the
+// base with the default calling convention, so the mismatch on the virtual
+// override is a hard error that `#pragma diagnostic` cannot silence.
+#if defined(_WIN32) && defined(_WIN64)
+#define __thiscall
 #endif
 
 #include <oneapi/dpl/experimental/kernel_templates>
+
+#if defined(_WIN32) && defined(_WIN64)
+#undef __thiscall
+#endif
 
 #pragma clang diagnostic pop
 
