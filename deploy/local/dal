@@ -62,14 +62,18 @@ proc ModulesHelp { } {
 set dalroot "$componentroot"
 
 set daal_target_arch "intel64"
+set daal_libdir "$dalroot/lib"
+if {[file isdirectory "$dalroot/lib/$daal_target_arch"]} {
+    set daal_libdir "$dalroot/lib/$daal_target_arch"
+}
 
 # Setup environment variables
-setenv          DAL_MAJOR_BINARY   1
-setenv          DAL_MINOR_BINARY   1
+setenv          DAL_MAJOR_BINARY   __DAL_MAJOR_BINARY__
+setenv          DAL_MINOR_BINARY   __DAL_MINOR_BINARY__
 setenv          DALROOT            "$dalroot"
 
-prepend-path    LD_LIBRARY_PATH    "$dalroot/lib"
-prepend-path    LIBRARY_PATH       "$dalroot/lib"
+prepend-path    LD_LIBRARY_PATH    "$daal_libdir"
+prepend-path    LIBRARY_PATH       "$daal_libdir"
 prepend-path    CPLUS_INCLUDE_PATH "$dalroot/include/dal"
 prepend-path    CMAKE_PREFIX_PATH  "$dalroot"
 prepend-path    PKG_CONFIG_PATH    "$dalroot/lib/pkgconfig"

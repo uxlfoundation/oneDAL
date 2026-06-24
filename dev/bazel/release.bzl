@@ -120,7 +120,24 @@ def _try_relativize(path, start):
         return paths.relativize(path, start)
     return path
 
-def _copy_include(ctx, prefix):
+def _copy_version_header(ctx, src_file, dst_path, version_info):
+    dst_file = ctx.actions.declare_file(dst_path)
+    ctx.actions.expand_template(
+        template = src_file,
+        output = dst_file,
+        substitutions = {
+            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}".format(version_info.build),
+            "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}".format(version_info.major),
+            "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}".format(version_info.minor),
+            "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}".format(version_info.update),
+            "#define __INTEL_DAAL_STATUS__ 'A'": "#define __INTEL_DAAL_STATUS__ \"{}\"".format(version_info.status),
+            "#define __INTEL_DAAL_MAJOR_BINARY__ 999": "#define __INTEL_DAAL_MAJOR_BINARY__ {}".format(version_info.binary_major),
+            "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}".format(version_info.binary_minor),
+        },
+    )
+    return dst_file
+
+def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
     dst_files = []
     for include, prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
@@ -135,7 +152,11 @@ def _copy_include(ctx, prefix):
                 dst_path = _try_relativize(header.short_path, skip_prefix)
             elif prefix:
                 dst_path = paths.join(prefix, header.basename)
-            dst_file = _copy(ctx, header, paths.join(include_prefix, dst_path))
+            dst_path = paths.join(include_prefix, dst_path)
+            if header.short_path == "cpp/daal/include/services/library_version_info.h":
+                dst_file = _copy_version_header(ctx, header, dst_path, version_info)
+            else:
+                dst_file = _copy(ctx, header, dst_path)
             dst_files.append(dst_file)
     return dst_files
 
@@ -325,7 +346,7 @@ def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
     version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
     files = []
-    files += _copy_include(ctx, prefix)
+    files += _copy_include(ctx, prefix, version_info)
     files += _copy_lib(ctx, prefix, version_info)
     files += _copy_extra_files(ctx, prefix)
     files += _copy_data(ctx, prefix)

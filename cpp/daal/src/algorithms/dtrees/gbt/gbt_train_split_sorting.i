@@ -191,12 +191,16 @@ protected:
         const algorithmFPType * pgh = (const algorithmFPType *)_sharedData.ctx.grad(_sharedData.iTree);
         imp                         = _sharedData.ctx.grad(_sharedData.iTree)[aIdx[0]];
 
-        PRAGMA_VECTOR_ALWAYS
+        algorithmFPType gradient = imp.g;
+        algorithmFPType hessian  = imp.h;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : gradient, hessian))
         for (size_t i = 1; i < n; ++i)
         {
-            imp.g += pgh[2 * aIdx[i]];
-            imp.h += pgh[2 * aIdx[i] + 1];
+            gradient += pgh[2 * aIdx[i]];
+            hessian += pgh[2 * aIdx[i] + 1];
         }
+        imp.g = gradient;
+        imp.h = hessian;
     }
 
     const size_t _iFeature;

@@ -228,13 +228,13 @@ def _static(owner, name, actions, cc_toolchain,
 def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
           def_file=None, is_executable=False, user_link_flags=[],
-          is_windows=False):
+          is_windows=False, additional_inputs=[]):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
             name, unpacked_linking_context.objects))
     object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
-    additional_inputs = [def_file] if def_file else []
+    additional_inputs = ([def_file] if def_file else []) + additional_inputs
     direct_user_link_flags = ["@" + def_file.path] if def_file else []
     direct_libraries_to_link = []
 
@@ -303,13 +303,14 @@ def _link(owner, name, actions, cc_toolchain,
 
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
-             def_file=None, user_link_flags=[], is_windows=False):
+             def_file=None, user_link_flags=[], is_windows=False, additional_inputs=[]):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         def_file,
         user_link_flags=user_link_flags,
         is_windows=is_windows,
+        additional_inputs=additional_inputs,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None

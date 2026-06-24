@@ -15,21 +15,12 @@
 #===============================================================================
 
 package(default_visibility = ["//visibility:public"])
+load("@onedal//dev/bazel:daal.bzl", "daal_module")
 
-exports_files([
-    "dal",
-    "vars_lnx.sh",
-    "vars_mac.sh",
-    "vars_win.bat",
-    "config.txt",
-])
-
-filegroup(
-    name = "config_file",
-    srcs = ["config.txt"],
-)
-
-filegroup(
-    name = "modulefile_dal",
-    srcs = ["dal"],
+daal_module(
+    name = "kernel",
+    auto = True,
+    deps = [
+        "@onedal//cpp/daal:core",
+    ],
 )

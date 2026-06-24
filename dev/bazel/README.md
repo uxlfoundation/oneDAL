@@ -147,7 +147,7 @@ The most used Bazel commands are `build`, `test` and `run`.
   `dbg` and `fastbuild`. \
   Possible values:
    - `opt` _(default)_ compiles everything with optimizations `-O2`.
-   - `dbg` enables `-g`, `-O0` compiler switches and **assertions**.
+   - `dbg` enables `-g`, `-O1` compiler switches and **assertions**.
    - `fastbuild` optimizes build time, no optimizations, no debug information.
      Useful when one introduces massive changes and wants to check whether they
      break the build.
