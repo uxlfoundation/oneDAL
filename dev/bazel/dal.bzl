@@ -111,6 +111,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
             "oneapi/",
         ],
         exclude = [
+            "_dal_cpu_dispatcher_gen.hpp",
             "backend/",
             "test/",
             # Exclude all external-repository headers.  _match_file_name uses
@@ -124,7 +125,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
     )
 
 def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
-                   dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal"],
+                   dpc_deps=[], extra_deps=[], lib_tags=["dal"],
                    features=[], **kwargs):
     cc_static_lib(
         name = name,
@@ -143,8 +144,8 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal", "daal", "mkl_embed"],
-                    features=[], **kwargs):
+                    dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                    dpc_lib_tags=None, features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
         lib_name = lib_name,
@@ -156,7 +157,7 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         name = name + "_dpc",
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
-        lib_tags = lib_tags,
+        lib_tags = dpc_lib_tags if dpc_lib_tags != None else lib_tags,
         # Some dynamic DPC libraries also need host-only objects, e.g. the
         # Windows delay-load shim for DAAL threading symbols.
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + host_deps,

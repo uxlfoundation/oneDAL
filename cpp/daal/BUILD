@@ -156,6 +156,7 @@ daal_module(
 daal_module(
     name = "threading_tbb",
     srcs = glob(["src/threading/**/*.cpp"]),
+    visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
         "__TBB_LEGACY_MODE",
@@ -228,6 +229,7 @@ daal_algorithms(
         "objective_function/cross_entropy_loss",
         "objective_function/logistic_loss",
         "objective_function/mse",
+        "objective_function/precomputed",
         "optimization_solver",
         "optimization_solver/lbfgs",
         "optimization_solver/coordinate_descent",
@@ -239,6 +241,7 @@ daal_algorithms(
         "ridge_regression",
         "svd",
         "svm",
+        "tsne",
     ],
 )
 
@@ -259,6 +262,10 @@ daal_static_lib(
         ":threading_tbb",
     ],
 )
+
+exports_files([
+    "thread_dynamic.lds",
+])
 
 daal_dynamic_lib(
     name = "core_dynamic",
@@ -283,6 +290,7 @@ daal_dynamic_lib(
 daal_dynamic_lib(
     name = "thread_dynamic",
     lib_name = "onedal_thread",
+    linker_scripts = [":thread_dynamic.lds"],
     deps = [
         ":threading_tbb",
     ],

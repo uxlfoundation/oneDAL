@@ -16,6 +16,9 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 
+_BINARY_MAJOR = "4"
+_BINARY_MINOR = "0"
+
 ConfigFlagInfo = provider(
     fields = [
         "flag",
@@ -122,7 +125,7 @@ VersionInfo = provider(
         "status",
         # Binary ABI version (distinct from product version).
         # Used for SONAME and shared library symlinks.
-        # Matches Make's MAJORBINARY / MINORBINARY variables.
+        # oneDAL binary ABI version.
         "binary_major",
         "binary_minor",
     ],
@@ -151,8 +154,7 @@ version_info = rule(
         "build": attr.string(mandatory=True),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
-        # ABI binary version — used for SONAME and symlinks.
-        # Must match MAJORBINARY/MINORBINARY in makefile.
+        # ABI binary version used for SONAME and symlinks.
         "binary_major": attr.string(mandatory=True),
         "binary_minor": attr.string(mandatory=True),
     },
@@ -216,18 +218,6 @@ def _detect_cpu_extension(repo_ctx):
 def _declare_onedal_config_impl(repo_ctx):
     auto_cpu = _detect_cpu_extension(repo_ctx)
 
-    makefile_ver = repo_ctx.path(Label("@onedal//:makefile.ver"))
-    makefile_content = repo_ctx.read(makefile_ver)
-    
-    # Parse MAJORBINARY and MINORBINARY
-    binary_major = "4"
-    binary_minor = "0"
-    for line in makefile_content.splitlines():
-        if line.startswith("MAJORBINARY"):
-            binary_major = line.split("=")[1].strip()
-        elif line.startswith("MINORBINARY"):
-            binary_minor = line.split("=")[1].strip()
-
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
@@ -239,8 +229,8 @@ def _declare_onedal_config_impl(repo_ctx):
             "%{version_build}":         utils.datestamp(repo_ctx),
             "%{version_buildrev}":      "work",
             "%{version_status}":        "P",
-            "%{version_binary_major}":  binary_major,
-            "%{version_binary_minor}":  binary_minor,
+            "%{version_binary_major}":  _BINARY_MAJOR,
+            "%{version_binary_minor}":  _BINARY_MINOR,
         },
     )
 declare_onedal_config = repository_rule(
