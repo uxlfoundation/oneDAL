@@ -292,8 +292,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.cc,
-                    "-Wl,-no-as-needed",
-                    "-no-as-needed",
+                    "-Wl,--as-needed",
+                    "--as-needed",
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
@@ -327,8 +327,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.dpcc,
-                    "-Wl,-no-as-needed",
-                    "-no-as-needed",
+                    "-Wl,--as-needed",
+                    "--as-needed",
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
@@ -403,6 +403,10 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     # Some compilers like Intel uses -O2 by default
                     # Prefer -O1 because -O0 code may be painfully slow
                     "-O1",
+
+                    # Disable loop transformation warnings that appear with -O1
+                    # and are treated as errors in dbg configuration
+                    "-Wno-pass-failed",
 
                     # oneDAL specific defined to enabled assertions
                     "-DDEBUG_ASSERT",

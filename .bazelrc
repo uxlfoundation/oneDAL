@@ -134,20 +134,21 @@ test:dpc-private \
     --test_tag_filters="dpc,-public"
 
 
-# Configuration: 'release-dpc'
-# Build release artifacts including DPC++ libs.
-# Use --cpu=all for full ISA coverage, or --cpu=<isa> to restrict for CI speed.
-#   bazel build //:release --cpu=all                       # CPU only, all ISAs
-#   bazel build //:release --config=release-dpc --cpu=all  # with DPC++ libs
-#   bazel build //:release --cpu=avx2                      # CI: avx2 only
+# Configuration: 'release'
+# The //:release target automatically builds all ISA variants when
+# --cpu is unset (auto), and includes DPC++ libs by default.
+# Use --cpu=<isa> to restrict ISAs for CI speed, or --release_dpc=false
+# to disable DPC++ libs.
+#   bazel build //:release                       # CPU + DPC++, all ISAs
+#   bazel build //:release --release_dpc=false   # CPU only, all ISAs
+#   bazel build //:release --cpu=avx2            # CI: avx2 only
 build:release-dpc \
-    --release_dpc=True
-
+    --release_dpc=true
 
 # Configuration: 'dev'
-# Fast local development build — compiles for the host machine's
-# highest ISA (auto-detected), plus the baseline sse2 variant. Use this
-# to speed up iterative builds. NOT suitable for release/packaging.
+# Fast local development build — compiles only for the host machine's
+# highest ISA (auto-detected). Use this to speed up iterative builds.
+# NOT suitable for release/packaging.
 #   bazel build //cpp/oneapi/dal:tests --config=dev
 build:dev \
     --cpu=auto

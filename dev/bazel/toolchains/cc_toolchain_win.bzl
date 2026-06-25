@@ -200,6 +200,11 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
     link_flags_dpcc = ([
         "-fsycl",
         "-fsycl-device-code-split={}".format(dpcc_code_split),
+        # The icx driver does not add the SYCL runtime import library for
+        # Bazel's DLL link path when most device objects are supplied through
+        # a /WHOLEARCHIVE static library. Link it explicitly so generated
+        # registration thunks resolve __sycl_{,un}register_lib on Windows.
+        "sycl.lib",
     ]) if tools.is_dpc_found else []
 
     repo_ctx.template(

@@ -27,10 +27,11 @@ export DPL_ROOT=$PREFIX
 # libtbbmalloc.so.<N>, etc.) while oneDAL Make expects unversioned names in
 # TBBROOT/lib prerequisites.  Mirror the full libtbb* tree into a staging dir,
 # adding unversioned symlinks where missing.
-# Keep the staging path outside $SRC_DIR: conda-build can create source work
-# directories with shell/make-special characters on rebuilds (for example
-# ".../work(1)"), and oneDAL Make uses TBBROOT in prerequisites.
-export TBBROOT="$BUILD_PREFIX/__onedal_tbbroot"
+# Keep the staging path outside conda-build work/build prefixes:
+# oneDAL Make escapes parentheses as "222" internally, so timestamped conda
+# paths containing that digit sequence can be decoded into bogus parentheses
+# when used in prerequisites.
+export TBBROOT="/tmp/onedal-tbbroot"
 rm -rf "$TBBROOT"
 mkdir -p "$TBBROOT/lib"
 

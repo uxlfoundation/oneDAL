@@ -178,7 +178,7 @@ sed.eol.win = \r
 sed.eol.lnx =
 
 # sed's end of word
-sed.eow = $(sed.eol.$(_OS))
+sed.eow = $(sed.eow.$(_OS))
 # macOS default sed doesn't support it
 sed.eow.mac =
 sed.eow.win = \b

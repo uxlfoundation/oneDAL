@@ -265,5 +265,7 @@ using knn_reg_bf_types = COMBINE_TYPES((float, double),
 using knn_kdtree_cls_float_only = COMBINE_TYPES((float),
                                                 (knn::method::kd_tree),
                                                 (knn::task::classification));
-
+using knn_bf_cls_float_only = COMBINE_TYPES((float),
+                                            (knn::method::brute_force),
+                                            (knn::task::classification));
 } // namespace oneapi::dal::knn::test

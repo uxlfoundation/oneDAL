@@ -39,6 +39,39 @@ load("@onedal//dev/bazel/cc:link.bzl",
 
 ModuleInfo = onedal_cc_common.ModuleInfo
 
+def _collect_runfiles(deps):
+    runfiles = []
+    for dep in deps:
+        if DefaultInfo in dep:
+            runfiles.append(dep[DefaultInfo].default_runfiles)
+            runfiles.append(dep[DefaultInfo].data_runfiles)
+    return runfiles
+
+def _copy_windows_runtime_files(ctx, files, is_windows):
+    if not is_windows or not ctx.attr._is_test:
+        return []
+    outputs = []
+    for src in files:
+        if src.extension.lower() != "dll":
+            continue
+        out = ctx.actions.declare_file(src.basename)
+        ctx.actions.run(
+            executable = "cmd.exe",
+            inputs = [src],
+            outputs = [out],
+            arguments = [
+                "/d",
+                "/c",
+                'copy /Y "{}" "{}"'.format(
+                    src.path.replace("/", "\\"),
+                    out.path.replace("/", "\\"),
+                ),
+            ],
+            use_default_shell_env = True,
+        )
+        outputs.append(out)
+    return outputs
+
 def _init_cc_rule(ctx, features=[], disable_features=[]):
     toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
     cc_toolchain = toolchain.cc
@@ -100,7 +133,10 @@ def _cc_module_impl(ctx):
         compilation_context = compilation_context,
         tagged_linking_contexts = tagged_linking_contexts,
     )
-    return [module_info]
+    default_info = DefaultInfo(
+        runfiles = ctx.runfiles().merge_all(_collect_runfiles(ctx.attr.deps)),
+    )
+    return [module_info, default_info]
 
 _cc_module = rule(
     implementation = _cc_module_impl,
@@ -220,11 +256,11 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 
 def _cc_dynamic_lib_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx, features=[
-        # This feature will force toolchain to not link the produced executable/dynamic library
-        # against dynamic dependencies (-l) on Linux and MacOs. It's needed to get dependency-free
-        # .so/.dylib, where the symbols need to be resolved at executable build-time. On Windows
-        # this feature shall not make difference, because all symbols are need to be resolved at DLL
-        # build-time.
+        # Keep produced shared libraries free of dynamic Bazel deps on Linux.
+        # Release-dynamic tests provide standalone oneDAL libs through
+        # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
+        # live in test runfiles; DT_NEEDED entries on those deps are not
+        # resolved through the executable RUNPATH.
         "do_not_link_dynamic_dependencies",
     ])
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
@@ -234,8 +270,15 @@ def _cc_dynamic_lib_impl(ctx):
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
-    vi = ctx.attr._version_info[VersionInfo] if is_windows else None
+    vi = ctx.attr._version_info[VersionInfo]
     link_name = "{}.{}".format(ctx.attr.lib_name, vi.binary_major) if is_windows else ctx.attr.lib_name
+    linux_soname_flags = [] if is_windows else [
+        "-Wl,-soname,lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major),
+    ]
+    linux_linker_script_flags = [] if is_windows else [
+        "-Wl,--version-script,{}".format(script.path)
+        for script in ctx.files.linker_scripts
+    ]
     linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = link_name,
@@ -244,7 +287,9 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = ctx.attr.linkopts,
+        user_link_flags = linux_soname_flags + linux_linker_script_flags + ctx.attr.linkopts,
+        is_windows = is_windows,
+        additional_inputs = ctx.files.linker_scripts,
     )
     default_files = dynamic_outputs.files
     if is_windows:
@@ -288,6 +333,7 @@ cc_dynamic_lib = rule(
             default = [],
             doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
         ),
+        "linker_scripts": attr.label_list(allow_files=True),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
@@ -305,6 +351,9 @@ def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
         return
     toolchain, feature_config = _init_cc_rule(ctx)
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
         tagged_linking_contexts, ctx.attr.lib_tags)
@@ -317,10 +366,11 @@ def _cc_exec_impl(ctx):
         linking_contexts = linking_contexts,
         user_link_flags = ctx.attr.user_link_flags,
     )
+    runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data, is_windows)
     default_info = DefaultInfo(
-        files = depset([ executable ]),
-        runfiles = ctx.runfiles(
-            files = ctx.files.data,
+        files = depset([executable] + runtime_files),
+        runfiles = ctx.runfiles(files = ctx.files.data + runtime_files).merge_all(
+            _collect_runfiles(ctx.attr.deps + ctx.attr.data),
         ),
         executable = executable,
     )
@@ -333,6 +383,10 @@ cc_test = rule(
         "deps": attr.label_list(),
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
+        "_is_test": attr.bool(default=True),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
@@ -346,6 +400,10 @@ cc_executable = rule(
         "deps": attr.label_list(),
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
+        "_is_test": attr.bool(default=False),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
