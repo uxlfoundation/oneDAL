@@ -48,12 +48,8 @@ namespace training
 {
 namespace internal
 {
-// Rescale the sample weights to a canonical magnitude (max == 1) before training.
-// Tree structure depends only on relative weights, but the weighted-variance and
-// impurity-decrease arithmetic is sensitive to absolute magnitude, so without this
-// the fit is not invariant under a uniform scaling of the weights. Returns an empty
-// pointer (leaving the original table in use) when there is nothing to rescale, e.g.
-// no weights or a non-positive maximum.
+// Rescale weights to max == 1: the fit should depend only on relative weights, but
+// the weighted-variance / impurity-decrease math is sensitive to absolute magnitude.
 template <typename algorithmFPType, CpuType cpu>
 services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights, services::Status & s)
 {
