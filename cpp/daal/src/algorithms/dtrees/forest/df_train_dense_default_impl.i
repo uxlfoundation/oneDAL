@@ -33,6 +33,7 @@
 #include "src/services/service_defines.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
+#include "src/data_management/service_numeric_table.h"
 
 using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::internal;
@@ -47,6 +48,61 @@ namespace training
 {
 namespace internal
 {
+// Divide each element by 'denom' using IEEE-correct (correctly-rounded) division.
+// Kept in its own function so the file-scope DAAL_FP_PRECISE guard applies: the default
+// fast-math reciprocal approximation is not correctly rounded, so it would yield ULP
+// differences between proportional inputs and break weight-scale invariance below.
+DAAL_FP_PRECISE_BEGIN
+template <typename algorithmFPType, CpuType cpu>
+void divideByScalar(const algorithmFPType * src, algorithmFPType * dst, algorithmFPType denom, size_t n)
+{
+    for (size_t i = 0; i < n; ++i)
+    {
+        dst[i] = src[i] / denom;
+    }
+}
+DAAL_FP_PRECISE_END
+
+// Rescale the sample weights to a canonical magnitude (max == 1) before training.
+// Tree structure depends only on relative weights, but the weighted-variance and
+// impurity-decrease arithmetic is sensitive to absolute magnitude, so without this
+// the fit is not invariant under a uniform scaling of the weights. Returns an empty
+// pointer (leaving the original table in use) when there is nothing to rescale, e.g.
+// no weights or a non-positive maximum.
+template <typename algorithmFPType, CpuType cpu>
+services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights, services::Status & s)
+{
+    services::SharedPtr<NumericTable> empty;
+    if (!weights) return empty;
+
+    const size_t nRows = weights->getNumberOfRows();
+    if (!nRows) return empty;
+
+    ReadRows<algorithmFPType, cpu> srcBlock(const_cast<NumericTable *>(weights), 0, nRows);
+    s |= srcBlock.status();
+    if (!s) return empty;
+    const algorithmFPType * src = srcBlock.get();
+
+    algorithmFPType maxWeight = 0;
+    for (size_t i = 0; i < nRows; ++i)
+    {
+        if (src[i] > maxWeight) maxWeight = src[i];
+    }
+    if (!(maxWeight > 0)) return empty;
+
+    services::SharedPtr<HomogenNumericTableCPU<algorithmFPType, cpu> > normalized =
+        HomogenNumericTableCPU<algorithmFPType, cpu>::create(1, nRows, &s);
+    if (!s) return empty;
+
+    WriteOnlyRows<algorithmFPType, cpu> dstBlock(normalized.get(), 0, nRows);
+    s |= dstBlock.status();
+    if (!s) return empty;
+    algorithmFPType * dst = dstBlock.get();
+
+    divideByScalar<algorithmFPType, cpu>(src, dst, maxWeight, nRows);
+    return normalized;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Service class, it uses to keep information about nodes
 //////////////////////////////////////////////////////////////////////////////////////////

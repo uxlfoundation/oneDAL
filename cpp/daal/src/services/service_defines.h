@@ -86,6 +86,20 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_OMP_SIMD_ARGS(ARGS)
 #endif
 
+// Force IEEE-correct (correctly-rounded, no reciprocal approximation) floating-point
+// for the enclosed code, overriding the default fast-math model. Needed where bit-exact
+// results are required, e.g. division that must give identical bits for proportional inputs.
+#if defined(__INTEL_LLVM_COMPILER)
+    #define DAAL_FP_PRECISE_BEGIN _Pragma("float_control(precise, on, push)")
+    #define DAAL_FP_PRECISE_END   _Pragma("float_control(pop)")
+#elif defined(__clang__)
+    #define DAAL_FP_PRECISE_BEGIN _Pragma("float_control(precise, on, push)")
+    #define DAAL_FP_PRECISE_END   _Pragma("float_control(pop)")
+#else
+    #define DAAL_FP_PRECISE_BEGIN
+    #define DAAL_FP_PRECISE_END
+#endif
+
 #ifdef DEBUG_ASSERT
     #include <assert.h>
     #define DAAL_ASSERT(cond) assert(cond);
