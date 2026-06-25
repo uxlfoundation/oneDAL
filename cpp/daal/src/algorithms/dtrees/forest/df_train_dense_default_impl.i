@@ -48,21 +48,6 @@ namespace training
 {
 namespace internal
 {
-// Divide each element by 'denom' using IEEE-correct (correctly-rounded) division.
-// Kept in its own function so the file-scope DAAL_FP_PRECISE guard applies: the default
-// fast-math reciprocal approximation is not correctly rounded, so it would yield ULP
-// differences between proportional inputs and break weight-scale invariance below.
-DAAL_FP_PRECISE_BEGIN
-template <typename algorithmFPType, CpuType cpu>
-void divideByScalar(const algorithmFPType * src, algorithmFPType * dst, algorithmFPType denom, size_t n)
-{
-    for (size_t i = 0; i < n; ++i)
-    {
-        dst[i] = src[i] / denom;
-    }
-}
-DAAL_FP_PRECISE_END
-
 // Rescale the sample weights to a canonical magnitude (max == 1) before training.
 // Tree structure depends only on relative weights, but the weighted-variance and
 // impurity-decrease arithmetic is sensitive to absolute magnitude, so without this
@@ -99,7 +84,10 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     if (!s) return empty;
     algorithmFPType * dst = dstBlock.get();
 
-    divideByScalar<algorithmFPType, cpu>(src, dst, maxWeight, nRows);
+    for (size_t i = 0; i < nRows; ++i)
+    {
+        dst[i] = src[i] / maxWeight;
+    }
     return normalized;
 }
 
