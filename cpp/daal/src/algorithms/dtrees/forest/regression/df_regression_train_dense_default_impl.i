@@ -534,8 +534,8 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitOrderedFeature(co
             }
 
             //update impurity and continue
-            xi                    = aResponse[aIdx[i]].val;
-            algorithmFPType delta = xi - left.mean;
+            xi                     = aResponse[aIdx[i]].val;
+            intermSummFPType delta = xi - left.mean;
             leftWeights += weights;
             rightWeights = totalWeights - leftWeights;
             left.mean += delta * (weights / (isPositive<intermSummFPType, cpu>(leftWeights) ? leftWeights : 1.));
