@@ -34,6 +34,7 @@
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/externals/service_lapack.h"
 
 using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::internal;
@@ -65,6 +66,7 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     const algorithmFPType * src = srcBlock.get();
 
     algorithmFPType maxWeight = 0;
+    PRAGMA_OMP_SIMD_ARGS(reduction(max : maxWeight))
     for (size_t i = 0; i < nRows; ++i)
     {
         if (src[i] > maxWeight) maxWeight = src[i];
@@ -80,10 +82,12 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     if (!s) return empty;
     algorithmFPType * dst = dstBlock.get();
 
-    for (size_t i = 0; i < nRows; ++i)
-    {
-        dst[i] = src[i] / maxWeight;
-    }
+    // Copy then divide in place via rscl (correctly-rounded division, also scale-invariant).
+    // The single-threaded xxrscl avoids nested threading inside the parallel tree build.
+    const DAAL_INT n    = static_cast<DAAL_INT>(nRows);
+    const DAAL_INT incx = 1;
+    services::internal::tmemcpy<algorithmFPType, cpu>(dst, src, nRows);
+    daal::internal::LapackInst<algorithmFPType, cpu>::xxrscl(&n, &maxWeight, dst, &incx);
     return normalized;
 }
 
