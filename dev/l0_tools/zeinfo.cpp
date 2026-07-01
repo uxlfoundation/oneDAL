@@ -18,6 +18,7 @@
 #include <thread>
 #include <iostream>
 #include <optional>
+
 #include <fmt/format.h>
 
 #include "zexx.hpp"
