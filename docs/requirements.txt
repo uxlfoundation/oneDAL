@@ -15,7 +15,7 @@ Jinja2==3.1.6
 lxml==6.1.1
 MarkupSafe==3.0.3
 packaging==26.2
-pydata-sphinx-theme==0.19.0
+pydata-sphinx-theme==0.16.1
 Pygments==2.20.0
 pyparsing==3.3.2
 pytz==2026.2
