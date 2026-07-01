@@ -275,6 +275,21 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
         algorithmFPType * goalLocalData = goalLocal.get();
         DAAL_CHECK_MALLOC(goalLocalData);
 
+        // Per-cluster ||c_k||^2, needed to account for the (0 - c_{a,j})^2
+        // terms coming from features that are not stored in the sparse row.
+        TArrayScalable<algorithmFPType, cpu> clSq(nClusters);
+        DAAL_CHECK(clSq.get(), services::ErrorMemoryAllocationFailed);
+        for (size_t k = 0; k < nClusters; k++)
+        {
+            algorithmFPType sum(0);
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
+            for (size_t j = 0; j < p; j++)
+            {
+                sum += inClusters[k * p + j] * inClusters[k * p + j];
+            }
+            clSq[k] = sum;
+        }
+
         CSRNumericTableIface * ntDataCsr = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(ntData));
         DAAL_CHECK(ntDataCsr, services::ErrorEmptyCSRNumericTable);
 
@@ -300,12 +315,19 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                 const size_t jFinish = rowIdx[k + 1] - 1;
 
                 const size_t assk = assignments[k];
+                // ||x - c||^2 = ||x||^2 - 2 * <x, c> + ||c||^2.
+                // In CSR, x_j = 0 for indices j not in nnz(row), so both ||x||^2 and <x, c>
+                // reduce to sums over the stored entries; ||c||^2 is over all p features.
+                algorithmFPType rowGoal = clSq[assk];
                 PRAGMA_VECTOR_UNALIGNED
                 for (size_t j = jStart; j < jFinish; j++)
                 {
-                    const size_t m = colIdx[j] - 1;
-                    goal += (data[j] - inClusters[assk * p + m]) * (data[j] - inClusters[assk * p + m]);
+                    const size_t m          = colIdx[j] - 1;
+                    const algorithmFPType c = inClusters[assk * p + m];
+                    const algorithmFPType x = data[j];
+                    rowGoal += x * x - algorithmFPType(2) * x * c;
                 }
+                goal += rowGoal;
             } /* for (size_t k = 0; k < blockSize; k++) */
             goalLocalData[iBlock] = goal;
         }); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */
