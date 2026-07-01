@@ -107,6 +107,12 @@ dal_dynamic_lib(
         ":core",
         ":optional",
     ],
+    dpc_deps = select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
+        ],
+        "//conditions:default": [],
+    }),
     # On Windows, onedal.dll must resolve all externals at link time:
     #   - static_parameters: parameter symbols not part of any other dep tree.
     #   - services_win_dll_shim: delay-load stubs for threading entry points
@@ -144,6 +150,12 @@ dal_dynamic_lib(
         "@onedal//cpp/oneapi/dal/algo/logistic_regression/detail",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
+    dpc_deps = select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
+        ],
+        "//conditions:default": [],
+    }),
     host_deps = select({
         "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
         "//conditions:default": [],

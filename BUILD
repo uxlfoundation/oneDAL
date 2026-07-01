@@ -15,6 +15,14 @@ config_setting(
     constraint_values = ["@platforms//os:windows"],
 )
 
+config_setting(
+    name = "release_dpc_windows",
+    constraint_values = ["@platforms//os:windows"],
+    flag_values = {
+        "@config//:release_dpc": "True",
+    },
+)
+
 generate_vars_sh(
     name = "release_vars_sh",
     out = "env/vars.sh",
@@ -99,6 +107,12 @@ filegroup(
         "samples/oneapi/cpp/mpi/CMakeLists.txt",
         "samples/oneapi/cpp/mpi/sources/*.cpp",
         "samples/oneapi/cpp/mpi/sources/*.hpp",
+        "samples/oneapi/dpc/ccl/CMakeLists.txt",
+        "samples/oneapi/dpc/ccl/sources/*.cpp",
+        "samples/oneapi/dpc/ccl/sources/*.hpp",
+        "samples/oneapi/dpc/mpi/CMakeLists.txt",
+        "samples/oneapi/dpc/mpi/sources/*.cpp",
+        "samples/oneapi/dpc/mpi/sources/*.hpp",
     ]) + select({
         ":windows": glob([
             "samples/daal/cpp/mpi/daal.lst.bat",
@@ -131,9 +145,16 @@ release(
         "@onedal//cpp/daal:thread_dynamic",
         "@onedal//cpp/oneapi/dal:static",
         "@onedal//cpp/oneapi/dal:dynamic",
-        "@onedal//cpp/oneapi/dal:static_parameters",
-        "@onedal//cpp/oneapi/dal:dynamic_parameters",
     ] + select({
+        ":windows": [],
+        "//conditions:default": [
+            "@onedal//cpp/oneapi/dal:static_parameters",
+            "@onedal//cpp/oneapi/dal:dynamic_parameters",
+        ],
+    }) + select({
+        ":release_dpc_windows": [
+            "@onedal//cpp/oneapi/dal:dynamic_dpc",
+        ],
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:static_dpc",
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
@@ -147,6 +168,7 @@ release(
         ":release_package_files",
         "//examples/daal/cpp:release_files",
         "//examples/oneapi/cpp:release_files",
+        "//examples/oneapi/dpc:release_files",
     ],
     extra_files = [
         release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),

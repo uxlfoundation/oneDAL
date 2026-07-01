@@ -28,9 +28,14 @@ on:
     paths:
       - .github/workflows/nightly-build.yml
       - .ci/pipeline/ci.yml
+      - .bazelrc
+      - MODULE.bazel
+      - BUILD
       - makefile
       - '.ci/env/**'
       - '.ci/scripts/**'
+      - 'dev/bazel/**'
+      - 'dev/release_tests/**'
       - 'dev/make/**'
       - 'dev/make/compiler_definitions/**'
       - 'dev/make/function_definitions/**'
@@ -72,6 +77,20 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+      - name: Install Bazelisk
+        run: .ci/env/bazelisk.sh
+      - name: Bazel release
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          python dev/release_tests/compare_release_trees.py \
+            --platform linux \
+            --make ./__release_lnx/daal/latest \
+            --bazel ./bazel-bin/release/daal/latest \
+            --check-level 4
       - name: Archive build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -125,6 +144,25 @@ jobs:
           call .\oneapi\setvars.bat
           call .\oneapi\compiler\latest\bin\sycl-ls.exe
           call .\.ci\scripts\build.bat onedal_dpc vc avx2
+      - name: Install Bazelisk
+        shell: pwsh
+        run: .\.ci\env\bazelisk.ps1
+      - name: Bazel release
+        shell: cmd
+        run: |
+          set PATH=C:\msys64\usr\bin;%PATH%
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
+            -MakeReleaseDir .\__release_win_vc\daal\latest ^
+            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
+            -CheckLevel 4
       - name: Compress Intel BaseKit
         shell: cmd
         run: |

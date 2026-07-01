@@ -44,6 +44,64 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
             tool_path = repo_ctx.path("tool_not_found_{}.bat".format(tool_name))
     return str(tool_path), is_found
 
+def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
+    repo_ctx.file("dpc_link_win.ps1", """
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$Compiler,
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$RawArgs
+)
+
+$expandedArgs = New-Object System.Collections.Generic.List[string]
+foreach ($arg in $RawArgs) {
+    if ($arg.StartsWith('@')) {
+        $path = $arg.Substring(1)
+        foreach ($line in [IO.File]::ReadLines($path)) {
+            if ($line.Length -gt 0) {
+                $expandedArgs.Add($line)
+            }
+        }
+    }
+    else {
+        $expandedArgs.Add($arg)
+    }
+}
+
+$objectRsp = [IO.Path]::GetTempFileName() + '.rsp'
+$objectArgs = New-Object System.Collections.Generic.List[string]
+$finalArgs = New-Object System.Collections.Generic.List[string]
+$insertedObjectRsp = $false
+
+foreach ($arg in $expandedArgs) {
+    if ($arg -match '(?i)\\.(obj|res)$') {
+        $objectArgs.Add($arg)
+        if (-not $insertedObjectRsp) {
+            $finalArgs.Add('@' + $objectRsp)
+            $insertedObjectRsp = $true
+        }
+    }
+    else {
+        $finalArgs.Add($arg)
+    }
+}
+
+try {
+    [IO.File]::WriteAllLines($objectRsp, $objectArgs)
+    & $Compiler @finalArgs
+    exit $LASTEXITCODE
+}
+finally {
+    Remove-Item -Force $objectRsp -ErrorAction SilentlyContinue
+}
+""")
+    wrapper = "dpc_link_win.bat"
+    repo_ctx.file(wrapper, """@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0dpc_link_win.ps1" "{dpcc}" %*
+exit /b %ERRORLEVEL%
+""".format(dpcc = dpcc_path))
+    return str(repo_ctx.path(wrapper))
+
 def _find_tools_icx(repo_ctx):
     # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
     # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
@@ -54,6 +112,7 @@ def _find_tools_icx(repo_ctx):
     # line in its own intermediate response file before invoking link.exe.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
+    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, dpcc_path) if dpcpp_found else dpcc_path
     # Host link tool: prefer lld-link.exe (ships next to icx in oneAPI),
     # fall back to MSVC's link.exe — both accept the same flag syntax and
     # multi-line response files.
@@ -71,7 +130,7 @@ def _find_tools_icx(repo_ctx):
         # icx so it can pull in SYCL device-code libs (matches the
         # makefile's dpc.link.dynamic.win path in common.mk:138).
         cc_link = cc_link_path,
-        dpcc_link = dpcc_path,
+        dpcc_link = dpcc_link_path,
         ar = ar_path,
         is_dpc_found = dpcpp_found,
     )
