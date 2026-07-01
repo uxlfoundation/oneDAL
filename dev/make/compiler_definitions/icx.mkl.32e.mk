@@ -73,13 +73,13 @@ endif
 
 COMPILER.lnx.icx = icx -m64 \
                      -Werror -Wreturn-type -qopenmp-simd ${CXXFLAGS} $(-stdalloc.icx)
-COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS} $(-stdalloc.icx)
+COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,) -fno-lto
+COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS} $(-stdalloc.icx) -fno-lto
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
-link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
-link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
+link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS} -fno-lto
+link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,) -fno-lto
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \

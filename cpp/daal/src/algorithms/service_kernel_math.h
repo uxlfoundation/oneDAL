@@ -104,6 +104,7 @@ enum class PairwiseDistanceType
     euclidean,
     chebyshev,
     cosine,
+    manhattan,
 };
 
 template <typename FPType, CpuType cpu>

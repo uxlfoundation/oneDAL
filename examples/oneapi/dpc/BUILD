@@ -61,6 +61,7 @@ dal_algo_example_suite(
         "decision_forest",
         "kmeans",
         "dbscan",
+        "hdbscan",
         "knn",
         "linear_kernel",
         "linear_regression",
