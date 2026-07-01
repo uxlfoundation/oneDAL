@@ -98,6 +98,17 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         result.set_eigenvectors(homogen_table::wrap(arr_eigvec, component_count, column_count));
     }
 
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        double noiseVariance = 0.0;
+        interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            return daal_pca_cor_kernel_t<
+                       Float,
+                       dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value>()
+                .computeNoiseVariances(*daal_eigenvalues, *daal_variances, noiseVariance);
+        }));
+        result.set_noise_variance(noiseVariance);
+    }
+
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(homogen_table::wrap(arr_eigval, 1, component_count));
     }

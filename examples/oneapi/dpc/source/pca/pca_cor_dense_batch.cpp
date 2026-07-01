@@ -51,6 +51,7 @@ void run(sycl::queue& q, const dal::table& x_train, const std::string& method_na
     std::cout << "Explained variances ratio:\n"
               << result_train.get_explained_variances_ratio() << std::endl;
 
+    std::cout << "Noise variance:\n" << result_train.get_noise_variance() << std::endl;
     const auto result_infer = dal::infer(q, pca_desc, result_train.get_model(), x_train);
 
     std::cout << "Transformed data:\n" << result_infer.get_transformed_data() << std::endl;
