@@ -534,8 +534,8 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitOrderedFeature(co
             }
 
             //update impurity and continue
-            xi                    = aResponse[aIdx[i]].val;
-            algorithmFPType delta = xi - left.mean;
+            xi                     = aResponse[aIdx[i]].val;
+            intermSummFPType delta = xi - left.mean;
             leftWeights += weights;
             rightWeights = totalWeights - leftWeights;
             left.mean += delta * (weights / (isPositive<intermSummFPType, cpu>(leftWeights) ? leftWeights : 1.));
@@ -1218,7 +1218,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     ImpurityData left;
     ImpurityData right;
     IndexType iBest = -1;
-    algorithmFPType vBest;
+    intermSummFPType vBest;
     intermSummFPType leftWeights  = 0.;
     intermSummFPType rightWeights = 0.;
     auto aResponse                = this->_aResponse.get();
@@ -1566,6 +1566,10 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
         hp->check(s);
         if (!s) return s;
     }
+
+    const services::SharedPtr<NumericTable> normalizedWeights = normalizeWeights<algorithmFPType, cpu>(w, s);
+    if (!s) return s;
+    if (normalizedWeights) w = normalizedWeights.get();
 
     if (par.splitter == decision_forest::training::SplitterMode::best)
     {
