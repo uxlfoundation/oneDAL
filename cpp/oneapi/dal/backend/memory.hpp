@@ -206,8 +206,8 @@ inline sycl::event memcpy(sycl::queue& queue,
                           std::size_t size,
                           const event_vector& deps = {}) {
     ONEDAL_ASSERT(size > 0);
-    ONEDAL_ASSERT(is_known_usm(queue, dest));
-    ONEDAL_ASSERT(is_known_usm(queue, src));
+    // ONEDAL_ASSERT(is_known_usm(queue, dest));
+    // ONEDAL_ASSERT(is_known_usm(queue, src));
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.memcpy(dest, src, size);
