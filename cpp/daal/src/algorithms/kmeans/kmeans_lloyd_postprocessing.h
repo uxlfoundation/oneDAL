@@ -318,8 +318,8 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                 // ||x - c||^2 = ||x||^2 - 2 * <x, c> + ||c||^2.
                 // In CSR, x_j = 0 for indices j not in nnz(row), so both ||x||^2 and <x, c>
                 // reduce to sums over the stored entries; ||c||^2 is over all p features.
-                algorithmFPType rowGoal = clSq[assk];
-                PRAGMA_VECTOR_UNALIGNED
+                algorithmFPType rowGoal = algorithmFPType(0);
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : rowGoal))
                 for (size_t j = jStart; j < jFinish; j++)
                 {
                     const size_t m          = colIdx[j] - 1;
@@ -327,7 +327,7 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                     const algorithmFPType x = data[j];
                     rowGoal += x * x - algorithmFPType(2) * x * c;
                 }
-                goal += rowGoal;
+                goal += rowGoal + clSq[assk];
             } /* for (size_t k = 0; k < blockSize; k++) */
             goalLocalData[iBlock] = goal;
         }); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */

@@ -396,6 +396,81 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     }
 }
 
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "KMeans dense and sparse agree on same input",
+                     "[kmeans][batch]",
+                     kmeans_types_csr) {
+    SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // csr_make_blobs generates data where ~nnz_fraction of entries per row are
+    // stored; the remaining (1 - nnz_fraction) fraction is exactly zero. With
+    // nnz_fraction = 0.05 we get ~95% zeros — a sizable amount of zeros, as
+    // requested in review. The CSR and materialized dense views of the same
+    // underlying arrays are the same input in two representations, so training
+    // with identical initial centroids must give similar centroids, responses
+    // and objective_function_value.
+    constexpr std::int64_t cluster_count = 8;
+    constexpr std::int64_t row_count = 300;
+    constexpr std::int64_t column_count = 40;
+    constexpr std::int64_t max_iter = 20;
+    constexpr Float accuracy_threshold = Float(0);
+    constexpr float nnz_fraction = 0.05f;
+
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+
+    const auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count,
+                                                                        row_count,
+                                                                        column_count,
+                                                                        nnz_fraction,
+                                                                        this->data_indexing_);
+    const auto csr_data = input.get_data(this->get_policy());
+    const auto dense_data = input.get_dense_data(this->get_policy());
+    const auto initial_centroids = input.get_initial_centroids();
+
+    const auto csr_desc =
+        kmeans::descriptor<Float, kmeans::method::lloyd_csr>{}
+            .set_cluster_count(cluster_count)
+            .set_max_iteration_count(max_iter)
+            .set_accuracy_threshold(accuracy_threshold)
+            .set_result_options(kmeans::result_options::compute_exact_objective_function);
+    const auto dense_desc =
+        kmeans::descriptor<Float, kmeans::method::lloyd_dense>{}
+            .set_cluster_count(cluster_count)
+            .set_max_iteration_count(max_iter)
+            .set_accuracy_threshold(accuracy_threshold)
+            .set_result_options(kmeans::result_options::compute_exact_objective_function);
+
+    const auto csr_result = this->train(csr_desc, csr_data, initial_centroids);
+    const auto dense_result = this->train(dense_desc, dense_data, initial_centroids);
+
+    // Cluster labels are stable across methods because both start from the
+    // same initial_centroids and update in-place — no reordering to worry
+    // about, so a direct index-wise comparison is meaningful.
+    const auto csr_centroids =
+        row_accessor<const Float>(csr_result.get_model().get_centroids()).pull({ 0, -1 });
+    const auto dense_centroids =
+        row_accessor<const Float>(dense_result.get_model().get_centroids()).pull({ 0, -1 });
+    REQUIRE(csr_centroids.get_count() == dense_centroids.get_count());
+    const Float centroid_rel_tol = std::is_same_v<Float, double> ? Float(1e-8) : Float(1e-4);
+    for (std::int64_t i = 0; i < csr_centroids.get_count(); ++i) {
+        REQUIRE(
+            this->check_value_with_ref_tol(csr_centroids[i], dense_centroids[i], centroid_rel_tol));
+    }
+
+    this->check_response_match(csr_result.get_responses(), dense_result.get_responses());
+
+    // Dense and CSR use different summation orderings for the objective
+    // (BLAS-gemm-based vs per-nnz), so the objective agreement is limited
+    // by float rounding: ~1e-4 in single precision.
+    const Float csr_obj = static_cast<Float>(csr_result.get_objective_function_value());
+    const Float dense_obj = static_cast<Float>(dense_result.get_objective_function_value());
+    const Float obj_rel_tol = std::is_same_v<Float, double> ? Float(1e-10) : Float(1e-3);
+    CAPTURE(csr_obj, dense_obj);
+    REQUIRE(this->check_value_with_ref_tol(csr_obj, dense_obj, obj_rel_tol));
+}
+
 #ifdef ONEDAL_DATA_PARALLEL
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
