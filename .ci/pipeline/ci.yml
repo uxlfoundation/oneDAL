@@ -131,6 +131,10 @@ jobs:
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
   - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'oneapi/cpp/mpi samples'
+  - script: |
       deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
       tree -h -I include __nuget/inteldal*/
       ls -lh __nuget/inteldal*.nupkg
@@ -194,6 +198,10 @@ jobs:
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'oneapi/cpp/mpi samples'
 
 - job: 'LinuxMakeGNU_MKL_Conda'
   timeoutInMinutes: 300
