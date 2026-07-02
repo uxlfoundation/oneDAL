@@ -56,7 +56,11 @@ inline bool alloc_kind_requires_copy(alloc_kind src_alloc_kind, alloc_kind dst_a
 #ifdef ONEDAL_DATA_PARALLEL
     switch (dst_alloc_kind) {
         case alloc_kind::host: //
-            return (src_alloc_kind == alloc_kind::usm_device);
+            // Shared USM on discrete GPUs uses page migration which can cause
+            // crashes when accessed concurrently by multi-threaded host code
+            // (e.g. MKL dgemm with TBB). Copy to plain host memory to be safe.
+            return (src_alloc_kind == alloc_kind::usm_device) || //
+                   (src_alloc_kind == alloc_kind::usm_shared);
         case alloc_kind::usm_host: //
             return (src_alloc_kind == alloc_kind::host) || //
                    (src_alloc_kind == alloc_kind::usm_device);

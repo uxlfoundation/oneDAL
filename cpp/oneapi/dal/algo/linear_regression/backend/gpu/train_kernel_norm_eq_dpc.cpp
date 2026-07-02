@@ -172,7 +172,21 @@ static train_result<Task> train(const context_gpu& ctx,
                                 const detail::descriptor_base<Task>& desc,
                                 const detail::train_parameters<Task>& params,
                                 const train_input<Task>& input) {
-    return call_dal_kernel<Float, Task>(ctx, desc, params, input.get_data(), input.get_responses());
+    auto& queue = ctx.get_queue();
+    constexpr auto alloc = sycl::usm::alloc::device;
+
+    const auto data_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_data(), alloc);
+    const auto resp_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
+
+    const auto data_rows = data_nd.get_dimension(0);
+    const auto data_cols = data_nd.get_dimension(1);
+    const auto resp_rows = resp_nd.get_dimension(0);
+    const auto resp_cols = resp_nd.get_dimension(1);
+
+    auto data_table = homogen_table::wrap(queue, data_nd.get_data(), data_rows, data_cols);
+    auto resp_table = homogen_table::wrap(queue, resp_nd.get_data(), resp_rows, resp_cols);
+
+    return call_dal_kernel<Float, Task>(ctx, desc, params, data_table, resp_table);
 }
 
 template <typename Float, typename Task>

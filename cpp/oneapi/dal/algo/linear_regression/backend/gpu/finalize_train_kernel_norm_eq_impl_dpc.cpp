@@ -52,6 +52,10 @@ train_result<Task> finalize_train_kernel_norm_eq_impl<Float, Task>::operator()(
     const pr::ndshape<2> betas_shape{ response_count, feature_count + 1 };
 
     auto xtx_nd = pr::table2ndarray<Float>(q, input.get_partial_xtx(), sycl::usm::alloc::device);
+    // {
+    //     auto host = xtx_nd.to_host(q);
+    //     std::cerr << "xtx[0]=" << host.get_data()[0] << " xtx[1]=" << host.get_data()[1] << std::endl;
+    // }
     auto xty_nd = pr::table2ndarray<Float, pr::ndorder::f>(q,
                                                            input.get_partial_xty(),
                                                            sycl::usm::alloc::device);
