@@ -21,6 +21,7 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/table/common.hpp"
+#include "oneapi/dal/table/detail/table_utils.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 
@@ -132,14 +133,39 @@ inline ndarray<Type, 2, order> homogen_table_to_same_order_ndarray(sycl::queue& 
         (order == ndorder::c) ? data_layout::row_major : data_layout::column_major;
     ONEDAL_ASSERT(table.get_data_layout() == expected_layout);
 
-    const auto& ht = static_cast<const homogen_table&>(table);
-    const Type* ptr = reinterpret_cast<const Type*>(ht.get_data());
+    const auto iface = dal::detail::get_homogen_table_iface(table);
+    const auto byte_data = iface->get_data();
+    const std::int64_t count = row_count * column_count;
+    const Type* ptr = reinterpret_cast<const Type*>(byte_data.get_data());
 
-    if (is_ptr_accessible(q, ptr, alloc)) {
-        return arr_t::wrap(ptr, { row_count, column_count });
+    const auto context = q.get_context();
+    const auto src_alloc = sycl::get_pointer_type(ptr, context);
+
+    // Mirror the logic from pull_rows_impl: determine if a copy is needed
+    // based on source and destination allocation kinds.
+    // alloc_kind_requires_copy semantics:
+    //   device requested: copy needed from host or usm_host
+    //   shared requested: copy needed unless source is also shared
+    //   host/usm_host requested: copy needed only from device
+    const bool nocopy = [&]() {
+        switch (alloc) {
+            case sycl::usm::alloc::device:
+                return (src_alloc == sycl::usm::alloc::device ||
+                        src_alloc == sycl::usm::alloc::shared);
+            case sycl::usm::alloc::shared:
+                return (src_alloc == sycl::usm::alloc::shared);
+            case sycl::usm::alloc::host:
+                return (src_alloc == sycl::usm::alloc::host ||
+                        src_alloc == sycl::usm::alloc::unknown);
+            default: return false;
+        }
+    }();
+
+    if (nocopy) {
+        auto owned_data = dal::array<Type>{ byte_data, ptr, count };
+        return arr_t::wrap(owned_data, { row_count, column_count });
     }
 
-    const std::int64_t count = row_count * column_count;
     auto result = arr_t::empty(q, { row_count, column_count }, alloc);
     dal::backend::copy(q, result.get_mutable_data(), ptr, count).wait_and_throw();
     return result;
@@ -167,7 +193,8 @@ inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
     const auto row_count = table.get_row_count();
     const auto column_count = table.get_column_count();
 
-    if (table.get_kind() == homogen_table::kind()) {
+    if (table.get_kind() == homogen_table::kind() &&
+        table.get_metadata().get_data_type(0) == dal::detail::make_data_type<Type>()) {
         const auto layout = table.get_data_layout();
 
         if (layout == data_layout::row_major) {
@@ -183,7 +210,7 @@ inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
         }
     }
 
-    // Heterogeneous table fallback: row_accessor handles per-column type conversion
+    // Fallback: row_accessor handles type conversion and heterogeneous tables
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull(q, { 0, -1 }, alloc);
     return rm_t::wrap(data, { row_count, column_count });
@@ -211,7 +238,8 @@ inline ndarray<Type, 2, ndorder::f> table2ndarray_cm(sycl::queue& q,
     const auto row_count = table.get_row_count();
     const auto column_count = table.get_column_count();
 
-    if (table.get_kind() == homogen_table::kind()) {
+    if (table.get_kind() == homogen_table::kind() &&
+        table.get_metadata().get_data_type(0) == dal::detail::make_data_type<Type>()) {
         const auto layout = table.get_data_layout();
 
         if (layout == data_layout::column_major) {
@@ -227,7 +255,7 @@ inline ndarray<Type, 2, ndorder::f> table2ndarray_cm(sycl::queue& q,
         }
     }
 
-    // Heterogeneous table fallback: get row-major via row_accessor, then transpose
+    // Fallback: row_accessor handles type conversion and heterogeneous tables
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull(q, { 0, -1 }, alloc);
     auto src = ndarray<Type, 2, ndorder::c>::wrap(data, { row_count, column_count });
@@ -253,6 +281,8 @@ inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
     ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(service::table2ndarray_queue,
                                                  q,
                                                  table.get_row_count());
+    // std::cerr << "table2ndarray sizeof:" << dal::detail::get_data_type_size(table.get_metadata().get_data_type(0)) << " "
+    // << " sizeof(Type)=" << sizeof(Type) << std::endl;
 
     if constexpr (order == ndorder::c) {
         return table2ndarray_rm<Type>(q, table, alloc);
