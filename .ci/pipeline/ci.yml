@@ -229,6 +229,61 @@ jobs:
       .ci/scripts/describe_system.sh
     displayName: 'System info'
   - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
+    displayName: 'make daal'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
+    displayName: 'make onedal_c'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      conda install -y -c conda-forge \
+          mkl-dpcpp mkl-devel-dpcpp \
+          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+          onedpl-devel
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
+      mv __release_lnx_gnu __release_lnx_gnu_conda
+    displayName: 'make onedal_dpc'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
+    displayName: 'oneapi/dpc examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      export MKLROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples'
+  # Extended scope: bazel build/test on the same conda env (in addition to the make/cmake flow above)
+  - script: |
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
     displayName: 'install-bazel'
@@ -240,7 +295,7 @@ jobs:
           onemkl-sycl-lapack \
           onemkl-sycl-sparse \
           onemkl-sycl-rng
-    displayName: 'Install DPC MKL packages'
+    displayName: 'Install DPC MKL packages (bazel)'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
