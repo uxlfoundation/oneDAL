@@ -20,12 +20,12 @@
 #include "oneapi/dal/algo/pca/finalize_train.hpp"
 
 #include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/test/engine/math.hpp"
 #include "oneapi/dal/test/engine/io.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/dataframe.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 namespace oneapi::dal::pca::test {
 
@@ -107,32 +107,6 @@ public:
         return te::table_id::homogen<Float>();
     }
 
-    template <typename Float>
-    std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
-        ONEDAL_ASSERT(0l < split_count);
-        ONEDAL_ASSERT(split_count <= t.get_row_count());
-
-        const std::int64_t row_count = t.get_row_count();
-        const std::int64_t column_count = t.get_column_count();
-        const std::int64_t block_size_regular = row_count / split_count;
-        const std::int64_t block_size_tail = row_count % split_count;
-
-        std::vector<dal::table> result(split_count);
-
-        std::int64_t row_offset = 0;
-        for (std::int64_t i = 0; i < split_count; i++) {
-            const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
-            const std::int64_t block_size = block_size_regular + tail;
-
-            const auto row_range = dal::range{ row_offset, row_offset + block_size };
-            const auto block = dal::row_accessor<const Float>{ t }.pull(row_range);
-            result[i] = dal::homogen_table::wrap(block, block_size, column_count);
-            row_offset += block_size;
-        }
-
-        return result;
-    }
-
     // TODO: add more checks, for example, check if eigenvectors are correct, checks for all possible values of normalization/whitening, check for infer gold data.
     void general_checks(const te::dataframe& data,
                         std::int64_t component_count,
@@ -163,7 +137,7 @@ public:
         const auto pca_desc = get_descriptor(component_count);
         INFO("run training");
         auto partial_result = dal::pca::partial_train_result();
-        auto input_table = split_table_by_rows<float>(x, nBlocks);
+        auto input_table = te::split_table_by_rows<float_t>(this->get_policy(), x, nBlocks);
         for (std::int64_t i = 0; i < nBlocks; ++i) {
             partial_result = this->partial_train(pca_desc, partial_result, input_table[i]);
         }
