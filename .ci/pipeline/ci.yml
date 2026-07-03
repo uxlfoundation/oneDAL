@@ -61,7 +61,6 @@ resources:
 
 jobs:
 - job: 'FormatterChecks'
-  condition: false
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
@@ -79,7 +78,6 @@ jobs:
       failOnStderr: true
 
 - job: 'LinuxMakeGNU_MKL'
-  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_gnu'
@@ -150,7 +148,6 @@ jobs:
     continueOnError: true
 
 - job: 'LinuxMakeIntel_MKL'
-  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx'
@@ -288,7 +285,6 @@ jobs:
     displayName: 'bazel oneapi/cpp examples (conda env)'
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
-  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_clang'
@@ -381,7 +377,6 @@ jobs:
     continueOnError: true
 
 - job: 'LinuxBazel'
-  condition: false
   timeoutInMinutes: 0
   pool:
     vmImage: '$(VM_IMAGE)'
@@ -612,7 +607,6 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: 'LinuxReleaseCompare'
-  condition: false
   dependsOn:
   - LinuxMakeGNU_MKL
   - LinuxBazel
@@ -635,7 +629,6 @@ jobs:
     displayName: 'Compare Make and Bazel release trees'
 
 - job: 'WindowsBazel'
-  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_bazel_icx'
@@ -759,7 +752,6 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: LinuxSklearnex
-  condition: false
   dependsOn: LinuxMakeGNU_MKL
   timeoutInMinutes: 0
   variables:
@@ -801,7 +793,6 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
-  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_vc'
@@ -866,7 +857,6 @@ jobs:
 
 
 - job: 'WindowsMakeIntel'
-  condition: false
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win'
@@ -917,7 +907,6 @@ jobs:
     displayName: 'nuget pkg'
 
 - job: 'WindowsReleaseCompare'
-  condition: false
   dependsOn:
   - WindowsMakeIntel
   - WindowsBazel
@@ -943,7 +932,6 @@ jobs:
 
 
 - job: WindowsSklearnex
-  condition: false
   dependsOn: WindowsMakeVC
   timeoutInMinutes: 0
   variables:
