@@ -413,13 +413,8 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     // (x_j - c_j)^2 only over the stored entries of a row, which drops the
     // c_j^2 contribution from features where the row has an implicit zero
     // and the centroid is non-zero. The previous csr_make_blobs-based test
-    // did not trigger this: rows there share the column support of their
-    // centroid, so c_j = 0 at every unstored index and the missing term is
-    // identically zero -- the buggy path returned the same value as dense.
+    // did not trigger this.
     //
-    // No random seed is needed: initial_centroids are passed explicitly to
-    // train(), so the k-means init algorithm is skipped and the Lloyd loop
-    // runs deterministically from a fixed starting point.
     constexpr std::int64_t row_count = 3;
     constexpr std::int64_t column_count = 3;
     constexpr std::int64_t cluster_count = 2;
@@ -495,13 +490,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-    // Complements the previous case: instead of hand-picked initial
-    // centroids, pick them by drawing `cluster_count` distinct row indices
-    // from the sparse dataset with a fixed seed. Since the seed is fixed,
-    // two independent CSR runs must be bit-identical, and the CSR run of
-    // the same shuffle must recover the same cluster centers as the dense
-    // run (up to label permutation and fp summation ordering).
-    //
+
     // The response comparison across the CSR and dense paths is relaxed
     // rather than strict: the distance math is not fp-equivalent between
     // the two representations (dense sums (x_j - c_j)^2 over all features,
