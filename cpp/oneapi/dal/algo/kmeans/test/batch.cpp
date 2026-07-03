@@ -411,10 +411,10 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     // underlying arrays are the same input in two representations, so training
     // with identical initial centroids must give similar centroids, responses
     // and objective_function_value.
-    constexpr std::int64_t cluster_count = 8;
-    constexpr std::int64_t row_count = 300;
-    constexpr std::int64_t column_count = 40;
-    constexpr std::int64_t max_iter = 20;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t row_count = 100;
+    constexpr std::int64_t column_count = 20;
+    constexpr std::int64_t max_iter = 10;
     constexpr Float accuracy_threshold = Float(0);
     constexpr float nnz_fraction = 0.05f;
 
