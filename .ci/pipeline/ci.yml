@@ -238,6 +238,15 @@ jobs:
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
+      conda install -y -c conda-forge \
+          onemkl-sycl-blas \
+          onemkl-sycl-lapack \
+          onemkl-sycl-sparse \
+          onemkl-sycl-rng
+    displayName: 'Install DPC MKL packages'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
       export MPIROOT="${CONDA_PREFIX}"
