@@ -490,7 +490,6 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-
     // The response comparison across the CSR and dense paths is relaxed
     // rather than strict: the distance math is not fp-equivalent between
     // the two representations (dense sums (x_j - c_j)^2 over all features,
