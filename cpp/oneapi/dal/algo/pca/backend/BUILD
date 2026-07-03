@@ -15,4 +15,9 @@ dal_module(
 dal_module(
     name = "common",
     hdrs = glob(["*.hpp"]),
+    srcs = glob(["*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/oneapi/dal:core",
+        "@onedal//cpp/oneapi/dal/backend/primitives:common",
+    ],
 )
