@@ -417,12 +417,6 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     // centroid, so c_j = 0 at every unstored index and the missing term is
     // identically zero — the buggy path returned the same value as dense.
     //
-    // This hand-crafted case exercises the fix explicitly: rows have a
-    // single stored non-zero at three distinct columns, so both rows
-    // assigned to centroid 0 have unstored indices where c_j != 0. On main
-    // the CSR objective returns 50; the fixed path returns 100 (matches
-    // dense).
-    //
     // No random seed is needed: initial_centroids are passed explicitly to
     // train(), so the k-means init algorithm is skipped and the Lloyd loop
     // runs deterministically from a fixed starting point.
