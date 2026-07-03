@@ -14,6 +14,10 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
+#include <numeric>
+#include <random>
+
 #include "oneapi/dal/algo/kmeans/test/fixture.hpp"
 #include "oneapi/dal/table/csr_accessor.hpp"
 namespace oneapi::dal::kmeans::test {
@@ -397,37 +401,57 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
-                     "KMeans dense and sparse agree on same input",
+                     "KMeans CSR exact objective accounts for unstored features",
                      "[kmeans][batch]",
                      kmeans_types_csr) {
     SKIP_IF(!this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-    // csr_make_blobs generates data where ~nnz_fraction of entries per row are
-    // stored; the remaining (1 - nnz_fraction) fraction is exactly zero. With
-    // nnz_fraction = 0.05 we get ~95% zeros — a sizable amount of zeros, as
-    // requested in review. The CSR and materialized dense views of the same
-    // underlying arrays are the same input in two representations, so training
-    // with identical initial centroids must give similar centroids, responses
-    // and objective_function_value.
-    constexpr std::int64_t cluster_count = 4;
-    constexpr std::int64_t row_count = 100;
-    constexpr std::int64_t column_count = 20;
-    constexpr std::int64_t max_iter = 10;
-    constexpr Float accuracy_threshold = Float(0);
-    constexpr float nnz_fraction = 0.05f;
+    // Regression test for the CSR exact-objective bug. Before the fix,
+    // PostProcessing<lloydCSR>::computeExactObjectiveFunction summed
+    // (x_j - c_j)^2 only over the stored entries of a row, which drops the
+    // c_j^2 contribution from features where the row has an implicit zero
+    // and the centroid is non-zero. The previous csr_make_blobs-based test
+    // did not trigger this: rows there share the column support of their
+    // centroid, so c_j = 0 at every unstored index and the missing term is
+    // identically zero — the buggy path returned the same value as dense.
+    //
+    // This hand-crafted case exercises the fix explicitly: rows have a
+    // single stored non-zero at three distinct columns, so both rows
+    // assigned to centroid 0 have unstored indices where c_j != 0. On main
+    // the CSR objective returns 50; the fixed path returns 100 (matches
+    // dense).
+    //
+    // No random seed is needed: initial_centroids are passed explicitly to
+    // train(), so the k-means init algorithm is skipped and the Lloyd loop
+    // runs deterministically from a fixed starting point.
+    constexpr std::int64_t row_count = 3;
+    constexpr std::int64_t column_count = 3;
+    constexpr std::int64_t cluster_count = 2;
+    constexpr std::int64_t max_iter = 1;
+    constexpr double accuracy_threshold = 0.0;
 
-    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    const Float data_vals[] = { Float(10), Float(10), Float(20) };
+    const Float dense_vals[] = { Float(10), Float(0), Float(0), Float(0), Float(10),
+                                 Float(0),  Float(0), Float(0), Float(20) };
+    const Float init_centroids_vals[] = { Float(5), Float(5), Float(0),
+                                          Float(0), Float(0), Float(20) };
 
-    const auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count,
-                                                                        row_count,
-                                                                        column_count,
-                                                                        nnz_fraction,
-                                                                        this->data_indexing_);
-    const auto csr_data = input.get_data(this->get_policy());
-    const auto dense_data = input.get_dense_data(this->get_policy());
-    const auto initial_centroids = input.get_initial_centroids();
+    const auto indexing = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    const std::int64_t shift = (indexing == sparse_indexing::one_based) ? 1 : 0;
+    const std::int64_t col_indices[] = { 0 + shift, 1 + shift, 2 + shift };
+    const std::int64_t row_offsets[] = { 0 + shift, 1 + shift, 2 + shift, 3 + shift };
+
+    const auto csr_data = csr_table::wrap<Float>(data_vals,
+                                                 col_indices,
+                                                 row_offsets,
+                                                 row_count,
+                                                 column_count,
+                                                 indexing);
+    const auto dense_data = homogen_table::wrap(dense_vals, row_count, column_count);
+    const auto initial_centroids =
+        homogen_table::wrap(init_centroids_vals, cluster_count, column_count);
 
     const auto csr_desc =
         kmeans::descriptor<Float, kmeans::method::lloyd_csr>{}
@@ -445,29 +469,114 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     const auto csr_result = this->train(csr_desc, csr_data, initial_centroids);
     const auto dense_result = this->train(dense_desc, dense_data, initial_centroids);
 
-    // Cluster labels are stable across methods because both start from the
-    // same initial_centroids and update in-place — no reordering to worry
-    // about, so a direct index-wise comparison is meaningful.
+    // Both start from the same explicit initial centroids and update
+    // in-place, so responses correspond index-wise and centroids match
+    // numerically.
+    this->check_response_match(csr_result.get_responses(), dense_result.get_responses());
+
     const auto csr_centroids =
         row_accessor<const Float>(csr_result.get_model().get_centroids()).pull({ 0, -1 });
     const auto dense_centroids =
         row_accessor<const Float>(dense_result.get_model().get_centroids()).pull({ 0, -1 });
     REQUIRE(csr_centroids.get_count() == dense_centroids.get_count());
-    const Float centroid_rel_tol = std::is_same_v<Float, double> ? Float(1e-8) : Float(1e-4);
+    const Float centroid_tol = std::is_same_v<Float, double> ? Float(1e-10) : Float(1e-5);
     for (std::int64_t i = 0; i < csr_centroids.get_count(); ++i) {
-        REQUIRE(
-            this->check_value_with_ref_tol(csr_centroids[i], dense_centroids[i], centroid_rel_tol));
+        REQUIRE(this->check_value_with_ref_tol(csr_centroids[i], dense_centroids[i], centroid_tol));
     }
 
-    this->check_response_match(csr_result.get_responses(), dense_result.get_responses());
-
-    // Dense and CSR use different summation orderings for the objective
-    // (BLAS-gemm-based vs per-nnz), so the objective agreement is limited
-    // by float rounding: ~1e-4 in single precision.
+    // Core assertion: dense objective is 100, buggy CSR objective is 50;
+    // this fails on main and passes with the postprocessing fix.
     const Float csr_obj = static_cast<Float>(csr_result.get_objective_function_value());
     const Float dense_obj = static_cast<Float>(dense_result.get_objective_function_value());
-    const Float obj_rel_tol = std::is_same_v<Float, double> ? Float(1e-10) : Float(1e-3);
+    const Float obj_tol = std::is_same_v<Float, double> ? Float(1e-10) : Float(1e-5);
     CAPTURE(csr_obj, dense_obj);
+    REQUIRE(this->check_value_with_ref_tol(csr_obj, dense_obj, obj_tol));
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "KMeans CSR run with a seeded random initialization is reproducible",
+                     "[kmeans][batch]",
+                     kmeans_types_csr) {
+    SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Complements the previous case: instead of hand-picked initial
+    // centroids, pick them by drawing `cluster_count` distinct row indices
+    // from the sparse dataset with a fixed seed. Since the seed is fixed,
+    // the initial centroid table is the same on every invocation, so both
+    // the CSR run and the dense run of the same shuffle must produce
+    // identical centroids, responses and objective_function_value on repeat
+    // — this exercises the exact-objective path with realistic random
+    // start points rather than a designed corner case.
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t row_count = 100;
+    constexpr std::int64_t column_count = 20;
+    constexpr std::int64_t max_iter = 10;
+    constexpr float nnz_fraction = 0.05f;
+    constexpr Float accuracy_threshold = Float(0);
+    constexpr std::uint32_t seed = 777u;
+
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+
+    const auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count,
+                                                                        row_count,
+                                                                        column_count,
+                                                                        nnz_fraction,
+                                                                        this->data_indexing_);
+    const auto csr_data = input.get_data(this->get_policy());
+    const auto dense_data = input.get_dense_data(this->get_policy());
+
+    // Build initial centroids by seeded row sampling from the dense view.
+    const auto pick_seeded_initial_centroids = [&](std::uint32_t s) {
+        const auto dense_rows = row_accessor<const Float>(dense_data).pull({ 0, -1 });
+        std::vector<std::int64_t> indices(row_count);
+        std::iota(indices.begin(), indices.end(), std::int64_t(0));
+        std::mt19937 rng(s);
+        std::shuffle(indices.begin(), indices.end(), rng);
+        auto centroids = array<Float>::empty(cluster_count * column_count);
+        auto* const out = centroids.get_mutable_data();
+        for (std::int64_t k = 0; k < cluster_count; ++k) {
+            const std::int64_t src = indices[k];
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                out[k * column_count + j] = dense_rows[src * column_count + j];
+            }
+        }
+        return homogen_table::wrap(centroids, cluster_count, column_count);
+    };
+
+    const auto csr_desc =
+        kmeans::descriptor<Float, kmeans::method::lloyd_csr>{}
+            .set_cluster_count(cluster_count)
+            .set_max_iteration_count(max_iter)
+            .set_accuracy_threshold(accuracy_threshold)
+            .set_result_options(kmeans::result_options::compute_exact_objective_function);
+    const auto dense_desc =
+        kmeans::descriptor<Float, kmeans::method::lloyd_dense>{}
+            .set_cluster_count(cluster_count)
+            .set_max_iteration_count(max_iter)
+            .set_accuracy_threshold(accuracy_threshold)
+            .set_result_options(kmeans::result_options::compute_exact_objective_function);
+
+    const auto init1 = pick_seeded_initial_centroids(seed);
+    const auto init2 = pick_seeded_initial_centroids(seed);
+
+    const auto csr_run_a = this->train(csr_desc, csr_data, init1);
+    const auto csr_run_b = this->train(csr_desc, csr_data, init2);
+    const auto dense_run = this->train(dense_desc, dense_data, init1);
+
+    // Same seed on the sparse path → bit-identical objective and iteration
+    // count across independent runs.
+    REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
+    REQUIRE(csr_run_a.get_objective_function_value() == csr_run_b.get_objective_function_value());
+
+    // Same seed shared between sparse and dense representations → agreement
+    // on responses and objective (up to fp summation ordering).
+    this->check_response_match(csr_run_a.get_responses(), dense_run.get_responses());
+    const Float csr_obj = static_cast<Float>(csr_run_a.get_objective_function_value());
+    const Float dense_obj = static_cast<Float>(dense_run.get_objective_function_value());
+    const Float obj_rel_tol = std::is_same_v<Float, double> ? Float(1e-10) : Float(1e-3);
+    CAPTURE(seed, csr_obj, dense_obj);
     REQUIRE(this->check_value_with_ref_tol(csr_obj, dense_obj, obj_rel_tol));
 }
 
