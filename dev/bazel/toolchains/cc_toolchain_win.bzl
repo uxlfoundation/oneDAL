@@ -68,7 +68,7 @@ foreach ($arg in $RawArgs) {
     }
 }
 
-$objectRsp = [IO.Path]::GetTempFileName() + '.rsp'
+$objectRsp = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.rsp')
 $objectArgs = New-Object System.Collections.Generic.List[string]
 $finalArgs = New-Object System.Collections.Generic.List[string]
 $insertedObjectRsp = $false

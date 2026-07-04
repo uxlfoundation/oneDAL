@@ -15,6 +15,7 @@
 #===============================================================================
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
@@ -46,6 +47,10 @@ def _merge_static_libs(filename, actions, cc_toolchain,
                        feature_configuration, static_libs, is_windows = False):
     output_file = actions.declare_file(filename)
     if is_windows:
+        merger_path = cc_common.get_tool_for_action(
+            feature_configuration = feature_configuration,
+            action_name = ACTION_NAMES.cpp_link_static_library,
+        )
         args = actions.args()
         args.use_param_file("@%s", use_always = True)
         args.set_param_file_format("multiline")
@@ -53,7 +58,7 @@ def _merge_static_libs(filename, actions, cc_toolchain,
         args.add("/OUT:" + output_file.path)
         args.add_all(static_libs)
         actions.run(
-            executable = "xilib.exe",
+            executable = merger_path,
             arguments = [args],
             inputs = static_libs,
             outputs = [output_file],

@@ -110,6 +110,7 @@ dal_dynamic_lib(
     dpc_deps = select({
         "@platforms//os:windows": [
             "@onedal//cpp/daal:core_dynamic",
+            ":static_parameters_dpc",
         ],
         "//conditions:default": [],
     }),
