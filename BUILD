@@ -107,12 +107,6 @@ filegroup(
         "samples/oneapi/cpp/mpi/CMakeLists.txt",
         "samples/oneapi/cpp/mpi/sources/*.cpp",
         "samples/oneapi/cpp/mpi/sources/*.hpp",
-        "samples/oneapi/dpc/ccl/CMakeLists.txt",
-        "samples/oneapi/dpc/ccl/sources/*.cpp",
-        "samples/oneapi/dpc/ccl/sources/*.hpp",
-        "samples/oneapi/dpc/mpi/CMakeLists.txt",
-        "samples/oneapi/dpc/mpi/sources/*.cpp",
-        "samples/oneapi/dpc/mpi/sources/*.hpp",
     ]) + select({
         ":windows": glob([
             "samples/daal/cpp/mpi/daal.lst.bat",
@@ -120,6 +114,18 @@ filegroup(
         ]),
         "//conditions:default": [],
     }),
+)
+
+filegroup(
+    name = "release_dpc_package_files",
+    srcs = glob([
+        "samples/oneapi/dpc/ccl/CMakeLists.txt",
+        "samples/oneapi/dpc/ccl/sources/*.cpp",
+        "samples/oneapi/dpc/ccl/sources/*.hpp",
+        "samples/oneapi/dpc/mpi/CMakeLists.txt",
+        "samples/oneapi/dpc/mpi/sources/*.cpp",
+        "samples/oneapi/dpc/mpi/sources/*.hpp",
+    ]),
 )
 
 release(
@@ -168,8 +174,13 @@ release(
         ":release_package_files",
         "//examples/daal/cpp:release_files",
         "//examples/oneapi/cpp:release_files",
-        "//examples/oneapi/dpc:release_files",
-    ],
+    ] + select({
+        "@config//:release_dpc_enabled": [
+            ":release_dpc_package_files",
+            "//examples/oneapi/dpc:release_files",
+        ],
+        "//conditions:default": [],
+    }),
     extra_files = [
         release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),
         release_extra_file(":release_pkgconfig", "", windows_dst_path = "lib/pkgconfig/onedal.pc"),
