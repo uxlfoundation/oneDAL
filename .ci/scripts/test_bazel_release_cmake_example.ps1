@@ -73,7 +73,7 @@ Write-Host "Configuring CMake example from Bazel release: $examplesPath"
 cmake @cmakeArgs
 
 Write-Host "Building CMake example target: $ExampleTarget"
-cmake --build $buildPath --config Release --target $ExampleTarget
+cmake --build $buildPath --config Release
 
 $exe = Get-ChildItem -Path $examplesPath -Filter "$ExampleTarget.exe" -Recurse | Select-Object -First 1
 if (-not $exe) {
