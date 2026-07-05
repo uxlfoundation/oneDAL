@@ -163,6 +163,13 @@ jobs:
             -MakeReleaseDir .\__release_win_vc\daal\latest ^
             -BazelReleaseDir .\bazel-bin\release\daal\latest ^
             -CheckLevel 4
+      - name: Build and run CMake example from Bazel release
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
+            -ReleaseDir .\bazel-bin\release\daal\latest
       - name: Compress Intel BaseKit
         shell: cmd
         run: |

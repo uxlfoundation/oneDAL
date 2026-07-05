@@ -6,4 +6,8 @@ package(default_visibility = ["//visibility:public"])
 # makefile `-IMPLIB:<name>_dll.lib` pattern, which Bazel's
 # cc_common.link() cannot expose as a tracked output for us to forward
 # into the staged release tree.
-exports_files(["dll_to_implib.bat"])
+exports_files([
+    "dll_to_implib.bat",
+    "dpc_link_win.ps1",
+    "dpc_link_win.tpl.bat",
+])

@@ -45,62 +45,17 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
     return str(tool_path), is_found
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
-    repo_ctx.file("dpc_link_win.ps1", """
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$Compiler,
-    [Parameter(ValueFromRemainingArguments=$true)]
-    [string[]]$RawArgs
-)
-
-$expandedArgs = New-Object System.Collections.Generic.List[string]
-foreach ($arg in $RawArgs) {
-    if ($arg.StartsWith('@')) {
-        $path = $arg.Substring(1)
-        foreach ($line in [IO.File]::ReadLines($path)) {
-            if ($line.Length -gt 0) {
-                $expandedArgs.Add($line)
-            }
-        }
-    }
-    else {
-        $expandedArgs.Add($arg)
-    }
-}
-
-$objectRsp = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.rsp')
-$objectArgs = New-Object System.Collections.Generic.List[string]
-$finalArgs = New-Object System.Collections.Generic.List[string]
-$insertedObjectRsp = $false
-
-foreach ($arg in $expandedArgs) {
-    if ($arg -match '(?i)\\.(obj|res)$') {
-        $objectArgs.Add($arg)
-        if (-not $insertedObjectRsp) {
-            $finalArgs.Add('@' + $objectRsp)
-            $insertedObjectRsp = $true
-        }
-    }
-    else {
-        $finalArgs.Add($arg)
-    }
-}
-
-try {
-    [IO.File]::WriteAllLines($objectRsp, $objectArgs)
-    & $Compiler @finalArgs
-    exit $LASTEXITCODE
-}
-finally {
-    Remove-Item -Force $objectRsp -ErrorAction SilentlyContinue
-}
-""")
-    wrapper = "dpc_link_win.bat"
-    repo_ctx.file(wrapper, """@echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0dpc_link_win.ps1" "{dpcc}" %*
-exit /b %ERRORLEVEL%
-""".format(dpcc = dpcc_path))
-    return str(repo_ctx.path(wrapper))
+    repo_ctx.template(
+        "dpc_link_win.ps1",
+        Label("@onedal//dev/bazel/toolchains/tools:dpc_link_win.ps1"),
+        {},
+    )
+    repo_ctx.template(
+        "dpc_link_win.bat",
+        Label("@onedal//dev/bazel/toolchains/tools:dpc_link_win.tpl.bat"),
+        {"%{dpcc}": dpcc_path},
+    )
+    return str(repo_ctx.path("dpc_link_win.bat"))
 
 def _find_tools_icx(repo_ctx):
     # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
