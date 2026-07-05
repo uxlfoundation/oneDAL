@@ -62,6 +62,15 @@ SHARED_LIBRARY_SUFFIXES = {
     "windows": (".dll",),
 }
 
+IGNORED_FILES = {
+    "linux": {
+        # Make DPC release does not publish these static DPC archives; keep the
+        # comparison focused on the shared libraries and public package surface.
+        "lib/intel64/libonedal_dpc.a",
+        "lib/intel64/libonedal_parameters_dpc.a",
+    },
+}
+
 NORMALIZED_TEXT_LINES = {
     "include/services/library_version_info.h": (
         "__INTEL_DAAL_BUILD_DATE",
@@ -75,6 +84,10 @@ LINUX_IGNORED_EXPORTS = {
     "__bss_start",
     "_edata",
     "_end",
+    # Intel compiler/runtime math symbols may be pulled into Bazel-built shared
+    # objects while Make hides them with linker options. They are not oneDAL API.
+    "_LIB_VERSIONIMF",
+    "log",
 }
 
 LINUX_IGNORED_EXPORT_PREFIXES = (
@@ -85,13 +98,21 @@ LINUX_IGNORED_EXPORT_PREFIXES = (
     "_ZSt27__unguarded_partition_pivot",
     "_Z28_daal_parallel_sort_template",
     "_ZN4daal10algorithms8internal5qSort",
+    "__intel_",
+    "__libm_",
+    "__svml_",
+    "MKL_",
+    "mkl_",
 )
 
 
 def is_ignored_linux_export(symbol):
     if symbol in LINUX_IGNORED_EXPORTS:
         return True
-    return symbol.startswith(LINUX_IGNORED_EXPORT_PREFIXES)
+    if symbol.startswith(LINUX_IGNORED_EXPORT_PREFIXES):
+        return True
+    # BLAS/LAPACK entry points from MKL are uppercase Fortran-style names.
+    return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
 
 
 def rel(path, root):
@@ -374,6 +395,10 @@ def main():
 
     make_dirs, make_files, make_links = classify(make_root)
     bazel_dirs, bazel_files, bazel_links = classify(bazel_root)
+
+    ignored_files = IGNORED_FILES.get(args.platform, set())
+    make_files -= ignored_files
+    bazel_files -= ignored_files
 
     print(f"Make:  {len(make_dirs)} dirs, {len(make_files)} files, {len(make_links)} links")
     print(f"Bazel: {len(bazel_dirs)} dirs, {len(bazel_files)} files, {len(bazel_links)} links")
