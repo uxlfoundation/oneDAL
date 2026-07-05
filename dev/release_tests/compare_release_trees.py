@@ -68,6 +68,31 @@ NORMALIZED_TEXT_LINES = {
     ),
 }
 
+LINUX_IGNORED_EXPORTS = {
+    # ELF linker-defined section boundary symbols. These are not part of the
+    # oneDAL ABI, but GNU nm reports them as dynamic definitions for some
+    # shared objects.
+    "__bss_start",
+    "_edata",
+    "_end",
+}
+
+LINUX_IGNORED_EXPORT_PREFIXES = (
+    # Implementation details instantiated through oneTBB/libstdc++ may vary
+    # between Make and Bazel builds while keeping the public oneDAL ABI intact.
+    "_ZN3tbb6detail",
+    "_ZNK3tbb6detail",
+    "_ZSt27__unguarded_partition_pivot",
+    "_Z28_daal_parallel_sort_template",
+    "_ZN4daal10algorithms8internal5qSort",
+)
+
+
+def is_ignored_linux_export(symbol):
+    if symbol in LINUX_IGNORED_EXPORTS:
+        return True
+    return symbol.startswith(LINUX_IGNORED_EXPORT_PREFIXES)
+
 
 def rel(path, root):
     return path.relative_to(root).as_posix()
@@ -208,7 +233,9 @@ def read_linux_exports(path):
         for line in output.splitlines():
             parts = line.split()
             if len(parts) >= 3:
-                symbols.add(parts[-1].split("@", 1)[0])
+                symbol = parts[-1].split("@", 1)[0]
+                if not is_ignored_linux_export(symbol):
+                    symbols.add(symbol)
         return symbols
 
     readelf = shutil.which("readelf")
@@ -218,7 +245,9 @@ def read_linux_exports(path):
         for line in output.splitlines():
             parts = line.split()
             if len(parts) >= 8 and parts[3] == "FUNC" and parts[6] != "UND":
-                symbols.add(parts[7].split("@", 1)[0])
+                symbol = parts[7].split("@", 1)[0]
+                if not is_ignored_linux_export(symbol):
+                    symbols.add(symbol)
         return symbols
 
     raise RuntimeError("neither nm nor readelf is available")
