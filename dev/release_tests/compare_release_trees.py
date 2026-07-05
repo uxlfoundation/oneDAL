@@ -87,7 +87,10 @@ LINUX_IGNORED_EXPORTS = {
     # Intel compiler/runtime math symbols may be pulled into Bazel-built shared
     # objects while Make hides them with linker options. They are not oneDAL API.
     "_LIB_VERSIONIMF",
+    "cos",
     "log",
+    "sqrt",
+    "sqrtf",
 }
 
 LINUX_IGNORED_EXPORT_PREFIXES = (
@@ -105,12 +108,27 @@ LINUX_IGNORED_EXPORT_PREFIXES = (
     "mkl_",
 )
 
+LINUX_DPC_IGNORED_EXPORT_PREFIXES = (
+    # Bazel may expose symbols from static dependencies linked into the DPC
+    # library that Make keeps hidden. These symbols do not describe the public
+    # DPC package surface being validated by this comparison.
+    "_Z22__daal_serv_cpu_detect",
+    "_Z23daal_check_is_intel_cpu",
+    "_Z23daal_enabled_cpu_detect",
+    "_Z28daal_serv_cpu_feature_detect",
+    "_ZN21mkl_lapack_tbb_compat",
+    "_ZN4daal",
+)
 
-def is_ignored_linux_export(symbol):
+
+def is_ignored_linux_export(symbol, library_path=None):
     if symbol in LINUX_IGNORED_EXPORTS:
         return True
     if symbol.startswith(LINUX_IGNORED_EXPORT_PREFIXES):
         return True
+    if library_path and Path(library_path).name.startswith("libonedal_dpc.so"):
+        if symbol.startswith(LINUX_DPC_IGNORED_EXPORT_PREFIXES):
+            return True
     # BLAS/LAPACK entry points from MKL are uppercase Fortran-style names.
     return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
 
@@ -255,7 +273,7 @@ def read_linux_exports(path):
             parts = line.split()
             if len(parts) >= 3:
                 symbol = parts[-1].split("@", 1)[0]
-                if not is_ignored_linux_export(symbol):
+                if not is_ignored_linux_export(symbol, path):
                     symbols.add(symbol)
         return symbols
 
@@ -267,7 +285,7 @@ def read_linux_exports(path):
             parts = line.split()
             if len(parts) >= 8 and parts[3] == "FUNC" and parts[6] != "UND":
                 symbol = parts[7].split("@", 1)[0]
-                if not is_ignored_linux_export(symbol):
+                if not is_ignored_linux_export(symbol, path):
                     symbols.add(symbol)
         return symbols
 
