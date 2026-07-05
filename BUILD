@@ -151,13 +151,9 @@ release(
         "@onedal//cpp/daal:thread_dynamic",
         "@onedal//cpp/oneapi/dal:static",
         "@onedal//cpp/oneapi/dal:dynamic",
+        "@onedal//cpp/oneapi/dal:static_parameters",
+        "@onedal//cpp/oneapi/dal:dynamic_parameters",
     ] + select({
-        ":windows": [],
-        "//conditions:default": [
-            "@onedal//cpp/oneapi/dal:static_parameters",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters",
-        ],
-    }) + select({
         ":release_dpc_windows": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
