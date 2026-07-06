@@ -118,6 +118,7 @@ LINUX_DPC_IGNORED_EXPORT_PREFIXES = (
     "_Z28daal_serv_cpu_feature_detect",
     "_ZN21mkl_lapack_tbb_compat",
     "_ZN4daal",
+    "_ZNK4daal",
 )
 
 
@@ -128,6 +129,8 @@ def is_ignored_linux_export(symbol, library_path=None):
         return True
     if library_path and Path(library_path).name.startswith("libonedal_dpc.so"):
         if symbol.startswith(LINUX_DPC_IGNORED_EXPORT_PREFIXES):
+            return True
+        if re.match(r"^_ZNK\d+mkl_sparse_", symbol):
             return True
     # BLAS/LAPACK entry points from MKL are uppercase Fortran-style names.
     return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
