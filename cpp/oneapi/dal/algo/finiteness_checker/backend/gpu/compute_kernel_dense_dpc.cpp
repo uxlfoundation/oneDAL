@@ -69,7 +69,8 @@ struct compute_kernel_gpu<Float, method::dense, task::compute> {
                     const table& data,
                     bool& res) {
         auto& queue = ctx.get_queue();
-        const auto data_1d = pr::flatten_table_by_layout<Float>(queue, data, sycl::usm::alloc::device);
+        const auto data_1d =
+            pr::flatten_table_by_layout<Float>(queue, data, sycl::usm::alloc::device);
         res = compute_finiteness(queue, data_1d, desc.get_allow_NaN());
     }
 #endif

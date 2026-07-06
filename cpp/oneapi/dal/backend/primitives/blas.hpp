@@ -17,5 +17,4 @@
 #pragma once
 
 #include "oneapi/dal/backend/primitives/blas/gemm.hpp"
-#include "oneapi/dal/backend/primitives/blas/omatcopy.hpp"
 #include "oneapi/dal/backend/primitives/blas/syrk.hpp"

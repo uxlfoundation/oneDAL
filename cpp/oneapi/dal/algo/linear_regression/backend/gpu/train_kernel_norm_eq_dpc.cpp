@@ -178,7 +178,8 @@ static train_result<Task> train(const context_gpu& ctx,
     // By using tablerndarray function we ensure that data in table is allocated on device and has row-major order
     // Note that if original data was allocated on host or shared USM or had column-major order, additional allocation happens here
     const auto data_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_data(), alloc);
-    const auto resp_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
+    const auto resp_nd =
+        pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
 
     const auto data_rows = data_nd.get_dimension(0);
     const auto data_cols = data_nd.get_dimension(1);
