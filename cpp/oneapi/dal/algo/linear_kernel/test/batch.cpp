@@ -34,6 +34,16 @@ public:
         return linear_kernel::descriptor<Float, Method>{}.set_scale(scale).set_shift(shift);
     }
 
+    table get_device_table(const te::dataframe& df, const te::table_id& id) {
+        // If test is running in data parallel mode, then the table should be created on device
+        // Otherwise, the table should be created on host
+#ifdef ONEDAL_DATA_PARALLEL
+        return df.get_table(this->get_policy(), id, sycl::usm::alloc::device);
+#else
+        return df.get_table(this->get_policy(), id);
+#endif
+    }
+
     void general_checks(const te::dataframe& x_data,
                         const te::dataframe& y_data,
                         double scale,
@@ -42,8 +52,8 @@ public:
                         const te::table_id& y_data_table_id) {
         CAPTURE(scale);
         CAPTURE(shift);
-        const table x = x_data.get_table(this->get_policy(), x_data_table_id);
-        const table y = y_data.get_table(this->get_policy(), y_data_table_id);
+        const table x = get_device_table(x_data, x_data_table_id);
+        const table y = get_device_table(y_data, y_data_table_id);
 
         INFO("create descriptor");
         const auto linear_kernel_desc = get_descriptor(scale, shift);
