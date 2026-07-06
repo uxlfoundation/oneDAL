@@ -57,7 +57,8 @@ inline bool alloc_kind_requires_copy(alloc_kind src_alloc_kind, alloc_kind dst_a
     switch (dst_alloc_kind) {
         // Shared USM on discrete GPUs uses page migration which can cause
         // crashes when accessed concurrently by multi-threaded host code
-        // To prevent further issues we require copy if original data is on shared usm.
+        // To prevent further issues we require copy if original data is on shared usm
+        // and access is requested on host.
         // This might result in slower performance for some cases but shared usm 
         // is not recommended to use for performance critical code anyway
         case alloc_kind::host: //
@@ -69,8 +70,7 @@ inline bool alloc_kind_requires_copy(alloc_kind src_alloc_kind, alloc_kind dst_a
                    (src_alloc_kind == alloc_kind::usm_shared);
         case alloc_kind::usm_device: //
             return (src_alloc_kind == alloc_kind::host) || //
-                   (src_alloc_kind == alloc_kind::usm_host) || //
-                   (src_alloc_kind == alloc_kind::usm_shared);
+                   (src_alloc_kind == alloc_kind::usm_host);
         case alloc_kind::usm_shared: //
             return (src_alloc_kind != alloc_kind::usm_shared);
         default: //
