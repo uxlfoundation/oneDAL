@@ -318,6 +318,9 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                 // ||x - c||^2 = ||x||^2 - 2 * <x, c> + ||c||^2.
                 // In CSR, x_j = 0 for indices j not in nnz(row), so both ||x||^2 and <x, c>
                 // reduce to sums over the stored entries; ||c||^2 is over all p features.
+                // Unlike the dense path (which sums squared differences and is therefore
+                // non-negative by construction), this expanded form can yield a slightly
+                // negative value due to floating-point cancellation, so clip to zero.
                 algorithmFPType rowGoal = algorithmFPType(0);
                 PRAGMA_OMP_SIMD_ARGS(reduction(+ : rowGoal))
                 for (size_t j = jStart; j < jFinish; j++)
@@ -327,7 +330,9 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                     const algorithmFPType x = data[j];
                     rowGoal += x * x - algorithmFPType(2) * x * c;
                 }
-                goal += rowGoal + clSq[assk];
+                algorithmFPType rowSq = rowGoal + clSq[assk];
+                if (rowSq < algorithmFPType(0)) rowSq = algorithmFPType(0);
+                goal += rowSq;
             } /* for (size_t k = 0; k < blockSize; k++) */
             goalLocalData[iBlock] = goal;
         }); /* daal::threader_for( nBlocks, nBlocks, [=](int k) */
