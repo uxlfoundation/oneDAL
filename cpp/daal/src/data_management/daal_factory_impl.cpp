@@ -63,10 +63,8 @@ template class BlockDescriptor<double>;
     }
 
 #undef __DAAL_REGISTER_TEMPLATED_OBJECT
-#define __DAAL_REGISTER_TEMPLATED_OBJECT(CreatorName, ObjectName, ...)                                                     \
-    {                                                                                                                      \
-        __DAAL_ADD_TYPE(__DAAL_CREATOR_ARGUMENTS(CreatorName < ObjectName < __VA_ARGS__), __DAAL_CREATOR_ARGUMENTS(>> ())) \
-    }
+#define __DAAL_REGISTER_TEMPLATED_OBJECT(CreatorName, ObjectName, ...) \
+    { __DAAL_ADD_TYPE(__DAAL_CREATOR_ARGUMENTS(CreatorName < ObjectName < __VA_ARGS__), __DAAL_CREATOR_ARGUMENTS(>>())) }
 
 namespace interface1
 {

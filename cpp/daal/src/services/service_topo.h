@@ -37,11 +37,11 @@
     #define _MSGTYP_GET_THREAD_AFFINITY_FAILED     0x80020000 // Cannot get affinity for a thread
     #define _MSGTYP_SET_THREAD_AFFINITY_FAILED     0x80010000 // Cannot set affinity for a thread
     #define _MSGTYP_RESTORE_THREAD_AFFINITY_FAILED 0x80008000 // Cannot restore affinity for a thread
-    #define _MSGTYP_INVALID_THREAD_INDEX           0x80004000 // Thread index is greater than number of threads available in the affinity mask of the process
-    #define _MSGTYP_INVALID_PACKAGE_INDEX          0x80002000 // Package index is greater than number of threads available in the affinity mask of the process
-    #define _MSGTYP_INVALID_CORE_INDEX             0x80001000 // Core index is greater than the size of the allocated core ID array
-    #define _MSGTYP_INVALID_THREAD_COUNT_INDEX     0x80000800 // Thread count index is greater than the size of the allocated thread count array
-    #define _MSGTYP_TOPOLOGY_NOT_ANALYZED          0x80000400
+    #define _MSGTYP_INVALID_THREAD_INDEX  0x80004000 // Thread index is greater than number of threads available in the affinity mask of the process
+    #define _MSGTYP_INVALID_PACKAGE_INDEX 0x80002000 // Package index is greater than number of threads available in the affinity mask of the process
+    #define _MSGTYP_INVALID_CORE_INDEX    0x80001000 // Core index is greater than the size of the allocated core ID array
+    #define _MSGTYP_INVALID_THREAD_COUNT_INDEX 0x80000800 // Thread count index is greater than the size of the allocated thread count array
+    #define _MSGTYP_TOPOLOGY_NOT_ANALYZED      0x80000400
 
 namespace daal
 {

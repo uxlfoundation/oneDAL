@@ -161,7 +161,7 @@ protected:
     {
         services::Status s = static_cast<ResultType *>(_result.get())
                                  ->allocate<algorithmFPType>(&input, &parameter, static_cast<int>(pmethod), static_cast<int>(tmethod));
-        _res = _result.get();
+        _res               = _result.get();
         return s;
     }
 

@@ -52,12 +52,8 @@ sycl::event distance<Float, squared_l2_metric<Float>>::operator()(
     const event_vector& deps) const {
     auto [norms1_array, norms1_event] = get_norms(inp1, deps);
     auto [norms2_array, norms2_event] = get_norms(inp2, deps);
-    return this->operator()(inp1,
-                            inp2,
-                            out,
-                            norms1_array,
-                            norms2_array,
-                            { norms1_event, norms2_event });
+    return this
+        ->operator()(inp1, inp2, out, norms1_array, norms2_array, { norms1_event, norms2_event });
 }
 
 #define INSTANTIATE(F, A, B)                                                                       \

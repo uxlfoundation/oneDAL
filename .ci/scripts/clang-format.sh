@@ -17,7 +17,7 @@
 
 RETURN_CODE=0
 
-CLANG_FORMAT_EXE=${CLANG_FORMAT_EXE:-clang-format-14}
+CLANG_FORMAT_EXE=${CLANG_FORMAT_EXE:-clang-format-22}
 
 echo "Using clang-format version: $(${CLANG_FORMAT_EXE} --version)"
 echo "Starting format check..."

@@ -25,8 +25,8 @@ namespace detail::v1 {
 template <typename Task>
 class compute_input_impl : public base {
 public:
-    compute_input_impl() : data(table()){};
-    compute_input_impl(const table& data) : data(data){};
+    compute_input_impl() : data(table()) {};
+    compute_input_impl(const table& data) : data(data) {};
     table data;
 };
 

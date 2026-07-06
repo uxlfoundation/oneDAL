@@ -86,8 +86,8 @@ class Batch
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>
-class DAAL_EXPORT Batch<algorithmFPType, defaultDense>
-    : public linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>
+class DAAL_EXPORT
+    Batch<algorithmFPType, defaultDense> : public linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>
 {
 public:
     typedef algorithms::linear_regression::prediction::Input InputType;

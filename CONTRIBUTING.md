@@ -55,7 +55,7 @@ Public and private CIs are enabled for the repository. Your PR should pass all o
 
 ### ClangFormat
 
-**Prerequisites:** ClangFormat `14.0.6`.
+**Prerequisites:** ClangFormat `22.1.5`.
 
 Our repository contains [clang-format configurations](https://github.com/uxlfoundation/oneDAL/blob/main/.clang-format) that you should use on your code. To do this, run:
 

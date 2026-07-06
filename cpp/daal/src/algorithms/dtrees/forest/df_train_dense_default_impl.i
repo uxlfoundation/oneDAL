@@ -272,14 +272,12 @@ void TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(training::VariableI
         }
         if (!isPositive<algorithmFPType, cpu>(maxVal)) return;
         const algorithmFPType div = 1. / maxVal;
-        for (size_t i = 0; i < nVars; varImp[i++] *= div)
-            ;
+        for (size_t i = 0; i < nVars; varImp[i++] *= div);
     }
     else
     {
         sum = 1. / sum;
-        for (size_t i = 0; i < nVars; varImp[i++] *= sum)
-            ;
+        for (size_t i = 0; i < nVars; varImp[i++] *= sum);
     }
 #endif
 }
@@ -1312,8 +1310,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
         {
             TArray<IndexType, cpu> permutation(nOOB);
             DAAL_CHECK_MALLOC(permutation.get());
-            for (size_t i = 0; i < nOOB; permutation[i] = i, ++i)
-                ;
+            for (size_t i = 0; i < nOOB; permutation[i] = i, ++i);
             const size_t nTrees         = _threadCtx.nTrees;
             const intermSummFPType div1 = 1.0 / static_cast<intermSummFPType>(nTrees);
             for (size_t i = 0, n = nFeatures(); i < n; ++i)

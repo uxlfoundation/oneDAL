@@ -119,12 +119,13 @@ constexpr bool is_valid_task_v = dal::detail::is_one_of_v<Task,
                                                           task::nu_regression>;
 
 template <typename Method, typename Task>
-constexpr bool is_valid_method_task_combination = dal::detail::is_one_of_v<Method, method::smo>
-    &&dal::detail::is_one_of_v<Task, task::regression>;
+constexpr bool is_valid_method_task_combination = dal::detail::is_one_of_v<Method, method::smo> &&
+                                                  dal::detail::is_one_of_v<Task, task::regression>;
 
 template <typename Method, typename Task>
-constexpr bool is_valid_method_nu_task_combination = dal::detail::is_one_of_v<Method, method::smo>
-    &&dal::detail::is_one_of_v<Task, task::nu_classification, task::nu_regression>;
+constexpr bool is_valid_method_nu_task_combination =
+    dal::detail::is_one_of_v<Method, method::smo> &&
+    dal::detail::is_one_of_v<Task, task::nu_classification, task::nu_regression>;
 
 template <typename Kernel>
 constexpr bool is_valid_kernel_v =
