@@ -25,9 +25,7 @@
 #include "oneapi/dal/table/detail/table_utils.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
-
 namespace oneapi::dal::backend::primitives {
-
 
 /// Convert a table to a 2D ndarray
 ///
@@ -188,8 +186,7 @@ inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
         }
 
         if (layout == data_layout::column_major) {
-            auto src =
-                homogen_table_to_same_order_ndarray<Type, ndorder::f>(q, table, alloc);
+            auto src = homogen_table_to_same_order_ndarray<Type, ndorder::f>(q, table, alloc);
             auto dst = rm_t::empty(q, { row_count, column_count }, alloc);
             transpose_copy(q, src, dst).wait_and_throw();
             return dst;
@@ -233,8 +230,7 @@ inline ndarray<Type, 2, ndorder::f> table2ndarray_cm(sycl::queue& q,
         }
 
         if (layout == data_layout::row_major) {
-            auto src =
-                homogen_table_to_same_order_ndarray<Type, ndorder::c>(q, table, alloc);
+            auto src = homogen_table_to_same_order_ndarray<Type, ndorder::c>(q, table, alloc);
             auto dst = cm_t::empty(q, { row_count, column_count }, alloc);
             transpose_copy(q, src, dst).wait_and_throw();
             return dst;

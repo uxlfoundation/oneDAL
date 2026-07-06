@@ -218,7 +218,7 @@ inline sycl::event memcpy_host2usm(sycl::queue& queue,
                                    void* dest_usm,
                                    const void* src_host,
                                    std::size_t size,
-                                   const event_vector& deps = {}) {                                
+                                   const event_vector& deps = {}) {
     ONEDAL_ASSERT(is_known_usm(queue, dest_usm));
 
     sycl::event memcpy_event = memcpy(queue, dest_usm, src_host, size, deps);
