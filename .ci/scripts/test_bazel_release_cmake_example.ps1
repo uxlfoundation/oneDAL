@@ -76,7 +76,8 @@ Write-Host "Building CMake example target: $ExampleTarget"
 cmake --build $buildPath --config Release
 
 $exe = Get-ChildItem -Path $examplesPath -Filter "$ExampleTarget.exe" -Recurse | Select-Object -First 1
-if (-not $exe) {
+$exampleExe = Get-ChildItem -Path $buildPath -Recurse -Filter "$ExampleTarget.exe" -File | Select-Object -First 1
+if ($null -eq $exampleExe) {
     throw "Cannot find built example executable: $ExampleTarget.exe"
 }
 

@@ -119,6 +119,9 @@ LINUX_DPC_IGNORED_EXPORT_PREFIXES = (
     "_ZN21mkl_lapack_tbb_compat",
     "_ZN4daal",
     "_ZNK4daal",
+    "_ZTIN4daal",
+    "_ZTSN4daal",
+    "_ZTVN4daal",
 )
 
 
