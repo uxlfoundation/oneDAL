@@ -21,6 +21,7 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/table/common.hpp"
+#include "oneapi/dal/table/backend/common_kernels.hpp"
 #include "oneapi/dal/table/detail/table_utils.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
@@ -138,28 +139,13 @@ inline ndarray<Type, 2, order> homogen_table_to_same_order_ndarray(sycl::queue& 
     const std::int64_t count = row_count * column_count;
     const Type* ptr = reinterpret_cast<const Type*>(byte_data.get_data());
 
-    const auto context = q.get_context();
-    const auto src_alloc = sycl::get_pointer_type(ptr, context);
+    using oneapi::dal::backend::alloc_kind_requires_copy;
+    using oneapi::dal::backend::alloc_kind_from_sycl;
+    using oneapi::dal::backend::get_alloc_kind;
 
-    // Mirror the logic from pull_rows_impl: determine if a copy is needed
-    // based on source and destination allocation kinds.
-    // alloc_kind_requires_copy semantics:
-    //   device requested: copy needed from host or usm_host
-    //   shared requested: copy needed unless source is also shared
-    //   host/usm_host requested: copy needed only from device
-    const bool nocopy = [&]() {
-        switch (alloc) {
-            case sycl::usm::alloc::device:
-                return (src_alloc == sycl::usm::alloc::device ||
-                        src_alloc == sycl::usm::alloc::shared);
-            case sycl::usm::alloc::shared:
-                return (src_alloc == sycl::usm::alloc::shared);
-            case sycl::usm::alloc::host:
-                return (src_alloc == sycl::usm::alloc::host ||
-                        src_alloc == sycl::usm::alloc::unknown);
-            default: return false;
-        }
-    }();
+    const auto src_kind = get_alloc_kind(byte_data);
+    const auto dst_kind = alloc_kind_from_sycl(alloc);
+    const bool nocopy = !alloc_kind_requires_copy(src_kind, dst_kind);
 
     if (nocopy) {
         auto owned_data = dal::array<Type>{ byte_data, ptr, count };
