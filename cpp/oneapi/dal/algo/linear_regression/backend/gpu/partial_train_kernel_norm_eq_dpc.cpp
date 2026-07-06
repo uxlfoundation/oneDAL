@@ -61,8 +61,7 @@ static partial_train_result<Task> call_dal_kernel(const context_gpu& ctx,
     if (has_xtx_data) {
         const auto data_nd =
             pr::table2ndarray<Float>(queue, input.get_data(), sycl::usm::alloc::device);
-
-            const auto res_nd =
+        const auto res_nd =
             pr::table2ndarray<Float>(queue, input.get_responses(), sycl::usm::alloc::device);
 
         auto xtx_nd =
@@ -70,7 +69,6 @@ static partial_train_result<Task> call_dal_kernel(const context_gpu& ctx,
         auto [xtx, fill_xtx_event] =
             pr::ndarray<Float, 2, pr::ndorder::c>::zeros(queue, xtx_shape, alloc);
         auto copy_xtx_event = copy(queue, xtx, xtx_nd, { fill_xtx_event });
-
         auto [xty, fill_xty_event] =
             pr::ndarray<Float, 2, pr::ndorder::f>::zeros(queue, xty_shape, alloc);
         auto xty_nd = pr::table2ndarray<Float, pr::ndorder::f>(queue,
