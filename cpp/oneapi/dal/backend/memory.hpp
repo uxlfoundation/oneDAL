@@ -206,8 +206,8 @@ inline sycl::event memcpy(sycl::queue& queue,
                           std::size_t size,
                           const event_vector& deps = {}) {
     ONEDAL_ASSERT(size > 0);
-    // ONEDAL_ASSERT(is_known_usm(queue, dest));
-    // ONEDAL_ASSERT(is_known_usm(queue, src));
+    // This function might be used to copy data between usm and non-usm memory,
+    // so we don't check if the pointers are usm or not
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.memcpy(dest, src, size);
@@ -221,10 +221,7 @@ inline sycl::event memcpy_host2usm(sycl::queue& queue,
                                    const event_vector& deps = {}) {                                
     ONEDAL_ASSERT(is_known_usm(queue, dest_usm));
 
-    sycl::event memcpy_event = queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.memcpy(dest_usm, src_host, size);
-    });
+    sycl::event memcpy_event = memcpy(queue, dest_usm, src_host, size, deps);
     memcpy_event.wait_and_throw();
     return memcpy_event;
 }
@@ -236,10 +233,7 @@ inline sycl::event memcpy_usm2host(sycl::queue& queue,
                                    const event_vector& deps = {}) {
     ONEDAL_ASSERT(is_known_usm(queue, src_usm));
 
-    sycl::event memcpy_event = queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.memcpy(dest_host, src_usm, size);
-    });
+    sycl::event memcpy_event = memcpy(queue, dest_host, src_usm, size, deps);
     memcpy_event.wait_and_throw();
     return memcpy_event;
 }

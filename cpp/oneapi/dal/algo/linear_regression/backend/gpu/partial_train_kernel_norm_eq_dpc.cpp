@@ -58,18 +58,10 @@ static partial_train_result<Task> call_dal_kernel(const context_gpu& ctx,
 
     const bool has_xtx_data = input_.get_partial_xtx().has_data();
 
-    // std::cerr << "table dtype size=" << dal::detail::get_data_type_size(input.get_data().get_metadata().get_data_type(0)) 
-    //       << " sizeof(Float)=" << sizeof(Float) << std::endl;
-
     if (has_xtx_data) {
         const auto data_nd =
             pr::table2ndarray<Float>(queue, input.get_data(), sycl::usm::alloc::device);
-        
-        // {
-        //     auto host = data_nd.to_host(queue);
-        //     std::cerr << "data_nd[0]=" << host.get_data()[0] << " data_nd[1]=" << host.get_data()[1] << std::endl;
-        // }
-        
+
             const auto res_nd =
             pr::table2ndarray<Float>(queue, input.get_responses(), sycl::usm::alloc::device);
 
@@ -78,12 +70,6 @@ static partial_train_result<Task> call_dal_kernel(const context_gpu& ctx,
         auto [xtx, fill_xtx_event] =
             pr::ndarray<Float, 2, pr::ndorder::c>::zeros(queue, xtx_shape, alloc);
         auto copy_xtx_event = copy(queue, xtx, xtx_nd, { fill_xtx_event });
-
-        // copy_xtx_event.wait_and_throw();
-        // {
-        //     auto host = xtx_nd.to_host(queue);
-        //     std::cerr << "xtx(after copy)[0]=" << host.get_data()[0] << " xtx(after copy)[1]=" << host.get_data()[1] << std::endl;
-        // }
 
         auto [xty, fill_xty_event] =
             pr::ndarray<Float, 2, pr::ndorder::f>::zeros(queue, xty_shape, alloc);
@@ -95,12 +81,6 @@ static partial_train_result<Task> call_dal_kernel(const context_gpu& ctx,
             update_xtx(queue, compute_intercept, data_nd, xtx, { copy_xtx_event });
         auto last_xty_event =
             update_xty(queue, compute_intercept, data_nd, res_nd, xty, { copy_xty_event });
-        
-        // {
-        //     last_xtx_event.wait_and_throw();
-        //     auto host = xtx_nd.to_host(queue);
-        //     std::cerr << "xtx[0]=" << host.get_data()[0] << " xtx[1]=" << host.get_data()[1] << std::endl;
-        // }
 
         result.set_partial_xtx(homogen_table::wrap(xtx.flatten(queue, { last_xtx_event }),
                                                    ext_feature_count,
