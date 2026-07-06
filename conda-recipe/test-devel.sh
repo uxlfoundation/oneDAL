@@ -16,8 +16,7 @@ set -eu
 # limitations under the License.
 #===============================================================================
 
-test -f $CONDA_PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc
-test -f $CONDA_PREFIX/lib/pkgconfig/dal-static-threading-host.pc
+./dev/release_tests/package_metadata_test.sh "$CONDA_PREFIX"
 
 # Load oneDAL environment helpers required by pkg-config/CMake example builds.
 . "$CONDA_PREFIX/env/vars.sh"

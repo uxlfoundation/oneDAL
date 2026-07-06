@@ -1,4 +1,3 @@
-#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,27 +14,13 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.8.0
-UNPACKED=ec-linux-amd64
-ASSET=$UNPACKED.tar.gz
-CHECKSUMS=checksums.txt
-BASE_LINK=https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION
+package(default_visibility = ["//visibility:public"])
+load("@onedal//dev/bazel:daal.bzl", "daal_module")
 
-# Download asset
-wget $BASE_LINK/$ASSET
-
-# Download checksum file
-wget $BASE_LINK/$CHECKSUMS
-
-# Verify checksum file
-if ! grep -E "$ASSET$" $CHECKSUMS | sha256sum --check; then
-    echo "Checksum verification failed"
-    exit 1
-fi
-
-# Install
-mkdir $UNPACKED && tar -xzf "$ASSET" -C $UNPACKED
-mv $UNPACKED/bin/$UNPACKED /usr/local/bin/editorconfig-checker
-
-# Clean up the downloaded files
-rm -rf "$UNPACKED" "$ASSET" "$CHECKSUMS"
+daal_module(
+    name = "kernel",
+    auto = True,
+    deps = [
+        "@onedal//cpp/daal:core",
+    ],
+)

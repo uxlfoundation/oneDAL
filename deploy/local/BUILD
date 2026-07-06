@@ -17,6 +17,7 @@
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "dal",
     "vars_lnx.sh",
     "vars_mac.sh",
     "vars_win.bat",
@@ -26,4 +27,9 @@ exports_files([
 filegroup(
     name = "config_file",
     srcs = ["config.txt"],
+)
+
+filegroup(
+    name = "modulefile_dal",
+    srcs = ["dal"],
 )
