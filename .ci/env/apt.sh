@@ -52,7 +52,7 @@ function install_mkl {
 }
 
 function install_clang-format {
-    sudo apt-get install -y clang-format-22
+    sudo apt-get install -y clang-format-20
 }
 
 function install_dev-base {

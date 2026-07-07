@@ -19,8 +19,8 @@
 #include "src/services/service_profiler.h"
 
 // UTILS
-#define ONEDAL_PROFILER_MACRO_1(name)        ONEDAL_PROFILER_START_TASK(name)
-#define ONEDAL_PROFILER_MACRO_2(name, queue) ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue)
+#define ONEDAL_PROFILER_MACRO_1(name)                       ONEDAL_PROFILER_START_TASK(name)
+#define ONEDAL_PROFILER_MACRO_2(name, queue)                ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue)
 #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
 // START_TASKS

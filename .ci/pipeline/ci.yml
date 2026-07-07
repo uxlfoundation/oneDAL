@@ -40,7 +40,7 @@ pr:
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
   TBB_VERSION : 'v2023.0.0'
-  VM_IMAGE : 'ubuntu-26.04'
+  VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
   PY_VERSION: '3.14'
