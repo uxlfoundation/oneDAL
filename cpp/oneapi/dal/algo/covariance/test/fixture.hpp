@@ -25,6 +25,7 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/dataframe.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 namespace oneapi::dal::covariance::test {
 
@@ -49,32 +50,6 @@ public:
 
     te::table_id get_homogen_table_id() const {
         return te::table_id::homogen<Float>();
-    }
-
-    template <typename Float>
-    std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
-        ONEDAL_ASSERT(0l < split_count);
-        ONEDAL_ASSERT(split_count <= t.get_row_count());
-
-        const std::int64_t row_count = t.get_row_count();
-        const std::int64_t column_count = t.get_column_count();
-        const std::int64_t block_size_regular = row_count / split_count;
-        const std::int64_t block_size_tail = row_count % split_count;
-
-        std::vector<dal::table> result(split_count);
-
-        std::int64_t row_offset = 0;
-        for (std::int64_t i = 0; i < split_count; i++) {
-            const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
-            const std::int64_t block_size = block_size_regular + tail;
-
-            const auto row_range = dal::range{ row_offset, row_offset + block_size };
-            const auto block = dal::row_accessor<const Float>{ t }.pull(row_range);
-            result[i] = dal::homogen_table::wrap(block, block_size, column_count);
-            row_offset += block_size;
-        }
-
-        return result;
     }
 
     void check_compute_result(const descriptor_t& desc,
