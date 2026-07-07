@@ -175,8 +175,8 @@ static train_result<Task> train(const context_gpu& ctx,
     auto& queue = ctx.get_queue();
     constexpr auto alloc = sycl::usm::alloc::device;
 
-    // By using tablerndarray function we ensure that data in table is allocated on device and has row-major order
-    // Note that if original data was allocated on host or shared USM or had column-major order, additional allocation happens here
+    // table2ndarray() ensures the returned ndarray is row-major and accessible from the target device.
+    // Depending on source alloc/layout, it may reuse the original storage or allocate/copy/transpose.
     const auto data_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_data(), alloc);
     const auto resp_nd =
         pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);

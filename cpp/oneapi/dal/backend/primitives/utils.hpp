@@ -134,7 +134,7 @@ inline ndarray<Type, 2, order> homogen_table_to_same_order_ndarray(sycl::queue& 
 
     const auto iface = dal::detail::get_homogen_table_iface(table);
     const auto byte_data = iface->get_data();
-    const std::int64_t count = row_count * column_count;
+    const std::int64_t count = dal::detail::check_mul_overflow(row_count, column_count);
     const Type* ptr = reinterpret_cast<const Type*>(byte_data.get_data());
 
     using oneapi::dal::backend::alloc_kind_requires_copy;
@@ -177,7 +177,7 @@ inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
     const auto row_count = table.get_row_count();
     const auto column_count = table.get_column_count();
 
-    if (table.get_kind() == homogen_table::kind() &&
+    if (table.has_data() && table.get_kind() == homogen_table::kind() &&
         table.get_metadata().get_data_type(0) == dal::detail::make_data_type<Type>()) {
         const auto layout = table.get_data_layout();
 
@@ -221,7 +221,7 @@ inline ndarray<Type, 2, ndorder::f> table2ndarray_cm(sycl::queue& q,
     const auto row_count = table.get_row_count();
     const auto column_count = table.get_column_count();
 
-    if (table.get_kind() == homogen_table::kind() &&
+    if (table.has_data() && table.get_kind() == homogen_table::kind() &&
         table.get_metadata().get_data_type(0) == dal::detail::make_data_type<Type>()) {
         const auto layout = table.get_data_layout();
 
@@ -263,9 +263,6 @@ inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
     ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(service::table2ndarray_queue,
                                                  q,
                                                  table.get_row_count());
-    // std::cerr << "table2ndarray sizeof:" << dal::detail::get_data_type_size(table.get_metadata().get_data_type(0)) << " "
-    // << " sizeof(Type)=" << sizeof(Type) << std::endl;
-
     if constexpr (order == ndorder::c) {
         return table2ndarray_rm<Type>(q, table, alloc);
     }
