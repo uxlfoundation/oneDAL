@@ -67,6 +67,14 @@ Refer to [ClangFormat documentation](https://clang.llvm.org/docs/ClangFormat.htm
 
 Note that different clang-format versions will produce different linting, so the version of clang-format needs to match exactly.
 
+We recommend enabling a pre-commit hook in your repository using the [pre-commit](https://pre-commit.com/) tool.
+Install the tool and enable the hook by running the following commands:
+
+```shell
+python3 -m pip install pre-commit
+pre-commit install
+```
+
 ### editorconfig-checker
 
 We also recommend using [editorconfig-checker](https://github.com/editorconfig-checker/editorconfig-checker) to ensure your code adheres to the project's coding style. EditorConfig-Checker is a command-line tool that checks your code against the rules defined in the [.editorconfig](https://github.com/uxlfoundation/oneDAL/blob/main/.editorconfig) file.
