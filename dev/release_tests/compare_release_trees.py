@@ -63,10 +63,7 @@ SHARED_LIBRARY_SUFFIXES = {
 }
 
 IGNORED_FILES = {
-    "linux": {
-        # Make DPC release does not publish these static DPC archives; keep the
-        # comparison focused on the shared libraries and public package surface.
-    },
+    "linux": set(),
 }
 
 NORMALIZED_TEXT_LINES = {
@@ -82,8 +79,6 @@ LINUX_IGNORED_EXPORTS = {
     "__bss_start",
     "_edata",
     "_end",
-    # Intel compiler/runtime math symbols may be pulled into Bazel-built shared
-    # objects while Make hides them with linker options. They are not oneDAL API.
 }
 
 LINUX_IGNORED_EXPORT_PREFIXES = (
