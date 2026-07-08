@@ -71,7 +71,7 @@ We recommend enabling a pre-commit hook in your repository using the [pre-commit
 Install the tool and enable the hook by running the following commands:
 
 ```shell
-python3 -m pip install pre-commit
+pip install pre-commit
 pre-commit install
 ```
 
