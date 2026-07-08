@@ -21,9 +21,6 @@ dal_module(
         "@onedal//cpp/oneapi/dal:common",
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
     ],
-    srcs = [
-        "sign_flip_cpu.cpp",
-    ],
     extra_deps = [
         "@onedal//cpp/oneapi:include_root",
     ],
