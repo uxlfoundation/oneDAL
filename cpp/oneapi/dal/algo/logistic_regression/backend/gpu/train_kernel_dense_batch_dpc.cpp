@@ -54,13 +54,14 @@ static train_result<Task> train(const context_gpu& ctx,
     const auto resp_nd =
         pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
 
-    const auto data_rows = data_nd.get_dimension(0);
-    const auto data_cols = data_nd.get_dimension(1);
-    const auto resp_rows = resp_nd.get_dimension(0);
-    const auto resp_cols = resp_nd.get_dimension(1);
-
-    auto data_table = homogen_table::wrap(queue, data_nd.get_data(), data_rows, data_cols);
-    auto resp_table = homogen_table::wrap(queue, resp_nd.get_data(), resp_rows, resp_cols);
+    auto data_table = homogen_table::wrap(queue,
+                                          data_nd.get_data(),
+                                          data_nd.get_dimension(0),
+                                          data_nd.get_dimension(1));
+    auto resp_table = homogen_table::wrap(queue,
+                                          resp_nd.get_data(),
+                                          resp_nd.get_dimension(0),
+                                          resp_nd.get_dimension(1));
 
     return call_dal_kernel<Float, Task>(ctx, desc, params, data_table, resp_table);
 }

@@ -63,29 +63,6 @@ inline ndarray<Type, 1> table2ndarray_1d(const table& table) {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-/// Check if a USM pointer is accessible on the target device with the requested
-/// allocation kind. Returns true if no copy is needed.
-///
-/// @tparam Type The element type (used for pointer casting).
-///
-/// @param q     The SYCL* queue.
-/// @param ptr   The USM pointer to check.
-/// @param alloc The requested USM allocation type.
-///
-/// @return True if the pointer is already suitable for the requested alloc on the queue's device.
-template <typename Type>
-inline bool is_ptr_accessible(sycl::queue& q, const Type* ptr, sycl::usm::alloc alloc) {
-    const auto context = q.get_context();
-    const auto ptr_alloc = sycl::get_pointer_type(ptr, context);
-    if (ptr_alloc != alloc) {
-        return false;
-    }
-    if (ptr_alloc == sycl::usm::alloc::device) {
-        return sycl::get_pointer_device(ptr, context) == q.get_device();
-    }
-    return true;
-}
-
 /// Transpose a 2D ndarray from one order to another.
 ///
 /// @tparam Type      The element type.
@@ -333,9 +310,10 @@ inline ndarray<Type, 1> table2ndarray_1d(sycl::queue& q,
 ///
 /// @return A 1D ndarray over the table's data.
 template <typename Type>
-inline ndarray<Type, 1> flatten_table_by_layout(sycl::queue& q,
-                                                const table& table,
-                                                sycl::usm::alloc alloc = sycl::usm::alloc::device) {
+inline ndarray<Type, 1> table2ndarray_1d_save_layout(
+    sycl::queue& q,
+    const table& table,
+    sycl::usm::alloc alloc = sycl::usm::alloc::device) {
     const auto layout = table.get_data_layout();
     if (layout == data_layout::column_major) {
         const auto cm = table2ndarray_cm<Type>(q, table, alloc);

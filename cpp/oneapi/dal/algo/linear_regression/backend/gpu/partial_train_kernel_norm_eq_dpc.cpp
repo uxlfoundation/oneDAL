@@ -57,7 +57,6 @@ static partial_train_result<Task> call_dal_kernel(const context_gpu& ctx,
     const auto input_ = input.get_prev();
 
     const bool has_xtx_data = input_.get_partial_xtx().has_data();
-
     if (has_xtx_data) {
         const auto data_nd =
             pr::table2ndarray<Float>(queue, input.get_data(), sycl::usm::alloc::device);

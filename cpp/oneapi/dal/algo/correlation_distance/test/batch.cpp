@@ -35,20 +35,12 @@ public:
         return correlation_distance::descriptor<Float, Method>{};
     }
 
-    table get_device_table(const te::dataframe& df, const te::table_id& id) {
-#ifdef ONEDAL_DATA_PARALLEL
-        return df.get_table(this->get_policy(), id, sycl::usm::alloc::device);
-#else
-        return df.get_table(this->get_policy(), id);
-#endif
-    }
-
     void general_checks(const te::dataframe& x_data,
                         const te::dataframe& y_data,
                         const te::table_id& x_data_table_id,
                         const te::table_id& y_data_table_id) {
-        const table x = get_device_table(x_data, x_data_table_id);
-        const table y = get_device_table(y_data, y_data_table_id);
+        const table x = this->get_device_table(x_data, x_data_table_id);
+        const table y = this->get_device_table(y_data, y_data_table_id);
 
         INFO("create descriptor");
         const auto correlation_distance_desc = get_descriptor();
