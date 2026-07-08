@@ -66,8 +66,6 @@ IGNORED_FILES = {
     "linux": {
         # Make DPC release does not publish these static DPC archives; keep the
         # comparison focused on the shared libraries and public package surface.
-        "lib/intel64/libonedal_dpc.a",
-        "lib/intel64/libonedal_parameters_dpc.a",
     },
 }
 
@@ -86,11 +84,6 @@ LINUX_IGNORED_EXPORTS = {
     "_end",
     # Intel compiler/runtime math symbols may be pulled into Bazel-built shared
     # objects while Make hides them with linker options. They are not oneDAL API.
-    "_LIB_VERSIONIMF",
-    "cos",
-    "log",
-    "sqrt",
-    "sqrtf",
 }
 
 LINUX_IGNORED_EXPORT_PREFIXES = (
@@ -101,9 +94,6 @@ LINUX_IGNORED_EXPORT_PREFIXES = (
     "_ZSt27__unguarded_partition_pivot",
     "_Z28_daal_parallel_sort_template",
     "_ZN4daal10algorithms8internal5qSort",
-    "__intel_",
-    "__libm_",
-    "__svml_",
     "MKL_",
     "mkl_",
 )
