@@ -73,18 +73,19 @@ Write-Host "Configuring CMake example from Bazel release: $examplesPath"
 cmake @cmakeArgs
 
 Write-Host "Building CMake example target: $ExampleTarget"
-cmake --build $buildPath --config Release
+cmake --build $buildPath --config Release --target $ExampleTarget
 
-$exe = Get-ChildItem -Path $examplesPath -Filter "$ExampleTarget.exe" -Recurse | Select-Object -First 1
 $exampleExe = Get-ChildItem -Path $buildPath -Recurse -Filter "$ExampleTarget.exe" -File | Select-Object -First 1
 if ($null -eq $exampleExe) {
+    Write-Host "Available executables under build directory:"
+    Get-ChildItem -Path $buildPath -Recurse -Filter "*.exe" -File | ForEach-Object { Write-Host "  $($_.FullName)" }
     throw "Cannot find built example executable: $ExampleTarget.exe"
 }
 
-Write-Host "Running CMake example: $($exe.FullName)"
+Write-Host "Running CMake example: $($exampleExe.FullName)"
 Push-Location $examplesPath
 try {
-    & $exe.FullName
+    & $exampleExe.FullName
     if ($LASTEXITCODE -ne 0) {
         throw "Example failed with exit code $LASTEXITCODE"
     }

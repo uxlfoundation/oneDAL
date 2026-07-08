@@ -158,9 +158,7 @@ release(
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
         "@config//:release_dpc_enabled": [
-            "@onedal//cpp/oneapi/dal:static_dpc",
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
-            "@onedal//cpp/oneapi/dal:static_parameters_dpc",
             "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
         ],
         "//conditions:default": [],
