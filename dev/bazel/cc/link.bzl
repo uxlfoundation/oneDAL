@@ -261,9 +261,11 @@ def _link(owner, name, actions, cc_toolchain,
         libraries_to_link = [object_archive_to_link] + libraries_to_link
         if is_dpc:
             object_archive_link_flags.append("/link")
-        # Do not force every object archive into Windows DLLs: it exports otherwise-unused
-        # template/object symbols and diverges from the Make release surface.
-        # The linker should pull only objects needed by the requested exports.
+        # Windows DLL exports are discovered from dllexport directives inside
+        # object files. A normal static library is searched only for unresolved
+        # references, so these objects are otherwise not pulled into leaf DLLs
+        # such as onedal_thread.dll and the link can miss the CRT startup.
+        object_archive_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
         additional_link_inputs.append(object_archive)
         all_object_list = []
     all_objects = depset(all_object_list)
