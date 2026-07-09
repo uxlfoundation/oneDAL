@@ -79,6 +79,10 @@ LINUX_IGNORED_EXPORTS = {
     "__bss_start",
     "_edata",
     "_end",
+    # Intel compiler/runtime implementation details that can be pulled into the
+    # Bazel-built shared objects without changing the oneDAL API surface.
+    "_LIB_VERSIONIMF",
+    "log",
 }
 
 LINUX_IGNORED_EXPORT_PREFIXES = (
@@ -86,7 +90,14 @@ LINUX_IGNORED_EXPORT_PREFIXES = (
     # between Make and Bazel builds while keeping the public oneDAL ABI intact.
     "_ZN3tbb6detail",
     "_ZNK3tbb6detail",
-    "_ZSt27__unguarded_partition_pivot",
+    "_ZTIN3tbb6detail",
+    "_ZTSN3tbb6detail",
+    "_ZTVN3tbb6detail",
+    "_ZNSt",
+    "_ZSt",
+    "__intel_",
+    "__libm_",
+    "__svml_",
     "_Z28_daal_parallel_sort_template",
     "_ZN4daal10algorithms8internal5qSort",
     "MKL_",
@@ -102,6 +113,9 @@ LINUX_DPC_IGNORED_EXPORT_PREFIXES = (
     "_Z23daal_enabled_cpu_detect",
     "_Z28daal_serv_cpu_feature_detect",
     "_ZN21mkl_lapack_tbb_compat",
+    "_ZTIN21mkl_lapack_tbb_compat",
+    "_ZTSN21mkl_lapack_tbb_compat",
+    "_ZTVN21mkl_lapack_tbb_compat",
     "_ZN4daal",
     "_ZNK4daal",
     "_ZTIN4daal",

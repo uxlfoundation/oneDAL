@@ -50,7 +50,7 @@ $cmakeArgs = @(
     "-S", $examplesPath,
     "-DONEDAL_LINK=dynamic",
     "-DCMAKE_PREFIX_PATH=$releasePath",
-    "-DEXAMPLES_LIST=$ExampleSource"
+    "-DEXAMPLES_LIST=$ExampleTarget"
 )
 
 foreach ($candidate in $tbbDirCandidates) {
