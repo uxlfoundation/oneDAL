@@ -118,6 +118,7 @@ LINUX_DPC_IGNORED_EXPORT_PREFIXES = (
     "_ZTVN21mkl_lapack_tbb_compat",
     "_ZN4daal",
     "_ZNK4daal",
+    "_ZThn",
     "_ZTIN4daal",
     "_ZTSN4daal",
     "_ZTVN4daal",
@@ -299,35 +300,22 @@ def read_linux_exports(path):
 
 def read_windows_exports(path):
     dumpbin = shutil.which("dumpbin")
-    if dumpbin:
-        output = run_tool([dumpbin, "/NOLOGO", "/EXPORTS", str(path)])
-        symbols = set()
-        in_exports = False
-        for line in output.splitlines():
-            if "ordinal" in line and "hint" in line and "RVA" in line:
-                in_exports = True
-                continue
-            if not in_exports:
-                continue
-            stripped = line.strip()
-            if not stripped or stripped.startswith("Summary"):
-                continue
-            parts = stripped.split()
-            if len(parts) >= 4 and parts[0].isdigit():
-                symbols.add(parts[3].split("=", 1)[0])
-        return symbols
-
-    llvm_nm = shutil.which("llvm-nm")
-    if llvm_nm:
-        output = run_tool([llvm_nm, "--defined-only", "--extern-only", str(path)])
-        symbols = set()
-        for line in output.splitlines():
-            parts = line.split()
-            if len(parts) >= 3 and re.match(r"^[A-Za-z]$", parts[-2]):
-                symbols.add(parts[-1])
-        return symbols
-
-    raise RuntimeError("neither dumpbin nor llvm-nm is available")
+    if not dumpbin:
+        raise RuntimeError("dumpbin is required to compare Windows DLL exports")
+    output = run_tool([dumpbin, "/NOLOGO", "/EXPORTS", str(path)])
+    symbols = set()
+    in_exports = False
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("ordinal hint"):
+            in_exports = True
+            continue
+        if not in_exports or not stripped:
+            continue
+        parts = stripped.split()
+        if len(parts) >= 4 and parts[0].isdigit():
+            symbols.add(parts[3].split("=", 1)[0])
+    return symbols
 
 
 def read_exports(platform, path):

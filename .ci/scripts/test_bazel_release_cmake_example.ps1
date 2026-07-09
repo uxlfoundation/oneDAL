@@ -75,10 +75,11 @@ cmake @cmakeArgs
 Write-Host "Building CMake example target: $ExampleTarget"
 cmake --build $buildPath --config Release --target $ExampleTarget
 
-$exampleExe = Get-ChildItem -Path $buildPath -Recurse -Filter "$ExampleTarget.exe" -File | Select-Object -First 1
+$exampleExe = Get-ChildItem -Path @($buildPath, $examplesPath) -Recurse -Filter "$ExampleTarget.exe" -File |
+    Select-Object -First 1
 if ($null -eq $exampleExe) {
-    Write-Host "Available executables under build directory:"
-    Get-ChildItem -Path $buildPath -Recurse -Filter "*.exe" -File | ForEach-Object { Write-Host "  $($_.FullName)" }
+    Write-Host "Available executables under examples directory:"
+    Get-ChildItem -Path $examplesPath -Recurse -Filter "*.exe" -File | ForEach-Object { Write-Host "  $($_.FullName)" }
     throw "Cannot find built example executable: $ExampleTarget.exe"
 }
 

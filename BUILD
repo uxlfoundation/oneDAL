@@ -151,9 +151,13 @@ release(
         "@onedal//cpp/daal:thread_dynamic",
         "@onedal//cpp/oneapi/dal:static",
         "@onedal//cpp/oneapi/dal:dynamic",
-        "@onedal//cpp/oneapi/dal:static_parameters",
-        "@onedal//cpp/oneapi/dal:dynamic_parameters",
     ] + select({
+        ":windows": [],
+        "//conditions:default": [
+            "@onedal//cpp/oneapi/dal:static_parameters",
+            "@onedal//cpp/oneapi/dal:dynamic_parameters",
+        ],
+    }) + select({
         ":release_dpc_windows": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
@@ -177,9 +181,9 @@ release(
     }),
     extra_files = [
         release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),
-        release_extra_file(":release_pkgconfig", "", windows_dst_path = "lib/pkgconfig/onedal.pc"),
-        release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc", windows_dst_path = ""),
-        release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc", windows_dst_path = ""),
+        release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
+        release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc"),
+        release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc"),
         release_extra_file("//deploy/local:config_file", "config/config.txt"),
         release_extra_file(":release_modulefile_dal", "modulefiles/dal", windows_dst_path = ""),
         release_extra_file(":release_mpi_daal_lst_linux", "samples/daal/cpp/mpi/daal.lst", windows_dst_path = ""),

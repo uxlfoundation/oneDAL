@@ -454,7 +454,7 @@ def release(name, include, lib, extra_files = [], data = []):
                      Example:
                        extra_files = [
                            release_extra_file(":release_vars_sh", "env/vars.sh"),
-                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc"),
+                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
                        ]
         data:        List of filegroup targets to copy preserving directory structure.
                      Example:
