@@ -61,14 +61,8 @@ ARCH_is_$(ARCH)                    := yes
 
 GCOV_ENABLED                       := $(if $(filter yes,$(CODE_COVERAGE)),$(if $(OS_is_lnx),yes,no),no)
 
-DEFAULT_BUILD_PARAMETERS_LIB       := $(if $(OS_is_win),no,yes)
+DEFAULT_BUILD_PARAMETERS_LIB       := yes
 BUILD_PARAMETERS_LIB               ?= $(DEFAULT_BUILD_PARAMETERS_LIB)
-
-ifdef OS_is_win
-ifeq ($(BUILD_PARAMETERS_LIB),yes)
-$(error Building with the parameters library is not available on Windows OS)
-endif
-endif
 
 USERREQCPU := $(filter-out $(filter $(CPUs),$(REQCPU)),$(REQCPU))
 USECPUS := $(if $(REQCPU),$(if $(USERREQCPU),$(error Unsupported value/s in REQCPU: $(USERREQCPU). List of supported CPUs: $(CPUs)),$(REQCPU)),$(CPUs))

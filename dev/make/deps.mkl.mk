@@ -21,7 +21,6 @@
 MKLDIR:= $(subst \,/,$(MKLROOT))
 MKLDIR.include := $(MKLDIR)/include
 MKLDIR.libia   := $(MKLDIR)/lib
-RELEASEDIR.include.mklgpu := $(RELEASEDIR.include)/services/internal/sycl/math
 
 MKLGPUDIR:= $(subst \,/,$(MKLROOT))
 MKLGPUDIR.include := $(MKLGPUDIR)/include/oneapi
