@@ -78,4 +78,29 @@ struct vertex_partitioning_kernel_cpu<method::afforest,
     }
 };
 
+ONEDAL_EXPORT vertex_partitioning_result<task::vertex_partitioning> run_afforest(
+    const dal::detail::host_policy& ctx,
+    const detail::descriptor_base<task::vertex_partitioning>& desc,
+    const dal::preview::detail::topology<std::int32_t>& t,
+    byte_alloc_iface* alloc);
+
+template <typename Allocator>
+struct vertex_partitioning_kernel_cpu<method::afforest,
+                                      task::vertex_partitioning,
+                                      Allocator,
+                                      dal::preview::detail::topology<std::int32_t>> {
+    inline vertex_partitioning_result<task::vertex_partitioning> operator()(
+        const dal::detail::host_policy& ctx,
+        const detail::descriptor_base<task::vertex_partitioning>& desc,
+        const Allocator& alloc,
+        const dal::preview::detail::topology<std::int32_t>& t) const {
+        alloc_connector<Allocator> alloc_con(alloc);
+        const auto vertex_count = t.get_vertex_count();
+        if (vertex_count == 0) {
+            return vertex_partitioning_result<task::vertex_partitioning>();
+        }
+        return run_afforest(ctx, desc, t, &alloc_con);
+    }
+};
+
 } // namespace oneapi::dal::preview::connected_components::detail
