@@ -40,7 +40,7 @@ public:
     }
 
     static te::dataframe get_data() {
-        static std::array<float, row_count* column_count> data = {
+        static std::array<float, row_count * column_count> data = {
             -0.4211976,  -1.77513504, 1.27569859, //
             0.77215635,  0.83386471,  2.14067957, //
             0.73995455,  -0.27936096, 0.32836769, //
@@ -146,7 +146,7 @@ public:
     }
 
     static te::dataframe get_initial_centroids() {
-        static std::array<float, cluster_count* column_count> data = {
+        static std::array<float, cluster_count * column_count> data = {
             0.67903983,  -1.48359774, -0.73226038, //
             0.7946199,   0.7242352,   1.23007028, //
             -1.32741404, -0.74386852, 0.92412268, //
@@ -155,7 +155,7 @@ public:
     }
 
     static te::dataframe get_expected_centroids() {
-        static std::array<float, cluster_count* column_count> data = {
+        static std::array<float, cluster_count * column_count> data = {
             1.25549348,  1.35247195,  1.58509995, //
             -1.08670276, -0.66384991, 1.67101285, //
             0.70017013,  -0.92290187, -0.75447395, //

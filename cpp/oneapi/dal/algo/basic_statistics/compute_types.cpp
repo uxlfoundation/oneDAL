@@ -23,7 +23,7 @@ namespace oneapi::dal::basic_statistics {
 template <typename Task>
 class detail::v1::compute_input_impl : public base {
 public:
-    compute_input_impl() : data(table()){};
+    compute_input_impl() : data(table()) {};
     compute_input_impl(const table& data) : data(data) {}
     compute_input_impl(const table& data, const table& weights) : data(data), weights(weights) {}
     table data, weights;

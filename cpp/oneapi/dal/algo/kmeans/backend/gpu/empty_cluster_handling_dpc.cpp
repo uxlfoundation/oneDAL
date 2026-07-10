@@ -460,23 +460,21 @@ auto fill_empty_clusters(sycl::queue& queue,
                                   const pr::ndarray<Float, 2>& closest_distances,              \
                                   const pr::ndarray<std::int32_t, 1>& counters,                \
                                   const bk::event_vector& deps)                                \
-        ->std::tuple<centroid_candidates<Float>, sycl::event>;                                 \
+        -> std::tuple<centroid_candidates<Float>, sycl::event>;                                \
                                                                                                \
     template auto fill_empty_clusters(sycl::queue& queue,                                      \
                                       bk::communicator<spmd::device_memory_access::usm>& comm, \
                                       const pr::ndview<Float, 2>& data,                        \
                                       const centroid_candidates<Float>& candidates,            \
                                       pr::ndview<Float, 2>& centroids,                         \
-                                      const bk::event_vector& deps)                            \
-        ->sycl::event;                                                                         \
+                                      const bk::event_vector& deps) -> sycl::event;            \
     template auto copy_candidates_from_data(sycl::queue& queue,                                \
                                             const pr::ndview<Float, 1>& values,                \
                                             const pr::ndview<std::int64_t, 1>& column_indices, \
                                             const pr::ndview<std::int64_t, 1>& row_offsets,    \
                                             const centroid_candidates<Float>& candidates,      \
                                             pr::ndview<Float, 2>& centroids,                   \
-                                            const bk::event_vector& deps)                      \
-        ->sycl::event;
+                                            const bk::event_vector& deps) -> sycl::event;
 
 INSTANTIATE(float)
 INSTANTIATE(double)
