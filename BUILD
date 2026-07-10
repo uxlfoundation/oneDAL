@@ -181,7 +181,7 @@ release(
     }),
     extra_files = [
         release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),
-        release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
+        release_extra_file(":release_pkgconfig", "", windows_dst_path = ""),
         release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc"),
         release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc"),
         release_extra_file("//deploy/local:config_file", "config/config.txt"),
