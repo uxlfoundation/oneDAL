@@ -206,8 +206,10 @@ inline sycl::event memcpy(sycl::queue& queue,
                           std::size_t size,
                           const event_vector& deps = {}) {
     ONEDAL_ASSERT(size > 0);
-    ONEDAL_ASSERT(is_known_usm(queue, dest));
-    ONEDAL_ASSERT(is_known_usm(queue, src));
+    ONEDAL_ASSERT(src != nullptr)
+    ONEDAL_ASSERT(dest != nullptr)
+    // This function might be used to copy data between usm and non-usm memory,
+    // so we don't check if the pointers are usm or not
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.memcpy(dest, src, size);
