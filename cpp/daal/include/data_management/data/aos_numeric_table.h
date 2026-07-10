@@ -36,7 +36,7 @@ namespace data_management
 // Extended variant of the standard offsetof() macro  (not limited to only POD types)
 /* Not sure if it's standard-compliant; most likely, it only works in certain environments.
    The constant 0x1000 (not NULL) is necessary to appease GCC. */
-#define DAAL_STRUCT_MEMBER_OFFSET(class_name, member_name) ((ptrdiff_t) & (reinterpret_cast<class_name *>(0x1000)->member_name) - 0x1000)
+#define DAAL_STRUCT_MEMBER_OFFSET(class_name, member_name) ((ptrdiff_t)&(reinterpret_cast<class_name *>(0x1000)->member_name) - 0x1000)
 
 namespace interface1
 {

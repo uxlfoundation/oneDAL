@@ -215,7 +215,8 @@ private:
 namespace detail {
 
 template <typename Graph>
-constexpr bool is_valid_graph = is_directed<Graph>&&
+constexpr bool is_valid_graph =
+    is_directed<Graph> &&
     dal::detail::is_one_of_v<edge_user_value_type<Graph>, std::int32_t, double>;
 
 } // namespace detail
