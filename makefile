@@ -142,10 +142,26 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC          := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 -DEBC_DPCPP    := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+# Device-code (SPIR-V) compression for the embedded fat binary in DPC libs.
+# Enabled only with REQDBG, where the SPIR-V section dominates the .so size.
+# Level 9 is a deliberate fixed default: ABI-safe (decompressed at JIT, host
+# symbols unchanged), big shrink vs uncompressed, and compress time stays sane
+# (zstd's ratio curve flattens hard past ~12).
+-offloadcompress := $(if $(REQDBG),--offload-compress --offload-compression-level=9,)
 -DGCOV_BUILD   := $(if $(filter yes,$(GCOV_ENABLED)),-DGCOV_BUILD)
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
+#
+# DPC link note: when REQSAN=address on Linux, libonedal_dpc.so must record the ASan
+# runtime (libclang_rt.asan-x86_64.so) in its NEEDED list so the loader pulls it in
+# *before* libsycl.so / Level-Zero have a chance to allocate during their init
+# constructors. `-fsanitize=address` is wrapped under -Xarch_host (the device link
+# rejects it), but `-shared-libasan` is passed plain — icpx accepts it on the host
+# link and it forces the dynamic ASan runtime into NEEDED. Without -shared-libasan,
+# icpx defaults to the static archive on shared libraries, leaving the runtime
+# undiscoverable from the example binary and triggering the
+# "ASan runtime does not come first in initial library list" error at startup.
 -sanitize      := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
 -lsanitize     := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
 -lsanitize.dpc := $(if $(REQSAN),-Xarch_host -fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.dpcpp),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.dpcpp))))
@@ -802,7 +818,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize.dpc)
 endif
@@ -825,7 +841,7 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize.dpc)
 endif
@@ -1151,6 +1167,14 @@ Flags:
       Use of sanitizers on Windows is unverified, with the available
       sanitizers and their default linking mode dependent on the compiler.
       It is recommended to use in tandem with REQDBG.
+      Linux DPC++ note: shared ASan is required for sanitized DPC binaries,
+      since the SYCL runtime initializes (and allocates) before the loader
+      can sort a static ASan into NEEDED. The icpx host link is invoked with
+      -shared-libasan; example/test binaries must also link -fsanitize=address
+      -shared-libsan, otherwise they will crash at startup with
+      "ASan runtime does not come first in initial library list".
+      Workaround for stubborn link orders:
+        LD_PRELOAD=$(icpx -print-file-name=libclang_rt.asan-x86_64.so) ./bin
       special values: static, address, memory, thread, leak, undefined
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
       can only be enabled when set to value "yes" with the icx compiler on
