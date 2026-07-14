@@ -153,13 +153,13 @@ public:
         const auto bs_desc = get_descriptor(compute_mode);
         const auto data_table_id = this->get_homogen_table_id();
 
-        table weights, data = data_fr.get_table(this->get_policy(), data_table_id);
+        table weights, data = data_fr.get_table(data_table_id);
         dal::basic_statistics::partial_compute_result<> partial_result;
 
         auto input_table =
             te::split_table_by_rows_mixed<float_t>(this->get_policy(), data, nBlocks, host_first);
         if (use_weights) {
-            weights = weights_fr->get_table(this->get_policy(), data_table_id);
+            weights = weights_fr->get_table(data_table_id);
             auto weights_table = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
                                                                         weights,
                                                                         nBlocks,

@@ -157,7 +157,7 @@ public:
                              bool host_first) {
         CAPTURE(component_count);
 
-        const table x = data.get_table(this->get_policy(), data_table_id);
+        const table x = data.get_table(data_table_id);
 
         INFO("create descriptor");
         const auto pca_desc = get_descriptor(component_count);
