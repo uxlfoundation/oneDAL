@@ -58,7 +58,7 @@ public:
         mutex().unlock();
     }
 
-    openblas_thread_setter(const openblas_thread_setter &) = delete;
+    openblas_thread_setter(const openblas_thread_setter &)             = delete;
     openblas_thread_setter & operator=(const openblas_thread_setter &) = delete;
 
 private:
