@@ -24,6 +24,8 @@
 #ifndef __SERVICE_THREAD_DECLAR_REF_H__
 #define __SERVICE_THREAD_DECLAR_REF_H__
 
+#include <mutex>
+
 namespace daal
 {
 namespace internal
@@ -36,18 +38,37 @@ extern "C"
     extern int openblas_get_num_threads(void);
 }
 
+/* OpenBLAS lacks a thread-local equivalent to mkl_set_num_threads_local(),
+   so openblas_set_num_threads() modifies global state. A static mutex
+   serializes the save-set-restore sequence to prevent race conditions
+   when multiple threads enter single-threaded BLAS/LAPACK calls concurrently.
+   See: https://github.com/uxlfoundation/oneDAL/issues/3329 */
 class openblas_thread_setter
 {
 public:
     openblas_thread_setter(int n_threads = 1)
     {
+        mutex().lock();
         previous_thread_count = openblas_get_num_threads();
         openblas_set_num_threads(n_threads);
     }
-    ~openblas_thread_setter() { openblas_set_num_threads(previous_thread_count); }
+    ~openblas_thread_setter()
+    {
+        openblas_set_num_threads(previous_thread_count);
+        mutex().unlock();
+    }
+
+    openblas_thread_setter(const openblas_thread_setter &) = delete;
+    openblas_thread_setter & operator=(const openblas_thread_setter &) = delete;
 
 private:
     int previous_thread_count = 1;
+
+    static std::mutex & mutex()
+    {
+        static std::mutex m;
+        return m;
+    }
 };
 
 } // namespace ref
