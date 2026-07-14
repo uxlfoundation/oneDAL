@@ -170,19 +170,16 @@ public:
         }
         auto train_result = this->finalize_train(pca_desc, partial_result);
 
+        const auto ctx = this->get_queue().get_context();
         if (train_result.get_eigenvalues().has_data()) {
             const auto& res =
                 static_cast<const dal::homogen_table&>(train_result.get_eigenvalues());
-            std::cout << "eigenvalues allocation: "
-                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                      << std::endl;
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::unknown);
         }
         if (train_result.get_eigenvectors().has_data()) {
             const auto& res =
                 static_cast<const dal::homogen_table&>(train_result.get_eigenvectors());
-            std::cout << "eigenvectors allocation: "
-                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                      << std::endl;
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::unknown);
         }
 
         const auto model = train_result.get_model();

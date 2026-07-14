@@ -84,15 +84,6 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
             te::dataframe_builder{ row_count, 1 }.fill_normal(0, 1, 777).build());
     }
 
-    std::cout << "Case: nBlocks = " << nBlocks;
-    if (std::is_same_v<decltype(this->get_policy()), te::host_test_policy>) {
-        std::cout << ", policy = host";
-    }
-    else {
-        std::cout << ", policy = device";
-    }
-    std::cout << ", host_first = " << host_first << std::endl;
-
     const bs::result_option_id compute_mode =
         bs::result_option_id(dal::result_option_id_base(mask_full));
 

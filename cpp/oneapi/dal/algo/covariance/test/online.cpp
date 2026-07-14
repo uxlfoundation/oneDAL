@@ -142,23 +142,19 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
     }
     auto compute_result = this->finalize_compute(cov_desc, partial_result);
 
+    const auto ctx = this->get_queue().get_context();
+    const auto expected_alloc = sycl::usm::alloc::device;
     if (compute_result.get_result_options().test(result_options::cov_matrix)) {
         const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_cov_matrix());
-        std::cout << "cov_matrix allocation: "
-                  << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                  << std::endl;
+        REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
     }
     if (compute_result.get_result_options().test(result_options::cor_matrix)) {
         const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_cor_matrix());
-        std::cout << "cor_matrix allocation: "
-                  << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                  << std::endl;
+        REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
     }
     if (compute_result.get_result_options().test(result_options::means)) {
         const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_means());
-        std::cout << "means allocation: "
-                  << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                  << std::endl;
+        REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
     }
 
     this->check_compute_result(cov_desc, data, compute_result);

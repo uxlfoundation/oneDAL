@@ -184,7 +184,6 @@ inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
                                                     std::int64_t split_count,
                                                     bool host_first = true) {
     ONEDAL_ASSERT(split_count > 0);
-    std::cout << "in split_table_by_rows_mixed " << std::endl;
 
     const std::int64_t row_count = t.get_row_count();
     const std::int64_t column_count = t.get_column_count();
@@ -203,10 +202,6 @@ inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
 
             const sycl::usm::alloc alloc = get_alloc(i, split_count, host_first);
             const array<Float> block = get_table_block<Float>(policy, t, row_range, alloc);
-
-            std::cout << "input block " << i << " allocation: "
-                      << get_alloc_name(block.get_data(), policy.get_queue().get_context())
-                      << std::endl;
             result[i] = homogen_table::wrap(block, block_size, column_count);
         }
         else {

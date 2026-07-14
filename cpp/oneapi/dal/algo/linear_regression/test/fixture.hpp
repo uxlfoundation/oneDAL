@@ -558,17 +558,19 @@ public:
         }
         auto train_res = this->finalize_train(desc, partial_result);
 
-        if (desc.get_result_options().test(result_options::coefficients)) {
-            const auto& res = static_cast<const dal::homogen_table&>(train_res.get_coefficients());
-            std::cout << "coefficients allocation: "
-                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                      << std::endl;
-        }
-        if (desc.get_result_options().test(result_options::intercept)) {
-            const auto& res = static_cast<const dal::homogen_table&>(train_res.get_intercept());
-            std::cout << "intercept allocation: "
-                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                      << std::endl;
+        {
+            const auto ctx = this->get_queue().get_context();
+            const auto expected_alloc = sycl::usm::alloc::device;
+            if (desc.get_result_options().test(result_options::coefficients)) {
+                const auto& res =
+                    static_cast<const dal::homogen_table&>(train_res.get_coefficients());
+                REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+            }
+            if (desc.get_result_options().test(result_options::intercept)) {
+                const auto& res =
+                    static_cast<const dal::homogen_table&>(train_res.get_intercept());
+                REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+            }
         }
 
         SECTION("Checking intercept values") {
@@ -614,11 +616,10 @@ public:
         auto linear_train_res = this->finalize_train(linear_desc, linear_partial_result);
 
         {
+            const auto ctx = this->get_queue().get_context();
             const auto& res =
                 static_cast<const dal::homogen_table&>(linear_train_res.get_coefficients());
-            std::cout << "linear coefficients allocation: "
-                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                      << std::endl;
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::device);
         }
 
         const auto ridge_desc = this->get_descriptor(this->alpha_);
@@ -632,11 +633,10 @@ public:
         auto ridge_train_res = this->finalize_train(ridge_desc, ridge_partial_result);
 
         {
+            const auto ctx = this->get_queue().get_context();
             const auto& res =
                 static_cast<const dal::homogen_table&>(ridge_train_res.get_coefficients());
-            std::cout << "ridge coefficients allocation: "
-                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
-                      << std::endl;
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::device);
         }
 
         SECTION("Checking coefficient shrinkage") {

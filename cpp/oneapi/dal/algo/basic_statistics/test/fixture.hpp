@@ -149,7 +149,6 @@ public:
         const auto use_weights = bool(weights_fr);
         CAPTURE(use_weights, compute_mode);
 
-        std::cout << "in online_mixed_checks" << std::endl;
         const auto bs_desc = get_descriptor(compute_mode);
         const auto data_table_id = this->get_homogen_table_id();
 
@@ -171,6 +170,7 @@ public:
                                                        weights_table[i]);
             }
             auto compute_result = this->finalize_compute(bs_desc, partial_result);
+            check_result_alloc(compute_mode, compute_result);
             check_compute_result(compute_mode, data, weights, compute_result);
             check_for_exception_for_non_requested_results(compute_mode, compute_result);
         }
@@ -179,8 +179,30 @@ public:
                 partial_result = this->partial_compute(bs_desc, partial_result, input_table[i]);
             }
             auto compute_result = this->finalize_compute(bs_desc, partial_result);
+            check_result_alloc(compute_mode, compute_result);
             check_compute_result(compute_mode, data, weights, compute_result);
             check_for_exception_for_non_requested_results(compute_mode, compute_result);
+        }
+    }
+
+    void check_result_alloc(bs::result_option_id compute_mode, const result_t& result) {
+        const auto ctx = this->get_queue().get_context();
+        const auto expected_alloc = sycl::usm::alloc::device;
+        if (compute_mode.test(result_options::min)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_min());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+        if (compute_mode.test(result_options::max)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_max());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+        if (compute_mode.test(result_options::mean)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_mean());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+        if (compute_mode.test(result_options::variance)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_variance());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
         }
     }
 
@@ -203,26 +225,6 @@ public:
         CAPTURE(data.get_row_count());
         CAPTURE(data.get_column_count());
         if (compute_mode.test(result_options::min)) {
-            const dal::table& res_table = result.get_min();
-            const dal::homogen_table& res = static_cast<const dal::homogen_table&>(res_table);
-            const void* res_ptr = res.get_data();
-            const sycl::usm::alloc alloc_type =
-                sycl::get_pointer_type(res_ptr, this->get_queue().get_context());
-
-            if (alloc_type == sycl::usm::alloc::shared) {
-                std::cout << "result table is in shared USM";
-            }
-            else if (alloc_type == sycl::usm::alloc::host) {
-                std::cout << "result table is in host USM";
-            }
-            else if (alloc_type == sycl::usm::alloc::device) {
-                std::cout << "result table is in device USM";
-            }
-            else {
-                std::cout << "result table is in unknown USM";
-            }
-            std::cout << std::endl;
-
             REQUIRE(result.get_min().get_column_count() == data.get_column_count());
         }
         if (compute_mode.test(result_options::max)) {
