@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/covariance/test/fixture.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 namespace oneapi::dal::covariance::test {
 
@@ -92,5 +93,77 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
     const auto input_data_table_id = this->get_homogen_table_id();
     this->online_general_checks(input, input_data_table_id, cov_desc);
 }
+
+#ifdef ONEDAL_DATA_PARALLEL
+
+TEMPLATE_LIST_TEST_M(covariance_online_test,
+                     "covariance flow with the data coming from various sources",
+                     "[covariance][integration][online]",
+                     covariance_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+    const bool host_first = GENERATE(0, 1);
+    INFO("nBlocks=" << nBlocks);
+    INFO("host_first=" << host_first);
+
+    const bool assume_centered = GENERATE(true, false);
+    INFO("assume_centered=" << assume_centered);
+    const bool bias = GENERATE(true, false);
+    INFO("bias=" << bias);
+    const cov::result_option_id result_option =
+        GENERATE(covariance::result_options::cov_matrix,
+                 covariance::result_options::cor_matrix | covariance::result_options::cov_matrix |
+                     covariance::result_options::means);
+    INFO("result_option=" << result_option);
+
+    auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                        .set_result_options(result_option)
+                        .set_assume_centered(assume_centered)
+                        .set_bias(bias);
+
+    const te::dataframe input =
+        GENERATE_DATAFRAME(te::dataframe_builder{ 500, 100 }.fill_normal(0, 1, 7777),
+                           te::dataframe_builder{ 10000, 200 }.fill_uniform(-30, 30, 7777));
+
+    INFO("num_rows=" << input.get_row_count());
+    INFO("num_columns=" << input.get_column_count());
+
+    const auto input_data_table_id = this->get_homogen_table_id();
+    const table data = input.get_table(this->get_policy(), input_data_table_id);
+    dal::covariance::partial_compute_result<> partial_result;
+    auto input_table =
+        te::split_table_by_rows_mixed<float_t>(this->get_policy(), data, nBlocks, host_first);
+    for (std::int64_t i = 0; i < nBlocks; ++i) {
+        partial_result = this->partial_compute(cov_desc, partial_result, input_table[i]);
+    }
+    auto compute_result = this->finalize_compute(cov_desc, partial_result);
+
+    if (compute_result.get_result_options().test(result_options::cov_matrix)) {
+        const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_cov_matrix());
+        std::cout << "cov_matrix allocation: "
+                  << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
+                  << std::endl;
+    }
+    if (compute_result.get_result_options().test(result_options::cor_matrix)) {
+        const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_cor_matrix());
+        std::cout << "cor_matrix allocation: "
+                  << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
+                  << std::endl;
+    }
+    if (compute_result.get_result_options().test(result_options::means)) {
+        const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_means());
+        std::cout << "means allocation: "
+                  << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
+                  << std::endl;
+    }
+
+    this->check_compute_result(cov_desc, data, compute_result);
+}
+
+#endif
 
 } // namespace oneapi::dal::covariance::test

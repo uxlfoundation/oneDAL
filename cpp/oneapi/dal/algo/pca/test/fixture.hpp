@@ -149,6 +149,50 @@ public:
         check_infer_result(pca_desc, model, data, infer_result);
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
+    void online_mixed_checks(const te::dataframe& data,
+                             std::int64_t component_count,
+                             const te::table_id& data_table_id,
+                             std::int64_t nBlocks,
+                             bool host_first) {
+        CAPTURE(component_count);
+
+        const table x = data.get_table(this->get_policy(), data_table_id);
+
+        INFO("create descriptor");
+        const auto pca_desc = get_descriptor(component_count);
+        INFO("run training");
+        auto partial_result = dal::pca::partial_train_result();
+        auto input_table =
+            te::split_table_by_rows_mixed<Float>(this->get_policy(), x, nBlocks, host_first);
+        for (std::int64_t i = 0; i < nBlocks; ++i) {
+            partial_result = this->partial_train(pca_desc, partial_result, input_table[i]);
+        }
+        auto train_result = this->finalize_train(pca_desc, partial_result);
+
+        if (train_result.get_eigenvalues().has_data()) {
+            const auto& res =
+                static_cast<const dal::homogen_table&>(train_result.get_eigenvalues());
+            std::cout << "eigenvalues allocation: "
+                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
+                      << std::endl;
+        }
+        if (train_result.get_eigenvectors().has_data()) {
+            const auto& res =
+                static_cast<const dal::homogen_table&>(train_result.get_eigenvectors());
+            std::cout << "eigenvectors allocation: "
+                      << te::get_alloc_name(res.get_data(), this->get_queue().get_context())
+                      << std::endl;
+        }
+
+        const auto model = train_result.get_model();
+        check_train_result_online(pca_desc, data, train_result);
+        INFO("run inference");
+        const auto infer_result = this->infer(pca_desc, model, x);
+        check_infer_result(pca_desc, model, data, infer_result);
+    }
+#endif
+
     void check_train_result(const pca::descriptor<Float, Method>& desc,
                             const te::dataframe& data,
                             const pca::train_result<>& result) {

@@ -155,4 +155,47 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
     this->online_general_checks(data, component_count, data_table_id, nBlocks);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+
+TEMPLATE_LIST_TEST_M(pca_online_test,
+                     "pca flow with the data coming from various sources",
+                     "[pca][integration][online]",
+                     pca_types_cov) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+    const bool host_first = GENERATE(0, 1);
+    const te::dataframe data =
+        GENERATE_DATAFRAME(te::dataframe_builder{ 500, 10 }.fill_normal(0, 1, 7777),
+                           te::dataframe_builder{ 5000, 100 }.fill_normal(0, 1, 7777));
+
+    const auto data_table_id = this->get_homogen_table_id();
+
+    const std::int64_t component_count = GENERATE_COPY(0, data.get_column_count() / 2);
+
+    this->online_mixed_checks(data, component_count, data_table_id, nBlocks, host_first);
+}
+
+TEMPLATE_LIST_TEST_M(pca_online_test,
+                     "pca svd flow with the data coming from various sources",
+                     "[pca][integration][online]",
+                     pca_types_svd) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->not_available_on_device());
+
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+    const bool host_first = GENERATE(0, 1);
+    const te::dataframe data =
+        GENERATE_DATAFRAME(te::dataframe_builder{ 500, 10 }.fill_normal(0, 1, 7777),
+                           te::dataframe_builder{ 5000, 100 }.fill_normal(0, 1, 7777));
+
+    const auto data_table_id = this->get_homogen_table_id();
+
+    const std::int64_t component_count = GENERATE_COPY(0, data.get_column_count() / 2);
+
+    this->online_mixed_checks(data, component_count, data_table_id, nBlocks, host_first);
+}
+
+#endif
+
 } // namespace oneapi::dal::pca::test

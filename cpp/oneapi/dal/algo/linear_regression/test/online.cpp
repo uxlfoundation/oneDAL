@@ -61,4 +61,32 @@ TEMPLATE_LIST_TEST_M(lr_online_test, "RR common flow", "[rr][online]", lr_types)
     this->run_and_check_ridge_online(nBlocks);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+
+TEMPLATE_LIST_TEST_M(lr_online_test,
+                     "LR flow with the data coming from various sources",
+                     "[lr][online]",
+                     lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+    this->generate(777);
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+    const bool host_first = GENERATE(0, 1);
+
+    this->run_and_check_linear_online_mixed(nBlocks, host_first);
+}
+
+TEMPLATE_LIST_TEST_M(lr_online_test,
+                     "RR flow with the data coming from various sources",
+                     "[rr][online]",
+                     lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+    this->generate(777);
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+    const bool host_first = GENERATE(0, 1);
+
+    this->run_and_check_ridge_online_mixed(nBlocks, host_first);
+}
+
+#endif
+
 } // namespace oneapi::dal::linear_regression::test
