@@ -567,8 +567,7 @@ public:
                 REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
             }
             if (desc.get_result_options().test(result_options::intercept)) {
-                const auto& res =
-                    static_cast<const dal::homogen_table&>(train_res.get_intercept());
+                const auto& res = static_cast<const dal::homogen_table&>(train_res.get_intercept());
                 REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
             }
         }

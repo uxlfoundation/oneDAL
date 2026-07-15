@@ -141,6 +141,7 @@ public:
         }
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     void online_mixed_checks(const te::dataframe& data_fr,
                              std::shared_ptr<te::dataframe> weights_fr,
                              bs::result_option_id compute_mode,
@@ -205,6 +206,7 @@ public:
             REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
         }
     }
+#endif
 
     void check_compute_result(bs::result_option_id compute_mode,
                               const table& data,
