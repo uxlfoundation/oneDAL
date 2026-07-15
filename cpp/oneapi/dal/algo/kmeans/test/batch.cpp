@@ -555,10 +555,23 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     const auto csr_run_b = this->train(csr_desc, csr_data, init2);
     const auto dense_run = this->train(dense_desc, dense_data, init1);
 
-    // Same seed on the sparse path -> bit-identical objective and iteration
-    // count across independent runs.
+    // Same seed on the sparse path -> reproducible objective and iteration
+    // count across independent runs. CPU Lloyd sums in a fixed partition
+    // order -> bit-identical. GPU sycl::reduction combines partial sums in
+    // an implementation-defined order (atomic fetch_add / non-fixed
+    // workgroup tree) and float addition is non-associative, so a few ULPs
+    // of drift is expected between two runs.
     REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
-    REQUIRE(csr_run_a.get_objective_function_value() == csr_run_b.get_objective_function_value());
+    if (this->get_policy().is_cpu()) {
+        REQUIRE(csr_run_a.get_objective_function_value() ==
+                csr_run_b.get_objective_function_value());
+    }
+    else {
+        const Float repro_tol = std::is_same_v<Float, double> ? Float(1e-12) : Float(1e-5);
+        REQUIRE(this->check_value_with_ref_tol(csr_run_a.get_objective_function_value(),
+                                               csr_run_b.get_objective_function_value(),
+                                               repro_tol));
+    }
 
     // Same seed shared between sparse and dense representations -> centroids
     // must agree within tolerance after matching by nearest centroid, and
