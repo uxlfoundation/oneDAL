@@ -102,9 +102,13 @@ inline array<T> get_table_block(host_test_policy&, const table& t, const range& 
 
 #ifdef ONEDAL_DATA_PARALLEL
 template <typename T>
-inline array<T> get_table_block(device_test_policy& p, const table& t, const range& row_range) {
-    return row_accessor<const T>{ t }.pull(p.get_queue(), row_range, sycl::usm::alloc::device);
+inline array<T> get_table_block(device_test_policy& p,
+                                const table& t,
+                                const range& row_range,
+                                const sycl::usm::alloc alloc = sycl::usm::alloc::device) {
+    return row_accessor<const T>{ t }.pull(p.get_queue(), row_range, alloc);
 }
+
 #endif
 
 template <typename Float, typename TestPolicy>
@@ -138,6 +142,78 @@ inline std::vector<table> split_table_by_rows(TestPolicy& policy,
 
     return result;
 }
+
+#ifdef ONEDAL_DATA_PARALLEL
+
+inline sycl::usm::alloc get_alloc(std::int64_t i, std::int64_t split_count, bool host_first) {
+    sycl::usm::alloc alloc;
+    if (host_first) {
+        if (i < split_count / 2) {
+            alloc = sycl::usm::alloc::host;
+        }
+        else {
+            alloc = sycl::usm::alloc::device;
+        }
+    }
+    else {
+        if (i < split_count / 2) {
+            alloc = sycl::usm::alloc::device;
+        }
+        else {
+            alloc = sycl::usm::alloc::host;
+        }
+    }
+    return alloc;
+}
+
+inline std::string get_alloc_name(const void* ptr, const sycl::context& ctx) {
+    std::string alloc_name;
+    const sycl::usm::alloc alloc = sycl::get_pointer_type(ptr, ctx);
+    switch (alloc) {
+        case sycl::usm::alloc::host: alloc_name = "host"; break;
+        case sycl::usm::alloc::device: alloc_name = "device"; break;
+        case sycl::usm::alloc::shared: alloc_name = "shared"; break;
+        default: alloc_name = "non-usm"; break;
+    }
+    return alloc_name;
+}
+
+template <typename Float, typename TestPolicy>
+inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
+                                                    const table& t,
+                                                    std::int64_t split_count,
+                                                    bool host_first = true) {
+    ONEDAL_ASSERT(split_count > 0);
+
+    const std::int64_t row_count = t.get_row_count();
+    const std::int64_t column_count = t.get_column_count();
+    const std::int64_t block_size_regular = row_count / split_count;
+    const std::int64_t block_size_tail = row_count % split_count;
+
+    std::vector<table> result(split_count);
+
+    std::int64_t row_offset = 0;
+    for (std::int64_t i = 0; i < split_count; i++) {
+        const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
+        const std::int64_t block_size = block_size_regular + tail;
+
+        if (block_size > 0) {
+            const auto row_range = range{ row_offset, row_offset + block_size };
+
+            const sycl::usm::alloc alloc = get_alloc(i, split_count, host_first);
+            const array<Float> block = get_table_block<Float>(policy, t, row_range, alloc);
+            result[i] = homogen_table::wrap(block, block_size, column_count);
+        }
+        else {
+            result[i] = homogen_table{};
+        }
+        row_offset += block_size;
+    }
+
+    return result;
+}
+
+#endif
 
 template <typename Float>
 inline table stack_tables_by_rows(const std::vector<table>& tables) {

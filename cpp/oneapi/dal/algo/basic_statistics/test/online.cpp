@@ -29,7 +29,7 @@ class basic_statistics_online_test
         : public basic_statistics_test<TestType, basic_statistics_online_test<TestType>> {};
 
 TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
-                     "basic_statistics common flow no weights",
+                     "basic_statistics common flow",
                      "[basic_statistics][integration][online]",
                      basic_statistics_types) {
     SKIP_IF(this->not_float64_friendly());
@@ -61,5 +61,35 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
 
     this->online_general_checks(data, weights, compute_mode, nBlocks);
 }
+
+#ifdef ONEDAL_DATA_PARALLEL
+
+TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
+                     "basic_statistics flow with the data coming from various sources",
+                     "[basic_statistics][integration][online]",
+                     basic_statistics_types) {
+    SKIP_IF(this->not_float64_friendly());
+    const te::dataframe data =
+        GENERATE_DATAFRAME(te::dataframe_builder{ 500, 250 }.fill_normal(0, 1, 7777),
+                           te::dataframe_builder{ 6000, 20 }.fill_normal(-30, 30, 7777));
+
+    std::shared_ptr<te::dataframe> weights;
+    const bool use_weights = GENERATE(0, 1);
+    const bool host_first = GENERATE(0, 1);
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+
+    if (use_weights) {
+        const auto row_count = data.get_row_count();
+        weights = std::make_shared<te::dataframe>(
+            te::dataframe_builder{ row_count, 1 }.fill_normal(0, 1, 777).build());
+    }
+
+    const bs::result_option_id compute_mode =
+        bs::result_option_id(dal::result_option_id_base(mask_full));
+
+    this->online_mixed_checks(data, weights, compute_mode, nBlocks, host_first);
+}
+
+#endif
 
 } // namespace oneapi::dal::basic_statistics::test

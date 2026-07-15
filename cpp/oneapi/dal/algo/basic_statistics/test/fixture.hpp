@@ -141,6 +141,73 @@ public:
         }
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
+    void online_mixed_checks(const te::dataframe& data_fr,
+                             std::shared_ptr<te::dataframe> weights_fr,
+                             bs::result_option_id compute_mode,
+                             std::int64_t nBlocks,
+                             bool host_first) {
+        const auto use_weights = bool(weights_fr);
+        CAPTURE(use_weights, compute_mode);
+
+        const auto bs_desc = get_descriptor(compute_mode);
+        const auto data_table_id = this->get_homogen_table_id();
+
+        table weights, data = data_fr.get_table(data_table_id);
+        dal::basic_statistics::partial_compute_result<> partial_result;
+
+        auto input_table =
+            te::split_table_by_rows_mixed<float_t>(this->get_policy(), data, nBlocks, host_first);
+        if (use_weights) {
+            weights = weights_fr->get_table(data_table_id);
+            auto weights_table = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                        weights,
+                                                                        nBlocks,
+                                                                        host_first);
+            for (std::int64_t i = 0; i < nBlocks; ++i) {
+                partial_result = this->partial_compute(bs_desc,
+                                                       partial_result,
+                                                       input_table[i],
+                                                       weights_table[i]);
+            }
+            auto compute_result = this->finalize_compute(bs_desc, partial_result);
+            check_result_alloc(compute_mode, compute_result);
+            check_compute_result(compute_mode, data, weights, compute_result);
+            check_for_exception_for_non_requested_results(compute_mode, compute_result);
+        }
+        else {
+            for (std::int64_t i = 0; i < nBlocks; ++i) {
+                partial_result = this->partial_compute(bs_desc, partial_result, input_table[i]);
+            }
+            auto compute_result = this->finalize_compute(bs_desc, partial_result);
+            check_result_alloc(compute_mode, compute_result);
+            check_compute_result(compute_mode, data, weights, compute_result);
+            check_for_exception_for_non_requested_results(compute_mode, compute_result);
+        }
+    }
+
+    void check_result_alloc(bs::result_option_id compute_mode, const result_t& result) {
+        const auto ctx = this->get_queue().get_context();
+        const auto expected_alloc = sycl::usm::alloc::device;
+        if (compute_mode.test(result_options::min)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_min());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+        if (compute_mode.test(result_options::max)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_max());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+        if (compute_mode.test(result_options::mean)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_mean());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+        if (compute_mode.test(result_options::variance)) {
+            const auto& res = static_cast<const dal::homogen_table&>(result.get_variance());
+            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+        }
+    }
+#endif
+
     void check_compute_result(bs::result_option_id compute_mode,
                               const table& data,
                               const table& weights,
