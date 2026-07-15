@@ -55,16 +55,20 @@ using daal_multiclass_kernel_t =
         Cpu>;
 
 // Reconstructs a daal multi_class_classifier::Model from the aggregated public
-// arrays of a oneapi svm model. SVs and coeffs are stored grouped by class in
-// increasing class order; n_support_per_class gives the per-class block sizes.
-// Layout assumptions follow the daal one-vs-one trainer:
-//   support_vectors : [sum(n_support_per_class), n_features]
-//   coeffs          : [sum(n_support_per_class), class_count - 1]
-//   biases          : [class_count*(class_count-1)/2, 1]
-// For SV row of class c, coeff column for the duel against class o is:
-//   o > c -> column (o - 1);  o < c -> column o.
-// Pair iteration order matches getClassIndices(isSvmModel=true):
-//   (0,1), (0,2), ..., (0,k-1), (1,2), ..., (k-2,k-1).
+// arrays of a oneapi svm model. This is an internal contract between the
+// multiclass CPU trainer (which populates the aggregated arrays and
+// n_support_per_class) and this restoration path; the public model shapes
+// documented in svm/common.hpp (support_vectors: nsv x p, coeffs: nsv x
+// (class_count - 1), biases: k*(k-1)/2 x 1) do not by themselves guarantee any
+// particular row order.
+//
+// The trainer produces support-vector rows sorted by class in increasing class
+// order; n_support_per_class holds the per-class block sizes and the aggregated
+// row count equals sum(n_support_per_class). Within the coeffs matrix, for an
+// SV of class c the coefficient for the duel against class o lives in column
+// (o - 1) when o > c and column o when o < c. Pair iteration order below
+// matches daal getClassIndices(isSvmModel=true):
+//   (0,1), (0,2), ..., (0, k-1), (1,2), ..., (k-2, k-1).
 template <typename Float, typename Task>
 static daal_multiclass::ModelPtr build_daal_multiclass_model_from_public(
     const model<Task>& trained_model,
