@@ -173,8 +173,8 @@ sycl::event kernels_fp<Float>::select(sycl::queue& queue,
             cgh.parallel_for<select_min_distance<Float>>(
                 bk::make_multiple_nd_range_2d({ curr_block, wg_size }, { sg_count, sg_size }),
                 [=](sycl::nd_item<2> item) {
-                    constexpr sycl::ext::oneapi::minimum<Float> minimum_val;
-                    constexpr sycl::ext::oneapi::minimum<std::int32_t> minimum_idx;
+                    constexpr sycl::minimum<Float> minimum_val;
+                    constexpr sycl::minimum<std::int32_t> minimum_idx;
 
                     const std::int64_t row = item.get_global_id(0) + first_row;
 
@@ -312,7 +312,7 @@ sycl::event kernels_fp<Float>::merge_reduce_centroids(sycl::queue& queue,
                 for (std::int64_t i = local_id; i < part_count; i += local_range) {
                     sum += partial_centroids_ptr[i * cluster_count * column_count + sg_global_id];
                 }
-                sum = sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
+                sum = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
 
                 if (local_id == 0) {
                     auto count = counters_ptr[sg_cluster_id];
@@ -365,7 +365,7 @@ sycl::event kernels_fp<Float>::partial_reduce_centroids(
                         cl = response_ptr[i];
                     }
                     cl =
-                        sycl::reduce_over_group(sg, cl, sycl::ext::oneapi::maximum<std::int32_t>());
+                        sycl::reduce_over_group(sg, cl, sycl::maximum<std::int32_t>());
                     for (std::int64_t j = local_id; j < column_count; j += local_range) {
                         partial_centroids_ptr[sg_global_id * cluster_count * column_count +
                                               cl * column_count + j] +=

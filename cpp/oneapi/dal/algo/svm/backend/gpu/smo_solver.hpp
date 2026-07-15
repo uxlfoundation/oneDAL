@@ -26,8 +26,8 @@ namespace oneapi::dal::svm::backend {
 
 namespace pr = dal::backend::primitives;
 
-using sycl::ext::oneapi::maximum;
-using sycl::ext::oneapi::minimum;
+using sycl::maximum;
+using sycl::minimum;
 
 template <typename Data>
 using local_accessor_rw_t = sycl::local_accessor<Data, 1>;

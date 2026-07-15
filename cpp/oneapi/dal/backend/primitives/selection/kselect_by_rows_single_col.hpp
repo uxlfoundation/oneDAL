@@ -171,17 +171,17 @@ private:
                     sycl::group_barrier(sg);
 
                     const Float final_value =
-                        sycl::reduce_over_group(sg, value, sycl::ext::oneapi::minimum<Float>());
+                        sycl::reduce_over_group(sg, value, sycl::minimum<Float>());
                     const bool present = (final_value == value);
                     const std::int32_t pos =
                         sycl::exclusive_scan_over_group(sg,
                                                         present ? 1 : 0,
-                                                        sycl::ext::oneapi::plus<std::int32_t>());
+                                                        sycl::plus<std::int32_t>());
                     const bool owner = present && pos == 0;
                     const std::int32_t final_index =
                         -sycl::reduce_over_group(sg,
                                                  owner ? -index : 1,
-                                                 sycl::ext::oneapi::minimum<std::int32_t>());
+                                                 sycl::minimum<std::int32_t>());
 
                     if (local_id == 0) {
                         if constexpr (indices_out) {

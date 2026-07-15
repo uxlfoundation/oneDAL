@@ -195,17 +195,17 @@ private:
                                      const Float min_val = sycl::reduce_over_group(
                                          sg,
                                          values[bias],
-                                         sycl::ext::oneapi::minimum<Float>());
+                                         sycl::minimum<Float>());
                                      const bool present = (min_val == values[bias]);
                                      const std::int32_t pos = sycl::exclusive_scan_over_group(
                                          sg,
                                          present ? 1 : 0,
-                                         sycl::ext::oneapi::plus<std::int32_t>());
+                                         sycl::plus<std::int32_t>());
                                      const bool owner = present && pos == 0;
                                      final_indices[i] = -sycl::reduce_over_group(
                                          sg,
                                          owner ? -private_indices[bias] : 1,
-                                         sycl::ext::oneapi::minimum<std::int32_t>());
+                                         sycl::minimum<std::int32_t>());
                                      final_values[i] = min_val;
                                      bias += owner ? 1 : 0;
                                  }
