@@ -86,7 +86,7 @@ inline void reduce_hist_over_group(ItemT& item,
     }
 
     for (Index stride = sub_group_count / 2; stride > 0; stride /= 2) {
-        item.barrier(sycl::access::fence_space::local_space);
+        sycl::group_barrier(item.get_group());
         if (local_id < stride) {
             merge_stat(count_buf_ptr[local_id],
                        mean_buf_ptr[local_id],
@@ -96,7 +96,7 @@ inline void reduce_hist_over_group(ItemT& item,
                        sum2cent_buf_ptr[local_id + stride]);
         }
     }
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 
     count = count_buf_ptr[0];
     mean = mean_buf_ptr[0];

@@ -75,7 +75,7 @@ inline T* fill_with_group(sycl::nd_item<2>& item, T* dst, Index elem_count, T va
         dst[i] = val;
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 
     return dst;
 }

@@ -462,7 +462,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::update_mdi_var_impor
                 }
             }
 
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
             if (1 < n_sub_groups && 0 == sub_group_id) {
                 // first sub group for current node reduces over local buffer if required
                 Float ftr_imp = (sub_group_local_id < n_sub_groups)
