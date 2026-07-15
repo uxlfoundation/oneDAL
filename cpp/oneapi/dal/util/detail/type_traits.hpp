@@ -32,7 +32,7 @@ namespace v1 {
         struct checker_t {};                                                                \
                                                                                             \
         template <class U>                                                                  \
-        static pass test(checker_t<U, &U::method_name>*);                                   \
+        static pass test(checker_t<U, &U::method_name> *);                                  \
         template <class U>                                                                  \
         static fail test(...);                                                              \
                                                                                             \

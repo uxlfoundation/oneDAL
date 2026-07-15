@@ -1192,8 +1192,8 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                             statStackPush     = local->buildStack.push(bnLeft);
                             DAAL_CHECK_STATUS_THR(statStackPush)
                         } // if (bn.end - bn.start <= __KDTREE_LEAF_BUCKET_SIZE)
-                    }     // while (local->buildStack.size() > 0)
-                }         // for (auto i = first; i < last; ++i)
+                    } // while (local->buildStack.size() > 0)
+                } // for (auto i = first; i < last; ++i)
                 if (result) safeStat.add(services::Status(services::ErrorMemoryCopyFailedInternal));
             } // if (local)
         });
