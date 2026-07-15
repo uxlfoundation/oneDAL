@@ -535,18 +535,9 @@ public:
         }
     }
 
-    inline task & get_task()
-    {
-        return task_;
-    }
-    inline std::int64_t & get_current_level()
-    {
-        return current_level_;
-    }
-    inline std::int64_t & get_kernel_count()
-    {
-        return kernel_count_;
-    }
+    inline task & get_task() { return task_; }
+    inline std::int64_t & get_current_level() { return current_level_; }
+    inline std::int64_t & get_kernel_count() { return kernel_count_; }
 
 private:
     std::int64_t current_level_ = 0;

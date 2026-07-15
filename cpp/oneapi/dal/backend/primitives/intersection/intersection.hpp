@@ -62,7 +62,8 @@ ONEDAL_FORCEINLINE std::int32_t _popcnt32_redef(const std::int32_t &x) {
     return count;
 }
 #define GRAPH_STACK_ALING(x) \
-    {}
+    {                        \
+    }
 #endif
 
 #if defined(TARGET_X86_64)

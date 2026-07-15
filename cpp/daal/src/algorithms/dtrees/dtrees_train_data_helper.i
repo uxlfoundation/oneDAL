@@ -360,8 +360,7 @@ public:
 
         size_t idx  = _aResponse[0].idx;
         size_t iDst = 0;
-        for (; iDst < idx; dst[iDst] = iDst, ++iDst)
-            ;
+        for (; iDst < idx; dst[iDst] = iDst, ++iDst);
 
         for (size_t iResp = 1; iResp < _aResponse.size(); idx = _aResponse[iResp].idx, ++iResp)
         {
