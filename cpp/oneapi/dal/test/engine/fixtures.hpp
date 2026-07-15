@@ -35,6 +35,16 @@ public:
     }
 #endif
 
+    table get_device_table(const dataframe& df, const table_id& id) {
+        // If test is running in data parallel mode, then the table should be created on device
+        // Otherwise, the table should be created on host
+#ifdef ONEDAL_DATA_PARALLEL
+        return df.get_table(this->get_policy(), id, sycl::usm::alloc::device);
+#else
+        return df.get_table(this->get_policy(), id);
+#endif
+    }
+
 private:
     DECLARE_TEST_POLICY(policy_);
 };

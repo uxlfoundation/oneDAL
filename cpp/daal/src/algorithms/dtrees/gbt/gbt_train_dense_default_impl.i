@@ -497,8 +497,7 @@ services::Status computeTypeDisp(const NumericTable * x, const NumericTable * y,
             break;
         }
         size_t iTree = 0;
-        for (; (iTree < nTrees) && (aTbl[iTree]->getNumberOfNodes() < 2); ++iTree)
-            ;
+        for (; (iTree < nTrees) && (aTbl[iTree]->getNumberOfNodes() < 2); ++iTree);
         if (iTree == nTrees) //all are one level (constant response) trees
         {
             deleteTables<cpu>(aTbl, aTblImp, aTblSmplCnt, nTrees);

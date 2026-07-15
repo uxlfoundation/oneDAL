@@ -146,11 +146,11 @@ DAAL_EXPORT daal::services::Environment::Environment(const Environment & e) : da
 DAAL_EXPORT void daal::services::Environment::initNumberOfThreads()
 {
     if (isInit) return;
-        // Initializes global oneapi::tbb::task_scheduler_handle object in oneDAL to prevent the unexpected
-        // destruction of the calling thread.
-        // When the oneapi::tbb::finalize function is called with an oneapi::tbb::task_scheduler_handle
-        // instance, it blocks the calling thread until the completion of all worker
-        // threads that were implicitly created by the library.
+    // Initializes global oneapi::tbb::task_scheduler_handle object in oneDAL to prevent the unexpected
+    // destruction of the calling thread.
+    // When the oneapi::tbb::finalize function is called with an oneapi::tbb::task_scheduler_handle
+    // instance, it blocks the calling thread until the completion of all worker
+    // threads that were implicitly created by the library.
 #if defined(TARGET_X86_64)
     daal::setSchedulerHandle(&_schedulerHandle);
 #endif
