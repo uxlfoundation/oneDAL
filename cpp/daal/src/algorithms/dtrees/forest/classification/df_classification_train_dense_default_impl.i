@@ -1796,6 +1796,10 @@ services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::c
         if (!s) return s;
     }
 
+    const services::SharedPtr<NumericTable> normalizedWeights = normalizeWeights<algorithmFPType, cpu>(w, s);
+    if (!s) return s;
+    if (normalizedWeights) w = normalizedWeights.get();
+
     if (par.splitter == decision_forest::training::SplitterMode::best)
     {
         s = computeForSpecificHelper<algorithmFPType, method, cpu,

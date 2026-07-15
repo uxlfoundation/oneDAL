@@ -33,6 +33,8 @@
 #include "src/services/service_defines.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
+#include "src/data_management/service_numeric_table.h"
+#include "src/externals/service_lapack.h"
 
 using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::internal;
@@ -47,6 +49,48 @@ namespace training
 {
 namespace internal
 {
+// Rescale weights to max == 1: the fit should depend only on relative weights, but
+// the weighted-variance / impurity-decrease math is sensitive to absolute magnitude.
+template <typename algorithmFPType, CpuType cpu>
+services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights, services::Status & s)
+{
+    services::SharedPtr<NumericTable> empty;
+    if (!weights) return empty;
+
+    const size_t nRows = weights->getNumberOfRows();
+    if (!nRows) return empty;
+
+    ReadRows<algorithmFPType, cpu> srcBlock(const_cast<NumericTable *>(weights), 0, nRows);
+    s |= srcBlock.status();
+    if (!s) return empty;
+    const algorithmFPType * src = srcBlock.get();
+
+    algorithmFPType maxWeight = 0;
+    PRAGMA_OMP_SIMD_ARGS(reduction(max : maxWeight))
+    for (size_t i = 0; i < nRows; ++i)
+    {
+        if (src[i] > maxWeight) maxWeight = src[i];
+    }
+    if (!(maxWeight > 0)) return empty;
+
+    services::SharedPtr<HomogenNumericTableCPU<algorithmFPType, cpu> > normalized =
+        HomogenNumericTableCPU<algorithmFPType, cpu>::create(1, nRows, &s);
+    if (!s) return empty;
+
+    WriteOnlyRows<algorithmFPType, cpu> dstBlock(normalized.get(), 0, nRows);
+    s |= dstBlock.status();
+    if (!s) return empty;
+    algorithmFPType * dst = dstBlock.get();
+
+    // Copy then divide in place via rscl (correctly-rounded division, also scale-invariant).
+    // The single-threaded xxrscl avoids nested threading inside the parallel tree build.
+    const DAAL_INT n    = static_cast<DAAL_INT>(nRows);
+    const DAAL_INT incx = 1;
+    services::internal::tmemcpy<algorithmFPType, cpu>(dst, src, nRows);
+    daal::internal::LapackInst<algorithmFPType, cpu>::xxrscl(&n, &maxWeight, dst, &incx);
+    return normalized;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Service class, it uses to keep information about nodes
 //////////////////////////////////////////////////////////////////////////////////////////
