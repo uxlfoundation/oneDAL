@@ -596,7 +596,7 @@ inline void merge_blocks_kernel(sycl::nd_item<1> item,
     }
 
     for (std::int64_t stride = sycl::min(local_size, block_count) / 2; stride > 0; stride /= 2) {
-        item.barrier(sycl::access::fence_space::local_space);
+        sycl::group_barrier(item.get_group());
 
         if (stride > id) {
             std::int64_t offset = id + stride;

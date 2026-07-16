@@ -55,7 +55,7 @@ inline std::uint64_t inv_bits(std::uint64_t x) {
     return x ^ (-(x >> 63) | 0x8000000000000000ul);
 }
 
-using sycl::ext::oneapi::plus;
+using sycl::plus;
 
 template <typename Float, typename Index>
 sycl::event radix_sort_indices_inplace<Float, Index>::radix_scan(sycl::queue& queue,
