@@ -59,13 +59,10 @@ inline std::int32_t row_partitioning_kernel(sycl::nd_item<2> item,
         std::int32_t min_ind = sycl::reduce_over_group(sg, i, sycl::minimum<int>());
         if (num_of_small > 0) {
             const std::int32_t pos_in_group_small =
-                sycl::exclusive_scan_over_group(sg,
-                                                is_small && inside ? 1 : 0,
-                                                sycl::plus<int>());
+                sycl::exclusive_scan_over_group(sg, is_small && inside ? 1 : 0, sycl::plus<int>());
             const std::int32_t pos_in_group_great =
-                num_of_small + sycl::exclusive_scan_over_group(sg,
-                                                               is_small || !inside ? 0 : 1,
-                                                               sycl::plus<int>());
+                num_of_small +
+                sycl::exclusive_scan_over_group(sg, is_small || !inside ? 0 : 1, sycl::plus<int>());
             const std::int32_t pos_small = partition_start + split_index + pos_in_group_small;
             const std::int32_t pos_great = min_ind + pos_in_group_great;
             const std::int32_t pos = is_small ? pos_small : pos_great;
@@ -86,8 +83,7 @@ inline std::int32_t row_partitioning_kernel(sycl::nd_item<2> item,
         }
         split_index += num_of_small;
     }
-    split_index =
-        -sycl::reduce_over_group(sg, -split_index, sycl::minimum<std::int32_t>());
+    split_index = -sycl::reduce_over_group(sg, -split_index, sycl::minimum<std::int32_t>());
     return split_index + partition_start;
 }
 

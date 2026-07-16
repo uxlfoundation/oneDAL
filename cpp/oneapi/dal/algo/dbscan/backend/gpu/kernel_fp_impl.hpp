@@ -121,16 +121,13 @@ struct get_core_wide_kernel {
                             if (count_iter % block_split_size == 0 &&
                                 local_size * count_iter <= column_count) {
                                 Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::plus<Float>());
+                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                                 if (distance_check > epsilon) {
                                     break;
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                        Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                         if (distance <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
@@ -304,16 +301,13 @@ struct get_core_send_recv_replace_wide_kernel {
                             if (count_iter % block_split_size == 0 &&
                                 local_size * count_iter <= column_count) {
                                 Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::plus<Float>());
+                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                                 if (distance_check > epsilon) {
                                     break;
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                        Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                         if (distance <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
@@ -875,8 +869,7 @@ sycl::event kernels_fp<Float>::update_points_queue(sycl::queue& queue,
                                     current_queue_ptr[j * column_count + i];
                         sum += val * val;
                     }
-                    Float distance =
-                        sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                    Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                     if (distance > epsilon)
                         continue;
                     if (local_id == 0) {

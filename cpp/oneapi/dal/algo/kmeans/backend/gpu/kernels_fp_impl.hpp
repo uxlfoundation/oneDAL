@@ -364,8 +364,7 @@ sycl::event kernels_fp<Float>::partial_reduce_centroids(
                     if (local_id == 0) {
                         cl = response_ptr[i];
                     }
-                    cl =
-                        sycl::reduce_over_group(sg, cl, sycl::maximum<std::int32_t>());
+                    cl = sycl::reduce_over_group(sg, cl, sycl::maximum<std::int32_t>());
                     for (std::int64_t j = local_id; j < column_count; j += local_range) {
                         partial_centroids_ptr[sg_global_id * cluster_count * column_count +
                                               cl * column_count + j] +=
