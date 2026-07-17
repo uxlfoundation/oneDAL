@@ -553,6 +553,8 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
                                            ndview<Index, 1>& ind_in,
                                            const event_vector& deps) {
     ONEDAL_PROFILER_TASK(sort.radix_sort_indices_inplace, queue);
+    sycl::event::wait_and_throw(deps);
+
     ONEDAL_ASSERT(val_in.has_mutable_data());
     ONEDAL_ASSERT(ind_in.has_mutable_data());
     ONEDAL_ASSERT(val_in.get_count() == ind_in.get_count());
@@ -580,6 +582,7 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
                            std::int64_t sorted_elem_count,
                            const event_vector& deps) {
     ONEDAL_PROFILER_TASK(sort.radix_sort, queue);
+    sycl::event::wait_and_throw(deps);
 
     const auto row_count = val_in.get_dimension(0);
     const auto col_count = val_in.get_dimension(1);
