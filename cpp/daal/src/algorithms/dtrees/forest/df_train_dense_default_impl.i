@@ -66,7 +66,7 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     const algorithmFPType * src = srcBlock.get();
 
     algorithmFPType maxWeight = 0;
-#ifndef __clang__ // TODO: Temporary workaround. Clang 18 fails to vectoize this simple loop
+#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
     PRAGMA_OMP_SIMD_ARGS(reduction(max : maxWeight))
 #endif
     for (size_t i = 0; i < nRows; ++i)
