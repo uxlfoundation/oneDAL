@@ -72,7 +72,7 @@ jobs:
         run: .ci/env/apt.sh mkl
 
       # Same flags as the PR-side LinuxMakeDPCPP job in ci.yml, so the baseline
-      # binary matches what every PR's LinuxAbicheck job actually compares against.
+      # binary matches what every PR's LinuxAbicheckScan job actually compares against.
       - name: Build daal (avx2 debug)
         working-directory: __baseline_src
         run: |
