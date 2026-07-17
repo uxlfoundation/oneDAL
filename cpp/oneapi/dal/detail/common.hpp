@@ -380,6 +380,24 @@ inline Out integral_cast_debug(const In& value) {
     return static_cast<Out>(value);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+inline alloc_kind get_alloc_kind(sycl::queue& queue, const void * ptr) {
+    const auto alloc_kind = sycl::get_pointer_type(ptr, queue.get_context());
+    if (alloc_kind == sycl::usm::alloc::host) {
+        return alloc_kind::usm_host;
+    }
+    else if (alloc_kind == sycl::usm::alloc::device) {
+        return alloc_kind::usm_device;
+    }
+    else if (alloc_kind == sycl::usm::alloc::shared) {
+        return alloc_kind::usm_shared;
+    }
+    else {
+        return alloc_kind::non_usm;
+    }
+}
+#endif
+
 } // namespace v1
 
 namespace v2 {
@@ -447,6 +465,10 @@ using v2::is_safe_sum;
 using v2::is_safe_mul;
 using v1::integral_cast;
 using v1::integral_cast_debug;
+
+#ifdef ONEDAL_DATA_PARALLEL
+using v1::get_alloc_kind;
+#endif
 
 } // namespace oneapi::dal::detail
 

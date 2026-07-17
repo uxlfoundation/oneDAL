@@ -39,7 +39,7 @@ public:
                    std::int64_t column_count,
                    data_type dtype,
                    sparse_indexing indexing)
-            : meta_(create_metadata(column_count, dtype)),
+            : meta_(create_metadata(column_count, dtype, data.get_alloc_kind())),
               data_(data),
               column_indices_(column_indices),
               row_offsets_(row_offsets),
@@ -84,7 +84,7 @@ public:
                    data_type dtype,
                    sparse_indexing indexing,
                    const std::vector<sycl::event>& dependencies)
-            : meta_(create_metadata(column_count, dtype)),
+            : meta_(create_metadata(column_count, dtype, data.get_alloc_kind())),
               data_(data),
               column_indices_(column_indices),
               row_offsets_(row_offsets),
@@ -198,7 +198,7 @@ public:
                        data,
                        column_indices,
                        row_offsets,
-                       alloc_kind::host);
+                       alloc_kind::non_usm);
     }
 
 #ifdef ONEDAL_DATA_PARALLEL

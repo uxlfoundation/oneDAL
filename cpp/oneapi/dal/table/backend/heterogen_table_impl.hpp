@@ -157,7 +157,7 @@ public:
     void pull_rows_template(const detail::default_host_policy& policy,
                             array<T>& block,
                             const range& rows) const {
-        heterogen_pull_rows(policy, meta_, data_, block, rows, alloc_kind::host);
+        heterogen_pull_rows(policy, meta_, data_, block, rows, alloc_kind::non_usm);
     }
 
     template <typename T>
@@ -165,7 +165,7 @@ public:
                               array<T>& block,
                               std::int64_t column_index,
                               const range& rows) const {
-        heterogen_pull_column(policy, meta_, data_, block, column_index, rows, alloc_kind::host);
+        heterogen_pull_column(policy, meta_, data_, block, column_index, rows, alloc_kind::non_usm);
     }
 
 #ifdef ONEDAL_DATA_PARALLEL

@@ -33,7 +33,7 @@ public:
                        const array<byte_t>& data,
                        data_type dtype,
                        data_layout layout)
-            : meta_(create_metadata(column_count, dtype)),
+            : meta_(create_metadata(column_count, dtype, data.get_alloc_kind())),
               data_(data),
               row_count_(row_count),
               col_count_(column_count),
@@ -89,7 +89,7 @@ public:
     void pull_rows_template(const detail::default_host_policy& policy,
                             array<T>& block,
                             const range& rows) const {
-        homogen_pull_rows(policy, get_info(), data_, block, rows, alloc_kind::host);
+        homogen_pull_rows(policy, get_info(), data_, block, rows, alloc_kind::non_usm);
     }
 
     template <typename T>
@@ -97,7 +97,7 @@ public:
                               array<T>& block,
                               std::int64_t column_index,
                               const range& rows) const {
-        homogen_pull_column(policy, get_info(), data_, block, column_index, rows, alloc_kind::host);
+        homogen_pull_column(policy, get_info(), data_, block, column_index, rows, alloc_kind::non_usm);
     }
 
 #ifdef ONEDAL_DATA_PARALLEL

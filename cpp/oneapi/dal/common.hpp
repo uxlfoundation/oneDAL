@@ -127,12 +127,23 @@ public:
     std::int64_t end_idx;
 };
 
+enum class alloc_kind : std::uint8_t {
+    non_usm /// Non-USM pointer allocated on host
+#ifdef ONEDAL_DATA_PARALLEL
+    ,
+    usm_host, /// USM pointer allocated by sycl::alloc_host
+    usm_device, /// USM pointer allocated by sycl::alloc_device
+    usm_shared /// USM pointer allocated by sycl::alloc_shared
+#endif
+};
+
 } // namespace v1
 
 using v1::byte_t;
 using v1::base;
 using v1::data_type;
 using v1::range;
+using v1::alloc_kind;
 
 } // namespace oneapi::dal
 

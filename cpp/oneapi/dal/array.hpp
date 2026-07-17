@@ -676,6 +676,10 @@ public:
         update_data(impl_.get());
     }
 
+    alloc_kind get_alloc_kind() const {
+        return impl_->get_alloc_kind();
+    }
+
 private:
     static void swap(array<T>& a, array<T>& b) {
         std::swap(a.impl_, b.impl_);
