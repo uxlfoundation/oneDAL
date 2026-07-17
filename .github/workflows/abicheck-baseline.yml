@@ -73,18 +73,19 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/abicheck_emit_facts.sh __abicheck_plugin/libabicheck-facts.so __abicheck_inputs
 
-      - name: Install abicheck
-        run: pip install abicheck
-
       - name: Dump baseline snapshot
-        run: |
-          abicheck dump __release_lnx/daal/latest/lib/intel64 \
-            -H cpp/daal/include -H cpp/oneapi/dal \
-            --build-info __abicheck_inputs --depth source \
-            --version "${{ inputs.baseline_tag }}" \
-            -o "${{ inputs.baseline_tag }}.abicheck.json"
+        id: abicheck-dump
+        uses: abicheck/abicheck@d28c0bf28796b3c6daca9584ad6dd44b54f044f7 # v0.5.0
+        with:
+          mode: dump
+          new-library: __release_lnx/daal/latest/lib/intel64
+          new-header: "cpp/daal/include cpp/oneapi/dal"
+          new-version: ${{ inputs.baseline_tag }}
+          build-info: __abicheck_inputs
+          depth: source
+          output-file: "${{ inputs.baseline_tag }}.abicheck.json"
 
       - name: Attach snapshot to the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ inputs.baseline_tag }}" "${{ inputs.baseline_tag }}.abicheck.json" --clobber
+        run: gh release upload "${{ inputs.baseline_tag }}" "${{ steps.abicheck-dump.outputs.report-path }}" --clobber
