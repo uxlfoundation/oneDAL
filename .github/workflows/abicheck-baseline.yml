@@ -1,0 +1,90 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: Publish Abicheck Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_tag:
+        description: "oneDAL release tag to publish as the abicheck baseline"
+        required: true
+        default: "2026.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  PublishBaseline:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout oneDAL at baseline tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.baseline_tag }}
+
+      # The abicheck CI scripts are newer than most historical release tags,
+      # so fetch them from the ref that is running this workflow (not the
+      # baseline tag) and lay them over the checked-out tree.
+      - name: Fetch current abicheck CI scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          sparse-checkout: |
+            .ci/scripts/abicheck_build_plugin.sh
+            .ci/scripts/abicheck_emit_facts.sh
+          path: __abicheck_tooling
+      - name: Overlay abicheck CI scripts
+        run: cp __abicheck_tooling/.ci/scripts/abicheck_*.sh .ci/scripts/
+
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+
+      # Same flags as the PR-side LinuxMakeDPCPP job in ci.yml, so the baseline
+      # binary matches what every PR's LinuxAbicheck job actually compares against.
+      - name: Build daal (avx2 debug)
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols --jobs 20
+
+      - name: Build abicheck-facts Clang plugin (against icx's bundled LLVM/Clang)
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/abicheck_build_plugin.sh __abicheck_plugin
+      - name: Emit source facts via the Clang plugin
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/abicheck_emit_facts.sh __abicheck_plugin/libabicheck-facts.so __abicheck_inputs
+
+      - name: Install abicheck
+        run: pip install abicheck
+
+      - name: Dump baseline snapshot
+        run: |
+          abicheck dump __release_lnx/daal/latest/lib/intel64 \
+            -H cpp/daal/include -H cpp/oneapi/dal \
+            --build-info __abicheck_inputs --depth source \
+            --version "${{ inputs.baseline_tag }}" \
+            -o "${{ inputs.baseline_tag }}.abicheck.json"
+
+      - name: Attach snapshot to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ inputs.baseline_tag }}" "${{ inputs.baseline_tag }}.abicheck.json" --clobber

@@ -172,3 +172,56 @@ jobs:
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+
+  LinuxAbicheck:
+    name: Abicheck (source scan + binary, avx2)
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v6
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      # Builds the abicheck-facts Clang plugin against the LLVM/Clang toolchain
+      # bundled inside icx itself (icx is clang-based), so the plugin loads
+      # correctly into the same compiler used to build oneDAL -- see
+      # .ci/scripts/abicheck_build_plugin.sh for why this avoids an LLVM-major
+      # mismatch versus a separately apt-installed upstream clang.
+      - name: Build abicheck-facts Clang plugin (against icx's bundled LLVM/Clang)
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/abicheck_build_plugin.sh __abicheck_plugin
+      - name: Emit source facts via the Clang plugin
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/abicheck_emit_facts.sh __abicheck_plugin/libabicheck-facts.so __abicheck_inputs
+      - name: Run abicheck
+        uses: abicheck/abicheck@d28c0bf28796b3c6daca9584ad6dd44b54f044f7 # v0.5.0
+        with:
+          mode: scan
+          new-library: __release_lnx/daal/latest/lib/intel64
+          new-header: "cpp/daal/include cpp/oneapi/dal"
+          build-info: __abicheck_inputs
+          depth: source
+          abi-baseline: "2026.0.0"
+          suppress: .github/.abicheck-suppress.yaml
+          crosscheck: "header_build_context_mismatch=warning"
+          format: sarif
+          upload-sarif: 'true'
+          fail-on-breaking: 'true'
+          fail-on-api-break: 'false'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
