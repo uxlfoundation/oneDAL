@@ -66,12 +66,10 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     const algorithmFPType * src = srcBlock.get();
 
     algorithmFPType maxWeight = 0;
-#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
     PRAGMA_OMP_SIMD_ARGS(reduction(max : maxWeight))
-#endif
     for (size_t i = 0; i < nRows; ++i)
     {
-        if (src[i] > maxWeight) maxWeight = src[i];
+        maxWeight = src[i] > maxWeight ? src[i] : maxWeight;
     }
     if (!(maxWeight > 0)) return empty;
 
@@ -318,12 +316,14 @@ void TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(training::VariableI
         }
         if (!isPositive<algorithmFPType, cpu>(maxVal)) return;
         const algorithmFPType div = 1. / maxVal;
-        for (size_t i = 0; i < nVars; varImp[i++] *= div);
+        for (size_t i = 0; i < nVars; varImp[i++] *= div)
+            ;
     }
     else
     {
         sum = 1. / sum;
-        for (size_t i = 0; i < nVars; varImp[i++] *= sum);
+        for (size_t i = 0; i < nVars; varImp[i++] *= sum)
+            ;
     }
 #endif
 }
@@ -1356,7 +1356,8 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
         {
             TArray<IndexType, cpu> permutation(nOOB);
             DAAL_CHECK_MALLOC(permutation.get());
-            for (size_t i = 0; i < nOOB; permutation[i] = i, ++i);
+            for (size_t i = 0; i < nOOB; permutation[i] = i, ++i)
+                ;
             const size_t nTrees         = _threadCtx.nTrees;
             const intermSummFPType div1 = 1.0 / static_cast<intermSummFPType>(nTrees);
             for (size_t i = 0, n = nFeatures(); i < n; ++i)
