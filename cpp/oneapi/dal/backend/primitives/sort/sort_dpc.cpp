@@ -563,7 +563,7 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::invalid_number_of_elements_to_sort());
     }
 
-    auto event = oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<true, 8>(
+    auto event = oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<true, 8>(
         queue,
         val_in.get_mutable_data(),
         val_in.get_mutable_data() + val_in.get_count(),
@@ -594,7 +594,7 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
 
         const auto row_sorted_elem_count = std::min(sorted_elem_count, col_count);
 
-        radix_sort_event = oneapi::dpl::experimental::kt::gpu::esimd::radix_sort<true, 8>(
+        radix_sort_event = oneapi::dpl::experimental::kt::gpu::radix_sort<true, 8>(
             queue,
             row_start_in,
             row_start_in + row_sorted_elem_count,
