@@ -44,10 +44,10 @@
    ```
 
 ## Install Bazel on Windows
-Windows Bazel support currently covers the regular C++/CPU build with the MSVC
-compiler. DPC++/SYCL builds on Windows are not wired yet; see the tracking issue
-for the remaining `sycl/sycl.hpp`, oneAPI compiler, runtime library and device
-flag work.
+Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
+and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
+Running DPC++ examples and tests on Windows still needs separate device/runtime
+validation.
 
 1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
 
@@ -147,7 +147,7 @@ The most used Bazel commands are `build`, `test` and `run`.
   `dbg` and `fastbuild`. \
   Possible values:
    - `opt` _(default)_ compiles everything with optimizations `-O2`.
-   - `dbg` enables `-g`, `-O0` compiler switches and **assertions**.
+   - `dbg` enables `-g`, `-O1` compiler switches and **assertions**.
    - `fastbuild` optimizes build time, no optimizations, no debug information.
      Useful when one introduces massive changes and wants to check whether they
      break the build.
@@ -264,11 +264,26 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```
 
 ## Build recipes for oneDAL
-### Build release package
-- On Linux:
+### Build release artifacts
+- To build the Bazel release artifacts, run:
   ```sh
-  bazel build //:release --verbose_failures
+  bazel build //:release
   ```
+  This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries by default.
+
+  The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
+  oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
+  same subdirectories: headers under `include`, libraries under `lib/intel64`, environment
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
+
+  - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
+    ```sh
+    bazel build //:release --cpu=avx2
+    ```
+  - To disable building DPC++ libraries, use `--release_dpc=false`:
+    ```sh
+    bazel build //:release --release_dpc=false
+    ```
 
 - On Windows, run from the Visual Studio Developer Command Prompt described
   above:
@@ -289,9 +304,9 @@ The most used Bazel commands are `build`, `test` and `run`.
   bazelisk.exe build //examples/oneapi/cpp:basic_statistics_dense_batch_host //examples/daal/cpp:low_order_moms_dense_batch_host --verbose_failures
   ```
 
-- To run all oneAPI DPC++ examples ... It's not implemented yet. Windows DPC++
-  support is also not implemented yet and is tracked separately from the CPU
-  Windows Bazel build.
+- Running all oneAPI DPC++ examples is not implemented yet. Windows release
+  artifact builds can include DPC++ libraries, but Windows DPC++ example/test
+  execution still needs separate device/runtime validation.
 
 ### Run oneAPI tests
 - To run all test use the following commands:
@@ -620,4 +635,4 @@ build --linkopt=-your-link-flag
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
-| (Make default all ISAs)        | `bazel build //:release --cpu=all`                           | Explicit full ISA coverage                                                 |
+| Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |

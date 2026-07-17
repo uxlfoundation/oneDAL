@@ -43,7 +43,7 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Collect main URL
         run: |
           echo "main_exe=$(grep -oP -m 1  'https?://[^ ]+\.exe' ${{ matrix.FILENAME }})" >> $GITHUB_ENV

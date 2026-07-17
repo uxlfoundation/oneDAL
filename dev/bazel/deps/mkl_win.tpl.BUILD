@@ -26,6 +26,11 @@ cc_library(
     defines = ["MKL_ILP64"],
 )
 
+filegroup(
+    name = "mkl_runtime",
+    srcs = glob(["bin/*.dll"], allow_empty = True),
+)
+
 cc_library(
     name = "mkl_core",
     deps = [

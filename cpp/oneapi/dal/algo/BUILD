@@ -9,6 +9,7 @@ PARAMETRIZED_ALGOS = [
     "covariance",
     "decision_forest",
     "linear_regression",
+    "logistic_regression",
     "pca",
 ]
 
@@ -26,7 +27,6 @@ ALGOS = [
     "kmeans_init",
     "knn",
     "linear_kernel",
-    "logistic_regression",
     "logloss_objective",
     "louvain",
     "minkowski_distance",

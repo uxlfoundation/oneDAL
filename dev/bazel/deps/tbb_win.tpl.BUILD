@@ -15,6 +15,14 @@ cc_library(
     deps = [":headers"],
 )
 
+filegroup(
+    name = "tbb_runtime",
+    srcs = [
+        "bin/tbb12.dll",
+        "bin/tbbmalloc.dll",
+    ],
+)
+
 cc_library(
     name = "tbb_binary",
     deps = [":tbb"],

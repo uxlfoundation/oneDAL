@@ -16,6 +16,9 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 
+_BINARY_MAJOR = "4"
+_BINARY_MINOR = "0"
+
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     # Workaround Python wheel extraction. Bazel cannot determine file
     # type automatically as does not support wheels out-of-the-box.
@@ -183,19 +186,8 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         "%{os}": os_id,
         "%{repo_root}": str(repo_ctx.path("")),
     }
-    # Extract substitutions if a makefile_ver attribute is present
-    if hasattr(repo_ctx.attr, "_makefile_ver") and repo_ctx.attr._makefile_ver:
-        makefile_ver = repo_ctx.path(repo_ctx.attr._makefile_ver)
-        makefile_content = repo_ctx.read(makefile_ver)
-        binary_major = "4"
-        binary_minor = "0"
-        for line in makefile_content.splitlines():
-            if line.startswith("MAJORBINARY"):
-                binary_major = line.split("=")[1].strip()
-            elif line.startswith("MINORBINARY"):
-                binary_minor = line.split("=")[1].strip()
-        substitutions["%{version_binary_major}"] = binary_major
-        substitutions["%{version_binary_minor}"] = binary_minor
+    substitutions["%{version_binary_major}"] = _BINARY_MAJOR
+    substitutions["%{version_binary_minor}"] = _BINARY_MINOR
 
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
@@ -232,7 +224,6 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "bins": attr.string_list(default=bins),
-            "_makefile_ver": attr.label(default=Label("@onedal//:makefile.ver")),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),
             "win_includes": attr.string_list(default=win_includes),

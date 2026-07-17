@@ -24,8 +24,22 @@
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Wkeyword-macro"
+
+// Workaround: some oneTBB versions annotate the override of
+// std::exception::what() with __TBB_EXPORTED_METHOD, which on Windows-x86
+// expands to `__thiscall`. Newer MSVC vcruntime_exception.h declares the
+// base with the default calling convention, so the mismatch on the virtual
+// override is a hard error that `#pragma diagnostic` cannot silence.
+#if defined(_WIN32) && defined(_WIN64)
+#define __thiscall
+#endif
 
 #include <oneapi/dpl/experimental/kernel_templates>
+
+#if defined(_WIN32) && defined(_WIN64)
+#undef __thiscall
+#endif
 
 #pragma clang diagnostic pop
 
@@ -41,7 +55,7 @@ inline std::uint64_t inv_bits(std::uint64_t x) {
     return x ^ (-(x >> 63) | 0x8000000000000000ul);
 }
 
-using sycl::ext::oneapi::plus;
+using sycl::plus;
 
 template <typename Float, typename Index>
 sycl::event radix_sort_indices_inplace<Float, Index>::radix_scan(sycl::queue& queue,

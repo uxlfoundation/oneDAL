@@ -424,7 +424,7 @@ bool is_sorted(sycl::queue& queue,
         .submit([&](sycl::handler& cgh) {
             cgh.depends_on(dependencies);
             auto count_descending_reduction =
-                sycl::reduction(count_buf, cgh, sycl::ext::oneapi::plus<std::int64_t>());
+                sycl::reduction(count_buf, cgh, sycl::plus<std::int64_t>());
 
             cgh.parallel_for(sycl::nd_range<1>{ wg_count * wg_size, wg_size },
                              count_descending_reduction,
@@ -499,9 +499,9 @@ out_of_bound_type check_bounds(const array<T>& arr,
         .submit([&](sycl::handler& cgh) {
             cgh.depends_on(dependencies);
             auto count_lt_reduction =
-                sycl::reduction(count_lt_buf, cgh, sycl::ext::oneapi::plus<std::int64_t>());
+                sycl::reduction(count_lt_buf, cgh, sycl::plus<std::int64_t>());
             auto count_gt_reduction =
-                sycl::reduction(count_gt_buf, cgh, sycl::ext::oneapi::plus<std::int64_t>());
+                sycl::reduction(count_gt_buf, cgh, sycl::plus<std::int64_t>());
 
             cgh.parallel_for(sycl::range<1>{ dal::detail::integral_cast<std::size_t>(count) },
                              count_lt_reduction,

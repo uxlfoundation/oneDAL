@@ -61,7 +61,7 @@ cc_library(
 cc_library(
     name = "core_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal_core.so.%{version_binary_major}.%{version_binary_minor}",
+        "lib/intel64/libonedal_core.so.%{version_binary_major}",
     ]),
     deps = [
         ":headers",
@@ -71,10 +71,17 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "core_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal_core.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "thread_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal_thread.so.%{version_binary_major}.%{version_binary_minor}",
+        "lib/intel64/libonedal_thread.so.%{version_binary_major}",
     ]),
     deps = [
         ":headers",
@@ -83,14 +90,20 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "thread_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal_thread.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "onedal_dynamic",
     srcs = glob([
-        # Use exact versioned filenames to avoid linking the same .so multiple
-        # times when the release tree contains .so, .so.<major>, and
-        # .so.<major>.<minor> all pointing to the same library.
-        "lib/intel64/libonedal.so.%{version_binary_major}.%{version_binary_minor}",
-        "lib/intel64/libonedal_parameters.so.%{version_binary_major}.%{version_binary_minor}",
+        # Link through the SONAME symlinks. Bazel's _solib runfiles then expose
+        # names like libonedal.so.4, matching DT_NEEDED in test executables.
+        "lib/intel64/libonedal.so.%{version_binary_major}",
+        "lib/intel64/libonedal_parameters.so.%{version_binary_major}",
     ]),
     deps = [
         ":headers",
@@ -98,13 +111,20 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "onedal_dynamic_runtime",
+    srcs = glob([
+        "lib/intel64/libonedal.so*",
+        "lib/intel64/libonedal_parameters.so*",
+    ], allow_empty = True),
+)
+
 cc_library(
     name = "onedal_dynamic_dpc",
     srcs = glob([
-        "lib/intel64/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
-        # Use the exact fully-versioned filename to avoid duplicate link inputs
-        # from the .so/.so.<major> symlink chain in the release tree.
-        "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}.%{version_binary_minor}",
+        "lib/intel64/libonedal_dpc.so.%{version_binary_major}",
+        # Link through the SONAME symlink for the same _solib/runfiles reason.
+        "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}",
     ], allow_empty=True),
     deps = [
         ":headers",

@@ -33,9 +33,9 @@ namespace pr = dal::backend::primitives;
 using alloc = sycl::usm::alloc;
 using address = sycl::access::address_space;
 
-using sycl::ext::oneapi::plus;
-using sycl::ext::oneapi::minimum;
-using sycl::ext::oneapi::maximum;
+using sycl::plus;
+using sycl::minimum;
+using sycl::maximum;
 
 template <typename T>
 using enable_if_float_t = std::enable_if_t<detail::is_valid_float_v<T>>;
@@ -486,12 +486,10 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
 
     de::check_mul_overflow((node_count + 1), ctx.selected_ftr_count_);
 
-    auto selected_features_com =
-        pr::ndarray<Index, 1>::empty(queue_,
-                                     { node_count * ctx.selected_ftr_count_ },
-                                     alloc::shared);
+    auto selected_features_host =
+        pr::ndarray<Index, 1>::empty({ node_count * ctx.selected_ftr_count_ });
 
-    auto selected_features_host_ptr = selected_features_com.get_mutable_data();
+    auto selected_features_host_ptr = selected_features_host.get_mutable_data();
 
     if (ctx.selected_ftr_count_ != ctx.column_count_) {
         for (Index node = 0; node < node_count; ++node) {
@@ -511,7 +509,15 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
         }
     }
 
-    return std::tuple{ selected_features_com, sycl::event() };
+    auto selected_features_com =
+        pr::ndarray<Index, 1>::empty(queue_,
+                                     { node_count * ctx.selected_ftr_count_ },
+                                     alloc::device);
+    auto copy_event = selected_features_com.assign_from_host(queue_,
+                                                             selected_features_host_ptr,
+                                                             selected_features_host.get_count());
+
+    return std::tuple{ selected_features_com, copy_event };
 }
 
 template <typename Float, typename Bin, typename Index, typename Task>
@@ -527,10 +533,8 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
 
     auto node_vs_tree_map_list_host = node_vs_tree_map.to_host(queue_);
 
-    auto random_bins_com = pr::ndarray<Float, 1>::empty(queue_,
-                                                        { node_count * ctx.selected_ftr_count_ },
-                                                        alloc::shared);
-    auto random_bins_host_ptr = random_bins_com.get_mutable_data();
+    auto random_bins_host = pr::ndarray<Float, 1>::empty({ node_count * ctx.selected_ftr_count_ });
+    auto random_bins_host_ptr = random_bins_host.get_mutable_data();
 
     // Generate random bins for selected features
     pr::uniform<Float>(ctx.selected_ftr_count_ * node_count,
@@ -539,7 +543,14 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
                        0.0f,
                        1.0f);
 
-    return std::tuple{ random_bins_com, sycl::event() };
+    auto random_bins_com = pr::ndarray<Float, 1>::empty(queue_,
+                                                        { node_count * ctx.selected_ftr_count_ },
+                                                        alloc::device);
+    auto copy_event = random_bins_com.assign_from_host(queue_,
+                                                       random_bins_host_ptr,
+                                                       random_bins_host.get_count());
+
+    return std::tuple{ random_bins_com, copy_event };
 };
 
 template <typename Float, typename Index, typename Task>
@@ -673,7 +684,7 @@ inline void compute_hist_for_node(
         bk::atomic_global_add(node_histogram_ptr + cls_idx, prv_hist_ptr[cls_idx]);
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 
     Float imp = Float(1);
     Float div = Float(1) / (Float(row_count) * row_count);
@@ -731,7 +742,7 @@ inline void compute_hist_for_node(
     local_h_ptr[2] = prv_hist[2];
 
     for (Index offset = local_size / 2; offset > 0; offset >>= 1) {
-        item.barrier(sycl::access::fence_space::local_space);
+        sycl::group_barrier(item.get_group());
         if (local_id < offset) {
             hist_type_t* h_ptr = local_buf_ptr + (local_id + offset) * hist_prop_count;
             merge_stat(local_h_ptr, h_ptr, hist_prop_count);
@@ -963,7 +974,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_sum
             local_buf_ptr[local_id] = sum;
 
             for (Index offset = local_size / 2; offset > 0; offset >>= 1) {
-                item.barrier(sycl::access::fence_space::local_space);
+                sycl::group_barrier(item.get_group());
                 if (local_id < offset) {
                     local_buf_ptr[local_id] += local_buf_ptr[local_id + offset];
                 }
@@ -1039,7 +1050,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_sum
             local_buf_ptr[local_id] = sum2cent;
 
             for (Index offset = local_size / 2; offset > 0; offset >>= 1) {
-                item.barrier(sycl::access::fence_space::local_space);
+                sycl::group_barrier(item.get_group());
                 if (local_id < offset) {
                     local_buf_ptr[local_id] += local_buf_ptr[local_id + offset];
                 }
@@ -1918,13 +1929,11 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             auto node_list = level_node_lists[level];
             imp_data_t left_child_imp_data(queue_, ctx, node_count);
 
-            auto [selected_features_com, event] =
+            auto [selected_features_com, ftr_list_event] =
                 gen_feature_list(ctx, node_count, node_vs_tree_map_list, engine_gpu);
-            event.wait_and_throw();
 
             auto [random_bins_com, gen_bins_event] =
                 gen_random_thresholds(ctx, node_count, node_vs_tree_map_list, engine_gpu);
-            gen_bins_event.wait_and_throw();
 
             if (ctx.mdi_required_) {
                 node_imp_decrease_list =
@@ -1944,7 +1953,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
                                             node_imp_decrease_list,
                                             ctx.mdi_required_,
                                             node_count,
-                                            { last_event });
+                                            { last_event, ftr_list_event, gen_bins_event });
             last_event.wait_and_throw();
 
             tree_level_record_t level_record(queue_,

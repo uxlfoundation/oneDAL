@@ -313,7 +313,7 @@ static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskW
     // NearestPo2(numEntries) is the nearest power of 2 integer that is not less than numEntries
     // The most significant bit of (numEntries * 2 -1) matches the above definition
 
-    k = (unsigned long)(numEntries)*2 - 1;
+    k = (unsigned long)(numEntries) * 2 - 1;
 
     if (__internal_daal_myBitScanReverse(&i, k) == 0)
     {

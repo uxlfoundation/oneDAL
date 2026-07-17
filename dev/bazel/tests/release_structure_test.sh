@@ -27,6 +27,7 @@ set -euo pipefail
 
 RELEASE_DIR="${1:-bazel-bin/release/daal/latest}"
 LIB_DIR="${RELEASE_DIR}/lib/intel64"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PASS=0
 FAIL=0
 
@@ -47,7 +48,8 @@ if ! ${IS_LINUX}; then
     echo "  SKIP: .so versioning checks are Linux-only (detected OS: ${OS})"
 fi
 
-for lib_base in libonedal_core libonedal libonedal_thread; do
+BINARY_MAJOR_VER=""
+for lib_base in libonedal_core libonedal libonedal_thread libonedal_parameters; do
     if ! ${IS_LINUX}; then continue; fi
     so="${LIB_DIR}/${lib_base}.so"
     # Find versioned file using bash globbing (more robust than ls+grep)
@@ -75,6 +77,9 @@ for lib_base in libonedal_core libonedal libonedal_thread; do
     # Extract major.minor from filename
     version_suffix="${versioned##*.so.}"  # e.g. "3.0"
     major_ver="${version_suffix%%.*}"     # e.g. "3"
+    if [ "$lib_base" = "libonedal_core" ]; then
+        BINARY_MAJOR_VER="$major_ver"
+    fi
 
     # Check major symlink exists and points correctly
     major_link="${LIB_DIR}/${lib_base}.so.${major_ver}"
@@ -115,7 +120,7 @@ if ! ${IS_LINUX}; then
 elif ! command -v readelf >/dev/null 2>&1; then
     _fail "readelf not found on PATH; cannot perform SONAME check"
 else
-    for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* "${LIB_DIR}"/libonedal_thread.so.*.* ; do
+    for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* "${LIB_DIR}"/libonedal_thread.so.*.* "${LIB_DIR}"/libonedal_parameters.so.*.* ; do
         [ -f "$lib" ] || continue
         lib_base=$(basename "$lib" | sed 's/\.so\..*//')
         # Extract expected SONAME from filename: libonedal_core.so.3.0 -> libonedal_core.so.3
@@ -137,50 +142,36 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. vars.sh
+# 3. Common package metadata checks
+# ---------------------------------------------------------------------------
+"${SCRIPT_DIR}/../../release_tests/package_metadata_test.sh" "${RELEASE_DIR}" || \
+    _fail "package metadata checks failed"
+
+# ---------------------------------------------------------------------------
+# 4. modulefile
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== vars.sh ==="
+echo "=== modulefile ==="
 
-VARS_SH="${RELEASE_DIR}/env/vars.sh"
-if [ -f "$VARS_SH" ]; then
-    _pass "env/vars.sh exists"
-    if grep -q "DAL_MAJOR_BINARY" "$VARS_SH"; then
-        _pass "vars.sh contains DAL_MAJOR_BINARY"
+MODULEFILE="${RELEASE_DIR}/modulefiles/dal"
+if ${IS_LINUX}; then
+    if [ -f "$MODULEFILE" ]; then
+        _pass "modulefiles/dal exists"
+        if grep -q "__DAL_MAJOR_BINARY__\|__DAL_MINOR_BINARY__" "$MODULEFILE"; then
+            _fail "modulefiles/dal still has unresolved placeholders"
+        else
+            _pass "modulefiles/dal has no unresolved placeholders"
+        fi
+        if [ -n "$BINARY_MAJOR_VER" ] && grep -Eq "DAL_MAJOR_BINARY[[:space:]]+${BINARY_MAJOR_VER}" "$MODULEFILE"; then
+            _pass "modulefiles/dal contains current DAL_MAJOR_BINARY"
+        else
+            _fail "modulefiles/dal missing current DAL_MAJOR_BINARY"
+        fi
     else
-        _fail "vars.sh missing DAL_MAJOR_BINARY"
-    fi
-    # Check no unresolved placeholders
-    if grep -q "__DAL_MAJOR_BINARY__\|__DAL_MINOR_BINARY__" "$VARS_SH"; then
-        _fail "vars.sh still has unresolved placeholders"
-    else
-        _pass "vars.sh has no unresolved placeholders"
+        _fail "modulefiles/dal not found at ${MODULEFILE}"
     fi
 else
-    _fail "env/vars.sh not found at ${VARS_SH}"
-fi
-
-# ---------------------------------------------------------------------------
-# 4. pkg-config
-# ---------------------------------------------------------------------------
-echo ""
-echo "=== pkg-config ==="
-
-PC_FILE="${RELEASE_DIR}/lib/pkgconfig/onedal.pc"
-if [ -f "$PC_FILE" ]; then
-    _pass "lib/pkgconfig/onedal.pc exists"
-    if grep -q "^Name:" "$PC_FILE"; then
-        _pass "onedal.pc has Name field"
-    else
-        _fail "onedal.pc missing Name field"
-    fi
-    if grep -q "^Libs:" "$PC_FILE"; then
-        _pass "onedal.pc has Libs field"
-    else
-        _fail "onedal.pc missing Libs field"
-    fi
-else
-    _fail "lib/pkgconfig/onedal.pc not found"
+    echo "  SKIP: modulefile check is Linux-only (detected OS: ${OS})"
 fi
 
 # ---------------------------------------------------------------------------

@@ -22,7 +22,6 @@ version_info(
     buildrev = "%{version_buildrev}",
     status = "%{version_status}",
     # Binary ABI version for SONAME and shared library symlinks.
-    # Must match MAJORBINARY/MINORBINARY in makefile.
     binary_major = "%{version_binary_major}",
     binary_minor = "%{version_binary_minor}",
 )
@@ -131,7 +130,7 @@ config_setting(
 
 config_bool_flag(
     name = "release_dpc",
-    build_setting_default = False,
+    build_setting_default = True,
 )
 
 config_bool_flag(
