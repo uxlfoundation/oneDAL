@@ -217,7 +217,7 @@ jobs:
           new-header: "cpp/daal/include cpp/oneapi/dal"
           build-info: __abicheck_inputs
           depth: source
-          abi-baseline: "2026.0.0"
+          abi-baseline: .github/abicheck-baselines/2026.0.0.abicheck.json
           suppress: .github/.abicheck-suppress.yaml
           crosscheck: "header_build_context_mismatch=warning"
           format: sarif
