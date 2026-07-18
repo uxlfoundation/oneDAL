@@ -202,24 +202,26 @@ jobs:
           echo "path=${solib}" >> "$GITHUB_OUTPUT"
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
-      # Put icpx on PATH for every later step (including the collect-facts
-      # composite action below, which runs `icpx --version` to detect the
-      # plugin's target LLVM major) by persisting setvars.sh's PATH/
-      # LD_LIBRARY_PATH via $GITHUB_ENV, since a sourced env only lives for
-      # the step that sourced it otherwise.
+      # Put icpx on PATH for every later step, and persist CMPLR_ROOT so
+      # collect-facts' clang-plugin producer can auto-detect it points at
+      # icpx's own bundled LLVM/Clang CMake package (see the pinned commit
+      # comment below) -- a sourced env only lives for the step that
+      # sourced it otherwise.
       - name: Put icpx on PATH
         run: |
           source /opt/intel/oneapi/setvars.sh
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-      # collect-facts' clang-plugin producer builds the abicheck-facts Clang
-      # plugin against the LLVM major that icpx itself embeds (detected from
-      # `icpx --version`) and smoke-tests it loads into icpx before handing
-      # back $ABICHECK_PLUGIN_FLAGS -- this is why the plugin loads correctly
-      # into the exact compiler oneDAL is built with, without hand-pinning
-      # LLVM versions ourselves.
+          echo "CMPLR_ROOT=$CMPLR_ROOT" >> "$GITHUB_ENV"
+      # collect-facts' clang-plugin producer detects icpx's LLVM major via
+      # its __clang_major__ macro (icpx --version prints a vendor product
+      # version, not an LLVM number, so plain upstream abicheck main cannot
+      # detect it -- see abicheck/abicheck#603, an unmerged fix pinned below
+      # rather than @main until it lands), builds the plugin against icpx's
+      # own bundled LLVM/Clang CMake package under $CMPLR_ROOT, smoke-tests
+      # it loads into icpx, and hands back $ABICHECK_PLUGIN_FLAGS.
       - name: Collect source facts (prepare)
-        uses: abicheck/abicheck/actions/collect-facts@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        uses: abicheck/abicheck/actions/collect-facts@f1eb76d081f4f536168523c5ed0af626b3ab8864 # TEMP: unmerged fix for icpx/icx support (abicheck/abicheck#603) -- revert to @main once merged
         with:
           phase: prepare
           producer: clang-plugin
@@ -233,7 +235,7 @@ jobs:
           icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
           icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
       - name: Collect source facts (verify)
-        uses: abicheck/abicheck/actions/collect-facts@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        uses: abicheck/abicheck/actions/collect-facts@f1eb76d081f4f536168523c5ed0af626b3ab8864 # TEMP: unmerged fix for icpx/icx support (abicheck/abicheck#603) -- revert to @main once merged
         with:
           phase: verify
           producer: clang-plugin
