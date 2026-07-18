@@ -202,19 +202,42 @@ jobs:
           echo "path=${solib}" >> "$GITHUB_OUTPUT"
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
-      # Builds the abicheck-facts Clang plugin against the LLVM/Clang toolchain
-      # bundled inside icx itself (icx is clang-based), so the plugin loads
-      # correctly into the same compiler used to build oneDAL -- see
-      # .ci/scripts/abicheck_build_plugin.sh for why this avoids an LLVM-major
-      # mismatch versus a separately apt-installed upstream clang.
-      - name: Build abicheck-facts Clang plugin (against icx's bundled LLVM/Clang)
+      # Put icpx on PATH for every later step (including the collect-facts
+      # composite action below, which runs `icpx --version` to detect the
+      # plugin's target LLVM major) by persisting setvars.sh's PATH/
+      # LD_LIBRARY_PATH via $GITHUB_ENV, since a sourced env only lives for
+      # the step that sourced it otherwise.
+      - name: Put icpx on PATH
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/abicheck_build_plugin.sh __abicheck_plugin
-      - name: Emit source facts via the Clang plugin
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+      # collect-facts' clang-plugin producer builds the abicheck-facts Clang
+      # plugin against the LLVM major that icpx itself embeds (detected from
+      # `icpx --version`) and smoke-tests it loads into icpx before handing
+      # back $ABICHECK_PLUGIN_FLAGS -- this is why the plugin loads correctly
+      # into the exact compiler oneDAL is built with, without hand-pinning
+      # LLVM versions ourselves.
+      - name: Collect source facts (prepare)
+        uses: abicheck/abicheck/actions/collect-facts@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        with:
+          phase: prepare
+          producer: clang-plugin
+          compiler: icpx
+          public-roots: |
+            cpp/daal/include
+            cpp/oneapi
+          output: __abicheck_inputs
+      - name: Emit facts for the public API surface
         run: |
-          source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/abicheck_emit_facts.sh __abicheck_plugin/libabicheck-facts.so __abicheck_inputs
+          icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
+          icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
+      - name: Collect source facts (verify)
+        uses: abicheck/abicheck/actions/collect-facts@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        with:
+          phase: verify
+          producer: clang-plugin
+          output: __abicheck_inputs
       # mode: scan only supports format: text/json -- format: sarif and
       # upload-sarif are compare-mode only and hard-rejected by the Action's
       # validate-inputs.sh. --annotate is also compare-mode only (cli_scan.py

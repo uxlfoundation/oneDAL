@@ -58,12 +58,6 @@ jobs:
           ref: ${{ steps.baseline.outputs.tag }}
           path: __baseline_src
 
-      # The abicheck CI scripts are newer than most historical release tags,
-      # so overlay the ones from the ref running this workflow onto the
-      # checked-out baseline tree.
-      - name: Overlay abicheck CI scripts onto the baseline checkout
-        run: cp .ci/scripts/abicheck_*.sh __baseline_src/.ci/scripts/
-
       - name: Install DPC++
         working-directory: __baseline_src
         run: .ci/env/apt.sh dpcpp
@@ -79,16 +73,35 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols --jobs 20
 
-      - name: Build abicheck-facts Clang plugin (against icx's bundled LLVM/Clang)
-        working-directory: __baseline_src
+      # Put icpx on PATH for later steps -- see the matching comment in
+      # ci.yml's LinuxAbicheckScan job for why this is needed.
+      - name: Put icpx on PATH
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/abicheck_build_plugin.sh __abicheck_plugin
-      - name: Emit source facts via the Clang plugin
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Collect source facts (prepare)
+        uses: abicheck/abicheck/actions/collect-facts@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        with:
+          phase: prepare
+          producer: clang-plugin
+          compiler: icpx
+          public-roots: |
+            __baseline_src/cpp/daal/include
+            __baseline_src/cpp/oneapi
+          output: __abicheck_inputs
+      - name: Emit facts for the public API surface
         working-directory: __baseline_src
         run: |
-          source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/abicheck_emit_facts.sh __abicheck_plugin/libabicheck-facts.so __abicheck_inputs
+          icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
+          icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
+      - name: Collect source facts (verify)
+        uses: abicheck/abicheck/actions/collect-facts@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        with:
+          phase: verify
+          producer: clang-plugin
+          output: __abicheck_inputs
 
       - name: Ensure baseline output directory exists
         run: mkdir -p .github/abicheck-baselines
@@ -108,7 +121,7 @@ jobs:
           new-library: ${{ steps.solib.outputs.path }}
           new-header: "__baseline_src/cpp/daal/include __baseline_src/cpp/oneapi/dal"
           new-version: ${{ steps.baseline.outputs.tag }}
-          build-info: __baseline_src/__abicheck_inputs
+          build-info: __abicheck_inputs
           depth: source
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.json"
 
