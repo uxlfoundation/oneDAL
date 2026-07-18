@@ -184,8 +184,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      security-events: write
-      pull-requests: write
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@v6
@@ -194,6 +192,14 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
+      # abicheck's scan/dump modes reject a directory for new-library (they
+      # analyse exactly one artifact, no per-library fan-out) -- resolve the
+      # first built .so, same enumeration abi_check.sh already uses above.
+      - name: Resolve the built shared library
+        id: solib
+        run: |
+          solib=$(ls __release_lnx/daal/latest/lib/intel64/lib*.so | head -1)
+          echo "path=${solib}" >> "$GITHUB_OUTPUT"
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       # Builds the abicheck-facts Clang plugin against the LLVM/Clang toolchain
@@ -209,19 +215,25 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/abicheck_emit_facts.sh __abicheck_plugin/libabicheck-facts.so __abicheck_inputs
+      # mode: scan only supports format: text/json -- format: sarif and
+      # upload-sarif are compare-mode only and hard-rejected by the Action's
+      # validate-inputs.sh. --annotate is also compare-mode only (cli_scan.py
+      # has no such option). Results surface via the Action's automatic job
+      # summary instead (add-job-summary defaults to true and covers every
+      # mode except dump). scan also has no --suppress (compare-mode only,
+      # confirmed against abicheck's own CLI/Action source) -- suppression
+      # instead goes through --crosscheck category severities below, and
+      # fail-on-api-break stays false until those are tuned.
       - name: Run abicheck
-        uses: abicheck/abicheck@d28c0bf28796b3c6daca9584ad6dd44b54f044f7 # v0.5.0
+        uses: abicheck/abicheck@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
         with:
           mode: scan
-          new-library: __release_lnx/daal/latest/lib/intel64
+          new-library: ${{ steps.solib.outputs.path }}
           new-header: "cpp/daal/include cpp/oneapi/dal"
           build-info: __abicheck_inputs
           depth: source
           abi-baseline: .github/abicheck-baselines/2026.0.0.abicheck.json
-          suppress: .github/.abicheck-suppress.yaml
           crosscheck: "header_build_context_mismatch=warning"
-          format: sarif
-          upload-sarif: 'true'
           fail-on-breaking: 'true'
           fail-on-api-break: 'false'
           github-token: ${{ secrets.GITHUB_TOKEN }}
