@@ -13,6 +13,10 @@
 # limitations under the License.
 #
 # Mirrors the namespaces already suppressed for libabigail in .github/.abignore.
+#
+# NOTE: mode: scan (used by the LinuxAbicheckScan CI job) has no --suppress
+# support -- this file is currently unused, kept for when a mode: compare
+# job is added (or if abicheck adds scan-mode suppression upstream).
 
 version: 1
 

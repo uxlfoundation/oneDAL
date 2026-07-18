@@ -93,11 +93,19 @@ jobs:
       - name: Ensure baseline output directory exists
         run: mkdir -p .github/abicheck-baselines
 
+      # dump mode rejects a directory for new-library (it analyses exactly
+      # one artifact, same as scan) -- resolve the first built .so.
+      - name: Resolve the built shared library
+        id: solib
+        run: |
+          solib=$(ls __baseline_src/__release_lnx/daal/latest/lib/intel64/lib*.so | head -1)
+          echo "path=${solib}" >> "$GITHUB_OUTPUT"
+
       - name: Dump baseline snapshot
-        uses: abicheck/abicheck@d28c0bf28796b3c6daca9584ad6dd44b54f044f7 # v0.5.0
+        uses: abicheck/abicheck@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
         with:
           mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64
+          new-library: ${{ steps.solib.outputs.path }}
           new-header: "__baseline_src/cpp/daal/include __baseline_src/cpp/oneapi/dal"
           new-version: ${{ steps.baseline.outputs.tag }}
           build-info: __baseline_src/__abicheck_inputs
