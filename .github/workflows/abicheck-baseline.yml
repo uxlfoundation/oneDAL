@@ -100,7 +100,7 @@ jobs:
       # LinuxAbicheckScan job for why cpp/daal/include and cpp/oneapi/dal
       # each need their own library/baseline file.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@60f36cdce2e6a3dcce4a5b4c15523b84019e3d21 # main
+        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -112,7 +112,7 @@ jobs:
           gcc-options: "-std=c++17"
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@60f36cdce2e6a3dcce4a5b4c15523b84019e3d21 # main
+        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
