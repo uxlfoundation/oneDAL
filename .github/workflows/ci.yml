@@ -213,15 +213,27 @@ jobs:
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
           echo "CMPLR_ROOT=$CMPLR_ROOT" >> "$GITHUB_ENV"
+      # DIAGNOSTIC: collect-facts' clang-plugin producer only auto-detects
+      # $CMPLR_ROOT as a vendor LLVM/Clang CMake prefix when
+      # $CMPLR_ROOT/lib/cmake/llvm exists; a prior run fell through to
+      # apt-get (which failed -- no clang-22 package exists) instead of
+      # using it, so dump the actual layout to confirm whether that
+      # directory exists at all for this icpx package and, if not, where
+      # the real cmake configs live.
+      - name: Diagnose CMPLR_ROOT layout
+        run: |
+          echo "CMPLR_ROOT=$CMPLR_ROOT"
+          find "$CMPLR_ROOT" -iname "LLVMConfig.cmake" -o -iname "ClangConfig.cmake" 2>/dev/null
+          find "$CMPLR_ROOT" -maxdepth 3 -type d -iname "cmake" 2>/dev/null
       # collect-facts' clang-plugin producer detects icpx's LLVM major via
       # its __clang_major__ macro (icpx --version prints a vendor product
-      # version, not an LLVM number, so plain upstream abicheck main cannot
-      # detect it -- see abicheck/abicheck#603, an unmerged fix pinned below
-      # rather than @main until it lands), builds the plugin against icpx's
-      # own bundled LLVM/Clang CMake package under $CMPLR_ROOT, smoke-tests
-      # it loads into icpx, and hands back $ABICHECK_PLUGIN_FLAGS.
+      # version, not an LLVM number, so --version-only detection can't see
+      # it -- fixed upstream in abicheck/abicheck#603), builds the plugin
+      # against icpx's own bundled LLVM/Clang CMake package under
+      # $CMPLR_ROOT, smoke-tests it loads into icpx, and hands back
+      # $ABICHECK_PLUGIN_FLAGS.
       - name: Collect source facts (prepare)
-        uses: abicheck/abicheck/actions/collect-facts@f1eb76d081f4f536168523c5ed0af626b3ab8864 # TEMP: unmerged fix for icpx/icx support (abicheck/abicheck#603) -- revert to @main once merged
+        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
         with:
           phase: prepare
           producer: clang-plugin
@@ -235,7 +247,7 @@ jobs:
           icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
           icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
       - name: Collect source facts (verify)
-        uses: abicheck/abicheck/actions/collect-facts@f1eb76d081f4f536168523c5ed0af626b3ab8864 # TEMP: unmerged fix for icpx/icx support (abicheck/abicheck#603) -- revert to @main once merged
+        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
         with:
           phase: verify
           producer: clang-plugin
@@ -250,7 +262,7 @@ jobs:
       # instead goes through --crosscheck category severities below, and
       # fail-on-api-break stays false until those are tuned.
       - name: Run abicheck
-        uses: abicheck/abicheck@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
         with:
           mode: scan
           new-library: ${{ steps.solib.outputs.path }}
