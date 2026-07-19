@@ -83,7 +83,7 @@ jobs:
           echo "CMPLR_ROOT=$CMPLR_ROOT" >> "$GITHUB_ENV"
 
       - name: Collect source facts (prepare)
-        uses: abicheck/abicheck/actions/collect-facts@f1eb76d081f4f536168523c5ed0af626b3ab8864 # TEMP: unmerged fix for icpx/icx support (abicheck/abicheck#603) -- revert to @main once merged
+        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
         with:
           phase: prepare
           producer: clang-plugin
@@ -98,7 +98,7 @@ jobs:
           icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
           icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
       - name: Collect source facts (verify)
-        uses: abicheck/abicheck/actions/collect-facts@f1eb76d081f4f536168523c5ed0af626b3ab8864 # TEMP: unmerged fix for icpx/icx support (abicheck/abicheck#603) -- revert to @main once merged
+        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
         with:
           phase: verify
           producer: clang-plugin
@@ -116,7 +116,7 @@ jobs:
           echo "path=${solib}" >> "$GITHUB_OUTPUT"
 
       - name: Dump baseline snapshot
-        uses: abicheck/abicheck@ffa860cfc5e4c080905ee6a5eeb1947534e010be # main
+        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
         with:
           mode: dump
           new-library: ${{ steps.solib.outputs.path }}
