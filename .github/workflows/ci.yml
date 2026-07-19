@@ -174,7 +174,7 @@ jobs:
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
 
   LinuxAbicheckScan:
-    name: Abicheck (source scan + binary, avx2)
+    name: Abicheck (header scan + binary, avx2)
     needs: LinuxMakeDPCPP
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
@@ -192,85 +192,29 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      # abicheck's scan/dump modes reject a directory for new-library (they
-      # analyse exactly one artifact, no per-library fan-out) -- resolve the
-      # first built .so, same enumeration abi_check.sh already uses above.
-      - name: Resolve the built shared library
-        id: solib
-        run: |
-          solib=$(ls __release_lnx/daal/latest/lib/intel64/lib*.so | head -1)
-          echo "path=${solib}" >> "$GITHUB_OUTPUT"
-      - name: Install DPC++
-        run: .ci/env/apt.sh dpcpp
-      # Put icpx on PATH for every later step, and persist CMPLR_ROOT so
-      # collect-facts' clang-plugin producer can auto-detect it points at
-      # icpx's own bundled LLVM/Clang CMake package (see the pinned commit
-      # comment below) -- a sourced env only lives for the step that
-      # sourced it otherwise.
-      - name: Put icpx on PATH
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          echo "PATH=$PATH" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          echo "CMPLR_ROOT=$CMPLR_ROOT" >> "$GITHUB_ENV"
-      # DIAGNOSTIC: collect-facts' clang-plugin producer only auto-detects
-      # $CMPLR_ROOT as a vendor LLVM/Clang CMake prefix when
-      # $CMPLR_ROOT/lib/cmake/llvm exists; a prior run fell through to
-      # apt-get (which failed -- no clang-22 package exists) instead of
-      # using it, so dump the actual layout to confirm whether that
-      # directory exists at all for this icpx package and, if not, where
-      # the real cmake configs live.
-      - name: Diagnose CMPLR_ROOT layout
-        run: |
-          echo "CMPLR_ROOT=$CMPLR_ROOT"
-          find "$CMPLR_ROOT" -iname "LLVMConfig.cmake" -o -iname "ClangConfig.cmake" 2>/dev/null
-          find "$CMPLR_ROOT" -maxdepth 3 -type d -iname "cmake" 2>/dev/null
-      # collect-facts' clang-plugin producer detects icpx's LLVM major via
-      # its __clang_major__ macro (icpx --version prints a vendor product
-      # version, not an LLVM number, so --version-only detection can't see
-      # it -- fixed upstream in abicheck/abicheck#603), builds the plugin
-      # against icpx's own bundled LLVM/Clang CMake package under
-      # $CMPLR_ROOT, smoke-tests it loads into icpx, and hands back
-      # $ABICHECK_PLUGIN_FLAGS.
-      - name: Collect source facts (prepare)
-        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
-        with:
-          phase: prepare
-          producer: clang-plugin
-          compiler: icpx
-          public-roots: |
-            cpp/daal/include
-            cpp/oneapi
-          output: __abicheck_inputs
-      - name: Emit facts for the public API surface
-        run: |
-          icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
-          icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
-      - name: Collect source facts (verify)
-        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
-        with:
-          phase: verify
-          producer: clang-plugin
-          output: __abicheck_inputs
-      # mode: scan only supports format: text/json -- format: sarif and
-      # upload-sarif are compare-mode only and hard-rejected by the Action's
-      # validate-inputs.sh. --annotate is also compare-mode only (cli_scan.py
-      # has no such option). Results surface via the Action's automatic job
-      # summary instead (add-job-summary defaults to true and covers every
-      # mode except dump). scan also has no --suppress (compare-mode only,
-      # confirmed against abicheck's own CLI/Action source) -- suppression
-      # instead goes through --crosscheck category severities below, and
-      # fail-on-api-break stays false until those are tuned.
+      # depth: headers is L2 only -- public-header AST diffing (castxml, no
+      # compiler-internals plugin needed) against the binary's exported
+      # symbols. Deliberately kept simple for now:
+      # - only libonedal_core.so + cpp/daal/include (the classic DAAL API,
+      #   plain C++, no SYCL) -- scan/dump analyse exactly one artifact
+      #   with no per-library fan-out, and castxml/GCC-based L2 parsing
+      #   cannot handle the SYCL syntax cpp/oneapi/dal's headers pull in
+      #   (oneapi/dal/detail/common.hpp includes sycl/sycl.hpp). Covering
+      #   oneapi::dal too needs --ast-frontend clang pointed at icpx with
+      #   -fsycl, which is a separate follow-up, not "simple".
+      # - L4 source-fact extraction (macro/constexpr/inline-body diffing)
+      #   via a Clang plugin is also deferred -- whether the apt-installed
+      #   icpx package even ships the LLVMConfig/ClangConfig CMake files
+      #   needed for that is still an open question (see the abicheck-ci
+      #   branch history).
       - name: Run abicheck
         uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
         with:
           mode: scan
-          new-library: ${{ steps.solib.outputs.path }}
-          new-header: "cpp/daal/include cpp/oneapi/dal"
-          build-info: __abicheck_inputs
-          depth: source
+          new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          new-header: cpp/daal/include
+          depth: headers
           abi-baseline: .github/abicheck-baselines/2026.0.0.abicheck.json
-          crosscheck: "header_build_context_mismatch=warning"
           fail-on-breaking: 'true'
           fail-on-api-break: 'false'
           github-token: ${{ secrets.GITHUB_TOKEN }}

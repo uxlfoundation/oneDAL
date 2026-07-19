@@ -73,57 +73,21 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols --jobs 20
 
-      # Put icpx on PATH for later steps -- see the matching comment in
-      # ci.yml's LinuxAbicheckScan job for why this is needed.
-      - name: Put icpx on PATH
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          echo "PATH=$PATH" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          echo "CMPLR_ROOT=$CMPLR_ROOT" >> "$GITHUB_ENV"
-
-      - name: Collect source facts (prepare)
-        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
-        with:
-          phase: prepare
-          producer: clang-plugin
-          compiler: icpx
-          public-roots: |
-            __baseline_src/cpp/daal/include
-            __baseline_src/cpp/oneapi
-          output: __abicheck_inputs
-      - name: Emit facts for the public API surface
-        working-directory: __baseline_src
-        run: |
-          icpx -std=c++17 -Icpp/daal/include $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/daal/include/daal.h
-          icpx -std=c++17 -fsycl -Icpp/oneapi $ABICHECK_PLUGIN_FLAGS -fsyntax-only cpp/oneapi/dal.hpp
-      - name: Collect source facts (verify)
-        uses: abicheck/abicheck/actions/collect-facts@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main (includes #603 icpx/icx support)
-        with:
-          phase: verify
-          producer: clang-plugin
-          output: __abicheck_inputs
-
       - name: Ensure baseline output directory exists
         run: mkdir -p .github/abicheck-baselines
 
-      # dump mode rejects a directory for new-library (it analyses exactly
-      # one artifact, same as scan) -- resolve the first built .so.
-      - name: Resolve the built shared library
-        id: solib
-        run: |
-          solib=$(ls __baseline_src/__release_lnx/daal/latest/lib/intel64/lib*.so | head -1)
-          echo "path=${solib}" >> "$GITHUB_OUTPUT"
-
+      # depth: headers is L2 only, libonedal_core.so + cpp/daal/include only
+      # -- see the matching comment in ci.yml's LinuxAbicheckScan job for
+      # why oneapi::dal (SYCL headers) and L4 source-fact extraction are
+      # deferred for now.
       - name: Dump baseline snapshot
         uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
         with:
           mode: dump
-          new-library: ${{ steps.solib.outputs.path }}
-          new-header: "__baseline_src/cpp/daal/include __baseline_src/cpp/oneapi/dal"
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          new-header: __baseline_src/cpp/daal/include
           new-version: ${{ steps.baseline.outputs.tag }}
-          build-info: __abicheck_inputs
-          depth: source
+          depth: headers
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.json"
 
       # Commit the dump directly into the repo (rather than a GitHub Release
