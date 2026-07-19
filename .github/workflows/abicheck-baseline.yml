@@ -65,22 +65,44 @@ jobs:
         working-directory: __baseline_src
         run: .ci/env/apt.sh mkl
 
-      # Same flags as the PR-side LinuxMakeDPCPP job in ci.yml, so the baseline
-      # binary matches what every PR's LinuxAbicheckScan job actually compares against.
-      - name: Build daal (avx2 debug)
+      # Same targets as the PR-side LinuxMakeDPCPP job in ci.yml, so the
+      # baseline binaries match what every PR's LinuxAbicheckScan job
+      # actually compares against: daal produces libonedal_core.so (the
+      # classic DAAL API), oneapi_c produces libonedal.so (the oneapi::dal
+      # API) -- see the "Make onedal debug" step in LinuxMakeDPCPP.
+      - name: Build daal + oneapi_c (avx2 debug)
         working-directory: __baseline_src
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_c --debug symbols --jobs 20
 
       - name: Ensure baseline output directory exists
         run: mkdir -p .github/abicheck-baselines
 
-      # depth: headers is L2 only, libonedal_core.so + cpp/daal/include only
-      # -- see the matching comment in ci.yml's LinuxAbicheckScan job for
-      # why oneapi::dal (SYCL headers) and L4 source-fact extraction are
-      # deferred for now.
-      - name: Dump baseline snapshot
+      # Use icpx itself (via --ast-frontend clang) instead of the default
+      # castxml/GCC frontend, so cpp/oneapi/dal's SYCL headers parse -- see
+      # the matching comment in ci.yml's LinuxAbicheckScan job for the full
+      # rationale and why --gcc-path needs a clang-named symlink.
+      - name: Point a clang-named symlink at icpx
+        id: clangsym
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          symdir="${RUNNER_TEMP}/icpx-as-clang"
+          mkdir -p "${symdir}"
+          ln -sf "$(command -v icpx)" "${symdir}/icpx-clang++"
+          echo "path=${symdir}/icpx-clang++" >> "$GITHUB_OUTPUT"
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      # L4 source-fact extraction (macro/constexpr/inline-body diffing) via
+      # a Clang plugin remains deferred -- see the matching comment in
+      # ci.yml's LinuxAbicheckScan job.
+      #
+      # Two separate dumps, not one -- see the matching comment in ci.yml's
+      # LinuxAbicheckScan job for why cpp/daal/include and cpp/oneapi/dal
+      # each need their own library/baseline file.
+      - name: Dump baseline snapshot (daal)
         uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
         with:
           mode: dump
@@ -88,19 +110,35 @@ jobs:
           new-header: __baseline_src/cpp/daal/include
           new-version: ${{ steps.baseline.outputs.tag }}
           depth: headers
-          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.json"
+          ast-frontend: clang
+          gcc-path: ${{ steps.clangsym.outputs.path }}
+          gcc-options: "-std=c++17"
+          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
+      - name: Dump baseline snapshot (oneapi::dal)
+        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
+          new-header: __baseline_src/cpp/oneapi/dal
+          new-version: ${{ steps.baseline.outputs.tag }}
+          depth: headers
+          ast-frontend: clang
+          gcc-path: ${{ steps.clangsym.outputs.path }}
+          gcc-options: "-fsycl -std=c++17"
+          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
 
-      # Commit the dump directly into the repo (rather than a GitHub Release
-      # asset) so the baseline PRs compare against lives in version control,
-      # reviewable and diffable like any other file.
-      - name: Commit baseline dump
+      # Commit the dumps directly into the repo (rather than a GitHub
+      # Release asset) so the baselines PRs compare against live in version
+      # control, reviewable and diffable like any other file.
+      - name: Commit baseline dumps
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.json"
+          git add ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json" \
+                  ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
           if git diff --cached --quiet; then
-            echo "No changes to the baseline dump; nothing to commit."
+            echo "No changes to the baseline dumps; nothing to commit."
             exit 0
           fi
-          git commit -m "Update abicheck baseline for ${{ steps.baseline.outputs.tag }}"
+          git commit -m "Update abicheck baselines for ${{ steps.baseline.outputs.tag }}"
           git push origin HEAD:main
