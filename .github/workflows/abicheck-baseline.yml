@@ -82,28 +82,25 @@ jobs:
 
       # Use icpx itself (via --ast-frontend clang) instead of the default
       # castxml/GCC frontend, so cpp/oneapi/dal's SYCL headers parse -- see
-      # the matching comment in ci.yml's LinuxAbicheckScan job for the full
-      # rationale and why --gcc-path needs a clang-named symlink.
-      - name: Point a clang-named symlink at icpx
-        id: clangsym
+      # the matching comment in ci.yml's LinuxAbicheckScan job. #606 made
+      # --gcc-path recognize icx/icpx by name, so gcc-path: icpx below needs
+      # no symlink workaround.
+      - name: Put icpx on PATH
         run: |
           source /opt/intel/oneapi/setvars.sh
-          symdir="${RUNNER_TEMP}/icpx-as-clang"
-          mkdir -p "${symdir}"
-          ln -sf "$(command -v icpx)" "${symdir}/icpx-clang++"
-          echo "path=${symdir}/icpx-clang++" >> "$GITHUB_OUTPUT"
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
       # L4 source-fact extraction (macro/constexpr/inline-body diffing) via
-      # a Clang plugin remains deferred -- see the matching comment in
-      # ci.yml's LinuxAbicheckScan job.
+      # a Clang plugin is confirmed impossible against the apt-installed
+      # icpx package (no LLVMConfig/ClangConfig CMake files -- see the
+      # matching comment in ci.yml's LinuxAbicheckScan job).
       #
       # Two separate dumps, not one -- see the matching comment in ci.yml's
       # LinuxAbicheckScan job for why cpp/daal/include and cpp/oneapi/dal
       # each need their own library/baseline file.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
+        uses: abicheck/abicheck@60f36cdce2e6a3dcce4a5b4c15523b84019e3d21 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -111,11 +108,11 @@ jobs:
           new-version: ${{ steps.baseline.outputs.tag }}
           depth: headers
           ast-frontend: clang
-          gcc-path: ${{ steps.clangsym.outputs.path }}
+          gcc-path: icpx
           gcc-options: "-std=c++17"
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
+        uses: abicheck/abicheck@60f36cdce2e6a3dcce4a5b4c15523b84019e3d21 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -123,7 +120,7 @@ jobs:
           new-version: ${{ steps.baseline.outputs.tag }}
           depth: headers
           ast-frontend: clang
-          gcc-path: ${{ steps.clangsym.outputs.path }}
+          gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
 

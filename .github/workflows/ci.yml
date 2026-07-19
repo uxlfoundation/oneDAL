@@ -201,27 +201,25 @@ jobs:
       # sycl/sycl.hpp) parse correctly -- castxml/GCC has no SYCL support
       # at all.
       #
-      # abicheck's --gcc-path only accepts a binary whose *filename*
-      # contains "clang" (dumper_clang.py's _resolve_clang_bin); "icpx"
-      # doesn't match, so point it at a symlink instead of icpx directly.
-      # -x c++ (which abicheck always adds for C++ headers) forces the
-      # language mode explicitly, independent of argv0/binary name.
-      - name: Point a clang-named symlink at icpx
-        id: clangsym
+      # abicheck/abicheck#606 (merged to main) made --gcc-path recognize
+      # icx/icpx/dpcpp/dpcpp-cl by name directly, so gcc-path: icpx below
+      # needs no symlink workaround (an earlier revision of this job used
+      # one, before #606 landed). setvars.sh still needs sourcing + PATH
+      # persisted so `icpx` resolves and links against the right runtime.
+      #
+      # #606 also confirmed (via dpkg-deb -c against the real
+      # 2026.1.0-235 package) that Intel's apt package ships no
+      # LLVMConfig.cmake/ClangConfig.cmake at all -- only IntelSYCL/
+      # IntelDPCPP cmake helpers -- so building the abicheck-facts Clang
+      # plugin (L4: macro/constexpr/inline-body diffing) against icpx is
+      # confirmed impossible with this package, not just unresolved.
+      # --ast-frontend clang is the correct/only portable L2 path for icpx
+      # per abicheck's own docs, not a stopgap.
+      - name: Put icpx on PATH
         run: |
           source /opt/intel/oneapi/setvars.sh
-          symdir="${RUNNER_TEMP}/icpx-as-clang"
-          mkdir -p "${symdir}"
-          ln -sf "$(command -v icpx)" "${symdir}/icpx-clang++"
-          echo "path=${symdir}/icpx-clang++" >> "$GITHUB_OUTPUT"
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-      # L4 source-fact extraction (macro/constexpr/inline-body diffing) via
-      # a Clang plugin remains deferred -- whether the apt-installed icpx
-      # package ships the LLVMConfig/ClangConfig CMake files needed to
-      # build a plugin against it is still an open question (see the
-      # abicheck-ci branch history).
-      #
       # Two separate scans, not one: scan/dump analyse exactly one artifact
       # (no per-library fan-out), and cpp/daal/include's classic DAAL API
       # and cpp/oneapi/dal's API are exported from two different .so files
@@ -230,28 +228,28 @@ jobs:
       # producing libonedal.so). Scanning either library against the
       # other's headers would report every declaration as missing.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
+        uses: abicheck/abicheck@60f36cdce2e6a3dcce4a5b4c15523b84019e3d21 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
           new-header: cpp/daal/include
           depth: headers
           ast-frontend: clang
-          gcc-path: ${{ steps.clangsym.outputs.path }}
+          gcc-path: icpx
           gcc-options: "-std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json
           fail-on-breaking: 'true'
           fail-on-api-break: 'false'
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@fee24328d78e2afc3d63b2c1efb5622bbb33b7b0 # main
+        uses: abicheck/abicheck@60f36cdce2e6a3dcce4a5b4c15523b84019e3d21 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
           new-header: cpp/oneapi/dal
           depth: headers
           ast-frontend: clang
-          gcc-path: ${{ steps.clangsym.outputs.path }}
+          gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json
           fail-on-breaking: 'true'
