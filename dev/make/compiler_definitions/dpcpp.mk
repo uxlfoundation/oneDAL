@@ -84,13 +84,13 @@ endif
 -asanshared.dpcpp = -shared-libasan
 
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
-                     -Werror -Wreturn-type -fsycl-device-code-split=per_kernel
+                     -Werror -Wreturn-type -fsycl-device-code-split=per_kernel -fno-lto
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
-                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel
+                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel -fno-lto
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
-                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)  -fno-lto
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 # REQDBG: build a gdb_index so split-DWARF .dwo files are referenceable from
 # the final shared object. Both ld.bfd and ld.lld accept --gdb-index.
@@ -103,7 +103,7 @@ comma := ,
 link.dynamic.lnx.dpcpp += $(if $(REQDBG),-Wl$(comma)--gdb-index -Wl$(comma)--no-keep-memory -Wl$(comma)--reduce-memory-overheads)
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
-                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL) -fno-lto
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \

@@ -64,7 +64,11 @@ ifeq ($(STDALLOC), yes)
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
+# Linux: mirror the DPCPP debug pipeline — split DWARF into .dwo, zstd-compress,
+# and dedup type descriptions. Keeps full -g fidelity while cutting linker peak
+# RSS enough to survive small CI runners. If memory pressure returns, drop to
+# `-g1` here to keep only line-info (loses locals/types debugging).
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g -gsplit-dwarf -gz=zstd -fdebug-types-section -ggnu-pubnames) -fno-system-debug -Wno-pass-failed
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan
@@ -79,8 +83,13 @@ COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nolo
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
-link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
-link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
+link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS} -fno-lto
+link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,) -fno-lto
+# REQDBG: build a .gdb_index for the split-DWARF .dwo lookup, and force the
+# linker off its default mmap-everything strategy — trades ~seconds of link
+# time for ~30-40% lower peak RSS. Same pattern as link.dynamic.lnx.dpcpp.
+comma_icx := ,
+link.dynamic.lnx.icx += $(if $(REQDBG),-Wl$(comma_icx)--gdb-index -Wl$(comma_icx)--no-keep-memory -Wl$(comma_icx)--reduce-memory-overheads)
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \
