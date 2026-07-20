@@ -44,6 +44,19 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
             tool_path = repo_ctx.path("tool_not_found_{}.bat".format(tool_name))
     return str(tool_path), is_found
 
+def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
+    repo_ctx.template(
+        "dpc_link_win.ps1",
+        Label("@onedal//dev/bazel/toolchains/tools:dpc_link_win.ps1"),
+        {},
+    )
+    repo_ctx.template(
+        "dpc_link_win.bat",
+        Label("@onedal//dev/bazel/toolchains/tools:dpc_link_win.tpl.bat"),
+        {"%{dpcc}": dpcc_path},
+    )
+    return str(repo_ctx.path("dpc_link_win.bat"))
+
 def _find_tools_icx(repo_ctx):
     # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
     # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
@@ -54,6 +67,7 @@ def _find_tools_icx(repo_ctx):
     # line in its own intermediate response file before invoking link.exe.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
+    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, dpcc_path) if dpcpp_found else dpcc_path
     # Host link tool: prefer lld-link.exe (ships next to icx in oneAPI),
     # fall back to MSVC's link.exe — both accept the same flag syntax and
     # multi-line response files.
@@ -71,7 +85,7 @@ def _find_tools_icx(repo_ctx):
         # icx so it can pull in SYCL device-code libs (matches the
         # makefile's dpc.link.dynamic.win path in common.mk:138).
         cc_link = cc_link_path,
-        dpcc_link = dpcc_path,
+        dpcc_link = dpcc_link_path,
         ar = ar_path,
         is_dpc_found = dpcpp_found,
     )
