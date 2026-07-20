@@ -70,8 +70,7 @@ The following distance metrics are supported via the ``metric`` parameter:
 The Minkowski metric requires a ``degree`` parameter :math:`p > 0`. Setting :math:`p = 1` is
 equivalent to Manhattan, :math:`p = 2` is equivalent to Euclidean.
 
-The Cosine metric is not compatible with tree-based methods (kd_tree, ball_tree) because
-no valid bounding-box lower bound exists for cosine distance in spatial trees.
+The Cosine metric is currently supported only by the ``brute_force`` method.
 
 HDBSCAN consists of the following steps:
 

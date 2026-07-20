@@ -15,8 +15,6 @@
 *******************************************************************************/
 
 #include <sycl/sycl.hpp>
-#include <chrono>
-#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 
@@ -31,105 +29,32 @@
 
 namespace dal = oneapi::dal;
 
-void run(sycl::queue& q) {
-    const char* data_env = std::getenv("HDBSCAN_DATA_PATH");
-    const std::string data_file_name =
-        data_env ? std::string(data_env) : get_data_path("data/hdbscan_dense.csv");
-
-    const char* mcs_env = std::getenv("HDBSCAN_MIN_CLUSTER_SIZE");
-    const std::int64_t min_cluster_size = mcs_env ? std::atol(mcs_env) : 15;
-
-    const char* ms_env = std::getenv("HDBSCAN_MIN_SAMPLES");
-    const std::int64_t min_samples = ms_env ? std::atol(ms_env) : 10;
-
-    const char* metric_env = std::getenv("HDBSCAN_METRIC");
-    const std::string metric_str = metric_env ? std::string(metric_env) : "euclidean";
-
-    const char* degree_env = std::getenv("HDBSCAN_DEGREE");
-    const double degree = degree_env ? std::atof(degree_env) : 2.0;
+void run(sycl::queue &q) {
+    const auto data_file_name = get_data_path("data/hdbscan_dense.csv");
 
     const auto x_data = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
 
-    std::cout << "Data dimensions: " << x_data.get_row_count() << " x " << x_data.get_column_count()
-              << std::endl;
-    std::cout << "Parameters: min_cluster_size=" << min_cluster_size
-              << ", min_samples=" << min_samples << ", metric=" << metric_str
-              << ", degree=" << degree << std::endl;
+    const std::int64_t min_cluster_size = 15;
+    const std::int64_t min_samples = 10;
 
     auto hdbscan_desc =
         dal::hdbscan::descriptor<float, dal::hdbscan::method::ball_tree>(min_cluster_size,
                                                                          min_samples);
     hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
 
-    if (metric_str == "manhattan") {
-        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::manhattan);
-    }
-    else if (metric_str == "minkowski") {
-        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::minkowski);
-        hdbscan_desc.set_degree(degree);
-    }
-    else if (metric_str == "chebyshev") {
-        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::chebyshev);
-    }
-
-    // Warmup run
-    dal::compute(q, hdbscan_desc, x_data);
-
-    // Timed run
-    auto t0 = std::chrono::high_resolution_clock::now();
     const auto result = dal::compute(q, hdbscan_desc, x_data);
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
     std::cout << "Cluster count: " << result.get_cluster_count() << std::endl;
-    std::cout << "Time: " << std::fixed << std::setprecision(1) << ms << " ms" << std::endl;
-
-    const auto responses = result.get_responses();
-    const auto acc = dal::row_accessor<const std::int32_t>(responses);
-    const auto labels = acc.pull({ 0, -1 });
-    const std::int32_t* lbl_ptr = labels.get_data();
-    const std::int64_t n = responses.get_row_count();
-
-    std::cout << "Labels:";
-    for (std::int64_t i = 0; i < n; i++) {
-        std::cout << " " << lbl_ptr[i];
-    }
-    std::cout << std::endl;
+    std::cout << "Responses:\n" << result.get_responses() << std::endl;
 }
 
-int main(int argc, char const* argv[]) {
-    auto async_handler = [](sycl::exception_list el) {
-        for (std::exception_ptr e : el) {
-            try {
-                std::rethrow_exception(e);
-            }
-            catch (const sycl::exception& ex) {
-                std::cerr << "[SYCL async] " << ex.what() << " (code=" << ex.code().value() << ")"
-                          << std::endl;
-            }
-            catch (const std::exception& ex) {
-                std::cerr << "[std async] " << ex.what() << std::endl;
-            }
-        }
-    };
+int main(int argc, char const *argv[]) {
     for (auto d : list_devices()) {
-        const auto platform_name = d.get_platform().get_info<sycl::info::platform::name>();
-        std::cout << "Running on " << platform_name << ", "
-                  << d.get_info<sycl::info::device::name>() << "\n"
+        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
+                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
                   << std::endl;
-        auto q = sycl::queue{ d, async_handler };
-        try {
-            run(q);
-        }
-        catch (const sycl::exception& ex) {
-            std::cerr << "[SYCL sync] " << ex.what() << " (code=" << ex.code().value() << ")"
-                      << std::endl;
-            return 1;
-        }
-        catch (const std::exception& ex) {
-            std::cerr << "[std sync] " << ex.what() << std::endl;
-            return 1;
-        }
+        auto q = sycl::queue{ d };
+        run(q);
     }
     return 0;
 }

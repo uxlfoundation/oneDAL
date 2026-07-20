@@ -79,8 +79,8 @@ COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nolo
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
-link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS} -fno-lto
-link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,) -fno-lto
+link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
+link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \
