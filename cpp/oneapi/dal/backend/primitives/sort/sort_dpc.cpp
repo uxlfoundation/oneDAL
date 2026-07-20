@@ -564,7 +564,6 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::invalid_number_of_elements_to_sort());
     }
 
-
     // Reference: https://github.com/uxlfoundation/oneDPL/blob/main/documentation/library_guide/kernel_templates/sycl/radix_sort_by_key.rst
     return oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<true, 8>(
         queue,
@@ -589,8 +588,6 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
 
     // oneDPL radix_sort statically requires workgroup_size in {512, 1024}.
     // Reference: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/radix-sort-by-key.html
-    const bool use_wg1024 = device_max_wg_size(queue) >= 1024;
-
     for (std::int64_t row = 0; row < row_count; ++row) {
         Integer* row_start_in = val_in.get_mutable_data() + row * col_count;
         Integer* row_start_out = val_out.get_mutable_data() + row * col_count;
