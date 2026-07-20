@@ -161,7 +161,9 @@ protected:
     {
         const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
         algorithmFPType maxArg             = arg[0];
+#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
+#endif
         for (size_t i = 1; i < _nClasses; ++i)
         {
             maxArg = arg[i] > maxArg ? arg[i] : maxArg;
