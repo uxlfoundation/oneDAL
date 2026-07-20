@@ -564,24 +564,14 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::invalid_number_of_elements_to_sort());
     }
 
-    // oneDPL radix_sort_by_key statically requires workgroup_size in {512, 1024}.
-    // Pick per-device (GPU Max reports max WG size 1024, Arc B-Series 512);
-    // data_per_workitem follows the doc-recommended pairing to stay within SLM.
+
     // Reference: https://github.com/uxlfoundation/oneDPL/blob/main/documentation/library_guide/kernel_templates/sycl/radix_sort_by_key.rst
-    if (device_max_wg_size(queue) >= 1024) {
-        return oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<true, 8>(
-            queue,
-            val_in.get_mutable_data(),
-            val_in.get_mutable_data() + val_in.get_count(),
-            ind_in.get_mutable_data(),
-            dpl::experimental::kt::kernel_param<14, 1024>{});
-    }
     return oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<true, 8>(
         queue,
         val_in.get_mutable_data(),
         val_in.get_mutable_data() + val_in.get_count(),
         ind_in.get_mutable_data(),
-        dpl::experimental::kt::kernel_param<5, 512>{});
+        dpl::experimental::kt::kernel_param<10, 512>{});
 }
 
 template <typename Integer>
@@ -598,8 +588,6 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
     sycl::event radix_sort_event;
 
     // oneDPL radix_sort statically requires workgroup_size in {512, 1024}.
-    // Pick per-device (PVC / GPU Max reports max WG size 1024, Arc B-Series 512);
-    // data_per_workitem follows the doc-recommended pairing to stay within SLM.
     // Reference: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/radix-sort-by-key.html
     const bool use_wg1024 = device_max_wg_size(queue) >= 1024;
 
@@ -609,22 +597,12 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
 
         const auto row_sorted_elem_count = std::min(sorted_elem_count, col_count);
 
-        if (use_wg1024) {
-            radix_sort_event = oneapi::dpl::experimental::kt::gpu::radix_sort<true, 8>(
-                queue,
-                row_start_in,
-                row_start_in + row_sorted_elem_count,
-                row_start_out,
-                dpl::experimental::kt::kernel_param<14, 1024>{});
-        }
-        else {
-            radix_sort_event = oneapi::dpl::experimental::kt::gpu::radix_sort<true, 8>(
-                queue,
-                row_start_in,
-                row_start_in + row_sorted_elem_count,
-                row_start_out,
-                dpl::experimental::kt::kernel_param<5, 512>{});
-        }
+        radix_sort_event = oneapi::dpl::experimental::kt::gpu::radix_sort<true, 8>(
+            queue,
+            row_start_in,
+            row_start_in + row_sorted_elem_count,
+            row_start_out,
+            dpl::experimental::kt::kernel_param<10, 512>{});
     }
 
     return radix_sort_event;
