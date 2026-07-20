@@ -293,51 +293,23 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
-### Windows release validation and helper scripts
+### Release validation and platform helpers
 
-The Windows nightly workflow validates more than whether `//:release` builds.
-It checks that the resulting directory is compatible with the established
-Make-produced package and that a downstream CMake project can consume it. The
-PowerShell helpers used by this flow are intentionally committed and kept
-small so developers can inspect and reproduce each CI step:
+Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
+`dev/release_tests/compare_release_trees.py` at check level 4 to compare their
+package trees, metadata, and exported symbols. Linux invokes the comparator
+directly; Windows uses `.ci/scripts/compare_windows_release.ps1`. Windows also
+runs `.ci/scripts/test_bazel_release_cmake_example.ps1` to verify that a CMake
+consumer can build and run against the Bazel package.
 
-- `.ci/env/bazelisk.ps1` is the Windows counterpart of
-  `.ci/env/bazelisk.sh`. It downloads the pinned Windows Bazelisk asset,
-  verifies its release SHA256 digest, and exposes it through `GITHUB_PATH` (or
-  the current process `PATH` outside GitHub Actions).
-- `.ci/scripts/compare_windows_release.ps1` invokes
-  `dev/release_tests/compare_release_trees.py` with Windows semantics. It
-  compares the package layout and public binary surface of a Make `vc` release
-  and a normally ICX-built Bazel release; it checks package compatibility, not
-  compiler equivalence or compiler-specific intermediate files.
-- `.ci/scripts/test_bazel_release_cmake_example.ps1` performs an independent
-  consumer test. It configures, builds, and runs a dynamically linked CMake
-  example using the Bazel release's headers, package metadata, import
-  libraries, and runtime DLLs.
-- `dev/bazel/toolchains/tools/dpc_link_win.ps1` is part of the generated
-  Windows DPC++ toolchain, not a standalone validation step. Its `.bat`
-  launcher is generated with the configured compiler path, while the committed
-  PowerShell implementation restructures large object-file response lists and
-  preserves the Intel compiler driver needed for SYCL device linking.
+Other Windows-specific helpers are `.ci/env/bazelisk.ps1`, the PowerShell
+counterpart of the Bazelisk installer, and
+`dev/bazel/toolchains/tools/dpc_link_win.ps1`, which keeps the Intel compiler
+driver in DPC++ link actions while moving large object lists to a response
+file. Each script contains detailed usage and maintenance comments.
 
-To reproduce the two package checks after building both releases from a shell
-with Python, CMake, oneAPI, and the Visual Studio environment initialized:
-
-```powershell
-.\.ci\scripts\compare_windows_release.ps1 `
-    -MakeReleaseDir .\__release_win_vc\daal\latest `
-    -BazelReleaseDir .\bazel-bin\release\daal\latest `
-    -CheckLevel 4
-
-.\.ci\scripts\test_bazel_release_cmake_example.ps1 `
-    -ReleaseDir .\bazel-bin\release\daal\latest
-```
-
-When changing the Windows release layout, update the Bazel packaging rules or
-the common Python comparator rather than hiding expected artifacts in the
-PowerShell adapter. When changing Windows DPC++ link behavior, keep the
-argument transformation in the committed `.ps1` file and the generated `.bat`
-launcher limited to substituting tool paths and forwarding arguments.
+When package contents change, update the Bazel packaging rules or the common
+comparator rather than hiding differences in a platform wrapper.
 
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
