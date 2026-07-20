@@ -14,6 +14,30 @@
 # limitations under the License.
 #===============================================================================
 
+<#
+.SYNOPSIS
+Adapts Bazel's Windows DPC++ link arguments for the Intel compiler driver.
+
+.DESCRIPTION
+The generated `dpc_link_win.bat` launcher invokes this committed script for
+DPC++ link actions. The Intel compiler driver must remain in the link path so
+it can add the SYCL device-code libraries, but very large Bazel link actions
+can exceed Windows response-file line limits when all object inputs are passed
+through the driver unchanged.
+
+The wrapper expands Bazel response files, moves `.obj` and `.res` inputs into
+a temporary response file with one argument per line, and inserts that file at
+the position of the first object input. Non-object arguments retain their
+original order. The compiler's exit code is propagated and the temporary file
+is removed even when linking fails.
+
+.PARAMETER Compiler
+Path to the Intel DPC++ compiler driver substituted by toolchain setup.
+
+.PARAMETER RawArgs
+The remaining arguments from the Bazel link action.
+#>
+
 param(
     [Parameter(Mandatory=$true)]
     [string]$Compiler,
@@ -24,6 +48,7 @@ param(
 $expandedArgs = New-Object System.Collections.Generic.List[string]
 foreach ($arg in $RawArgs) {
     if ($arg.StartsWith('@')) {
+        # Bazel writes one argument per line in these response files.
         $path = $arg.Substring(1)
         foreach ($line in [IO.File]::ReadLines($path)) {
             if ($line.Length -gt 0) {
@@ -55,6 +80,7 @@ foreach ($arg in $expandedArgs) {
 }
 
 try {
+    # An empty file is harmless for actions without object/resource inputs.
     [IO.File]::WriteAllLines($objectRsp, $objectArgs)
     & $Compiler @finalArgs
     exit $LASTEXITCODE
