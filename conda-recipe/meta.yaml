@@ -16,7 +16,6 @@
 
 # Note: fetching tags from https://github.com/uxlfoundation/oneDAL
 # is required for the proper versioning of the package using GIT_DESCRIBE_TAG
-# ci-trigger: temporary marker to run the conda-recipe workflow on this PR (revert before merge)
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0') %}
 {% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
 {% set buildnumber = 0 %}
