@@ -72,9 +72,10 @@ endif
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 
 COMPILER.lnx.icx = icx -m64 \
-                     -Werror -Wreturn-type -qopenmp-simd ${CXXFLAGS} $(-stdalloc.icx)
-COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,) -fno-lto
-COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS} $(-stdalloc.icx) -fno-lto
+                     -Werror -Wno-empty-body -Wreturn-type -qopenmp-simd ${CXXFLAGS} $(-stdalloc.icx)
+COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
+COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX \
+                     -Wno-deprecated-declarations -Wno-empty-body ${CXXFLAGS} $(-stdalloc.icx)
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 

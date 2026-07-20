@@ -121,16 +121,13 @@ struct get_core_wide_kernel {
                             if (count_iter % block_split_size == 0 &&
                                 local_size * count_iter <= column_count) {
                                 Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::ext::oneapi::plus<Float>());
+                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                                 if (distance_check > epsilon) {
                                     break;
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
+                        Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                         if (distance <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
@@ -304,16 +301,13 @@ struct get_core_send_recv_replace_wide_kernel {
                             if (count_iter % block_split_size == 0 &&
                                 local_size * count_iter <= column_count) {
                                 Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::ext::oneapi::plus<Float>());
+                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                                 if (distance_check > epsilon) {
                                     break;
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
+                        Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                         if (distance <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
@@ -669,7 +663,7 @@ std::int32_t kernels_fp<Float>::start_next_cluster(sycl::queue& queue,
                     const std::int32_t index =
                         sycl::reduce_over_group(sg,
                                                 (std::int32_t)(found ? i : local_row_count),
-                                                sycl::ext::oneapi::minimum<std::int32_t>());
+                                                sycl::minimum<std::int32_t>());
                     if (index < local_row_count) {
                         if (local_id == 0) {
                             *start_index_ptr = index;
@@ -875,8 +869,7 @@ sycl::event kernels_fp<Float>::update_points_queue(sycl::queue& queue,
                                     current_queue_ptr[j * column_count + i];
                         sum += val * val;
                     }
-                    Float distance =
-                        sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
+                    Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
                     if (distance > epsilon)
                         continue;
                     if (local_id == 0) {
@@ -933,7 +926,7 @@ std::int64_t count_cores(sycl::queue& queue, const pr::ndview<std::int32_t, 1>& 
     sycl::buffer<std::int64_t> sum_buf{ &sum_result, 1 };
     queue
         .submit([&](sycl::handler& cgh) {
-            auto sum_reduction = reduction(sum_buf, cgh, sycl::ext::oneapi::plus<std::int64_t>());
+            auto sum_reduction = reduction(sum_buf, cgh, sycl::plus<std::int64_t>());
             cgh.parallel_for(sycl::range<1>{ row_count },
                              sum_reduction,
                              [=](sycl::id<1> idx, auto& sum) {

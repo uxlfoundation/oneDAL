@@ -55,7 +55,7 @@ Public and private CIs are enabled for the repository. Your PR should pass all o
 
 ### ClangFormat
 
-**Prerequisites:** ClangFormat `14.0.6`.
+**Prerequisites:** ClangFormat `20.1.8`.
 
 Our repository contains [clang-format configurations](https://github.com/uxlfoundation/oneDAL/blob/main/.clang-format) that you should use on your code. To do this, run:
 
@@ -66,6 +66,14 @@ clang-format style=file <your file>
 Refer to [ClangFormat documentation](https://clang.llvm.org/docs/ClangFormat.html) for more information.
 
 Note that different clang-format versions will produce different linting, so the version of clang-format needs to match exactly.
+
+We recommend enabling a pre-commit hook in your repository using the [pre-commit](https://pre-commit.com/) tool.
+Install the tool and enable the hook by running the following commands:
+
+```shell
+pip install pre-commit
+pre-commit install
+```
 
 ### editorconfig-checker
 

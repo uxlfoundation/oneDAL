@@ -359,7 +359,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
                     a_local[i + j * local_tiles * ncols] = 0.0f;
                 }
             } /* for(size_t j = 0; j < ncols; j++ )  */
-        }     /* if(onlyV) */
+        } /* if(onlyV) */
 
         // The rest of the tiles
         size_t new_start = start + first_height;
@@ -463,7 +463,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
                     A_local[i * ncols + j] = R_local[i + j * nthreads * ncols];
                 }
             } /* for(size_t j = 0; j < ncols; j++ )  */
-        });   /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+        }); /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
     }
     else
     {
@@ -545,7 +545,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
                 R_local[i + Rda * j] = 0.0f;
             }
         } /* for(size_t j = 0; j < ncols; j++ ) */
-    });   /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    }); /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
 
     mkl_m     = Rda;
     mkl_n     = ncols;
@@ -848,7 +848,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
                 }
             }
         } /* if(tid == 0) */
-    });   /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
+    }); /* daal::threader_for( nthreads, nthreads, [&](size_t tid) */
 
     // R2 should now be a full dense matrix
     mkl_side  = 'L';

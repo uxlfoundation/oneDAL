@@ -68,11 +68,11 @@ public:
 
         const auto pca_desc = base_t::get_descriptor(component_count);
         std::vector<partial_result_t> partial_results;
-        auto input_table = base_t::template split_table_by_rows<double>(data, rank_count_);
+        auto input_table = te::split_table_by_rows<float_t>(this->get_policy(), data, rank_count_);
         for (int64_t i = 0; i < rank_count_; i++) {
             dal::pca::partial_train_result<> partial_result;
             auto input_table_blocks =
-                base_t::template split_table_by_rows<double>(input_table[i], blocks_count_);
+                te::split_table_by_rows<float_t>(this->get_policy(), input_table[i], blocks_count_);
             for (int64_t j = 0; j < blocks_count_; j++) {
                 partial_result =
                     this->partial_train(pca_desc, partial_result, input_table_blocks[j]);

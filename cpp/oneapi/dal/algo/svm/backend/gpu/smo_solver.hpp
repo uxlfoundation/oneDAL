@@ -26,8 +26,8 @@ namespace oneapi::dal::svm::backend {
 
 namespace pr = dal::backend::primitives;
 
-using sycl::ext::oneapi::maximum;
-using sycl::ext::oneapi::minimum;
+using sycl::maximum;
+using sycl::minimum;
 
 template <typename Data>
 using local_accessor_rw_t = sycl::local_accessor<Data, 1>;
@@ -68,7 +68,7 @@ inline void reduce_arg_max(sycl::nd_item<1> item,
         sg_cache_index[sg_id] = res_index;
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 
     if (sg_id == 0 && sg_local_id < sg_count) {
         x = sg_cache_values[sg_local_id];
@@ -96,7 +96,7 @@ inline void reduce_arg_max(sycl::nd_item<1> item,
         }
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 }
 
 template <typename Float>
@@ -178,7 +178,7 @@ sycl::event solve_smo(sycl::queue& q,
             Float* local_vars_ptr =
                 local_vars.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
             local_kernel_values_ptr[i] = kernel_values_ptr[i * row_count + ws_index];
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
 
             std::int32_t inner_iter = 0;
             for (; inner_iter < max_inner_iter; ++inner_iter) {
@@ -210,7 +210,7 @@ sycl::event solve_smo(sycl::queue& q,
                     }
                 }
 
-                item.barrier(sycl::access::fence_space::local_space);
+                sycl::group_barrier(item.get_group());
                 if (local_vars_ptr[local_diff] < local_vars_ptr[local_eps]) {
                     break;
                 }
@@ -250,7 +250,7 @@ sycl::event solve_smo(sycl::queue& q,
                     local_vars_ptr[delta_b_j] = sycl::fmin(local_vars_ptr[delta_b_j], dt);
                 }
 
-                item.barrier(sycl::access::fence_space::local_space);
+                sycl::group_barrier(item.get_group());
 
                 const Float delta =
                     sycl::fmin(local_vars_ptr[delta_b_i], local_vars_ptr[delta_b_j]);
