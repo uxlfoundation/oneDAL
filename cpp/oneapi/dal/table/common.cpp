@@ -145,7 +145,7 @@ private:
 
     dal::array<data_type> dtypes_;
     dal::array<feature_type> ftypes_;
-    alloc_kind kind_;
+    alloc_kind kind_ = alloc_kind::non_usm; // Default allocation kind is non-USM
 };
 
 __ONEDAL_REGISTER_SERIALIZABLE__(simple_metadata_impl)
@@ -181,11 +181,9 @@ const dal::array<data_type>& table_metadata::get_data_types() const {
     return impl_->get_data_types();
 }
 
-#ifdef ONEDAL_DATA_PARALLEL
 alloc_kind table_metadata::get_alloc_kind() const {
     return impl_->get_alloc_kind();
 }
-#endif
 
 void table_metadata::serialize(detail::output_archive& ar) const {
     detail::serialize_polymorphic_shared(impl_, ar);
