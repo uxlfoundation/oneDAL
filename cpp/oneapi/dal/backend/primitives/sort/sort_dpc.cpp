@@ -564,7 +564,17 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::invalid_number_of_elements_to_sort());
     }
 
+    // oneDPL kernel templates instantiate an internal kernel whose work-group
+    // size is compile-time-hardcoded and can exceed the device limit on
+    // non-datacenter GPUs (e.g. Iris Xe caps at 512). Route those devices to
+    // the in-house radix sort primitives, which pick a safe work-group size at
+    // runtime. Datacenter GPUs (PVC / BMG / GPU Max, max WG >= 1024) keep the
+    // faster oneDPL path.
     // Reference: https://github.com/uxlfoundation/oneDPL/blob/main/documentation/library_guide/kernel_templates/sycl/radix_sort_by_key.rst
+    if (device_max_wg_size(queue) < 1024) {
+        radix_sort_indices_inplace<Float, Index> sorter(queue);
+        return sorter(val_in, ind_in, deps);
+    }
     return oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<true, 8>(
         queue,
         val_in.get_mutable_data(),
@@ -586,8 +596,18 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
     const auto col_count = val_in.get_dimension(1);
     sycl::event radix_sort_event;
 
-    // oneDPL radix_sort statically requires workgroup_size in {512, 1024}.
+    // oneDPL kernel templates instantiate an internal kernel whose work-group
+    // size is compile-time-hardcoded and can exceed the device limit on
+    // non-datacenter GPUs (e.g. Iris Xe caps at 512). Route those devices to
+    // the in-house radix sort primitive, which picks a safe work-group size at
+    // runtime. Datacenter GPUs (PVC / BMG / GPU Max, max WG >= 1024) keep the
+    // faster oneDPL path.
     // Reference: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/radix-sort-by-key.html
+    if (device_max_wg_size(queue) < 1024) {
+        radix_sort<Integer> sorter(queue);
+        return sorter(val_in, val_out, sorted_elem_count, deps);
+    }
+
     for (std::int64_t row = 0; row < row_count; ++row) {
         Integer* row_start_in = val_in.get_mutable_data() + row * col_count;
         Integer* row_start_out = val_out.get_mutable_data() + row * col_count;
