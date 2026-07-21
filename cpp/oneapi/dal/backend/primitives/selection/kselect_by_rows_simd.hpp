@@ -141,85 +141,84 @@ private:
 
         auto event = queue.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
-            cgh.parallel_for(make_multiple_nd_range_2d({ wg_size, row_count }, { wg_size, 1 }),
-                             [=](sycl::nd_item<2> item) {
-                                 auto sg = item.get_sub_group();
-                                 const std::uint32_t sg_id = sg.get_group_id()[0];
-                                 const std::uint32_t wg_id = item.get_global_id(1);
-                                 const std::uint32_t sg_num = sg.get_group_range()[0];
+            cgh.parallel_for(
+                make_multiple_nd_range_2d({ wg_size, row_count }, { wg_size, 1 }),
+                [=](sycl::nd_item<2> item) {
+                    auto sg = item.get_sub_group();
+                    const std::uint32_t sg_id = sg.get_group_id()[0];
+                    const std::uint32_t wg_id = item.get_global_id(1);
+                    const std::uint32_t sg_num = sg.get_group_range()[0];
 
-                                 const std::uint32_t sg_global_id = wg_id * sg_num + sg_id;
-                                 if (sg_global_id >= row_count)
-                                     return;
+                    const std::uint32_t sg_global_id = wg_id * sg_num + sg_id;
+                    if (sg_global_id >= row_count)
+                        return;
 
-                                 [[maybe_unused]] const std::int32_t offset_ids_out =
-                                     sg_global_id * out_ids_stride;
-                                 [[maybe_unused]] const std::int32_t offset_dst_out =
-                                     sg_global_id * out_dst_stride;
+                    [[maybe_unused]] const std::int32_t offset_ids_out =
+                        sg_global_id * out_ids_stride;
+                    [[maybe_unused]] const std::int32_t offset_dst_out =
+                        sg_global_id * out_dst_stride;
 
-                                 const std::uint32_t local_id = sg.get_local_id()[0];
-                                 const std::uint32_t local_range = sg.get_local_range()[0];
+                    const std::uint32_t local_id = sg.get_local_id()[0];
+                    const std::uint32_t local_range = sg.get_local_range()[0];
 
-                                 Float values[simd_width];
-                                 std::int32_t private_indices[simd_width];
+                    Float values[simd_width];
+                    std::int32_t private_indices[simd_width];
 
-                                 for (std::uint32_t i = 0; i < simd_width; i++) {
-                                     values[i] = fp_max;
-                                     private_indices[i] = -1;
-                                 }
-                                 for (std::uint32_t i = local_id; i < col_count; i += local_range) {
-                                     const Float cur_val = dp.at(sg_global_id, i);
-                                     std::int32_t index = i;
-                                     std::int32_t pos = -1;
+                    for (std::uint32_t i = 0; i < simd_width; i++) {
+                        values[i] = fp_max;
+                        private_indices[i] = -1;
+                    }
+                    for (std::uint32_t i = local_id; i < col_count; i += local_range) {
+                        const Float cur_val = dp.at(sg_global_id, i);
+                        std::int32_t index = i;
+                        std::int32_t pos = -1;
 
-                                     pos = values[k - 1] > cur_val ? k - 1 : pos;
-                                     for (std::int32_t j = k - 2; j >= 0; j--) {
-                                         const bool do_shift = values[j] > cur_val;
-                                         pos = do_shift ? j : pos;
-                                         values[j + 1] = do_shift ? values[j] : values[j + 1];
-                                         private_indices[j + 1] =
-                                             do_shift ? private_indices[j] : private_indices[j + 1];
-                                     }
+                        pos = values[k - 1] > cur_val ? k - 1 : pos;
+                        for (std::int32_t j = k - 2; j >= 0; j--) {
+                            const bool do_shift = values[j] > cur_val;
+                            pos = do_shift ? j : pos;
+                            values[j + 1] = do_shift ? values[j] : values[j + 1];
+                            private_indices[j + 1] =
+                                do_shift ? private_indices[j] : private_indices[j + 1];
+                        }
 
-                                     if (pos != -1) {
-                                         values[pos] = cur_val;
-                                         private_indices[pos] = index;
-                                     }
-                                 }
-                                 sycl::group_barrier(sg);
+                        if (pos != -1) {
+                            values[pos] = cur_val;
+                            private_indices[pos] = index;
+                        }
+                    }
+                    sycl::group_barrier(sg);
 
-                                 std::int32_t bias = 0;
-                                 Float final_values[simd_width];
-                                 std::int32_t final_indices[simd_width];
-                                 for (std::uint32_t i = 0; i < k; i++) {
-                                     const Float min_val = sycl::reduce_over_group(
-                                         sg,
-                                         values[bias],
-                                         sycl::ext::oneapi::minimum<Float>());
-                                     const bool present = (min_val == values[bias]);
-                                     const std::int32_t pos = sycl::exclusive_scan_over_group(
-                                         sg,
-                                         present ? 1 : 0,
-                                         sycl::ext::oneapi::plus<std::int32_t>());
-                                     const bool owner = present && pos == 0;
-                                     final_indices[i] = -sycl::reduce_over_group(
-                                         sg,
-                                         owner ? -private_indices[bias] : 1,
-                                         sycl::ext::oneapi::minimum<std::int32_t>());
-                                     final_values[i] = min_val;
-                                     bias += owner ? 1 : 0;
-                                 }
-                                 if constexpr (indices_out) {
-                                     for (std::uint32_t i = local_id; i < k; i += local_range) {
-                                         indices_ptr[offset_ids_out + i] = final_indices[i];
-                                     }
-                                 }
-                                 if constexpr (selection_out) {
-                                     for (std::uint32_t i = local_id; i < k; i += local_range) {
-                                         selection_ptr[offset_dst_out + i] = final_values[i];
-                                     }
-                                 }
-                             });
+                    std::int32_t bias = 0;
+                    Float final_values[simd_width];
+                    std::int32_t final_indices[simd_width];
+                    for (std::uint32_t i = 0; i < k; i++) {
+                        const Float min_val =
+                            sycl::reduce_over_group(sg, values[bias], sycl::minimum<Float>());
+                        const bool present = (min_val == values[bias]);
+                        const std::int32_t pos =
+                            sycl::exclusive_scan_over_group(sg,
+                                                            present ? 1 : 0,
+                                                            sycl::plus<std::int32_t>());
+                        const bool owner = present && pos == 0;
+                        final_indices[i] =
+                            -sycl::reduce_over_group(sg,
+                                                     owner ? -private_indices[bias] : 1,
+                                                     sycl::minimum<std::int32_t>());
+                        final_values[i] = min_val;
+                        bias += owner ? 1 : 0;
+                    }
+                    if constexpr (indices_out) {
+                        for (std::uint32_t i = local_id; i < k; i += local_range) {
+                            indices_ptr[offset_ids_out + i] = final_indices[i];
+                        }
+                    }
+                    if constexpr (selection_out) {
+                        for (std::uint32_t i = local_id; i < k; i += local_range) {
+                            selection_ptr[offset_dst_out + i] = final_values[i];
+                        }
+                    }
+                });
         });
         return event;
     }

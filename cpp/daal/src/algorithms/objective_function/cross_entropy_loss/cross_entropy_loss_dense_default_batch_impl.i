@@ -96,12 +96,12 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         const algorithmFPType * const pArg = arg + iRow * nCols;
         algorithmFPType * const pRes       = res + iRow * nCols;
         algorithmFPType maxArg             = pArg[0];
-#ifndef __clang__ // TODO: Temporary workaround. Clang 18 fails to vectoize this simple loop
+#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
 #endif
         for (size_t i = 1; i < nCols; ++i)
         {
-            maxArg = (pArg[i] > maxArg) ? pArg[i] : maxArg;
+            maxArg = pArg[i] > maxArg ? pArg[i] : maxArg;
         }
 
         PRAGMA_OMP_SIMD
