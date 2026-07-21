@@ -144,6 +144,8 @@ def _copy_include(ctx, prefix, version_info):
                                             ctx.attr.include_skip_prefix):
         headers = _collect_headers(include)
         for header in headers:
+            if header.basename == "_dal_cpu_dispatcher_gen.hpp":
+                continue
             if skip_prefix:
                 # Use short_path for deterministic workspace-relative include layout.
                 # file.path contains bazel-out/<cfg>/... prefixes that prevent
@@ -279,8 +281,9 @@ def _copy_lib(ctx, prefix, version_info):
                         ctx, lib, paths.join(lib_prefix, implib_name),
                     )
                 dst_files.append(implib)
-                if version_info and stem == "onedal_core":
-                    versioned_implib_name = "onedal_core_dll.{}.lib".format(
+                if version_info and stem in ["onedal_core", "onedal", "onedal_dpc"]:
+                    versioned_implib_name = "{}_dll.{}.lib".format(
+                        stem,
                         version_info.binary_major,
                     )
                     dst_files.append(_copy(
@@ -292,6 +295,8 @@ def _copy_lib(ctx, prefix, version_info):
             # above (renamed to `_dll.lib`); skip them here so we do not
             # declare the same output twice.
             if is_windows and (lib.basename.endswith(".if.lib") or lib.basename.endswith("_dll.lib")):
+                continue
+            if is_windows and lib.extension == "exp":
                 continue
 
             dst_path = paths.join(lib_prefix, lib.basename)
@@ -449,7 +454,7 @@ def release(name, include, lib, extra_files = [], data = []):
                      Example:
                        extra_files = [
                            release_extra_file(":release_vars_sh", "env/vars.sh"),
-                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc"),
+                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
                        ]
         data:        List of filegroup targets to copy preserving directory structure.
                      Example:
