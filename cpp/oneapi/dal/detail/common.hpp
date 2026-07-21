@@ -381,7 +381,7 @@ inline Out integral_cast_debug(const In& value) {
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
-inline alloc_kind get_alloc_kind(sycl::queue& queue, const void * ptr) {
+inline alloc_kind get_alloc_kind(sycl::queue& queue, const void* ptr) {
     const auto alloc_kind = sycl::get_pointer_type(ptr, queue.get_context());
     if (alloc_kind == sycl::usm::alloc::host) {
         return alloc_kind::usm_host;

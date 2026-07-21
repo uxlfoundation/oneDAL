@@ -142,7 +142,9 @@ inline table_metadata create_metadata(std::int64_t feature_count, data_type dtyp
     return table_metadata{ dtypes, ftypes };
 }
 
-inline table_metadata create_metadata(std::int64_t feature_count, data_type dtype, alloc_kind alloc) {
+inline table_metadata create_metadata(std::int64_t feature_count,
+                                      data_type dtype,
+                                      alloc_kind alloc) {
     auto default_ftype =
         detail::is_floating_point(dtype) ? feature_type::ratio : feature_type::ordinal;
 

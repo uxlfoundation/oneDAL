@@ -51,7 +51,8 @@ public:
     /// @param dtypes The data types of the features. Assigned into the :literal:`data_type` property.
     /// @param ftypes The feature types. Assigned into the :literal:`feature_type` property.
     /// @pre :expr:`dtypes.get_count() == ftypes.get_count()`
-    [[deprecated]] table_metadata(const dal::array<data_type>& dtypes, const dal::array<feature_type>& ftypes);
+    [[deprecated]] table_metadata(const dal::array<data_type>& dtypes,
+                                  const dal::array<feature_type>& ftypes);
 
     /// Creates the metadata instance from external information about the data types and the
     /// feature types.
@@ -59,7 +60,9 @@ public:
     /// @param ftypes The feature types. Assigned into the :literal:`feature_type` property.
     /// @param kind The allocation kind for the table data.
     /// @pre :expr:`dtypes.get_count() == ftypes.get_count()`
-    table_metadata(const dal::array<data_type>& dtypes, const dal::array<feature_type>& ftypes, const alloc_kind kind);
+    table_metadata(const dal::array<data_type>& dtypes,
+                   const dal::array<feature_type>& ftypes,
+                   const alloc_kind kind);
 
     /// The number of features that metadata contains information about
     /// @invariant :literal:`feature_count >= 0`

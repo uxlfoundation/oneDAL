@@ -97,7 +97,13 @@ public:
                               array<T>& block,
                               std::int64_t column_index,
                               const range& rows) const {
-        homogen_pull_column(policy, get_info(), data_, block, column_index, rows, alloc_kind::non_usm);
+        homogen_pull_column(policy,
+                            get_info(),
+                            data_,
+                            block,
+                            column_index,
+                            rows,
+                            alloc_kind::non_usm);
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
