@@ -46,12 +46,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
     timeout-minutes: 360
-    # Force lld: stock GNU ld on ubuntu-24.04 (binutils 2.42) fails to build the
-    # .gdb_index emitted by the split-DWARF debug pipeline. The Makefiles
-    # detect LINKER=lld and skip GNU-ld-only flags (--no-keep-memory /
-    # --reduce-memory-overheads) that lld rejects with "unknown argument".
-    env:
-      LINKER: lld
 
     steps:
       - name: Checkout oneDAL
