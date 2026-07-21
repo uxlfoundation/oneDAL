@@ -87,9 +87,12 @@ link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS} -fno-
 link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,) -fno-lto
 # REQDBG: build a .gdb_index for the split-DWARF .dwo lookup, and force the
 # linker off its default mmap-everything strategy — trades ~seconds of link
-# time for ~30-40% lower peak RSS. Same pattern as link.dynamic.lnx.dpcpp.
+# time for ~30-40% lower peak RSS. --no-keep-memory / --reduce-memory-overheads
+# are GNU-ld-only; lld rejects them, so gate on LINKER=lld. Same pattern as
+# link.dynamic.lnx.dpcpp.
 comma_icx := ,
-link.dynamic.lnx.icx += $(if $(REQDBG),-Wl$(comma_icx)--gdb-index -Wl$(comma_icx)--no-keep-memory -Wl$(comma_icx)--reduce-memory-overheads)
+link.dynamic.lnx.icx += $(if $(REQDBG),-Wl$(comma_icx)--gdb-index)
+link.dynamic.lnx.icx += $(if $(REQDBG),$(if $(filter lld,$(LINKER)),,-Wl$(comma_icx)--no-keep-memory -Wl$(comma_icx)--reduce-memory-overheads))
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \

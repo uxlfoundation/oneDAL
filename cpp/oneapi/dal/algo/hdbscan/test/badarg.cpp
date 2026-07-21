@@ -42,8 +42,8 @@ public:
     }
 
 private:
-    static constexpr std::array<Float, row_count* 2> compute_data_ = { 1.0, 1.0, 2.0, 2.0, 1.0,
-                                                                       2.0, 2.0, 1.0, 1.5, 1.5 };
+    static constexpr std::array<Float, row_count * 2> compute_data_ = { 1.0, 1.0, 2.0, 2.0, 1.0,
+                                                                        2.0, 2.0, 1.0, 1.5, 1.5 };
 };
 
 using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));

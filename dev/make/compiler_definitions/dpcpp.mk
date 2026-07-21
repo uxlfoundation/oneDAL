@@ -94,13 +94,16 @@ link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 # REQDBG: build a gdb_index so split-DWARF .dwo files are referenceable from
 # the final shared object. Both ld.bfd and ld.lld accept --gdb-index.
-# Add --no-keep-memory and --reduce-memory-overheads to keep the linker from
-# mmap'ing the full input set; trades a few seconds of link time for ~30-40%
-# lower peak RSS, which is what kept the libonedal_dpc.so link from finishing
-# on small CI runners. The `comma :=` indirection escapes the literal comma
-# inside the linker spec so $(if) doesn't split the argument list on it.
+# --no-keep-memory / --reduce-memory-overheads are GNU-ld-only knobs that keep
+# the linker from mmap'ing the full input set; they trade a few seconds of link
+# time for ~30-40% lower peak RSS, which is what kept the libonedal_dpc.so link
+# from finishing on small CI runners. lld rejects these flags with
+# "unknown argument", so gate them on LINKER != lld. The `comma :=` indirection
+# escapes the literal comma inside the linker spec so $(if) doesn't split the
+# argument list on it.
 comma := ,
-link.dynamic.lnx.dpcpp += $(if $(REQDBG),-Wl$(comma)--gdb-index -Wl$(comma)--no-keep-memory -Wl$(comma)--reduce-memory-overheads)
+link.dynamic.lnx.dpcpp += $(if $(REQDBG),-Wl$(comma)--gdb-index)
+link.dynamic.lnx.dpcpp += $(if $(REQDBG),$(if $(filter lld,$(LINKER)),,-Wl$(comma)--no-keep-memory -Wl$(comma)--reduce-memory-overheads))
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL) -fno-lto

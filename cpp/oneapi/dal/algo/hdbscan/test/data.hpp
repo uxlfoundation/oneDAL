@@ -50,7 +50,7 @@ public:
     // Cluster 3: around (10, 0)
     // Point 20: noise at (5, 5)
     static te::dataframe get_data() {
-        static std::array<float, row_count* column_count> data = {
+        static std::array<float, row_count * column_count> data = {
             // Cluster 0: around (0, 0)
             0.1f,
             0.2f, //
