@@ -76,7 +76,7 @@ public:
      */
     Batch(size_t numberOfTerms);
 
-    virtual ~Batch() {}
+    virtual ~Batch() { delete _par; }
 
     /**
      * Constructs an the Logistic loss objective function algorithm by copying input objects and parameters
