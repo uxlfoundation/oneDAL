@@ -46,6 +46,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
     timeout-minutes: 360
+    # Force lld: stock GNU ld on ubuntu-24.04 (binutils 2.42) fails to build the
+    # .gdb_index emitted by the split-DWARF debug pipeline. The Makefiles
+    # detect LINKER=lld and skip GNU-ld-only flags (--no-keep-memory /
+    # --reduce-memory-overheads) that lld rejects with "unknown argument".
+    env:
+      LINKER: lld
 
     steps:
       - name: Checkout oneDAL
@@ -67,15 +73,15 @@ jobs:
       - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
-          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --jobs 20
+          rm -rf __work
       - name: Make onedal debug
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --jobs 20
           rm -rf __work
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --jobs 8 --sycl-link-jobs 4
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
