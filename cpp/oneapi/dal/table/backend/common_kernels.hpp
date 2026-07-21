@@ -139,7 +139,7 @@ inline table_metadata create_metadata(std::int64_t feature_count, data_type dtyp
 
     auto dtypes = array<data_type>::full(feature_count, dtype);
     auto ftypes = array<feature_type>::full(feature_count, default_ftype);
-    return table_metadata{ dtypes, ftypes };
+    return table_metadata{ dtypes, ftypes, alloc_kind::non_usm };
 }
 
 inline table_metadata create_metadata(std::int64_t feature_count,

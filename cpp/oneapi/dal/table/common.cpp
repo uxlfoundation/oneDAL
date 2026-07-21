@@ -131,11 +131,11 @@ public:
     }
 
     void serialize(detail::output_archive& ar) const override {
-        ar(dtypes_, ftypes_);
+        ar(dtypes_, ftypes_, kind_);
     }
 
     void deserialize(detail::input_archive& ar) override {
-        ar(dtypes_, ftypes_);
+        ar(dtypes_, ftypes_, kind_);
     }
 
 private:

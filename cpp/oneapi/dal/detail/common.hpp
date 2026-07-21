@@ -382,14 +382,14 @@ inline Out integral_cast_debug(const In& value) {
 
 #ifdef ONEDAL_DATA_PARALLEL
 inline alloc_kind get_alloc_kind(sycl::queue& queue, const void* ptr) {
-    const auto alloc_kind = sycl::get_pointer_type(ptr, queue.get_context());
-    if (alloc_kind == sycl::usm::alloc::host) {
+    const auto alloc = sycl::get_pointer_type(ptr, queue.get_context());
+    if (alloc == sycl::usm::alloc::host) {
         return alloc_kind::usm_host;
     }
-    else if (alloc_kind == sycl::usm::alloc::device) {
+    else if (alloc == sycl::usm::alloc::device) {
         return alloc_kind::usm_device;
     }
-    else if (alloc_kind == sycl::usm::alloc::shared) {
+    else if (alloc == sycl::usm::alloc::shared) {
         return alloc_kind::usm_shared;
     }
     else {
