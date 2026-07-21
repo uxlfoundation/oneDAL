@@ -58,13 +58,14 @@ TEST("can get correcty metadata from raw types") {
 }
 
 TEST("can get correcty metadata from array types") {
-    const auto meta = make_default_metadata_from_arrays<dal::array<std::int32_t>,
-                                                        dal::array<std::int64_t>,
-                                                        dal::array<float>,
-                                                        dal::array<double>>();
+    const auto meta = make_default_metadata_from_arrays(dal::array<std::int32_t>{},
+                                                        dal::array<std::int64_t>{},
+                                                        dal::array<float>{},
+                                                        dal::array<double>{});
 
     check_dtype_correctness(expected_dtypes, meta);
     check_ftype_correctness(expected_ftypes, meta);
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::non_usm);
 }
 
 } // namespace oneapi::dal::detail
