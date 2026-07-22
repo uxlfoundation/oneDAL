@@ -31,9 +31,9 @@ namespace pr = dal::backend::primitives;
 using alloc = sycl::usm::alloc;
 using address = sycl::access::address_space;
 
-using sycl::ext::oneapi::plus;
-using sycl::ext::oneapi::minimum;
-using sycl::ext::oneapi::maximum;
+using sycl::plus;
+using sycl::minimum;
+using sycl::maximum;
 
 template <typename T>
 using enable_if_float_t = std::enable_if_t<detail::is_valid_float_v<T>>;
@@ -75,7 +75,7 @@ inline T* fill_with_group(sycl::nd_item<2>& item, T* dst, Index elem_count, T va
         dst[i] = val;
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 
     return dst;
 }

@@ -33,9 +33,9 @@ namespace pr = dal::backend::primitives;
 using alloc = sycl::usm::alloc;
 using address = sycl::access::address_space;
 
-using sycl::ext::oneapi::plus;
-using sycl::ext::oneapi::minimum;
-using sycl::ext::oneapi::maximum;
+using sycl::plus;
+using sycl::minimum;
+using sycl::maximum;
 
 template <typename T>
 using enable_if_float_t = std::enable_if_t<detail::is_valid_float_v<T>>;
@@ -684,7 +684,7 @@ inline void compute_hist_for_node(
         bk::atomic_global_add(node_histogram_ptr + cls_idx, prv_hist_ptr[cls_idx]);
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(item.get_group());
 
     Float imp = Float(1);
     Float div = Float(1) / (Float(row_count) * row_count);
@@ -742,7 +742,7 @@ inline void compute_hist_for_node(
     local_h_ptr[2] = prv_hist[2];
 
     for (Index offset = local_size / 2; offset > 0; offset >>= 1) {
-        item.barrier(sycl::access::fence_space::local_space);
+        sycl::group_barrier(item.get_group());
         if (local_id < offset) {
             hist_type_t* h_ptr = local_buf_ptr + (local_id + offset) * hist_prop_count;
             merge_stat(local_h_ptr, h_ptr, hist_prop_count);
@@ -974,7 +974,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_sum
             local_buf_ptr[local_id] = sum;
 
             for (Index offset = local_size / 2; offset > 0; offset >>= 1) {
-                item.barrier(sycl::access::fence_space::local_space);
+                sycl::group_barrier(item.get_group());
                 if (local_id < offset) {
                     local_buf_ptr[local_id] += local_buf_ptr[local_id + offset];
                 }
@@ -1050,7 +1050,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_sum
             local_buf_ptr[local_id] = sum2cent;
 
             for (Index offset = local_size / 2; offset > 0; offset >>= 1) {
-                item.barrier(sycl::access::fence_space::local_space);
+                sycl::group_barrier(item.get_group());
                 if (local_id < offset) {
                     local_buf_ptr[local_id] += local_buf_ptr[local_id + offset];
                 }
