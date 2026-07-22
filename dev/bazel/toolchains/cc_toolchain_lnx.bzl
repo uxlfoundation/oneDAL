@@ -90,9 +90,12 @@ def _find_tools(repo_ctx, reqs):
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
     if dpcpp_found:
-        #The llvm-ar tool is used because bazel prepended directory names with +
-        #which caused issues with the default gnu ar tool on REHL. Since icx is clang based we can use the llvm-ar tool.
-        ar_path = cc_path[:-3] + "compiler/llvm-ar"
+        # The llvm-ar tool is used because Bazel prepends directory names with +,
+        # which caused issues with GNU ar on RHEL. Derive it from the DPC++
+        # compiler, not from the unrelated host C/C++ compiler.
+        ar_path = paths.join(paths.dirname(dpcc_path), "compiler", "llvm-ar")
+        if not repo_ctx.path(ar_path).exists:
+            auto_configure_fail("Cannot find DPC++ archiver at {}".format(ar_path))
 
     ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
 
