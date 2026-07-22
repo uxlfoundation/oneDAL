@@ -59,18 +59,18 @@ using daal_multiclass_kernel_t =
 // multiclass CPU trainer (which populates the aggregated arrays and
 // n_support_per_class) and this restoration path; the public model shapes
 // documented in svm/common.hpp (support_vectors: nsv x p, coeffs: nsv x
-// (class_count - 1), biases: k*(k-1)/2 x 1) do not by themselves guarantee any
-// particular row order.
+// (class_count - 1), biases: class_count*(class_count - 1)/2 x 1) do not by
+// themselves guarantee any particular row order.
 //
 // The trainer produces support-vector rows sorted by class in increasing class
 // order; n_support_per_class holds the per-class block sizes and the aggregated
 // row count equals sum(n_support_per_class). Within the coeffs matrix, for an
-// SV of class c the coefficient for the duel against class o lives in column
-// (o - 1) when o > c and column o when o < c. Pair iteration order below
-// matches daal getClassIndices(isSvmModel=true):
-//   (0,1), (0,2), ..., (0, k-1), (1,2), ..., (k-2, k-1).
+// SV of class c the coefficient for the pairwise (one-vs-one) comparison
+// against class o lives in column (o - 1) when o > c and column o when o < c.
+// Pair iteration order below matches daal getClassIndices(isSvmModel=true):
+//   (0,1), (0,2), ..., (0, class_count-1), (1,2), ..., (class_count-2, class_count-1).
 template <typename Float, typename Task>
-static daal_multiclass::ModelPtr build_daal_multiclass_model_from_public(
+static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     const model<Task>& trained_model,
     const std::int64_t column_count,
     const std::uint64_t class_count,
@@ -87,6 +87,13 @@ static daal_multiclass::ModelPtr build_daal_multiclass_model_from_public(
     if (!n_per_class_table.has_data() ||
         n_per_class_table.get_column_count() != static_cast<std::int64_t>(class_count)) {
         throw invalid_argument(
+            dal::detail::error_messages::input_model_does_not_match_kernel_function());
+    }
+    // The rebuild path materialises per-pair support vectors as dense
+    // HomogenNumericTable blocks; a CSR support-vector table would need a
+    // separate sparse rebuild path.
+    if (sv_table.get_kind() == dal::csr_table::kind()) {
+        throw unimplemented(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
 
@@ -174,12 +181,12 @@ static daal_multiclass::ModelPtr build_daal_multiclass_model_from_public(
                 daal::data_management::BlockDescriptor<Float> blk;
                 pair_coeffs->getBlockOfRows(0, pair_n_sv, daal::data_management::writeOnly, blk);
                 Float* dst = blk.getBlockPtr();
-                // Class-i SVs: duel against j (j > i) -> coeff column (j - 1).
+                // Class-i SVs: pairwise (i, j) with j > i -> coeff column (j - 1).
                 const std::int64_t col_for_i = static_cast<std::int64_t>(j) - 1;
                 for (std::int64_t r = 0; r < n_i; ++r) {
                     dst[r] = coeffs_data[(class_offsets[i] + r) * coeff_stride + col_for_i];
                 }
-                // Class-j SVs: duel against i (i < j) -> coeff column i.
+                // Class-j SVs: pairwise (i, j) with i < j -> coeff column i.
                 const std::int64_t col_for_j = static_cast<std::int64_t>(i);
                 for (std::int64_t r = 0; r < n_j; ++r) {
                     dst[n_i + r] = coeffs_data[(class_offsets[j] + r) * coeff_stride + col_for_j];
@@ -231,10 +238,10 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
         // Public-setter-only model (e.g. cross-device round-trip without
         // serialization): rebuild the per-pair daal sub-models from the
         // aggregated SVs / coeffs / biases on the fly.
-        daal_model = build_daal_multiclass_model_from_public<Float, Task>(trained_model,
-                                                                          column_count,
-                                                                          class_count,
-                                                                          daal_layout);
+        daal_model = convert_to_daal_multiclass_model<Float, Task>(trained_model,
+                                                                   column_count,
+                                                                   class_count,
+                                                                   daal_layout);
     }
     const std::int64_t model_count = class_count * (class_count - 1) / 2;
     using svm_batch_t = typename daal_svm::prediction::Batch<Float>;
