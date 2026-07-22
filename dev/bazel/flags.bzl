@@ -46,7 +46,6 @@ lnx_cc_flags = {
 # use MSVC-style spellings. Mirrors dev/make/compiler_definitions/{icx,dpcpp}.mkl.32e.mk
 # (COMPILER.win.icx / COMPILER.win.dpcpp).
 win_icx_common_flags = [
-    "-MD",
     "-nologo",
     "-WX",
     "-Qopenmp-simd",
