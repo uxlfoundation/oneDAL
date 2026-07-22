@@ -26,25 +26,40 @@ namespace v1 {
 
 /// Distance metric used for computing pairwise distances in HDBSCAN.
 enum class distance_metric {
-    euclidean, ///< Euclidean (L2) distance
-    manhattan, ///< Manhattan (L1) distance
-    minkowski, ///< Minkowski (Lp) distance with configurable degree
-    chebyshev, ///< Chebyshev (L-infinity) distance
-    cosine ///< Cosine distance (1 - cosine_similarity). Brute-force only.
+    /// Euclidean (:math:`L_2`) distance. Supported by all methods.
+    euclidean,
+    /// Manhattan (:math:`L_1`) distance. Supported by all methods.
+    manhattan,
+    /// Minkowski (:math:`L_p`) distance with configurable :expr:`degree`.
+    /// Supported by all methods.
+    minkowski,
+    /// Chebyshev (:math:`L_\infty`) distance. Supported by all methods.
+    chebyshev,
+    /// Cosine distance (:math:`1 - \cos\theta`). Supported by
+    /// :expr:`method::brute_force` only.
+    cosine
 };
 
 /// Method used to select clusters from the condensed tree.
 enum class cluster_selection_method {
-    eom, ///< Excess of Mass — selects clusters maximizing stability (default)
-    leaf ///< Select all leaf nodes in the condensed tree (finer-grained clusters)
+    /// Excess of Mass — selects clusters that maximise total stability
+    /// (default).
+    eom,
+    /// Selects all leaf nodes of the condensed tree, producing a
+    /// finer-grained clustering.
+    leaf
 };
 
 /// Method for computing and storing cluster centers.
 enum class store_centers_method {
-    none, ///< Do not compute cluster centers (default)
-    centroid, ///< Compute centroids (weighted mean of member points)
-    medoid, ///< Compute medoids (member point minimizing intra-cluster distance)
-    both ///< Compute both centroids and medoids
+    /// Do not compute cluster centers (default).
+    none,
+    /// Compute centroids (weighted mean of member points).
+    centroid,
+    /// Compute medoids (member point minimizing intra-cluster distance).
+    medoid,
+    /// Compute both centroids and medoids.
+    both
 };
 
 } // namespace v1
@@ -70,10 +85,16 @@ using v1::by_default;
 
 namespace method {
 namespace v1 {
+/// Tag-type that denotes :ref:`brute-force <hdbscan_c_math_brute_force>` computational method.
 struct brute_force {};
+
+/// Tag-type that denotes :ref:`k-d tree <hdbscan_c_math_kd_tree>` computational method.
 struct kd_tree {};
+
+/// Tag-type that denotes :ref:`ball tree <hdbscan_c_math_ball_tree>` computational method.
 struct ball_tree {};
 
+/// Alias tag-type for :ref:`brute-force <hdbscan_c_math_brute_force>` computational method.
 using by_default = brute_force;
 } // namespace v1
 
@@ -107,11 +128,17 @@ ONEDAL_EXPORT result_option_id get_medoid_centers_id();
 /// what should algorithm return
 namespace result_options {
 
+/// Return the per-observation cluster labels. Noise points are labeled ``-1``.
 const inline result_option_id responses = detail::get_responses_id();
+/// Return the indices of the core observations in the input data.
 const inline result_option_id core_observation_indices = detail::get_core_observation_indices_id();
+/// Return the core observations themselves (rows of the input data).
 const inline result_option_id core_observations = detail::get_core_observations_id();
+/// Return a per-observation flag indicating whether the point is a core point.
 const inline result_option_id core_flags = detail::get_core_flags_id();
+/// Return cluster centroids (weighted mean of member points).
 const inline result_option_id cluster_centers = detail::get_cluster_centers_id();
+/// Return cluster medoids (member point minimizing intra-cluster distance).
 const inline result_option_id medoid_centers = detail::get_medoid_centers_id();
 
 } // namespace result_options

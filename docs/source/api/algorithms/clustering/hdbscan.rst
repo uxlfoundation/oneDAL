@@ -37,129 +37,58 @@ All types and functions in this section are declared in the
 ``oneapi::dal::hdbscan`` namespace and are available via inclusion of the
 ``oneapi/dal/algo/hdbscan.hpp`` header file.
 
+Enum classes
+------------
+.. onedal_enumclass:: oneapi::dal::hdbscan::distance_metric
+.. onedal_enumclass:: oneapi::dal::hdbscan::cluster_selection_method
+.. onedal_enumclass:: oneapi::dal::hdbscan::store_centers_method
+
+Result options
+--------------
+.. onedal_class:: oneapi::dal::hdbscan::result_option_id
+
 Descriptor
 ----------
-
-::
-
-   namespace oneapi::dal::hdbscan {
-
-   template <typename Float = float,
-             typename Method = method::brute_force,
-             typename Task = task::clustering>
-   class descriptor {
-   public:
-       descriptor(std::int64_t min_cluster_size = 5,
-                  std::int64_t min_samples = 5);
-
-       std::int64_t get_min_cluster_size() const;
-       std::int64_t get_min_samples() const;
-       distance_metric get_metric() const;
-       double get_degree() const;
-       result_option_id get_result_options() const;
-
-       auto& set_min_cluster_size(std::int64_t value);
-       auto& set_min_samples(std::int64_t value);
-       auto& set_metric(distance_metric value);
-       auto& set_degree(double value);
-       auto& set_result_options(const result_option_id& value);
-   };
-
-   } // namespace oneapi::dal::hdbscan
+.. onedal_class:: oneapi::dal::hdbscan::descriptor
 
 Method tags
 ~~~~~~~~~~~
-
-::
-
-   namespace oneapi::dal::hdbscan::method {
-       struct brute_force {};
-       struct kd_tree {};
-       struct ball_tree {};
-   }
+.. onedal_tags_namespace:: oneapi::dal::hdbscan::method
 
 Task tags
 ~~~~~~~~~
+.. onedal_tags_namespace:: oneapi::dal::hdbscan::task
 
-::
-
-   namespace oneapi::dal::hdbscan::task {
-       struct clustering {};
-   }
-
-Distance metrics
-~~~~~~~~~~~~~~~~
-
-::
-
-   namespace oneapi::dal::hdbscan {
-       enum class distance_metric {
-           euclidean,
-           manhattan,
-           minkowski,
-           chebyshev,
-           cosine
-       };
-   }
 
 .. _hdbscan_c_api:
 
-Computation
------------
+Computation :cpp:expr:`compute(...)`
+------------------------------------
 
 .. _hdbscan_c_api_input:
 
 Input
 ~~~~~
-
-::
-
-   namespace oneapi::dal::hdbscan {
-
-   template <typename Task = task::clustering>
-   class compute_input {
-   public:
-       compute_input(const table& data = {});
-
-       const table& get_data() const;
-       auto& set_data(const table& value);
-   };
-
-   } // namespace oneapi::dal::hdbscan
+.. onedal_class:: oneapi::dal::hdbscan::compute_input
 
 .. _hdbscan_c_api_result:
 
 Result
 ~~~~~~
-
-::
-
-   namespace oneapi::dal::hdbscan {
-
-   template <typename Task = task::clustering>
-   class compute_result {
-   public:
-       const table& get_responses() const;
-       std::int64_t get_cluster_count() const;
-       const result_option_id& get_result_options() const;
-   };
-
-   } // namespace oneapi::dal::hdbscan
+.. onedal_class:: oneapi::dal::hdbscan::compute_result
 
 Operation
 ~~~~~~~~~
 
-.. code-block:: cpp
+.. function:: template <typename Descriptor> \
+              hdbscan::compute_result compute(const Descriptor& desc, \
+                                              const hdbscan::compute_input& input)
 
-   template <typename Descriptor>
-   hdbscan::compute_result compute(const Descriptor& desc,
-                                   const hdbscan::compute_input& input);
+   :param desc: HDBSCAN algorithm descriptor :expr:`hdbscan::descriptor`
+   :param input: Input data for the compute operation
 
-:param desc: HDBSCAN algorithm descriptor
-:param input: Input data for the compute operation
-
-Preconditions:
-   - ``input.data.has_data == true``
+   Preconditions
+      | :expr:`input.data.has_data == true`
 
 --------
 Examples
