@@ -123,6 +123,10 @@ def get_cpu_flags(arch_id, os_id, compiler_id):
         sse2 = ["-march=nocona"]
         avx2 = ["-march=haswell"]
         avx512 = ["-march=skylake-avx512"]
+    elif compiler_id == "clang":
+        sse2 = ["-march=nocona"]
+        avx2 = ["-march=haswell"]
+        avx512 = ["-march=skylake-avx512"]
     elif compiler_id in ["icx", "icpx"]:
         # icx on Windows accepts -march like its Linux counterpart.
         sse2 = ["-march=nocona"]
