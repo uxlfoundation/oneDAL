@@ -282,7 +282,10 @@ jobs:
       export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
-  # Extended scope: bazel build/test on the same conda env (in addition to the make/cmake flow above)
+  # Extended scope: bazel build/test on the same conda env. Only the `dev`
+  # link mode is exercised — the goal is to confirm that examples build
+  # and run against the conda MKL/TBB/impi (no release artifact is
+  # produced or staged).
   - script: |
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -315,18 +318,14 @@ jobs:
       export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
       export MPIROOT="${CONDA_PREFIX}"
-      bazel build :release --release_dpc=false
-    displayName: 'bazel release (conda MKL/TBB)'
-  - script: |
-      source $(conda info --base)/etc/profile.d/conda.sh
-      conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
-      export MKLROOT="${CONDA_PREFIX}"
-      export MPIROOT="${CONDA_PREFIX}"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
-    displayName: 'bazel daal/cpp examples (conda env)'
+    displayName: 'daal-cpp-examples-thread-dev (conda env)'
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
@@ -335,9 +334,8 @@ jobs:
       export MPIROOT="${CONDA_PREFIX}"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
-                 --test_thread_mode=par \
-                 --config=host
-    displayName: 'bazel oneapi/cpp examples (conda env)'
+                 --test_thread_mode=par
+    displayName: 'cpp-examples-thread-dev (conda env)'
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
   timeoutInMinutes: 0
