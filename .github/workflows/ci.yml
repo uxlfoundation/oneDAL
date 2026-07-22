@@ -172,3 +172,86 @@ jobs:
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+
+  LinuxAbicheckScan:
+    name: Abicheck (header scan + binary, avx2)
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v6
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      # depth: headers is L2 only -- public-header AST diffing against the
+      # binary's exported symbols. Use icpx itself (via --ast-frontend
+      # clang) instead of the default castxml/GCC frontend, so headers that
+      # pull in SYCL (cpp/oneapi/dal/detail/common.hpp includes
+      # sycl/sycl.hpp) parse correctly -- castxml/GCC has no SYCL support
+      # at all.
+      #
+      # abicheck/abicheck#606 (merged to main) made --gcc-path recognize
+      # icx/icpx/dpcpp/dpcpp-cl by name directly, so gcc-path: icpx below
+      # needs no symlink workaround (an earlier revision of this job used
+      # one, before #606 landed). setvars.sh still needs sourcing + PATH
+      # persisted so `icpx` resolves and links against the right runtime.
+      #
+      # #606 also confirmed (via dpkg-deb -c against the real
+      # 2026.1.0-235 package) that Intel's apt package ships no
+      # LLVMConfig.cmake/ClangConfig.cmake at all -- only IntelSYCL/
+      # IntelDPCPP cmake helpers -- so building the abicheck-facts Clang
+      # plugin (L4: macro/constexpr/inline-body diffing) against icpx is
+      # confirmed impossible with this package, not just unresolved.
+      # --ast-frontend clang is the correct/only portable L2 path for icpx
+      # per abicheck's own docs, not a stopgap.
+      - name: Put icpx on PATH
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+      # Two separate scans, not one: scan/dump analyse exactly one artifact
+      # (no per-library fan-out), and cpp/daal/include's classic DAAL API
+      # and cpp/oneapi/dal's API are exported from two different .so files
+      # (libonedal_core.so vs. libonedal.so -- see the "Make onedal debug"
+      # step in LinuxMakeDPCPP above, which builds the oneapi_c target
+      # producing libonedal.so). Scanning either library against the
+      # other's headers would report every declaration as missing.
+      - name: Run abicheck (daal)
+        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
+        with:
+          mode: scan
+          new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          new-header: cpp/daal/include
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-std=c++17"
+          abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json
+          fail-on-breaking: 'true'
+          fail-on-api-break: 'false'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run abicheck (oneapi::dal)
+        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
+        with:
+          mode: scan
+          new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
+          new-header: cpp/oneapi/dal
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-fsycl -std=c++17"
+          abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json
+          fail-on-breaking: 'true'
+          fail-on-api-break: 'false'
+          github-token: ${{ secrets.GITHUB_TOKEN }}

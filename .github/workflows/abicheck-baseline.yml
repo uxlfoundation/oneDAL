@@ -1,0 +1,141 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: Publish Abicheck Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_tag:
+        description: "oneDAL release tag to publish as the abicheck baseline"
+        required: true
+        default: "2026.0.0"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  PublishBaseline:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Resolve baseline tag
+        id: baseline
+        run: |
+          tag="${{ inputs.baseline_tag }}"
+          if [ -z "$tag" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      # Explicitly on `main` (not whatever ref triggered this workflow --
+      # for the `release: published` trigger that would be the release's
+      # tag/commit, not a branch) since the dump gets committed back here.
+      - name: Checkout oneDAL main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Checkout oneDAL sources at the baseline tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.baseline.outputs.tag }}
+          path: __baseline_src
+
+      - name: Install DPC++
+        working-directory: __baseline_src
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        working-directory: __baseline_src
+        run: .ci/env/apt.sh mkl
+
+      # Same targets as the PR-side LinuxMakeDPCPP job in ci.yml, so the
+      # baseline binaries match what every PR's LinuxAbicheckScan job
+      # actually compares against: daal produces libonedal_core.so (the
+      # classic DAAL API), oneapi_c produces libonedal.so (the oneapi::dal
+      # API) -- see the "Make onedal debug" step in LinuxMakeDPCPP.
+      - name: Build daal + oneapi_c (avx2 debug)
+        working-directory: __baseline_src
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_c --debug symbols --jobs 20
+
+      - name: Ensure baseline output directory exists
+        run: mkdir -p .github/abicheck-baselines
+
+      # Use icpx itself (via --ast-frontend clang) instead of the default
+      # castxml/GCC frontend, so cpp/oneapi/dal's SYCL headers parse -- see
+      # the matching comment in ci.yml's LinuxAbicheckScan job. #606 made
+      # --gcc-path recognize icx/icpx by name, so gcc-path: icpx below needs
+      # no symlink workaround.
+      - name: Put icpx on PATH
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      # L4 source-fact extraction (macro/constexpr/inline-body diffing) via
+      # a Clang plugin is confirmed impossible against the apt-installed
+      # icpx package (no LLVMConfig/ClangConfig CMake files -- see the
+      # matching comment in ci.yml's LinuxAbicheckScan job).
+      #
+      # Two separate dumps, not one -- see the matching comment in ci.yml's
+      # LinuxAbicheckScan job for why cpp/daal/include and cpp/oneapi/dal
+      # each need their own library/baseline file.
+      - name: Dump baseline snapshot (daal)
+        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          new-header: __baseline_src/cpp/daal/include
+          new-version: ${{ steps.baseline.outputs.tag }}
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-std=c++17"
+          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
+      - name: Dump baseline snapshot (oneapi::dal)
+        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
+          new-header: __baseline_src/cpp/oneapi/dal
+          new-version: ${{ steps.baseline.outputs.tag }}
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-fsycl -std=c++17"
+          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
+
+      # Commit the dumps directly into the repo (rather than a GitHub
+      # Release asset) so the baselines PRs compare against live in version
+      # control, reviewable and diffable like any other file.
+      - name: Commit baseline dumps
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json" \
+                  ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
+          if git diff --cached --quiet; then
+            echo "No changes to the baseline dumps; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Update abicheck baselines for ${{ steps.baseline.outputs.tag }}"
+          git push origin HEAD:main
