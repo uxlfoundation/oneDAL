@@ -157,7 +157,7 @@ class kernel_select_heap {
     constexpr static inline idx_t idx_default = dal::detail::limits<idx_t>::min();
     constexpr static inline dst_t dst_default = dal::detail::limits<dst_t>::max();
 
-    constexpr static inline sycl::ext::oneapi::maximum<std::int32_t> max_func{};
+    constexpr static inline sycl::maximum<std::int32_t> max_func{};
 
     using acc_t = sycl::local_accessor<sel_t, 1>;
 

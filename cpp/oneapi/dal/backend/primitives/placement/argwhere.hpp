@@ -36,13 +36,13 @@ struct where_alignment_map {};
 
 template <typename Index>
 struct where_alignment_map<Index, where_alignment::left> {
-    constexpr static inline sycl::ext::oneapi::maximum<Index> binary{};
+    constexpr static inline sycl::maximum<Index> binary{};
     constexpr static inline auto identity = std::numeric_limits<Index>::lowest();
 };
 
 template <typename Index>
 struct where_alignment_map<Index, where_alignment::right> {
-    constexpr static inline sycl::ext::oneapi::minimum<Index> binary{};
+    constexpr static inline sycl::minimum<Index> binary{};
     constexpr static inline auto identity = std::numeric_limits<Index>::max();
 };
 
