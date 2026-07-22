@@ -307,7 +307,7 @@ jobs:
       export MPIROOT="${CONDA_PREFIX}"
       # Minimal CPU instruction set in Azure is AVX2
       echo "build --cpu=avx2" > ~/.bazelrc
-      bazel build @config//:dump
+      bazel build @config//:dump --config=conda
       echo
       cat bazel-bin/external/+declare_onedal_config+config/config.json
       echo
@@ -319,6 +319,7 @@ jobs:
       export MKLROOT="${CONDA_PREFIX}"
       export MPIROOT="${CONDA_PREFIX}"
       bazel test //examples/daal/cpp:all \
+                 --config=conda \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-dev (conda env)'
@@ -333,6 +334,7 @@ jobs:
       export MKLROOT="${CONDA_PREFIX}"
       export MPIROOT="${CONDA_PREFIX}"
       bazel test //examples/oneapi/cpp:all \
+                 --config=conda \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-dev (conda env)'
