@@ -137,13 +137,13 @@ dpl_repo(
     name = "dpl",
     root_env_var = "DPL_ROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/73/54/1bac6739304afa4d598e022e9ff5e988c58e4bef1be0f16623061dfa12ee/onedpl_devel-2022.9.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/68/aa/117ae55c433db29fa4f3f56a783181eddad1f3ac3dd3386e243a73d8af83/onedpl_devel-2022.13.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "6d4410d565cceb9160e756d189b3adab1a54d2c1ac3055a268189298961bc57b",
+        "da07e1e9efbea6fe7a9dbdea0f0f5f346c2a7a3d1a3378be8c163235a9d19ee5",
     ],
     strip_prefixes = [
-        "onedpl_devel-2022.9.0.data/data",
+        "onedpl_devel-2022.13.0.data/data",
     ],
 )
 
