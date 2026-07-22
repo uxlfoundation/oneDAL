@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <cmath>
+
 #include "oneapi/dal/algo/svm/infer.hpp"
 #include "oneapi/dal/algo/svm/train.hpp"
 
@@ -24,6 +26,7 @@
 #include "oneapi/dal/test/engine/metrics/classification.hpp"
 
 #include "oneapi/dal/table/homogen.hpp"
+#include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::svm::test {
 
@@ -1025,6 +1028,92 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     const double ref_accuracy = 0.6379;
 
     this->check_kernel_accuracy(x_train, y_train, x_test, y_test, svm_desc, ref_accuracy);
+}
+
+// A multi-class model rebuilt via public setters only (class_count,
+// support_vectors, coeffs, biases, n_support_per_class) must produce the same
+// decision values as the trained model - mirrors the move_estimator_to path
+// used to round-trip a model across devices without a train call.
+TEMPLATE_LIST_TEST_M(svm_batch_test,
+                     "svm multi-class model can be reconstructed via public setters",
+                     "[svm][integration][batch][multiclass][manual-model]",
+                     svm_nightly_types) {
+    SKIP_IF(this->multiclass_not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    using kernel_t = linear::descriptor<float_t, linear::method::dense>;
+
+    constexpr std::int64_t class_count = 3;
+    constexpr std::int64_t expected_pairs = class_count * (class_count - 1) / 2;
+    constexpr std::int64_t row_count_train = 15;
+    constexpr std::int64_t column_count = 2;
+    constexpr std::int64_t element_count_train = row_count_train * column_count;
+
+    // Three well-separated Gaussian-ish blobs in 2D, one per class.
+    constexpr std::array<float_t, element_count_train> x_train_data = {
+        -5.0, -5.0, -4.8, -5.2, -5.2, -4.8, -4.9, -5.1, -5.1, -4.9, 5.0, -5.0, 4.8, -5.2, 5.2,
+        -4.8, 4.9,  -5.1, 5.1,  -4.9, 0.0,  5.0,  -0.2, 4.8,  0.2,  4.8, -0.1, 5.1, 0.1,  5.1
+    };
+    constexpr std::array<float_t, row_count_train> y_train_data = { 0, 0, 0, 0, 0, 1, 1, 1,
+                                                                    1, 1, 2, 2, 2, 2, 2 };
+    const auto x_train = homogen_table::wrap(x_train_data.data(), row_count_train, column_count);
+    const auto y_train = homogen_table::wrap(y_train_data.data(), row_count_train, 1);
+
+    constexpr std::int64_t row_count_test = 6;
+    constexpr std::int64_t element_count_test = row_count_test * column_count;
+    constexpr std::array<float_t, element_count_test> x_test_data = { -5.0, -5.0, 5.0,  -5.0,
+                                                                      0.0,  5.0,  -4.5, -4.5,
+                                                                      4.5,  -4.5, 0.5,  4.5 };
+    const auto x_test = homogen_table::wrap(x_test_data.data(), row_count_test, column_count);
+
+    const auto kernel_desc = kernel_t{}.set_scale(1.0).set_shift(0.0);
+    const auto svm_desc =
+        svm::descriptor<float_t, method_t, svm::task::classification, kernel_t>{ kernel_desc }
+            .set_class_count(class_count)
+            .set_c(1.0);
+
+    INFO("train reference multi-class model");
+    const auto trained_model = this->train(svm_desc, x_train, y_train).get_model();
+
+    INFO("training must populate class_count and n_support_per_class");
+    REQUIRE(trained_model.get_class_count() == class_count);
+    REQUIRE(trained_model.get_n_support_per_class().get_column_count() == class_count);
+
+    INFO("reference decision_function has k*(k-1)/2 columns");
+    const auto reference = this->infer(svm_desc, trained_model, x_test).get_decision_function();
+    REQUIRE(reference.get_row_count() == row_count_test);
+    REQUIRE(reference.get_column_count() == expected_pairs);
+
+    INFO("rebuild model via public setters only (mirrors move_estimator_to path)");
+    auto rebuilt = svm::model<svm::task::classification>{}
+                       .set_class_count(class_count)
+                       .set_support_vectors(trained_model.get_support_vectors())
+                       .set_coeffs(trained_model.get_coeffs())
+                       .set_biases(trained_model.get_biases())
+                       .set_n_support_per_class(trained_model.get_n_support_per_class());
+
+    const auto rebuilt_df = this->infer(svm_desc, rebuilt, x_test).get_decision_function();
+    REQUIRE(rebuilt_df.get_row_count() == row_count_test);
+    REQUIRE(rebuilt_df.get_column_count() == expected_pairs);
+
+    INFO("rebuilt decision values must match the trained-model output");
+    const auto ref_acc = row_accessor<const float_t>{ reference }.pull();
+    const auto reb_acc = row_accessor<const float_t>{ rebuilt_df }.pull();
+    REQUIRE(ref_acc.get_count() == reb_acc.get_count());
+
+    double max_abs_diff = 0.0;
+    for (std::int64_t i = 0; i < ref_acc.get_count(); ++i) {
+        const double d =
+            std::abs(static_cast<double>(ref_acc[i]) - static_cast<double>(reb_acc[i]));
+        if (d > max_abs_diff) {
+            max_abs_diff = d;
+        }
+    }
+    CAPTURE(max_abs_diff);
+    const double tol = te::get_tolerance<float_t>(1e-4, 1e-10);
+    REQUIRE(max_abs_diff < tol);
 }
 
 } // namespace oneapi::dal::svm::test
