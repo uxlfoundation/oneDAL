@@ -27,7 +27,7 @@ else ifeq ($(PLAT),)
 endif
 
 # Check that we know how to build for the identified platform
-PLATs := lnx32e mac32e win32e lnxarm lnxriscv64
+PLATs := lnx32e mac32e win32e lnxarm lnxriscv64 winarm
 $(if $(filter $(PLAT),$(PLATs)),,$(error Unknown platform $(PLAT)))
 
 # Non-platform or architecture specific defines live in common.mk
@@ -126,8 +126,8 @@ dtbb           := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
 plib           := $(if $(OS_is_win),,lib)
 scr            := $(if $(OS_is_win),bat,sh)
 y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
--Fo            := $(if $(OS_is_win),-Fo,-o)
--Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
+-Fo            := $(if $(and $(OS_is_win),$(COMPILER_is_vc)),-Fo,-o)
+-Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,$(if $(COMPILER_is_clang),-,-Q)),-)
 -cxx17         := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
 -optlevel      := $(-optlevel.$(COMPILER))
 -fPIC          := $(if $(OS_is_win),,-fPIC)
@@ -149,7 +149,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -sanitize      := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
 -lsanitize     := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
 -lsanitize.dpc := $(if $(REQSAN),-Xarch_host -fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.dpcpp),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.dpcpp))))
--EHsc          := $(if $(OS_is_win),-EHsc,)
+-EHsc          := $(if $(and $(OS_is_win), $(COMPILER_is_vc)),-EHsc,)
 -isystem       := $(if $(OS_is_win),-I,-isystem)
 -sGRP          := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
 -eGRP          := $(if $(OS_is_lnx),-Wl$(comma)--end-group,)
