@@ -25,8 +25,8 @@ OPENBLASDIR:= $(if $(wildcard $(DIR)/__deps/open_blas/*),$(DIR)/__deps/open_blas
 OPENBLASDIR.include := $(OPENBLASDIR)/include
 OPENBLASDIR.libia := $(OPENBLASDIR)/lib
 
-daaldep.math_backend.thr := $(OPENBLASDIR.libia)/libopenblas.$a
-daaldep.math_backend.seq := $(OPENBLASDIR.libia)/libopenblas.$a
+daaldep.math_backend.thr := $(OPENBLASDIR.libia)/$(if $(OS_is_win),,lib)openblas.$a
+daaldep.math_backend.seq := $(OPENBLASDIR.libia)/$(if $(OS_is_win),,lib)openblas.$a
 
 daaldep.math_backend.incdir := $(OPENBLASDIR.include)
 daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
@@ -34,7 +34,7 @@ daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
 # List of OpenBLAS libraries to exclude from linking.
 # This list is used to generate the `--exclude-libs` linker options.
 # If you need to exclude additional libraries, extend this list by appending the library names.
-MATH_LIBS_TO_EXCLUDE := libopenblas.$a 
+MATH_LIBS_TO_EXCLUDE := $(if $(OS_is_win),,lib)openblas.$a 
 
 ifeq ($(RNG_OPENRNG), yes)
 	OPENRNGDIR:= $(if $(wildcard $(DIR)/__deps/openrng/*),$(DIR)/__deps/openrng,                            \

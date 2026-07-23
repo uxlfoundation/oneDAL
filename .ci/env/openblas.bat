@@ -27,9 +27,9 @@ if /I not "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
 )
 
 if /i "%1"=="" (
-    set DST=%~dp0..\..\__deps\openblas
+    set DST=%~dp0..\..\__deps\open_blas
 ) else (
-    set DST=%1\..\..\__deps\openblas
+    set DST=%1\..\..\__deps\open_blas
 )
 set BLASSOURCEDIR=%~dp0..\..\__work\openblas
 set BLASVERSION=0.3.33
