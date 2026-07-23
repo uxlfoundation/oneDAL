@@ -32,9 +32,13 @@
         #include <cpuid.h> // __cpuidex
     #endif
 
-#elif defined(TARGET_ARM)
+#elif defined(TARGET_ARM) && defined(__linux__)
     #include <sys/auxv.h>
     #include <asm/hwcap.h>
+#elif defined(TARGET_ARM) && defined(_MSC_VER)
+    #define KUSER_SHARED_DATA_ADDR   0x7FFE0000UL
+    #define PROCESSOR_FEATURES_OFFSET 0x274
+    #define PF_ARM_SVE_INSTRUCTIONS_AVAILABLE  46
 #elif defined(TARGET_RISCV64)
 // TODO: Include vector if and when we need to use some vector intrinsics in
 // here
@@ -341,9 +345,13 @@ bool daal_has_amx_bf16()
 #elif defined(TARGET_ARM)
 static bool check_sve_features()
 {
-    unsigned long hwcap = getauxval(AT_HWCAP);
-
-    return (hwcap & HWCAP_SVE) != 0;
+    #if defined(__linux__)
+        unsigned long hwcap = getauxval(AT_HWCAP);
+        return (hwcap & HWCAP_SVE) != 0;
+    #else
+        const volatile uint8_t* features = (const volatile uint8_t*)(KUSER_SHARED_DATA_ADDR + PROCESSOR_FEATURES_OFFSET);
+        return features[PF_ARM_SVE_INSTRUCTIONS_AVAILABLE] != 0;
+    #endif
 }
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
