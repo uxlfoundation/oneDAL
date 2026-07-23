@@ -5,7 +5,7 @@ filegroup(
     name = "mpi_runfiles",
     srcs = glob([
         "bin/**/*",
-    ]),
+    ], allow_empty = True),
 )
 
 sh_binary(
@@ -20,7 +20,7 @@ sh_binary(
 
 cc_library(
     name = "headers",
-    hdrs = glob(["include/**/*.h"]),
+    hdrs = glob(["include/**/*.h"], allow_empty = True),
     includes = [ "include" ],
 )
 
@@ -42,7 +42,7 @@ filegroup(
     name = "fi",
     srcs = glob([
         "libfabric/lib/prov/*.so",
-    ]),
+    ], allow_empty = True),
 )
 
 cc_library(

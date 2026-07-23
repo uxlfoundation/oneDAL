@@ -44,6 +44,7 @@ build --action_env=INCLUDE
 build --action_env=LIB
 build --action_env=PATH
 
+
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
 # the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
@@ -152,6 +153,39 @@ build:release-dpc \
 #   bazel build //cpp/oneapi/dal:tests --config=dev
 build:dev \
     --cpu=auto
+
+
+# Configuration: 'conda'
+# Opt-in for icx/DPC++ builds inside a conda env (e.g. conda-forge
+# dpcpp_linux-64). The activate.d hook exports CC=icx / CXX=icpx and a
+# family of env vars pointing at the oneAPI sysroot; icx reads them at
+# compile/link time to resolve system headers, libraries, and the
+# DPC++ runtime. Bazel's action sandbox strips env by default — without
+# forwarding, the compiler falls back to /usr/include and trips the
+# "absolute path inclusion" check because those paths were never
+# reported to the toolchain probe.
+#
+# Not enabled by default: forwarding these vars adds them to the action
+# cache key, so cache hit rates would drop for developers who happen to
+# have CPATH / LIBRARY_PATH set from an unrelated `source setvars.sh`.
+# Opt in only when the conda env owns the sysroot:
+#   bazel build @config//:dump          --config=conda
+#   bazel test //examples/daal/cpp:all  --config=conda --test_link_mode=dev
+build:conda --action_env=LD_LIBRARY_PATH
+build:conda --action_env=LIBRARY_PATH
+build:conda --action_env=CPATH
+build:conda --action_env=C_INCLUDE_PATH
+build:conda --action_env=CPLUS_INCLUDE_PATH
+build:conda --action_env=CMPLR_ROOT
+build:conda --action_env=ONEAPI_ROOT
+build:conda --action_env=CONDA_PREFIX
+test:conda --test_env=LIBRARY_PATH
+test:conda --test_env=CPATH
+test:conda --test_env=C_INCLUDE_PATH
+test:conda --test_env=CPLUS_INCLUDE_PATH
+test:conda --test_env=CMPLR_ROOT
+test:conda --test_env=ONEAPI_ROOT
+test:conda --test_env=CONDA_PREFIX
 
 
 # =============================================================================

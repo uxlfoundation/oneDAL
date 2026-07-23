@@ -70,6 +70,20 @@ onedal_cc_toolchain = repository_rule(
         "PATH",
         "INCLUDE",
         "LIB",
+        # Linux + conda-forge dpcpp_linux-64 activate hooks set these to
+        # point at the oneAPI/conda sysroot. Include them so the toolchain
+        # is re-probed when the conda env changes; without them Bazel
+        # caches stale `cxx_builtin_include_directories` and rejects
+        # headers the compiler actually resolves at compile time
+        # (e.g. /usr/include/features.h under icx).
+        "LD_LIBRARY_PATH",
+        "LIBRARY_PATH",
+        "CPATH",
+        "C_INCLUDE_PATH",
+        "CPLUS_INCLUDE_PATH",
+        "CMPLR_ROOT",
+        "ONEAPI_ROOT",
+        "CONDA_PREFIX",
         # Opt-in switch for the Intel oneAPI Windows toolchain:
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
         # back to the rules_cc MSVC cl auto-config.
