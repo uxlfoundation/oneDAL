@@ -127,6 +127,7 @@ public:
     std::int64_t end_idx;
 };
 
+/// Specifies the kind of memory allocation for a pointer.
 enum class alloc_kind : std::uint8_t {
     non_usm /// Non-USM pointer allocated on host
 #ifdef ONEDAL_DATA_PARALLEL
