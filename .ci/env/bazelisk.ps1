@@ -14,6 +14,21 @@
 # limitations under the License.
 #===============================================================================
 
+<#
+.SYNOPSIS
+Installs the pinned Windows Bazelisk executable for CI.
+
+.DESCRIPTION
+This is the PowerShell counterpart of `.ci/env/bazelisk.sh`. The Windows
+nightly job cannot use that POSIX-shell helper, so this script downloads the
+Windows asset, verifies the SHA256 digest published in the GitHub release, and
+makes `bazel.exe` available to later workflow steps.
+
+When GitHub Actions provides `GITHUB_PATH`, the installation directory is
+appended there for subsequent steps. Otherwise, the current process `PATH` is
+updated, which also makes the script convenient for local CI reproduction.
+#>
+
 $ErrorActionPreference = "Stop"
 
 $bazeliskVersion = "v1.29.0"
@@ -27,6 +42,7 @@ $headers = @{
 }
 
 if ($env:GITHUB_TOKEN) {
+    # Authentication is optional, but avoids GitHub API rate limits in CI.
     $headers.Authorization = "Bearer $env:GITHUB_TOKEN"
 }
 
@@ -43,6 +59,7 @@ New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $bazelPath
 
 if (-not $asset.digest.StartsWith("sha256:")) {
+    # Do not install an asset that cannot be checked against release metadata.
     throw "Unexpected Bazelisk digest format: $($asset.digest)"
 }
 

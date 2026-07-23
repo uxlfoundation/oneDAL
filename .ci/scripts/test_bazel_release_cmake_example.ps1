@@ -14,6 +14,36 @@
 # limitations under the License.
 #===============================================================================
 
+<#
+.SYNOPSIS
+Builds and runs a CMake example against the Bazel-produced Windows release.
+
+.DESCRIPTION
+This is a consumer smoke test for the packaged release, not another Bazel
+build. It points the examples' CMake project at the release through
+`CMAKE_PREFIX_PATH`, builds one dynamically linked target, and runs it. This
+checks that headers, CMake package metadata, import libraries, and runtime DLLs
+from `//:release` work together for a downstream CMake consumer.
+
+The script removes the examples' `Build` directory to prevent a cached CMake
+configuration from hiding packaging problems. It accepts either the oneAPI
+installation or CI-downloaded TBB layout and fails on configuration, build,
+missing-executable, or runtime errors.
+
+.PARAMETER ReleaseDir
+Root of the unpacked or freshly built oneDAL release package.
+
+.PARAMETER ExamplesDir
+Examples directory relative to the release root.
+
+.PARAMETER ExampleSource
+Reserved for selecting an example source; the current CMake flow selects the
+target through `ExampleTarget`.
+
+.PARAMETER ExampleTarget
+CMake example target to configure, build, locate, and run.
+#>
+
 param(
     [string]$ReleaseDir = ".\bazel-bin\release\daal\latest",
     [string]$ExamplesDir = "examples\oneapi\cpp",
@@ -28,6 +58,7 @@ $examplesPath = Join-Path $releasePath $ExamplesDir
 $buildPath = Join-Path $examplesPath "Build"
 
 if (Test-Path $buildPath) {
+    # A clean configure proves that the package is self-consistent.
     Remove-Item -Recurse -Force $buildPath
 }
 
@@ -37,6 +68,7 @@ $pathEntries = @(
 )
 
 $tbbDirCandidates = @(
+    # Developer installation first, then the dependency layout used in CI.
     ".\oneapi\tbb\latest\lib\cmake\tbb",
     ".\__deps\tbb\win\tbb\lib\cmake\tbb"
 )
@@ -69,11 +101,19 @@ foreach ($candidate in $tbbRedistCandidates) {
 
 $env:PATH = (($pathEntries | Where-Object { Test-Path $_ }) -join ";") + ";" + $env:PATH
 
+# Dynamic oneDAL examples need packaged oneDAL DLLs and a TBB runtime on PATH.
+
 Write-Host "Configuring CMake example from Bazel release: $examplesPath"
 cmake @cmakeArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "CMake configuration failed with exit code $LASTEXITCODE"
+}
 
 Write-Host "Building CMake example target: $ExampleTarget"
 cmake --build $buildPath --config Release --target $ExampleTarget
+if ($LASTEXITCODE -ne 0) {
+    throw "CMake build failed with exit code $LASTEXITCODE"
+}
 
 $exampleExe = Get-ChildItem -Path @($buildPath, $examplesPath) -Recurse -Filter "$ExampleTarget.exe" -File |
     Select-Object -First 1

@@ -293,6 +293,24 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
+### Release validation and platform helpers
+
+Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
+`dev/release_tests/compare_release_trees.py` at check level 4 to compare their
+package trees, metadata, and exported symbols. Linux invokes the comparator
+directly; Windows uses `.ci/scripts/compare_windows_release.ps1`. Windows also
+runs `.ci/scripts/test_bazel_release_cmake_example.ps1` to verify that a CMake
+consumer can build and run against the Bazel package.
+
+Other Windows-specific helpers are `.ci/env/bazelisk.ps1`, the PowerShell
+counterpart of the Bazelisk installer, and
+`dev/bazel/toolchains/tools/dpc_link_win.ps1`, which keeps the Intel compiler
+driver in DPC++ link actions while moving large object lists to a response
+file. Each script contains detailed usage and maintenance comments.
+
+When package contents change, update the Bazel packaging rules or the common
+comparator rather than hiding differences in a platform wrapper.
+
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
   ```sh
