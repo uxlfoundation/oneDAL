@@ -163,6 +163,8 @@ public:
     /// Creates a new instance of the class with the default property values.
     descriptor() = default;
 
+    /// Indicates whether the input data is assumed to be centered.
+    /// @remark default = false
     bool get_assume_centered() const {
         return base_t::get_assume_centered();
     }
