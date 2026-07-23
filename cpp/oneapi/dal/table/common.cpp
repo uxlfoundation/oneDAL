@@ -131,11 +131,19 @@ public:
     }
 
     void serialize(detail::output_archive& ar) const override {
-        ar(dtypes_, ftypes_, kind_);
+        // kind_ is intentionally NOT serialized: it describes where the data
+        // currently resides in memory, which is a runtime property re-established
+        // when the data array is deserialized (see array_impl::deserialize, which
+        // materializes the buffer according to the deserialization context's
+        // policy/queue). Persisting it would both break the archive format (an
+        // extra field under the same serialization id) and record a value that is
+        // stale as soon as the table is deserialized on a different device.
+        ar(dtypes_, ftypes_);
     }
 
     void deserialize(detail::input_archive& ar) override {
-        ar(dtypes_, ftypes_, kind_);
+        ar(dtypes_, ftypes_);
+        // kind_ keeps its default (non_usm); see the note in serialize().
     }
 
 private:

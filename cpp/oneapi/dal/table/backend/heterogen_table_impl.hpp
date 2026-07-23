@@ -93,6 +93,17 @@ public:
 
             set_column(col, dt, std::move(raw));
         }
+
+        // The allocation kind is not persisted in the archive; re-establish it
+        // from the deserialized columns, which were materialized according to the
+        // deserialization context (queue/policy). All columns share one allocation
+        // kind (enforced on construction), so the first column is representative.
+        // The deserialized feature and data types are preserved as-is.
+        if (col_count > 0l) {
+            meta_ = table_metadata{ meta_.get_data_types(),
+                                    meta_.get_feature_types(),
+                                    data_[0l].get_alloc_kind() };
+        }
     }
 
     // virtual void set_column(std::int64_t, data_type, detail::chunked_array_base) = 0;

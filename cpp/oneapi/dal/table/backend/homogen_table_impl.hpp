@@ -139,6 +139,15 @@ public:
 
     void deserialize(detail::input_archive& ar) override {
         ar(meta_, data_, row_count_, col_count_, layout_);
+        // The allocation kind is not persisted in the archive; re-establish it
+        // from the deserialized data, which was materialized according to the
+        // deserialization context (queue/policy). The deserialized feature and
+        // data types are preserved as-is.
+        if (data_.get_count() > 0) {
+            meta_ = table_metadata{ meta_.get_data_types(),
+                                    meta_.get_feature_types(),
+                                    data_.get_alloc_kind() };
+        }
     }
 
 private:
