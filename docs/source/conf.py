@@ -345,6 +345,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'data_layout::unknown'),
     ('cpp:identifier', 'feature_type'),
     ('cpp:identifier', 'data_type'),
+    ('cpp:identifier', 'alloc_kind'),
     ('cpp:identifier', 'table_metadata'),
     ('cpp:identifier', 'mutable_data'),
     ('cpp:identifier', 'data'),

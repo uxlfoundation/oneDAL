@@ -80,6 +80,7 @@ public:
     /// Get feature types in bulk
     const dal::array<feature_type>& get_feature_types() const;
 
+    /// Returns the kind of memory allocation for the table's data.
     alloc_kind get_alloc_kind() const;
 
 private:
