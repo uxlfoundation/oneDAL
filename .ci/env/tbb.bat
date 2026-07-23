@@ -61,7 +61,10 @@ if not exist "%DST%\win\bin" (
     )
     pushd "%DST%\oneTBB-%TBBVERSION%"
         rmdir /s /q build-arm64
-        cmake -B build-arm64 -S . -GNinja -DTBB_TEST=OFF -DCMAKE_INSTALL_PREFIX="%DST%\win\tbb"
+        cmake -B build-arm64 -S . -GNinja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DTBB_TEST=OFF ^
+            -DCMAKE_INSTALL_PREFIX="%DST%\win\tbb"
         cmake --build build-arm64
         cmake --install build-arm64
         mkdir "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
