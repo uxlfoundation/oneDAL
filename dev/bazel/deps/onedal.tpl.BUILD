@@ -46,17 +46,8 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "onedal_static_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.a",
-%{parameters_dpc_static_src}
-    ],
-    deps = [
-        ":headers",
-        "@mkl//:mkl_dpc",
-    ],
-)
+# Packaged oneDAL releases expose DPC libraries only in dynamic form, so no
+# static-DPC consumer target is declared here.
 
 cc_library(
     name = "core_dynamic",

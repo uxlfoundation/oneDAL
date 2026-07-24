@@ -200,7 +200,6 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         parameters_lib = "yes"
     substitutions["%{parameters_static_src}"] = ("        \"lib/intel64/libonedal_parameters.a\"," if parameters_lib == "yes" else "")
     substitutions["%{parameters_dynamic_src}"] = ("        \"lib/intel64/libonedal_parameters.so.{}\",".format(_BINARY_MAJOR) if parameters_lib == "yes" else "")
-    substitutions["%{parameters_dpc_static_src}"] = ("        \"lib/intel64/libonedal_parameters_dpc.a\"," if parameters_lib == "yes" else "")
     substitutions["%{parameters_dpc_dynamic_src}"] = ("        \"lib/intel64/libonedal_parameters_dpc.so.{}\",".format(_BINARY_MAJOR) if parameters_lib == "yes" else "")
 
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
