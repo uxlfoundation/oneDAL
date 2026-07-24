@@ -42,35 +42,18 @@ assignments for each observation.
 Supported distance metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following distance metrics are supported via the ``metric`` parameter:
+The pairwise distance used for core-distance and mutual-reachability computation
+is selected via the ``metric`` parameter. HDBSCAN reuses the pairwise distance
+components documented elsewhere:
 
-.. list-table::
-   :header-rows: 1
-   :widths: 20 40 20
+- :ref:`Minkowski distances <alg_minkowski_distance>` with the ``degree``
+  parameter :math:`p > 0`; ``degree = 1`` yields the Manhattan distance and
+  ``degree = 2`` yields the Euclidean distance (default).
+- :ref:`Chebyshev distance <alg_chebyshev_distance>`.
+- :ref:`Cosine distance <alg_cosine_distance>`.
 
-   * - Metric
-     - Definition
-     - Methods
-   * - Euclidean (default)
-     - :math:`d(x, y) = \sqrt{\sum_i (x_i - y_i)^2}`
-     - brute_force, kd_tree, ball_tree
-   * - Manhattan
-     - :math:`d(x, y) = \sum_i |x_i - y_i|`
-     - brute_force, kd_tree, ball_tree
-   * - Minkowski
-     - :math:`d(x, y) = \left(\sum_i |x_i - y_i|^p\right)^{1/p}`
-     - brute_force, kd_tree, ball_tree
-   * - Chebyshev
-     - :math:`d(x, y) = \max_i |x_i - y_i|`
-     - brute_force, kd_tree, ball_tree
-   * - Cosine
-     - :math:`d(x, y) = 1 - \frac{x \cdot y}{\|x\| \|y\|}`
-     - brute_force only
-
-The Minkowski metric requires a ``degree`` parameter :math:`p > 0`. Setting :math:`p = 1` is
-equivalent to Manhattan, :math:`p = 2` is equivalent to Euclidean.
-
-The Cosine metric is currently supported only by the ``brute_force`` method.
+The ``kd_tree`` and ``ball_tree`` methods support the Minkowski and Chebyshev
+distances. The ``brute_force`` method additionally supports the Cosine distance.
 
 HDBSCAN consists of the following steps:
 
