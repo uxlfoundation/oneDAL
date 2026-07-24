@@ -117,10 +117,15 @@ public:
 
     void compare_tables(const homogen_table& original, const table& deserialized) override {
         te::check_if_tables_equal<Data>(deserialized, original);
+        // The table is deserialized without a queue (see the serialization test
+        // engine), so its data is materialized on the host regardless of where
+        // the original resided. The allocation kind is therefore non_usm.
+        REQUIRE(deserialized.get_metadata().get_alloc_kind() == alloc_kind::non_usm);
     }
 
     void compare_tables(const homogen_table& original, const homogen_table& deserialized) override {
         te::check_if_tables_equal<Data>(deserialized, original);
+        REQUIRE(deserialized.get_metadata().get_alloc_kind() == alloc_kind::non_usm);
     }
 };
 

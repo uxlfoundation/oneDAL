@@ -23,11 +23,23 @@
 
 namespace oneapi::dal::test::engine {
 
-inline void check_if_metadata_equal(const table_metadata& actual, const table_metadata& reference) {
+// NOTE: alloc_kind is compared only when check_alloc_kind is true, and is off by
+// default. Allocation kind is a runtime property of where the data currently
+// resides; it is not persisted in the archive and is re-established from the
+// deserialization context (see the table impls' deserialize methods). After a
+// context-agnostic round-trip the deserialized kind reflects the reading context,
+// which may differ from the original, so callers must opt in only when the
+// contexts are known to match.
+inline void check_if_metadata_equal(const table_metadata& actual,
+                                    const table_metadata& reference,
+                                    bool check_alloc_kind = false) {
     REQUIRE(actual.get_feature_count() == reference.get_feature_count());
     for (std::int64_t i = 0; i < reference.get_feature_count(); i++) {
         REQUIRE(actual.get_feature_type(i) == reference.get_feature_type(i));
         REQUIRE(actual.get_data_type(i) == reference.get_data_type(i));
+    }
+    if (check_alloc_kind) {
+        REQUIRE(actual.get_alloc_kind() == reference.get_alloc_kind());
     }
 }
 
