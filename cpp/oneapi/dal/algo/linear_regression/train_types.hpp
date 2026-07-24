@@ -289,6 +289,9 @@ public:
     partial_train_input& operator=(const partial_train_input&);
     partial_train_input& operator=(partial_train_input&&) noexcept;
 
+    /// An $n_i \\times p$ table with the $i$-th block of training data, where each row stores one
+    /// feature vector.
+    /// @remark default = table{}
     const table& get_data() const {
         return train_input<Task>::get_data();
     }
@@ -298,7 +301,7 @@ public:
         return *this;
     }
 
-    /// Vector of responses y for the training set X
+    /// An $n_i \\times ny$ table with the responses for the $i$-th block of training data.
     /// @remark default = table{}
     const table& get_responses() const {
         return train_input<Task>::get_responses();
@@ -309,6 +312,8 @@ public:
         return *this;
     }
 
+    /// The previous partial train result.
+    /// @remark default = partial_train_result<Task>{}
     const partial_train_result<Task>& get_prev() const {
         return prev_;
     }

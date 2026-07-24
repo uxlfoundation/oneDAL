@@ -72,6 +72,7 @@ inline ndarray<Type, 1> table2ndarray_1d(const table& table) {
 /// @param q    The SYCL* queue.
 /// @param src  The source ndview.
 /// @param dst  The destination ndview (must be pre-allocated).
+/// @param deps The vector of events that the operation depends on.
 ///
 /// @return Event indicating completion of the transpose.
 template <typename Type, ndorder src_order, ndorder dst_order>

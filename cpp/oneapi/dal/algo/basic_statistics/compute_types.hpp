@@ -75,6 +75,8 @@ public:
         return *this;
     }
 
+    /// A $n \\times 1$ weights table, where $i$-th row stores the weight for the $i$-th training data sample.
+    /// @remark default = table{}
     const table& get_weights() const;
 
     auto& set_weights(const table& weights) {
@@ -330,6 +332,9 @@ public:
     partial_compute_input& operator=(const partial_compute_input&);
     partial_compute_input& operator=(partial_compute_input&&) noexcept;
 
+    /// An $n_i \\times p$ table with the $i$-th block of training data, where each row stores one
+    /// feature vector.
+    /// @remark default = table{}
     const table& get_data() const {
         return compute_input<Task>::get_data();
     }
@@ -339,6 +344,9 @@ public:
         return *this;
     }
 
+    /// A $n_i \\times 1$ weights table,
+    /// where $j$-th row stores the weight for the $j$-th training data sample.
+    /// @remark default = table{}
     const table& get_weights() const {
         return compute_input<Task>::get_weights();
     }
@@ -348,6 +356,8 @@ public:
         return *this;
     }
 
+    /// The previous partial compute result.
+    /// @remark default = partial_compute_result<Task>{}
     const partial_compute_result<Task>& get_prev() const {
         return prev_;
     }
