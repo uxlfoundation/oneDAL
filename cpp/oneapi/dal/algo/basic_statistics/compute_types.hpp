@@ -356,8 +356,8 @@ public:
         return *this;
     }
 
-    /// The previous partial train result.
-    /// @remark default = partial_train_result<Task>{}
+    /// The previous partial compute result.
+    /// @remark default = partial_compute_result<Task>{}
     const partial_compute_result<Task>& get_prev() const {
         return prev_;
     }
