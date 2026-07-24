@@ -4,6 +4,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "version_info",
     "config_flag",
     "config_bool_flag",
+    "build_parameters_lib_validation",
     "dump_config_info",
 )
 
@@ -49,6 +50,74 @@ config_setting(
     },
     constraint_values = [
         "@platforms//os:linux",
+    ],
+)
+
+# Make BUILD_PARAMETERS_LIB parity. "auto" follows the supported platform
+# defaults: separate parameter libraries on Linux, folded libraries on Windows.
+config_flag(
+    name = "build_parameters_lib",
+    build_setting_default = "auto",
+    allowed_build_setting_values = [
+        "auto",
+        "yes",
+        "no",
+    ],
+)
+
+config_setting(
+    name = "build_parameters_lib_auto_linux",
+    flag_values = {
+        ":build_parameters_lib": "auto",
+    },
+    constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "build_parameters_lib_yes_linux",
+    flag_values = {
+        ":build_parameters_lib": "yes",
+    },
+    constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "release_dpc_build_parameters_lib_auto_linux",
+    flag_values = {
+        ":build_parameters_lib": "auto",
+        ":release_dpc": "True",
+    },
+    constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "release_dpc_build_parameters_lib_yes_linux",
+    flag_values = {
+        ":build_parameters_lib": "yes",
+        ":release_dpc": "True",
+    },
+    constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
+build_parameters_lib_validation(
+    name = "validate_build_parameters_lib",
+    flag = ":build_parameters_lib",
+)
+
+# Toolchain-free target platform used by the analysis-only rejection smoke test.
+platform(
+    name = "windows_analysis_platform",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
     ],
 )
 
@@ -157,6 +226,7 @@ dump_config_info(
     cpu_info = ":cpu",
     version_info = ":version",
     flags = [
+        ":build_parameters_lib",
         ":test_link_mode",
         ":test_thread_mode",
     ],

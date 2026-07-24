@@ -3,6 +3,10 @@ load("@onedal//dev/bazel:release.bzl",
     "release_include",
     "release_extra_file",
 )
+load("@onedal//dev/bazel/config:selects.bzl",
+    "parameters_lib_enabled",
+    "release_dpc_parameters_lib_enabled",
+)
 load("@onedal//dev/bazel:scripts.bzl",
     "generate_cmake_config",
     "generate_modulefile",
@@ -151,22 +155,20 @@ release(
         "@onedal//cpp/daal:thread_dynamic",
         "@onedal//cpp/oneapi/dal:static",
         "@onedal//cpp/oneapi/dal:dynamic",
-    ] + select({
-        ":windows": [],
-        "//conditions:default": [
-            "@onedal//cpp/oneapi/dal:static_parameters",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters",
-        ],
-    }) + select({
+    ] + parameters_lib_enabled([
+        "@onedal//cpp/oneapi/dal:static_parameters",
+        "@onedal//cpp/oneapi/dal:dynamic_parameters",
+    ]) + select({
         ":release_dpc_windows": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
         ],
         "//conditions:default": [],
-    }),
+    }) + release_dpc_parameters_lib_enabled([
+        "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
+    ]),
     data = [
         "//data:datasets",
         ":release_package_files",

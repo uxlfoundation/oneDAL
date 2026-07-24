@@ -438,6 +438,21 @@ jobs:
       echo "Checking Bazel config: release-dpc"
       bazel build --nobuild :release --config=release-dpc --cpu=all
 
+      for parameters_lib in auto yes no; do
+        echo "Checking parameter library layout: ${parameters_lib}"
+        bazel build --nobuild :release --cpu=avx2 \
+          --build_parameters_lib="${parameters_lib}"
+      done
+
+      if bazel build @config//:validate_build_parameters_lib \
+          --platforms=@config//:windows_analysis_platform \
+          --build_parameters_lib=yes > windows_parameters_lib.log 2>&1; then
+        echo "Windows --build_parameters_lib=yes unexpectedly succeeded"
+        exit 1
+      fi
+      grep -F -- "--build_parameters_lib=yes is not supported on Windows" \
+        windows_parameters_lib.log
+
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
     displayName: 'Bazel config smoke checks'
@@ -671,6 +686,20 @@ jobs:
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --nobuild --build_parameters_lib=yes > build_parameters_lib_yes.log 2>&1
+      if not errorlevel 1 (
+        type build_parameters_lib_yes.log
+        echo ERROR: Windows --build_parameters_lib=yes unexpectedly succeeded
+        exit /b 1
+      )
+      findstr /C:"--build_parameters_lib=yes is not supported on Windows" build_parameters_lib_yes.log >NUL || (
+        type build_parameters_lib_yes.log
+        echo ERROR: expected Windows parameter-library diagnostic was not found
+        exit /b 1
+      )
+    displayName: 'Reject separate parameter libraries on Windows'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown

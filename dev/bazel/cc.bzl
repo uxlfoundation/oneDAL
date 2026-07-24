@@ -23,7 +23,9 @@ load("@onedal//dev/bazel:utils.bzl",
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "ConfigFlagInfo",
     "VersionInfo",
+    "validate_build_parameters_lib",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -185,7 +187,16 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
     )
 
 
+def _validate_build_parameters_lib(ctx):
+    value = ctx.attr._build_parameters_lib[ConfigFlagInfo].flag
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    validate_build_parameters_lib(value, is_windows)
+
+
 def _cc_static_lib_impl(ctx):
+    _validate_build_parameters_lib(ctx)
     toolchain, feature_config = _init_cc_rule(ctx)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
@@ -219,6 +230,10 @@ cc_static_lib = rule(
         "deps": attr.label_list(mandatory=True),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_build_parameters_lib": attr.label(
+            default = "@config//:build_parameters_lib",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -255,6 +270,7 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 
 
 def _cc_dynamic_lib_impl(ctx):
+    _validate_build_parameters_lib(ctx)
     toolchain, feature_config = _init_cc_rule(ctx, features=[
         # Keep produced shared libraries free of dynamic Bazel deps on Linux.
         # Release-dynamic tests provide standalone oneDAL libs through
@@ -341,6 +357,10 @@ cc_dynamic_lib = rule(
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_build_parameters_lib": attr.label(
+            default = "@config//:build_parameters_lib",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],

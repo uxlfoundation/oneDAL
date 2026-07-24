@@ -619,10 +619,30 @@ build --linkopt=-your-link-flag
 
 ---
 
+## Parameter library layout
+
+Bazel mirrors Make's `BUILD_PARAMETERS_LIB` switch with the typed
+`--build_parameters_lib=auto|yes|no` setting:
+
+- `auto` (default) builds separate `libonedal_parameters` and
+  `libonedal_parameters_dpc` libraries on Linux, and folds those objects into
+  `onedal`/`onedal_dpc` on Windows.
+- `yes` selects the separate host and DPC parameter libraries on Linux. It is
+  unsupported on Windows and fails during analysis with a diagnostic.
+- `no` folds the host and DPC parameter modules into the corresponding main
+  libraries and omits separate parameter libraries from `//:release`.
+
+For example:
+
+```
+bazel build //:release --build_parameters_lib=no
+```
+
 ## Make → Bazel Flag Reference
 
 | Make option                    | Bazel equivalent                                             | Notes                                                                      |
 |--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
+| `BUILD_PARAMETERS_LIB=yes|no` | `--build_parameters_lib=yes|no`                              | `auto` preserves Linux `yes` / Windows `no` defaults; Windows `yes` is unsupported |
 | `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
