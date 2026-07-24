@@ -66,6 +66,26 @@ public:
         check_result_values(x_data, y_data, result_values);
     }
 
+    void check_tables_equal(const table& lhs, const table& rhs) {
+        REQUIRE(lhs.get_row_count() == rhs.get_row_count());
+        REQUIRE(lhs.get_column_count() == rhs.get_column_count());
+        row_accessor<const Float> lhs_acc{ lhs };
+        row_accessor<const Float> rhs_acc{ rhs };
+        for (std::int64_t row = 0; row < lhs.get_row_count(); ++row) {
+            auto lhs_row = lhs_acc.pull({ row, row + 1 });
+            auto rhs_row = rhs_acc.pull({ row, row + 1 });
+            for (std::int64_t col = 0; col < lhs.get_column_count(); ++col) {
+                const Float l = lhs_row[col];
+                const Float r = rhs_row[col];
+                const auto rerr =
+                    std::abs(l - r) / std::max<double>({ double(1), std::abs(l), std::abs(r) });
+                CAPTURE(row, col, l, r, rerr);
+                if (rerr > 1e-4)
+                    FAIL();
+            }
+        }
+    }
+
     void check_result_values(const table& x_data, const table& y_data, const table& result_values) {
         const auto reference = compute_reference(x_data, y_data);
 
@@ -185,6 +205,29 @@ TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
     const auto y_data_table_id = this->get_homogen_table_id();
 
     this->general_checks(x_data, y_data, x_data_table_id, y_data_table_id);
+}
+
+TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
+                     "correlation_distance self equals x-vs-x and empty-y",
+                     "[correlation_distance][integration][batch]",
+                     correlation_distance_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const te::dataframe x_data =
+        GENERATE_DATAFRAME(te::dataframe_builder{ 8, 4 }.fill_normal(0, 1, 7777));
+    const auto x_data_table_id = this->get_homogen_table_id();
+    const table x = x_data.get_table(this->get_policy(), x_data_table_id);
+
+    const auto desc = this->get_descriptor();
+
+    const auto res_xx = this->compute(desc, x, x).get_values();
+    const auto res_x = this->compute(desc, x).get_values();
+    const auto res_empty_y = this->compute(desc, x, table{}).get_values();
+
+    INFO("compute(desc, x) matches compute(desc, x, x)");
+    this->check_tables_equal(res_x, res_xx);
+    INFO("compute(desc, x, table{}) matches compute(desc, x, x)");
+    this->check_tables_equal(res_empty_y, res_xx);
 }
 
 } // namespace oneapi::dal::correlation_distance::test
