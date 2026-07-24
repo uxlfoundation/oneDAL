@@ -174,10 +174,7 @@ jobs:
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      # Cap SYCL device-code finalizer parallelism: each finalizer can hit
-      # ~1-2 GB at peak, and the runner OOM-killed libonedal_dpc.so link with
-      # the default (= --jobs).
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc --sycl-link-jobs 4
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc
     displayName: 'make onedal_dpc'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -254,8 +251,7 @@ jobs:
           onedpl-devel
       export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
-      # Cap SYCL device-code finalizer parallelism — see LinuxMakeDPCPP for rationale.
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --sycl-link-jobs 4
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
       mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_dpc'
   - script: |
