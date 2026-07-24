@@ -12,6 +12,7 @@ load("@onedal//dev/bazel:dal.bzl",
 load("@onedal//dev/bazel/config:selects.bzl",
     "parameters_lib_disabled",
     "parameters_lib_enabled",
+    "parameters_lib_target_compatible_with",
 )
 
 _PARAMETER_MODULES = [
@@ -174,6 +175,13 @@ dal_dynamic_lib(
         ],
         "//conditions:default": [],
     }),
+    dpc_host_deps = select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 dal_dynamic_lib(
@@ -208,6 +216,14 @@ dal_dynamic_lib(
         ],
         "//conditions:default": [],
     }),
+    dpc_host_deps = select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = parameters_lib_target_compatible_with(),
 )
 
 filegroup(

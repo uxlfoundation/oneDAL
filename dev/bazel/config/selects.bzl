@@ -10,29 +10,39 @@
 
 """Central selects for the BUILD_PARAMETERS_LIB layout."""
 
+_FOLDED = [
+    "@config//:build_parameters_lib_auto_windows",
+    "@config//:build_parameters_lib_yes_windows",
+    "@config//:build_parameters_lib_no",
+]
 
 def parameters_lib_enabled(values):
-    """Returns values when parameter libraries use the separate layout."""
-    return select({
-        "@config//:build_parameters_lib_auto_linux": values,
-        "@config//:build_parameters_lib_yes_linux": values,
-        "//conditions:default": [],
-    })
-
+    """Values for separate layout: auto on non-Windows, or explicit yes."""
+    choices = {setting: [] for setting in _FOLDED}
+    choices["//conditions:default"] = values
+    return select(choices)
 
 def parameters_lib_disabled(values):
-    """Returns values when parameter objects must be folded into main libs."""
-    return select({
-        "@config//:build_parameters_lib_auto_linux": [],
-        "@config//:build_parameters_lib_yes_linux": [],
-        "//conditions:default": values,
-    })
+    """Values for folded layout: no, and auto/unsupported yes on Windows."""
+    choices = {setting: values for setting in _FOLDED}
+    choices["//conditions:default"] = []
+    return select(choices)
 
+def parameters_lib_target_compatible_with():
+    """Reject public parameter-library targets when the layout is folded."""
+    choices = {setting: ["@platforms//:incompatible"] for setting in _FOLDED}
+    choices["//conditions:default"] = []
+    return select(choices)
+
+def parameters_lib_separate_value():
+    """Boolean metadata value for the selected release layout."""
+    choices = {setting: False for setting in _FOLDED}
+    choices["//conditions:default"] = True
+    return select(choices)
 
 def release_dpc_parameters_lib_enabled(values):
-    """Returns values when both DPC release and separate parameters are enabled."""
-    return select({
-        "@config//:release_dpc_build_parameters_lib_auto_linux": values,
-        "@config//:release_dpc_build_parameters_lib_yes_linux": values,
-        "//conditions:default": [],
-    })
+    """Values when DPC release and separate parameters are both enabled."""
+    choices = {setting: [] for setting in _FOLDED}
+    choices["@config//:release_dpc_disabled"] = []
+    choices["//conditions:default"] = values
+    return select(choices)
