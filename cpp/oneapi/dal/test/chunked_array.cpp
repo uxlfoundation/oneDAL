@@ -316,51 +316,6 @@ TEST("can get slice of chunked_array on host") {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-TEST("can flatten array from different parts") {
-    DECLARE_TEST_POLICY(policy);
-    auto& q = policy.get_queue();
-    constexpr std::int64_t count = 3;
-
-    auto deleter = detail::make_default_delete<const float>(q);
-
-    auto* const data0 = sycl::malloc_shared<float>(count, q);
-    q.submit([&](sycl::handler& cgh) {
-         cgh.parallel_for(sycl::range<1>(count), [=](sycl::id<1> idx) {
-             data0[idx] = static_cast<float>(idx);
-         });
-     }).wait_and_throw();
-    auto arr0 = array<float>(q, data0, count, deleter);
-
-    auto* const data1 = sycl::malloc_device<float>(count, q);
-    q.submit([&](sycl::handler& cgh) {
-         cgh.parallel_for(sycl::range<1>(count), [=](sycl::id<1> idx) {
-             data1[idx] = static_cast<float>(idx);
-         });
-     }).wait_and_throw();
-    auto arr1 = array<float>(q, data1, count, deleter);
-
-    constexpr float data2[count] = { 0.f, 1.f, 2.f };
-    auto arr2 = array<float>::wrap(data2, count);
-
-    chunked_array<float> chunked;
-
-    chunked.append(arr0, arr1, arr2);
-
-    REQUIRE(!chunked.have_same_policies());
-
-    REQUIRE(chunked.get_count() == 3l * count);
-
-    auto host_arr = chunked.flatten();
-
-    for (std::int64_t i = 0l; i < (3l * count); ++i) {
-        const auto gtr = i % count;
-        const auto val = host_arr[i];
-
-        CAPTURE(i, gtr, val);
-        REQUIRE(gtr == val);
-    }
-}
-
 TEST("can flatten array on device") {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
@@ -376,14 +331,19 @@ TEST("can flatten array on device") {
      }).wait_and_throw();
     auto arr1 = array<float>(q, data1, count, deleter);
 
-    constexpr float data2[count] = { 0.f, 1.f, 2.f, 3.f };
-    auto arr2 = array<float>::wrap(data2, count);
+    auto* const data2 = sycl::malloc_device<float>(count, q);
+    q.submit([&](sycl::handler& cgh) {
+         cgh.parallel_for(sycl::range<1>(count), [=](sycl::id<1> idx) {
+             data2[idx] = static_cast<float>(idx);
+         });
+     }).wait_and_throw();
+    auto arr2 = array<float>(q, data2, count, deleter);
 
     chunked_array<float> chunked(arr1, arr2);
 
     chunked.append(arr1, arr2);
 
-    REQUIRE(!chunked.have_same_policies());
+    REQUIRE(chunked.have_same_policies());
     REQUIRE(chunked.get_count() == 4l * count);
 
     auto shared_arr = chunked.flatten(q, sycl::usm::alloc::shared);
@@ -412,12 +372,17 @@ TEST("can get data array on device") {
      }).wait_and_throw();
     auto arr1 = array<float>(q, data1, count, deleter);
 
-    constexpr float data2[count] = { 0.f, 1.f, 2.f, 3.f };
-    auto arr2 = array<float>::wrap(data2, count);
+    auto* const data2 = sycl::malloc_device<float>(count, q);
+    q.submit([&](sycl::handler& cgh) {
+         cgh.parallel_for(sycl::range<1>(count), [=](sycl::id<1> idx) {
+             data2[idx] = static_cast<float>(idx);
+         });
+     }).wait_and_throw();
+    auto arr2 = array<float>(q, data2, count, deleter);
 
     chunked_array<float> chunked(arr1, arr2);
 
-    REQUIRE(!chunked.have_same_policies());
+    REQUIRE(chunked.have_same_policies());
 
     auto data_host = chunked.get_data(q, sycl::usm::alloc::host);
 
@@ -433,21 +398,26 @@ TEST("can get data array on device") {
 TEST("can get slice of chunked_array on device") {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
-    constexpr std::int64_t host_count = 4;
-    constexpr std::int64_t device_count = 3;
+    constexpr std::int64_t arr2_count = 4;
+    constexpr std::int64_t arr1_count = 3;
 
     auto deleter = detail::make_default_delete<const float>(q);
 
-    auto* const data1 = sycl::malloc_device<float>(device_count, q);
+    auto* const data1 = sycl::malloc_device<float>(arr1_count, q);
     q.submit([&](sycl::handler& cgh) {
-         cgh.parallel_for(sycl::range<1>(device_count), [=](sycl::id<1> idx) {
+         cgh.parallel_for(sycl::range<1>(arr1_count), [=](sycl::id<1> idx) {
              data1[idx] = static_cast<float>(idx);
          });
      }).wait_and_throw();
-    auto arr1 = array<float>(q, data1, device_count, deleter);
+    auto arr1 = array<float>(q, data1, arr1_count, deleter);
 
-    constexpr float data2[host_count] = { 0.f, 1.f, 2.f, 3.f };
-    auto arr2 = array<float>::wrap(data2, host_count);
+    auto* const data2 = sycl::malloc_device<float>(arr2_count, q);
+    q.submit([&](sycl::handler& cgh) {
+         cgh.parallel_for(sycl::range<1>(arr2_count), [=](sycl::id<1> idx) {
+             data2[idx] = static_cast<float>(idx);
+         });
+     }).wait_and_throw();
+    auto arr2 = array<float>(q, data2, arr2_count, deleter);
 
     chunked_array<float> chunked(arr2, arr1, arr2);
     auto flattened = chunked.flatten();

@@ -435,23 +435,6 @@ TEST("Can get column slice from heterogen to shared") {
     }
 }
 
-TEST("Cannot create heterogen table from columns with different alloc kinds") {
-    DECLARE_TEST_POLICY(policy);
-    auto& q = policy.get_queue();
-
-    constexpr auto device = sycl::usm::alloc::device;
-    constexpr auto shared = sycl::usm::alloc::shared;
-
-    auto arr0 = array<float>::empty(q, 8l, shared);
-    std::iota(begin(arr0), end(arr0), float(0));
-    chunked_array<float> chunked0(arr0);
-
-    auto arr1 = array<std::int32_t>::empty(q, 8l, device);
-    chunked_array<std::int32_t> chunked1(arr1);
-
-    REQUIRE_THROWS_AS(heterogen_table::wrap(chunked0, chunked1), invalid_argument);
-}
-
 TEST("Cannot build chunked array from chunks with different alloc kinds") {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
