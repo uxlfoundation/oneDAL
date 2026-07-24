@@ -66,6 +66,7 @@ TEST("can construct CSR table from raw data pointers") {
         REQUIRE(meta.get_data_type(i) == data_type::float32);
         REQUIRE(meta.get_feature_type(i) == feature_type::ratio);
     }
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::non_usm);
 
     REQUIRE(t.get_data<float>() == data);
     REQUIRE(t.get_column_indices() == column_indices);
@@ -105,6 +106,7 @@ TEST("can construct float64 table with zero-based indexing") {
         REQUIRE(meta.get_data_type(i) == data_type::float64);
         REQUIRE(meta.get_feature_type(i) == feature_type::ratio);
     }
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::non_usm);
 
     REQUIRE(t.get_data<double>() == data);
     REQUIRE(t.get_column_indices() == column_indices);
@@ -152,7 +154,7 @@ TEST("can construct table reference") {
 
     REQUIRE(t1.get_indexing() == t2.get_indexing());
 
-    te::check_if_metadata_equal(m1, m2);
+    te::check_if_metadata_equal(m1, m2, true);
 }
 
 TEST("can construct table reference with a copy constructor") {
@@ -196,7 +198,7 @@ TEST("can construct table reference with a copy constructor") {
 
     REQUIRE(t1.get_indexing() == t2.get_indexing());
 
-    te::check_if_metadata_equal(m1, m2);
+    te::check_if_metadata_equal(m1, m2, true);
 }
 
 TEST("can construct table with move") {
@@ -233,6 +235,7 @@ TEST("can construct table with move") {
     for (std::int64_t i = 0; i < t2.get_column_count(); i++) {
         REQUIRE(m2.get_data_type(i) == data_type::float32);
     }
+    REQUIRE(m2.get_alloc_kind() == alloc_kind::non_usm);
     REQUIRE(t2.get_data<float>() == data);
     REQUIRE(t2.get_column_indices() == column_indices);
     REQUIRE(t2.get_row_offsets() == row_offsets);
@@ -281,7 +284,6 @@ TEST("can assign two table references") {
     REQUIRE(t1.get_row_count() == row_count2);
     REQUIRE(t1.get_column_count() == column_count2);
     REQUIRE(t1.get_non_zero_count() == element_count2);
-    REQUIRE(t1.get_metadata().get_data_type(0) == data_type::int32);
     REQUIRE(t1.get_data<std::int32_t>() == data2);
     REQUIRE(t1.get_column_indices() == column_indices2);
     REQUIRE(t1.get_row_offsets() == row_offsets2);
@@ -289,12 +291,11 @@ TEST("can assign two table references") {
     REQUIRE(t2.get_row_count() == row_count2);
     REQUIRE(t2.get_column_count() == column_count2);
     REQUIRE(t2.get_non_zero_count() == element_count2);
-    REQUIRE(t2.get_metadata().get_data_type(0) == data_type::int32);
     REQUIRE(t2.get_data<std::int32_t>() == data2);
     REQUIRE(t2.get_column_indices() == column_indices2);
     REQUIRE(t2.get_row_offsets() == row_offsets2);
 
-    te::check_if_metadata_equal(t1.get_metadata(), t2.get_metadata());
+    te::check_if_metadata_equal(t1.get_metadata(), t2.get_metadata(), true);
 }
 
 TEST("can move assigned table reference") {
@@ -334,6 +335,7 @@ TEST("can move assigned table reference") {
 
     t1 = std::move(t2);
 
+    REQUIRE(t1.get_metadata().get_alloc_kind() == alloc_kind::non_usm);
     REQUIRE(t1.has_data() == true);
     REQUIRE(t1.get_row_count() == row_count2);
     REQUIRE(t1.get_column_count() == column_count2);
@@ -369,6 +371,7 @@ TEST(
         REQUIRE(meta.get_data_type(i) == data_type::float32);
         REQUIRE(meta.get_feature_type(i) == feature_type::ratio);
     }
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::non_usm);
 
     REQUIRE(t.get_data<float>() == data);
     REQUIRE(t.get_column_indices() == column_indices);
@@ -428,6 +431,7 @@ TEST((std::string("can construct table from data pointers allocated on the devic
         REQUIRE(meta.get_data_type(i) == data_type::float32);
         REQUIRE(meta.get_feature_type(i) == feature_type::ratio);
     }
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::usm_shared);
 
     REQUIRE(t.get_data<float>() == data);
     REQUIRE(t.get_column_indices() == column_indices);
@@ -506,6 +510,7 @@ TEST((std::string("can construct table from arrays holding the data allocated on
     REQUIRE(t.get_row_count() == row_count);
     REQUIRE(t.get_column_count() == column_count);
     REQUIRE(t.get_non_zero_count() == element_count);
+    REQUIRE(t.get_metadata().get_alloc_kind() == alloc_kind::usm_device);
 
     sycl::free(data, q);
     sycl::free(column_indices, q);

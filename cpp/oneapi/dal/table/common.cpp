@@ -31,6 +31,7 @@ public:
     virtual const data_type& get_data_type(std::int64_t index) const = 0;
     virtual const dal::array<feature_type>& get_feature_types() const = 0;
     virtual const dal::array<data_type>& get_data_types() const = 0;
+    virtual alloc_kind get_alloc_kind() const = 0;
 };
 
 } // namespace v1
@@ -66,6 +67,10 @@ public:
         throw domain_error(dal::detail::error_messages::cannot_get_data_type_from_empty_metadata());
     }
 
+    alloc_kind get_alloc_kind() const override {
+        return alloc_kind::non_usm;
+    }
+
     void serialize(detail::output_archive& ar) const override {
         // Nothing to serialize
     }
@@ -82,9 +87,11 @@ public:
     simple_metadata_impl() = default;
 
     simple_metadata_impl(const dal::array<data_type>& dtypes,
-                         const dal::array<feature_type>& ftypes)
+                         const dal::array<feature_type>& ftypes,
+                         const alloc_kind kind)
             : dtypes_(dtypes),
-              ftypes_(ftypes) {
+              ftypes_(ftypes),
+              kind_(kind) {
         if (dtypes_.get_count() != ftypes_.get_count()) {
             throw out_of_range{
                 dal::detail::error_messages::
@@ -119,12 +126,24 @@ public:
         return dtypes_[i];
     }
 
+    alloc_kind get_alloc_kind() const override {
+        return kind_;
+    }
+
     void serialize(detail::output_archive& ar) const override {
+        // kind_ is intentionally NOT serialized: it describes where the data
+        // currently resides in memory, which is a runtime property re-established
+        // when the data array is deserialized (see array_impl::deserialize, which
+        // materializes the buffer according to the deserialization context's
+        // policy/queue). Persisting it would both break the archive format (an
+        // extra field under the same serialization id) and record a value that is
+        // stale as soon as the table is deserialized on a different device.
         ar(dtypes_, ftypes_);
     }
 
     void deserialize(detail::input_archive& ar) override {
         ar(dtypes_, ftypes_);
+        // kind_ keeps its default (non_usm); see the note in serialize().
     }
 
 private:
@@ -134,14 +153,21 @@ private:
 
     dal::array<data_type> dtypes_;
     dal::array<feature_type> ftypes_;
+    alloc_kind kind_ = alloc_kind::non_usm; // Default allocation kind is non-USM
 };
+
 __ONEDAL_REGISTER_SERIALIZABLE__(simple_metadata_impl)
 
 table_metadata::table_metadata() : impl_(new empty_metadata_impl()) {}
 
 table_metadata::table_metadata(const dal::array<data_type>& dtypes,
                                const dal::array<feature_type>& ftypes)
-        : impl_(new simple_metadata_impl(dtypes, ftypes)) {}
+        : impl_(new simple_metadata_impl(dtypes, ftypes, alloc_kind::non_usm)) {}
+
+table_metadata::table_metadata(const dal::array<data_type>& dtypes,
+                               const dal::array<feature_type>& ftypes,
+                               const alloc_kind kind)
+        : impl_(new simple_metadata_impl(dtypes, ftypes, kind)) {}
 
 int64_t table_metadata::get_feature_count() const {
     return impl_->get_feature_count();
@@ -161,6 +187,10 @@ const dal::array<feature_type>& table_metadata::get_feature_types() const {
 
 const dal::array<data_type>& table_metadata::get_data_types() const {
     return impl_->get_data_types();
+}
+
+alloc_kind table_metadata::get_alloc_kind() const {
+    return impl_->get_alloc_kind();
 }
 
 void table_metadata::serialize(detail::output_archive& ar) const {
