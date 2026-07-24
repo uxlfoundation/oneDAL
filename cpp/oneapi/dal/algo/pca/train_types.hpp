@@ -284,9 +284,14 @@ public:
         return *this;
     }
 
+    /// The number of auxiliary tables.
+    /// @remark default = 0l
     std::int64_t get_auxiliary_table_count() const;
 
-    const table& get_auxiliary_table(const std::int64_t) const;
+    /// Returns the auxiliary table at the specified index.
+    /// @param  index The index of the auxiliary table to retrieve.
+    /// @return The auxiliary table at the specified index.
+    const table& get_auxiliary_table(const std::int64_t index) const;
 
     auto& set_auxiliary_table(const table& value) {
         set_auxiliary_table_impl(value);
