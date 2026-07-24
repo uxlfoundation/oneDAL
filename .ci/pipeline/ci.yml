@@ -430,7 +430,7 @@ jobs:
   - script: |
       set -euo pipefail
 
-      for config in dbg dbg-symbols asan asan-static tsan ubsan msan type; do
+      for config in dbg dbg-symbols asan asan-static lsan tsan ubsan msan type; do
         echo "Checking Bazel config: ${config}"
         bazel build --nobuild :release --config="${config}"
       done
