@@ -48,7 +48,7 @@ public:
     /// Creates a new instance of the class with the given :literal:`data`
     compute_input(const table& data = {});
 
-    /// An $n \times p$ table with the data to be clustered, where each row
+    /// An $n \\times p$ table with the data to be clustered, where each row
     /// stores one feature vector.
     const table& get_data() const;
 
@@ -85,7 +85,7 @@ public:
         return *this;
     }
 
-    /// An $n \times 1$ table with the responses $y_i$ assigned to the
+    /// An $n \\times 1$ table with the responses $y_i$ assigned to the
     /// samples $x_i$ in the input data. -1 indicates noise.
     /// @remark default = table{}
     const table& get_responses() const;
@@ -95,7 +95,7 @@ public:
         return *this;
     }
 
-    /// An $n \times 1$ table with the core flags $y_i$ assigned to the
+    /// An $n \\times 1$ table with the core flags $y_i$ assigned to the
     /// samples $x_i$ in the input data
     const table& get_core_flags() const;
 
@@ -104,7 +104,7 @@ public:
         return *this;
     }
 
-    /// An $m \times 1$ table with the indices of core observations in
+    /// An $m \\times 1$ table with the indices of core observations in
     /// the input data. $m$ is a number of core observations
     const table& get_core_observation_indices() const;
 
@@ -113,7 +113,7 @@ public:
         return *this;
     }
 
-    /// An $m \times p$ table with the core observations in
+    /// An $m \\times p$ table with the core observations in
     /// the input data. $m$ is a number of core observations
     const table& get_core_observations() const;
 
@@ -122,7 +122,7 @@ public:
         return *this;
     }
 
-    /// A $k \times p$ table with cluster centroids (mean of member points).
+    /// A $k \\times p$ table with cluster centroids (mean of member points).
     /// $k$ is the number of clusters.
     const table& get_cluster_centers() const;
 
@@ -131,7 +131,7 @@ public:
         return *this;
     }
 
-    /// A $k \times p$ table with cluster medoids (member point minimizing
+    /// A $k \\times p$ table with cluster medoids (member point minimizing
     /// intra-cluster distance). $k$ is the number of clusters.
     const table& get_medoid_centers() const;
 

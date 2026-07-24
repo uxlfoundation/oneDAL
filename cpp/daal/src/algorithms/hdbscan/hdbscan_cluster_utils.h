@@ -100,9 +100,16 @@ static int buildDendrogramFromSortedMst(const int * mstFrom, const int * mstTo, 
     int * compSize   = compSizeArr.get();
     int * compToNode = compToNodeArr.get();
 
-    for (size_t i = 0; i < totalNodes; i++)
+    for (size_t i = 0; i < nRows; i++)
     {
-        nodeSize[i]   = (i < nRows) ? 1 : 0;
+        nodeSize[i]   = 1;
+        leftChild[i]  = -1;
+        rightChild[i] = -1;
+        nodeWeight[i] = algorithmFPType(0);
+    }
+    for (size_t i = nRows; i < totalNodes; i++)
+    {
+        nodeSize[i]   = 0;
         leftChild[i]  = -1;
         rightChild[i] = -1;
         nodeWeight[i] = algorithmFPType(0);
