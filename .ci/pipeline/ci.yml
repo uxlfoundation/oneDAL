@@ -441,8 +441,14 @@ jobs:
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
 
-      echo "Checking typed code-coverage flag (host and DPC++ analysis)"
-      bazel build --nobuild :release --code_coverage=true
+      echo "Checking code-coverage rejection with the GCC-only Bazel toolchain"
+      if coverage_error=$(bazel build --nobuild :release --code_coverage=true 2>&1); then
+        echo "ERROR: code coverage unexpectedly accepted the GCC host compiler"
+        exit 1
+      fi
+      printf '%s\n' "${coverage_error}"
+      grep -F -- "--code_coverage=true requires host compiler ID 'icx'" <<< "${coverage_error}"
+      grep -F -- "detected compiler ID: 'gcc'" <<< "${coverage_error}"
     displayName: 'Bazel config smoke checks'
 
   - script: |

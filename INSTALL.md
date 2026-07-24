@@ -236,9 +236,14 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
             bazel build //:release --code_coverage=true
 
-    Bazel coverage instrumentation is supported only on Linux with the Intel
-    ICX/DPC++ toolchain. It applies only to oneDAL-owned compile and link
-    actions; external dependencies are not instrumented.
+    Bazel coverage instrumentation is supported only on Linux when the detected
+    host compiler ID is `icx`. It applies the Make compiler options to
+    oneDAL-owned actions only: host compilations and dynamic-library links are
+    instrumented, DPC++ dynamic-library links use `-Xscoverage`, and
+    `GCOV_BUILD` is limited to DAAL core sources. Static archives receive no
+    linker option; executable and test links receive the matching host or
+    DPC++ coverage driver option so instrumented objects resolve the coverage
+    runtime.
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 

@@ -86,35 +86,56 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
 
 
 def _coverage_options(ctx, cc_toolchain, feature_config):
-    """Return Make-compatible coverage options for oneDAL-owned actions."""
+    """Return Make-compatible coverage driver options for oneDAL actions."""
     if not ctx.attr._code_coverage[ConfigFlagInfo].flag:
-        return struct(compile_flags = [], local_defines = [], link_flags = [])
+        return struct(compile_flags = [], link_flags = [])
 
     is_linux = ctx.target_platform_has_constraint(
         ctx.attr._linux_constraint[platform_common.ConstraintValueInfo],
     )
     compiler_id = cc_toolchain.compiler.split("-")[0]
-    if not is_linux or compiler_id != "icx":
-        fail("--code_coverage=true is supported only on Linux with the Intel " +
-             "icx/icpx toolchain (selected compiler: '{}')".format(
-                 cc_toolchain.compiler,
-             ))
+    if not is_linux:
+        fail("--code_coverage=true requires Linux (detected target OS is not Linux)")
+    if compiler_id != "icx":
+        fail("--code_coverage=true requires host compiler ID 'icx' " +
+             "(detected compiler ID: '{}')".format(compiler_id))
 
     is_dpc = cc_common.is_enabled(
         feature_configuration = feature_config,
         feature_name = "dpc++",
     )
-    # Make adds -coverage to ICX compile and link actions. DPC++ compile
-    # actions are unchanged, while DPC++ link actions receive -Xscoverage.
+    # Make adds -coverage to every ICX compilation and to dynamic links.
+    # DPC++ compilations are unchanged; DPC++ dynamic links use -Xscoverage.
     return struct(
         compile_flags = [] if is_dpc else ["-coverage"],
-        local_defines = ["GCOV_BUILD"],
         link_flags = ["-Xscoverage"] if is_dpc else ["-coverage"],
+    )
+
+def _without_coverage_link_flags(linking_context, coverage_link_flags):
+    """Remove action-local coverage flags while preserving linker metadata."""
+    linker_inputs = []
+    for linker_input in linking_context.linker_inputs.to_list():
+        linker_inputs.append(cc_common.create_linker_input(
+            owner = linker_input.owner,
+            libraries = depset(linker_input.libraries),
+            user_link_flags = [
+                flag
+                for flag in linker_input.user_link_flags
+                if flag not in coverage_link_flags
+            ],
+            additional_inputs = depset(linker_input.additional_inputs),
+            linkstamps = depset(linker_input.linkstamps),
+        ))
+    return cc_common.create_linking_context(
+        linker_inputs = depset(linker_inputs),
     )
 
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
+    coverage_defines = ["GCOV_BUILD"] if (
+        ctx.attr.define_gcov_build and ctx.attr._code_coverage[ConfigFlagInfo].flag
+    ) else []
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
@@ -133,7 +154,7 @@ def _cc_module_impl(ctx):
         public_hdrs = ctx.files.hdrs,
         private_hdrs = ctx.files.private_hdrs,
         defines = ctx.attr.defines,
-        local_defines = ctx.attr.local_defines + coverage.local_defines,
+        local_defines = ctx.attr.local_defines + coverage_defines,
         user_compile_flags = ctx.attr.copts + coverage.compile_flags,
         includes = ctx.attr.includes,
         system_includes = ctx.attr.system_includes,
@@ -154,7 +175,13 @@ def _cc_module_impl(ctx):
             cc_toolchain = toolchain,
             feature_configuration = feature_config,
             compilation_outputs = compilation_outputs,
+            user_link_flags = coverage.link_flags,
         )
+        # create_linking_context_from_compilation_outputs uses the flags for the
+        # module dynamic-link action and also puts them in its linking context.
+        # Keep module-action coverage flags from leaking transitively;
+        # executable and test actions add their own coverage driver option.
+        linking_context = _without_coverage_link_flags(linking_context, coverage.link_flags)
         tagged_linking_contexts.append(onedal_cc_common.create_tagged_linking_context(
             tag = ctx.attr.lib_tag,
             linking_context = linking_context,
@@ -180,6 +207,10 @@ _cc_module = rule(
         "copts": attr.string_list(),
         "defines": attr.string_list(),
         "local_defines": attr.string_list(),
+        "define_gcov_build": attr.bool(
+            default = False,
+            doc = "Define GCOV_BUILD for Make CORE.objs_a/y-equivalent sources.",
+        ),
         "cpu_defines": attr.string_list_dict(),
         "fpt_defines": attr.string_list_dict(),
         "includes": attr.string_list(),
@@ -431,15 +462,15 @@ cc_test = rule(
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
         "_is_test": attr.bool(default=True),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
         "_linux_constraint": attr.label(
             default = "@platforms//os:linux",
         ),
         "_code_coverage": attr.label(
             default = "@config//:code_coverage",
             providers = [ConfigFlagInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -455,15 +486,15 @@ cc_executable = rule(
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
         "_is_test": attr.bool(default=False),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
         "_linux_constraint": attr.label(
             default = "@platforms//os:linux",
         ),
         "_code_coverage": attr.label(
             default = "@config//:code_coverage",
             providers = [ConfigFlagInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],

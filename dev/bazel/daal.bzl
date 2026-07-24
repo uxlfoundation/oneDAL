@@ -30,7 +30,8 @@ load("@onedal//dev/bazel/config:config.bzl",
 
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
-                local_defines=[], copts=[], visibility_hidden=True, **kwargs):
+                local_defines=[], copts=[], visibility_hidden=True,
+                define_gcov_build=True, **kwargs):
     if auto:
         auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
         auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
@@ -59,6 +60,7 @@ def daal_module(name, features=[], lib_tag="daal",
             "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": [],
         })),
+        define_gcov_build = define_gcov_build,
         local_defines = select({
             "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
             "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
