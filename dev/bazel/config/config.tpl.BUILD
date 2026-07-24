@@ -155,28 +155,15 @@ config_setting(
 )
 
 config_setting(
-    name = "stdalloc_windows",
+    name = "stdalloc_disabled",
     flag_values = {
-        ":stdalloc": "True",
+        ":stdalloc": "False",
     },
-    constraint_values = [
-        "@platforms//os:windows",
-    ],
-)
-
-config_setting(
-    name = "stdalloc_macos",
-    flag_values = {
-        ":stdalloc": "True",
-    },
-    constraint_values = [
-        "@platforms//os:macos",
-    ],
 )
 
 unsupported_config(
-    name = "stdalloc_linux_only_error",
-    message = "--stdalloc is supported only for Linux targets",
+    name = "stdalloc_non_linux_error",
+    message = "--stdalloc=true is supported only when targeting Linux",
 )
 
 config_setting(

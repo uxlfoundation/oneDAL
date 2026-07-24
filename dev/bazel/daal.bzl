@@ -39,9 +39,9 @@ def daal_module(name, features=[], lib_tag="daal",
         auto_hdrs = []
         auto_srcs = []
     deps = kwargs.pop("deps", []) + select({
-        "@config//:stdalloc_macos": ["@config//:stdalloc_linux_only_error"],
-        "@config//:stdalloc_windows": ["@config//:stdalloc_linux_only_error"],
-        "//conditions:default": [],
+        "@config//:stdalloc_enabled": [],
+        "@config//:stdalloc_disabled": [],
+        "//conditions:default": ["@config//:stdalloc_non_linux_error"],
     })
     cc_module(
         name = name,

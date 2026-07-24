@@ -458,7 +458,8 @@ dal_test_suite(
 
 ## Standard-library allocator
 
-Equivalent to Make `STDALLOC=yes` for Linux core objects:
+For Linux DAAL core objects, this is equivalent to the allocator-selection
+part of Make `STDALLOC=yes`:
 
 ```sh
 bazel build //:release --stdalloc=true
@@ -471,10 +472,10 @@ does not define the macro for the separately built `threading_tbb` objects;
 this matches the current Make target-specific flag scope, so the threading
 library continues to use TBB scalable allocation.
 
-The setting rejects Windows targets because the MSVC standard library used by
-oneDAL's Windows builds does not provide `std::aligned_alloc`. Unlike the Make
-ICX configuration, the Bazel setting does not force static GNU C++ standard
-library linkage; it controls allocator selection only.
+The setting rejects every non-Linux target because this allocator path is
+currently supported only on Linux. It controls allocator selection only. Make
+builds with `COMPILER=icx STDALLOC=yes` additionally pass
+`-static-libstdc++`; `--stdalloc=true` does not change Bazel link options.
 
 ## Debug and Sanitizer Builds
 
@@ -659,7 +660,7 @@ build --linkopt=-your-link-flag
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
-| `STDALLOC=yes`                  | `--stdalloc=true`                                            | Standard allocator for Linux DAAL core objects; threading objects unchanged |
+| `STDALLOC=yes`                  | `--stdalloc=true`                                            | Allocator-selection equivalent for Linux DAAL core objects; threading objects unchanged. Make ICX also adds `-static-libstdc++` |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
