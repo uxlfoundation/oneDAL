@@ -70,7 +70,36 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 }
 
 template <typename Float>
+static result_t call_daal_kernel(const context_cpu& ctx, const descriptor_t& desc, const table& x) {
+    const std::int64_t row_count_x = x.get_row_count();
+
+    dal::detail::check_mul_overflow(row_count_x, row_count_x);
+    auto arr_values = array<Float>::empty(row_count_x * row_count_x);
+
+    const auto daal_x = interop::convert_to_daal_table<Float>(x);
+    const auto daal_values =
+        interop::convert_to_daal_homogen_table(arr_values, row_count_x, row_count_x);
+
+    daal::algorithms::Parameter param;
+    const daal::data_management::NumericTable* daal_input_tables[1] = { daal_x.get() };
+    daal::data_management::NumericTable* daal_result_table[1] = { daal_values.get() };
+
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_cosine_t>(ctx,
+                                                                                 1,
+                                                                                 daal_input_tables,
+                                                                                 1,
+                                                                                 daal_result_table,
+                                                                                 &param));
+
+    return result_t().set_values(
+        dal::detail::homogen_table_builder{}.reset(arr_values, row_count_x, row_count_x).build());
+}
+
+template <typename Float>
 static result_t compute(const context_cpu& ctx, const descriptor_t& desc, const input_t& input) {
+    if (!input.get_y().has_data()) {
+        return call_daal_kernel<Float>(ctx, desc, input.get_x());
+    }
     return call_daal_kernel<Float>(ctx, desc, input.get_x(), input.get_y());
 }
 
