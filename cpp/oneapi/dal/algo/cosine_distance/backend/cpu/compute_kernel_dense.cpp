@@ -70,9 +70,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 }
 
 template <typename Float>
-static result_t call_daal_kernel(const context_cpu& ctx,
-                                 const descriptor_t& desc,
-                                 const table& x) {
+static result_t call_daal_kernel(const context_cpu& ctx, const descriptor_t& desc, const table& x) {
     const std::int64_t row_count_x = x.get_row_count();
 
     dal::detail::check_mul_overflow(row_count_x, row_count_x);
