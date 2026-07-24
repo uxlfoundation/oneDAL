@@ -12,6 +12,7 @@ load("@onedal//dev/bazel:dal.bzl",
 load("@onedal//dev/bazel/config:selects.bzl",
     "parameters_lib_disabled",
     "parameters_lib_enabled",
+    "parameters_lib_target_compatible_with",
 )
 
 _PARAMETER_MODULES = [
@@ -107,6 +108,7 @@ dal_static_lib(
         "@onedal//cpp/oneapi/dal/algo:parameters",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
+    target_compatible_with = parameters_lib_target_compatible_with(),
 )
 
 dal_dynamic_lib(
@@ -136,6 +138,12 @@ dal_dynamic_lib(
     # On Windows, services_win_dll_shim provides delay-load stubs for
     # threading entry points referenced by the embedded DAAL kernel objects.
     host_deps = parameters_lib_disabled(_PARAMETER_MODULES) + select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
+        "//conditions:default": [],
+    }),
+    dpc_host_deps = select({
         "@platforms//os:windows": [
             "@onedal//cpp/daal:services_win_dll_shim",
         ],
@@ -174,6 +182,11 @@ dal_dynamic_lib(
         "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
         "//conditions:default": [],
     }),
+    dpc_host_deps = select({
+        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = parameters_lib_target_compatible_with(),
 )
 
 filegroup(

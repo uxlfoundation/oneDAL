@@ -188,9 +188,25 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     }
     substitutions["%{version_binary_major}"] = _BINARY_MAJOR
     substitutions["%{version_binary_minor}"] = _BINARY_MINOR
+    cmake_config = repo_ctx.path(paths.join(root, "lib/cmake/oneDAL/oneDALConfig.cmake"))
+    cmake_config_text = repo_ctx.read(cmake_config) if cmake_config.exists else ""
+    if 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' in cmake_config_text:
+        parameters_lib = "no"
+    elif 'set(ONEDAL_USE_PARAMETERS_LIBRARY "yes")' in cmake_config_text:
+        parameters_lib = "yes"
+    else:
+        # Legacy packages predate explicit layout metadata and always used the
+        # separate non-Windows layout consumed by this template.
+        parameters_lib = "yes"
+    substitutions["%{parameters_static_src}"] = ("        \"lib/intel64/libonedal_parameters.a\"," if parameters_lib == "yes" else "")
+    substitutions["%{parameters_dynamic_src}"] = ("        \"lib/intel64/libonedal_parameters.so.{}\",".format(_BINARY_MAJOR) if parameters_lib == "yes" else "")
+    substitutions["%{parameters_dpc_static_src}"] = ("        \"lib/intel64/libonedal_parameters_dpc.a\"," if parameters_lib == "yes" else "")
+    substitutions["%{parameters_dpc_dynamic_src}"] = ("        \"lib/intel64/libonedal_parameters_dpc.so.{}\",".format(_BINARY_MAJOR) if parameters_lib == "yes" else "")
 
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
+    if parameters_lib == "yes":
+        _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping)
     repo_ctx.template(
         "BUILD",
@@ -198,7 +214,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         substitutions = substitutions,
     )
 
-def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
+def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
                              root_env_var="", fallback_root="",
                              url="", sha256="", strip_prefix="",
                              local_mapping={}, download_mapping={},
@@ -223,6 +239,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
             "strip_prefixes": attr.string_list(default=[]),
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
+            "optional_libs": attr.string_list(default=optional_libs),
             "bins": attr.string_list(default=bins),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),

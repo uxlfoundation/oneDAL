@@ -438,24 +438,21 @@ jobs:
       echo "Checking Bazel config: release-dpc"
       bazel build --nobuild :release --config=release-dpc --cpu=all
 
-      for parameters_lib in auto yes no; do
-        echo "Checking parameter library layout: ${parameters_lib}"
-        bazel build --nobuild :release --cpu=avx2 \
-          --build_parameters_lib="${parameters_lib}"
-      done
-
-      if bazel build @config//:validate_build_parameters_lib \
-          --platforms=@config//:windows_analysis_platform \
-          --build_parameters_lib=yes > windows_parameters_lib.log 2>&1; then
-        echo "Windows --build_parameters_lib=yes unexpectedly succeeded"
-        exit 1
-      fi
-      grep -F -- "--build_parameters_lib=yes is not supported on Windows" \
-        windows_parameters_lib.log
+      # Analysis-only: validates configured release outputs, host/DPC dependency
+      # separation, folded-target rejection, and the Windows unsupported value.
+      BAZEL=bazel dev/bazel/tests/parameters_layout_test.sh
 
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
     displayName: 'Bazel config smoke checks'
+
+  - script: |
+      set -euo pipefail
+      bazel build :release --release_dpc=false --build_parameters_lib=no
+      DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
+        BAZEL=bazel dev/release_tests/parameters_layout_consumer_test.sh \
+        "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
+    displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
       bazel build :release --release_dpc=false
@@ -688,7 +685,7 @@ jobs:
     displayName: 'bazel-configure'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --nobuild --build_parameters_lib=yes > build_parameters_lib_yes.log 2>&1
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build @config//:validate_build_parameters_lib --build_parameters_lib=yes > build_parameters_lib_yes.log 2>&1
       if not errorlevel 1 (
         type build_parameters_lib_yes.log
         echo ERROR: Windows --build_parameters_lib=yes unexpectedly succeeded

@@ -40,11 +40,9 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type not specified, defaulting to Release" FORCE)
 endif()
 
-if(WIN32)
-    message(STATUS "Optimization library is not enabled on Windows")
-    set(ONEDAL_USE_PARAMETERS_LIBRARY no)
-else()
-    set(ONEDAL_USE_PARAMETERS_LIBRARY yes)
+set(ONEDAL_USE_PARAMETERS_LIBRARY "@ONEDAL_USE_PARAMETERS_LIBRARY@")
+if(WIN32 AND ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "yes")
+    message(FATAL_ERROR "This package advertises unsupported separate parameter libraries on Windows")
 endif()
 
 #Backward compatibility section to be removed with next major version
@@ -80,7 +78,9 @@ elseif (NOT "${ONEDAL_USE_DPCPP}" STREQUAL "yes" AND NOT "${ONEDAL_USE_DPCPP}" S
 endif()
 if ("${ONEDAL_LINK}" STREQUAL "" OR "${ONEDAL_LINK}" STREQUAL "dynamic")
     set(ONEDAL_LINK "dynamic")
-    if ("${ONEDAL_USE_DPCPP}" STREQUAL "yes")
+    if ("${ONEDAL_USE_DPCPP}" STREQUAL "yes" OR
+        "${ONEDAL_USE_PARAMETERS_LIBRARY}" STREQUAL "no")
+        # Folded parameter objects reference MKL from the main host library.
         set(MKL_DEPENDENCY "yes")
     endif()
 elseif ("${ONEDAL_LINK}" STREQUAL "static")
@@ -181,6 +181,9 @@ if(MKL_DEPENDENCY STREQUAL "yes")
                 MKL::mkl_core
                 MKL::mkl_intel_lp64
                 MKL::mkl_gnu_thread${DAL_DEBUG_SUFFIX})
+            if(ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "no")
+                list(APPEND oneDAL_IMPORTED_TARGETS -lgomp)
+            endif()
         endif()
     endif()
 

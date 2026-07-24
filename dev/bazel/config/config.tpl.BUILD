@@ -53,8 +53,8 @@ config_setting(
     ],
 )
 
-# Make BUILD_PARAMETERS_LIB parity. "auto" follows the supported platform
-# defaults: separate parameter libraries on Linux, folded libraries on Windows.
+# Make BUILD_PARAMETERS_LIB parity. "auto" means yes on every non-Windows
+# target and no on Windows. Explicit yes is rejected on Windows.
 config_flag(
     name = "build_parameters_lib",
     build_setting_default = "auto",
@@ -66,45 +66,20 @@ config_flag(
 )
 
 config_setting(
-    name = "build_parameters_lib_auto_linux",
-    flag_values = {
-        ":build_parameters_lib": "auto",
-    },
-    constraint_values = [
-        "@platforms//os:linux",
-    ],
+    name = "build_parameters_lib_auto_windows",
+    flag_values = {":build_parameters_lib": "auto"},
+    constraint_values = ["@platforms//os:windows"],
 )
 
 config_setting(
-    name = "build_parameters_lib_yes_linux",
-    flag_values = {
-        ":build_parameters_lib": "yes",
-    },
-    constraint_values = [
-        "@platforms//os:linux",
-    ],
+    name = "build_parameters_lib_yes_windows",
+    flag_values = {":build_parameters_lib": "yes"},
+    constraint_values = ["@platforms//os:windows"],
 )
 
 config_setting(
-    name = "release_dpc_build_parameters_lib_auto_linux",
-    flag_values = {
-        ":build_parameters_lib": "auto",
-        ":release_dpc": "True",
-    },
-    constraint_values = [
-        "@platforms//os:linux",
-    ],
-)
-
-config_setting(
-    name = "release_dpc_build_parameters_lib_yes_linux",
-    flag_values = {
-        ":build_parameters_lib": "yes",
-        ":release_dpc": "True",
-    },
-    constraint_values = [
-        "@platforms//os:linux",
-    ],
+    name = "release_dpc_disabled",
+    flag_values = {":release_dpc": "False"},
 )
 
 build_parameters_lib_validation(
@@ -112,7 +87,7 @@ build_parameters_lib_validation(
     flag = ":build_parameters_lib",
 )
 
-# Toolchain-free target platform used by the analysis-only rejection smoke test.
+# Toolchain-free target platform used by cross-platform analysis smoke tests.
 platform(
     name = "windows_analysis_platform",
     constraint_values = [

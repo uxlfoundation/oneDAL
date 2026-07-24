@@ -96,6 +96,7 @@ def _generate_cmake_config_impl(ctx):
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
             "@oneDAL_VERSION@": "",
+            "@ONEDAL_USE_PARAMETERS_LIBRARY@": "yes" if ctx.attr.parameters_lib else "no",
         },
     )
     return [DefaultInfo(files = depset([out]))]
@@ -108,6 +109,7 @@ _generate_cmake_config = rule(
             mandatory = True,
         ),
         "out": attr.string(mandatory = True),
+        "parameters_lib": attr.bool(default = True),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
@@ -136,7 +138,9 @@ def _generate_pkgconfig_impl(ctx):
         onedal_libs = (
             "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
             if ctx.attr.static else
-            "${libdir}/onedal_dll.lib ${libdir}/onedal_parameters_dll.lib ${libdir}/onedal_core_dll.lib"
+            "${libdir}/onedal_dll.lib{} ${libdir}/onedal_core_dll.lib".format(
+                " ${libdir}/onedal_parameters_dll.lib" if ctx.attr.parameters_lib else "",
+            )
         )
         ctx.actions.write(
             output = out,
@@ -159,6 +163,12 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
         )
     else:
         suffix = "a" if ctx.attr.static else "so"
+        if ctx.attr.parameters_lib:
+            onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0} ${{libdir}}/libonedal_parameters.{0} -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl".format(suffix)
+        else:
+            mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
+            openmp = " -lgomp" if not ctx.attr.static else ""
+            onedal_libs = "-Wl,--start-group ${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0} -lmkl_{1} -lmkl_tbb_thread -lmkl_core -Wl,--end-group -ltbb -ltbbmalloc -lpthread{2} -ldl".format(suffix, mkl_interface, openmp)
         ctx.actions.write(
             output = out,
             content = """#===============================================================================
@@ -185,12 +195,13 @@ Name: oneDAL
 Description: oneAPI Data Analytics Library
 Version: {major}.{minor}
 URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: ${{libdir}}/libonedal.{suffix} ${{libdir}}/libonedal_core.{suffix} ${{libdir}}/libonedal_thread.{suffix} ${{libdir}}/libonedal_parameters.{suffix} -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
+Libs: {onedal_libs}
 Cflags: -std=c++17 -Wno-deprecated-declarations -I${{includedir}}
 """.format(
                 major = vi.major,
                 minor = vi.minor,
                 suffix = suffix,
+                onedal_libs = onedal_libs,
             ),
         )
     return [DefaultInfo(files = depset([out]))]
@@ -211,6 +222,7 @@ _generate_pkgconfig = rule(
             default = False,
             doc = "Generate a static-library pkg-config file.",
         ),
+        "parameters_lib": attr.bool(default = True),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
