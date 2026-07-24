@@ -101,19 +101,24 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // For Euclidean and Cosine, reuse the shared GEMM-based primitives in
     // service_kernel_math.h. They are the same primitives knn uses, with a
-    // blocked row-norm computation, A·Aᵀ via xxgemm, and vectorized finalize.
-    // For other metrics, fillFullDistMatrix routes the row-pair loop through
-    // the corresponding *Dist functor in hdbscan_distance_utils.h, so all three
+    // blocked row-norm computation, A * A^T via xxgemm, and a
+    // vectorized finalize() step (per-block max(0, .) clamp of squared L2,
+    // followed by vSqrt when the caller asked for real L2 distances). For
+    // other metrics, fillFullDistMatrix routes the row-pair loop through the
+    // corresponding *Dist functor in hdbscan_distance_utils.h, so all three
     // legacy inline blocks (manhattan/chebyshev/minkowski) collapse to one
     // call site driven by the metric tag.
     if (pairwiseDistance == PairwiseDistanceType::euclidean)
     {
-        // Compute squared L2 first, then clamp(0, .) + vSqrt ourselves. The
-        // shared `squared=false` path inside computeBatch does the vSqrt without
-        // the max(0, .) clamp that finalize() applies, so FP round-off on the
-        // diagonal (and on near-duplicate rows) produces NaN. Routing through
-        // squared=true + manual finalize keeps every entry well-defined and
-        // forces the diagonal to a clean zero.
+        // We need real (not squared) L2 for MRD: core distances are read from
+        // this matrix via nth_element, and MRD(a,b) = max(core(a), core(b),
+        // dist(a,b)/alpha) treats dist as the actual distance value. Passing
+        // `squared=true` here computes squared L2, then finalize() applies the
+        // max(0, .) clamp per entry and vSqrt-s the block in place. That
+        // clamp is why we do not use the `squared=false` fast path: its inline
+        // vSqrt has no clamp, and FP round-off on the diagonal / near-duplicate
+        // rows can drive squared values slightly below 0, yielding NaN. We
+        // also force the diagonal to a clean zero afterwards for safety.
         EuclideanDistances<algorithmFPType, cpu> dist(*ntData, *ntData, /*squared=*/true);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
@@ -239,6 +244,13 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         }
         services::internal::service_memset_seq<int, cpu>(ufRank, 0, nRows);
 
+        // NOTE: ufFind/ufUnion and the Boruvka merge phases (2/3/4) below are
+        // identical to the ball-tree and kd-tree kernels; only Phase 1
+        // (nearest-different-component MRD search) genuinely differs across
+        // methods. Consolidating phases 2-4 and the union-find lambdas into a
+        // shared helper header is planned as a follow-up (see also
+        // sortMstAndExtractClusters in hdbscan_cluster_utils.h, which already
+        // shares the end-of-pipeline steps 4/5).
         auto ufFind = [&](int x) -> int {
             while (ufParent[x] != x)
             {

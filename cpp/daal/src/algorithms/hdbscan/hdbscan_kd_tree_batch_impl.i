@@ -89,7 +89,7 @@ struct KdNode
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
 ///
-/// @param[in]     data         Row-major input buffer of size `nRows × nCols`
+/// @param[in]     data         Row-major input buffer of size `nRows x nCols`
 /// @param[in,out] pointIndices Permutation of input row ids; reordered in place
 /// @param[in]     begin        First index of the current subtree's range
 /// @param[in]     end          One past the last index of the current range
@@ -97,8 +97,8 @@ struct KdNode
 /// @param[out]    nodes        Output node array (this call writes node `nextNode`)
 /// @param[in,out] nextNode     Counter of allocated nodes (post-incremented)
 /// @param[in]     maxLeafSize  Max points per leaf
-/// @param[out]    bboxLo       Per-node lower bbox bounds, length `totalNodes × nCols`
-/// @param[out]    bboxHi       Per-node upper bbox bounds, length `totalNodes × nCols`
+/// @param[out]    bboxLo       Per-node lower bbox bounds, length `totalNodes x nCols`
+/// @param[out]    bboxHi       Per-node upper bbox bounds, length `totalNodes x nCols`
 ///
 /// @return Index of the node created by this call
 template <typename algorithmFPType, CpuType cpu>
@@ -118,6 +118,7 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
     {
         algorithmFPType lo = daal::services::internal::MaxVal<algorithmFPType>::get();
         algorithmFPType hi = -daal::services::internal::MaxVal<algorithmFPType>::get();
+        PRAGMA_OMP_SIMD_ARGS(reduction(min : lo) reduction(max : hi))
         for (int i = begin; i < end; i++)
         {
             const algorithmFPType val = data[pointIndices[i] * nCols + d];
@@ -235,6 +236,7 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
     if (node.splitDim < 0)
     {
         algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
+        PRAGMA_OMP_SIMD_ARGS(reduction(min : minCD))
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];
@@ -407,7 +409,7 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
 /// @tparam cpu             CPU dispatch tag
 /// @tparam DistFunc        Metric functor
 ///
-/// @param[in]     data            Row-major input buffer of size `nRows × nCols`
+/// @param[in]     data            Row-major input buffer of size `nRows x nCols`
 /// @param[in]     nRows           Number of points
 /// @param[in]     nCols           Number of features
 /// @param[in]     minSamples      Number of neighbors used for core distance (k)

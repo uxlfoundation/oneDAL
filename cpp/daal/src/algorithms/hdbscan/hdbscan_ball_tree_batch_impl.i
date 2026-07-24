@@ -89,23 +89,22 @@ struct BallNode
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
 ///
-/// @param[in]  data         Row-major input buffer of size `nRows × nCols`
+/// @param[in]  data         Row-major input buffer of size `nRows x nCols`
 /// @param[in]  pointIndices Permutation array; rows `[begin, end)` are gathered
 /// @param[in]  begin        First index (inclusive) into `pointIndices`
 /// @param[in]  end          Last index (exclusive) into `pointIndices`
 /// @param[in]  nCols        Number of features
-/// @param[out] scratchRows  Output, row-major `(end - begin) × nCols`
+/// @param[out] scratchRows  Output, row-major `(end - begin) x nCols`
 template <typename algorithmFPType, CpuType cpu>
 static void gatherRows(const algorithmFPType * data, const int * pointIndices, int begin, int end, int nCols, algorithmFPType * scratchRows)
 {
-    const int count = end - begin;
+    const int count       = end - begin;
+    const size_t rowBytes = static_cast<size_t>(nCols) * sizeof(algorithmFPType);
     for (int i = 0; i < count; i++)
     {
         const algorithmFPType * src = data + pointIndices[begin + i] * nCols;
         algorithmFPType * dst       = scratchRows + i * nCols;
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (int d = 0; d < nCols; d++) dst[d] = src[d];
+        daal::services::internal::daal_memcpy_s(dst, rowBytes, src, rowBytes);
     }
 }
 
@@ -153,7 +152,7 @@ static int argmaxArray(const algorithmFPType * arr, int count)
 /// @tparam DistFunc        Metric functor exposing `blockDist`
 ///
 /// @param[in]  pivotPt     Pivot row, length `nCols`
-/// @param[in]  scratchRows Row-major batch, size `count × nCols`
+/// @param[in]  scratchRows Row-major batch, size `count x nCols`
 /// @param[in]  rowNorms2   Per-row squared norms, length `count` (may be unused for non-Euclidean)
 /// @param[in]  count       Number of rows in the batch
 /// @param[in]  nCols       Number of features
@@ -177,7 +176,7 @@ static int blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmF
 ///   2. Gathers the relevant rows into a contiguous scratch buffer once so all
 ///      subsequent distance sweeps read contiguous memory and (for Euclidean)
 ///      can be batched as a single BLAS xxgemv.
-///   3. Computes `‖x_i‖²` once into `rowNorms2` and reuses it across the three
+///   3. Computes `||x_i||^2` once into `rowNorms2` and reuses it across the three
 ///      pivot sweeps (radius is free once `d2` is filled).
 ///   4. Picks pivot2 as the farthest point from pivot1 (= first point), pivot3
 ///      as the farthest from pivot2. pivot2 becomes the ball center; `max(d2)`
@@ -231,10 +230,10 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     if (!scratchRows || !rowNorms2 || !d2 || !d3) return nodeIdx;
 
     gatherRows<algorithmFPType, cpu>(data, pointIndices, begin, end, nCols, scratchRows);
-    // Cache ‖x_i‖² once per node; reused by all three pivot sweeps when DistFunc is Euclidean.
+    // Cache ||x_i||^2 once per node; reused by all three pivot sweeps when DistFunc is Euclidean.
     rowNormsSquared<algorithmFPType, cpu>(scratchRows, count, nCols, rowNorms2);
 
-    // Pick pivot1 = first point. Find pivot2 = argmax dist(pivot1, ·); pos is the
+    // Pick pivot1 = first point. Find pivot2 = argmax dist(pivot1, .); pos is the
     // offset into scratchRows / pointIndices[begin..end). d3 is scratch for this
     // sweep; it gets overwritten with dist-to-pivot3 below.
     const int pivot1 = pointIndices[begin];
@@ -249,6 +248,7 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     node.centerIdx = pivot2;
 
     algorithmFPType maxR = algorithmFPType(0);
+    PRAGMA_OMP_SIMD_ARGS(reduction(max : maxR))
     for (int i = 0; i < count; i++)
     {
         if (d2[i] > maxR) maxR = d2[i];
@@ -263,8 +263,11 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     // Populate d3 (distances to pivot3), then partition.
     blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot3 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d3);
 
-    // Partition points by d2 vs d3. d2/d3/pointIndices swap in lockstep so the
-    // distance arrays stay aligned with pointIndices[begin..end) during the sweep.
+    // Partition points by d2 vs d3 (Hoare in-place partition, not a full vector
+    // swap: exchange happens only at boundary positions where the predicate
+    // fails, so BLAS ?swap does not apply). d2/d3/pointIndices swap in lockstep
+    // so the distance arrays stay aligned with pointIndices[begin..end) during
+    // the sweep.
     int lo = 0;
     int hi = count - 1;
     while (lo <= hi)
@@ -380,6 +383,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
     if (node.left < 0)
     {
         algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
+        PRAGMA_OMP_SIMD_ARGS(reduction(min : minCD))
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];
@@ -537,7 +541,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
 /// @tparam cpu             CPU dispatch tag
 /// @tparam DistFunc        Metric functor
 ///
-/// @param[in]     data           Row-major input buffer of size `nRows × nCols`
+/// @param[in]     data           Row-major input buffer of size `nRows x nCols`
 /// @param[in]     nRows          Number of points
 /// @param[in]     nCols          Number of features
 /// @param[in]     minSamples     k for core-distance k-NN queries
@@ -564,7 +568,10 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     // neighbor #1. The ball-tree traversal pushes the query point into the
     // heap along with the other leaf points, so a heap of size `minSamples`
     // holds {self + (minSamples - 1) non-self}, and the heap top is the
-    // `minSamples`-th-including-self answer.
+    // `minSamples`-th-including-self answer. Duplicate points are handled
+    // naturally: exact duplicates land in the heap at distance 0, so the core
+    // distance of a point with >= minSamples-1 duplicates is 0 (mirrors the
+    // reference behavior; MST tie-breaking is arbitrary).
     const int k = static_cast<int>(minSamples);
 
     // Step 2: Core distances via k-NN on ball tree
@@ -714,7 +721,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 /// @tparam cpu             CPU dispatch tag
 /// @tparam DistFunc        Metric functor
 ///
-/// @param[in]     data          Row-major input buffer of size `nRows × nCols`
+/// @param[in]     data          Row-major input buffer of size `nRows x nCols`
 /// @param[in]     nRows         Number of points
 /// @param[in]     nCols         Number of features
 /// @param[in]     minSamples    k for core-distance k-NN queries
@@ -797,7 +804,12 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // Step 1: Build ball tree
     const int maxLeafSize = static_cast<int>(leafSize);
-    const int maxNodes    = 4 * static_cast<int>(nRows);
+    // A binary tree that stops splitting when a node holds a single point has
+    // exactly `2*nRows - 1` nodes. `4*nRows` is a conservative headroom: leaves
+    // stop at `maxLeafSize > 1`, but pathological inputs (degenerate splits,
+    // fallback mid = begin + count/2 when the partition is empty on one side)
+    // can produce very uneven trees; 4x removes the branching-factor sensitivity.
+    const int maxNodes = 4 * static_cast<int>(nRows);
 
     TArray<BallNode<algorithmFPType>, cpu> nodesVec(maxNodes);
     BallNode<algorithmFPType> * nodes = nodesVec.get();

@@ -314,17 +314,17 @@ static size_t buildCondensedTree(int root, size_t nRows, int mcs, const int * no
 /// @param[in]  nClusters       Total cluster count (next free cluster id)
 /// @param[in]  rootCid         Root cluster id (== `nRows`)
 /// @param[out] lambdaBirth     Birth lambda per cluster, length `nClusters`
-/// @param[out] isLeafCluster   1 if cluster has no cluster-children, else 0; length `nClusters`
+/// @param[out] isLeafCluster   true if cluster has no cluster-children, false otherwise; length `nClusters`
 /// @param[out] clusterSz       Number of points in each cluster, length `nClusters`
 /// @param[out] childCount      Number of cluster-children per cluster, length `nClusters`
 template <typename algorithmFPType, CpuType cpu>
 static void initClusterMetadata(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
-                                int nClusters, int rootCid, algorithmFPType * lambdaBirth, char * isLeafCluster, int * clusterSz, int * childCount)
+                                int nClusters, int rootCid, algorithmFPType * lambdaBirth, bool * isLeafCluster, int * clusterSz, int * childCount)
 {
     for (int c = 0; c < nClusters; c++)
     {
         lambdaBirth[c]   = algorithmFPType(0);
-        isLeafCluster[c] = 1;
+        isLeafCluster[c] = true;
         clusterSz[c]     = 0;
         childCount[c]    = 0;
     }
@@ -336,7 +336,7 @@ static void initClusterMetadata(const CondensedEdge * condensed, const algorithm
         if (e.child >= static_cast<int>(nRows))
         {
             lambdaBirth[e.child]    = condensedLambda[ei];
-            isLeafCluster[e.parent] = 0;
+            isLeafCluster[e.parent] = false;
             childCount[e.parent]++;
             clusterSz[e.child] = e.childSize;
         }
@@ -396,14 +396,14 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 /// @param[in]     mcsMax        Maximum allowed cluster size (`MaxVal<int>` if uncapped)
 /// @param[in,out] stability     Per-cluster stability; updated in place with propagated child sums
 /// @param[in]     clusterSz     Per-cluster point counts, length `nClusters`
-/// @param[in]     isLeafCluster Leaf-cluster mask, length `nClusters`
+/// @param[in]     isLeafCluster Leaf-cluster mask (`bool`), length `nClusters`
 /// @param[in]     childOffset   CSR offsets into `childList`, length `nClusters + 1`
 /// @param[in]     childCount    Per-cluster cluster-child counts, length `nClusters`
 /// @param[in]     childList     CSR child cluster ids, length `childOffset[nClusters]`
 /// @param[in,out] descStack     Scratch stack for the descendant-unselect walk, length `nClusters`
 /// @param[in,out] isSelected    Selection mask updated in place, length `nClusters`
 template <typename algorithmFPType, CpuType cpu>
-static void runEomSelection(int nClusters, int treeTop, int mcsMax, algorithmFPType * stability, const int * clusterSz, const char * isLeafCluster,
+static void runEomSelection(int nClusters, int treeTop, int mcsMax, algorithmFPType * stability, const int * clusterSz, const bool * isLeafCluster,
                             const int * childOffset, const int * childCount, const int * childList, int * descStack, char * isSelected)
 {
     for (int c = nClusters - 1; c >= treeTop; c--)
@@ -442,7 +442,7 @@ static void runEomSelection(int nClusters, int treeTop, int mcsMax, algorithmFPT
 /// changes (the parent itself may then be too dense and get promoted again).
 ///
 /// When the parent is the root cluster and `allowSingleCluster=false`, the
-/// promotion is skipped — promoting up to the root would silently override the
+/// promotion is skipped -- promoting up to the root would silently override the
 /// caller's request that single-cluster outcomes be rejected.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas
@@ -570,12 +570,15 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 {
     TArray<algorithmFPType, cpu> stabilityArr(nClusters);
     TArray<algorithmFPType, cpu> lambdaBirthArr(nClusters);
-    TArray<char, cpu> isLeafClusterArr(nClusters);
+    // Predicate-only mask: `bool` is the natural type; DAAL exposes
+    // `TArray<bool, cpu>` (see e.g. df_classification_predict, svm_train_boser)
+    // for the same use case.
+    TArray<bool, cpu> isLeafClusterArr(nClusters);
     TArray<int, cpu> clusterSzArr(nClusters);
     TArray<int, cpu> childCountArr(nClusters);
     algorithmFPType * stability   = stabilityArr.get();
     algorithmFPType * lambdaBirth = lambdaBirthArr.get();
-    char * isLeafCluster          = isLeafClusterArr.get();
+    bool * isLeafCluster          = isLeafClusterArr.get();
     int * clusterSz               = clusterSzArr.get();
     int * childCount              = childCountArr.get();
 

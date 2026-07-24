@@ -52,8 +52,8 @@ enum Method
 /// CPU-templated entry point dispatched by the oneAPI HDBSCAN compute kernel.
 /// Each (algorithmFPType, method, cpu) instantiation lives in its own TU
 /// (`hdbscan_{dense,kd_tree,ball_tree}_batch_fpt_cpu.cpp`). Member compute()
-/// runs the full pipeline: pairwise/core distances → MST under MRD → sort →
-/// dendrogram → condensed tree → cluster selection → label points.
+/// runs the full pipeline: pairwise/core distances -> MST under MRD -> sort ->
+/// dendrogram -> condensed tree -> cluster selection -> label points.
 ///
 /// @tparam algorithmFPType Floating-point type used for distances and lambdas
 /// @tparam method          One of `bruteForceDense`, `kdTree`, `ballTree`
@@ -64,16 +64,16 @@ class HDBSCANBatchKernel : public Kernel
 public:
     /// Compute HDBSCAN clustering for the specified input data and parameters.
     ///
-    /// @param[in]  ntData                  Input numeric table of size `N × P` containing the data to cluster
-    /// @param[out] ntAssignments           Output numeric table of size `N × 1` containing the cluster assignment
+    /// @param[in]  ntData                  Input numeric table of size `N x P` containing the data to cluster
+    /// @param[out] ntAssignments           Output numeric table of size `N x 1` containing the cluster assignment
     ///                                     for each input point. -1 indicates noise; non-negative values are the
     ///                                     cluster index in `[0, C)`, where `C` is the number of clusters found
-    /// @param[out] ntNClusters             Output numeric table of size `1 × 1` containing the number of clusters `C` found
+    /// @param[out] ntNClusters             Output numeric table of size `1 x 1` containing the number of clusters `C` found
     /// @param[in]  minClusterSize          Minimum number of points required to form a cluster
     /// @param[in]  minSamples              Number of neighbors used when computing core distances
     /// @param[in]  pairwiseDistance        Distance metric used for pairwise distances (see `algorithms::internal::PairwiseDistanceType`)
     /// @param[in]  minkowskiDegree         Exponent `p` for the Minkowski distance. Ignored for other metrics
-    /// @param[in]  clusterSelection        Cluster selection strategy: 0 — excess of mass, 1 — leaf
+    /// @param[in]  clusterSelection        Cluster selection strategy: 0 -- excess of mass, 1 -- leaf
     /// @param[in]  allowSingleCluster      If true, allow the root cluster of the condensed tree to be selected
     /// @param[in]  clusterSelectionEpsilon Distance threshold used to merge clusters closer than epsilon
     /// @param[in]  maxClusterSize          Maximum allowed cluster size (only used with cluster selection epsilon). 0 disables the limit

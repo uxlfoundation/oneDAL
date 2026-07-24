@@ -38,8 +38,9 @@ namespace internal
 
 /// Compute the squared L2 norm of a single row, vectorized.
 ///
-/// Used by EuclideanDist::blockDist to cache `‖x_i‖²` between the three pivot
-/// sweeps performed at each ball-tree node so the norm is read once and reused.
+/// Used by EuclideanDist::blockDist to cache `||x_i||^2` between the three
+/// pivot sweeps performed at each ball-tree node so the norm is read once and
+/// reused.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
@@ -52,21 +53,20 @@ template <typename FPType, daal::internal::CpuType cpu>
 static FPType rowNormSquared(const FPType * row, int nCols)
 {
     FPType sum = FPType(0);
-    PRAGMA_IVDEP
-    PRAGMA_VECTOR_ALWAYS
+    PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
     for (int d = 0; d < nCols; d++) sum += row[d] * row[d];
     return sum;
 }
 
 /// Compute squared L2 norms for a contiguous block of row-major rows.
 ///
-/// Used by ball-tree node construction to amortize `‖x‖²` across the three
+/// Used by ball-tree node construction to amortize `||x||^2` across the three
 /// pivot sweeps performed at the same node.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
 ///
-/// @param[in]  rows     Row-major buffer of size `count × nCols`
+/// @param[in]  rows     Row-major buffer of size `count x nCols`
 /// @param[in]  count    Number of rows
 /// @param[in]  nCols    Number of features per row
 /// @param[out] outNorms Output norms, length `count`
@@ -76,7 +76,7 @@ static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * 
     for (int i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * nCols, nCols);
 }
 
-/// Fill a symmetric `nRows × nRows` distance matrix in row-major layout using a
+/// Fill a symmetric `nRows x nRows` distance matrix in row-major layout using a
 /// scalar metric functor.
 ///
 /// Exploits symmetry: only the upper triangle (j >= i) is computed, the lower
@@ -90,14 +90,21 @@ static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * 
 /// @tparam cpu      CPU dispatch tag
 /// @tparam DistFunc Metric functor exposing `pointDist(a, b, nCols)`
 ///
-/// @param[in]  data     Row-major input buffer of size `nRows × nCols`
+/// @param[in]  data     Row-major input buffer of size `nRows x nCols`
 /// @param[in]  nRows    Number of rows
 /// @param[in]  nCols    Number of features per row
 /// @param[in]  distFunc Distance functor instance
-/// @param[out] outDist  Row-major output, length `nRows × nRows`
+/// @param[out] outDist  Row-major output, length `nRows x nRows`
 template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
 static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, const DistFunc & distFunc, FPType * outDist)
 {
+    // Row block size for the outer parallelization. 64 is a static heuristic
+    // matching the block sizes used in other DAAL kernels (e.g. covariance,
+    // distance primitives in service_kernel_math.h): small enough to keep
+    // scheduler overhead low on wide runtimes, large enough to amortize
+    // per-block work and let the inner j-loop stay cache-friendly. Not exposed
+    // through the parameters system today; if profiling shows sensitivity for
+    // very large nCols, revisit by promoting to a tunable in Parameter.
     constexpr size_t blockSize = 64;
     const size_t nBlocks       = (nRows + blockSize - 1) / blockSize;
 
@@ -123,12 +130,12 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 // Distance functors for parameterizing tree queries by metric.
 //
 // Each functor provides four methods:
-//   - pointDist<cpu>(a, b, nCols)                 — full point-to-point distance
-//   - bboxLowerBound<cpu>(q, lo, hi, nCols)       — minimum distance from query to a bbox
-//   - planeDist<cpu>(diff)                        — distance to a splitting hyperplane (kd-tree)
+//   - pointDist<cpu>(a, b, nCols)                 -- full point-to-point distance
+//   - bboxLowerBound<cpu>(q, lo, hi, nCols)       -- minimum distance from query to a bbox
+//   - planeDist<cpu>(diff)                        -- distance to a splitting hyperplane (kd-tree)
 //   - blockDist<cpu>(pivot, rows, rowNorms2, count, nCols, out)
-//                                                 — pivot-to-block distances; Euclidean uses
-//                                                   BLAS xxgemv + cached row norms²,
+//                                                 -- pivot-to-block distances; Euclidean uses
+//                                                   BLAS xxgemv + cached row norms^2,
 //                                                   non-Euclidean fall back to a vectorized loop.
 //                                                   `rowNorms2` may be nullptr for non-Euclidean.
 //
@@ -140,8 +147,8 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 /// Euclidean (L2) distance functor.
 ///
 /// All methods are static (stateless metric). blockDist uses the identity
-/// `‖x − p‖² = ‖x‖² + ‖p‖² − 2·⟨x, p⟩` to delegate the inner products to a
-/// single BLAS xxgemv call, then sqrts in a vectorized pass.
+/// `||x - p||^2 = ||x||^2 + ||p||^2 - 2 * <x, p>` to delegate the inner
+/// products to a single BLAS xxgemv call, then sqrts in a vectorized pass.
 ///
 /// @tparam FPType Floating-point type
 template <typename FPType>
@@ -149,25 +156,27 @@ struct EuclideanDist
 {
     /// Compute the L2 distance between two rows.
     ///
+    /// Uses `MathInst::sSqrt` for the final sqrt to match the CPU-specific
+    /// math dispatch used elsewhere in DAAL (e.g. em_gmm, zscore, pca, cordistance).
+    ///
     /// @tparam cpu CPU dispatch tag
     ///
     /// @param[in]  a     First row, length `nCols`
     /// @param[in]  b     Second row, length `nCols`
     /// @param[in]  nCols Number of features
     ///
-    /// @return `‖a − b‖₂`
+    /// @return `||a - b||_2`
     template <daal::internal::CpuType cpu>
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType sum = FPType(0);
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
             sum += diff * diff;
         }
-        return static_cast<FPType>(sqrt(static_cast<double>(sum)));
+        return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
     }
 
     /// Compute the L2 distance from a query point to its nearest point in a
@@ -187,6 +196,7 @@ struct EuclideanDist
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType sum = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
             FPType excess = FPType(0);
@@ -196,11 +206,18 @@ struct EuclideanDist
                 excess = query[d] - hi[d];
             sum += excess * excess;
         }
-        return static_cast<FPType>(sqrt(static_cast<double>(sum)));
+        return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
     }
 
-    /// Distance from a query to a kd-tree axis-aligned splitting hyperplane,
-    /// given the signed difference in the splitting coordinate.
+    /// Absolute value along an axis-aligned splitting coordinate: the distance
+    /// from a query to a kd-tree splitting hyperplane, given the signed
+    /// difference `query[splitDim] - splitVal`.
+    ///
+    /// Named `planeDist` (rather than `abs`) because it participates in the
+    /// distance-functor protocol used by tree traversals; call sites read as
+    /// `distFunc.planeDist(diff)`, matching `pointDist`/`bboxLowerBound`. The
+    /// body is a straight `fabs`, kept inline so the compiler can fold it into
+    /// vectorized traversal loops.
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -215,17 +232,17 @@ struct EuclideanDist
 
     /// Vectorized pivot-to-block Euclidean distance via BLAS xxgemv.
     ///
-    /// Identity used: `‖x_i − p‖² = ‖x_i‖² + ‖p‖² − 2·⟨x_i, p⟩`. The inner
-    /// products are computed as a single xxgemv on the row-major scratch
-    /// buffer; `rowNorms2[i]` must equal `‖scratchRows[i]‖²` (see
+    /// Identity used: `||x_i - p||^2 = ||x_i||^2 + ||p||^2 - 2 * <x_i, p>`.
+    /// The inner products are computed as a single xxgemv on the row-major
+    /// scratch buffer; `rowNorms2[i]` must equal `||scratchRows[i]||^2` (see
     /// rowNormsSquared). Negative squared distances from rounding noise are
     /// clamped to zero before sqrt.
     ///
     /// @tparam cpu CPU dispatch tag for BLAS / vSqrt selection
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
-    /// @param[in]  rowNorms2   Precomputed `‖scratchRows[i]‖²`, length `count`
+    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
+    /// @param[in]  rowNorms2   Precomputed `||scratchRows[i]||^2`, length `count`
     /// @param[in]  count       Number of rows in the batch
     /// @param[in]  nCols       Number of features
     /// @param[out] outDists    Output distances, length `count`
@@ -234,10 +251,11 @@ struct EuclideanDist
     {
         const FPType pivotNorm2 = rowNormSquared<FPType, cpu>(pivotPt, nCols);
 
-        // outDists ← scratchRows · pivotPt  (count vector)
-        // GEMV: y = α·op(A)·x + β·y. The row-major scratchRows[count×nCols]
-        // is a column-major nCols×count matrix A; we want
-        // y[i] = ⟨scratchRows[i], pivotPt⟩ = Σ_d A[d,i]·pivotPt[d] = (Aᵀ·pivotPt)[i].
+        // outDists = scratchRows * pivotPt  (count vector)
+        // GEMV: y = alpha * op(A) * x + beta * y. The row-major
+        // scratchRows[count x nCols] is a column-major nCols x count matrix A;
+        // we want y[i] = <scratchRows[i], pivotPt> = sum_d A[d,i]*pivotPt[d] =
+        // (A^T * pivotPt)[i].
         // So trans='T' with m=nCols (rows of A), n=count (cols of A): x has length m,
         // y has length n.
         const char trans    = 'T';
@@ -271,7 +289,7 @@ struct EuclideanDist
 template <typename FPType>
 struct ManhattanDist
 {
-    /// Compute `‖a − b‖₁`.
+    /// Compute `||a - b||_1`.
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -282,8 +300,7 @@ struct ManhattanDist
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType sum = FPType(0);
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
             FPType diff = a[d] - b[d];
@@ -304,6 +321,7 @@ struct ManhattanDist
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType sum = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
             FPType excess = FPType(0);
@@ -336,7 +354,7 @@ struct ManhattanDist
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
     /// @param[in]  rowNorms2   Unused (kept for interface symmetry with Euclidean)
     /// @param[in]  count       Number of rows
     /// @param[in]  nCols       Number of features
@@ -364,7 +382,7 @@ struct MinkowskiDist
     /// @param[in] degree Minkowski exponent `p > 0`
     MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
 
-    /// Compute `(Σ |a_d − b_d|^p)^(1/p)`.
+    /// Compute `(sum_d |a_d - b_d|^p) ^ (1/p)`.
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -375,6 +393,7 @@ struct MinkowskiDist
     FPType pointDist(const FPType * a, const FPType * b, int nCols) const
     {
         double sum = 0.0;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
             double diff = static_cast<double>(a[d] - b[d]);
@@ -396,6 +415,7 @@ struct MinkowskiDist
     FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
     {
         double sum = 0.0;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
             double excess = 0.0;
@@ -421,12 +441,12 @@ struct MinkowskiDist
 
     /// Pivot-to-block Minkowski distance.
     ///
-    /// Same rationale as ManhattanDist::blockDist — no BLAS factorization.
+    /// Same rationale as ManhattanDist::blockDist -- no BLAS factorization.
     ///
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
     /// @param[in]  rowNorms2   Unused
     /// @param[in]  count       Number of rows
     /// @param[in]  nCols       Number of features
@@ -438,7 +458,7 @@ struct MinkowskiDist
     }
 };
 
-/// Chebyshev (L∞) distance functor.
+/// Chebyshev (L-infinity) distance functor.
 ///
 /// Stateless. blockDist falls through to a scalar loop.
 ///
@@ -446,7 +466,7 @@ struct MinkowskiDist
 template <typename FPType>
 struct ChebyshevDist
 {
-    /// Compute `max_d |a_d − b_d|`.
+    /// Compute `max_d |a_d - b_d|`.
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -457,6 +477,7 @@ struct ChebyshevDist
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType mx = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
         for (int d = 0; d < nCols; d++)
         {
             FPType diff = a[d] - b[d];
@@ -478,6 +499,7 @@ struct ChebyshevDist
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType mx = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
         for (int d = 0; d < nCols; d++)
         {
             FPType excess = FPType(0);
@@ -503,12 +525,12 @@ struct ChebyshevDist
 
     /// Pivot-to-block Chebyshev distance.
     ///
-    /// Same rationale as ManhattanDist::blockDist — no BLAS factorization.
+    /// Same rationale as ManhattanDist::blockDist -- no BLAS factorization.
     ///
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count × nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
     /// @param[in]  rowNorms2   Unused
     /// @param[in]  count       Number of rows
     /// @param[in]  nCols       Number of features
