@@ -37,7 +37,8 @@ public:
                                descriptor_t cov_desc) {
         const table data = input.get_table(this->get_policy(), input_table_id);
         dal::covariance::partial_compute_result<> partial_result;
-        auto input_table = split_table_by_rows<double>(data, blocks_count_);
+        auto input_table =
+            te::split_table_by_rows<float_t>(this->get_policy(), data, blocks_count_);
         for (std::int64_t i = 0; i < blocks_count_; ++i) {
             partial_result = this->partial_compute(cov_desc, partial_result, input_table[i]);
         }
@@ -46,32 +47,6 @@ public:
     }
 
 private:
-    template <typename Float>
-    std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
-        ONEDAL_ASSERT(0l < split_count);
-        ONEDAL_ASSERT(split_count <= t.get_row_count());
-
-        const std::int64_t row_count = t.get_row_count();
-        const std::int64_t column_count = t.get_column_count();
-        const std::int64_t block_size_regular = row_count / split_count;
-        const std::int64_t block_size_tail = row_count % split_count;
-
-        std::vector<dal::table> result(split_count);
-
-        std::int64_t row_offset = 0;
-        for (std::int64_t i = 0; i < split_count; i++) {
-            const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
-            const std::int64_t block_size = block_size_regular + tail;
-
-            const auto row_range = dal::range{ row_offset, row_offset + block_size };
-            const auto block = dal::row_accessor<const Float>{ t }.pull(row_range);
-            result[i] = dal::homogen_table::wrap(block, block_size, column_count);
-            row_offset += block_size;
-        }
-
-        return result;
-    }
-
     std::int64_t blocks_count_;
 };
 

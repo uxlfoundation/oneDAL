@@ -99,8 +99,7 @@ struct RefService
     static size_t serv_strnlen_s(const char * src, size_t slen)
     {
         size_t i = 0;
-        for (; (i < slen) && (src[i] != '\0'); ++i)
-            ;
+        for (; (i < slen) && (src[i] != '\0'); ++i);
         return i;
     }
 
@@ -126,8 +125,7 @@ struct RefService
     static double serv_string_to_double(const char * nptr, char ** endptr)
     {
         const char * cur = nptr;
-        for (; isdigit(*cur) || *cur == '-' || *cur == 'e' || *cur == 'E' || *cur == '.'; ++cur)
-            ;
+        for (; isdigit(*cur) || *cur == '-' || *cur == 'e' || *cur == 'E' || *cur == '.'; ++cur);
         if (endptr) *endptr = const_cast<char *>(cur);
         size_t size = cur - nptr;
         // TODO replace with static buffer
@@ -145,8 +143,7 @@ struct RefService
     static int serv_string_to_int(const char * nptr, char ** endptr)
     {
         const char * cur = nptr;
-        for (; isdigit(*cur) || *cur == '-'; ++cur)
-            ;
+        for (; isdigit(*cur) || *cur == '-'; ++cur);
         if (endptr) *endptr = const_cast<char *>(cur);
         size_t size = cur - nptr;
         // TODO replace with static buffer

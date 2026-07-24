@@ -376,6 +376,7 @@ conda install -c conda-forge \
     onedpl-devel `# required oneDPL package` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
     cmake `# required to build the examples only` \
+    pre-commit `# optional: install if you want to use the pre-commit clang-format hook` \
     impi-devel impi_rt `# required to build the samples only`
 ```
 

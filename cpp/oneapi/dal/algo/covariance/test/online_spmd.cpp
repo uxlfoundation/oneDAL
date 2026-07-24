@@ -69,10 +69,11 @@ public:
         const table data = input.get_table(this->get_policy(), input_table_id);
 
         std::vector<partial_result_t> partial_results;
-        auto input_table = this->split_table_by_rows<double>(data, rank_count_);
+        auto input_table = te::split_table_by_rows<float_t>(this->get_policy(), data, rank_count_);
         for (int64_t i = 0; i < rank_count_; i++) {
             dal::covariance::partial_compute_result<> partial_result;
-            auto input_table_blocks = split_table_by_rows<double>(input_table[i], blocks_count_);
+            auto input_table_blocks =
+                te::split_table_by_rows<float_t>(this->get_policy(), input_table[i], blocks_count_);
             for (int64_t j = 0; j < blocks_count_; j++) {
                 partial_result =
                     this->partial_compute(cov_desc, partial_result, input_table_blocks[j]);
@@ -88,32 +89,6 @@ public:
 private:
     std::int64_t rank_count_;
     std::int64_t blocks_count_;
-
-    template <typename Float>
-    std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
-        ONEDAL_ASSERT(0l < split_count);
-        ONEDAL_ASSERT(split_count <= t.get_row_count());
-
-        const std::int64_t row_count = t.get_row_count();
-        const std::int64_t column_count = t.get_column_count();
-        const std::int64_t block_size_regular = row_count / split_count;
-        const std::int64_t block_size_tail = row_count % split_count;
-
-        std::vector<dal::table> result(split_count);
-
-        std::int64_t row_offset = 0;
-        for (std::int64_t i = 0; i < split_count; i++) {
-            const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
-            const std::int64_t block_size = block_size_regular + tail;
-
-            const auto row_range = dal::range{ row_offset, row_offset + block_size };
-            const auto block = dal::row_accessor<const Float>{ t }.pull(row_range);
-            result[i] = dal::homogen_table::wrap(block, block_size, column_count);
-            row_offset += block_size;
-        }
-
-        return result;
-    }
 };
 
 using covariance_types = COMBINE_TYPES((float, double), (covariance::method::dense));

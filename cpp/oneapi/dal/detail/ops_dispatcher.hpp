@@ -183,8 +183,7 @@ struct ops_policy_dispatcher<T, Ops, /* IsPolicy = */ false> {
 
 template <typename Object,
           typename T,
-          template <typename, typename>
-          typename Ops,
+          template <typename, typename> typename Ops,
           bool IsPolicy = is_execution_policy_v<T>>
 struct ops_policy_dispatcher_object;
 

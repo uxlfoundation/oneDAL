@@ -158,10 +158,7 @@ public:
                                          const intermSummFPType minWeightLeaf, const intermSummFPType totalWeights) const;
 
 #ifdef DEBUG_CHECK_IMPURITY
-    void checkImpurity(const IndexType * ptrIdx, size_t n, const ImpurityData & expected) const
-    {
-        checkImpurityInternal(ptrIdx, n, expected, false);
-    }
+    void checkImpurity(const IndexType * ptrIdx, size_t n, const ImpurityData & expected) const { checkImpurityInternal(ptrIdx, n, expected, false); }
     void checkImpurityInternal(const IndexType * ptrIdx, size_t n, const ImpurityData & expected, bool bInternal = true) const;
 #endif
 
@@ -288,8 +285,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             // Since zero-weight observations have no impact on the results, this tries to
             // look for the first non-zero weight.
             size_t iStart;
-            for (iStart = 0; iStart < n && !this->_aWeights[aIdx[iStart]].val; iStart++)
-                ;
+            for (iStart = 0; iStart < n && !this->_aWeights[aIdx[iStart]].val; iStart++);
 
             for (size_t i = iStart; i < n; ++i)
             {
@@ -352,8 +348,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             totalWeights                = sumsOfWeights[0];
             intermSummFPType var_deltas = 0;
             size_t iBatch;
-            for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++)
-                ;
+            for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++);
             for (; iBatch < simdBatchSize; iBatch++)
             {
                 const intermSummFPType weightNew  = sumsOfWeights[iBatch];
@@ -369,8 +364,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
             // Process tail elements, if any
             size_t i;
-            for (i = sizeSimdLoop; i < n && !this->_aWeights[aIdx[i]].val; i++)
-                ;
+            for (i = sizeSimdLoop; i < n && !this->_aWeights[aIdx[i]].val; i++);
             for (; i < n; i++)
             {
                 const intermSummFPType weight = this->_aWeights[aIdx[i]].val;
@@ -534,8 +528,8 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitOrderedFeature(co
             }
 
             //update impurity and continue
-            xi                    = aResponse[aIdx[i]].val;
-            algorithmFPType delta = xi - left.mean;
+            xi                     = aResponse[aIdx[i]].val;
+            intermSummFPType delta = xi - left.mean;
             leftWeights += weights;
             rightWeights = totalWeights - leftWeights;
             left.mean += delta * (weights / (isPositive<intermSummFPType, cpu>(leftWeights) ? leftWeights : 1.));
@@ -828,14 +822,14 @@ bool RespHelperBase<algorithmFPType, cpu, crtp>::findSplitForFeature(const algor
     if (noWeights)
     {
         return split.featureUnordered ? static_cast<const crtp *>(this)->template findBestSplitCategoricalFeature<true>(
-                   featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
+                                            featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
                                         static_cast<const crtp *>(this)->template findBestSplitOrderedFeature<true>(
                                             featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights);
     }
     else
     {
         return split.featureUnordered ? static_cast<const crtp *>(this)->template findBestSplitCategoricalFeature<false>(
-                   featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
+                                            featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights) :
                                         static_cast<const crtp *>(this)->template findBestSplitOrderedFeature<false>(
                                             featureVal, aIdx, n, nMinSplitPart, accuracy, curImpurity, split, minWeightLeaf, totalWeights);
     }
@@ -1115,11 +1109,9 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
     size_t maxidx = nDiffFeatMax - 1;
     size_t idx;
 
-    for (; (minidx < maxidx) && isZero<IndexType, cpu>(nFeatIdx[minidx]); minidx++)
-        ;
+    for (; (minidx < maxidx) && isZero<IndexType, cpu>(nFeatIdx[minidx]); minidx++);
 
-    for (; (minidx < maxidx) && isZero<IndexType, cpu>(nFeatIdx[maxidx]); maxidx--)
-        ;
+    for (; (minidx < maxidx) && isZero<IndexType, cpu>(nFeatIdx[maxidx]); maxidx--);
 
     DAAL_ASSERT(minidx < maxidx); //if the if statement after minidx search doesn't activate, we have an issue.
     if (minidx == maxidx)
@@ -1138,8 +1130,7 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
         idx = this->genRandomBinIdx(iFeature, minidx, maxidx);
     }
 
-    for (; isZero<IndexType, cpu>(nFeatIdx[idx]); idx--)
-        ;
+    for (; isZero<IndexType, cpu>(nFeatIdx[idx]); idx--);
 
     if (noWeights)
     {
@@ -1218,7 +1209,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     ImpurityData left;
     ImpurityData right;
     IndexType iBest = -1;
-    algorithmFPType vBest;
+    intermSummFPType vBest;
     intermSummFPType leftWeights  = 0.;
     intermSummFPType rightWeights = 0.;
     auto aResponse                = this->_aResponse.get();
@@ -1566,6 +1557,10 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
         hp->check(s);
         if (!s) return s;
     }
+
+    const services::SharedPtr<NumericTable> normalizedWeights = normalizeWeights<algorithmFPType, cpu>(w, s);
+    if (!s) return s;
+    if (normalizedWeights) w = normalizedWeights.get();
 
     if (par.splitter == decision_forest::training::SplitterMode::best)
     {

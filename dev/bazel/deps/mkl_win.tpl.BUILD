@@ -41,6 +41,15 @@ cc_library(
 
 cc_library(
     name = "mkl_dpc_utils",
+    linkopts = [
+        "%{repo_root}/lib/mkl_core_dll.lib",
+        "%{repo_root}/lib/mkl_intel_lp64_dll.lib",
+        "%{repo_root}/lib/mkl_intel_thread_dll.lib",
+        "%{repo_root}/lib/mkl_sycl_blas_dll.lib",
+        "%{repo_root}/lib/mkl_sycl_lapack_dll.lib",
+        "%{repo_root}/lib/mkl_sycl_rng_dll.lib",
+        "%{repo_root}/lib/mkl_sycl_sparse_dll.lib",
+    ],
 )
 
 cc_library(

@@ -55,11 +55,19 @@ inline sycl::usm::alloc alloc_kind_to_sycl(alloc_kind kind) {
 inline bool alloc_kind_requires_copy(alloc_kind src_alloc_kind, alloc_kind dst_alloc_kind) {
 #ifdef ONEDAL_DATA_PARALLEL
     switch (dst_alloc_kind) {
+        // Shared USM on discrete GPUs uses page migration which can cause
+        // crashes when accessed concurrently by multi-threaded host code
+        // To prevent further issues we require copy if original data is on shared usm
+        // and access is requested on host.
+        // This might result in slower performance for some cases but shared usm
+        // is not recommended to use for performance critical code anyway
         case alloc_kind::host: //
-            return (src_alloc_kind == alloc_kind::usm_device);
+            return (src_alloc_kind == alloc_kind::usm_device || //
+                    (src_alloc_kind == alloc_kind::usm_shared));
         case alloc_kind::usm_host: //
             return (src_alloc_kind == alloc_kind::host) || //
-                   (src_alloc_kind == alloc_kind::usm_device);
+                   (src_alloc_kind == alloc_kind::usm_device) || //
+                   (src_alloc_kind == alloc_kind::usm_shared);
         case alloc_kind::usm_device: //
             return (src_alloc_kind == alloc_kind::host) || //
                    (src_alloc_kind == alloc_kind::usm_host);

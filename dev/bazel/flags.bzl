@@ -19,6 +19,7 @@ lnx_cc_common_flags = [
     "-fstack-protector-strong",
     "-fno-delete-null-pointer-checks",
     "-Werror",
+    "-Wno-empty-body",
     "-Wformat",
     "-Wformat-security",
     "-Wreturn-type",
@@ -51,6 +52,7 @@ win_icx_common_flags = [
     "-Qopenmp-simd",
     "-Wno-deprecated-declarations",
     "-Wno-ignored-attributes",
+    "-Wno-empty-body",
     # Silence icx's "loop not vectorized" pass-failed diagnostic so it does
     # not combine with `-WX`. Matches `-Wno-pass-failed` from `-DEBC.icx`.
     "-Wno-pass-failed",

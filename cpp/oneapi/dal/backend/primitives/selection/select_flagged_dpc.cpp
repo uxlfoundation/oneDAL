@@ -22,7 +22,7 @@ namespace oneapi::dal::backend::primitives {
 
 namespace de = dal::detail;
 
-using sycl::ext::oneapi::plus;
+using sycl::plus;
 
 template <typename Data, typename Flag>
 sycl::event select_flagged_base<Data, Flag>::scan(sycl::queue& queue,

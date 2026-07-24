@@ -40,7 +40,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
     const auto gold_data = this->get_gold_data();
 
     auto partial_result = dal::pca::partial_train_result();
-    auto input_table = this->template split_table_by_rows<float>(gold_data, nBlocks);
+    auto input_table = te::split_table_by_rows<float_t>(this->get_policy(), gold_data, nBlocks);
     for (std::int64_t i = 0; i < nBlocks; ++i) {
         partial_result = this->partial_train(pca_desc, partial_result, input_table[i]);
     }

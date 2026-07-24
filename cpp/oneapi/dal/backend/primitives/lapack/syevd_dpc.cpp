@@ -77,9 +77,9 @@ sycl::event syevd(sycl::queue& queue,
 #define INSTANTIATE(jobz, uplo, F)                                               \
     template ONEDAL_EXPORT sycl::event syevd<jobz, uplo, F>(sycl::queue & queue, \
                                                             std::int64_t n,      \
-                                                            ndview<F, 2> & a,    \
+                                                            ndview<F, 2>& a,     \
                                                             std::int64_t lda,    \
-                                                            ndview<F, 1> & w,    \
+                                                            ndview<F, 1>& w,     \
                                                             const event_vector& deps);
 
 #define INSTANTIATE_FLOAT(jobz, uplo) \

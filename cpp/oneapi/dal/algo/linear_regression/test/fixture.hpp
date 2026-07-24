@@ -33,6 +33,7 @@
 
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 #include "oneapi/dal/test/engine/metrics/regression.hpp"
 
@@ -465,32 +466,6 @@ public:
         }
     }
 
-    template <typename Float>
-    std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
-        ONEDAL_ASSERT(0l < split_count);
-        ONEDAL_ASSERT(split_count <= t.get_row_count());
-
-        const std::int64_t row_count = t.get_row_count();
-        const std::int64_t column_count = t.get_column_count();
-        const std::int64_t block_size_regular = row_count / split_count;
-        const std::int64_t block_size_tail = row_count % split_count;
-
-        std::vector<dal::table> result(split_count);
-
-        std::int64_t row_offset = 0;
-        for (std::int64_t i = 0; i < split_count; i++) {
-            const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
-            const std::int64_t block_size = block_size_regular + tail;
-
-            const auto row_range = dal::range{ row_offset, row_offset + block_size };
-            const auto block = dal::row_accessor<const Float>{ t }.pull(row_range);
-            result[i] = dal::homogen_table::wrap(block, block_size, column_count);
-            row_offset += block_size;
-        }
-
-        return result;
-    }
-
     void run_and_check_linear_online(std::int64_t nBlocks) {
         std::int64_t seed = 888;
         double tol = 1e-2;
@@ -499,8 +474,8 @@ public:
 
         const auto desc = this->get_descriptor();
         dal::linear_regression::partial_train_result<> partial_result;
-        auto input_table_x = split_table_by_rows<double>(x_train, nBlocks);
-        auto input_table_y = split_table_by_rows<double>(y_train, nBlocks);
+        auto input_table_x = te::split_table_by_rows<float_t>(this->get_policy(), x_train, nBlocks);
+        auto input_table_y = te::split_table_by_rows<float_t>(this->get_policy(), y_train, nBlocks);
         for (std::int64_t i = 0; i < nBlocks; i++) {
             partial_result =
                 this->partial_train(desc, partial_result, input_table_x[i], input_table_y[i]);
@@ -530,8 +505,8 @@ public:
         table x_train, y_train, x_test, y_test;
         std::tie(x_train, y_train, x_test, y_test) = prepare_inputs(seed, tol);
 
-        auto input_table_x = split_table_by_rows<double>(x_train, nBlocks);
-        auto input_table_y = split_table_by_rows<double>(y_train, nBlocks);
+        auto input_table_x = te::split_table_by_rows<float_t>(this->get_policy(), x_train, nBlocks);
+        auto input_table_y = te::split_table_by_rows<float_t>(this->get_policy(), y_train, nBlocks);
 
         const auto linear_desc = this->get_descriptor();
         dal::linear_regression::partial_train_result<> linear_partial_result;

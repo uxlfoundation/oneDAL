@@ -322,7 +322,9 @@ TEMPLATE_SIG_TEST("can create ndarray with custom deleter", "[ndarray]", ENUMERA
     const auto shape = ndshape<axis_count>::square(1);
     auto deleter = custom_deleter{};
 
-    { const auto x = ndarray<float, axis_count>::wrap(data, shape, deleter); }
+    {
+        const auto x = ndarray<float, axis_count>::wrap(data, shape, deleter);
+    }
 
     REQUIRE(deleter.get_call_count() == 1);
 }
