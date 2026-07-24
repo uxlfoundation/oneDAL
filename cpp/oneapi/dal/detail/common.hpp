@@ -388,6 +388,8 @@ inline alloc_kind get_alloc_kind(sycl::queue& queue, const void* ptr) {
         case sycl::usm::alloc::device: return alloc_kind::usm_device;
         case sycl::usm::alloc::shared: return alloc_kind::usm_shared;
         case sycl::usm::alloc::unknown: return alloc_kind::non_usm;
+        /// Should never come here, because get_pointer_type returns unknown for non-USM pointers
+        default: throw unimplemented{ dal::detail::error_messages::unsupported_usm_alloc() };
     }
 }
 #endif
