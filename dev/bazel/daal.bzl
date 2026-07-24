@@ -30,13 +30,19 @@ load("@onedal//dev/bazel/config:config.bzl",
 
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
-                local_defines=[], copts=[], visibility_hidden=True, **kwargs):
+                local_defines=[], copts=[], visibility_hidden=True,
+                stdalloc=True, **kwargs):
     if auto:
         auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
         auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
     else:
         auto_hdrs = []
         auto_srcs = []
+    deps = kwargs.pop("deps", []) + select({
+        "@config//:stdalloc_macos": ["@config//:stdalloc_linux_only_error"],
+        "@config//:stdalloc_windows": ["@config//:stdalloc_linux_only_error"],
+        "//conditions:default": [],
+    })
     cc_module(
         name = name,
         lib_tag = lib_tag,
@@ -52,6 +58,7 @@ def daal_module(name, features=[], lib_tag="daal",
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
+        deps = deps,
         copts = copts + (select({
             "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
@@ -62,7 +69,10 @@ def daal_module(name, features=[], lib_tag="daal",
         local_defines = select({
             "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
             "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
-        }) + select({
+        }) + (select({
+            "@config//:stdalloc_enabled": ["USE_STD_ALLOC"],
+            "//conditions:default": [],
+        }) if stdalloc else []) + select({
             "@config//:backend_ref": [
                 "DAAL_REF",
             ],

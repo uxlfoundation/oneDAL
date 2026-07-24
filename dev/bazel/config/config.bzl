@@ -70,6 +70,16 @@ config_bool_flag = rule(
     build_setting = config.bool(flag = True),
 )
 
+def _unsupported_config_impl(ctx):
+    fail(ctx.attr.message)
+
+unsupported_config = rule(
+    implementation = _unsupported_config_impl,
+    attrs = {
+        "message": attr.string(mandatory = True),
+    },
+)
+
 CpuInfo = provider(
     fields = [
         "enabled",

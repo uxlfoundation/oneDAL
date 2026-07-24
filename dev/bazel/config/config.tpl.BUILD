@@ -5,6 +5,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "config_flag",
     "config_bool_flag",
     "dump_config_info",
+    "unsupported_config",
 )
 
 cpu_info(
@@ -136,6 +137,46 @@ config_bool_flag(
 config_bool_flag(
     name = "enable_assert",
     build_setting_default = False,
+)
+
+config_bool_flag(
+    name = "stdalloc",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "stdalloc_enabled",
+    flag_values = {
+        ":stdalloc": "True",
+    },
+    constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "stdalloc_windows",
+    flag_values = {
+        ":stdalloc": "True",
+    },
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+)
+
+config_setting(
+    name = "stdalloc_macos",
+    flag_values = {
+        ":stdalloc": "True",
+    },
+    constraint_values = [
+        "@platforms//os:macos",
+    ],
+)
+
+unsupported_config(
+    name = "stdalloc_linux_only_error",
+    message = "--stdalloc is supported only for Linux targets",
 )
 
 config_setting(
