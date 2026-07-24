@@ -64,18 +64,18 @@ jobs:
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
           echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
           echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
-      - name: Make daal debug
+      - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
-          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
-      - name: Make onedal debug
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --jobs 20
+          rm -rf __work
+      - name: Make onedal
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --jobs 20
           rm -rf __work
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -100,10 +100,8 @@ jobs:
       - name: Make onedal
         if: matrix.runner != 'ubuntu-24.04'
         run: |
-          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
           rm -rf __work
-          mv __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
           rm -rf __work
       - name: daal/cpp examples
@@ -164,7 +162,7 @@ jobs:
           path: ./__release_lnx
       - name: Check ABI conformance
         run: |
-          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 debug oneDAL build."
+          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 oneDAL build."
           echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
           echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
           echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
