@@ -438,6 +438,9 @@ jobs:
       echo "Checking Bazel config: release-dpc"
       bazel build --nobuild :release --config=release-dpc --cpu=all
 
+      echo "Checking Bazel config: stdalloc"
+      bazel build --nobuild :release --stdalloc=true --release_dpc=false
+
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
     displayName: 'Bazel config smoke checks'

@@ -263,6 +263,14 @@ The most used Bazel commands are `build`, `test` and `run`.
   bazel test --test_disable_fp64 //cpp/oneapi/dal/algo/pca:tests
   ```
 
+- `--stdalloc` Selects standard-library aligned allocation for DAAL core
+  objects. Disabled by default and supported only for Linux targets.
+
+  Example:
+  ```sh
+  bazel build //cpp/daal:core_static --stdalloc=true
+  ```
+
 ## Build recipes for oneDAL
 ### Build release artifacts
 - To build the Bazel release artifacts, run:
@@ -448,6 +456,27 @@ dal_test_suite(
 ## What is missing in this guide
 - How to get make-like release structure
 
+## Standard-library allocator
+
+For Linux DAAL core objects, this is equivalent to the allocator-selection
+part of Make `STDALLOC=yes`:
+
+```sh
+bazel build //:release --stdalloc=true
+```
+
+The option is disabled by default. When enabled, Bazel defines
+`USE_STD_ALLOC` only while compiling DAAL core objects, switching the MKL
+allocation wrappers to `std::aligned_alloc` and `std::free`. It intentionally
+does not define the macro for the separately built `threading_tbb` objects;
+this matches the current Make target-specific flag scope, so the threading
+library continues to use TBB scalable allocation.
+
+The setting rejects every non-Linux target because this allocator path is
+currently supported only on Linux. It controls allocator selection only. Make
+builds with `COMPILER=icx STDALLOC=yes` additionally pass
+`-static-libstdc++`; `--stdalloc=true` does not change Bazel link options.
+
 ## Debug and Sanitizer Builds
 
 ### Debug build with assertions
@@ -631,6 +660,7 @@ build --linkopt=-your-link-flag
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
+| `STDALLOC=yes`                  | `--stdalloc=true`                                            | Allocator-selection equivalent for Linux DAAL core objects; threading objects unchanged. Make ICX also adds `-static-libstdc++` |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
