@@ -21,7 +21,10 @@ namespace oneapi::dal::dbscan::test {
 template <typename TestType>
 class dbscan_batch_test : public dbscan_test<TestType, dbscan_batch_test<TestType>> {};
 
-using dbscan_types = COMBINE_TYPES((float, double), (dbscan::method::brute_force));
+using dbscan_types = COMBINE_TYPES((float, double),
+                                   (dbscan::method::brute_force,
+                                    dbscan::method::kd_tree,
+                                    dbscan::method::ball_tree));
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
                      "dbscan compute mode check",
@@ -308,6 +311,58 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     constexpr float_t ref_dbi = float_t(0.00036);
 
     this->dbi_determenistic_checks(x, epsilon, min_observations, ref_dbi, 1.0e-1);
+}
+
+using dbscan_cross_method_types = COMBINE_TYPES((float, double), (dbscan::method::brute_force));
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan cross-method comparison",
+                     "[dbscan][batch]",
+                     dbscan_cross_method_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    constexpr float_t data[] = { 0.0, 0.1, 0.2, 1.0, 1.1, 1.2, 5.0, 5.1, 5.2,
+                                 0.0, 0.1, 0.2, 1.0, 1.1, 1.2, 5.0, 5.1, 5.2 };
+    const auto x = homogen_table::wrap(data, 9, 2);
+
+    constexpr double epsilon = 0.5;
+    constexpr std::int64_t min_observations = 2;
+
+    const auto desc_bf =
+        dbscan::descriptor<float_t, dbscan::method::brute_force>(epsilon, min_observations)
+            .set_result_options(result_options::responses);
+    const auto desc_kd =
+        dbscan::descriptor<float_t, dbscan::method::kd_tree>(epsilon, min_observations)
+            .set_result_options(result_options::responses);
+    const auto desc_bt =
+        dbscan::descriptor<float_t, dbscan::method::ball_tree>(epsilon, min_observations)
+            .set_result_options(result_options::responses);
+
+    const auto result_bf = te::compute(this->get_policy(), desc_bf, x, table{});
+    const auto result_kd = te::compute(this->get_policy(), desc_kd, x, table{});
+    const auto result_bt = te::compute(this->get_policy(), desc_bt, x, table{});
+
+    REQUIRE(result_bf.get_cluster_count() == result_kd.get_cluster_count());
+    REQUIRE(result_bf.get_cluster_count() == result_bt.get_cluster_count());
+
+    const auto resp_bf = result_bf.get_responses();
+    const auto resp_kd = result_kd.get_responses();
+    const auto resp_bt = result_bt.get_responses();
+
+    row_accessor<const float_t> acc_bf(resp_bf);
+    row_accessor<const float_t> acc_kd(resp_kd);
+    row_accessor<const float_t> acc_bt(resp_bt);
+
+    const auto arr_bf = acc_bf.pull({ 0, -1 });
+    const auto arr_kd = acc_kd.pull({ 0, -1 });
+    const auto arr_bt = acc_bt.pull({ 0, -1 });
+
+    for (std::int64_t i = 0; i < x.get_row_count(); ++i) {
+        CAPTURE(i, arr_bf[i], arr_kd[i], arr_bt[i]);
+        REQUIRE(arr_bf[i] == arr_kd[i]);
+        REQUIRE(arr_bf[i] == arr_bt[i]);
+    }
 }
 
 } // namespace oneapi::dal::dbscan::test
