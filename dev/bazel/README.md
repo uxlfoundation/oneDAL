@@ -631,8 +631,23 @@ build --linkopt=-your-link-flag
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
+| `CODE_COVERAGE=yes`            | `--code_coverage=true`                                       | Linux ICX/DPC++ only; adds `GCOV_BUILD` and Make-equivalent coverage flags |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
+
+With `--code_coverage=true`, Bazel keeps instrumentation on oneDAL-owned
+actions instead of forwarding global `--copt`/`--linkopt` values into external
+dependencies. The action-level parity is:
+
+| oneDAL action | Added options |
+|---------------|---------------|
+| ICX compile   | `-DGCOV_BUILD -coverage` |
+| ICX link      | `-coverage` |
+| DPC++ compile | `-DGCOV_BUILD` (no coverage driver option, matching Make) |
+| DPC++ link    | `-Xscoverage` |
+
+The flag is rejected on non-Linux platforms and when the selected host compiler
+is not ICX. Static-library archive actions receive no linker coverage option.

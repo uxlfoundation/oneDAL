@@ -232,6 +232,14 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
             make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes
 
+    The equivalent Bazel build is default-off and uses a typed Boolean flag:
+
+            bazel build //:release --code_coverage=true
+
+    Bazel coverage instrumentation is supported only on Linux with the Intel
+    ICX/DPC++ toolchain. It applies only to oneDAL-owned compile and link
+    actions; external dependencies are not instrumented.
+
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
     _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, those steps will not be necessary as Intel(R) VTune(TM) Profiler will already have been set up._

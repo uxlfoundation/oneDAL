@@ -440,6 +440,9 @@ jobs:
 
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
+
+      echo "Checking typed code-coverage flag (host and DPC++ analysis)"
+      bazel build --nobuild :release --code_coverage=true
     displayName: 'Bazel config smoke checks'
 
   - script: |

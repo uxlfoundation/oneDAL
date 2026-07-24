@@ -22,6 +22,7 @@ load("@onedal//dev/bazel:utils.bzl",
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
+    "ConfigFlagInfo",
     "CpuInfo",
     "VersionInfo",
 )
@@ -83,8 +84,37 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
     )
     return cc_toolchain, feature_config
 
+
+def _coverage_options(ctx, cc_toolchain, feature_config):
+    """Return Make-compatible coverage options for oneDAL-owned actions."""
+    if not ctx.attr._code_coverage[ConfigFlagInfo].flag:
+        return struct(compile_flags = [], local_defines = [], link_flags = [])
+
+    is_linux = ctx.target_platform_has_constraint(
+        ctx.attr._linux_constraint[platform_common.ConstraintValueInfo],
+    )
+    compiler_id = cc_toolchain.compiler.split("-")[0]
+    if not is_linux or compiler_id != "icx":
+        fail("--code_coverage=true is supported only on Linux with the Intel " +
+             "icx/icpx toolchain (selected compiler: '{}')".format(
+                 cc_toolchain.compiler,
+             ))
+
+    is_dpc = cc_common.is_enabled(
+        feature_configuration = feature_config,
+        feature_name = "dpc++",
+    )
+    # Make adds -coverage to ICX compile and link actions. DPC++ compile
+    # actions are unchanged, while DPC++ link actions receive -Xscoverage.
+    return struct(
+        compile_flags = [] if is_dpc else ["-coverage"],
+        local_defines = ["GCOV_BUILD"],
+        link_flags = ["-Xscoverage"] if is_dpc else ["-coverage"],
+    )
+
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
+    coverage = _coverage_options(ctx, toolchain, feature_config)
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
@@ -103,8 +133,8 @@ def _cc_module_impl(ctx):
         public_hdrs = ctx.files.hdrs,
         private_hdrs = ctx.files.private_hdrs,
         defines = ctx.attr.defines,
-        local_defines = ctx.attr.local_defines,
-        user_compile_flags = ctx.attr.copts,
+        local_defines = ctx.attr.local_defines + coverage.local_defines,
+        user_compile_flags = ctx.attr.copts + coverage.compile_flags,
         includes = ctx.attr.includes,
         system_includes = ctx.attr.system_includes,
         quote_includes = ctx.attr.quote_includes,
@@ -161,6 +191,13 @@ _cc_module = rule(
         "_fpts": attr.string_list(default = ["f32", "f64"]),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -263,6 +300,7 @@ def _cc_dynamic_lib_impl(ctx):
         # resolved through the executable RUNPATH.
         "do_not_link_dynamic_dependencies",
     ])
+    coverage = _coverage_options(ctx, toolchain, feature_config)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
@@ -287,7 +325,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts,
+        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags,
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts,
         is_dpc = ctx.attr.lib_name.endswith("_dpc") or ctx.label.name.endswith("_dpc"),
@@ -342,6 +380,13 @@ cc_dynamic_lib = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
@@ -352,6 +397,7 @@ def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
         return
     toolchain, feature_config = _init_cc_rule(ctx)
+    coverage = _coverage_options(ctx, toolchain, feature_config)
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
@@ -365,7 +411,7 @@ def _cc_exec_impl(ctx):
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
-        user_link_flags = ctx.attr.user_link_flags,
+        user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
     )
     runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data, is_windows)
     default_info = DefaultInfo(
@@ -388,6 +434,13 @@ cc_test = rule(
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
@@ -404,6 +457,13 @@ cc_executable = rule(
         "_is_test": attr.bool(default=False),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
