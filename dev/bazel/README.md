@@ -631,8 +631,39 @@ build --linkopt=-your-link-flag
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
+| `CODE_COVERAGE=yes`            | `--code_coverage=true`                                       | Linux with host compiler ID `icx`; Make-equivalent action-local flags      |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
+
+With `--code_coverage=true`, Bazel keeps instrumentation on oneDAL-owned
+actions instead of forwarding global `--copt`/`--linkopt` values into external
+dependencies. The action-level parity with `makefile` and the compiler
+definitions under `dev/make/compiler_definitions/` is:
+
+| oneDAL action | Added options |
+|---------------|---------------|
+| ICX compile | `-coverage` |
+| DAAL core compile (the Bazel counterpart of Make `CORE.objs_a/y`) | `-DGCOV_BUILD` in addition to `-coverage` |
+| DPC++ compile | None |
+| ICX dynamic-library/module link | `-coverage` |
+| DPC++ dynamic-library/module link | `-Xscoverage` |
+| Static-library archive | None |
+| ICX executable/test link | `-coverage` |
+| DPC++ executable/test link | `-Xscoverage` |
+
+`GCOV_BUILD` is deliberately independent of compiler instrumentation: it is
+opted in by `daal_module`, and explicitly excluded from separately built DAAL
+threading modules. oneAPI DAL, DPC++, tests, examples, and tools use the default
+off setting. This mirrors the Make target-specific assignment on
+`CORE.objs_a/y`; Make's compiler-level coverage option still applies to other
+host compilations.
+
+Make's compiler drivers add the coverage runtime on dynamic links. Bazel
+applies the corresponding driver option to dynamic-library, module, executable,
+and test link actions; executable/test links need it to resolve the coverage
+runtime from instrumented objects. Static archives remain flag-free. The flag
+is rejected on non-Linux platforms and unless the detected host compiler ID is
+exactly `icx`.

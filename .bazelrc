@@ -18,6 +18,7 @@ build --flag_alias=release_dpc=@config//:release_dpc
 build --flag_alias=device=@config//:device
 build --flag_alias=cpu=@config//:cpu
 build --flag_alias=enable_assert=@config//:enable_assert
+build --flag_alias=code_coverage=@config//:code_coverage
 
 # Always pass this env variable to test rules, because SYCL
 # OpenCL backend uses it to determine available devices

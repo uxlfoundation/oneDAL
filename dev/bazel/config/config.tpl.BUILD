@@ -138,6 +138,13 @@ config_bool_flag(
     build_setting_default = False,
 )
 
+# Instrument oneDAL sources with the Intel coverage options used by Make.
+# The implementation intentionally rejects unsupported OS/compiler pairs.
+config_bool_flag(
+    name = "code_coverage",
+    build_setting_default = False,
+)
+
 config_setting(
     name = "assert_enabled",
     flag_values  = {
@@ -159,5 +166,6 @@ dump_config_info(
     flags = [
         ":test_link_mode",
         ":test_thread_mode",
+        ":code_coverage",
     ],
 )
