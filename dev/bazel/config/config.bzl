@@ -200,12 +200,12 @@ def _detect_cpu_extension(repo_ctx):
     repo_ctx.report_progress("Compile cpu-detector")
     if is_windows:
         compile_command = [
-            "cl", "/nologo", "/EHsc", "/std:c++14",
+            "cl", "/nologo", "/EHsc", "/std:c++17",
             cpudetect_src, "/Fe:{}".format(cpudetect_exe),
         ]
     else:
         compile_command = [
-            "g++", "-pedantic", "-Wall", "-std=c++11",
+            "g++", "-pedantic", "-Wall", "-std=c++17",
             cpudetect_src, "-o{}".format(cpudetect_exe),
         ]
     compile_result = repo_ctx.execute(compile_command)
