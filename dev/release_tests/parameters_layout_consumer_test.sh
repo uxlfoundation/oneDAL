@@ -13,12 +13,18 @@ grep -Fq 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' "${DALROOT}/lib/cmake/oneDAL/
 ! grep -q 'onedal_parameters' "${DALROOT}/lib/pkgconfig/"*.pc
 
 cat >"${work}/smoke.cpp" <<'CPP'
-#include <cstdint>
+#include "oneapi/dal/algo/covariance.hpp"
 #include "oneapi/dal/table/homogen.hpp"
+
 int main() {
-    float data[] = { 1.0f, 2.0f };
-    const auto table = oneapi::dal::homogen_table::wrap(data, 1, 2);
-    return table.get_row_count() == 1 && table.get_column_count() == 2 ? 0 : 1;
+    namespace dal = oneapi::dal;
+    float data[] = { 1.0f, 2.0f, 3.0f, 4.0f };
+    const auto input = dal::homogen_table::wrap(data, 2, 2);
+    const auto descriptor = dal::covariance::descriptor<float>{}.set_result_options(
+        dal::covariance::result_options::cov_matrix);
+    const auto result = dal::compute(descriptor, input);
+    const auto& covariance = result.get_cov_matrix();
+    return covariance.get_row_count() == 2 && covariance.get_column_count() == 2 ? 0 : 1;
 }
 CPP
 

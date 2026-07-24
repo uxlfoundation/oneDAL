@@ -18,15 +18,29 @@ if grep -E ':(static|dynamic)_parameters(_dpc)?$' "${work}/no"; then
     echo "folded release still exposes parameter-library artifacts" >&2
     exit 1
 fi
+host_parameter_modules=(
+    //cpp/oneapi/dal/algo:parameters
+    //cpp/oneapi/dal/detail/parameters
+)
+dpc_parameter_modules=(
+    //cpp/oneapi/dal/algo:parameters_dpc
+    //cpp/oneapi/dal/detail/parameters:parameters_dpc
+)
 for label in //cpp/oneapi/dal:static //cpp/oneapi/dal:dynamic; do
-    query "somepath(${label}, //cpp/oneapi/dal/algo:parameters)" --build_parameters_lib=no | grep -q .
+    for module in "${host_parameter_modules[@]}"; do
+        query "somepath(${label}, ${module})" --build_parameters_lib=no | grep -q .
+    done
 done
 for label in //cpp/oneapi/dal:static_dpc //cpp/oneapi/dal:dynamic_dpc; do
-    if query "somepath(${label}, //cpp/oneapi/dal/algo:parameters)" --build_parameters_lib=no | grep -q .; then
-        echo "${label} depends on host parameter modules" >&2
-        exit 1
-    fi
-    query "somepath(${label}, //cpp/oneapi/dal/algo:parameters_dpc)" --build_parameters_lib=no | grep -q .
+    for module in "${host_parameter_modules[@]}"; do
+        if query "somepath(${label}, ${module})" --build_parameters_lib=no | grep -q .; then
+            echo "${label} depends on host parameter module ${module}" >&2
+            exit 1
+        fi
+    done
+    for module in "${dpc_parameter_modules[@]}"; do
+        query "somepath(${label}, ${module})" --build_parameters_lib=no | grep -q .
+    done
 done
 
 for label in static_parameters static_parameters_dpc dynamic_parameters dynamic_parameters_dpc; do
