@@ -149,7 +149,13 @@ jobs:
         run: .\.ci\env\bazelisk.ps1
       - name: Bazel release
         shell: cmd
+        env:
+          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
         run: |
+          if not exist "%BAZEL_SH%" (
+            echo ERROR: Required Bazel shell not found: %BAZEL_SH%
+            exit /b 1
+          )
           set PATH=C:\msys64\usr\bin;%PATH%
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%

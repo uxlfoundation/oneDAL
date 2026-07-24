@@ -59,8 +59,8 @@ validation.
    bazelisk.exe version
    ```
 
-3. For `bazel test` on Windows, set `BAZEL_SH` to a Bash executable. Git for
-   Windows is sufficient.
+3. Before running Bazel build, test, or analysis commands on Windows, set
+   `BAZEL_SH` to a Bash executable. Git for Windows is sufficient.
    ```bat
    set BAZEL_SH=C:\Program Files\Git\bin\bash.exe
    ```

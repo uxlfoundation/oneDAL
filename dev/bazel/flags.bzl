@@ -46,7 +46,6 @@ lnx_cc_flags = {
 # use MSVC-style spellings. Mirrors dev/make/compiler_definitions/{icx,dpcpp}.mkl.32e.mk
 # (COMPILER.win.icx / COMPILER.win.dpcpp).
 win_icx_common_flags = [
-    "-MD",
     "-nologo",
     "-WX",
     "-Qopenmp-simd",
@@ -122,7 +121,11 @@ def get_cpu_flags(arch_id, os_id, compiler_id):
     if compiler_id == "gcc":
         sse2 = ["-march=nocona"]
         avx2 = ["-march=haswell"]
-        avx512 = ["-march=haswell"]
+        avx512 = ["-march=skylake-avx512"]
+    elif compiler_id == "clang":
+        sse2 = ["-march=nocona"]
+        avx2 = ["-march=haswell"]
+        avx512 = ["-march=skylake-avx512"]
     elif compiler_id in ["icx", "icpx"]:
         # icx on Windows accepts -march like its Linux counterpart.
         sse2 = ["-march=nocona"]

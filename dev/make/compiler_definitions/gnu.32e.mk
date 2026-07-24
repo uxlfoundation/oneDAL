@@ -61,4 +61,4 @@ link.dynamic.mac.gnu = $(link.dynamic.all.gnu)
 p4_OPT.gnu   = $(-Q)march=nocona
 mc3_OPT.gnu  = $(-Q)march=corei7
 avx2_OPT.gnu = $(-Q)march=haswell
-skx_OPT.gnu  = $(-Q)march=skylake
+skx_OPT.gnu  = $(-Q)march=skylake-avx512
