@@ -104,6 +104,56 @@ public:
         return (data.row_count_ > 100 || data.column_count_ > 100) && policy.is_cpu();
     }
 
+    std::vector<csr_table> split_csr_by_rows(const csr_table& table, std::int64_t split_count) {
+        ONEDAL_ASSERT(split_count > 0);
+        const std::int64_t row_count = table.get_row_count();
+        const std::int64_t column_count = table.get_column_count();
+        const std::int64_t block_size_regular = row_count / split_count;
+        const std::int64_t block_size_tail = row_count % split_count;
+        const auto indexing = table.get_indexing();
+
+        csr_accessor<const float_t> accessor(table);
+        std::vector<csr_table> result(split_count);
+
+        std::int64_t row_offset = 0;
+        for (std::int64_t i = 0; i < split_count; ++i) {
+            const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
+            const std::int64_t block_size = block_size_regular + tail;
+            if (block_size <= 0) {
+                result[i] = csr_table{};
+                row_offset += block_size;
+                continue;
+            }
+            const auto [data_arr, col_arr, row_arr] =
+                accessor.pull({ row_offset, row_offset + block_size }, indexing);
+            result[i] =
+                csr_table::wrap(data_arr, col_arr, row_arr, column_count, indexing);
+            row_offset += block_size;
+        }
+        return result;
+    }
+
+    void csr_online_general_checks(const te::csr_table_builder<>& data,
+                                   bs::result_option_id compute_mode,
+                                   std::int64_t nBlocks) {
+        CAPTURE(compute_mode, nBlocks);
+        const auto bs_desc =
+            bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(
+                compute_mode);
+        const auto csr_full = data.build_csr_table(this->get_policy());
+        const auto dense_full = data.build_dense_table(this->get_policy());
+
+        const auto blocks = split_csr_by_rows(csr_full, nBlocks);
+        dal::basic_statistics::partial_compute_result<> partial_result;
+        for (std::int64_t i = 0; i < nBlocks; ++i) {
+            partial_result = this->partial_compute(bs_desc, partial_result, blocks[i]);
+        }
+        auto compute_result = this->finalize_compute(bs_desc, partial_result);
+        table weights;
+        check_compute_result(compute_mode, dense_full, weights, compute_result);
+        check_for_exception_for_non_requested_results(compute_mode, compute_result);
+    }
+
     void online_general_checks(const te::dataframe& data_fr,
                                std::shared_ptr<te::dataframe> weights_fr,
                                bs::result_option_id compute_mode,

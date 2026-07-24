@@ -32,7 +32,6 @@
 namespace oneapi::dal::basic_statistics::backend {
 
 using dal::backend::context_cpu;
-using method_t = method::dense;
 using task_t = task::compute;
 using input_t = partial_compute_input<task_t>;
 using result_t = partial_compute_result<task_t>;
@@ -41,8 +40,24 @@ using descriptor_t = detail::descriptor_base<task_t>;
 namespace daal_lom = daal::algorithms::low_order_moments;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::internal::CpuType Cpu>
+template <daal_lom::Method Value>
+using daal_method_constant = std::integral_constant<daal_lom::Method, Value>;
+
+template <typename Method>
+struct to_daal_method;
+
+template <>
+struct to_daal_method<method::dense> : daal_method_constant<daal_lom::defaultDense> {};
+
+template <>
+struct to_daal_method<method::sparse> : daal_method_constant<daal_lom::fastCSR> {};
+
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using daal_lom_online_kernel_t =
+    daal_lom::internal::LowOrderMomentsOnlineKernel<Float, to_daal_method<Method>::value, Cpu>;
+
+template <typename Float, daal::internal::CpuType Cpu>
+using daal_lom_online_dense_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
 
 template <typename Float, typename Task>
@@ -146,11 +161,11 @@ result_t call_daal_kernel_with_weights(const context_cpu& ctx,
         }
         {
             interop::status_to_exception(
-                interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                           daal_data.get(),
-                                                                           &daal_partial,
-                                                                           &daal_parameter,
-                                                                           is_online));
+                interop::call_daal_kernel<Float, daal_lom_online_dense_kernel_t>(ctx,
+                                                                                 daal_data.get(),
+                                                                                 &daal_partial,
+                                                                                 &daal_parameter,
+                                                                                 is_online));
         }
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
 
@@ -159,18 +174,18 @@ result_t call_daal_kernel_with_weights(const context_cpu& ctx,
     else {
         {
             interop::status_to_exception(
-                interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                           daal_data.get(),
-                                                                           &daal_partial,
-                                                                           &daal_parameter,
-                                                                           is_online));
+                interop::call_daal_kernel<Float, daal_lom_online_dense_kernel_t>(ctx,
+                                                                                 daal_data.get(),
+                                                                                 &daal_partial,
+                                                                                 &daal_parameter,
+                                                                                 is_online));
         }
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
         return result;
     }
 }
 
-template <typename Float, typename Task>
+template <typename Float, typename Method, typename Task>
 result_t call_daal_kernel_without_weights(const context_cpu& ctx,
                                           const descriptor_t& desc,
                                           const partial_compute_input<Task>& input) {
@@ -223,52 +238,56 @@ result_t call_daal_kernel_without_weights(const context_cpu& ctx,
             daal_partial.set(daal_lom::PartialResultId::partialSumSquares,
                              daal_partial_sum_squares);
         }
-        interop::status_to_exception(
-            interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                       daal_data.get(),
-                                                                       &daal_partial,
-                                                                       &daal_parameter,
-                                                                       is_online));
+        interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            return daal_lom_online_kernel_t<
+                       Float,
+                       oneapi::dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value,
+                       Method>()
+                .compute(daal_data.get(), &daal_partial, &daal_parameter, is_online);
+        }));
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
         return result;
     }
     else {
         {
-            interop::status_to_exception(
-                interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                           daal_data.get(),
-                                                                           &daal_partial,
-                                                                           &daal_parameter,
-                                                                           is_online));
+            interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+                return daal_lom_online_kernel_t<
+                           Float,
+                           oneapi::dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value,
+                           Method>()
+                    .compute(daal_data.get(), &daal_partial, &daal_parameter, is_online);
+            }));
         }
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
         return result;
     }
 }
 
-template <typename Float, typename Task>
+template <typename Float, typename Method, typename Task>
 static partial_compute_result<Task> partial_compute(const context_cpu& ctx,
                                                     const descriptor_t& desc,
                                                     const partial_compute_input<Task>& input) {
     if (input.get_weights().has_data()) {
-        return call_daal_kernel_with_weights<Float>(ctx, desc, input);
+        return call_daal_kernel_with_weights<Float, Task>(ctx, desc, input);
     }
     else {
-        return call_daal_kernel_without_weights<Float, Task>(ctx, desc, input);
+        return call_daal_kernel_without_weights<Float, Method, Task>(ctx, desc, input);
     }
 }
 
-template <typename Float>
-struct partial_compute_kernel_cpu<Float, method_t, task_t> {
+template <typename Float, typename Method>
+struct partial_compute_kernel_cpu<Float, Method, task_t> {
     partial_compute_result<task::compute> operator()(
         const context_cpu& ctx,
         const descriptor_t& desc,
         const partial_compute_input<task::compute>& input) const {
-        return partial_compute<Float, task::compute>(ctx, desc, input);
+        return partial_compute<Float, Method, task::compute>(ctx, desc, input);
     }
 };
 
-template struct partial_compute_kernel_cpu<float, method_t, task_t>;
-template struct partial_compute_kernel_cpu<double, method_t, task_t>;
+template struct partial_compute_kernel_cpu<float, method::dense, task_t>;
+template struct partial_compute_kernel_cpu<double, method::dense, task_t>;
+template struct partial_compute_kernel_cpu<float, method::sparse, task_t>;
+template struct partial_compute_kernel_cpu<double, method::sparse, task_t>;
 
 } // namespace oneapi::dal::basic_statistics::backend
