@@ -68,14 +68,14 @@ jobs:
       - name: Build OpenBLAS
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\env\openblas.bat
 
       - name: Build oneTBB
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\env\tbb.bat
 
