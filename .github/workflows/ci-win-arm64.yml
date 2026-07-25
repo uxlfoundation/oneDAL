@@ -79,4 +79,32 @@ jobs:
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\env\tbb.bat
 
+      - name: Build daal
+        shell: cmd
+        run: |
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          .ci\scripts\build.bat daal clang sve
+
+      - name: Build onedal_c
+        shell: cmd
+        run: |
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          .ci\scripts\build.bat onedal_c clang sve
+
+      - name: Test daal
+        shell: cmd
+        run: |
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          .ci\scripts\test.bat daal\cpp "" clang cmake
+
+      - name: Test oneapi
+        shell: cmd
+        run: |
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          .ci\scripts\test.bat oneapi\cpp "" clang cmake
+
 
