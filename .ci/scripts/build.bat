@@ -48,7 +48,6 @@ if /I "%ARCH%"=="AMD64" (
 ) else if /I "%ARCH%"=="ARM64" (
     set "PLAT=winarm"
     set "ARCH_DIR=ARM64"
-    echo winarm
 ) else (
     echo Unknown architecture: %ARCH%
     exit /b 1
