@@ -14,15 +14,17 @@
 # limitations under the License.
 #===============================================================================
 
-name: "CI Windows ARM64"
+name: "Windows ARM64 CI"
 
 on:
   pull_request:
     branches:
       - main
-  # push:
-  #   branches:
-  #     - main
+      - 'feature/**'
+  push:
+    branches:
+      - main
+      - 'feature/**'
   
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
