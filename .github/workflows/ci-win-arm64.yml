@@ -39,7 +39,7 @@ jobs:
         os: [
           { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang }
         ]
-    name: WindowsMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
+    name: ARM64-Windows-${{ matrix.os.cxx }}-OpenBLAS(SVE)-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
     steps:
       - name: Checkout repository
@@ -64,5 +64,15 @@ jobs:
           Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-winarm64.zip -OutFile ninja-winarm64.zip
           Expand-Archive ninja-winarm64.zip -DestinationPath ninja
           Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
+          
+      - name: Build OpenBLAS
+        shell: cmd
+        run: |
+          .ci\env\openblas.bat
+
+      - name: Build oneTBB
+        shell: cmd
+        run: |
+          .ci\env\tbb.bat
 
 
