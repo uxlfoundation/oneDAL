@@ -70,9 +70,8 @@ if not exist "%DST%\win\bin" (
         mkdir "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
         mkdir "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
 
-        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" /E /MOV
-        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" *.lib /MOV
-        rmdir /s /q "%DST%\win\tbb\bin"
+        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" /E
+        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" *.lib
     popd
     exit /B 0
 
