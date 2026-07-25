@@ -45,6 +45,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v3
+        with:
+          platform: x64
+
       - name: Install LLVM for Win-ARM64
         shell: pwsh
         run: |
