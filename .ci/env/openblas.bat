@@ -38,6 +38,14 @@ set BLASPACKAGE=
 set BLASURL=%BLASURLROOT%%BLASPACKAGE%.zip
 set "PATH=C:\Program Files\LLVM\bin;%PATH%"
 
+IF "%VS_VER%"=="2026_build_tools" (
+    @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+) ELSE IF "%VS_VER%"=="2019_build_tools" (
+    @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+) ELSE IF "%VS_VER%"=="2017_build_tools" (
+    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+)
+
 if not exist "%DST%" powershell.exe -command "New-Item -Path \"%DST%\" -ItemType Directory" >nul
 if not exist "%BLASSOURCEDIR%" powershell.exe -command "New-Item -Path \"%BLASSOURCEDIR%\" -ItemType Directory" >nul
 
@@ -47,7 +55,7 @@ if errorlevel 1 goto Error_load
 powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%BLASSOURCEDIR%\openblas.zip\", \"%BLASSOURCEDIR%\") } catch { $_.exception; exit 1 }} else {exit 1}"
 if errorlevel 1 goto Error_unpack
 
-pushd "%BLASSOURCEDIR%\OpenBlas-%BLASVERSION%"
+pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
         -DCMAKE_BUILD_TYPE=Release ^
