@@ -44,5 +44,5 @@ IF "%VS_VER%"=="2017_build_tools" (
 echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3
 make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3 || set errorcode=1
 
-cmake -DINSTALL_DIR=__release_win_vc\daal\latest\lib\cmake\oneDAL -DARCH_DIR=intel64 -P cmake\scripts\generate_config.cmake || set errorcode=1
+cmake -DINSTALL_DIR=__release_win_vc\daal\latest\lib\cmake\oneDAL -DARCH_DIR=intel64 -DONEDAL_USE_PARAMETERS_LIBRARY=no -P cmake\scripts\generate_config.cmake || set errorcode=1
 EXIT /B %errorcode%
