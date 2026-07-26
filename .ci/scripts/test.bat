@@ -109,8 +109,8 @@ if "%build_system%"=="cmake" (
     md Build
 
     set "results_dir=_cmake_results\%ARCH_DIR%_%cmake_link_mode_short%\Release"
-    echo cmake -B Build -S . -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
-    cmake -B Build -S . -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
+    echo cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
+    cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
     set solution_name=%examples:\=_%
     msbuild.exe "Build\!solution_name!_examples.!sln!" /p:Configuration=Release || set errorcode=1
 
