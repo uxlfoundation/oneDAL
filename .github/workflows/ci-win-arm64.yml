@@ -45,10 +45,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up MinGW
-        uses: egor-tensin/setup-mingw@v3
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
         with:
-          platform: x64
+          msystem: UCRT64
+          update: true
+          install: >-
+            make
 
       - name: Install LLVM for Win-ARM64
         shell: pwsh
