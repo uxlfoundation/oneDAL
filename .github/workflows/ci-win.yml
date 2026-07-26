@@ -100,14 +100,14 @@ jobs:
       - name: Test daal
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
 
