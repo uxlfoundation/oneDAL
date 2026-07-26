@@ -102,6 +102,7 @@ jobs:
         run: |
           CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
+          set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
@@ -109,6 +110,7 @@ jobs:
         run: |
           CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
+          set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
 
 
