@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-name: "Windows ARM64 CI"
+name: "Windows CI"
 
 on:
   pull_request:
@@ -37,81 +37,77 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang }
+          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve }
         ]
-    name: ARM64-Windows-${{ matrix.os.cxx }}-OpenBLAS(SVE)-${{ matrix.os.name }}
+    name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            make
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
+          .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
 
-      - name: Install LLVM for Win-ARM64
+      - name: Install LLVM for Win-${{ matrix.os.arch }}
         shell: pwsh
         run: |
           Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/LLVM-20.1.8-woa64.exe -UseBasicParsing -OutFile LLVM-woa64.exe
           Start-Process -FilePath ".\LLVM-woa64.exe" -ArgumentList "/S" -Wait
           echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          #dir "C:\Program Files\LLVM\include\flang"
-          #rmdir /Q /S "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/ARM64"
           
-      - name: Install CMake and Ninja for Win-ARM64
+      - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
         shell: pwsh
         run: |
-          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v3.29.4/cmake-3.29.4-windows-arm64.msi -OutFile cmake-arm64.msi
-          Start-Process msiexec.exe -ArgumentList "/i cmake-arm64.msi /quiet /norestart" -Wait
+          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v3.29.4/cmake-3.29.4-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
+          Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
           echo "C:\Program Files\CMake\bin" >> $env:GITHUB_PATH
           
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-winarm64.zip -OutFile ninja-winarm64.zip
-          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
+          Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
           Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
           
       - name: Build OpenBLAS
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\env\openblas.bat
 
       - name: Build oneTBB
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\env\tbb.bat
 
       - name: Build daal
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\scripts\build.bat daal clang sve
 
       - name: Build onedal_c
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\scripts\build.bat onedal_c clang sve
 
       - name: Test daal
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\scripts\test.bat daal\cpp "" clang cmake
 
       - name: Test oneapi
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
           set PATH=C:\Program Files\LLVM\bin;%PATH%
           .ci\scripts\test.bat oneapi\cpp "" clang cmake
 
