@@ -164,7 +164,8 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
     else:
         suffix = "a" if ctx.attr.static else "so"
         if ctx.attr.parameters_lib:
-            onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0} ${{libdir}}/libonedal_parameters.{0} -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl".format(suffix)
+            mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
+            onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0} ${{libdir}}/libonedal_parameters.{0} -lmkl_core -lmkl_{1} -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl".format(suffix, mkl_interface)
         else:
             mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
             openmp = " -lgomp" if not ctx.attr.static else ""
