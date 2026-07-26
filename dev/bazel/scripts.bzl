@@ -138,7 +138,7 @@ def _generate_pkgconfig_impl(ctx):
         onedal_libs = (
             "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
             if ctx.attr.static else
-            "${libdir}/onedal_dll.lib{} ${libdir}/onedal_core_dll.lib".format(
+            "${{libdir}}/onedal_dll.lib{} ${{libdir}}/onedal_core_dll.lib".format(
                 " ${libdir}/onedal_parameters_dll.lib" if ctx.attr.parameters_lib else "",
             )
         )
