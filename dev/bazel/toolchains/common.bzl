@@ -90,9 +90,16 @@ def get_cross_tool_prefix(repo_ctx):
         basename = compiler_path.split("/")[-1]
         for prefix in _ARCH_ID_BY_TRIPLE_PREFIX.keys():
             if basename.startswith(prefix + "-"):
-                # e.g. "aarch64-linux-gnu-gcc" -> "aarch64-linux-gnu-"
-                tool_name = basename.rsplit("-", 1)[-1]
-                return basename[:-len(tool_name)]
+                # Drop the tool-name segment to recover the triple prefix,
+                # tolerating a trailing `-<version>` suffix on the tool name
+                # (e.g. Debian's "aarch64-linux-gnu-gcc-13" package binary):
+                # "aarch64-linux-gnu-gcc-13" -> "aarch64-linux-gnu-".
+                parts = basename.split("-")
+                if parts[-1].isdigit() and len(parts) > 2:
+                    parts = parts[:-2]
+                else:
+                    parts = parts[:-1]
+                return "-".join(parts) + "-"
     return ""
 
 # Maps oneDAL arch IDs to @platforms//cpu constraint_value names.
