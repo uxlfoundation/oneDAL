@@ -30,6 +30,7 @@ env:
   DEP_DIR: ${{ github.workspace }}/__deps
   TBB_VERSION: v2023.1.0
   OPENBLAS_VERSION: v0.3.33
+  VS_VER: 2026_build_tools
 
 jobs:
   build-and-test:
