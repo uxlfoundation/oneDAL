@@ -4,4 +4,5 @@ exports_files([
     "release_structure_test.sh",
     "isa_coverage_test.sh",
     "mkl_linkage_test.sh",
+    "code_coverage_test.sh",
 ])

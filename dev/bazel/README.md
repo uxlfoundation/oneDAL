@@ -667,3 +667,9 @@ and test link actions; executable/test links need it to resolve the coverage
 runtime from instrumented objects. Static archives remain flag-free. The flag
 is rejected on non-Linux platforms and unless the detected host compiler ID is
 exactly `icx`.
+
+CI uses `dev/bazel/tests/code_coverage_test.sh` on the icx toolchain to build
+`//cpp/daal:core_static` and `//cpp/daal:thread_static` with
+`--code_coverage=true`, then inspects `bazel aquery` output to confirm DAAL
+core compile actions carry `-coverage`/`-DGCOV_BUILD` and the separately built
+threading module does not.

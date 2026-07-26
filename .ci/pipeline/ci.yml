@@ -389,6 +389,9 @@ jobs:
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
   - script: |
+      .ci/env/apt.sh dpcpp
+    displayName: 'dpcpp installation'
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -450,6 +453,11 @@ jobs:
       grep -F -- "--code_coverage=true requires host compiler ID 'icx'" <<< "${coverage_error}"
       grep -F -- "detected compiler ID: 'gcc'" <<< "${coverage_error}"
     displayName: 'Bazel config smoke checks'
+
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
+    displayName: 'Bazel code-coverage icx smoke build'
 
   - script: |
       bazel build :release --release_dpc=false
