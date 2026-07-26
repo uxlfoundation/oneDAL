@@ -61,11 +61,11 @@ jobs:
       - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
         shell: pwsh
         run: |
-          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v3.29.4/cmake-3.29.4-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
+          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
           Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
           echo "C:\Program Files\CMake\bin" >> $env:GITHUB_PATH
           
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
           Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
           Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
           
