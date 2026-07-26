@@ -15,6 +15,7 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
+load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_host_arch", "detect_target_arch")
 
 _BINARY_MAJOR = "4"
 _BINARY_MINOR = "0"
@@ -77,33 +78,63 @@ CpuInfo = provider(
     ],
 )
 
-_ISA_EXTENSIONS = ["sse2", "avx2", "avx512"]
-_ISA_EXTENSIONS_MODERN = ["sse2", "avx2", "avx512"]
+_ISA_EXTENSIONS_X86 = ["sse2", "avx2", "avx512"]
+_ISA_EXTENSIONS_X86_MODERN = ["sse2", "avx2", "avx512"]
+_ISA_EXTENSIONS_ARM = ["sve"]
+_ISA_EXTENSIONS_RISCV64 = ["rv64"]
 _ISA_EXTENSION_AUTO_DEFAULT = "avx2"
 
-def _check_cpu_extensions(extensions):
-    allowed = sets.make(_ISA_EXTENSIONS)
+_ARCH_TO_ISA_EXTENSIONS = {
+    "arm": _ISA_EXTENSIONS_ARM,
+    "riscv64": _ISA_EXTENSIONS_RISCV64,
+}
+
+def _get_allowed_isa_extensions(ctx):
+    # x86 has multiple ISA variants with runtime dispatch; ARM/RISC-V
+    # currently ship exactly one fixed variant (see cpp/daal/src/services/cpu_type.h),
+    # so their `allowed` list is a single value.
+    #
+    # `cpu_info` is a `build_setting` rule; Bazel trims `PlatformOptions`
+    # from build-setting configurations for cross-config cache sharing, so
+    # `ctx.target_platform_has_constraint` is not reliable here. The arch is
+    # instead resolved once at repository-rule time (see
+    # `_declare_onedal_config_impl`) from the same `CC`/`CXX` cross-compiler
+    # triple prefix that `dev/bazel/toolchains/cc_toolchain.bzl` uses, and
+    # threaded in through the `arch` attribute.
+    return _ARCH_TO_ISA_EXTENSIONS.get(ctx.attr.arch, _ISA_EXTENSIONS_X86)
+
+def _check_cpu_extensions(extensions, allowed):
+    allowed_set = sets.make(allowed)
     requested = sets.make(extensions)
-    unsupported = sets.to_list(sets.difference(requested, allowed))
+    unsupported = sets.to_list(sets.difference(requested, allowed_set))
     if unsupported:
         fail("Unsupported CPU extensions: {}\n".format(unsupported) +
-             "Allowed extensions: {}".format(_ISA_EXTENSIONS))
+             "Allowed extensions: {}".format(allowed))
 
 def _cpu_info_impl(ctx):
+    allowed = _get_allowed_isa_extensions(ctx)
+    is_x86 = allowed == _ISA_EXTENSIONS_X86
     if ctx.build_setting_value == "all":
-        isa_extensions = _ISA_EXTENSIONS
+        isa_extensions = _ISA_EXTENSIONS_X86_MODERN if is_x86 else allowed
     elif ctx.build_setting_value == "modern":
-        isa_extensions = _ISA_EXTENSIONS_MODERN
+        isa_extensions = _ISA_EXTENSIONS_X86_MODERN if is_x86 else allowed
     elif ctx.build_setting_value == "auto":
-        isa_extensions = [ ctx.attr.auto_cpu ]
+        # `auto_cpu` reflects the exec host's CPU probe, which is only
+        # meaningful for a native x86 build. ARM/RISC-V always builds their
+        # single supported variant regardless of the exec host.
+        isa_extensions = [ ctx.attr.auto_cpu ] if is_x86 else allowed
     else:
         isa_extensions = ctx.build_setting_value.split(" ")
         isa_extensions = [x.strip() for x in isa_extensions]
-    isa_extensions = utils.unique(["sse2"] + isa_extensions)
-    _check_cpu_extensions(isa_extensions)
+    if is_x86:
+        # sse2 is the runtime-dispatch fallback variant on x86 and is always built.
+        isa_extensions = utils.unique(["sse2"] + isa_extensions)
+    else:
+        isa_extensions = utils.unique(isa_extensions)
+    _check_cpu_extensions(isa_extensions, allowed)
     return CpuInfo(
         enabled = isa_extensions,
-        allowed = _ISA_EXTENSIONS,
+        allowed = allowed,
     )
 
 cpu_info = rule(
@@ -111,6 +142,11 @@ cpu_info = rule(
     build_setting = config.string(flag = True),
     attrs = {
         "auto_cpu": attr.string(mandatory=True),
+        # oneDAL arch ID (arm/riscv64/intel64), matching
+        # dev/bazel/toolchains/common.bzl's detect_target_arch. Baked in at
+        # repository-rule time since this rule's own configuration cannot
+        # see `--platforms` (see _get_allowed_isa_extensions).
+        "arch": attr.string(mandatory=True),
         "verbose": attr.label(),
     },
 )
@@ -217,12 +253,15 @@ def _detect_cpu_extension(repo_ctx):
 
 def _declare_onedal_config_impl(repo_ctx):
     auto_cpu = _detect_cpu_extension(repo_ctx)
+    os_id = detect_os(repo_ctx)
+    target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
 
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
+            "%{arch}":                  target_arch,
             "%{version_major}":         "2026",
             "%{version_minor}":         "2",
             "%{version_update}":        "0",
@@ -236,6 +275,7 @@ def _declare_onedal_config_impl(repo_ctx):
 declare_onedal_config = repository_rule(
     implementation = _declare_onedal_config_impl,
     local = True,
+    environ = ["CC", "CXX"],
     attrs = {
         "_cpudetect_src": attr.label(
             default = "@onedal//dev/bazel/config:cpudetect.cpp",
