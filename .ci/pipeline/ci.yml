@@ -605,6 +605,52 @@ jobs:
       fi
     displayName: 'bazel-cache-limit'
 
+- job: 'LinuxBazelGNU_OpenBLAS_rv64'
+  timeoutInMinutes: 0
+  variables:
+    OPENBLAS_VERSION : 'v0.3.27'
+    OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-gnu-bazel
+  pool:
+    vmImage: 'ubuntu-24.04'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get install'
+  - script: |
+      .ci/env/apt.sh gnu-cross-compilers riscv64
+    displayName: 'riscv64-compiler installation'
+  - script: |
+      # sourcing done to set bazel version value from script
+      source .ci/env/bazelisk.sh
+      echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
+    displayName: 'install-bazel'
+  - script: |
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      key: '"gnu" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)"'
+      path: $(OPENBLAS_CACHE_DIR)
+      cacheHitVar: OPENBLAS_RESTORED
+  - script: |
+      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler riscv64-linux-gnu-gcc --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --version $(OPENBLAS_VERSION)
+    displayName: 'Build OpenBLAS'
+    condition: ne(variables.OPENBLAS_RESTORED, 'true')
+  - script: |
+      export CC=riscv64-linux-gnu-gcc
+      export CXX=riscv64-linux-gnu-g++
+      export OPENBLASROOT=$(OPENBLAS_CACHE_DIR)
+      bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
+        //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+    displayName: 'bazel build (riscv64 cross)'
+  - script: |
+      set -euo pipefail
+      for lib in bazel-bin/cpp/daal/libonedal_core.so bazel-bin/cpp/oneapi/dal/libonedal.so; do
+        file "${lib}"
+        readelf -h "${lib}" | grep -q "RISC-V" || { echo "##vso[task.logissue type=error]${lib} is not a RISC-V ELF"; exit 1; }
+      done
+    displayName: 'Verify RISC-V ELF output'
+
 - job: 'LinuxReleaseCompare'
   dependsOn:
   - LinuxMakeGNU_MKL
