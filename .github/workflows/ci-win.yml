@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve }
+          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve, llvm_arch: woa64 }
         ]
     name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
@@ -54,8 +54,8 @@ jobs:
       - name: Install LLVM for Win-${{ matrix.os.arch }}
         shell: pwsh
         run: |
-          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/LLVM-20.1.8-woa64.exe -UseBasicParsing -OutFile LLVM-woa64.exe
-          Start-Process -FilePath ".\LLVM-woa64.exe" -ArgumentList "/S" -Wait
+          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
+          Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
           echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           
       - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
@@ -88,27 +88,27 @@ jobs:
         run: |
           CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
-          .ci\scripts\build.bat daal clang sve
+          .ci\scripts\build.bat daal ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
       - name: Build onedal_c
         shell: cmd
         run: |
           CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=C:\Program Files\LLVM\bin;%PATH%
-          .ci\scripts\build.bat onedal_c clang sve
+          .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
       - name: Test daal
         shell: cmd
         run: |
           CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
           set PATH=C:\Program Files\LLVM\bin;%PATH%
-          .ci\scripts\test.bat daal\cpp "" clang cmake
+          .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
         shell: cmd
         run: |
           CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
           set PATH=C:\Program Files\LLVM\bin;%PATH%
-          .ci\scripts\test.bat oneapi\cpp "" clang cmake
+          .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
 
 
