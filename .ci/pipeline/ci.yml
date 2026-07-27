@@ -609,7 +609,8 @@ jobs:
   timeoutInMinutes: 0
   variables:
     OPENBLAS_VERSION : 'v0.3.27'
-    OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-gnu-bazel
+    OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
+    SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
   pool:
     vmImage: 'ubuntu-24.04'
   steps:
@@ -620,6 +621,9 @@ jobs:
       .ci/env/apt.sh gnu-cross-compilers riscv64
     displayName: 'riscv64-compiler installation'
   - script: |
+      .ci/env/apt.sh llvm-version 18
+    displayName: 'llvm 18 installation'
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -629,11 +633,25 @@ jobs:
     displayName: 'System info'
   - task: Cache@2
     inputs:
-      key: '"gnu" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)"'
+      key: '"riscv64" | "sysroot" | "$(SYSROOT_OS)"'
+      path: $(SYSROOT_CACHE_DIR)
+      cacheHitVar: SYSROOT_RESTORED
+  - script: |
+      .ci/env/apt.sh build-sysroot $(Pipeline.Workspace) riscv64 $(SYSROOT_OS) sysroot-riscv64
+    displayName: 'Build riscv64 sysroot'
+    condition: ne(variables.SYSROOT_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64" | "$(SYSROOT_OS)"'
       path: $(OPENBLAS_CACHE_DIR)
       cacheHitVar: OPENBLAS_RESTORED
   - script: |
-      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler riscv64-linux-gnu-gcc --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --version $(OPENBLAS_VERSION)
+      # Build OpenBLAS with clang + the riscv64 sysroot, matching
+      # LinuxMakeLLVM_OpenBLAS_rv64 (same cache key => shared cache hit). The
+      # gnu riscv64 cross-gcc on the ubuntu-24.04 image is gcc-13, which lacks
+      # the RVV segment intrinsics (vfloat32m4x2_t, __riscv_vlseg2e32_v_f32m4x2)
+      # that OpenBLAS' RISCV64_ZVL128B kernels use, so it cannot build them.
+      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
     displayName: 'Build OpenBLAS'
     condition: ne(variables.OPENBLAS_RESTORED, 'true')
   - script: |
