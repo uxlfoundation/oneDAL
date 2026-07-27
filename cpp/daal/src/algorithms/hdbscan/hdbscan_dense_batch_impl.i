@@ -102,24 +102,35 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // For Euclidean and Cosine, reuse the shared GEMM-based primitives in
     // service_kernel_math.h. They are the same primitives knn uses, with a
-    // blocked row-norm computation, A * A^T via xxgemm, and a
-    // vectorized finalize() step (per-block max(0, .) clamp of squared L2,
-    // followed by vSqrt when the caller asked for real L2 distances). For
-    // other metrics, fillFullDistMatrix routes the row-pair loop through the
-    // corresponding *Dist functor in hdbscan_distance_utils.h, so all three
-    // legacy inline blocks (manhattan/chebyshev/minkowski) collapse to one
-    // call site driven by the metric tag.
+    // blocked row-norm computation, A * A^T via xxgemm, and a blockwise
+    // finalize() (SIMD max(0, .) clamp + batched vSqrt on 512-entry blocks)
+    // that turns squared L2 into real L2 in place. For other metrics,
+    // fillFullDistMatrix routes the row-pair loop through the corresponding
+    // *Dist functor in hdbscan_distance_utils.h, so all three legacy inline
+    // blocks (manhattan/chebyshev/minkowski) collapse to one call site driven
+    // by the metric tag.
     if (pairwiseDistance == PairwiseDistanceType::euclidean)
     {
-        // We need real (not squared) L2 for MRD: core distances are read from
-        // this matrix via nth_element, and MRD(a,b) = max(core(a), core(b),
-        // dist(a,b)/alpha) treats dist as the actual distance value. Passing
-        // `squared=true` here computes squared L2, then finalize() applies the
-        // max(0, .) clamp per entry and vSqrt-s the block in place. That
-        // clamp is why we do not use the `squared=false` fast path: its inline
-        // vSqrt has no clamp, and FP round-off on the diagonal / near-duplicate
-        // rows can drive squared values slightly below 0, yielding NaN. We
-        // also force the diagonal to a clean zero afterwards for safety.
+        // We need real (not squared) L2 here. Distances flow into three
+        // downstream steps as actual distance values, not squared:
+        //   - Core distances (Step 2) are read from this matrix directly via
+        //     nth_element and become MST edge weights via
+        //     MRD(a,b) = max(core(a), core(b), dist(a,b) / alpha).
+        //   - `alpha` divides the pairwise dist term inside MRD; that scaling
+        //     is only meaningful on real distances.
+        //   - `clusterSelectionEpsilon` in sortMstAndExtractClusters is an
+        //     actual distance threshold applied to MST edge weights, so an
+        //     all-squared matrix would silently make the user's epsilon
+        //     behave as if they had passed epsilon^2.
+        //
+        // Path: computeFull(squared=true) fills the matrix with squared L2
+        // via A*A^T + row-norm expansion, then finalize() sweeps in 512-entry
+        // blocks applying max(0, .) per entry (FP round-off on the diagonal /
+        // near-duplicate rows can push squared values slightly below 0) and
+        // a batched MathInst::vSqrt on the block in place. The
+        // `squared=false` fast path is not used: its inline vSqrt has no
+        // clamp and would yield NaN on those slightly-negative entries. The
+        // diagonal is force-zeroed afterwards for defensive safety.
         EuclideanDistances<algorithmFPType, cpu> dist(*ntData, *ntData, /*squared=*/true);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));

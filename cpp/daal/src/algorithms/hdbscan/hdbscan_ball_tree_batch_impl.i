@@ -264,11 +264,17 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     // Populate d3 (distances to pivot3), then partition.
     blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot3 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d3);
 
-    // Partition points by d2 vs d3 (Hoare in-place partition, not a full vector
-    // swap: exchange happens only at boundary positions where the predicate
-    // fails, so BLAS ?swap does not apply). d2/d3/pointIndices swap in lockstep
-    // so the distance arrays stay aligned with pointIndices[begin..end) during
-    // the sweep.
+    // Hoare in-place partition on the predicate `d2[i] <= d3[i]`. Only the
+    // boundary positions where the predicate fails are swapped, and the
+    // exchange is a single scalar triple (pointIndices[lo], d2[lo], d3[lo])
+    // <-> the corresponding element at `hi`. `lo` and `hi` converge
+    // dynamically so the exchange count is O(count) at best rather than
+    // `count` unconditional swaps. BLAS `?swap` does not apply here: it is
+    // an unconditional whole-vector element-by-element exchange with fixed
+    // strides and no predicate; a per-boundary length-1 `cblas_?swap` call
+    // would be strictly worse than the inline scalar swap below. d2, d3, and
+    // pointIndices swap in lockstep so the distance arrays stay aligned with
+    // pointIndices[begin..end) during the sweep.
     int lo = 0;
     int hi = count - 1;
     while (lo <= hi)
@@ -569,10 +575,17 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     // neighbor #1. The ball-tree traversal pushes the query point into the
     // heap along with the other leaf points, so a heap of size `minSamples`
     // holds {self + (minSamples - 1) non-self}, and the heap top is the
-    // `minSamples`-th-including-self answer. Duplicate points are handled
-    // naturally: exact duplicates land in the heap at distance 0, so the core
-    // distance of a point with >= minSamples-1 duplicates is 0 (mirrors the
-    // reference behavior; MST tie-breaking is arbitrary).
+    // `minSamples`-th-including-self answer.
+    //
+    // Duplicate-point behavior (matches sklearn / reference `hdbscan`):
+    //   - A point with >= (minSamples - 1) exact duplicates has all its k-NN
+    //     slots at distance 0, so its core distance is 0.
+    //   - For any pair of duplicates (a, b), MRD(a, b) =
+    //     max(core(a), core(b), 0 / alpha) = 0, so they are joined by a
+    //     0-weight MST edge. Multiple zero-weight edges get an arbitrary
+    //     tie-break in the MST sort, but this does not affect labels:
+    //     duplicates share the same dendrogram lambda (= +inf) and therefore
+    //     always end up in the same cluster / noise assignment.
     const int k = static_cast<int>(minSamples);
 
     // Step 2: Core distances via k-NN on ball tree
