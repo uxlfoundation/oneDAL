@@ -46,4 +46,16 @@ TEST("throw if allocation kinds of chunks are different") {
 
 #endif
 
+TEST("do not throw if allocation kinds of chunks are same") {
+    constexpr float data0[] = { 0.f, 1.f, 2.f };
+    auto arr0 = array<float>::wrap(data0, 3l);
+
+    constexpr float data1[] = { 0.f, 1.f, 2.f };
+    auto arr1 = array<float>::wrap(data1, 3l);
+
+    chunked_array<float> chunked;
+
+    REQUIRE_NOTHROW(chunked.append(arr0, arr1));
+}
+
 } // namespace oneapi::dal::test
