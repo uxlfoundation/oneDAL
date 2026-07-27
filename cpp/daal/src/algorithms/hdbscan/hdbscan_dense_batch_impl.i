@@ -30,6 +30,7 @@
  */
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
+#include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_error_handling.h"
@@ -244,33 +245,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         }
         services::internal::service_memset_seq<int, cpu>(ufRank, 0, nRows);
 
-        // NOTE: ufFind/ufUnion and the Boruvka merge phases (2/3/4) below are
-        // identical to the ball-tree and kd-tree kernels; only Phase 1
-        // (nearest-different-component MRD search) genuinely differs across
-        // methods. Consolidating phases 2-4 and the union-find lambdas into a
-        // shared helper header is planned as a follow-up (see also
-        // sortMstAndExtractClusters in hdbscan_cluster_utils.h, which already
-        // shares the end-of-pipeline steps 4/5).
-        auto ufFind = [&](int x) -> int {
-            while (ufParent[x] != x)
-            {
-                ufParent[x] = ufParent[ufParent[x]];
-                x           = ufParent[x];
-            }
-            return x;
-        };
-
-        auto ufUnion = [&](int rx, int ry) {
-            if (ufRank[rx] < ufRank[ry])
-                ufParent[rx] = ry;
-            else if (ufRank[rx] > ufRank[ry])
-                ufParent[ry] = rx;
-            else
-            {
-                ufParent[ry] = rx;
-                ufRank[rx]++;
-            }
-        };
+        UnionFind uf { ufParent, ufRank };
 
         size_t edgesAdded    = 0;
         size_t numComponents = nRows;
@@ -282,7 +257,9 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
         while (numComponents > 1)
         {
-            // Phase 1: For each point, find nearest different-component neighbor under MRD
+            // Phase 1: For each point, find nearest different-component neighbor under MRD.
+            // Only phase 1 is method-specific; phases 2-4 route through the shared
+            // helpers in hdbscan_boruvka_utils.h.
             daal::threader_for(nRows, nRows, [&](size_t i) {
                 const int myComp               = componentOf[i];
                 const algorithmFPType * mrdRow = distMatrix + i * nRows;
@@ -306,50 +283,14 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                 pointBestIdx[i] = bestIdx;
             });
 
-            // Phase 2: Reduce to per-component best edge
-            for (size_t i = 0; i < nRows; i++)
-            {
-                compBestMrd[i]  = daal::services::internal::MaxVal<algorithmFPType>::get();
-                compBestFrom[i] = -1;
-                compBestTo[i]   = -1;
-            }
-            for (size_t i = 0; i < nRows; i++)
-            {
-                if (pointBestIdx[i] < 0) continue;
-                const int comp = componentOf[i];
-                if (pointBestMrd[i] < compBestMrd[comp])
-                {
-                    compBestMrd[comp]  = pointBestMrd[i];
-                    compBestFrom[comp] = static_cast<int>(i);
-                    compBestTo[comp]   = pointBestIdx[i];
-                }
-            }
+            reduceComponentBestEdges<algorithmFPType>(nRows, componentOf, pointBestMrd, pointBestIdx, compBestMrd, compBestFrom, compBestTo);
 
-            // Phase 3: Merge components via best edges
-            size_t addedThisRound = 0;
-            for (size_t c = 0; c < nRows; c++)
-            {
-                if (compBestFrom[c] < 0) continue;
-                const int u  = compBestFrom[c];
-                const int v  = compBestTo[c];
-                const int ru = ufFind(u);
-                const int rv = ufFind(v);
-                if (ru == rv) continue;
-
-                mstFrom[edgesAdded]    = u;
-                mstTo[edgesAdded]      = v;
-                mstWeights[edgesAdded] = compBestMrd[c];
-                edgesAdded++;
-                addedThisRound++;
-
-                ufUnion(ru, rv);
-                numComponents--;
-            }
+            const size_t addedThisRound = mergeComponentsEmitEdges<algorithmFPType>(nRows, compBestMrd, compBestFrom, compBestTo, uf, mstFrom, mstTo,
+                                                                                    mstWeights, edgesAdded, numComponents);
 
             if (addedThisRound == 0) break;
 
-            // Phase 4: Update component IDs (parallelized)
-            daal::threader_for(nRows, nRows, [&](size_t i) { componentOf[i] = ufFind(static_cast<int>(i)); });
+            refreshComponentIds<cpu>(nRows, uf, componentOf);
         }
     }
 

@@ -98,14 +98,14 @@ static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * 
 template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
 static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, const DistFunc & distFunc, FPType * outDist)
 {
-    // Row block size for the outer parallelization. 64 is a static heuristic
-    // matching the block sizes used in other DAAL kernels (e.g. covariance,
-    // distance primitives in service_kernel_math.h): small enough to keep
-    // scheduler overhead low on wide runtimes, large enough to amortize
-    // per-block work and let the inner j-loop stay cache-friendly. Not exposed
-    // through the parameters system today; if profiling shows sensitivity for
-    // very large nCols, revisit by promoting to a tunable in Parameter.
-    constexpr size_t blockSize = 64;
+    // Row block size for the outer parallelization. Set to 256 to match the
+    // block sizes used elsewhere in DAAL at runtime (covariance / distance
+    // primitives in service_kernel_math.h); large enough to amortize scheduler
+    // overhead per task while keeping the inner j-loop cache-friendly. Not
+    // exposed through the parameters system today; if profiling shows
+    // sensitivity for very large nCols, revisit by promoting to a tunable in
+    // Parameter.
+    constexpr size_t blockSize = 256;
     const size_t nBlocks       = (nRows + blockSize - 1) / blockSize;
 
     daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
@@ -129,15 +129,19 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 // =========================================================================
 // Distance functors for parameterizing tree queries by metric.
 //
-// Each functor provides four methods:
+// Each functor provides three methods:
 //   - pointDist<cpu>(a, b, nCols)                 -- full point-to-point distance
 //   - bboxLowerBound<cpu>(q, lo, hi, nCols)       -- minimum distance from query to a bbox
-//   - planeDist<cpu>(diff)                        -- distance to a splitting hyperplane (kd-tree)
 //   - blockDist<cpu>(pivot, rows, rowNorms2, count, nCols, out)
 //                                                 -- pivot-to-block distances; Euclidean uses
 //                                                   BLAS xxgemv + cached row norms^2,
 //                                                   non-Euclidean fall back to a vectorized loop.
 //                                                   `rowNorms2` may be nullptr for non-Euclidean.
+//
+// The kd-tree "distance to a splitting hyperplane" reduces to `|diff|` for
+// every L_p metric supported here (splits are axis-aligned) and is applied at
+// a single call site in knnQuery; it is inlined there rather than added to
+// each functor.
 //
 // All methods are templated on `cpu` so each per-CPU instantiation gets its
 // own ISA-specific math/BLAS bindings. Used to parameterize HDBSCAN tree
@@ -207,27 +211,6 @@ struct EuclideanDist
             sum += excess * excess;
         }
         return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
-    }
-
-    /// Absolute value along an axis-aligned splitting coordinate: the distance
-    /// from a query to a kd-tree splitting hyperplane, given the signed
-    /// difference `query[splitDim] - splitVal`.
-    ///
-    /// Named `planeDist` (rather than `abs`) because it participates in the
-    /// distance-functor protocol used by tree traversals; call sites read as
-    /// `distFunc.planeDist(diff)`, matching `pointDist`/`bboxLowerBound`. The
-    /// body is a straight `fabs`, kept inline so the compiler can fold it into
-    /// vectorized traversal loops.
-    ///
-    /// @tparam cpu CPU dispatch tag
-    ///
-    /// @param[in]  diff `query[splitDim] - splitVal`
-    ///
-    /// @return `|diff|` (axis-aligned plane distance for L2)
-    template <daal::internal::CpuType cpu>
-    static FPType planeDist(FPType diff)
-    {
-        return (diff < FPType(0)) ? -diff : diff;
     }
 
     /// Vectorized pivot-to-block Euclidean distance via BLAS xxgemv.
@@ -334,17 +317,6 @@ struct ManhattanDist
         return sum;
     }
 
-    /// Distance from a query to an axis-aligned splitting plane.
-    ///
-    /// @tparam cpu CPU dispatch tag
-    ///
-    /// @param[in] diff `query[splitDim] - splitVal`
-    template <daal::internal::CpuType cpu>
-    static FPType planeDist(FPType diff)
-    {
-        return (diff < FPType(0)) ? -diff : diff;
-    }
-
     /// Pivot-to-block Manhattan distance.
     ///
     /// L1 has no factorization that lets us batch via BLAS, but routing through
@@ -384,6 +356,10 @@ struct MinkowskiDist
 
     /// Compute `(sum_d |a_d - b_d|^p) ^ (1/p)`.
     ///
+    /// Per-element `|d|^p` goes through `MathInst<FPType, cpu>::sPowx` so each
+    /// per-CPU instantiation binds to its ISA-specific power routine, matching
+    /// the dispatch convention used elsewhere in DAAL (e.g. em_gmm, zscore).
+    ///
     /// @tparam cpu CPU dispatch tag
     ///
     /// @param[in]  a     First row, length `nCols`
@@ -392,15 +368,16 @@ struct MinkowskiDist
     template <daal::internal::CpuType cpu>
     FPType pointDist(const FPType * a, const FPType * b, int nCols) const
     {
-        double sum = 0.0;
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
+        const FPType pFP    = static_cast<FPType>(p);
+        const FPType invpFP = static_cast<FPType>(invp);
+        FPType sum          = FPType(0);
         for (int d = 0; d < nCols; d++)
         {
-            double diff = static_cast<double>(a[d] - b[d]);
-            if (diff < 0.0) diff = -diff;
-            sum += pow(diff, p);
+            FPType diff = a[d] - b[d];
+            if (diff < FPType(0)) diff = -diff;
+            sum += daal::internal::MathInst<FPType, cpu>::sPowx(diff, pFP);
         }
-        return static_cast<FPType>(pow(sum, invp));
+        return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
     }
 
     /// Minimum Minkowski distance from a query to a bbox `[lo, hi]`.
@@ -414,29 +391,19 @@ struct MinkowskiDist
     template <daal::internal::CpuType cpu>
     FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
     {
-        double sum = 0.0;
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
+        const FPType pFP    = static_cast<FPType>(p);
+        const FPType invpFP = static_cast<FPType>(invp);
+        FPType sum          = FPType(0);
         for (int d = 0; d < nCols; d++)
         {
-            double excess = 0.0;
+            FPType excess = FPType(0);
             if (query[d] < lo[d])
-                excess = static_cast<double>(lo[d] - query[d]);
+                excess = lo[d] - query[d];
             else if (query[d] > hi[d])
-                excess = static_cast<double>(query[d] - hi[d]);
-            sum += pow(excess, p);
+                excess = query[d] - hi[d];
+            sum += daal::internal::MathInst<FPType, cpu>::sPowx(excess, pFP);
         }
-        return static_cast<FPType>(pow(sum, invp));
-    }
-
-    /// Distance from a query to an axis-aligned splitting plane.
-    ///
-    /// @tparam cpu CPU dispatch tag
-    ///
-    /// @param[in] diff `query[splitDim] - splitVal`
-    template <daal::internal::CpuType cpu>
-    FPType planeDist(FPType diff) const
-    {
-        return (diff < FPType(0)) ? -diff : diff;
+        return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
     }
 
     /// Pivot-to-block Minkowski distance.
@@ -510,17 +477,6 @@ struct ChebyshevDist
             if (excess > mx) mx = excess;
         }
         return mx;
-    }
-
-    /// Distance from a query to an axis-aligned splitting plane.
-    ///
-    /// @tparam cpu CPU dispatch tag
-    ///
-    /// @param[in] diff `query[splitDim] - splitVal`
-    template <daal::internal::CpuType cpu>
-    static FPType planeDist(FPType diff)
-    {
-        return (diff < FPType(0)) ? -diff : diff;
     }
 
     /// Pivot-to-block Chebyshev distance.

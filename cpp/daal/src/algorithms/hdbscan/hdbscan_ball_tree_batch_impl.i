@@ -33,6 +33,7 @@
  */
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
+#include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_error_handling.h"
@@ -620,25 +621,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     }
     services::internal::service_memset_seq<int, cpu>(ufRank, 0, nRows);
 
-    auto ufFind = [&](int x) -> int {
-        while (ufParent[x] != x)
-        {
-            ufParent[x] = ufParent[ufParent[x]];
-            x           = ufParent[x];
-        }
-        return x;
-    };
-    auto ufUnion = [&](int rx, int ry) {
-        if (ufRank[rx] < ufRank[ry])
-            ufParent[rx] = ry;
-        else if (ufRank[rx] > ufRank[ry])
-            ufParent[ry] = rx;
-        else
-        {
-            ufParent[ry] = rx;
-            ufRank[rx]++;
-        }
-    };
+    UnionFind uf { ufParent, ufRank };
 
     updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
 
@@ -647,6 +630,8 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     const int iNRows     = static_cast<int>(nRows);
     const int iNCols     = static_cast<int>(nCols);
 
+    // Only phase 1 (nearest-different-component MRD tree query) is
+    // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
     while (numComponents > 1)
     {
         daal::threader_for(iNRows, iNRows, [&](size_t i) {
@@ -664,47 +649,14 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
             pointBestIdx[i] = bestIdx;
         });
 
-        for (size_t i = 0; i < nRows; i++)
-        {
-            compBestMrd[i]  = daal::services::internal::MaxVal<algorithmFPType>::get();
-            compBestFrom[i] = -1;
-            compBestTo[i]   = -1;
-        }
-        for (size_t i = 0; i < nRows; i++)
-        {
-            if (pointBestIdx[i] < 0) continue;
-            const int comp = componentOf[i];
-            if (pointBestMrd[i] < compBestMrd[comp])
-            {
-                compBestMrd[comp]  = pointBestMrd[i];
-                compBestFrom[comp] = static_cast<int>(i);
-                compBestTo[comp]   = pointBestIdx[i];
-            }
-        }
+        reduceComponentBestEdges<algorithmFPType>(nRows, componentOf, pointBestMrd, pointBestIdx, compBestMrd, compBestFrom, compBestTo);
 
-        size_t addedThisRound = 0;
-        for (size_t c = 0; c < nRows; c++)
-        {
-            if (compBestFrom[c] < 0) continue;
-            const int u  = compBestFrom[c];
-            const int v  = compBestTo[c];
-            const int ru = ufFind(u);
-            const int rv = ufFind(v);
-            if (ru == rv) continue;
-
-            mstFrom[edgesAdded]    = u;
-            mstTo[edgesAdded]      = v;
-            mstWeights[edgesAdded] = compBestMrd[c];
-            edgesAdded++;
-            addedThisRound++;
-
-            ufUnion(ru, rv);
-            numComponents--;
-        }
+        const size_t addedThisRound = mergeComponentsEmitEdges<algorithmFPType>(nRows, compBestMrd, compBestFrom, compBestTo, uf, mstFrom, mstTo,
+                                                                                mstWeights, edgesAdded, numComponents);
 
         if (addedThisRound == 0) break;
 
-        daal::threader_for(iNRows, iNRows, [&](size_t i) { componentOf[i] = ufFind(static_cast<int>(i)); });
+        refreshComponentIds<cpu>(nRows, uf, componentOf);
 
         updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }

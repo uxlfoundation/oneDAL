@@ -32,6 +32,7 @@
  */
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
+#include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_error_handling.h"
@@ -168,7 +169,7 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag (forwarded to the heap allocator)
-/// @tparam DistFunc        Metric functor exposing `pointDist` and `planeDist`
+/// @tparam DistFunc        Metric functor exposing `pointDist`
 ///
 /// @param[in]     data         Row-major input buffer
 /// @param[in]     nCols        Number of features
@@ -205,8 +206,12 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
 
     knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap, distFunc);
 
-    // Prune: only visit far subtree if the splitting plane is closer than current k-th NN
-    const algorithmFPType pd = distFunc.template planeDist<cpu>(diff);
+    // Prune: only visit far subtree if the splitting plane is closer than the
+    // current k-th NN. Every L_p metric supported here reduces to |diff| for an
+    // axis-aligned split, so we inline the abs instead of routing through the
+    // functor. Inlining lets the compiler fold the compare into the vectorized
+    // traversal loop.
+    const algorithmFPType pd = (diff < algorithmFPType(0)) ? -diff : diff;
     if (pd < heap.maxDist())
     {
         knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, farChild, heap, distFunc);
@@ -490,26 +495,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     }
     services::internal::service_memset_seq<int, cpu>(ufRank, 0, nRows);
 
-    auto ufFind = [&](int x) -> int {
-        while (ufParent[x] != x)
-        {
-            ufParent[x] = ufParent[ufParent[x]];
-            x           = ufParent[x];
-        }
-        return x;
-    };
-
-    auto ufUnion = [&](int rx, int ry) {
-        if (ufRank[rx] < ufRank[ry])
-            ufParent[rx] = ry;
-        else if (ufRank[rx] > ufRank[ry])
-            ufParent[ry] = rx;
-        else
-        {
-            ufParent[ry] = rx;
-            ufRank[rx]++;
-        }
-    };
+    UnionFind uf { ufParent, ufRank };
 
     updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
 
@@ -518,6 +504,8 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     const int iNRows     = static_cast<int>(nRows);
     const int iNCols     = static_cast<int>(nCols);
 
+    // Only phase 1 (nearest-different-component MRD tree query) is
+    // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
     while (numComponents > 1)
     {
         daal::threader_for(iNRows, iNRows, [&](size_t i) {
@@ -535,48 +523,14 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
             pointBestIdx[i] = bestIdx;
         });
 
-        for (size_t i = 0; i < nRows; i++)
-        {
-            compBestMrd[i]  = daal::services::internal::MaxVal<algorithmFPType>::get();
-            compBestFrom[i] = -1;
-            compBestTo[i]   = -1;
-        }
-        for (size_t i = 0; i < nRows; i++)
-        {
-            if (pointBestIdx[i] < 0) continue;
-            const int comp = componentOf[i];
-            const int ii   = static_cast<int>(i);
-            if (pointBestMrd[i] < compBestMrd[comp])
-            {
-                compBestMrd[comp]  = pointBestMrd[i];
-                compBestFrom[comp] = ii;
-                compBestTo[comp]   = pointBestIdx[i];
-            }
-        }
+        reduceComponentBestEdges<algorithmFPType>(nRows, componentOf, pointBestMrd, pointBestIdx, compBestMrd, compBestFrom, compBestTo);
 
-        size_t addedThisRound = 0;
-        for (size_t c = 0; c < nRows; c++)
-        {
-            if (compBestFrom[c] < 0) continue;
-            const int u  = compBestFrom[c];
-            const int v  = compBestTo[c];
-            const int ru = ufFind(u);
-            const int rv = ufFind(v);
-            if (ru == rv) continue;
-
-            mstFrom[edgesAdded]    = u;
-            mstTo[edgesAdded]      = v;
-            mstWeights[edgesAdded] = compBestMrd[c];
-            edgesAdded++;
-            addedThisRound++;
-
-            ufUnion(ru, rv);
-            numComponents--;
-        }
+        const size_t addedThisRound = mergeComponentsEmitEdges<algorithmFPType>(nRows, compBestMrd, compBestFrom, compBestTo, uf, mstFrom, mstTo,
+                                                                                mstWeights, edgesAdded, numComponents);
 
         if (addedThisRound == 0) break;
 
-        daal::threader_for(iNRows, iNRows, [&](size_t i) { componentOf[i] = ufFind(static_cast<int>(i)); });
+        refreshComponentIds<cpu>(nRows, uf, componentOf);
 
         updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
