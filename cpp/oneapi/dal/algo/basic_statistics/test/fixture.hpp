@@ -126,8 +126,7 @@ public:
             }
             const auto [data_arr, col_arr, row_arr] =
                 accessor.pull({ row_offset, row_offset + block_size }, indexing);
-            result[i] =
-                csr_table::wrap(data_arr, col_arr, row_arr, column_count, indexing);
+            result[i] = csr_table::wrap(data_arr, col_arr, row_arr, column_count, indexing);
             row_offset += block_size;
         }
         return result;
