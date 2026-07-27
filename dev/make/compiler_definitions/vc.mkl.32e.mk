@@ -42,7 +42,7 @@ endif
 COMPILER.win.vc = cl $(if $(MSVC_RT_is_release),-MD, -MDd) -nologo -EHsc -wd4661 -WX ${CXXFLAGS}
 
 link.dynamic.win.vc = link /DEPENDENTLOADFLAG:0x2000 ${LDFLAGS}
-link.static.win.vc = link
+link.static.win.vc = lib
 
 p4_OPT.vc   =
 mc3_OPT.vc  =
