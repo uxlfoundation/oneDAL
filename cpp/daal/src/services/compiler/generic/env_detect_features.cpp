@@ -48,7 +48,7 @@
 #include "src/threading/threading.h"
 
 #include <stdint.h>
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER)
     #if (_MSC_FULL_VER >= 160040219)
         #include <intrin.h>
     #else

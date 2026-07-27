@@ -44,7 +44,7 @@ daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
 
 RELEASEDIR.open_blas       := $(RELEASEDIR)/open_blas/latest
 RELEASEDIR.open_blas.libia := $(RELEASEDIR.open_blas)/lib$(if $(OS_is_mac),,$(if $(OS_is_win),/vc_mt,/))
-RELEASEDIR.open_blas.soia  := $(if $(OS_is_win),$(RELEASEDIR.open_blas)/redist/vc_mt,$(RELEASEDIR.open_blas.libia))
+RELEASEDIR.open_blas.soia  := $(if $(OS_is_win),$(RELEASEDIR.open_blas)/bin/vc_mt,$(RELEASEDIR.open_blas.libia))
 
 # List of OpenBLAS libraries to exclude from linking.
 # This list is used to generate the `--exclude-libs` linker options.
