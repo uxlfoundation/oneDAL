@@ -183,6 +183,8 @@ public:
         return *this;
     }
 
+    /// The seed for the random number generator
+    /// @remark default = 777
     template <typename M = Method, typename = detail::v1::enable_if_not_default_dense<M>>
     auto& get_seed() const {
         return base_t::get_seed();
