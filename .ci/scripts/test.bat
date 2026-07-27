@@ -44,10 +44,16 @@ set PATH=C:\msys64\usr\bin;%PATH%
 
 echo "%VISUALSTUDIOVERSION% HERE"
 
-if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
-    set "ARCH_DIR=ARM64"
+set "ARCH=%PROCESSOR_ARCHITECTURE%"
+if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
+
+if /I "%ARCH%"=="AMD64" (
+    set "ARCH_DIR=intel_intel64"
+) else if /I "%ARCH%"=="ARM64" (
+    set "ARCH_DIR=arm_aarch64"
 ) else (
-    set "ARCH_DIR=intel64"
+    echo Unknown architecture: %ARCH%
+    exit /b 1
 )
 
 IF "%VS_VER%"=="2026_build_tools" (
@@ -71,25 +77,35 @@ IF "%VS_VER%"=="2026_build_tools" (
 echo call %release_dir%\daal\latest\env\vars.bat
 call %release_dir%\daal\latest\env\vars.bat || set errorcode=1
 
-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\%ARCH_DIR%\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\%ARCH_DIR%\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\%ARCH_DIR%\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\%ARCH_DIR%\vc_mt;%PATH%
+echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%
+set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%
+set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%
 
-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\%ARCH_DIR%\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\%ARCH_DIR%\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\%ARCH_DIR%\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\%ARCH_DIR%\vc_mt;%PATH%
+echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\vc_mt;%LIB%
+set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\vc_mt;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\vc_mt;%PATH%
+set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\vc_mt;%PATH%
 
-echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\%ARCH_DIR%\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\%ARCH_DIR%\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\%ARCH_DIR%\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\%ARCH_DIR%\vc_mt;%PATH%
+echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%
+set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%
+set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%
 
-echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\redist\%ARCH_DIR%\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\open_blas\latest\redist\%ARCH_DIR%\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\redist\%ARCH_DIR%\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\open_blas\latest\redist\%ARCH_DIR%\vc_mt;%PATH%
+echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\redist\vc_mt;%LIB%
+set LIB=%~dp0..\..\%release_dir%\open_blas\latest\redist\vc_mt;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\redist\vc_mt;%PATH%
+set PATH=%~dp0..\..\%release_dir%\open_blas\latest\redist\vc_mt;%PATH%
+
+echo set LIB=%~dp0..\..\%release_dir%\daal\latest\lib;%LIB%
+set LIB=%~dp0..\..\%release_dir%\daal\latest\lib;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\daal\latest\lib;%PATH%
+set PATH=%~dp0..\..\%release_dir%\daal\latest\lib;%PATH%
+
+echo set LIB=%~dp0..\..\%release_dir%\daal\latest\redist;%LIB%
+set LIB=%~dp0..\..\%release_dir%\daal\latest\redist;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\daal\latest\redist;%PATH%
+set PATH=%~dp0..\..\%release_dir%\daal\latest\redist;%PATH%
 
 echo set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
 set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb

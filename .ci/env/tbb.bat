@@ -71,7 +71,10 @@ if not exist "%DST%\win\bin" (
         mkdir "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
 
         robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" /E
+        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\vc14" /E
+        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\bin\vc14" /E
         robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" *.lib
+        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\vc14" *.lib
     popd
     exit /B 0
 

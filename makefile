@@ -216,10 +216,10 @@ RELEASEDIR.conf        := $(RELEASEDIR.daal)/config
 RELEASEDIR.nuspec      := $(RELEASEDIR.daal)/nuspec
 RELEASEDIR.doc         := $(RELEASEDIR.daal)/documentation
 RELEASEDIR.samples     := $(RELEASEDIR.daal)/samples
-RELEASEDIR.libia       := $(RELEASEDIR.daal)/lib$(if $(OS_is_mac),,/$(_IA))
+RELEASEDIR.libia       := $(RELEASEDIR.daal)/lib$(if $(OS_is_mac),,/)
 RELEASEDIR.include     := $(RELEASEDIR.daal)/include
 RELEASEDIR.pkgconfig   := $(RELEASEDIR.daal)/lib/pkgconfig
-RELEASEDIR.soia        := $(if $(OS_is_win),$(RELEASEDIR.daal)/redist/$(_IA),$(RELEASEDIR.libia))
+RELEASEDIR.soia        := $(if $(OS_is_win),$(RELEASEDIR.daal)/redist/,$(RELEASEDIR.libia))
 WORKDIR.lib := $(WORKDIR)/daal/lib
 
 COVFILE   := $(subst BullseyeStub,$(RELEASEDIR.daal)/Bullseye_$(_IA).cov,$(COVFILE))
@@ -237,7 +237,7 @@ TBBDIR.2 := $(if $(TBBDIR.2),$(TBBDIR.2),$(error Can`t find TBB neither in $(DIR
 
 TBBDIR.include := $(if $(TBBDIR.2),$(TBBDIR.2)/include/tbb $(TBBDIR.2)/include)
 
-TBBDIR.libia.prefix := $(TBBDIR.2)/lib/$(_IA)
+TBBDIR.libia.prefix := $(TBBDIR.2)/lib
 
 
 TBBDIR.libia.win.vc1  := $(if $(OS_is_win),$(if $(wildcard $(call frompf1,$(TBBDIR.libia.prefix))/vc_mt),$(TBBDIR.libia.prefix)/vc_mt,$(if $(wildcard $(call frompf1,$(TBBDIR.libia.prefix))/vc14),$(TBBDIR.libia.prefix)/vc14)))
@@ -260,7 +260,7 @@ TBBDIR.libia.mac := $(if $(OS_is_mac),$(if $(TBBDIR.libia.mac.clang22),$(TBBDIR.
 
 TBBDIR.libia := $(TBBDIR.libia.$(_OS))
 
-TBBDIR.soia.prefix := $(TBBDIR.2)/redist/$(_IA)
+TBBDIR.soia.prefix := $(TBBDIR.2)/redist
 TBBDIR.soia.win  := $(if $(OS_is_win),$(if $(TBBDIR.libia.win.vc22),$(TBBDIR.libia.win.vc2),$(if $(wildcard $(call frompf1,$(TBBDIR.soia.prefix))/vc_mt/*),$(TBBDIR.soia.prefix)/vc_mt,$(if $(wildcard $(call frompf1,$(TBBDIR.soia.prefix))/vc14/*),$(TBBDIR.soia.prefix)/vc14,$(error Can`t find TBB runtimes nether in $(TBBDIR.soia.prefix)/vc_mt not in $(firstword $(filter $(TBBROOT)%,$(subst ;,$(space),$(LIB)))).)))))
 
 TBBDIR.soia.lnx  := $(if $(OS_is_lnx),$(TBBDIR.libia.lnx))
@@ -268,8 +268,8 @@ TBBDIR.soia.mac  := $(if $(OS_is_mac),$(TBBDIR.libia.mac))
 TBBDIR.soia := $(TBBDIR.soia.$(_OS))
 
 RELEASEDIR.tbb       := $(RELEASEDIR)/tbb/latest
-RELEASEDIR.tbb.libia := $(RELEASEDIR.tbb)/lib$(if $(OS_is_mac),,$(if $(OS_is_win),/$(_IA)/vc_mt,/$(TBBDIR.libia.lnx.gcc)))
-RELEASEDIR.tbb.soia  := $(if $(OS_is_win),$(RELEASEDIR.tbb)/redist/$(_IA)/vc_mt,$(RELEASEDIR.tbb.libia))
+RELEASEDIR.tbb.libia := $(RELEASEDIR.tbb)/lib$(if $(OS_is_mac),,$(if $(OS_is_win),/vc_mt,/$(TBBDIR.libia.lnx.gcc)))
+RELEASEDIR.tbb.soia  := $(if $(OS_is_win),$(RELEASEDIR.tbb)/redist/vc_mt,$(RELEASEDIR.tbb.libia))
 
 releasetbb.LIBS_A := $(if $(OS_is_win),$(TBBDIR.libia)/tbb12$(dtbb).$(a) $(TBBDIR.libia)/tbbmalloc$(dtbb).$(a))
 releasetbb.LIBS_Y := $(TBBDIR.soia)/$(plib)tbb$(if $(OS_is_win),12$(dtbb),).$(y) $(TBBDIR.soia)/$(plib)tbbmalloc$(dtbb).$(y)                                                           \
