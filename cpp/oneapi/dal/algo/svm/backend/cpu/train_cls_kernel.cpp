@@ -162,8 +162,7 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
         for (std::int64_t i = 0; i < n_sv; ++i) {
             const auto cls = static_cast<std::int64_t>(resp_data[sv_idx_data[i]]);
             if (cls < 0 || cls >= k) {
-                throw invalid_argument(
-                    dal::detail::error_messages::invalid_number_of_classes());
+                throw invalid_argument(dal::detail::error_messages::invalid_number_of_classes());
             }
             ++counts_data[cls];
         }
