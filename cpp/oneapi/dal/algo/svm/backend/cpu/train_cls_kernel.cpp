@@ -161,7 +161,10 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
         const auto resp_data = resp_arr.get_data();
         for (std::int64_t i = 0; i < n_sv; ++i) {
             const auto cls = static_cast<std::int64_t>(resp_data[sv_idx_data[i]]);
-            ONEDAL_ASSERT(cls >= 0 && cls < k);
+            if (cls < 0 || cls >= k) {
+                throw invalid_argument(
+                    dal::detail::error_messages::invalid_number_of_classes());
+            }
             ++counts_data[cls];
         }
         trained_model->n_support_per_class =

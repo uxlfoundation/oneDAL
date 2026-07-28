@@ -84,8 +84,21 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
+    // n_support_per_class is a 1 x class_count row of int32 counts. Both
+    // dimensions must match exactly before we index by class below.
     if (!n_per_class_table.has_data() ||
+        n_per_class_table.get_row_count() != std::int64_t(1) ||
         n_per_class_table.get_column_count() != static_cast<std::int64_t>(class_count)) {
+        throw invalid_argument(
+            dal::detail::error_messages::input_model_does_not_match_kernel_function());
+    }
+    // biases holds one scalar per pairwise sub-model. Model count is
+    // class_count * (class_count - 1) / 2 in one column.
+    const std::int64_t expected_model_count =
+        static_cast<std::int64_t>(class_count) *
+        (static_cast<std::int64_t>(class_count) - 1) / 2;
+    if (biases_table.get_row_count() != expected_model_count ||
+        biases_table.get_column_count() != std::int64_t(1)) {
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
@@ -330,7 +343,15 @@ static infer_result<Task> call_daal_kernel(const context_cpu& ctx,
                                            const detail::descriptor_base<Task>& desc,
                                            const model<Task>& trained_model,
                                            const table& data) {
-    const std::int64_t class_count = desc.get_class_count();
+    // The trained model carries the authoritative class_count (>= 2 after
+    // training or an explicit setter; default = 2 otherwise). Require the
+    // descriptor to agree so a stale binary descriptor cannot silently route
+    // a multi-class model down the binary path (or vice-versa).
+    const std::int64_t class_count = trained_model.get_class_count();
+    if (desc.get_class_count() != class_count) {
+        throw invalid_argument(
+            dal::detail::error_messages::input_model_does_not_match_kernel_function());
+    }
 
     auto kernel_impl = detail::get_kernel_function_impl(desc);
     if (!kernel_impl) {
