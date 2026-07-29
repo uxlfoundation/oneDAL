@@ -192,9 +192,12 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     tools = _find_tools(repo_ctx, reqs)
     builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools)
 
-    # Addition compile/link flags
-    bin_search_flag_cc = _get_bin_search_flag(repo_ctx, tools.cc)
-    bin_search_flag_dpcc = _get_bin_search_flag(repo_ctx, tools.dpcc)
+    # Addition compile/link flags. Do not inject the host compiler directory
+    # with -B for a GNU cross compiler: /usr/bin contains the host `ld`, which
+    # overrides GCC's configured target linker (for example riscv64-linux-gnu-ld).
+    cross_compiling = get_cross_tool_prefix(repo_ctx) != ""
+    bin_search_flag_cc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.cc)
+    bin_search_flag_dpcc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.dpcc)
 
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
