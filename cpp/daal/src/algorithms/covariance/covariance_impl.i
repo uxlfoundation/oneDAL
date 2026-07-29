@@ -574,57 +574,94 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
     return services::Status();
 }
 
+/// Computes the cross-product matrix and, if required, the sums of the input data table
+/// without splitting the data into blocks.
+///
+/// If the data is not normalized and is not assumed to be centered, the cross-product matrix is
+/// computed on the mean-centered copy of the data. This avoids the catastrophic cancellation that
+/// occurs when the cross-product of the raw data is corrected by the outer product of the sums
+/// afterwards, which is critical for the data with large means and small variances.
+///
+/// @tparam algorithmFPType         Data type to store the results: double or float.
+/// @tparam cpu                     Variant of the CPU instruction set.
+///
+/// @param[in]     nFeatures            Number of features (columns) in the input data table.
+/// @param[in]     nVectors             Number of observations (rows) in the input data table.
+/// @param[in]     dataTable            Input data table that stores matrix X.
+/// @param[out]    crossProduct         Resulting cross-product matrix of size `nFeatures` * `nFeatures`.
+/// @param[in,out] sums                 Array of column sums of size `nFeatures`. It is an output if
+///                                     `computeSumsAndCenter` is true, an input if `useCurrentSums` is true,
+///                                     and is left untouched otherwise.
+/// @param[in]     computeSumsAndCenter Flag that specifies whether the column sums are to be computed
+///                                     and the data is to be centered with the resulting means.
+/// @param[in]     useCurrentSums       Flag that specifies whether the data is to be centered with the means
+///                                     derived from the sums provided in `sums`.
 template <typename algorithmFPType, CpuType cpu>
 services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatures, const size_t nVectors, NumericTable * dataTable,
                                                             algorithmFPType * crossProduct, algorithmFPType * sums, const bool computeSumsAndCenter,
-                                                            bool useCurrentSums)
+                                                            const bool useCurrentSums)
 {
     DAAL_PROFILER_TASK(Covariance::computeDenseCrossProductsAndSumsNonBatched);
-    daal::services::internal::TArray<algorithmFPType, cpu> dataCentered(computeSumsAndCenter ? (nFeatures * nVectors) : 0);
+
+    const bool center = computeSumsAndCenter || useCurrentSums;
+
     ReadRows<algorithmFPType, cpu, NumericTable> dataReader(dataTable, 0, nVectors);
     const algorithmFPType * dataPointer = dataReader.get();
-    if (!dataPointer)
-    {
-        return services::Status(services::ErrorMemoryAllocationFailed);
-    }
+    DAAL_CHECK_MALLOC(dataPointer);
 
-    if (computeSumsAndCenter)
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, nVectors);
+
+    /// Copy of the input data with the column means subtracted. Allocated only if the centering is required.
+    daal::services::internal::TArray<algorithmFPType, cpu> dataCentered(center ? (nFeatures * nVectors) : 0);
+    daal::services::internal::TArray<algorithmFPType, cpu> meansArray(center ? nFeatures : 0);
+
+    if (center)
     {
-        algorithmFPType * means = sums;
-        StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(dataPointer, nFeatures, nVectors, means);
-        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
+        algorithmFPType * dataCenteredPtr = dataCentered.get();
+        algorithmFPType * means           = meansArray.get();
+        DAAL_CHECK_MALLOC(dataCenteredPtr && means);
+
+        if (computeSumsAndCenter)
+        {
+            StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(dataPointer, nFeatures, nVectors, means);
+        }
+        else
+        {
+            /// The means are derived from the sums provided by the user
+            const int result =
+                daal::services::internal::daal_memcpy_s(means, nFeatures * sizeof(algorithmFPType), sums, nFeatures * sizeof(algorithmFPType));
+            DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
+
+            const DAAL_INT one                = 1;
+            const DAAL_INT nCols              = nFeatures;
+            const algorithmFPType nVectors_fp = nVectors;
+            LapackInst<algorithmFPType, cpu>::xxrscl(&nCols, &nVectors_fp, means, &one);
+        }
+
+        threader_for(nVectors, 0, [=](const int vector) {
             daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means,
-                                                                 dataCentered.get() + vector * nFeatures);
+                                                                 dataCenteredPtr + vector * nFeatures);
         });
-    }
 
-    else if (useCurrentSums)
-    {
-        daal::services::internal::TArray<algorithmFPType, cpu> means(nFeatures);
-        daal::services::internal::daal_memcpy_s(means.get(), nFeatures * sizeof(algorithmFPType), sums, nFeatures * sizeof(algorithmFPType));
-        const DAAL_INT one                = 1;
-        const DAAL_INT nCols              = nFeatures;
-        const algorithmFPType nVectors_fp = nVectors;
-        LapackInst<algorithmFPType, cpu>::xxrscl(&nCols, &nVectors_fp, means.get(), &one);
-        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
-            daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means.get(),
-                                                                 dataCentered.get() + vector * nFeatures);
-        });
+        if (computeSumsAndCenter)
+        {
+            /// `finalizeCovariance` and `mergeCrossProductAndSums` expect the sums, not the means
+            const DAAL_INT one                = 1;
+            const DAAL_INT nCols              = nFeatures;
+            const algorithmFPType nVectors_fp = nVectors;
+            const int result =
+                daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), means, nFeatures * sizeof(algorithmFPType));
+            DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
+            BlasInst<algorithmFPType, cpu>::xscal(&nCols, &nVectors_fp, sums, &one);
+        }
     }
 
     const DAAL_INT nCols         = nFeatures;
     const DAAL_INT nRows         = nVectors;
     const algorithmFPType zero   = 0.0;
     const algorithmFPType one_fp = 1.0;
-    BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &nCols, &nRows, &one_fp, computeSumsAndCenter ? dataCentered.get() : dataPointer, &nCols, &zero,
-                                          crossProduct, &nCols);
-
-    const algorithmFPType nVectors_ = nVectors;
-    const DAAL_INT one              = 1;
-    if (computeSumsAndCenter)
-    {
-        BlasInst<algorithmFPType, cpu>::xscal(&nCols, &nVectors_, sums, &one);
-    }
+    BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &nCols, &nRows, &one_fp, center ? dataCentered.get() : dataPointer, &nCols, &zero, crossProduct,
+                                          &nCols);
 
     return services::Status();
 }
@@ -695,9 +732,10 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
 
     services::Status status;
     const bool prefer_non_batched = (nFeatures >= maxColsBatched) || (nVectors <= smallRowsThreshold && nFeatures >= smallRowsMaxColsBatched);
+
     if (prefer_non_batched)
     {
-        if (method == sumDense || isNormalized || assumeCentered)
+        if (method == defaultDense || method == sumDense || isNormalized || assumeCentered)
         {
             status = computeDenseCrossProductsAndSumsNonBatched<algorithmFPType, cpu>(nFeatures, nVectors, dataTable, crossProduct, sums,
                                                                                       method == defaultDense && !isNormalized && !assumeCentered,
