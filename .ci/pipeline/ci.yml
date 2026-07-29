@@ -451,10 +451,18 @@ jobs:
 
   - script: |
       set -euo pipefail
-      # The CMake consumer resolves oneMKL/TBB through the same oneAPI
-      # environment as an installed package user.
-      source /opt/intel/oneapi/setvars.sh
+      # Build with the same environment as the other Bazel steps. `setvars.sh`
+      # exports `MKLROOT`, which `mkl_repo` declares in `environ`, so sourcing it
+      # before the build would repoint `@mkl` at the oneAPI installation and
+      # invalidate the dependency for this step only.
       bazel build :release --release_dpc=false --build_parameters_lib=no
+      # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
+      # oneAPI environment as an installed package user. `setvars.sh` reads
+      # optional variables such as `OCL_ICD_FILENAMES` unguarded, so `nounset`
+      # has to be relaxed while it runs.
+      set +u
+      source /opt/intel/oneapi/setvars.sh
+      set -u
       DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
         BAZEL=bazel dev/release_tests/parameters_layout_consumer_test.sh \
         "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
