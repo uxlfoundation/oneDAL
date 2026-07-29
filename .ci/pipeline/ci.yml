@@ -448,6 +448,9 @@ jobs:
 
   - script: |
       set -euo pipefail
+      # The CMake consumer resolves oneMKL/TBB through the same oneAPI
+      # environment as an installed package user.
+      source /opt/intel/oneapi/setvars.sh
       bazel build :release --release_dpc=false --build_parameters_lib=no
       DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
         BAZEL=bazel dev/release_tests/parameters_layout_consumer_test.sh \
