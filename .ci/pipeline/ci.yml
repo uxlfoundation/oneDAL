@@ -389,6 +389,9 @@ jobs:
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
   - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
