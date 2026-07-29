@@ -20,6 +20,7 @@
 #include <cmath>
 #include <utility>
 
+#include "services/daal_defines.h" // DAAL_MALLOC_DEFAULT_ALIGNMENT
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
@@ -200,14 +201,13 @@ struct EuclideanDist
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType sum = FPType(0);
+        // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
+            const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
+            const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
+            const FPType excess  = belowLo + aboveHi;
             sum += excess * excess;
         }
         return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
@@ -251,13 +251,14 @@ struct EuclideanDist
         const DAAL_INT incy = 1;
         daal::internal::BlasInst<FPType, cpu>::xxgemv(&trans, &m, &n, &alpha, scratchRows, &lda, pivotPt, &incx, &beta, outDists, &incy);
 
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
+        // `rowNorms2` and `outDists` are `TArrayScalable`-backed at every call
+        // site (see the ball-tree build in `hdbscan_ball_tree_batch_impl.i`);
+        // their starts are aligned to `DAAL_MALLOC_DEFAULT_ALIGNMENT`.
+        PRAGMA_OMP_SIMD_ARGS(aligned(rowNorms2, outDists : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (int i = 0; i < count; i++)
         {
-            FPType d2 = rowNorms2[i] + pivotNorm2 - FPType(2) * outDists[i];
-            if (d2 < FPType(0)) d2 = FPType(0);
-            outDists[i] = d2;
+            const FPType d2 = rowNorms2[i] + pivotNorm2 - FPType(2) * outDists[i];
+            outDists[i]     = (d2 < FPType(0)) ? FPType(0) : d2;
         }
         daal::internal::MathInst<FPType, cpu>::vSqrt(count, outDists, outDists);
     }
@@ -304,15 +305,13 @@ struct ManhattanDist
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType sum = FPType(0);
+        // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (int d = 0; d < nCols; d++)
         {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
-            sum += excess;
+            const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
+            const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
+            sum += belowLo + aboveHi;
         }
         return sum;
     }
@@ -373,9 +372,9 @@ struct MinkowskiDist
         FPType sum          = FPType(0);
         for (int d = 0; d < nCols; d++)
         {
-            FPType diff = a[d] - b[d];
-            if (diff < FPType(0)) diff = -diff;
-            sum += daal::internal::MathInst<FPType, cpu>::sPowx(diff, pFP);
+            const FPType diff = a[d] - b[d];
+            const FPType absd = (diff < FPType(0)) ? -diff : diff;
+            sum += daal::internal::MathInst<FPType, cpu>::sPowx(absd, pFP);
         }
         return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
     }
@@ -396,11 +395,9 @@ struct MinkowskiDist
         FPType sum          = FPType(0);
         for (int d = 0; d < nCols; d++)
         {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
+            const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
+            const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
+            const FPType excess  = belowLo + aboveHi;
             sum += daal::internal::MathInst<FPType, cpu>::sPowx(excess, pFP);
         }
         return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
@@ -444,12 +441,15 @@ struct ChebyshevDist
     static FPType pointDist(const FPType * a, const FPType * b, int nCols)
     {
         FPType mx = FPType(0);
+        // OpenMP requires reduction-body updates to be expression-form (via `?:`)
+        // rather than branch-form (`if (...) x = ...`) so the compiler can safely
+        // fold each lane into the max-reduction pattern under `omp simd`.
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
         for (int d = 0; d < nCols; d++)
         {
-            FPType diff = a[d] - b[d];
-            if (diff < FPType(0)) diff = -diff;
-            if (diff > mx) mx = diff;
+            const FPType diff = a[d] - b[d];
+            const FPType absd = (diff < FPType(0)) ? -diff : diff;
+            mx                = (absd > mx) ? absd : mx;
         }
         return mx;
     }
@@ -466,15 +466,14 @@ struct ChebyshevDist
     static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
     {
         FPType mx = FPType(0);
+        // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
         for (int d = 0; d < nCols; d++)
         {
-            FPType excess = FPType(0);
-            if (query[d] < lo[d])
-                excess = lo[d] - query[d];
-            else if (query[d] > hi[d])
-                excess = query[d] - hi[d];
-            if (excess > mx) mx = excess;
+            const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
+            const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
+            const FPType excess  = belowLo + aboveHi;
+            mx                   = (excess > mx) ? excess : mx;
         }
         return mx;
     }

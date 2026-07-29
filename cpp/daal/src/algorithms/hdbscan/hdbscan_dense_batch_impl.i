@@ -37,6 +37,7 @@
 #include "src/algorithms/service_kernel_math.h"
 #include "src/algorithms/service_threading.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/externals/service_memory.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
@@ -193,12 +194,14 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             DAAL_CHECK_MALLOC_THR(dists);
 
             const algorithmFPType * row = distMatrix + i * nRows;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nRows; j++)
-            {
-                dists[j] = row[j];
-            }
+            // `distMatrix` is `TArrayScalable`-backed and `dists` is the current
+            // thread's `TlsMem` slot; both allocations start on a
+            // `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary. `row` = distMatrix + i*nRows
+            // may still be unaligned inside that allocation, so use daal_memcpy_s
+            // (which the codebase uses for contiguous row copies of arbitrary
+            // start alignment) rather than a hand-rolled vectorized loop.
+            const size_t rowBytes = nRows * sizeof(algorithmFPType);
+            daal::services::internal::daal_memcpy_s(dists, rowBytes, row, rowBytes);
 
             std::nth_element(dists, dists + t, dists + nRows);
             coreDistances[i] = dists[t];

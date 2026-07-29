@@ -249,10 +249,12 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     node.centerIdx = pivot2;
 
     algorithmFPType maxR = algorithmFPType(0);
-    PRAGMA_OMP_SIMD_ARGS(reduction(max : maxR))
+    // `d2` is `TArrayScalable`-backed (see d2Arr above); its start is aligned to
+    // DAAL_MALLOC_DEFAULT_ALIGNMENT. Reduction body uses `?:` per OMP conformance.
+    PRAGMA_OMP_SIMD_ARGS(reduction(max : maxR) aligned(d2 : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (int i = 0; i < count; i++)
     {
-        if (d2[i] > maxR) maxR = d2[i];
+        maxR = (d2[i] > maxR) ? d2[i] : maxR;
     }
     node.radius = maxR;
 
