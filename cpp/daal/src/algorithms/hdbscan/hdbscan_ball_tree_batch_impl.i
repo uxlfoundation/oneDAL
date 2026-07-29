@@ -401,6 +401,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
         minCoreDistNode[nodeIdx] = minCD;
         return minCD;
     }
+
     const algorithmFPType leftMin = computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, node.left);
     const algorithmFPType rightMin =
         computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, node.right);
