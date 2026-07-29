@@ -457,6 +457,11 @@ jobs:
   - script: |
       source /opt/intel/oneapi/setvars.sh
       BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
+      # The coverage smoke uses a different compiler/configuration than the
+      # following GCC release build. Drop its large, non-reusable output tree
+      # before producing release artifacts on the space-constrained CI agent.
+      bazel clean
+      df -h .
     displayName: 'Bazel code-coverage icx smoke build'
 
   - script: |
