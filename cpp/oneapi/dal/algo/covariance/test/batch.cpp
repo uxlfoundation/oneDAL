@@ -85,4 +85,44 @@ TEMPLATE_LIST_TEST_M(covariance_batch_test,
     this->general_checks(input, input_data_table_id, cov_desc, non_batched);
 }
 
+TEMPLATE_LIST_TEST_M(covariance_batch_test,
+                     "covariance big variance, small mean flow",
+                     "[covariance][integration][online]",
+                     covariance_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    INFO("Float=" << typeid(Float).name());
+    const bool bias = GENERATE(true, false);
+    INFO("bias=" << bias);
+
+    const bool non_batched = GENERATE(false, true);
+    INFO("non_batched=" << non_batched);
+
+    const cov::result_option_id result_option =
+        GENERATE(covariance::result_options::cov_matrix, covariance::result_options::cor_matrix);
+    INFO("result_option=" << result_option);
+
+    auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                        .set_result_options(result_option)
+                        .set_bias(bias);
+
+    const te::dataframe input = (sizeof(Float) == 8)
+                                    ? te::dataframe_builder{ 10000, 20 }
+                                          .fill_uniform(1.0e8 - 30.0, 1.0e8 + 30.0, 7777)
+                                          .build()
+                                    : te::dataframe_builder{ 10000, 20 }
+                                          .fill_uniform(1.0e4 - 30.0, 1.0e4 + 30.0, 7777)
+                                          .build();
+
+    INFO("num_rows=" << input.get_row_count());
+    INFO("num_columns=" << input.get_column_count());
+
+    // Homogen floating point type is the same as algorithm's floating point type
+    const auto input_data_table_id = this->get_homogen_table_id();
+    this->general_checks(input, input_data_table_id, cov_desc, non_batched);
+}
+
 } // namespace oneapi::dal::covariance::test

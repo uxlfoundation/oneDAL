@@ -84,69 +84,44 @@ services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossPr
     return services::Status();
 }
 
-/// Implements daal::Reducer interface for the dense Covariance algorithm computations.
+enum class ReducerErrorCode
+{
+    ok                  = 0, /// No error
+    memAllocationFailed = 1, /// Memory allocation failed
+    intOverflow         = 2, /// Integer overflow
+    badCast             = 3  /// Cannot cast base daal::Reducer to derived class
+};
+
+/// Implements daal::Reducer interface for the sums reduction part of the Covariance algorithm computations.
 ///
 /// @tparam algorithmFPType     Data type to store partial results: double or float.
 /// @tparam cpu                 Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 template <typename algorithmFPType, CpuType cpu>
-class CovarianceReducer : public daal::Reducer
+class SumsReducer : public daal::Reducer
 {
 public:
-    enum ErrorCode
-    {
-        ok                  = 0, /// No error
-        memAllocationFailed = 1, /// Memory allocation failed
-        intOverflow         = 2, /// Integer overflow
-        badCast             = 3  /// Cannot cast base daal::Reducer to derived class
-    };
     /// Status of the computation.
-    ErrorCode errorCode;
+    ReducerErrorCode errorCode;
 
     /// Get pointer to the array of partial sums.
     inline algorithmFPType * sums() { return _sumsArray.get(); }
-    /// Get pointer to the partial cross-product matrix.
-    inline algorithmFPType * crossProduct() { return _crossProductArray.get(); }
 
     /// Get pointer to the constant array of partial sums.
     inline const algorithmFPType * sums() const { return _sumsArray.get(); }
-    /// Get pointer to the constant partial cross-product matrix.
-    inline const algorithmFPType * crossProduct() const { return _crossProductArray.get(); }
 
     /// Construct and initialize the thread-local partial results
     ///
     /// @param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
     /// @param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
     /// @param[in] numBlocks        Number of blocks of rows in the input data table
-    /// @param[in] isNormalized     Flag that specifies whether the input data is normalized
-    CovarianceReducer(NumericTable * dataTable, DAAL_INT numRowsInBlock, size_t numBlocks, bool isNormalized)
-        : _dataTable(dataTable),
-          _numRowsInBlock(numRowsInBlock),
-          _numBlocks(numBlocks),
-          _nFeatures(dataTable->getNumberOfColumns()),
-          _isNormalized(isNormalized)
+    SumsReducer(NumericTable * dataTable, DAAL_INT numRowsInBlock, size_t numBlocks)
+        : _dataTable(dataTable), _numRowsInBlock(numRowsInBlock), _numBlocks(numBlocks), _nFeatures(dataTable->getNumberOfColumns())
     {
-        bool isOverflow = false;
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _nFeatures, _nFeatures, isOverflow);
-        if (isOverflow)
+        if (!_sumsArray.reset(_nFeatures))
         {
-            errorCode = ErrorCode::intOverflow;
+            errorCode = ReducerErrorCode::memAllocationFailed;
             return;
         }
-        if (!_crossProductArray.reset(_nFeatures * _nFeatures))
-        {
-            errorCode = ErrorCode::memAllocationFailed;
-            return;
-        }
-
-        if (!_isNormalized)
-        {
-            if (!_sumsArray.reset(_nFeatures))
-            {
-                errorCode = ErrorCode::memAllocationFailed;
-                return;
-            }
-        }
-        errorCode = ErrorCode::ok;
     }
 
     /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
@@ -161,37 +136,22 @@ public:
     /// @return Pointer to the partial result of the covariance algorithm.
     virtual ReducerUniquePtr create() const override
     {
-        return daal::internal::makeUnique<CovarianceReducer<algorithmFPType, cpu>, DAAL_BASE_CPU>(_dataTable, _numRowsInBlock, _numBlocks,
-                                                                                                  _isNormalized);
+        return daal::internal::makeUnique<SumsReducer<algorithmFPType, cpu>, DAAL_BASE_CPU>(_dataTable, _numRowsInBlock, _numBlocks);
     }
 
-    /// Updates partial cross-product matrix and, if required, sums with the data
+    /// Updates partial sums array with the data
     /// from the blocks of input data table in the sub-interval [begin, end).
     ///
     /// @param begin Index of the starting block of the input data table.
     /// @param end   Index of the block after the last one in the sub-range.
     virtual void update(size_t begin, size_t end) override
     {
-        DAAL_PROFILER_THREADING_TASK(reducer.update);
-        if (errorCode != ErrorCode::ok)
+        DAAL_PROFILER_THREADING_TASK(sums_reducer.update);
+        if (errorCode != ReducerErrorCode::ok)
         {
-            return;
-        }
-        algorithmFPType * crossProductPtr = crossProduct();
-
-        if (!crossProductPtr)
-        {
-            errorCode = ErrorCode::memAllocationFailed;
             return;
         }
 
-        bool isOverflow = false;
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _numRowsInBlock, _nFeatures, isOverflow);
-        if (isOverflow)
-        {
-            errorCode = ErrorCode::intOverflow;
-            return;
-        }
         const size_t numRowsInLastBlock = _numRowsInBlock + _dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock;
         algorithmFPType one             = 1.0;
 
@@ -202,38 +162,23 @@ public:
             size_t startRow = iBlock * _numRowsInBlock;
 
             ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(_dataTable, startRow, nRows);
-            if (!dataTableBD.get())
-            {
-                errorCode = ErrorCode::memAllocationFailed;
-                return;
-            }
+
             algorithmFPType * dataBlock = const_cast<algorithmFPType *>(dataTableBD.get());
 
-            /// Update the cross-product matrix with the data from the block
+            algorithmFPType * sumsPtr = sums();
+            if (!sumsPtr || !dataBlock)
             {
-                DAAL_PROFILER_THREADING_TASK(reducer.update.syrkData);
-                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, reinterpret_cast<DAAL_INT *>(&nRows), &one, dataBlock, &_nFeatures, &one,
-                                                      crossProductPtr, &_nFeatures);
+                errorCode = ReducerErrorCode::memAllocationFailed;
+                return;
             }
 
-            if (!_isNormalized)
+            for (DAAL_INT i = 0; i < nRows; i++)
             {
-                DAAL_PROFILER_THREADING_TASK(reducer.update.sums);
-                algorithmFPType * sumsPtr = sums();
-                if (!sumsPtr)
+                PRAGMA_OMP_SIMD
+                PRAGMA_VECTOR_ALWAYS
+                for (DAAL_INT j = 0; j < _nFeatures; j++)
                 {
-                    errorCode = ErrorCode::memAllocationFailed;
-                    return;
-                }
-                /* Sum input array elements in case of non-normalized data */
-                for (DAAL_INT i = 0; i < nRows; i++)
-                {
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (DAAL_INT j = 0; j < _nFeatures; j++)
-                    {
-                        sumsPtr[j] += dataBlock[i * _nFeatures + j];
-                    }
+                    sumsPtr[j] += dataBlock[i * _nFeatures + j];
                 }
             }
         }
@@ -244,52 +189,35 @@ public:
     /// @param otherReducer Pointer to the other thread's partial result.
     virtual void join(Reducer * otherReducer) override
     {
-        if (errorCode != ErrorCode::ok)
+        if (errorCode != ReducerErrorCode::ok)
         {
             return;
         }
         DAAL_PROFILER_THREADING_TASK(reducer.join);
-        CovarianceReducer<algorithmFPType, cpu> * other = dynamic_cast<CovarianceReducer<algorithmFPType, cpu> *>(otherReducer);
+        SumsReducer<algorithmFPType, cpu> * other = dynamic_cast<SumsReducer<algorithmFPType, cpu> *>(otherReducer);
         if (!other)
         {
-            errorCode = ErrorCode::badCast;
+            errorCode = ReducerErrorCode::badCast;
             return;
         }
-        if (other->errorCode != ErrorCode::ok)
+        if (other->errorCode != ReducerErrorCode::ok)
         {
             errorCode = other->errorCode;
             return;
         }
-        const algorithmFPType * otherCrossProduct = other->crossProduct();
-        algorithmFPType * thisCrossProduct        = crossProduct();
+        const algorithmFPType * otherSums = other->sums();
+        algorithmFPType * thisSums        = sums();
 
-        if (!thisCrossProduct || !otherCrossProduct)
+        if (!thisSums || !otherSums)
         {
-            errorCode = ErrorCode::memAllocationFailed;
+            errorCode = ReducerErrorCode::memAllocationFailed;
             return;
         }
 
-        /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-        PRAGMA_OMP_SIMD_ARGS(aligned(thisCrossProduct, otherCrossProduct : DAAL_MALLOC_DEFAULT_ALIGNMENT))
-        for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
+        PRAGMA_OMP_SIMD_ARGS(aligned(thisSums, otherSums : DAAL_MALLOC_DEFAULT_ALIGNMENT))
+        for (size_t i = 0; i < _nFeatures; i++)
         {
-            thisCrossProduct[i] += otherCrossProduct[i];
-        }
-        if (!_isNormalized)
-        {
-            algorithmFPType * thisSums        = sums();
-            const algorithmFPType * otherSums = other->sums();
-            if (!thisSums || !otherSums)
-            {
-                errorCode = ErrorCode::memAllocationFailed;
-                return;
-            }
-            /// It is safe to use aligned loads and stores because the data is aligned
-            PRAGMA_OMP_SIMD_ARGS(aligned(thisSums, otherSums : DAAL_MALLOC_DEFAULT_ALIGNMENT))
-            for (size_t i = 0; i < _nFeatures; i++)
-            {
-                thisSums[i] += otherSums[i];
-            }
+            thisSums[i] += otherSums[i];
         }
     }
 
@@ -305,6 +233,233 @@ private:
     /// Thread-local array of partial sums of size `_nFeatures`.
     /// The array is used only if the input data is not normalized.
     TArrayScalableCalloc<algorithmFPType, cpu> _sumsArray;
+};
+
+/// Implements daal::Reducer interface for the dense Covariance algorithm computations.
+///
+/// @tparam algorithmFPType     Data type to store partial results: double or float.
+/// @tparam cpu                 Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
+template <typename algorithmFPType, CpuType cpu>
+class CovarianceReducer : public daal::Reducer
+{
+public:
+    /// Status of the computation.
+    ReducerErrorCode errorCode;
+
+    /// Get pointer to the partial cross-product matrix.
+    inline algorithmFPType * means() { return _meansArray.get(); }
+    /// Get pointer to the partial cross-product matrix.
+    inline algorithmFPType * crossProduct() { return _crossProductArray.get(); }
+
+    /// Get pointer to the constant partial means array.
+    inline const algorithmFPType * means() const { return _meansArray.get(); }
+    /// Get pointer to the constant partial cross-product matrix.
+    inline const algorithmFPType * crossProduct() const { return _crossProductArray.get(); }
+
+    /// Construct and initialize the thread-local partial results
+    ///
+    /// @param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
+    /// @param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
+    /// @param[in] numBlocks        Number of blocks of rows in the input data table
+    /// @param[in] isNormalized     Flag that specifies whether the input data is normalized
+    CovarianceReducer(NumericTable * dataTable, const algorithmFPType * sums, DAAL_INT numRowsInBlock, size_t numBlocks, bool isNormalized)
+        : _dataTable(dataTable),
+          _sums(sums),
+          _numRowsInBlock(numRowsInBlock),
+          _numBlocks(numBlocks),
+          _nFeatures(dataTable->getNumberOfColumns()),
+          _isNormalized(isNormalized)
+    {
+        bool isOverflow = false;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _nFeatures, _nFeatures, isOverflow);
+        if (isOverflow)
+        {
+            errorCode = ReducerErrorCode::intOverflow;
+            return;
+        }
+        if (!_crossProductArray.reset(_nFeatures * _nFeatures))
+        {
+            errorCode = ReducerErrorCode::memAllocationFailed;
+            return;
+        }
+        if (!isNormalized)
+        {
+            if (!sums)
+            {
+                errorCode = ReducerErrorCode::memAllocationFailed;
+                return;
+            }
+            if (!_meansArray.reset(_nFeatures))
+            {
+                errorCode = ReducerErrorCode::memAllocationFailed;
+                return;
+            }
+            algorithmFPType * meansPtr     = means();
+            const algorithmFPType invNRows = 1.0 / (algorithmFPType)_dataTable->getNumberOfRows();
+            for (DAAL_INT i = 0; i < _nFeatures; i++)
+            {
+                meansPtr[i] = sums[i] * invNRows;
+            }
+            if (!_centeredDataBlockArray.reset(_numRowsInBlock * _nFeatures))
+            {
+                errorCode = ReducerErrorCode::memAllocationFailed;
+                return;
+            }
+        }
+
+        errorCode = ReducerErrorCode::ok;
+    }
+
+    /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
+    /// if memory allocations are executed concurrently.
+    void * operator new(size_t size) { return service_scalable_malloc<unsigned char, cpu>(size); }
+
+    void operator delete(void * p) { service_scalable_free<unsigned char, cpu>((unsigned char *)p); }
+
+    /// Constructs a thread-local partial result and initializes it with zeros.
+    /// Must be able to run concurrently with `update` and `join` methods.
+    ///
+    /// @return Pointer to the partial result of the covariance algorithm.
+    virtual ReducerUniquePtr create() const override
+    {
+        return daal::internal::makeUnique<CovarianceReducer<algorithmFPType, cpu>, DAAL_BASE_CPU>(_dataTable, _sums, _numRowsInBlock, _numBlocks,
+                                                                                                  _isNormalized);
+    }
+
+    /// Updates partial cross-product matrix and, if required, sums with the data
+    /// from the blocks of input data table in the sub-interval [begin, end).
+    ///
+    /// @param begin Index of the starting block of the input data table.
+    /// @param end   Index of the block after the last one in the sub-range.
+    virtual void update(size_t begin, size_t end) override
+    {
+        DAAL_PROFILER_THREADING_TASK(reducer.update);
+        if (errorCode != ReducerErrorCode::ok)
+        {
+            return;
+        }
+        algorithmFPType * crossProductPtr = crossProduct();
+
+        if (!crossProductPtr)
+        {
+            errorCode = ReducerErrorCode::memAllocationFailed;
+            return;
+        }
+
+        bool isOverflow = false;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _numRowsInBlock, _nFeatures, isOverflow);
+        if (isOverflow)
+        {
+            errorCode = ReducerErrorCode::intOverflow;
+            return;
+        }
+        const size_t numRowsInLastBlock = _numRowsInBlock + _dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock;
+        algorithmFPType one             = 1.0;
+
+        algorithmFPType * centeredDataBlock = nullptr;
+
+        /// Process blocks of the input data table
+        for (size_t iBlock = begin; iBlock < end; ++iBlock)
+        {
+            size_t nRows    = ((iBlock + 1 < _numBlocks) ? _numRowsInBlock : numRowsInLastBlock);
+            size_t startRow = iBlock * _numRowsInBlock;
+
+            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(_dataTable, startRow, nRows);
+            if (!dataTableBD.get())
+            {
+                errorCode = ReducerErrorCode::memAllocationFailed;
+                return;
+            }
+            algorithmFPType * dataBlock = const_cast<algorithmFPType *>(dataTableBD.get());
+            centeredDataBlock           = dataBlock;
+
+            if (!_isNormalized)
+            {
+                centeredDataBlock = _centeredDataBlockArray.get();
+                if (!_centeredDataBlockArray.get())
+                {
+                    errorCode = ReducerErrorCode::memAllocationFailed;
+                    return;
+                }
+
+                const algorithmFPType * meansPtr = means();
+
+                /* Sum input array elements in case of non-normalized data */
+                for (DAAL_INT i = 0; i < nRows; i++)
+                {
+                    PRAGMA_OMP_SIMD
+                    PRAGMA_VECTOR_ALWAYS
+                    for (DAAL_INT j = 0; j < _nFeatures; j++)
+                    {
+                        centeredDataBlock[i * _nFeatures + j] = dataBlock[i * _nFeatures + j] - meansPtr[j];
+                    }
+                }
+            }
+            /// Update the cross-product matrix with the data from the block
+            {
+                DAAL_PROFILER_THREADING_TASK(reducer.update.syrkData);
+                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, reinterpret_cast<DAAL_INT *>(&nRows), &one, centeredDataBlock,
+                                                      &_nFeatures, &one, crossProductPtr, &_nFeatures);
+            }
+        }
+    }
+
+    /// Merge the partial result with the data from another thread.
+    ///
+    /// @param otherReducer Pointer to the other thread's partial result.
+    virtual void join(Reducer * otherReducer) override
+    {
+        if (errorCode != ReducerErrorCode::ok)
+        {
+            return;
+        }
+        DAAL_PROFILER_THREADING_TASK(reducer.join);
+        CovarianceReducer<algorithmFPType, cpu> * other = dynamic_cast<CovarianceReducer<algorithmFPType, cpu> *>(otherReducer);
+        if (!other)
+        {
+            errorCode = ReducerErrorCode::badCast;
+            return;
+        }
+        if (other->errorCode != ReducerErrorCode::ok)
+        {
+            errorCode = other->errorCode;
+            return;
+        }
+        const algorithmFPType * otherCrossProduct = other->crossProduct();
+        algorithmFPType * thisCrossProduct        = crossProduct();
+
+        if (!thisCrossProduct || !otherCrossProduct)
+        {
+            errorCode = ReducerErrorCode::memAllocationFailed;
+            return;
+        }
+
+        /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
+        PRAGMA_OMP_SIMD_ARGS(aligned(thisCrossProduct, otherCrossProduct : DAAL_MALLOC_DEFAULT_ALIGNMENT))
+        for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
+        {
+            thisCrossProduct[i] += otherCrossProduct[i];
+        }
+    }
+
+private:
+    /// Pointer to the input data table that stores matrix X for which the cross-product matrix and sums are computed.
+    NumericTable * _dataTable;
+    /// Number of features in the input data table.
+    DAAL_INT _nFeatures;
+    /// Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread.
+    DAAL_INT _numRowsInBlock;
+    /// Number of blocks of rows in the input data table.
+    size_t _numBlocks;
+    /// Pointer to the array of sums of size `_nFeatures`.
+    /// The array is used only if the input data is not normalized.
+    const algorithmFPType * _sums;
+    /// Thread-local array of means of size `_nFeatures`.
+    /// The array is used only if the input data is not normalized.
+    TArrayScalableCalloc<algorithmFPType, cpu> _meansArray;
+    /// Thread-local matrix of size `_numRowsInBlock * _nFeatures` that stores the centered data block.
+    /// The array is used only if the input data is not normalized.
+    TArrayScalableCalloc<algorithmFPType, cpu> _centeredDataBlockArray;
     /// Thread-local partial cross-product matrix of size `_nFeatures * _nFeatures`.
     TArrayScalableCalloc<algorithmFPType, cpu> _crossProductArray;
     /// Flag that specifies whether the input data is normalized.
@@ -349,59 +504,72 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         numBlocks++;
     }
 
-    CovarianceReducer<algorithmFPType, cpu> result(dataTable, numRowsInBlock, numBlocks, isNormalized);
-    if (!result.crossProduct() || !result.sums())
+    if (!isNormalized && !assumeCentered)
+    {
+        SumsReducer<algorithmFPType, cpu> sumsResult(dataTable, numRowsInBlock, numBlocks);
+        if (!sumsResult.sums())
+        {
+            return services::Status(services::ErrorMemoryAllocationFailed);
+        }
+
+        const size_t sumsNumBlocks     = numBlocks;
+        const DAAL_INT64 sumsGrainSize = grainSize;
+
+        daal::static_threader_reduce(sumsNumBlocks, sumsGrainSize, sumsResult);
+        if (sumsResult.errorCode != ReducerErrorCode::ok)
+        {
+            if (sumsResult.errorCode == ReducerErrorCode::memAllocationFailed)
+            {
+                return services::Status(services::ErrorMemoryAllocationFailed);
+            }
+            if (sumsResult.errorCode == ReducerErrorCode::intOverflow)
+            {
+                return services::Status(services::ErrorBufferSizeIntegerOverflow);
+            }
+            if (sumsResult.errorCode == ReducerErrorCode::badCast)
+            {
+                return services::Status(services::ErrorCovarianceInternal);
+            }
+        }
+
+        const algorithmFPType * resultSums = sumsResult.sums();
+        daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
+    }
+
+    CovarianceReducer<algorithmFPType, cpu> result(dataTable, sums, numRowsInBlock, numBlocks, isNormalized);
+    if (!result.crossProduct())
     {
         return services::Status(services::ErrorMemoryAllocationFailed);
     }
 
     /* Reduce input matrix X into cross product Xt X and a vector of column sums */
     daal::static_threader_reduce(numBlocks, grainSize, result);
-    if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok)
+    if (result.errorCode != ReducerErrorCode::ok)
     {
-        if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::memAllocationFailed)
+        if (result.errorCode == ReducerErrorCode::memAllocationFailed)
         {
             return services::Status(services::ErrorMemoryAllocationFailed);
         }
-        if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::intOverflow)
+        if (result.errorCode == ReducerErrorCode::intOverflow)
         {
             return services::Status(services::ErrorBufferSizeIntegerOverflow);
         }
-        if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::badCast)
+        if (result.errorCode == ReducerErrorCode::badCast)
         {
             return services::Status(services::ErrorCovarianceInternal);
         }
     }
 
     const algorithmFPType * resultCrossProduct = result.crossProduct();
-    if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok || !resultCrossProduct)
+    if (result.errorCode != ReducerErrorCode::ok || !resultCrossProduct)
     {
         return services::Status(services::ErrorMemoryAllocationFailed);
     }
 
     /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
-    if (!isNormalized && !assumeCentered)
-    {
-        const algorithmFPType * resultSums = result.sums();
-        if (!resultSums)
-        {
-            return services::Status(services::ErrorMemoryAllocationFailed);
-        }
-        daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            PRAGMA_OMP_SIMD
-            for (size_t j = 0; j < nFeatures; j++)
-            {
-                crossProduct[i * nFeatures + j] = resultCrossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
-            }
-        }
-    }
-    else
-    {
-        daal::services::internal::daal_memcpy_s(crossProduct, nFeatures * nFeatures * sizeof(algorithmFPType), resultCrossProduct,
-                                                nFeatures * nFeatures * sizeof(algorithmFPType));
-    }
+
+    daal::services::internal::daal_memcpy_s(crossProduct, nFeatures * nFeatures * sizeof(algorithmFPType), resultCrossProduct,
+                                            nFeatures * nFeatures * sizeof(algorithmFPType));
 
     return services::Status();
 }
