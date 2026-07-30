@@ -65,6 +65,9 @@ public:
     double alpha = 1.0;
     store_centers_method store_centers = store_centers_method::none;
     std::int64_t leaf_size = 40;
+    // 0 sentinel = pick a value from the internal heuristic. Positive values
+    // are forwarded to the GPU blocked distance sweep (kd_tree / ball_tree).
+    std::int64_t distance_block_size = 0;
 };
 
 template <typename Task>
@@ -205,6 +208,19 @@ void descriptor_base<Task>::set_leaf_size_impl(std::int64_t value) {
         throw domain_error(dal::detail::error_messages::hdbscan_leaf_size_lt_one());
     }
     impl_->leaf_size = value;
+}
+
+template <typename Task>
+std::int64_t descriptor_base<Task>::get_distance_block_size() const {
+    return impl_->distance_block_size;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_distance_block_size_impl(std::int64_t value) {
+    if (value < 0) {
+        throw domain_error(dal::detail::error_messages::hdbscan_distance_block_size_lt_zero());
+    }
+    impl_->distance_block_size = value;
 }
 
 template <typename Task>

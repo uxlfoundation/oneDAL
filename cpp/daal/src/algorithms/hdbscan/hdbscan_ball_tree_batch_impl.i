@@ -70,13 +70,13 @@ using daal::services::internal::TArrayScalable;
 template <typename algorithmFPType>
 struct BallNode
 {
-    int left;               ///< Index of left child node (-1 for leaf)
-    int right;              ///< Index of right child node (-1 for leaf)
-    int pointBegin;         ///< Begin of the node's point-index range
-    int pointEnd;           ///< End (exclusive) of the node's point-index range
-    int centerIdx;          ///< Index of the pivot point used as approximate center
+    DAAL_INT left;          ///< Index of left child node (-1 for leaf)
+    DAAL_INT right;         ///< Index of right child node (-1 for leaf)
+    DAAL_INT pointBegin;    ///< Begin of the node's point-index range
+    DAAL_INT pointEnd;      ///< End (exclusive) of the node's point-index range
+    DAAL_INT centerIdx;     ///< Index of the pivot point used as approximate center
     algorithmFPType radius; ///< Max distance from center to any point in this ball
-    int componentId;        ///< -1 = mixed components, >= 0 = uniform Boruvka component
+    DAAL_INT componentId;   ///< -1 = mixed components, >= 0 = uniform Boruvka component
 };
 
 /// Gather `pointIndices[begin..end)` rows from `data` into a contiguous
@@ -97,11 +97,12 @@ struct BallNode
 /// @param[in]  nCols        Number of features
 /// @param[out] scratchRows  Output, row-major `(end - begin) x nCols`
 template <typename algorithmFPType, CpuType cpu>
-static void gatherRows(const algorithmFPType * data, const int * pointIndices, int begin, int end, int nCols, algorithmFPType * scratchRows)
+static void gatherRows(const algorithmFPType * data, const DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, int nCols,
+                       algorithmFPType * scratchRows)
 {
-    const int count       = end - begin;
+    const DAAL_INT count  = end - begin;
     const size_t rowBytes = static_cast<size_t>(nCols) * sizeof(algorithmFPType);
-    for (int i = 0; i < count; i++)
+    for (DAAL_INT i = 0; i < count; i++)
     {
         const algorithmFPType * src = data + pointIndices[begin + i] * nCols;
         algorithmFPType * dst       = scratchRows + i * nCols;
@@ -123,12 +124,12 @@ static void gatherRows(const algorithmFPType * data, const int * pointIndices, i
 ///
 /// @return Index of the maximum element
 template <typename algorithmFPType, CpuType cpu>
-static int argmaxArray(const algorithmFPType * arr, int count)
+static DAAL_INT argmaxArray(const algorithmFPType * arr, DAAL_INT count)
 {
     DAAL_ASSERT(count > 0);
     algorithmFPType best = arr[0];
-    int idx              = 0;
-    for (int i = 1; i < count; i++)
+    DAAL_INT idx         = 0;
+    for (DAAL_INT i = 1; i < count; i++)
     {
         if (arr[i] > best)
         {
@@ -162,8 +163,8 @@ static int argmaxArray(const algorithmFPType * arr, int count)
 ///
 /// @return Index of the row with the maximum distance
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
-static int blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmFPType * scratchRows, const algorithmFPType * rowNorms2, int count,
-                               int nCols, const DistFunc & distFunc, algorithmFPType * outDists)
+static DAAL_INT blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmFPType * scratchRows, const algorithmFPType * rowNorms2,
+                                    DAAL_INT count, int nCols, const DistFunc & distFunc, algorithmFPType * outDists)
 {
     distFunc.template blockDist<cpu>(pivotPt, scratchRows, rowNorms2, count, nCols, outDists);
     return argmaxArray<algorithmFPType, cpu>(outDists, count);
@@ -206,10 +207,10 @@ static int blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmF
 ///
 /// @return Index of the node created by this call
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
-static int buildBallTree(const algorithmFPType * data, int * pointIndices, int begin, int end, int nCols, BallNode<algorithmFPType> * nodes,
-                         int & nextNode, int maxLeafSize, const DistFunc & distFunc)
+static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, int nCols,
+                              BallNode<algorithmFPType> * nodes, DAAL_INT & nextNode, DAAL_INT maxLeafSize, const DistFunc & distFunc)
 {
-    const int nodeIdx                = nextNode++;
+    const DAAL_INT nodeIdx           = nextNode++;
     BallNode<algorithmFPType> & node = nodes[nodeIdx];
     node.pointBegin                  = begin;
     node.pointEnd                    = end;
@@ -217,7 +218,7 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     node.left                        = -1;
     node.right                       = -1;
 
-    const int count = end - begin;
+    const DAAL_INT count = end - begin;
 
     // Gather rows once; all subsequent distance sweeps read contiguous memory.
     daal::services::internal::TArrayScalable<algorithmFPType, cpu> scratchRowsArr(static_cast<size_t>(count) * nCols);
@@ -237,14 +238,14 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     // Pick pivot1 = first point. Find pivot2 = argmax dist(pivot1, .); pos is the
     // offset into scratchRows / pointIndices[begin..end). d3 is scratch for this
     // sweep; it gets overwritten with dist-to-pivot3 below.
-    const int pivot1 = pointIndices[begin];
-    const int pos2   = blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot1 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d3);
-    const int pivot2 = pointIndices[begin + pos2];
+    const DAAL_INT pivot1 = pointIndices[begin];
+    const DAAL_INT pos2   = blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot1 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d3);
+    const DAAL_INT pivot2 = pointIndices[begin + pos2];
 
     // pivot2 is the ball center; d2[i] = dist(pivot2, scratchRows[i]) feeds both
     // the radius (max d2) and the partition (compared to d3).
-    const int pos3   = blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot2 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d2);
-    const int pivot3 = pointIndices[begin + pos3];
+    const DAAL_INT pos3   = blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot2 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d2);
+    const DAAL_INT pivot3 = pointIndices[begin + pos3];
 
     node.centerIdx = pivot2;
 
@@ -252,7 +253,7 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     // `d2` is `TArrayScalable`-backed (see d2Arr above); its start is aligned to
     // DAAL_MALLOC_DEFAULT_ALIGNMENT. Reduction body uses `?:` per OMP conformance.
     PRAGMA_OMP_SIMD_ARGS(reduction(max : maxR) aligned(d2 : DAAL_MALLOC_DEFAULT_ALIGNMENT))
-    for (int i = 0; i < count; i++)
+    for (DAAL_INT i = 0; i < count; i++)
     {
         maxR = (d2[i] > maxR) ? d2[i] : maxR;
     }
@@ -277,8 +278,8 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
     // would be strictly worse than the inline scalar swap below. d2, d3, and
     // pointIndices swap in lockstep so the distance arrays stay aligned with
     // pointIndices[begin..end) during the sweep.
-    int lo = 0;
-    int hi = count - 1;
+    DAAL_INT lo = 0;
+    DAAL_INT hi = count - 1;
     while (lo <= hi)
     {
         if (d2[lo] <= d3[lo])
@@ -293,7 +294,7 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
             hi--;
         }
     }
-    int mid = begin + lo;
+    DAAL_INT mid = begin + lo;
 
     // Ensure both sides are non-empty
     if (mid == begin || mid == end)
@@ -329,8 +330,8 @@ static int buildBallTree(const algorithmFPType * data, int * pointIndices, int b
 /// @param[in,out] heap         Bounded max-heap of best-k candidates seen so far
 /// @param[in]     distFunc     Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void knnQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
-                             const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
+static void knnQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
+                             const algorithmFPType * queryPoint, DAAL_INT nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
 {
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -341,9 +342,9 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
 
     if (node.left < 0)
     {
-        for (int i = node.pointBegin; i < node.pointEnd; i++)
+        for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
         {
-            const int pi               = pointIndices[i];
+            const DAAL_INT pi          = pointIndices[i];
             const algorithmFPType dist = distFunc.template pointDist<cpu>(queryPoint, data + pi * nCols, nCols);
             heap.push(dist, pi);
         }
@@ -385,18 +386,18 @@ static void knnQueryBallTree(const algorithmFPType * data, int nCols, const Ball
 ///
 /// @return Min core distance found in this subtree
 template <typename algorithmFPType, CpuType cpu>
-static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPType> * nodes, const int * pointIndices,
-                                                   const algorithmFPType * coreDistances, algorithmFPType * minCoreDistNode, int nodeIdx)
+static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
+                                                   const algorithmFPType * coreDistances, algorithmFPType * minCoreDistNode, DAAL_INT nodeIdx)
 {
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
     if (node.left < 0)
     {
         algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
         PRAGMA_OMP_SIMD_ARGS(reduction(min : minCD))
-        for (int i = node.pointBegin; i < node.pointEnd; i++)
+        for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];
-            if (cd < minCD) minCD = cd;
+            minCD                    = (cd < minCD) ? cd : minCD;
         }
         minCoreDistNode[nodeIdx] = minCD;
         return minCD;
@@ -426,13 +427,14 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
 ///
 /// @return Shared component id of this subtree, or -1 if mixed
 template <typename algorithmFPType, CpuType cpu>
-static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const int * pointIndices, const int * componentOf, int nodeIdx)
+static DAAL_INT updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices, const DAAL_INT * componentOf,
+                                             DAAL_INT nodeIdx)
 {
     BallNode<algorithmFPType> & node = nodes[nodeIdx];
     if (node.left < 0)
     {
-        const int firstComp = componentOf[pointIndices[node.pointBegin]];
-        for (int i = node.pointBegin + 1; i < node.pointEnd; i++)
+        const DAAL_INT firstComp = componentOf[pointIndices[node.pointBegin]];
+        for (DAAL_INT i = node.pointBegin + 1; i < node.pointEnd; i++)
         {
             if (componentOf[pointIndices[i]] != firstComp)
             {
@@ -443,8 +445,8 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
         node.componentId = firstComp;
         return firstComp;
     }
-    const int leftComp  = updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.left);
-    const int rightComp = updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.right);
+    const DAAL_INT leftComp  = updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.left);
+    const DAAL_INT rightComp = updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, node.right);
     if (leftComp >= 0 && leftComp == rightComp)
     {
         node.componentId = leftComp;
@@ -486,10 +488,11 @@ static int updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, const
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const int * pointIndices,
-                                           const algorithmFPType * coreDistances, const algorithmFPType * minCoreDistNode, const int * componentOf,
-                                           const algorithmFPType * queryPoint, int queryIdx, algorithmFPType queryCoreD, int queryComponent,
-                                           int nodeIdx, algorithmFPType & bestMrd, int & bestIdx, const DistFunc & distFunc, algorithmFPType invAlpha)
+static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes,
+                                           const DAAL_INT * pointIndices, const algorithmFPType * coreDistances,
+                                           const algorithmFPType * minCoreDistNode, const DAAL_INT * componentOf, const algorithmFPType * queryPoint,
+                                           DAAL_INT queryIdx, algorithmFPType queryCoreD, DAAL_INT queryComponent, DAAL_INT nodeIdx,
+                                           algorithmFPType & bestMrd, DAAL_INT & bestIdx, const DistFunc & distFunc, algorithmFPType invAlpha)
 {
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -505,9 +508,9 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
 
     if (node.left < 0)
     {
-        for (int i = node.pointBegin; i < node.pointEnd; i++)
+        for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
         {
-            const int pi = pointIndices[i];
+            const DAAL_INT pi = pointIndices[i];
             if (componentOf[pi] == queryComponent) continue;
 
             const algorithmFPType dist = distFunc.template pointDist<cpu>(queryPoint, data + pi * nCols, nCols);
@@ -528,8 +531,8 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
     const algorithmFPType dLeft  = distFunc.template pointDist<cpu>(queryPoint, data + nodes[node.left].centerIdx * nCols, nCols);
     const algorithmFPType dRight = distFunc.template pointDist<cpu>(queryPoint, data + nodes[node.right].centerIdx * nCols, nCols);
 
-    const int nearChild = (dLeft <= dRight) ? node.left : node.right;
-    const int farChild  = (dLeft <= dRight) ? node.right : node.left;
+    const DAAL_INT nearChild = (dLeft <= dRight) ? node.left : node.right;
+    const DAAL_INT farChild  = (dLeft <= dRight) ? node.right : node.left;
 
     nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint,
                                                          queryIdx, queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
@@ -569,8 +572,9 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCo
 ///                               queries)
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples,
-                                          BallNode<algorithmFPType> * nodes, int * pointIndices, int totalTreeNodes, algorithmFPType * coreDistances,
-                                          int * mstFrom, int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
+                                          BallNode<algorithmFPType> * nodes, DAAL_INT * pointIndices, DAAL_INT totalTreeNodes,
+                                          algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
+                                          const DistFunc & distFunc, double alpha)
 {
     const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
     // Canonical HDBSCAN core distance (Campello 2013): the distance to the
@@ -589,10 +593,10 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     //     tie-break in the MST sort, but this does not affect labels:
     //     duplicates share the same dendrogram lambda (= +inf) and therefore
     //     always end up in the same cluster / noise assignment.
-    const int k = static_cast<int>(minSamples);
+    const DAAL_INT k = static_cast<DAAL_INT>(minSamples);
 
     // Step 2: Core distances via k-NN on ball tree
-    daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {
+    daal::threader_for(nRows, nRows, [&](size_t i) {
         KnnHeap<algorithmFPType, cpu> heap(k);
         if (!heap.ok()) return;
 
@@ -608,34 +612,34 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
-    TArray<int, cpu> ufParentVec(nRows);
-    TArray<int, cpu> ufRankVec(nRows);
-    TArray<int, cpu> componentOfVec(nRows);
-    int * ufParent    = ufParentVec.get();
-    int * ufRank      = ufRankVec.get();
-    int * componentOf = componentOfVec.get();
+    TArray<DAAL_INT, cpu> ufParentVec(nRows);
+    TArray<DAAL_INT, cpu> ufRankVec(nRows);
+    TArray<DAAL_INT, cpu> componentOfVec(nRows);
+    DAAL_INT * ufParent    = ufParentVec.get();
+    DAAL_INT * ufRank      = ufRankVec.get();
+    DAAL_INT * componentOf = componentOfVec.get();
     if (!ufParent || !ufRank || !componentOf) return;
 
     TArrayScalable<algorithmFPType, cpu> pointBestMrdVec(nRows);
-    TArray<int, cpu> pointBestIdxVec(nRows);
+    TArray<DAAL_INT, cpu> pointBestIdxVec(nRows);
     algorithmFPType * pointBestMrd = pointBestMrdVec.get();
-    int * pointBestIdx             = pointBestIdxVec.get();
+    DAAL_INT * pointBestIdx        = pointBestIdxVec.get();
     if (!pointBestMrd || !pointBestIdx) return;
 
     TArrayScalable<algorithmFPType, cpu> compBestMrdVec(nRows);
-    TArray<int, cpu> compBestFromVec(nRows);
-    TArray<int, cpu> compBestToVec(nRows);
+    TArray<DAAL_INT, cpu> compBestFromVec(nRows);
+    TArray<DAAL_INT, cpu> compBestToVec(nRows);
     algorithmFPType * compBestMrd = compBestMrdVec.get();
-    int * compBestFrom            = compBestFromVec.get();
-    int * compBestTo              = compBestToVec.get();
+    DAAL_INT * compBestFrom       = compBestFromVec.get();
+    DAAL_INT * compBestTo         = compBestToVec.get();
     if (!compBestMrd || !compBestFrom || !compBestTo) return;
 
     for (size_t i = 0; i < nRows; i++)
     {
-        ufParent[i]    = static_cast<int>(i);
-        componentOf[i] = static_cast<int>(i);
+        ufParent[i]    = static_cast<DAAL_INT>(i);
+        componentOf[i] = static_cast<DAAL_INT>(i);
     }
-    services::internal::service_memset_seq<int, cpu>(ufRank, 0, nRows);
+    services::internal::service_memset_seq<DAAL_INT, cpu>(ufRank, 0, nRows);
 
     UnionFind uf { ufParent, ufRank };
 
@@ -643,22 +647,21 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
-    const int iNRows     = static_cast<int>(nRows);
     const int iNCols     = static_cast<int>(nCols);
 
     // Only phase 1 (nearest-different-component MRD tree query) is
     // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
     while (numComponents > 1)
     {
-        daal::threader_for(iNRows, iNRows, [&](size_t i) {
-            const int comp                   = componentOf[i];
+        daal::threader_for(nRows, nRows, [&](size_t i) {
+            const DAAL_INT comp              = componentOf[i];
             const algorithmFPType * queryPt  = data + i * nCols;
             const algorithmFPType queryCoreD = coreDistances[i];
             algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
-            int bestIdx                      = -1;
+            DAAL_INT bestIdx                 = -1;
 
             nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, iNCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf,
-                                                                 queryPt, static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc,
+                                                                 queryPt, static_cast<DAAL_INT>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc,
                                                                  invAlpha);
 
             pointBestMrd[i] = bestMrd;
@@ -704,14 +707,14 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 /// @param[in]     alpha         Robust single-linkage scaling factor; applied
 ///                              only to dist(q,p) inside MRD
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, int maxLeafSize,
-                                      BallNode<algorithmFPType> * nodes, int * pointIndices, algorithmFPType * coreDistances, int * mstFrom,
-                                      int * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
+static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, DAAL_INT maxLeafSize,
+                                      BallNode<algorithmFPType> * nodes, DAAL_INT * pointIndices, algorithmFPType * coreDistances, DAAL_INT * mstFrom,
+                                      DAAL_INT * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
 {
-    int nextNode = 0;
-    buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize,
+    DAAL_INT nextNode = 0;
+    buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize,
                                         distFunc);
-    const int totalTreeNodes = nextNode;
+    const DAAL_INT totalTreeNodes = nextNode;
     computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances, mstFrom,
                                                         mstTo, mstWeights, distFunc, alpha);
 }
@@ -771,32 +774,32 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const algorithmFPType * data = dataBlock.get();
 
     // Step 1: Build ball tree
-    const int maxLeafSize = static_cast<int>(leafSize);
+    const DAAL_INT maxLeafSize = static_cast<DAAL_INT>(leafSize);
     // A binary tree that stops splitting when a node holds a single point has
     // exactly `2*nRows - 1` nodes. `4*nRows` is a conservative headroom: leaves
     // stop at `maxLeafSize > 1`, but pathological inputs (degenerate splits,
     // fallback mid = begin + count/2 when the partition is empty on one side)
     // can produce very uneven trees; 4x removes the branching-factor sensitivity.
-    const int maxNodes = 4 * static_cast<int>(nRows);
+    const DAAL_INT maxNodes = 4 * static_cast<DAAL_INT>(nRows);
 
     TArray<BallNode<algorithmFPType>, cpu> nodesVec(maxNodes);
     BallNode<algorithmFPType> * nodes = nodesVec.get();
     DAAL_CHECK_MALLOC(nodes);
 
-    TArray<int, cpu> pointIndicesVec(nRows);
-    int * pointIndices = pointIndicesVec.get();
+    TArray<DAAL_INT, cpu> pointIndicesVec(nRows);
+    DAAL_INT * pointIndices = pointIndicesVec.get();
     DAAL_CHECK_MALLOC(pointIndices);
-    for (size_t i = 0; i < nRows; i++) pointIndices[i] = static_cast<int>(i);
+    for (size_t i = 0; i < nRows; i++) pointIndices[i] = static_cast<DAAL_INT>(i);
 
     TArray<algorithmFPType, cpu> coreDistsVec(nRows);
     algorithmFPType * coreDistances = coreDistsVec.get();
     DAAL_CHECK_MALLOC(coreDistances);
 
-    TArray<int, cpu> mstFromVec(edgeCount);
-    TArray<int, cpu> mstToVec(edgeCount);
+    TArray<DAAL_INT, cpu> mstFromVec(edgeCount);
+    TArray<DAAL_INT, cpu> mstToVec(edgeCount);
     TArray<algorithmFPType, cpu> mstWeightsVec(edgeCount);
-    int * mstFrom                = mstFromVec.get();
-    int * mstTo                  = mstToVec.get();
+    DAAL_INT * mstFrom           = mstFromVec.get();
+    DAAL_INT * mstTo             = mstToVec.get();
     algorithmFPType * mstWeights = mstWeightsVec.get();
     DAAL_CHECK_MALLOC(mstFrom);
     DAAL_CHECK_MALLOC(mstTo);

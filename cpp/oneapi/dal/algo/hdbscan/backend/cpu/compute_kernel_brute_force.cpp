@@ -35,8 +35,8 @@ namespace daal_hdbscan_internal = daal::algorithms::hdbscan::internal;
 namespace interop = dal::backend::interop;
 
 template <typename Float, daal::internal::CpuType Cpu>
-using daal_hdbscan_brute_force_t =
-    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan_internal::bruteForceDense, Cpu>;
+using daal_hdbscan_brute_force_t = daal_hdbscan_internal::
+    HDBSCANBatchKernel<Float, daal_hdbscan_internal::Method::bruteForceDense, Cpu>;
 
 /// Run the brute-force HDBSCAN CPU pipeline for a single floating-point type.
 ///
@@ -49,7 +49,7 @@ using daal_hdbscan_brute_force_t =
 ///
 /// @param[in] ctx  CPU dispatch context
 /// @param[in] desc Algorithm descriptor (carries metric, mcs, min_samples, etc.)
-/// @param[in] data Input data table of size `n × d`
+/// @param[in] data Input data table of size `n x d`
 ///
 /// @return oneAPI `compute_result` with responses, cluster count, and optional centers
 template <typename Float>

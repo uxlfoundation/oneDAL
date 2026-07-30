@@ -40,7 +40,9 @@ namespace internal
 /// Kept in the internal src namespace because HDBSCAN is only exposed through
 /// the oneDAL (oneAPI) interface; the legacy DAAL C++ API does not ship this
 /// algorithm, so the method tag does not need to be part of the public API.
-enum Method
+/// Scoped as `enum class` so unqualified `bruteForceDense` / `kdTree` /
+/// `ballTree` names cannot leak into user code.
+enum class Method
 {
     bruteForceDense = 0, ///< Brute-force method with full distance matrix
     kdTree          = 1, ///< K-d tree method: O(N log N) neighbor search, no N^2 distance matrix

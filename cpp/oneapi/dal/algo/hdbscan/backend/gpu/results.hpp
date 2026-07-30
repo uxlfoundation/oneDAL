@@ -64,9 +64,11 @@ inline result_t make_results(sycl::queue& queue,
 /// Build a oneAPI compute result from device-side responses, including centers.
 ///
 /// Forwards to the no-data overload to set responses and cluster count, then
-/// optionally computes centroid and/or medoid tables on the host (via
-/// `compute_centroids` / `compute_medoids`) when `desc.get_store_centers()`
-/// requests them.
+/// optionally computes centroid and/or medoid tables on the device (via
+/// `compute_centroids_gpu` / `compute_medoids_gpu`) when
+/// `desc.get_store_centers()` requests them. Results are pulled to host arrays
+/// only at the final `homogen_table::wrap` step -- the accumulate, scan, and
+/// normalize kernels all stay on device.
 ///
 /// @tparam Float Floating-point type used for centers
 ///
@@ -95,55 +97,53 @@ inline result_t make_results(sycl::queue& queue,
         const bool need_medoids = (store_centers == store_centers_method::medoid ||
                                    store_centers == store_centers_method::both);
 
-        auto resp_host = responses.to_host(queue);
-        const std::int32_t* resp_ptr = resp_host.get_data();
+        // Bring data onto device once; responses are already there.
+        auto data_nd = pr::table2ndarray<Float>(queue, data, sycl::usm::alloc::device);
+        queue.wait_and_throw();
 
-        row_accessor<const Float> data_acc{ data };
-        const auto data_arr = data_acc.pull({ 0, -1 });
-        const Float* data_ptr = data_arr.get_data();
+        const Float* data_ptr = data_nd.get_data();
+        const std::int32_t* resp_ptr = responses.get_data();
+
+        // Centroids are needed either as an output or as an input to medoid
+        // selection. Compute them on device in both cases.
+        auto centroids_dev = pr::ndarray<Float, 1>::empty(queue,
+                                                          cluster_count * col_count,
+                                                          sycl::usm::alloc::device);
+        auto centroid_event = compute_centroids_gpu<Float>(queue,
+                                                           data_ptr,
+                                                           resp_ptr,
+                                                           row_count,
+                                                           col_count,
+                                                           cluster_count,
+                                                           centroids_dev.get_mutable_data());
 
         if (need_centroids) {
-            auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-            compute_centroids(data_ptr,
-                              resp_ptr,
-                              row_count,
-                              col_count,
-                              cluster_count,
-                              arr_centroids.get_mutable_data());
+            centroid_event.wait_and_throw();
+            auto centroids_host = centroids_dev.to_host(queue);
             results.set_cluster_centers(
-                dal::homogen_table::wrap(arr_centroids, cluster_count, col_count));
-
-            if (need_medoids) {
-                auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                compute_medoids(data_ptr,
-                                resp_ptr,
-                                row_count,
-                                col_count,
-                                cluster_count,
-                                arr_centroids.get_data(),
-                                arr_medoids.get_mutable_data());
-                results.set_medoid_centers(
-                    dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
-            }
+                dal::homogen_table::wrap(centroids_host.flatten(), cluster_count, col_count));
         }
-        else if (need_medoids) {
-            auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-            compute_centroids(data_ptr,
-                              resp_ptr,
-                              row_count,
-                              col_count,
-                              cluster_count,
-                              arr_centroids.get_mutable_data());
-            auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-            compute_medoids(data_ptr,
-                            resp_ptr,
-                            row_count,
-                            col_count,
-                            cluster_count,
-                            arr_centroids.get_data(),
-                            arr_medoids.get_mutable_data());
+
+        if (need_medoids) {
+            auto medoids_dev = pr::ndarray<Float, 1>::empty(queue,
+                                                            cluster_count * col_count,
+                                                            sycl::usm::alloc::device);
+            auto medoid_event = compute_medoids_gpu<Float>(queue,
+                                                           data_ptr,
+                                                           resp_ptr,
+                                                           row_count,
+                                                           col_count,
+                                                           cluster_count,
+                                                           centroids_dev.get_data(),
+                                                           medoids_dev.get_mutable_data(),
+                                                           { centroid_event });
+            medoid_event.wait_and_throw();
+            auto medoids_host = medoids_dev.to_host(queue);
             results.set_medoid_centers(
-                dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
+                dal::homogen_table::wrap(medoids_host.flatten(), cluster_count, col_count));
+        }
+        else {
+            centroid_event.wait_and_throw();
         }
     }
 

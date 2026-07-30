@@ -46,7 +46,7 @@ using input_t = compute_input<task::clustering>;
 ///
 /// @param[in] ctx        GPU dispatch context (carries the SYCL queue)
 /// @param[in] desc       Algorithm descriptor
-/// @param[in] local_data Input data table of size `n × d`
+/// @param[in] local_data Input data table of size `n x d`
 ///
 /// @return oneAPI `compute_result` with responses and cluster count
 template <typename Float>
@@ -89,7 +89,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
     // Step 2: Compute core distances from the unscaled distance matrix.
     // Per the canonical HDBSCAN definition, alpha must NOT touch the k-NN
-    // core distance — it scales only the dist term inside MRD (Step 3).
+    // core distance -- it scales only the dist term inside MRD (Step 3).
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
     core_dist_event.wait_and_throw();

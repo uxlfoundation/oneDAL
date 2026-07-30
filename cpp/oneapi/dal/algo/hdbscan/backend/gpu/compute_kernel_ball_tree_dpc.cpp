@@ -15,7 +15,7 @@
 *******************************************************************************/
 
 /// GPU HDBSCAN ball_tree: blocked core distance computation + GPU Boruvka MST.
-/// Same pipeline as kd_tree GPU variant — all computation stays on device.
+/// Same pipeline as kd_tree GPU variant -- all computation stays on device.
 
 #include "oneapi/dal/algo/hdbscan/backend/gpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
@@ -39,14 +39,22 @@ using input_t = compute_input<task::clustering>;
 
 /// Pick a block size for the blocked core-distance sweep.
 ///
-/// Targets a `B × N` distance block of about 256 MB; clamped to a minimum of
-/// 256 rows and to `row_count`.
+/// If `user_hint > 0`, the caller-supplied value from
+/// `desc.get_distance_block_size()` is used verbatim (clamped to `row_count`).
+/// Otherwise falls back to a heuristic that targets a `B x N` distance block
+/// of about 256 MB, clamped to `[256, row_count]`.
 ///
 /// @param[in] row_count  Number of points `N`
 /// @param[in] float_size `sizeof(Float)`
+/// @param[in] user_hint  Descriptor-provided `distance_block_size` (0 = auto)
 ///
 /// @return Chosen block size `B`
-static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float_size) {
+static std::int64_t choose_block_size(std::int64_t row_count,
+                                      std::int64_t float_size,
+                                      std::int64_t user_hint) {
+    if (user_hint > 0) {
+        return (user_hint > row_count) ? row_count : user_hint;
+    }
     const std::int64_t target_bytes = 256 * 1024 * 1024;
     std::int64_t bs = target_bytes / (row_count * float_size);
     if (bs < 256)
@@ -66,7 +74,7 @@ static std::int64_t choose_block_size(std::int64_t row_count, std::int64_t float
 ///
 /// @param[in] ctx        GPU dispatch context
 /// @param[in] desc       Algorithm descriptor
-/// @param[in] local_data Input data table of size `n × d`
+/// @param[in] local_data Input data table of size `n x d`
 ///
 /// @return oneAPI `compute_result` with responses and cluster count
 template <typename Float>
@@ -101,7 +109,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     // distance row contains the zero self-entry, so a k-smallest selection of
     // size `min_samples` holds {self + (min_samples - 1) non-self}; element
     // `[k - 1]` is the answer.
-    const std::int64_t block_size = choose_block_size(row_count, sizeof(Float));
+    const std::int64_t block_size =
+        choose_block_size(row_count, sizeof(Float), desc.get_distance_block_size());
     const std::int64_t k = min_samples;
     const bool needs_sqrt = (metric == distance_metric::euclidean);
 

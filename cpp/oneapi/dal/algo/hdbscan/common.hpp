@@ -183,6 +183,7 @@ public:
     double get_alpha() const;
     store_centers_method get_store_centers() const;
     std::int64_t get_leaf_size() const;
+    std::int64_t get_distance_block_size() const;
 
 protected:
     void set_min_cluster_size_impl(std::int64_t);
@@ -197,6 +198,7 @@ protected:
     void set_alpha_impl(double);
     void set_store_centers_impl(store_centers_method);
     void set_leaf_size_impl(std::int64_t);
+    void set_distance_block_size_impl(std::int64_t);
 
 private:
     dal::detail::pimpl<descriptor_impl<Task>> impl_;
@@ -371,6 +373,22 @@ public:
 
     auto& set_leaf_size(std::int64_t value) {
         base_t::set_leaf_size_impl(value);
+        return *this;
+    }
+
+    /// Row block size `B` for the GPU blocked pairwise-distance sweep in
+    /// :expr:`method::kd_tree` / :expr:`method::ball_tree`. When left at the
+    /// default (0), an internal heuristic picks a value that targets a `B x N`
+    /// device buffer of roughly 256 MB (clamped to `[256, row_count]`).
+    /// Non-zero values override the heuristic and are clamped to `row_count`.
+    /// Ignored by CPU backends and by :expr:`method::brute_force`.
+    /// @invariant :expr:`distance_block_size >= 0`
+    std::int64_t get_distance_block_size() const {
+        return base_t::get_distance_block_size();
+    }
+
+    auto& set_distance_block_size(std::int64_t value) {
+        base_t::set_distance_block_size_impl(value);
         return *this;
     }
 };

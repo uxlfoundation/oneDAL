@@ -208,6 +208,8 @@ MSG(hdbscan_cluster_selection_epsilon_lt_zero,
 MSG(hdbscan_max_cluster_size_lt_zero, "HDBSCAN max_cluster_size must be non-negative")
 MSG(hdbscan_alpha_leq_zero, "HDBSCAN alpha must be greater than zero")
 MSG(hdbscan_leaf_size_lt_one, "HDBSCAN leaf_size must be at least 1")
+MSG(hdbscan_distance_block_size_lt_zero,
+    "HDBSCAN distance_block_size must be non-negative (0 = auto)")
 
 /* k-NN */
 MSG(knn_kd_tree_method_is_not_implemented_for_gpu,

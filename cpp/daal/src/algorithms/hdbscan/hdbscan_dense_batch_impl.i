@@ -214,50 +214,50 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Step 3: Build MST using Boruvka's algorithm with MRD
     // =========================================================================
 
-    TArray<int, cpu> mstFromVec(edgeCount);
-    TArray<int, cpu> mstToVec(edgeCount);
+    TArray<DAAL_INT, cpu> mstFromVec(edgeCount);
+    TArray<DAAL_INT, cpu> mstToVec(edgeCount);
     TArray<algorithmFPType, cpu> mstWeightsVec(edgeCount);
-    int * mstFrom                = mstFromVec.get();
-    int * mstTo                  = mstToVec.get();
+    DAAL_INT * mstFrom           = mstFromVec.get();
+    DAAL_INT * mstTo             = mstToVec.get();
     algorithmFPType * mstWeights = mstWeightsVec.get();
     DAAL_CHECK_MALLOC(mstFrom);
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
     {
-        TArray<int, cpu> ufParentVec(nRows);
-        TArray<int, cpu> ufRankVec(nRows);
-        TArray<int, cpu> componentOfVec(nRows);
-        int * ufParent    = ufParentVec.get();
-        int * ufRank      = ufRankVec.get();
-        int * componentOf = componentOfVec.get();
+        TArray<DAAL_INT, cpu> ufParentVec(nRows);
+        TArray<DAAL_INT, cpu> ufRankVec(nRows);
+        TArray<DAAL_INT, cpu> componentOfVec(nRows);
+        DAAL_INT * ufParent    = ufParentVec.get();
+        DAAL_INT * ufRank      = ufRankVec.get();
+        DAAL_INT * componentOf = componentOfVec.get();
         DAAL_CHECK_MALLOC(ufParent);
         DAAL_CHECK_MALLOC(ufRank);
         DAAL_CHECK_MALLOC(componentOf);
 
         TArray<algorithmFPType, cpu> pointBestMrdVec(nRows);
-        TArray<int, cpu> pointBestIdxVec(nRows);
+        TArray<DAAL_INT, cpu> pointBestIdxVec(nRows);
         algorithmFPType * pointBestMrd = pointBestMrdVec.get();
-        int * pointBestIdx             = pointBestIdxVec.get();
+        DAAL_INT * pointBestIdx        = pointBestIdxVec.get();
         DAAL_CHECK_MALLOC(pointBestMrd);
         DAAL_CHECK_MALLOC(pointBestIdx);
 
         TArray<algorithmFPType, cpu> compBestMrdVec(nRows);
-        TArray<int, cpu> compBestFromVec(nRows);
-        TArray<int, cpu> compBestToVec(nRows);
+        TArray<DAAL_INT, cpu> compBestFromVec(nRows);
+        TArray<DAAL_INT, cpu> compBestToVec(nRows);
         algorithmFPType * compBestMrd = compBestMrdVec.get();
-        int * compBestFrom            = compBestFromVec.get();
-        int * compBestTo              = compBestToVec.get();
+        DAAL_INT * compBestFrom       = compBestFromVec.get();
+        DAAL_INT * compBestTo         = compBestToVec.get();
         DAAL_CHECK_MALLOC(compBestMrd);
         DAAL_CHECK_MALLOC(compBestFrom);
         DAAL_CHECK_MALLOC(compBestTo);
 
         for (size_t i = 0; i < nRows; i++)
         {
-            ufParent[i]    = static_cast<int>(i);
-            componentOf[i] = static_cast<int>(i);
+            ufParent[i]    = static_cast<DAAL_INT>(i);
+            componentOf[i] = static_cast<DAAL_INT>(i);
         }
-        services::internal::service_memset_seq<int, cpu>(ufRank, 0, nRows);
+        services::internal::service_memset_seq<DAAL_INT, cpu>(ufRank, 0, nRows);
 
         UnionFind uf { ufParent, ufRank };
 
@@ -275,11 +275,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             // Only phase 1 is method-specific; phases 2-4 route through the shared
             // helpers in hdbscan_boruvka_utils.h.
             daal::threader_for(nRows, nRows, [&](size_t i) {
-                const int myComp               = componentOf[i];
+                const DAAL_INT myComp          = componentOf[i];
                 const algorithmFPType * mrdRow = distMatrix + i * nRows;
                 const algorithmFPType coreI    = coreDistances[i];
                 algorithmFPType bestMrd        = daal::services::internal::MaxVal<algorithmFPType>::get();
-                int bestIdx                    = -1;
+                DAAL_INT bestIdx               = -1;
 
                 for (size_t j = 0; j < nRows; j++)
                 {
@@ -290,7 +290,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                     if (mrd < bestMrd)
                     {
                         bestMrd = mrd;
-                        bestIdx = static_cast<int>(j);
+                        bestIdx = static_cast<DAAL_INT>(j);
                     }
                 }
                 pointBestMrd[i] = bestMrd;

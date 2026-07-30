@@ -36,7 +36,7 @@ namespace interop = dal::backend::interop;
 
 template <typename Float, daal::internal::CpuType Cpu>
 using daal_hdbscan_ball_tree_t =
-    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan_internal::ballTree, Cpu>;
+    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan_internal::Method::ballTree, Cpu>;
 
 /// Run the ball-tree HDBSCAN CPU pipeline for a single floating-point type.
 ///
@@ -47,7 +47,7 @@ using daal_hdbscan_ball_tree_t =
 ///
 /// @param[in] ctx  CPU dispatch context
 /// @param[in] desc Algorithm descriptor
-/// @param[in] data Input data table of size `n × d`
+/// @param[in] data Input data table of size `n x d`
 ///
 /// @return oneAPI `compute_result` with responses, cluster count, and optional centers
 template <typename Float>

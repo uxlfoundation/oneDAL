@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "services/daal_defines.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
@@ -36,18 +37,18 @@ namespace internal
 /// ball-tree). Only phase 1 of Boruvka's MST (nearest-different-component MRD
 /// search) legitimately differs across methods -- the union-find and the
 /// per-round reduce / merge / component-id refresh sequence below is identical.
-/// Holds bare pointers; caller owns the two `int[nRows]` backing arrays.
+/// Holds bare pointers; caller owns the two `DAAL_INT[nRows]` backing arrays.
 struct UnionFind
 {
-    int * parent; ///< `parent[i]` is the parent index; roots satisfy `parent[i] == i`
-    int * rank;   ///< Rank per root; ties broken by union-by-rank
+    DAAL_INT * parent; ///< `parent[i]` is the parent index; roots satisfy `parent[i] == i`
+    DAAL_INT * rank;   ///< Rank per root; ties broken by union-by-rank
 
     /// Path-halving find.
     ///
     /// @param[in] x Element id
     ///
     /// @return Root id of the set containing `x`
-    int find(int x) const
+    DAAL_INT find(DAAL_INT x) const
     {
         while (parent[x] != x)
         {
@@ -61,7 +62,7 @@ struct UnionFind
     ///
     /// @param[in] rx Root id 1
     /// @param[in] ry Root id 2
-    void unionRoots(int rx, int ry)
+    void unionRoots(DAAL_INT rx, DAAL_INT ry)
     {
         if (rank[rx] < rank[ry])
             parent[rx] = ry;
@@ -92,8 +93,8 @@ struct UnionFind
 /// @param[out] compBestFrom Per-component source id, seeded to `-1`
 /// @param[out] compBestTo   Per-component target id, seeded to `-1`
 template <typename FPType>
-static void reduceComponentBestEdges(size_t nRows, const int * componentOf, const FPType * pointBestMrd, const int * pointBestIdx,
-                                     FPType * compBestMrd, int * compBestFrom, int * compBestTo)
+static void reduceComponentBestEdges(size_t nRows, const DAAL_INT * componentOf, const FPType * pointBestMrd, const DAAL_INT * pointBestIdx,
+                                     FPType * compBestMrd, DAAL_INT * compBestFrom, DAAL_INT * compBestTo)
 {
     const FPType inf = daal::services::internal::MaxVal<FPType>::get();
     for (size_t i = 0; i < nRows; i++)
@@ -105,11 +106,11 @@ static void reduceComponentBestEdges(size_t nRows, const int * componentOf, cons
     for (size_t i = 0; i < nRows; i++)
     {
         if (pointBestIdx[i] < 0) continue;
-        const int comp = componentOf[i];
+        const DAAL_INT comp = componentOf[i];
         if (pointBestMrd[i] < compBestMrd[comp])
         {
             compBestMrd[comp]  = pointBestMrd[i];
-            compBestFrom[comp] = static_cast<int>(i);
+            compBestFrom[comp] = static_cast<DAAL_INT>(i);
             compBestTo[comp]   = pointBestIdx[i];
         }
     }
@@ -138,17 +139,18 @@ static void reduceComponentBestEdges(size_t nRows, const int * componentOf, cons
 ///
 /// @return Number of edges added this round; caller uses `0` to break the outer loop
 template <typename FPType>
-static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd, const int * compBestFrom, const int * compBestTo, UnionFind & uf,
-                                       int * mstFrom, int * mstTo, FPType * mstWeights, size_t & edgesAdded, size_t & numComponents)
+static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd, const DAAL_INT * compBestFrom, const DAAL_INT * compBestTo,
+                                       UnionFind & uf, DAAL_INT * mstFrom, DAAL_INT * mstTo, FPType * mstWeights, size_t & edgesAdded,
+                                       size_t & numComponents)
 {
     size_t addedThisRound = 0;
     for (size_t c = 0; c < nRows; c++)
     {
         if (compBestFrom[c] < 0) continue;
-        const int u  = compBestFrom[c];
-        const int v  = compBestTo[c];
-        const int ru = uf.find(u);
-        const int rv = uf.find(v);
+        const DAAL_INT u  = compBestFrom[c];
+        const DAAL_INT v  = compBestTo[c];
+        const DAAL_INT ru = uf.find(u);
+        const DAAL_INT rv = uf.find(v);
         if (ru == rv) continue;
 
         mstFrom[edgesAdded]    = u;
@@ -174,10 +176,9 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
 /// @param[in]  uf          Union-find state
 /// @param[out] componentOf Per-point component id (written for every entry)
 template <daal::internal::CpuType cpu>
-static void refreshComponentIds(size_t nRows, const UnionFind & uf, int * componentOf)
+static void refreshComponentIds(size_t nRows, const UnionFind & uf, DAAL_INT * componentOf)
 {
-    const int iNRows = static_cast<int>(nRows);
-    daal::threader_for(iNRows, iNRows, [&](size_t i) { componentOf[i] = uf.find(static_cast<int>(i)); });
+    daal::threader_for(nRows, nRows, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
 }
 
 } // namespace internal

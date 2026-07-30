@@ -72,9 +72,9 @@ static FPType rowNormSquared(const FPType * row, int nCols)
 /// @param[in]  nCols    Number of features per row
 /// @param[out] outNorms Output norms, length `count`
 template <typename FPType, daal::internal::CpuType cpu>
-static void rowNormsSquared(const FPType * rows, int count, int nCols, FPType * outNorms)
+static void rowNormsSquared(const FPType * rows, DAAL_INT count, int nCols, FPType * outNorms)
 {
-    for (int i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * nCols, nCols);
+    for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * nCols, nCols);
 }
 
 /// Fill a symmetric `nRows x nRows` distance matrix in row-major layout using a
@@ -230,7 +230,7 @@ struct EuclideanDist
     /// @param[in]  nCols       Number of features
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, int count, int nCols, FPType * outDists)
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, DAAL_INT count, int nCols, FPType * outDists)
     {
         const FPType pivotNorm2 = rowNormSquared<FPType, cpu>(pivotPt, nCols);
 
@@ -243,7 +243,7 @@ struct EuclideanDist
         // y has length n.
         const char trans    = 'T';
         const DAAL_INT m    = static_cast<DAAL_INT>(nCols);
-        const DAAL_INT n    = static_cast<DAAL_INT>(count);
+        const DAAL_INT n    = count;
         const FPType alpha  = FPType(1);
         const FPType beta   = FPType(0);
         const DAAL_INT lda  = static_cast<DAAL_INT>(nCols);
@@ -255,7 +255,7 @@ struct EuclideanDist
         // site (see the ball-tree build in `hdbscan_ball_tree_batch_impl.i`);
         // their starts are aligned to `DAAL_MALLOC_DEFAULT_ALIGNMENT`.
         PRAGMA_OMP_SIMD_ARGS(aligned(rowNorms2, outDists : DAAL_MALLOC_DEFAULT_ALIGNMENT))
-        for (int i = 0; i < count; i++)
+        for (DAAL_INT i = 0; i < count; i++)
         {
             const FPType d2 = rowNorms2[i] + pivotNorm2 - FPType(2) * outDists[i];
             outDists[i]     = (d2 < FPType(0)) ? FPType(0) : d2;
@@ -331,9 +331,10 @@ struct ManhattanDist
     /// @param[in]  nCols       Number of features
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists)
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, int nCols,
+                          FPType * outDists)
     {
-        for (int i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
+        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
     }
 };
 
@@ -416,9 +417,10 @@ struct MinkowskiDist
     /// @param[in]  nCols       Number of features
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists) const
+    void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, int nCols,
+                   FPType * outDists) const
     {
-        for (int i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
+        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
     }
 };
 
@@ -491,9 +493,10 @@ struct ChebyshevDist
     /// @param[in]  nCols       Number of features
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, int count, int nCols, FPType * outDists)
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, int nCols,
+                          FPType * outDists)
     {
-        for (int i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
+        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
     }
 };
 
@@ -521,7 +524,7 @@ struct KnnHeap
     /// inert.
     ///
     /// @param[in] cap Maximum number of neighbors to keep
-    KnnHeap(int cap) : capacity_(cap), size_(0), distsArr_(cap), indicesArr_(cap)
+    KnnHeap(DAAL_INT cap) : capacity_(cap), size_(0), distsArr_(cap), indicesArr_(cap)
     {
         dists_   = distsArr_.get();
         indices_ = indicesArr_.get();
@@ -543,17 +546,17 @@ struct KnnHeap
     ///
     /// @param[in] dist Candidate distance
     /// @param[in] idx  Candidate point index
-    void push(FPType dist, int idx)
+    void push(FPType dist, DAAL_INT idx)
     {
         if (size_ < capacity_)
         {
             dists_[size_]   = dist;
             indices_[size_] = idx;
             size_++;
-            int i = size_ - 1;
+            DAAL_INT i = size_ - 1;
             while (i > 0)
             {
-                int parent = (i - 1) / 2;
+                DAAL_INT parent = (i - 1) / 2;
                 if (dists_[i] > dists_[parent])
                 {
                     std::swap(dists_[i], dists_[parent]);
@@ -568,12 +571,12 @@ struct KnnHeap
         {
             dists_[0]   = dist;
             indices_[0] = idx;
-            int i       = 0;
+            DAAL_INT i  = 0;
             while (true)
             {
-                int l       = 2 * i + 1;
-                int r       = 2 * i + 2;
-                int largest = i;
+                DAAL_INT l       = 2 * i + 1;
+                DAAL_INT r       = 2 * i + 2;
+                DAAL_INT largest = i;
                 if (l < size_ && dists_[l] > dists_[largest]) largest = l;
                 if (r < size_ && dists_[r] > dists_[largest]) largest = r;
                 if (largest != i)
@@ -589,12 +592,12 @@ struct KnnHeap
     }
 
 private:
-    int capacity_;
-    int size_;
+    DAAL_INT capacity_;
+    DAAL_INT size_;
     daal::services::internal::TArrayScalable<FPType, cpu> distsArr_;
-    daal::services::internal::TArrayScalable<int, cpu> indicesArr_;
-    FPType * dists_; // distances from points in the heap to the current query (heap root is the largest)
-    int * indices_;  // indices of points in the heap, kept in lockstep with dists_
+    daal::services::internal::TArrayScalable<DAAL_INT, cpu> indicesArr_;
+    FPType * dists_;     // distances from points in the heap to the current query (heap root is the largest)
+    DAAL_INT * indices_; // indices of points in the heap, kept in lockstep with dists_
 };
 
 } // namespace internal
