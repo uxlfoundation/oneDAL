@@ -248,7 +248,8 @@ jobs:
       conda install -y -c conda-forge \
           mkl-dpcpp mkl-devel-dpcpp \
           dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
-          onedpl-devel
+          onedpl-devel \
+          "sysroot_linux-64=2.34"
       export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
