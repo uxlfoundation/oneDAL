@@ -329,7 +329,8 @@ When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with 
     ```shell
     export CC=icx
     export CXX=icpx
-    export CXXFLAGS="-fsanitize=address"
+    export CFLAGS="-fsanitize=address -g" # used by CMake, even with C++
+    export CXXFLAGS="-fsanitize=address -g"
     export LDFLAGS="-shared-libasan"
     ```
 * Create a symlink to the ASAN runtime in the same folder from where the examples are executed. ICX uses the same ASAN runtime as CLANG, so something like this should do:
@@ -347,10 +348,25 @@ Putting it all together, the earlier snippets for executing the examples but wit
 cd daal/latest/examples/daal/cpp
 mkdir -p build
 cd build
-CC=icx CXX=icpx CXXFLAGS="-fsanitize=address" LDFLAGS="-shared-libasan" cmake ..
+CC=icx CXX=icpx CFLAGS="-fsanitize=address -g" CXXFLAGS="-fsanitize=address -g" LDFLAGS="-shared-libasan" cmake ..
 make -j$(nproc)
 ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
 ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+Alternatively, one may use `$LD_PRELOAD` instead of `$LDFLAGS` when using an executable that links to oneDAL (such as the Python executable when using [scikit-learn-intelex](https://uxlfoundation.github.io/scikit-learn-intelex/2026.1/) which calls oneDAL):
+```shell
+LD_PRELOAD="$(icx -print-file-name=libclang_rt.asan.so)" ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+Note that different compilers will require different ASan runtimes - for example, if using GCC to build oneDAL:
+```shell
+cd daal/latest/examples/daal/cpp
+mkdir -p build
+cd build
+CC=gcc CXX=g++ CFLAGS="-fsanitize=address -g" CXXFLAGS="-fsanitize=address -g" cmake ..
+make -j$(nproc)
+LD_PRELOAD="$(gcc -print-file-name=libasan.so)".so ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
 
 _Be aware that ASAN is known to generate many false-positive reports of memory leaks when used with oneDAL._
