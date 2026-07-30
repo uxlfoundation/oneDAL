@@ -40,4 +40,54 @@ do
     # ignore a return value of 4 as it signifies a possibly compatible change
     if [ $retVal != 4 ]; then RETURN_CODE=$(($RETURN_CODE+$retVal)); fi
 done
+
+# Cross-flavor public-symbol drift check.
+#
+# abidiff above catches per-library ABI changes. When debug info is stripped
+# (the DPC++ libraries in CI to keep memory usage in check), abidiff falls
+# back to symbol addition/removal and misses layout/return-type breaks. As a
+# cheap supplement, diff the set of newly-exported symbols between the host
+# (_c) and DPC++ flavors of the same library: if a PR adds a public symbol
+# to one flavor but not the other, the public surface has diverged and a
+# reviewer should look at it. This works on .dynsym alone, so debug info is
+# not required.
+new_syms () {
+    # symbols present in $2 but not in $1, filtered to defined + external.
+    comm -13 \
+        <(nm -D --defined-only --extern-only "$1" 2>/dev/null | awk '{print $NF}' | sort -u) \
+        <(nm -D --defined-only --extern-only "$2" 2>/dev/null | awk '{print $NF}' | sort -u)
+}
+
+pairs=(
+    "libonedal.so:libonedal_dpc.so"
+    "libonedal_parameters.so:libonedal_parameters_dpc.so"
+)
+
+for pair in "${pairs[@]}"; do
+    host_lib=${pair%:*}
+    dpc_lib=${pair#*:}
+    if [ ! -f "$main_release_dir/$host_lib" ] || [ ! -f "$release_dir/$host_lib" ] || \
+       [ ! -f "$main_release_dir/$dpc_lib" ]  || [ ! -f "$release_dir/$dpc_lib" ]; then
+        continue
+    fi
+    echo "======== cross-flavor symbol drift: ${host_lib} vs ${dpc_lib} ========"
+    host_new=$(new_syms "$main_release_dir/$host_lib" "$release_dir/$host_lib")
+    dpc_new=$(new_syms  "$main_release_dir/$dpc_lib"  "$release_dir/$dpc_lib")
+    only_in_dpc=$(comm -13 <(echo "$host_new") <(echo "$dpc_new"))
+    only_in_host=$(comm -23 <(echo "$host_new") <(echo "$dpc_new"))
+    if [ -n "$only_in_dpc" ]; then
+        echo "::error:: new public symbols in ${dpc_lib} with no counterpart in ${host_lib}:"
+        echo "$only_in_dpc"
+        RETURN_CODE=$((RETURN_CODE+1))
+    fi
+    if [ -n "$only_in_host" ]; then
+        echo "::error:: new public symbols in ${host_lib} with no counterpart in ${dpc_lib}:"
+        echo "$only_in_host"
+        RETURN_CODE=$((RETURN_CODE+1))
+    fi
+    if [ -z "$only_in_dpc" ] && [ -z "$only_in_host" ]; then
+        echo "no drift"
+    fi
+done
+
 exit ${RETURN_CODE}
