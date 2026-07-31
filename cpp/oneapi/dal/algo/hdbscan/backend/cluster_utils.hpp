@@ -20,11 +20,11 @@
 #include <limits>
 
 #include "oneapi/dal/array.hpp"
+#include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
 #include <sycl/sycl.hpp>
-#include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #endif
 
@@ -34,12 +34,13 @@ namespace oneapi::dal::hdbscan::backend {
 ///
 /// Sums every labeled point into its cluster's row of `centroids`, counts the
 /// points per cluster, then divides by the count. Points whose label is
-/// negative or out of range are skipped (HDBSCAN noise). The inner accumulate
-/// and normalize loops are annotated with omp simd so the compiler emits SIMD
-/// mul/adds; on modern compilers this is equivalent to a per-cluster
-/// `cblas_?scal`. A direct BLAS ?scal is not used here because this header is
-/// not per-CPU-templated -- callers on the DAAL side that need dispatched
-/// `BlasInst<>::xscal` route through the DAAL cluster utilities instead.
+/// negative or out of range are skipped (HDBSCAN noise). The accumulate and
+/// normalize inner loops are annotated with `PRAGMA_OMP_SIMD` so the compiler
+/// emits SIMD mul/adds; on modern compilers this is equivalent to a
+/// per-cluster `cblas_?scal`. A direct BLAS `?scal` is not used here because
+/// this header is not per-CPU-templated -- callers on the DAAL side that need
+/// dispatched `BlasInst<>::xscal` route through the DAAL cluster utilities
+/// instead.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -69,6 +70,7 @@ static void compute_centroids(const Float* data,
         counts[label]++;
         Float* row_out = centroids + label * col_count;
         const Float* row_in = data + i * col_count;
+        PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
             row_out[d] += row_in[d];
         }
@@ -80,7 +82,8 @@ static void compute_centroids(const Float* data,
         Float* row = centroids + k * col_count;
         const Float inv = Float(1) / static_cast<Float>(counts[k]);
         // Equivalent to `cblas_?scal(col_count, inv, row, 1)` on x86; the
-        // compiler emits vectorised mul on this loop under omp simd.
+        // compiler emits vectorised mul on this loop under `PRAGMA_OMP_SIMD`.
+        PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
             row[d] *= inv;
         }
@@ -128,6 +131,7 @@ static void compute_medoids(const Float* data,
         const Float* pt = data + i * col_count;
         const Float* center = centroids + label * col_count;
         Float dist = Float(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : dist))
         for (std::int64_t d = 0; d < col_count; d++) {
             const Float diff = pt[d] - center[d];
             dist += diff * diff;
