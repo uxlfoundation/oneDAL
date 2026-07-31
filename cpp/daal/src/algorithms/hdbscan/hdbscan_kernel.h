@@ -77,7 +77,11 @@ public:
     /// @param[in]  minkowskiDegree         Exponent `p` for the Minkowski distance. Ignored for other metrics
     /// @param[in]  clusterSelection        Cluster selection strategy: 0 -- excess of mass, 1 -- leaf
     /// @param[in]  allowSingleCluster      If true, allow the root cluster of the condensed tree to be selected
-    /// @param[in]  clusterSelectionEpsilon Distance threshold used to merge clusters closer than epsilon
+    /// @param[in]  clusterSelectionEpsilon Distance threshold used to merge clusters closer than epsilon.
+    ///                                     Kept as `double` at the public entry point to match the descriptor;
+    ///                                     narrowed to `algorithmFPType` inside `applyClusterSelectionEpsilon`
+    ///                                     before the per-cluster comparison so tight loops stay in a single
+    ///                                     precision
     /// @param[in]  maxClusterSize          Maximum allowed cluster size (only used with cluster selection epsilon). 0 disables the limit
     /// @param[in]  alpha                   Robust single-linkage scaling factor (distances are divided by alpha)
     /// @param[in]  leafSize                Maximum number of points per leaf in the kd-tree / ball-tree. Ignored for brute force

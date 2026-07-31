@@ -20,6 +20,7 @@
 
 #include "services/daal_defines.h"
 #include "src/algorithms/service_sort.h"
+#include "src/externals/service_memory.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
@@ -373,7 +374,7 @@ template <typename algorithmFPType, CpuType cpu>
 static void computeClusterStability(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, DAAL_INT nClusters,
                                     const algorithmFPType * lambdaBirth, algorithmFPType * stability)
 {
-    for (DAAL_INT c = 0; c < nClusters; c++) stability[c] = algorithmFPType(0);
+    services::internal::service_memset_seq<algorithmFPType, cpu>(stability, algorithmFPType(0), static_cast<size_t>(nClusters));
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e       = condensed[ei];
@@ -416,20 +417,23 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 template <typename algorithmFPType, CpuType cpu>
 static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMax, algorithmFPType * stability, const DAAL_INT * clusterSz,
                             const bool * isLeafCluster, const DAAL_INT * childOffset, const DAAL_INT * childCount, const DAAL_INT * childList,
-                            DAAL_INT * descStack, char * isSelected)
+                            DAAL_INT * descStack, bool * isSelected)
 {
     for (DAAL_INT c = nClusters - 1; c >= treeTop; c--)
     {
         if (isLeafCluster[c]) continue;
 
-        algorithmFPType childSum = algorithmFPType(0);
-        for (DAAL_INT ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
+        algorithmFPType childSum       = algorithmFPType(0);
+        const DAAL_INT childOffsetC    = childOffset[c];
+        const DAAL_INT childOffsetCEnd = childOffsetC + childCount[c];
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : childSum))
+        for (DAAL_INT ci = childOffsetC; ci < childOffsetCEnd; ci++) childSum += stability[childList[ci]];
 
         const bool oversized = (clusterSz[c] > mcsMax);
 
         if (oversized || childSum > stability[c])
         {
-            isSelected[c] = 0;
+            isSelected[c] = false;
             stability[c]  = childSum;
         }
         else
@@ -439,7 +443,7 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
             while (descTop > 0)
             {
                 const DAAL_INT d = descStack[--descTop];
-                isSelected[d]    = 0;
+                isSelected[d]    = false;
                 for (DAAL_INT ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) descStack[descTop++] = childList[ci];
             }
         }
@@ -466,13 +470,15 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 /// @param[in]     nClusters              Total cluster count
 /// @param[in]     rootCid                Root cluster id (== `nRows`)
 /// @param[in]     lambdaBirth            Birth lambda per cluster, length `nClusters`
-/// @param[in]     clusterSelectionEpsilon Distance threshold; clusters with birth distance below this are merged into parent
+/// @param[in]     clusterSelectionEpsilon Distance threshold; clusters with birth distance below this are merged into parent.
+///                                        Passed in as `algorithmFPType` so the inner comparison against
+///                                        `birthDist` avoids any implicit `float`->`double` promotion inside the tight loop.
 /// @param[in]     allowSingleCluster     If false, never promote up to the root
 /// @param[in,out] isSelected             Selection mask updated in place, length `nClusters`
 template <typename algorithmFPType, CpuType cpu>
 static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, DAAL_INT nClusters, DAAL_INT rootCid,
-                                         const algorithmFPType * lambdaBirth, double clusterSelectionEpsilon, bool allowSingleCluster,
-                                         char * isSelected)
+                                         const algorithmFPType * lambdaBirth, algorithmFPType clusterSelectionEpsilon, bool allowSingleCluster,
+                                         bool * isSelected)
 {
     TArray<DAAL_INT, cpu> clusterParentArr(nClusters);
     DAAL_INT * clusterParent = clusterParentArr.get();
@@ -483,8 +489,7 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
         if (e.child >= static_cast<DAAL_INT>(nRows)) clusterParent[e.child] = e.parent;
     }
 
-    const algorithmFPType eps = static_cast<algorithmFPType>(clusterSelectionEpsilon);
-    bool changed              = true;
+    bool changed = true;
     while (changed)
     {
         changed = false;
@@ -492,15 +497,15 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
         {
             if (!isSelected[c]) continue;
             const algorithmFPType birthDist = (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
-            if (birthDist < eps)
+            if (birthDist < clusterSelectionEpsilon)
             {
                 const DAAL_INT parent = clusterParent[c];
                 if (parent < rootCid || parent >= nClusters) continue;
                 // Refuse to promote into the root when the caller forbids a
                 // single-cluster outcome; keep the current cluster instead.
                 if (parent == rootCid && !allowSingleCluster) continue;
-                isSelected[c]      = 0;
-                isSelected[parent] = 1;
+                isSelected[c]      = false;
+                isSelected[parent] = true;
                 changed            = true;
             }
         }
@@ -578,7 +583,7 @@ static void fillChildList(const CondensedEdge * condensed, size_t nCondensed, si
 template <typename algorithmFPType, CpuType cpu>
 static void selectClusters(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
                            DAAL_INT nClusters, DAAL_INT rootCid, DAAL_INT mcs, size_t maxClusterSize, int clusterSelection, bool allowSingleCluster,
-                           double clusterSelectionEpsilon, char * isSelected)
+                           double clusterSelectionEpsilon, bool * isSelected)
 {
     TArray<algorithmFPType, cpu> stabilityArr(nClusters);
     TArray<algorithmFPType, cpu> lambdaBirthArr(nClusters);
@@ -616,19 +621,19 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
     // EOM never visits it and it stays deselected.
     for (DAAL_INT c = 0; c < nClusters; c++)
     {
-        isSelected[c] = 0;
+        isSelected[c] = false;
     }
     for (DAAL_INT c = rootCid + 1; c < nClusters; c++)
     {
-        if (clusterSz[c] >= mcs) isSelected[c] = 1;
+        if (clusterSz[c] >= mcs) isSelected[c] = true;
     }
-    if (allowSingleCluster && clusterSz[rootCid] >= mcs) isSelected[rootCid] = 1;
+    if (allowSingleCluster && clusterSz[rootCid] >= mcs) isSelected[rootCid] = true;
 
     if (clusterSelection == 1)
     {
         for (DAAL_INT c = rootCid; c < nClusters; c++)
         {
-            isSelected[c] = (isLeafCluster[c] && clusterSz[c] >= mcs) ? 1 : 0;
+            isSelected[c] = (isLeafCluster[c] && clusterSz[c] >= mcs);
         }
     }
     else
@@ -642,8 +647,8 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 
     if (clusterSelectionEpsilon > 0.0)
     {
-        applyClusterSelectionEpsilon<algorithmFPType, cpu>(condensed, nCondensed, nRows, nClusters, rootCid, lambdaBirth, clusterSelectionEpsilon,
-                                                           allowSingleCluster, isSelected);
+        applyClusterSelectionEpsilon<algorithmFPType, cpu>(condensed, nCondensed, nRows, nClusters, rootCid, lambdaBirth,
+                                                           static_cast<algorithmFPType>(clusterSelectionEpsilon), allowSingleCluster, isSelected);
     }
 }
 
@@ -662,7 +667,7 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 /// @param[in]  clusterLabel  Dense label assigned to each selected cluster (-1 if unselected), length `nClusters`
 /// @param[in]  clusterParent Parent cluster id per cluster (-1 for root), length `nClusters`
 /// @param[out] resolvedLabel Final label for every cluster (-1 if no selected ancestor), length `nClusters`
-static void resolveClusterLabels(DAAL_INT rootCid, DAAL_INT nClusters, const char * isSelected, const int * clusterLabel,
+static void resolveClusterLabels(DAAL_INT rootCid, DAAL_INT nClusters, const bool * isSelected, const int * clusterLabel,
                                  const DAAL_INT * clusterParent, int * resolvedLabel)
 {
     for (DAAL_INT c = 0; c < rootCid; c++) resolvedLabel[c] = -1;
@@ -730,13 +735,17 @@ static void buildDendroParent(const DAAL_INT * leftChild, const DAAL_INT * right
 /// @return Number of distinct labels emitted (0..labelCounter-1)
 template <typename algorithmFPType, CpuType cpu>
 static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_t nRows, const DAAL_INT * leftChild, const DAAL_INT * rightChild,
-                       const DAAL_INT * dendroToCluster, const char * isSelected, DAAL_INT nClusters, DAAL_INT rootCid, int * assignments)
+                       const DAAL_INT * dendroToCluster, const bool * isSelected, DAAL_INT nClusters, DAAL_INT rootCid, int * assignments)
 {
     const size_t totalNodes = 2 * nRows - 1;
 
-    // labelCounter fits in `int`: total distinct labels is bounded by
-    // `nRows / mcs`, and even for `nRows > INT_MAX` the label count is a small
-    // fraction of nRows -- assignments cast down here.
+    // labelCounter fits in `int`: total distinct labels is bounded by the number
+    // of selected clusters, itself bounded by `nRows / mcs` (`mcs >= 2` is
+    // enforced at the kernel entry). Even for datasets with `nRows > INT_MAX`
+    // rows, the number of clusters that can survive minCluster-size pruning
+    // stays well under INT_MAX. The output `assignments` table is int-typed by
+    // the oneAPI HDBSCAN result contract, so we materialise labels as `int`
+    // (and `-1` for noise) directly here.
     int labelCounter = 0;
     TArray<int, cpu> clusterLabelArr(nClusters);
     int * clusterLabel = clusterLabelArr.get();
@@ -745,6 +754,9 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
     {
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
     }
+    // Defensive: unreachable for realistic inputs, but the invariant should
+    // fire loudly if some future change (e.g. mcs = 1) breaks it.
+    DAAL_ASSERT(labelCounter >= 0);
 
     TArray<DAAL_INT, cpu> clusterParentArr(nClusters);
     TArray<DAAL_INT, cpu> pointFellFromArr(nRows);
@@ -864,8 +876,8 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
     const DAAL_INT nClusters = nextCid;
     const DAAL_INT rootCid   = static_cast<DAAL_INT>(nRows);
 
-    TArray<char, cpu> isSelectedArr(nClusters);
-    char * isSelected = isSelectedArr.get();
+    TArray<bool, cpu> isSelectedArr(nClusters);
+    bool * isSelected = isSelectedArr.get();
 
     selectClusters<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, nClusters, rootCid, mcs, maxClusterSize, clusterSelection,
                                          allowSingleCluster, clusterSelectionEpsilon, isSelected);

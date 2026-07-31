@@ -114,6 +114,11 @@ static result_t compute_kernel_ball_tree_impl(const context_cpu& ctx,
                                          daal::data_management::readOnly,
                                          assign_block);
         const int* assign_ptr = assign_block.getBlockPtr();
+        // DAAL labels are `int` (`-1` for noise, non-negative cluster ids in
+        // `[0, labelCounter)`), and `labelCounter` is capped at `nRows / mcs`
+        // (`mcs >= 2`). On every platform oneDAL supports `int` and `int32_t`
+        // are both 32-bit, so this cast is a no-op conversion that keeps the
+        // oneAPI `responses` table typed to the algorithm's spec.
         for (std::int64_t i = 0; i < row_count; i++) {
             resp_ptr[i] = static_cast<std::int32_t>(assign_ptr[i]);
         }

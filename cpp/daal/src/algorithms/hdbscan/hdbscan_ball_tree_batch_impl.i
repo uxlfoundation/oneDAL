@@ -79,13 +79,17 @@ struct BallNode
     DAAL_INT componentId;   ///< -1 = mixed components, >= 0 = uniform Boruvka component
 };
 
-/// Gather `pointIndices[begin..end)` rows from `data` into a contiguous
-/// row-major buffer.
+/// Gather `pointIndices[begin..end)` rows from `data` into a row-major buffer
+/// with per-row padding.
 ///
 /// Paying the gather cost once lets pivot2 / pivot3 / radius / partition share
 /// one layout, avoids repeated FP conversions on low-precision input, and is
 /// what makes the BLAS xxgemv path in EuclideanDist::blockDist applicable
-/// (xxgemv needs the operand row block to be a contiguous matrix).
+/// (xxgemv needs the operand row block to be a contiguous matrix). `rowStride`
+/// may be larger than `nCols` to bump each row start to a
+/// `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary, at which point every row inherits
+/// the alignment of the base pointer. Padding cells are zeroed so they never
+/// contribute to inner products.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -95,18 +99,25 @@ struct BallNode
 /// @param[in]  begin        First index (inclusive) into `pointIndices`
 /// @param[in]  end          Last index (exclusive) into `pointIndices`
 /// @param[in]  nCols        Number of features
-/// @param[out] scratchRows  Output, row-major `(end - begin) x nCols`
+/// @param[in]  rowStride    Row stride of `scratchRows` in elements (`>= nCols`)
+/// @param[out] scratchRows  Output, row-major `(end - begin) x rowStride`
 template <typename algorithmFPType, CpuType cpu>
-static void gatherRows(const algorithmFPType * data, const DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, int nCols,
+static void gatherRows(const algorithmFPType * data, const DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, size_t nCols, size_t rowStride,
                        algorithmFPType * scratchRows)
 {
-    const DAAL_INT count  = end - begin;
-    const size_t rowBytes = static_cast<size_t>(nCols) * sizeof(algorithmFPType);
+    const DAAL_INT count      = end - begin;
+    const size_t rowBytes     = nCols * sizeof(algorithmFPType);
+    const size_t paddingBytes = (rowStride - nCols) * sizeof(algorithmFPType);
+    const size_t strideBytes  = rowStride * sizeof(algorithmFPType);
     for (DAAL_INT i = 0; i < count; i++)
     {
         const algorithmFPType * src = data + pointIndices[begin + i] * nCols;
-        algorithmFPType * dst       = scratchRows + i * nCols;
-        daal::services::internal::daal_memcpy_s(dst, rowBytes, src, rowBytes);
+        algorithmFPType * dst       = scratchRows + i * rowStride;
+        daal::services::internal::daal_memcpy_s(dst, strideBytes, src, rowBytes);
+        if (paddingBytes > 0)
+        {
+            services::internal::service_memset_seq<algorithmFPType, cpu>(dst + nCols, algorithmFPType(0), rowStride - nCols);
+        }
     }
 }
 
@@ -154,19 +165,20 @@ static DAAL_INT argmaxArray(const algorithmFPType * arr, DAAL_INT count)
 /// @tparam DistFunc        Metric functor exposing `blockDist`
 ///
 /// @param[in]  pivotPt     Pivot row, length `nCols`
-/// @param[in]  scratchRows Row-major batch, size `count x nCols`
+/// @param[in]  scratchRows Row-major batch, size `count x rowStride`
 /// @param[in]  rowNorms2   Per-row squared norms, length `count` (may be unused for non-Euclidean)
 /// @param[in]  count       Number of rows in the batch
 /// @param[in]  nCols       Number of features
+/// @param[in]  rowStride   Row stride of `scratchRows` in elements (`>= nCols`)
 /// @param[in]  distFunc    Metric functor instance
 /// @param[out] outDists    Output distances, length `count`
 ///
 /// @return Index of the row with the maximum distance
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
 static DAAL_INT blockDistsAndArgmax(const algorithmFPType * pivotPt, const algorithmFPType * scratchRows, const algorithmFPType * rowNorms2,
-                                    DAAL_INT count, int nCols, const DistFunc & distFunc, algorithmFPType * outDists)
+                                    DAAL_INT count, size_t nCols, size_t rowStride, const DistFunc & distFunc, algorithmFPType * outDists)
 {
-    distFunc.template blockDist<cpu>(pivotPt, scratchRows, rowNorms2, count, nCols, outDists);
+    distFunc.template blockDist<cpu>(pivotPt, scratchRows, rowNorms2, count, nCols, rowStride, outDists);
     return argmaxArray<algorithmFPType, cpu>(outDists, count);
 }
 
@@ -207,7 +219,7 @@ static DAAL_INT blockDistsAndArgmax(const algorithmFPType * pivotPt, const algor
 ///
 /// @return Index of the node created by this call
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
-static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, int nCols,
+static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, size_t nCols,
                               BallNode<algorithmFPType> * nodes, DAAL_INT & nextNode, DAAL_INT maxLeafSize, const DistFunc & distFunc)
 {
     const DAAL_INT nodeIdx           = nextNode++;
@@ -220,8 +232,13 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
 
     const DAAL_INT count = end - begin;
 
-    // Gather rows once; all subsequent distance sweeps read contiguous memory.
-    daal::services::internal::TArrayScalable<algorithmFPType, cpu> scratchRowsArr(static_cast<size_t>(count) * nCols);
+    // Gather rows once with per-row padding so every row of the scratch buffer
+    // starts on a `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary (matching the base
+    // pointer alignment provided by `TArrayScalable`). All subsequent distance
+    // sweeps then read from an aligned row start.
+    const size_t rowStride = alignedRowStride<algorithmFPType>(nCols);
+
+    daal::services::internal::TArrayScalable<algorithmFPType, cpu> scratchRowsArr(static_cast<size_t>(count) * rowStride);
     daal::services::internal::TArrayScalable<algorithmFPType, cpu> rowNorms2Arr(count);
     daal::services::internal::TArrayScalable<algorithmFPType, cpu> d2Arr(count);
     daal::services::internal::TArrayScalable<algorithmFPType, cpu> d3Arr(count);
@@ -231,20 +248,22 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     algorithmFPType * d3          = d3Arr.get();
     if (!scratchRows || !rowNorms2 || !d2 || !d3) return nodeIdx;
 
-    gatherRows<algorithmFPType, cpu>(data, pointIndices, begin, end, nCols, scratchRows);
+    gatherRows<algorithmFPType, cpu>(data, pointIndices, begin, end, nCols, rowStride, scratchRows);
     // Cache ||x_i||^2 once per node; reused by all three pivot sweeps when DistFunc is Euclidean.
-    rowNormsSquared<algorithmFPType, cpu>(scratchRows, count, nCols, rowNorms2);
+    rowNormsSquared<algorithmFPType, cpu>(scratchRows, count, nCols, rowStride, rowNorms2);
 
     // Pick pivot1 = first point. Find pivot2 = argmax dist(pivot1, .); pos is the
     // offset into scratchRows / pointIndices[begin..end). d3 is scratch for this
     // sweep; it gets overwritten with dist-to-pivot3 below.
     const DAAL_INT pivot1 = pointIndices[begin];
-    const DAAL_INT pos2   = blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot1 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d3);
+    const DAAL_INT pos2 =
+        blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot1 * nCols, scratchRows, rowNorms2, count, nCols, rowStride, distFunc, d3);
     const DAAL_INT pivot2 = pointIndices[begin + pos2];
 
     // pivot2 is the ball center; d2[i] = dist(pivot2, scratchRows[i]) feeds both
     // the radius (max d2) and the partition (compared to d3).
-    const DAAL_INT pos3   = blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot2 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d2);
+    const DAAL_INT pos3 =
+        blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot2 * nCols, scratchRows, rowNorms2, count, nCols, rowStride, distFunc, d2);
     const DAAL_INT pivot3 = pointIndices[begin + pos3];
 
     node.centerIdx = pivot2;
@@ -265,7 +284,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     }
 
     // Populate d3 (distances to pivot3), then partition.
-    blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot3 * nCols, scratchRows, rowNorms2, count, nCols, distFunc, d3);
+    blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot3 * nCols, scratchRows, rowNorms2, count, nCols, rowStride, distFunc, d3);
 
     // Hoare in-place partition on the predicate `d2[i] <= d3[i]`. Only the
     // boundary positions where the predicate fails are swapped, and the
@@ -330,7 +349,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
 /// @param[in,out] heap         Bounded max-heap of best-k candidates seen so far
 /// @param[in]     distFunc     Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void knnQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
+static void knnQueryBallTree(const algorithmFPType * data, size_t nCols, const BallNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
                              const algorithmFPType * queryPoint, DAAL_INT nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
 {
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
@@ -488,7 +507,7 @@ static DAAL_INT updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, 
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, int nCols, const BallNode<algorithmFPType> * nodes,
+static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t nCols, const BallNode<algorithmFPType> * nodes,
                                            const DAAL_INT * pointIndices, const algorithmFPType * coreDistances,
                                            const algorithmFPType * minCoreDistNode, const DAAL_INT * componentOf, const algorithmFPType * queryPoint,
                                            DAAL_INT queryIdx, algorithmFPType queryCoreD, DAAL_INT queryComponent, DAAL_INT nodeIdx,
@@ -600,7 +619,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
         KnnHeap<algorithmFPType, cpu> heap(k);
         if (!heap.ok()) return;
 
-        knnQueryBallTree<algorithmFPType, cpu>(data, static_cast<int>(nCols), nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
+        knnQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
 
         coreDistances[i] = heap.maxDist();
     });
@@ -647,7 +666,6 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
-    const int iNCols     = static_cast<int>(nCols);
 
     // Only phase 1 (nearest-different-component MRD tree query) is
     // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
@@ -660,7 +678,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
             algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             DAAL_INT bestIdx                 = -1;
 
-            nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, iNCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf,
+            nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf,
                                                                  queryPt, static_cast<DAAL_INT>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc,
                                                                  invAlpha);
 
@@ -712,8 +730,7 @@ static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows
                                       DAAL_INT * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
 {
     DAAL_INT nextNode = 0;
-    buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize,
-                                        distFunc);
+    buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), nCols, nodes, nextNode, maxLeafSize, distFunc);
     const DAAL_INT totalTreeNodes = nextNode;
     computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances, mstFrom,
                                                         mstTo, mstWeights, distFunc, alpha);

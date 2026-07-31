@@ -51,30 +51,50 @@ namespace internal
 ///
 /// @return Sum of squared row entries
 template <typename FPType, daal::internal::CpuType cpu>
-static FPType rowNormSquared(const FPType * row, int nCols)
+static FPType rowNormSquared(const FPType * row, size_t nCols)
 {
     FPType sum = FPType(0);
     PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-    for (int d = 0; d < nCols; d++) sum += row[d] * row[d];
+    for (size_t d = 0; d < nCols; d++) sum += row[d] * row[d];
     return sum;
 }
 
-/// Compute squared L2 norms for a contiguous block of row-major rows.
+/// Compute squared L2 norms for a row-major block with per-row padding.
 ///
 /// Used by ball-tree node construction to amortize `||x||^2` across the three
-/// pivot sweeps performed at the same node.
+/// pivot sweeps performed at the same node. Padded rows keep the pointer to
+/// each row on the same alignment boundary as the base pointer; padding cells
+/// must be zero, so they contribute nothing to the sum of squares.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
 ///
-/// @param[in]  rows     Row-major buffer of size `count x nCols`
-/// @param[in]  count    Number of rows
-/// @param[in]  nCols    Number of features per row
-/// @param[out] outNorms Output norms, length `count`
+/// @param[in]  rows      Row-major buffer of size `count x rowStride`
+/// @param[in]  count     Number of rows
+/// @param[in]  nCols     Number of features per row
+/// @param[in]  rowStride Row stride of `rows` in elements (`>= nCols`)
+/// @param[out] outNorms  Output norms, length `count`
 template <typename FPType, daal::internal::CpuType cpu>
-static void rowNormsSquared(const FPType * rows, DAAL_INT count, int nCols, FPType * outNorms)
+static void rowNormsSquared(const FPType * rows, DAAL_INT count, size_t nCols, size_t rowStride, FPType * outNorms)
 {
-    for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * nCols, nCols);
+    for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * rowStride, nCols);
+}
+
+/// Round `nCols` up so that every row of a row-major batch starts on a
+/// `DAAL_MALLOC_DEFAULT_ALIGNMENT` byte boundary. Callers that own an aligned
+/// base pointer (e.g. `TArrayScalable::get()`) can then reuse the same
+/// alignment guarantee for every row.
+///
+/// @tparam FPType Floating-point type
+/// @param[in] nCols Feature count
+/// @return Padded stride in elements (>= `nCols`); equal to `nCols` when the
+///         row size is already an aligned multiple.
+template <typename FPType>
+static inline size_t alignedRowStride(size_t nCols)
+{
+    constexpr size_t alignBytes = DAAL_MALLOC_DEFAULT_ALIGNMENT;
+    constexpr size_t elemPerAln = alignBytes / sizeof(FPType);
+    return ((nCols + elemPerAln - 1) / elemPerAln) * elemPerAln;
 }
 
 /// Fill a symmetric `nRows x nRows` distance matrix in row-major layout using a
@@ -118,7 +138,7 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
             FPType * dist_row    = outDist + i * nRows;
             for (size_t j = i; j < nRows; j++)
             {
-                const FPType d         = distFunc.template pointDist<cpu>(row_i, data + j * nCols, static_cast<int>(nCols));
+                const FPType d         = distFunc.template pointDist<cpu>(row_i, data + j * nCols, nCols);
                 dist_row[j]            = d;
                 outDist[j * nRows + i] = d;
             }
@@ -133,11 +153,14 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 // Each functor provides three methods:
 //   - pointDist<cpu>(a, b, nCols)                 -- full point-to-point distance
 //   - bboxLowerBound<cpu>(q, lo, hi, nCols)       -- minimum distance from query to a bbox
-//   - blockDist<cpu>(pivot, rows, rowNorms2, count, nCols, out)
+//   - blockDist<cpu>(pivot, rows, rowNorms2, count, nCols, rowStride, out)
 //                                                 -- pivot-to-block distances; Euclidean uses
 //                                                   BLAS xxgemv + cached row norms^2,
 //                                                   non-Euclidean fall back to a vectorized loop.
 //                                                   `rowNorms2` may be nullptr for non-Euclidean.
+//                                                   `rowStride` (>= nCols) is the row stride of
+//                                                   `rows` in elements; padded past nCols to
+//                                                   preserve base-pointer alignment on every row.
 //
 // The kd-tree "distance to a splitting hyperplane" reduces to `|diff|` for
 // every L_p metric supported here (splits are axis-aligned) and is applied at
@@ -172,11 +195,11 @@ struct EuclideanDist
     ///
     /// @return `||a - b||_2`
     template <daal::internal::CpuType cpu>
-    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
+    static FPType pointDist(const FPType * a, const FPType * b, size_t nCols)
     {
         FPType sum = FPType(0);
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
             sum += diff * diff;
@@ -198,12 +221,12 @@ struct EuclideanDist
     ///
     /// @return Minimum L2 distance from `query` to the box `[lo, hi]`
     template <daal::internal::CpuType cpu>
-    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
+    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols)
     {
         FPType sum = FPType(0);
         // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
             const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
@@ -224,29 +247,37 @@ struct EuclideanDist
     /// @tparam cpu CPU dispatch tag for BLAS / vSqrt selection
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x rowStride`
     /// @param[in]  rowNorms2   Precomputed `||scratchRows[i]||^2`, length `count`
     /// @param[in]  count       Number of rows in the batch
     /// @param[in]  nCols       Number of features
+    /// @param[in]  rowStride   Row stride of `scratchRows` in elements (`>= nCols`);
+    ///                         padded past `nCols` so each row starts on the same
+    ///                         alignment boundary as the base pointer. Padding
+    ///                         columns must be zero so they don't contribute to
+    ///                         the inner product.
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, DAAL_INT count, int nCols, FPType * outDists)
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, DAAL_INT count, size_t nCols,
+                          size_t rowStride, FPType * outDists)
     {
         const FPType pivotNorm2 = rowNormSquared<FPType, cpu>(pivotPt, nCols);
 
         // outDists = scratchRows * pivotPt  (count vector)
         // GEMV: y = alpha * op(A) * x + beta * y. The row-major
-        // scratchRows[count x nCols] is a column-major nCols x count matrix A;
-        // we want y[i] = <scratchRows[i], pivotPt> = sum_d A[d,i]*pivotPt[d] =
-        // (A^T * pivotPt)[i].
-        // So trans='T' with m=nCols (rows of A), n=count (cols of A): x has length m,
-        // y has length n.
+        // scratchRows[count x rowStride] is a column-major rowStride x count
+        // matrix A; we want y[i] = <scratchRows[i, :nCols], pivotPt> =
+        // sum_d A[d,i]*pivotPt[d] for d < nCols. The trailing padding columns
+        // of the row-major layout become extra leading rows of A that never
+        // contribute (we set m=nCols, ignoring rows [nCols, rowStride)).
+        // So trans='T' with m=nCols (rows of A picked from the top), n=count
+        // (cols of A): x has length m, y has length n, lda = rowStride.
         const char trans    = 'T';
         const DAAL_INT m    = static_cast<DAAL_INT>(nCols);
         const DAAL_INT n    = count;
         const FPType alpha  = FPType(1);
         const FPType beta   = FPType(0);
-        const DAAL_INT lda  = static_cast<DAAL_INT>(nCols);
+        const DAAL_INT lda  = static_cast<DAAL_INT>(rowStride);
         const DAAL_INT incx = 1;
         const DAAL_INT incy = 1;
         daal::internal::BlasInst<FPType, cpu>::xxgemv(&trans, &m, &n, &alpha, scratchRows, &lda, pivotPt, &incx, &beta, outDists, &incy);
@@ -281,11 +312,11 @@ struct ManhattanDist
     /// @param[in]  b     Second row, length `nCols`
     /// @param[in]  nCols Number of features
     template <daal::internal::CpuType cpu>
-    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
+    static FPType pointDist(const FPType * a, const FPType * b, size_t nCols)
     {
         FPType sum = FPType(0);
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             FPType diff = a[d] - b[d];
             sum += (diff >= FPType(0)) ? diff : -diff;
@@ -302,12 +333,12 @@ struct ManhattanDist
     /// @param[in]  hi    Upper bound per dimension, length `nCols`
     /// @param[in]  nCols Number of features
     template <daal::internal::CpuType cpu>
-    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
+    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols)
     {
         FPType sum = FPType(0);
         // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
             const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
@@ -325,16 +356,17 @@ struct ManhattanDist
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x rowStride`
     /// @param[in]  rowNorms2   Unused (kept for interface symmetry with Euclidean)
     /// @param[in]  count       Number of rows
     /// @param[in]  nCols       Number of features
+    /// @param[in]  rowStride   Row stride of `scratchRows` in elements (`>= nCols`)
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, int nCols,
-                          FPType * outDists)
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, size_t nCols,
+                          size_t rowStride, FPType * outDists)
     {
-        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
+        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * rowStride, nCols);
     }
 };
 
@@ -366,12 +398,12 @@ struct MinkowskiDist
     /// @param[in]  b     Second row, length `nCols`
     /// @param[in]  nCols Number of features
     template <daal::internal::CpuType cpu>
-    FPType pointDist(const FPType * a, const FPType * b, int nCols) const
+    FPType pointDist(const FPType * a, const FPType * b, size_t nCols) const
     {
         const FPType pFP    = static_cast<FPType>(p);
         const FPType invpFP = static_cast<FPType>(invp);
         FPType sum          = FPType(0);
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
             const FPType absd = (diff < FPType(0)) ? -diff : diff;
@@ -389,12 +421,12 @@ struct MinkowskiDist
     /// @param[in]  hi    Upper bound per dimension, length `nCols`
     /// @param[in]  nCols Number of features
     template <daal::internal::CpuType cpu>
-    FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
+    FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols) const
     {
         const FPType pFP    = static_cast<FPType>(p);
         const FPType invpFP = static_cast<FPType>(invp);
         FPType sum          = FPType(0);
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
             const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
@@ -411,16 +443,17 @@ struct MinkowskiDist
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x rowStride`
     /// @param[in]  rowNorms2   Unused
     /// @param[in]  count       Number of rows
     /// @param[in]  nCols       Number of features
+    /// @param[in]  rowStride   Row stride of `scratchRows` in elements (`>= nCols`)
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, int nCols,
+    void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, size_t nCols, size_t rowStride,
                    FPType * outDists) const
     {
-        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
+        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * rowStride, nCols);
     }
 };
 
@@ -440,14 +473,14 @@ struct ChebyshevDist
     /// @param[in]  b     Second row, length `nCols`
     /// @param[in]  nCols Number of features
     template <daal::internal::CpuType cpu>
-    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
+    static FPType pointDist(const FPType * a, const FPType * b, size_t nCols)
     {
         FPType mx = FPType(0);
         // OpenMP requires reduction-body updates to be expression-form (via `?:`)
         // rather than branch-form (`if (...) x = ...`) so the compiler can safely
         // fold each lane into the max-reduction pattern under `omp simd`.
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
             const FPType absd = (diff < FPType(0)) ? -diff : diff;
@@ -465,12 +498,12 @@ struct ChebyshevDist
     /// @param[in]  hi    Upper bound per dimension, length `nCols`
     /// @param[in]  nCols Number of features
     template <daal::internal::CpuType cpu>
-    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
+    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols)
     {
         FPType mx = FPType(0);
         // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
-        for (int d = 0; d < nCols; d++)
+        for (size_t d = 0; d < nCols; d++)
         {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
             const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
@@ -487,16 +520,17 @@ struct ChebyshevDist
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
-    /// @param[in]  scratchRows Row-major batch, size `count x nCols`
+    /// @param[in]  scratchRows Row-major batch, size `count x rowStride`
     /// @param[in]  rowNorms2   Unused
     /// @param[in]  count       Number of rows
     /// @param[in]  nCols       Number of features
+    /// @param[in]  rowStride   Row stride of `scratchRows` in elements (`>= nCols`)
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
-    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, int nCols,
-                          FPType * outDists)
+    static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, size_t nCols,
+                          size_t rowStride, FPType * outDists)
     {
-        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * nCols, nCols);
+        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * rowStride, nCols);
     }
 };
 

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "services/daal_defines.h"
+#include "services/daal_defines.h" // DAAL_MALLOC_DEFAULT_ALIGNMENT
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
@@ -97,6 +97,9 @@ static void reduceComponentBestEdges(size_t nRows, const DAAL_INT * componentOf,
                                      FPType * compBestMrd, DAAL_INT * compBestFrom, DAAL_INT * compBestTo)
 {
     const FPType inf = daal::services::internal::MaxVal<FPType>::get();
+    // Callers pass `TArrayScalable`-backed / `TArray`-backed starts, so the base
+    // pointer is aligned to `DAAL_MALLOC_DEFAULT_ALIGNMENT`.
+    PRAGMA_OMP_SIMD_ARGS(aligned(compBestMrd, compBestFrom, compBestTo : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (size_t i = 0; i < nRows; i++)
     {
         compBestMrd[i]  = inf;

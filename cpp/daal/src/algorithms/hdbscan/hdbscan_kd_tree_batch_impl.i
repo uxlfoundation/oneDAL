@@ -108,7 +108,7 @@ struct KdNode
 ///
 /// @return Index of the node created by this call
 template <typename algorithmFPType, CpuType cpu>
-static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, int nCols,
+static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, size_t nCols,
                             KdNode<algorithmFPType> * nodes, DAAL_INT & nextNode, DAAL_INT maxLeafSize, algorithmFPType * bboxLo,
                             algorithmFPType * bboxHi)
 {
@@ -121,12 +121,11 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
     // Compute bounding box and find dimension with largest spread
     algorithmFPType bestSpread = algorithmFPType(-1);
     int bestDim                = 0;
-    for (int d = 0; d < nCols; d++)
+    for (size_t d = 0; d < nCols; d++)
     {
         algorithmFPType lo = daal::services::internal::MaxVal<algorithmFPType>::get();
         algorithmFPType hi = -daal::services::internal::MaxVal<algorithmFPType>::get();
-        // Reduction body uses `?:` rather than `if (...) x = ...` per OMP simd
-        // conformance (see feedback_daal_aligned_simd memory).
+        // Reduction body uses `?:` rather than `if (...) x = ...` per OMP simd conformance.
         PRAGMA_OMP_SIMD_ARGS(reduction(min : lo) reduction(max : hi))
         for (DAAL_INT i = begin; i < end; i++)
         {
@@ -140,7 +139,7 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
         if (spread > bestSpread)
         {
             bestSpread = spread;
-            bestDim    = d;
+            bestDim    = static_cast<int>(d);
         }
     }
 
@@ -188,7 +187,7 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
 /// @param[in,out] heap         Bounded max-heap of best-k candidates seen so far
 /// @param[in]     distFunc     Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
+static void knnQuery(const algorithmFPType * data, size_t nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
                      const algorithmFPType * queryPoint, DAAL_INT nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
@@ -346,7 +345,7 @@ static DAAL_INT updateNodeComponents(KdNode<algorithmFPType> * nodes, const DAAL
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
+static void nearestMrdBoruvkaQuery(const algorithmFPType * data, size_t nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
                                    const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
                                    const algorithmFPType * minCoreDistNode, const DAAL_INT * componentOf, const algorithmFPType * queryPoint,
                                    DAAL_INT queryIdx, algorithmFPType queryCoreD, DAAL_INT queryComponent, DAAL_INT nodeIdx,
@@ -461,7 +460,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
         KnnHeap<algorithmFPType, cpu> heap(k);
         if (!heap.ok()) return;
 
-        knnQuery<algorithmFPType, cpu>(data, static_cast<int>(nCols), nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
+        knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
 
         coreDistances[i] = heap.maxDist();
     });
@@ -509,7 +508,6 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
-    const int iNCols     = static_cast<int>(nCols);
 
     // Only phase 1 (nearest-different-component MRD tree query) is
     // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
@@ -522,7 +520,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
             algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             DAAL_INT bestIdx                 = -1;
 
-            nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode,
+            nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode,
                                                          componentOf, queryPt, static_cast<DAAL_INT>(i), queryCoreD, comp, 0, bestMrd, bestIdx,
                                                          distFunc, invAlpha);
 
@@ -603,8 +601,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(bboxHi);
 
     DAAL_INT nextNode = 0;
-    buildKdTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize,
-                                      bboxLo, bboxHi);
+    buildKdTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
     const DAAL_INT totalTreeNodes = nextNode;
 
     // =========================================================================
