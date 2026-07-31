@@ -82,7 +82,7 @@ static void compute_centroids(const Float* data,
         Float* row = centroids + k * col_count;
         const Float inv = Float(1) / static_cast<Float>(counts[k]);
         // Equivalent to `cblas_?scal(col_count, inv, row, 1)` on x86; the
-        // compiler emits vectorised mul on this loop under `PRAGMA_OMP_SIMD`.
+        // compiler emits vectorized mul on this loop under `PRAGMA_OMP_SIMD`.
         PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
             row[d] *= inv;
@@ -168,9 +168,9 @@ namespace pr = oneapi::dal::backend::primitives;
 ///   2) A `parallel_for` over `(cluster_count, col_count)` divides each entry
 ///      by its cluster count (skips empty clusters). This is the moral
 ///      equivalent of a per-cluster `mkl::blas::scal(1/count)`; running one
-///      GPU kernel over the whole `cluster_count x col_count` grid amortises
+///      GPU kernel over the whole `cluster_count x col_count` grid amortizes
 ///      the launch cost across all clusters, whereas issuing
-///      `cluster_count` separate `mkl::blas::scal` calls would serialise on
+///      `cluster_count` separate `mkl::blas::scal` calls would serialize on
 ///      queue submits.
 ///
 /// @tparam Float Floating-point type
