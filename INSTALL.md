@@ -354,7 +354,7 @@ ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
 ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
 
-Alternatively, one may use `$LD_PRELOAD` instead of `$LDFLAGS` when using an executable that links to oneDAL (such as the Python executable when using [scikit-learn-intelex](https://uxlfoundation.github.io/scikit-learn-intelex/2026.1/) which calls oneDAL):
+Alternatively, one may use `$LD_PRELOAD` instead of `$LDFLAGS` when using an executable that links to oneDAL (such as the Python executable when using [scikit-learn-intelex](https://uxlfoundation.github.io/scikit-learn-intelex) which calls oneDAL):
 ```shell
 LD_PRELOAD="$(icx -print-file-name=libclang_rt.asan.so)" ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
