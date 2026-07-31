@@ -324,8 +324,7 @@ services::Status KMeansInitStep3MasterKernel<method, algorithmFPType, cpu>::comp
         algorithmFPType * pTmp = aRngValues.get();
         size_t n               = 1;
         pTmp[0]                = pOutput[i].value;
-        for (size_t j = i + n; (j < outputSize) && (pOutput[j].key == key); pTmp[n++] = pOutput[j++].value)
-            ;
+        for (size_t j = i + n; (j < outputSize) && (pOutput[j].key == key); pTmp[n++] = pOutput[j++].value);
         s = createTableSingleRow<algorithmFPType, cpu>((*pOutputColl)[key], n, pTmp);
         if (!s) return s;
         i += n;

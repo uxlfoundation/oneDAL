@@ -162,8 +162,7 @@ protected:
             size_t count                = 1;
             const algorithmFPType first = featureVal[i];
             const size_t iStart         = i;
-            for (++i; (i < n) && (featureVal[i] == first); ++count, ++i)
-                ;
+            for (++i; (i < n) && (featureVal[i] == first); ++count, ++i);
             if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart)) continue;
 
             if ((i == n) && (nDiffFeatureValues == 2) && bFound) break; //only 2 feature values, one possible split, already found

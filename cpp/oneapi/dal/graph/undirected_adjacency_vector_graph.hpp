@@ -152,9 +152,9 @@ template <typename VertexValue,
           typename GraphValue,
           typename IndexType,
           typename Allocator>
-undirected_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator>
-    &undirected_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator>::
-    operator=(undirected_adjacency_vector_graph &&other) {
+undirected_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator> &
+undirected_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator>::
+operator=(undirected_adjacency_vector_graph &&other) {
     if (&other != this) {
         swap(*this, other);
     }

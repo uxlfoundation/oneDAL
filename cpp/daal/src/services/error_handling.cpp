@@ -305,8 +305,7 @@ Error & Error::addDetail(ErrorDetail * detail)
         auto ptr = _details;
         if (ptr)
         {
-            for (; ptr->next(); ptr = ptr->next())
-                ;
+            for (; ptr->next(); ptr = ptr->next());
             ptr->addNext(detail);
         }
         else

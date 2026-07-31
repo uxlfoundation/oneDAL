@@ -405,7 +405,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
 #endif
                     }
                 });
-            }    /* if(_cd.nFeatures >= _THREAD_REDUCTION_MIN_SIZE_) */
+            } /* if(_cd.nFeatures >= _THREAD_REDUCTION_MIN_SIZE_) */
             else /* if(_cd.nFeatures < _THREAD_REDUCTION_MIN_SIZE_) */
             {
                 PRAGMA_OMP_SIMD
@@ -470,7 +470,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
     #endif
         }
 #endif /* #if (defined _VART_ENABLE_ || defined _SORM_ENABLE_) */
-    }  /* end for DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.MergeBlocks); */
+    } /* end for DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.MergeBlocks); */
 
     return Status();
 } /* compute_estimates */

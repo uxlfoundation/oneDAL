@@ -75,7 +75,9 @@ kselect_by_rows<Float>::kselect_by_rows(sycl::queue& queue,
         return;
     }
 
-    { base_.reset(new kselect_by_rows_quick<Float>{ queue, shape }); }
+    {
+        base_.reset(new kselect_by_rows_quick<Float>{ queue, shape });
+    }
 }
 
 #endif // ONEDAL_DATA_PARALLEL

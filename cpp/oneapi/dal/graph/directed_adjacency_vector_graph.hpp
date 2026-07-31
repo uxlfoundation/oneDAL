@@ -155,9 +155,9 @@ template <typename VertexValue,
           typename GraphValue,
           typename IndexType,
           typename Allocator>
-directed_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator>
-    &directed_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator>::
-    operator=(directed_adjacency_vector_graph &&other) {
+directed_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator> &
+directed_adjacency_vector_graph<VertexValue, EdgeValue, GraphValue, IndexType, Allocator>::
+operator=(directed_adjacency_vector_graph &&other) {
     if (&other != this) {
         swap(*this, other);
     }

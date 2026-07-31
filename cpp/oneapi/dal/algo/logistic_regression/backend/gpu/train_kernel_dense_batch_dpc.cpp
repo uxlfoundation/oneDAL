@@ -45,15 +45,25 @@ static train_result<Task> train(const context_gpu& ctx,
                                 const detail::descriptor_base<Task>& desc,
                                 const detail::train_parameters<Task>& params,
                                 const train_input<Task>& input) {
-    // TODO: add check if the dataset can be moved to gpu
-    // Move data to gpu
-    const auto sample_count = input.get_data().get_row_count();
-    const auto feature_count = input.get_data().get_column_count();
-    auto queue = ctx.get_queue();
-    pr::ndarray<Float, 2> data_nd =
-        pr::table2ndarray<Float>(queue, input.get_data(), sycl::usm::alloc::device);
-    table data_gpu = homogen_table::wrap(data_nd.flatten(queue, {}), sample_count, feature_count);
-    return call_dal_kernel<Float, Task>(ctx, desc, params, data_gpu, input.get_responses());
+    auto& queue = ctx.get_queue();
+    constexpr auto alloc = sycl::usm::alloc::device;
+
+    // table2ndarray() ensures the returned ndarray is row-major and accessible from the target device.
+    // Depending on source alloc/layout, it may reuse the original storage or allocate/copy/transpose.
+    const auto data_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_data(), alloc);
+    const auto resp_nd =
+        pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
+
+    auto data_table = homogen_table::wrap(queue,
+                                          data_nd.get_data(),
+                                          data_nd.get_dimension(0),
+                                          data_nd.get_dimension(1));
+    auto resp_table = homogen_table::wrap(queue,
+                                          resp_nd.get_data(),
+                                          resp_nd.get_dimension(0),
+                                          resp_nd.get_dimension(1));
+
+    return call_dal_kernel<Float, Task>(ctx, desc, params, data_table, resp_table);
 }
 
 template <typename Float, typename Task>

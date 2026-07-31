@@ -274,7 +274,7 @@ sycl::event update_centroids(sycl::queue& q,
             for (std::int64_t col_idx = local_id; col_idx < column_count; col_idx += col_block) {
                 local_centroid_ptr[col_idx] = 0;
             }
-            it.barrier();
+            sycl::group_barrier(it.get_group());
             for (std::int64_t row_idx = row_shift; row_idx < row_count; row_idx += row_block) {
                 if (resp_ptr[row_idx] == static_cast<std::int32_t>(cluster_id)) {
                     // Do computations only in case the workitem corresponds to this data row's centroid id
@@ -288,7 +288,7 @@ sycl::event update_centroids(sycl::queue& q,
                     }
                 }
             }
-            it.barrier();
+            sycl::group_barrier(it.get_group());
             // Update global sums of observations by adding up all the local sums
             if (local_id == 0) {
                 for (std::int64_t col_idx = 0; col_idx < column_count; ++col_idx) {

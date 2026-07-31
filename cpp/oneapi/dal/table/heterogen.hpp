@@ -48,7 +48,7 @@ public:
     static heterogen_table wrap(Arrays&&... arrays) {
         using detail::integral_cast;
 
-        auto meta = detail::make_default_metadata_from_arrays<Arrays...>();
+        auto meta = detail::make_default_metadata_from_arrays(arrays...);
         heterogen_table result = heterogen_table::empty(meta);
 
         [[maybe_unused]] const std::size_t ccount = sizeof...(Arrays);

@@ -239,6 +239,8 @@ public:
         return *this;
     }
 
+    /// The optimizer descriptor.
+    /// @return The descriptor of the optimizer used for minimization.
     const optimizer_t& get_optimizer() const {
         using optimizer_t = detail::optimizer<optimizer_t>;
         const auto opt = std::static_pointer_cast<optimizer_t>(base_t::get_optimizer_impl());
@@ -272,6 +274,7 @@ public:
     /// Creates a new instance of the class with the default property values.
     model();
 
+    /// The packed coefficients table.
     const table& get_packed_coefficients() const;
     model& set_packed_coefficients(const table& t);
 

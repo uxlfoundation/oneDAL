@@ -62,10 +62,7 @@ struct MklService
 #endif
     }
 
-    static void serv_free_buffers()
-    {
-        MKL_Free_Buffers();
-    }
+    static void serv_free_buffers() { MKL_Free_Buffers(); }
 
     static int serv_memcpy_s(void * dest, size_t destSize, const void * src, size_t srcSize)
     {
@@ -122,15 +119,9 @@ struct MklService
     }
 
     // TODO: The real call should be delegated to a backend library if the option is supported
-    static int serv_set_memory_limit(int type, size_t limit)
-    {
-        return MKL_Set_Memory_Limit(type, limit);
-    }
+    static int serv_set_memory_limit(int type, size_t limit) { return MKL_Set_Memory_Limit(type, limit); }
     // Added for interface compatibility - not expected to be called
-    static size_t serv_strnlen_s(const char * src, size_t slen)
-    {
-        return strnlen(src, slen);
-    }
+    static size_t serv_strnlen_s(const char * src, size_t slen) { return strnlen(src, slen); }
 
     static int serv_strncpy_s(char * dest, size_t dmax, const char * src, size_t slen)
     {
@@ -150,8 +141,7 @@ struct MklService
     static double serv_string_to_double(const char * nptr, char ** endptr)
     {
         const char * cur = nptr;
-        for (; isdigit(*cur) || *cur == '-' || *cur == 'e' || *cur == 'E' || *cur == '.'; ++cur)
-            ;
+        for (; isdigit(*cur) || *cur == '-' || *cur == 'e' || *cur == 'E' || *cur == '.'; ++cur);
         if (endptr) *endptr = const_cast<char *>(cur);
         size_t size = cur - nptr;
         // TODO replace with static buffer
@@ -163,17 +153,13 @@ struct MklService
         return val;
     }
 
-    static float serv_string_to_float(const char * nptr, char ** endptr)
-    {
-        return static_cast<float>(serv_string_to_double(nptr, endptr));
-    }
+    static float serv_string_to_float(const char * nptr, char ** endptr) { return static_cast<float>(serv_string_to_double(nptr, endptr)); }
 
     // TODO: not a safe function - no control for the input buffer end
     static int serv_string_to_int(const char * nptr, char ** endptr)
     {
         const char * cur = nptr;
-        for (; isdigit(*cur) || *cur == '-'; ++cur)
-            ;
+        for (; isdigit(*cur) || *cur == '-'; ++cur);
         if (endptr) *endptr = const_cast<char *>(cur);
         size_t size = cur - nptr;
         // TODO replace with static buffer
@@ -185,15 +171,9 @@ struct MklService
         return val;
     }
 
-    static int serv_int_to_string(char * buffer, size_t n, int value)
-    {
-        return snprintf(buffer, n, "%d", value);
-    }
+    static int serv_int_to_string(char * buffer, size_t n, int value) { return snprintf(buffer, n, "%d", value); }
 
-    static int serv_double_to_string(char * buffer, size_t n, double value)
-    {
-        return snprintf(buffer, n, "%E", value);
-    }
+    static int serv_double_to_string(char * buffer, size_t n, double value) { return snprintf(buffer, n, "%E", value); }
 };
 
 } // namespace mkl

@@ -51,7 +51,8 @@ template <typename Float>
 static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const input_t& input) {
     auto& queue = ctx.get_queue();
     const auto data = input.get_data();
-    const auto data_1d = pr::table2ndarray_1d<Float>(queue, data, sycl::usm::alloc::device);
+    const auto data_1d =
+        pr::table2ndarray_1d_save_layout<Float>(queue, data, sycl::usm::alloc::device);
     return result_t{}.set_finite(compute_finiteness(queue, data_1d, desc.get_allow_NaN()));
 }
 
@@ -69,7 +70,8 @@ struct compute_kernel_gpu<Float, method::dense, task::compute> {
                     const table& data,
                     bool& res) {
         auto& queue = ctx.get_queue();
-        const auto data_1d = pr::table2ndarray_1d<Float>(queue, data, sycl::usm::alloc::device);
+        const auto data_1d =
+            pr::table2ndarray_1d_save_layout<Float>(queue, data, sycl::usm::alloc::device);
         res = compute_finiteness(queue, data_1d, desc.get_allow_NaN());
     }
 #endif

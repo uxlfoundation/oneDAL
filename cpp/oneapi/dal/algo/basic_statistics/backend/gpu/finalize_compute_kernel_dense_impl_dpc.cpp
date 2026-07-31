@@ -176,7 +176,9 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
         const auto max =
             pr::table2ndarray_1d<Float>(q, input.get_partial_max(), sycl::usm::alloc::device);
 
-        { comm_.allreduce(max.flatten(q, {}), spmd::reduce_op::max).wait(); }
+        {
+            comm_.allreduce(max.flatten(q, {}), spmd::reduce_op::max).wait();
+        }
         res.set_max(homogen_table::wrap(max.flatten(q, {}), 1, column_count));
     }
 

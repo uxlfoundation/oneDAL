@@ -135,7 +135,7 @@ sycl::event block_cumsum(sycl::queue& queue,
 
         h.parallel_for(range, [=](sycl::nd_item<1> item) {
             constexpr Type zero = 0;
-            constexpr sycl::ext::oneapi::plus<Type> plus{};
+            constexpr sycl::plus<Type> plus{};
 
             auto group = item.get_group();
             const std::int64_t lid = item.get_local_linear_id();

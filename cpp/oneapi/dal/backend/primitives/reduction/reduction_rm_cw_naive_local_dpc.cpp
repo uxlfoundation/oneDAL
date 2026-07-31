@@ -140,8 +140,8 @@ sycl::event reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::operato
     const UnaryOp& unary,
     const event_vector& deps,
     const bool override_init) const {
-    return this->
-    operator()(input, output, width, height, width, binary, unary, deps, override_init);
+    return this
+        ->operator()(input, output, width, height, width, binary, unary, deps, override_init);
 }
 
 template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>

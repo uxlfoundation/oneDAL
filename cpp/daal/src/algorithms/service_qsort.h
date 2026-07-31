@@ -97,10 +97,8 @@ void qSort(size_t n, algorithmDataType * x)
             a = x[l + 1];
             for (;;)
             {
-                while (x[++i] < a)
-                    ;
-                while (x[--j] > a)
-                    ;
+                while (x[++i] < a);
+                while (x[--j] > a);
                 if (j < i)
                 {
                     break;
