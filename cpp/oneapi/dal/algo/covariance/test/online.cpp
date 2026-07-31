@@ -29,13 +29,10 @@ class covariance_online_test : public covariance_test<TestType, covariance_onlin
     using descriptor_t = typename base_t::descriptor_t;
 
 public:
-    void set_blocks_count(std::int64_t blocks_count) {
-        blocks_count_ = blocks_count;
-    }
-
     void online_general_checks(const te::dataframe& input,
                                const te::table_id& input_table_id,
-                               descriptor_t cov_desc) {
+                               descriptor_t cov_desc,
+                               std::int64_t blocks_count_) {
         const table data = input.get_table(this->get_policy(), input_table_id);
         dal::covariance::partial_compute_result<> partial_result;
         auto input_table =
@@ -47,8 +44,39 @@ public:
         this->check_compute_result(cov_desc, data, compute_result);
     }
 
-private:
-    std::int64_t blocks_count_;
+#ifdef ONEDAL_DATA_PARALLEL
+    void online_mixed_checks(const te::dataframe& input,
+                             const te::table_id& input_table_id,
+                             descriptor_t cov_desc,
+                             std::int64_t blocks_count_,
+                             alloc_kind first_block_alloc) {
+        const table data = input.get_table(this->get_policy(), input_table_id);
+        dal::covariance::partial_compute_result<> partial_result;
+        auto input_table = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                  data,
+                                                                  blocks_count_,
+                                                                  first_block_alloc);
+        for (std::int64_t i = 0; i < blocks_count_; ++i) {
+            partial_result = this->partial_compute(cov_desc, partial_result, input_table[i]);
+        }
+        auto compute_result = this->finalize_compute(cov_desc, partial_result);
+
+        const alloc_kind expected_alloc = first_block_alloc;
+        if (compute_result.get_result_options().test(result_options::cov_matrix)) {
+            REQUIRE(compute_result.get_cov_matrix().get_metadata().get_alloc_kind() ==
+                    expected_alloc);
+        }
+        if (compute_result.get_result_options().test(result_options::cor_matrix)) {
+            REQUIRE(compute_result.get_cor_matrix().get_metadata().get_alloc_kind() ==
+                    expected_alloc);
+        }
+        if (compute_result.get_result_options().test(result_options::means)) {
+            REQUIRE(compute_result.get_means().get_metadata().get_alloc_kind() == expected_alloc);
+        }
+
+        this->check_compute_result(cov_desc, data, compute_result);
+    }
+#endif
 };
 
 TEMPLATE_LIST_TEST_M(covariance_online_test,
@@ -62,7 +90,6 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
 
     const int64_t nBlocks = GENERATE(1, 10);
     INFO("nBlocks=" << nBlocks);
-    this->set_blocks_count(nBlocks);
 
     const bool assume_centered = GENERATE(true, false);
     INFO("assume_centered=" << assume_centered);
@@ -91,7 +118,7 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
 
     // Homogen floating point type is the same as algorithm's floating point type
     const auto input_data_table_id = this->get_homogen_table_id();
-    this->online_general_checks(input, input_data_table_id, cov_desc);
+    this->online_general_checks(input, input_data_table_id, cov_desc, nBlocks);
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -105,10 +132,13 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
     using Float = std::tuple_element_t<0, TestType>;
     using Method = std::tuple_element_t<1, TestType>;
 
-    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
-    const bool host_first = GENERATE(0, 1);
+    const int64_t nBlocks = GENERATE(2, 3, 4, 5, 10);
+    const alloc_kind first_block_alloc = GENERATE(alloc_kind::non_usm,
+                                                  alloc_kind::usm_host,
+                                                  alloc_kind::usm_device,
+                                                  alloc_kind::usm_shared);
     INFO("nBlocks=" << nBlocks);
-    INFO("host_first=" << host_first);
+    INFO("first_block_alloc=" << te::get_alloc_kind_name(first_block_alloc));
 
     const bool assume_centered = GENERATE(true, false);
     INFO("assume_centered=" << assume_centered);
@@ -133,31 +163,7 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
     INFO("num_columns=" << input.get_column_count());
 
     const auto input_data_table_id = this->get_homogen_table_id();
-    const table data = input.get_table(this->get_policy(), input_data_table_id);
-    dal::covariance::partial_compute_result<> partial_result;
-    auto input_table =
-        te::split_table_by_rows_mixed<float_t>(this->get_policy(), data, nBlocks, host_first);
-    for (std::int64_t i = 0; i < nBlocks; ++i) {
-        partial_result = this->partial_compute(cov_desc, partial_result, input_table[i]);
-    }
-    auto compute_result = this->finalize_compute(cov_desc, partial_result);
-
-    const auto ctx = this->get_queue().get_context();
-    const auto expected_alloc = sycl::usm::alloc::device;
-    if (compute_result.get_result_options().test(result_options::cov_matrix)) {
-        const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_cov_matrix());
-        REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
-    }
-    if (compute_result.get_result_options().test(result_options::cor_matrix)) {
-        const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_cor_matrix());
-        REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
-    }
-    if (compute_result.get_result_options().test(result_options::means)) {
-        const auto& res = static_cast<const dal::homogen_table&>(compute_result.get_means());
-        REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
-    }
-
-    this->check_compute_result(cov_desc, data, compute_result);
+    this->online_mixed_checks(input, input_data_table_id, cov_desc, nBlocks, first_block_alloc);
 }
 
 #endif

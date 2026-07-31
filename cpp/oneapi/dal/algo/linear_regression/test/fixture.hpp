@@ -536,7 +536,8 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
-    void run_and_check_linear_online_mixed(std::int64_t nBlocks, bool host_first) {
+    void run_and_check_linear_online_mixed(std::int64_t nBlocks, alloc_kind first_block_alloc) {
+        INFO("first_block_alloc=" << te::get_alloc_kind_name(first_block_alloc));
         std::int64_t seed = 888;
         double tol = 1e-2;
         table x_train, y_train, x_test, y_test;
@@ -547,11 +548,11 @@ public:
         auto input_table_x = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
                                                                     x_train,
                                                                     nBlocks,
-                                                                    host_first);
+                                                                    first_block_alloc);
         auto input_table_y = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
                                                                     y_train,
                                                                     nBlocks,
-                                                                    host_first);
+                                                                    first_block_alloc);
         for (std::int64_t i = 0; i < nBlocks; i++) {
             partial_result =
                 this->partial_train(desc, partial_result, input_table_x[i], input_table_y[i]);
@@ -559,16 +560,14 @@ public:
         auto train_res = this->finalize_train(desc, partial_result);
 
         {
-            const auto ctx = this->get_queue().get_context();
-            const auto expected_alloc = sycl::usm::alloc::device;
+            const alloc_kind expected_alloc = first_block_alloc;
             if (desc.get_result_options().test(result_options::coefficients)) {
-                const auto& res =
-                    static_cast<const dal::homogen_table&>(train_res.get_coefficients());
-                REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+                REQUIRE(train_res.get_coefficients().get_metadata().get_alloc_kind() ==
+                        expected_alloc);
             }
             if (desc.get_result_options().test(result_options::intercept)) {
-                const auto& res = static_cast<const dal::homogen_table&>(train_res.get_intercept());
-                REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == expected_alloc);
+                REQUIRE(train_res.get_intercept().get_metadata().get_alloc_kind() ==
+                        expected_alloc);
             }
         }
 
@@ -589,7 +588,8 @@ public:
         }
     }
 
-    void run_and_check_ridge_online_mixed(std::int64_t nBlocks, bool host_first) {
+    void run_and_check_ridge_online_mixed(std::int64_t nBlocks, alloc_kind first_block_alloc) {
+        INFO("first_block_alloc=" << te::get_alloc_kind_name(first_block_alloc));
         std::int64_t seed = 888;
         double tol = 1e-2;
         table x_train, y_train, x_test, y_test;
@@ -598,11 +598,11 @@ public:
         auto input_table_x = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
                                                                     x_train,
                                                                     nBlocks,
-                                                                    host_first);
+                                                                    first_block_alloc);
         auto input_table_y = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
                                                                     y_train,
                                                                     nBlocks,
-                                                                    host_first);
+                                                                    first_block_alloc);
 
         const auto linear_desc = this->get_descriptor();
         dal::linear_regression::partial_train_result<> linear_partial_result;
@@ -615,10 +615,8 @@ public:
         auto linear_train_res = this->finalize_train(linear_desc, linear_partial_result);
 
         {
-            const auto ctx = this->get_queue().get_context();
-            const auto& res =
-                static_cast<const dal::homogen_table&>(linear_train_res.get_coefficients());
-            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::device);
+            REQUIRE(linear_train_res.get_coefficients().get_metadata().get_alloc_kind() ==
+                    first_block_alloc);
         }
 
         const auto ridge_desc = this->get_descriptor(this->alpha_);
@@ -632,10 +630,8 @@ public:
         auto ridge_train_res = this->finalize_train(ridge_desc, ridge_partial_result);
 
         {
-            const auto ctx = this->get_queue().get_context();
-            const auto& res =
-                static_cast<const dal::homogen_table&>(ridge_train_res.get_coefficients());
-            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::device);
+            REQUIRE(ridge_train_res.get_coefficients().get_metadata().get_alloc_kind() ==
+                    first_block_alloc);
         }
 
         SECTION("Checking coefficient shrinkage") {

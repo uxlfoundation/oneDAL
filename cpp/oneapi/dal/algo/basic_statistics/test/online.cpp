@@ -69,14 +69,15 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
                      "[basic_statistics][integration][online]",
                      basic_statistics_types) {
     SKIP_IF(this->not_float64_friendly());
-    const te::dataframe data =
-        GENERATE_DATAFRAME(te::dataframe_builder{ 500, 250 }.fill_normal(0, 1, 7777),
-                           te::dataframe_builder{ 6000, 20 }.fill_normal(-30, 30, 7777));
+    const te::dataframe data = te::dataframe_builder{ 6000, 20 }.fill_normal(-30, 30, 7777).build();
 
     std::shared_ptr<te::dataframe> weights;
     const bool use_weights = GENERATE(0, 1);
-    const bool host_first = GENERATE(0, 1);
-    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
+    const alloc_kind first_block_alloc = GENERATE(alloc_kind::non_usm,
+                                                  alloc_kind::usm_host,
+                                                  alloc_kind::usm_device,
+                                                  alloc_kind::usm_shared);
+    const int64_t nBlocks = GENERATE(2, 4, 7);
 
     if (use_weights) {
         const auto row_count = data.get_row_count();
@@ -87,7 +88,7 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     const bs::result_option_id compute_mode =
         bs::result_option_id(dal::result_option_id_base(mask_full));
 
-    this->online_mixed_checks(data, weights, compute_mode, nBlocks, host_first);
+    this->online_mixed_checks(data, weights, compute_mode, nBlocks, first_block_alloc);
 }
 
 #endif

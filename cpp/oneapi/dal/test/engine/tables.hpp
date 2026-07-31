@@ -113,12 +113,29 @@ inline array<T> get_table_block(host_test_policy&, const table& t, const range& 
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
+
+sycl::usm::alloc get_sycl_alloc_kind(alloc_kind alloc) {
+    switch (alloc) {
+        case alloc_kind::usm_host: return sycl::usm::alloc::host;
+        case alloc_kind::usm_device: return sycl::usm::alloc::device;
+        case alloc_kind::usm_shared: return sycl::usm::alloc::shared;
+        default: return sycl::usm::alloc::unknown;
+    }
+}
+
 template <typename T>
 inline array<T> get_table_block(device_test_policy& p,
                                 const table& t,
                                 const range& row_range,
-                                const sycl::usm::alloc alloc = sycl::usm::alloc::device) {
-    return row_accessor<const T>{ t }.pull(p.get_queue(), row_range, alloc);
+                                const alloc_kind alloc = alloc_kind::usm_device) {
+    if (alloc != alloc_kind::non_usm) {
+        sycl::usm::alloc sycl_alloc = get_sycl_alloc_kind(alloc);
+        if (sycl_alloc == sycl::usm::alloc::unknown) {
+            throw invalid_argument{ "Invalid alloc_kind value" };
+        }
+        return row_accessor<const T>{ t }.pull(p.get_queue(), row_range, sycl_alloc);
+    }
+    return row_accessor<const T>{ t }.pull(row_range);
 }
 
 #endif
@@ -157,27 +174,6 @@ inline std::vector<table> split_table_by_rows(TestPolicy& policy,
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-inline sycl::usm::alloc get_alloc(std::int64_t i, std::int64_t split_count, bool host_first) {
-    sycl::usm::alloc alloc;
-    if (host_first) {
-        if (i < split_count / 2) {
-            alloc = sycl::usm::alloc::host;
-        }
-        else {
-            alloc = sycl::usm::alloc::device;
-        }
-    }
-    else {
-        if (i < split_count / 2) {
-            alloc = sycl::usm::alloc::device;
-        }
-        else {
-            alloc = sycl::usm::alloc::host;
-        }
-    }
-    return alloc;
-}
-
 inline std::string get_alloc_name(const void* ptr, const sycl::context& ctx) {
     std::string alloc_name;
     const sycl::usm::alloc alloc = sycl::get_pointer_type(ptr, ctx);
@@ -190,11 +186,53 @@ inline std::string get_alloc_name(const void* ptr, const sycl::context& ctx) {
     return alloc_name;
 }
 
+/// Returns a human-readable name of the allocation kind. Catch2 cannot stringify
+/// `alloc_kind` on its own, so use this in `INFO`/`CAPTURE` to keep failures diagnosable.
+inline std::string get_alloc_kind_name(alloc_kind alloc) {
+    switch (alloc) {
+        case alloc_kind::non_usm: return "non-usm";
+        case alloc_kind::usm_host: return "usm-host";
+        case alloc_kind::usm_device: return "usm-device";
+        case alloc_kind::usm_shared: return "usm-shared";
+        default: return "unknown";
+    }
+}
+
+/// Returns a random allocation kind that is different from the previous one.
+///
+/// @param alloc_rng    Random number generator for allocation kind selection.
+/// @param gen          Random number generator engine.
+/// @param prev_alloc   The previous allocation kind to avoid repeating.
+///
+/// @return A random allocation kind different from `prev_alloc`.
+alloc_kind get_random_alloc(std::uniform_int_distribution<>& alloc_rng,
+                            std::mt19937& gen,
+                            alloc_kind prev_alloc) {
+    int alloc = alloc_rng(gen);
+    while (alloc == static_cast<int>(prev_alloc)) {
+        alloc = alloc_rng(gen);
+    }
+    return static_cast<alloc_kind>(alloc);
+}
+
+/// Split a table into multiple smaller tables by rows, with the first block having a specified allocation kind.
+///
+/// @tparam Float       The data type of the table elements.
+/// @tparam TestPolicy  The type of the test policy (e.g., host_test_policy or device_test_policy).
+///
+/// @param policy            The test policy instance.
+/// @param t                 The table to be split.
+/// @param split_count       The number of blocks to split the table into.
+/// @param first_block_alloc The allocation kind for the first block.
+///
+/// @pre :expr:`split_count > 0`
+///
+/// @return A vector of tables resulting from the split.
 template <typename Float, typename TestPolicy>
 inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
                                                     const table& t,
                                                     std::int64_t split_count,
-                                                    bool host_first = true) {
+                                                    alloc_kind first_block_alloc) {
     ONEDAL_ASSERT(split_count > 0);
 
     const std::int64_t row_count = t.get_row_count();
@@ -205,6 +243,9 @@ inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
     std::vector<table> result(split_count);
 
     std::int64_t row_offset = 0;
+    std::mt19937 gen(7777);
+    std::uniform_int_distribution<> alloc_rng(0, 3);
+    alloc_kind prev_alloc = first_block_alloc;
     for (std::int64_t i = 0; i < split_count; i++) {
         const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
         const std::int64_t block_size = block_size_regular + tail;
@@ -212,7 +253,9 @@ inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
         if (block_size > 0) {
             const auto row_range = range{ row_offset, row_offset + block_size };
 
-            const sycl::usm::alloc alloc = get_alloc(i, split_count, host_first);
+            const alloc_kind alloc =
+                (i == 0) ? first_block_alloc : get_random_alloc(alloc_rng, gen, prev_alloc);
+            prev_alloc = alloc;
             const array<Float> block = get_table_block<Float>(policy, t, row_range, alloc);
             result[i] = homogen_table::wrap(block, block_size, column_count);
         }

@@ -154,8 +154,9 @@ public:
                              std::int64_t component_count,
                              const te::table_id& data_table_id,
                              std::int64_t nBlocks,
-                             bool host_first) {
+                             alloc_kind first_block_alloc) {
         CAPTURE(component_count);
+        INFO("first_block_alloc=" << te::get_alloc_kind_name(first_block_alloc));
 
         const table x = data.get_table(data_table_id);
 
@@ -164,22 +165,20 @@ public:
         INFO("run training");
         auto partial_result = dal::pca::partial_train_result();
         auto input_table =
-            te::split_table_by_rows_mixed<Float>(this->get_policy(), x, nBlocks, host_first);
+            te::split_table_by_rows_mixed<Float>(this->get_policy(), x, nBlocks, first_block_alloc);
         for (std::int64_t i = 0; i < nBlocks; ++i) {
             partial_result = this->partial_train(pca_desc, partial_result, input_table[i]);
         }
         auto train_result = this->finalize_train(pca_desc, partial_result);
 
-        const auto ctx = this->get_queue().get_context();
+        const alloc_kind expected_alloc = first_block_alloc;
         if (train_result.get_eigenvalues().has_data()) {
-            const auto& res =
-                static_cast<const dal::homogen_table&>(train_result.get_eigenvalues());
-            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::unknown);
+            REQUIRE(train_result.get_eigenvalues().get_metadata().get_alloc_kind() ==
+                    expected_alloc);
         }
         if (train_result.get_eigenvectors().has_data()) {
-            const auto& res =
-                static_cast<const dal::homogen_table&>(train_result.get_eigenvectors());
-            REQUIRE(sycl::get_pointer_type(res.get_data(), ctx) == sycl::usm::alloc::unknown);
+            REQUIRE(train_result.get_eigenvectors().get_metadata().get_alloc_kind() ==
+                    expected_alloc);
         }
 
         const auto model = train_result.get_model();

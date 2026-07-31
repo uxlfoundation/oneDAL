@@ -163,8 +163,11 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
                      pca_types_cov) {
     SKIP_IF(this->not_float64_friendly());
 
-    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
-    const bool host_first = GENERATE(0, 1);
+    const int64_t nBlocks = GENERATE(2, 4, 9);
+    const alloc_kind first_block_alloc = GENERATE(alloc_kind::non_usm,
+                                                  alloc_kind::usm_host,
+                                                  alloc_kind::usm_device,
+                                                  alloc_kind::usm_shared);
     const te::dataframe data =
         GENERATE_DATAFRAME(te::dataframe_builder{ 500, 10 }.fill_normal(0, 1, 7777),
                            te::dataframe_builder{ 5000, 100 }.fill_normal(0, 1, 7777));
@@ -173,7 +176,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
 
     const std::int64_t component_count = GENERATE_COPY(0, data.get_column_count() / 2);
 
-    this->online_mixed_checks(data, component_count, data_table_id, nBlocks, host_first);
+    this->online_mixed_checks(data, component_count, data_table_id, nBlocks, first_block_alloc);
 }
 
 TEMPLATE_LIST_TEST_M(pca_online_test,
@@ -183,17 +186,18 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->not_available_on_device());
 
-    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
-    const bool host_first = GENERATE(0, 1);
-    const te::dataframe data =
-        GENERATE_DATAFRAME(te::dataframe_builder{ 500, 10 }.fill_normal(0, 1, 7777),
-                           te::dataframe_builder{ 5000, 100 }.fill_normal(0, 1, 7777));
+    const int64_t nBlocks = GENERATE(2, 3, 6);
+    const alloc_kind first_block_alloc = GENERATE(alloc_kind::non_usm,
+                                                  alloc_kind::usm_host,
+                                                  alloc_kind::usm_device,
+                                                  alloc_kind::usm_shared);
+    const te::dataframe data = te::dataframe_builder{ 5000, 100 }.fill_normal(0, 1, 7777).build();
 
     const auto data_table_id = this->get_homogen_table_id();
 
     const std::int64_t component_count = GENERATE_COPY(0, data.get_column_count() / 2);
 
-    this->online_mixed_checks(data, component_count, data_table_id, nBlocks, host_first);
+    this->online_mixed_checks(data, component_count, data_table_id, nBlocks, first_block_alloc);
 }
 
 #endif

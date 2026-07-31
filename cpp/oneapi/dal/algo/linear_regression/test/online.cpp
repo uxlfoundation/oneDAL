@@ -69,10 +69,13 @@ TEMPLATE_LIST_TEST_M(lr_online_test,
                      lr_types) {
     SKIP_IF(this->not_float64_friendly());
     this->generate(777);
-    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
-    const bool host_first = GENERATE(0, 1);
+    const int64_t nBlocks = GENERATE(2, 4, 7);
+    const alloc_kind first_block_alloc = GENERATE(alloc_kind::non_usm,
+                                                  alloc_kind::usm_host,
+                                                  alloc_kind::usm_device,
+                                                  alloc_kind::usm_shared);
 
-    this->run_and_check_linear_online_mixed(nBlocks, host_first);
+    this->run_and_check_linear_online_mixed(nBlocks, first_block_alloc);
 }
 
 TEMPLATE_LIST_TEST_M(lr_online_test,
@@ -81,10 +84,13 @@ TEMPLATE_LIST_TEST_M(lr_online_test,
                      lr_types) {
     SKIP_IF(this->not_float64_friendly());
     this->generate(777);
-    const int64_t nBlocks = GENERATE(2, 3, 4, 5);
-    const bool host_first = GENERATE(0, 1);
+    const int64_t nBlocks = GENERATE(2, 4, 7);
+    const alloc_kind first_block_alloc = GENERATE(alloc_kind::non_usm,
+                                                  alloc_kind::usm_host,
+                                                  alloc_kind::usm_device,
+                                                  alloc_kind::usm_shared);
 
-    this->run_and_check_ridge_online_mixed(nBlocks, host_first);
+    this->run_and_check_ridge_online_mixed(nBlocks, first_block_alloc);
 }
 
 #endif
