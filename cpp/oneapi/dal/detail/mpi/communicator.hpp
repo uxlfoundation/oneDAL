@@ -120,9 +120,9 @@ public:
             : mpi_comm_(MPI_COMM_WORLD),
               default_root_(default_root) {}
 
-  explicit mpi_communicator_impl(MPI_Comm comm, std::int64_t default_root = 0)
-          : mpi_comm_(comm),
-            default_root_(default_root) {}
+    explicit mpi_communicator_impl(MPI_Comm comm, std::int64_t default_root = 0)
+            : mpi_comm_(comm),
+              default_root_(default_root) {}
 
 #ifdef ONEDAL_DATA_PARALLEL
     //    template<typename T = MemoryAccessKind, spmd::enable_if_device_memory_accessible_t<T>>
