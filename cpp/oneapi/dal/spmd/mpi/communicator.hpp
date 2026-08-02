@@ -29,10 +29,20 @@ inline communicator<device_memory_access::none> make_communicator<backend::mpi>(
     return dal::detail::mpi_communicator<device_memory_access::none>{};
 }
 
+template <>
+inline communicator<device_memory_access::none> make_communicator<backend::mpi>(MPI_Comm comm) {
+    return dal::detail::mpi_communicator<device_memory_access::none>{ comm };
+}
+
 #ifdef ONEDAL_DATA_PARALLEL
 template <>
 inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(sycl::queue& queue) {
     return dal::detail::mpi_communicator<device_memory_access::usm>{ queue };
+}
+
+template <>
+inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(sycl::queue& queue, MPI_Comm comm) {
+    return dal::detail::mpi_communicator<device_memory_access::usm>{ queue, comm };
 }
 #endif
 
