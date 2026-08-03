@@ -39,9 +39,15 @@ namespace internal
 
 /// Compute the squared L2 norm of a single row, vectorized.
 ///
-/// Used by EuclideanDist::blockDist to cache `||x_i||^2` between the three
-/// pivot sweeps performed at each ball-tree node so the norm is read once and
-/// reused.
+/// General-purpose helper: the input row pointer alignment is not assumed
+/// (call sites include unpadded rows such as `data + i * nCols`), so no
+/// `aligned(...)` clause is used. For rows guaranteed to start on a
+/// `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary (e.g. per-row slices of a padded
+/// `TArrayScalable` buffer with `alignedRowStride`), use
+/// `rowNormSquaredAligned` instead.
+///
+/// Used by `EuclideanDist::blockDist` to compute `||pivotPt||^2` from an
+/// unpadded row of the caller's data buffer.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
@@ -59,27 +65,58 @@ static FPType rowNormSquared(const FPType * row, size_t nCols)
     return sum;
 }
 
+/// Aligned variant of `rowNormSquared`.
+///
+/// Same math as `rowNormSquared` but the inner reduction carries an
+/// `aligned(row : DAAL_MALLOC_DEFAULT_ALIGNMENT)` SIMD clause. The caller
+/// must guarantee that `row` starts on a `DAAL_MALLOC_DEFAULT_ALIGNMENT`
+/// boundary; passing a misaligned pointer is undefined behavior. Used by
+/// `rowNormsSquared` on per-row slices of a padded scratch buffer whose
+/// stride was rounded up via `alignedRowStride`.
+///
+/// @tparam FPType Floating-point type
+/// @tparam cpu    CPU dispatch tag
+///
+/// @param[in]  row   Pointer to the start of an aligned row, length `nCols`
+/// @param[in]  nCols Number of features (row length)
+///
+/// @return Sum of squared row entries
+template <typename FPType, daal::internal::CpuType cpu>
+static FPType rowNormSquaredAligned(const FPType * row, size_t nCols)
+{
+    FPType sum = FPType(0);
+    PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum) aligned(row : DAAL_MALLOC_DEFAULT_ALIGNMENT))
+    for (size_t d = 0; d < nCols; d++) sum += row[d] * row[d];
+    return sum;
+}
+
 /// Compute squared L2 norms for a row-major block with per-row padding.
 ///
 /// Used by ball-tree node construction to amortize `||x||^2` across the three
 /// pivot sweeps performed at the same node. Padded rows keep the pointer to
 /// each row on the same alignment boundary as the base pointer; padding cells
-/// must be zero, so they contribute nothing to the sum of squares.
+/// must be zero, so they contribute nothing to the sum of squares. Each row
+/// is dispatched through `rowNormSquaredAligned`, which carries the
+/// `aligned(row : DAAL_MALLOC_DEFAULT_ALIGNMENT)` clause on its inner
+/// reduction.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
 ///
-/// @param[in]  rows      Row-major buffer of size `count x rowStride`
+/// @param[in]  rows      Row-major buffer of size `count x rowStride`,
+///                       base pointer aligned to `DAAL_MALLOC_DEFAULT_ALIGNMENT`
 /// @param[in]  count     Number of rows
 /// @param[in]  nCols     Number of features per row
-/// @param[in]  rowStride Row stride of `rows` in elements (`>= nCols`)
+/// @param[in]  rowStride Row stride of `rows` in elements (`>= nCols`),
+///                       rounded up so `rows + i * rowStride` stays aligned
 /// @param[out] outNorms  Output norms, length `count`
 template <typename FPType, daal::internal::CpuType cpu>
 static void rowNormsSquared(const FPType * rows, DAAL_INT count, size_t nCols, size_t rowStride, FPType * outNorms)
 {
-    // Vectorization lives inside `rowNormSquared` (inner sum reduction over
-    // `nCols`); the outer loop is a scalar sequence of independent reductions.
-    for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * rowStride, nCols);
+    // Vectorization lives inside `rowNormSquaredAligned` (inner sum reduction
+    // over `nCols` with an aligned clause on each row start); the outer loop
+    // is a scalar sequence of independent reductions.
+    for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquaredAligned<FPType, cpu>(rows + i * rowStride, nCols);
 }
 
 /// Round `nCols` up so that every row of a row-major batch starts on a
@@ -87,14 +124,19 @@ static void rowNormsSquared(const FPType * rows, DAAL_INT count, size_t nCols, s
 /// base pointer (e.g. `TArrayScalable::get()`) can then reuse the same
 /// alignment guarantee for every row.
 ///
-/// Only `EuclideanDist::blockDist` currently exposes the guarantee to a SIMD
-/// clause: the finalize pass carries `aligned(rowNorms2, outDists : ...)` on
-/// its `omp simd`, and BLAS xxgemv picks up the aligned stride via
-/// `lda = rowStride`. The other consumers (`rowNormsSquared` and non-Euclidean
-/// `blockDist`) run a scalar outer loop over `count` and delegate the actual
-/// SIMD work to an inline callee (`rowNormSquared` / `pointDist`); alignment
-/// is still a correctness guarantee for those inner reductions (they never
-/// cross a row boundary).
+/// Two consumers currently expose the guarantee to a SIMD clause:
+///   - `EuclideanDist::blockDist` finalize pass carries
+///     `aligned(rowNorms2, outDists : ...)` on its `omp simd`, and BLAS
+///     xxgemv picks up the aligned stride via `lda = rowStride`.
+///   - `rowNormsSquared` delegates each row to `rowNormSquaredAligned`, whose
+///     inner reduction carries `aligned(row : ...)`. `rowNormSquared` (no
+///     `Aligned` suffix) is used for unpadded call sites (`pivotNorm2` in
+///     `EuclideanDist::blockDist`) and does not carry an aligned clause.
+/// The non-Euclidean `blockDist` variants run a scalar outer loop over
+/// `count` that delegates to `pointDist`, whose input row alignment is not
+/// guaranteed (see the alignment policy comment below); alignment is still a
+/// correctness guarantee for their inner reductions (they never cross a row
+/// boundary).
 ///
 /// @tparam FPType Floating-point type
 /// @param[in] nCols Feature count

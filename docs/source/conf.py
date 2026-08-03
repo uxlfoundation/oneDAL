@@ -334,6 +334,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'hdbscan::compute_result'),
     ('cpp:identifier', 'hdbscan::compute_input'),
     ('cpp:identifier', 'degree'),
+    ('cpp:identifier', 'invalid_argument'),
     # common for algorithms
     ('cpp:identifier', 'result'),
     # common for result options

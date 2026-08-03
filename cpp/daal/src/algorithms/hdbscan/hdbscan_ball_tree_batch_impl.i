@@ -32,7 +32,6 @@
  *   max(0, dist(q, c) - r)
  */
 
-#include <climits>
 #include <cstdint>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
