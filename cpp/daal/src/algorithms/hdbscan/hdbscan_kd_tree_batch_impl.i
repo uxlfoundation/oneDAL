@@ -32,6 +32,7 @@
  */
 
 #include <climits>
+#include <cstdint>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
@@ -69,7 +70,7 @@ using daal::services::internal::TArrayScalable;
 /// whose points all belong to the query's current component.
 ///
 /// Range endpoints (`pointBegin`, `pointEnd`), node indices (`left`, `right`),
-/// and the component id are stored as `DAAL_INT` so trees over > INT_MAX
+/// and the component id are stored as `DAAL_INT` so trees over > INT32_MAX
 /// points keep addressing addressed correctly. `splitDim` stays `int` because
 /// column count is small.
 ///
@@ -569,14 +570,16 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         return services::Status();
     }
 
-    // Label output uses `int` (codebase-wide DAAL convention shared with
-    // kmeans / knn / decision_forest / etc.). Refuse inputs where the label
-    // count could exceed the destination-type bound. The label count is
-    // bounded above by the number of surviving clusters, itself bounded by
-    // `nRows / mcs`. `INT_MAX` is by definition the max of `int`, so the
-    // guard is portable to any int width (LP64: 2^31 - 1; hypothetical ILP64:
-    // 2^63 - 1) without an explicit `sizeof(int)` check.
-    if (nRows / minClusterSize > static_cast<size_t>(INT_MAX))
+    // Label output is stored as `int32_t` in the assignments NumericTable
+    // (codebase-wide DAAL convention shared with kmeans / knn /
+    // decision_forest / etc.). Refuse inputs where the label count could
+    // exceed the destination-type bound. The label count is bounded above by
+    // the number of surviving clusters, itself bounded by `nRows / mcs`.
+    // Guard against `INT32_MAX` (not `INT_MAX`) because the storage type is
+    // fixed-width `int32_t` regardless of the data model -- on a hypothetical
+    // ILP64 platform `INT_MAX` would be 2^63 - 1 and would let overflowing
+    // inputs through.
+    if (nRows / minClusterSize > static_cast<size_t>(INT32_MAX))
     {
         return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
     }

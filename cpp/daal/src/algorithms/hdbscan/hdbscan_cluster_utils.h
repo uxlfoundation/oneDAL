@@ -752,7 +752,7 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
     // labelCounter fits in `int`: total distinct labels is bounded by the number
     // of selected clusters, itself bounded by `nRows / mcs` (`mcs >= 2` is
     // enforced at the kernel entry). The DAAL kernel entry point refuses
-    // inputs with `nRows / minClusterSize > INT_MAX` up front (see the guard
+    // inputs with `nRows / minClusterSize > INT32_MAX` up front (see the guard
     // at the top of each `_batch_impl.i::compute`), so this routine can
     // materialise labels as `int` (and `-1` for noise) directly. The
     // `int`-typed labels contract is codebase-wide across DAAL (kmeans, knn,
