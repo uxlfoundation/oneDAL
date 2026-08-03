@@ -41,15 +41,11 @@ namespace oneapi::dal::hdbscan::backend {
 ///
 /// Sums every labeled point into its cluster's row of `centroids`, counts the
 /// points per cluster, then divides by the count. Points whose label is
-/// negative or out of range are skipped (HDBSCAN noise). The accumulate and
-/// normalize inner loops are annotated with `PRAGMA_OMP_SIMD` so the compiler
-/// emits SIMD mul/adds. This function is not per-CPU-templated (no
-/// `CpuType cpu` parameter), so a direct call to the dispatched
-/// `daal::internal::BlasInst<Float, cpu>::xxscal` is not available; the ISA
-/// dispatch normally required for BLAS goes through the DAAL cluster
-/// utilities instead. On a host that supports it, the compiler's autovector
-/// pass already produces equivalent SIMD mul instructions for the normalize
-/// loop under `PRAGMA_OMP_SIMD`.
+/// negative or out of range are skipped (HDBSCAN noise). Accumulate and
+/// normalize inner loops carry `PRAGMA_OMP_SIMD` so the compiler autovectorizes
+/// the mul/add.
+///
+/// TODO: explore `mkl::blas::scal` for the normalize loop.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -90,9 +86,7 @@ static void compute_centroids(const Float* data,
             continue;
         Float* row = centroids + k * col_count;
         const Float inv = Float(1) / static_cast<Float>(counts[k]);
-        // Same math as a per-row `cblas_?scal(col_count, inv, row, 1)`;
-        // the compiler emits vectorized mul on this loop under
-        // `PRAGMA_OMP_SIMD`.
+        // TODO: consider `mkl::blas::scal(col_count, inv, row, 1)`.
         PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
             row[d] *= inv;

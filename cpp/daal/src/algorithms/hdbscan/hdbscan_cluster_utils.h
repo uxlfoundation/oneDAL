@@ -128,9 +128,9 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
     if (totalNodes > nRows)
     {
         const size_t tail = totalNodes - nRows;
-        services::internal::service_memset_seq<DAAL_INT, cpu>(nodeSize + nRows, DAAL_INT(0), tail);
-        services::internal::service_memset_seq<DAAL_INT, cpu>(leftChild + nRows, DAAL_INT(-1), tail);
-        services::internal::service_memset_seq<DAAL_INT, cpu>(rightChild + nRows, DAAL_INT(-1), tail);
+        services::internal::service_memset_seq<DAAL_INT, cpu>(nodeSize + nRows, static_cast<DAAL_INT>(0), tail);
+        services::internal::service_memset_seq<DAAL_INT, cpu>(leftChild + nRows, static_cast<DAAL_INT>(-1), tail);
+        services::internal::service_memset_seq<DAAL_INT, cpu>(rightChild + nRows, static_cast<DAAL_INT>(-1), tail);
         services::internal::service_memset_seq<algorithmFPType, cpu>(nodeWeight + nRows, algorithmFPType(0), tail);
     }
     // Union-find init: writes only at offset 0 of every `TArray` base.

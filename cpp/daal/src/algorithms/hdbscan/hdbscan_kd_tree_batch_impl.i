@@ -570,9 +570,12 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // Label output uses `int` (codebase-wide DAAL convention shared with
-    // kmeans / knn / decision_forest / etc.). Refuse inputs where the number of
-    // distinct labels could exceed INT_MAX. The label count is bounded above by
-    // the number of surviving clusters, itself bounded by `nRows / mcs`.
+    // kmeans / knn / decision_forest / etc.). Refuse inputs where the label
+    // count could exceed the destination-type bound. The label count is
+    // bounded above by the number of surviving clusters, itself bounded by
+    // `nRows / mcs`. `INT_MAX` is by definition the max of `int`, so the
+    // guard is portable to any int width (LP64: 2^31 - 1; hypothetical ILP64:
+    // 2^63 - 1) without an explicit `sizeof(int)` check.
     if (nRows / minClusterSize > static_cast<size_t>(INT_MAX))
     {
         return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
