@@ -51,11 +51,19 @@ done
 # to one flavor but not the other, the public surface has diverged and a
 # reviewer should look at it. This works on .dynsym alone, so debug info is
 # not required.
+if ! command -v nm >/dev/null 2>&1; then
+    echo "::error:: nm not found (required for cross-flavor symbol drift check)"
+    exit 1
+fi
+
 new_syms () {
     # symbols present in $2 but not in $1, filtered to defined + external.
+    # nm errors are not suppressed: an ABI gate that silently degrades to an
+    # empty symbol set would report "no drift" on tool failure.
+    set -o pipefail
     comm -13 \
-        <(nm -D --defined-only --extern-only "$1" 2>/dev/null | awk '{print $NF}' | sort -u) \
-        <(nm -D --defined-only --extern-only "$2" 2>/dev/null | awk '{print $NF}' | sort -u)
+        <(nm -D --defined-only --extern-only "$1" | awk '{print $NF}' | sort -u) \
+        <(nm -D --defined-only --extern-only "$2" | awk '{print $NF}' | sort -u)
 }
 
 pairs=(
@@ -71,10 +79,20 @@ for pair in "${pairs[@]}"; do
         continue
     fi
     echo "======== cross-flavor symbol drift: ${host_lib} vs ${dpc_lib} ========"
-    host_new=$(new_syms "$main_release_dir/$host_lib" "$release_dir/$host_lib")
-    dpc_new=$(new_syms  "$main_release_dir/$dpc_lib"  "$release_dir/$dpc_lib")
-    only_in_dpc=$(comm -13 <(echo "$host_new") <(echo "$dpc_new"))
-    only_in_host=$(comm -23 <(echo "$host_new") <(echo "$dpc_new"))
+    if ! host_new=$(new_syms "$main_release_dir/$host_lib" "$release_dir/$host_lib"); then
+        echo "::error:: nm/comm failed for ${host_lib}"
+        RETURN_CODE=$((RETURN_CODE+1))
+        continue
+    fi
+    if ! dpc_new=$(new_syms "$main_release_dir/$dpc_lib" "$release_dir/$dpc_lib"); then
+        echo "::error:: nm/comm failed for ${dpc_lib}"
+        RETURN_CODE=$((RETURN_CODE+1))
+        continue
+    fi
+    # printf '%s' (not echo) so an empty set doesn't inject a spurious blank
+    # line into comm's input, which would produce false-positive drift.
+    only_in_dpc=$(comm -13 <(printf '%s' "$host_new") <(printf '%s' "$dpc_new"))
+    only_in_host=$(comm -23 <(printf '%s' "$host_new") <(printf '%s' "$dpc_new"))
     if [ -n "$only_in_dpc" ]; then
         echo "::error:: new public symbols in ${dpc_lib} with no counterpart in ${host_lib}:"
         echo "$only_in_dpc"
