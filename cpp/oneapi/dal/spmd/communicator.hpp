@@ -562,11 +562,11 @@ communicator<device_memory_access::usm> make_communicator(sycl::queue& queue) {
 
 template <typename Backend>
 communicator<device_memory_access::usm> make_communicator(sycl::queue& queue,
-                                                            std::int64_t comm_handle) {
+                                                          std::int64_t comm_handle) {
     static_assert(!std::is_same_v<Backend, Backend>, "Unsupported communicator backend");
 
     throw communication_error(dal::detail::error_messages::unsupported_communicator_backend());
-  }
+}
 #endif
 
 } // namespace oneapi::dal::preview::spmd

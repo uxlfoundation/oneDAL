@@ -395,7 +395,7 @@ public:
                   new mpi_communicator_impl<MemoryAccessKind>(queue, default_root)) {}
 
     template <typename T = MemoryAccessKind,
-            typename = spmd::enable_if_device_memory_accessible_t<T>>
+              typename = spmd::enable_if_device_memory_accessible_t<T>>
     explicit mpi_communicator(sycl::queue& queue, MPI_Comm comm, std::int64_t default_root = 0)
             : spmd::communicator<MemoryAccessKind>(
                   new mpi_communicator_impl<MemoryAccessKind>(queue, comm, default_root)) {}
@@ -404,10 +404,10 @@ public:
             : spmd::communicator<MemoryAccessKind>(
                   new mpi_communicator_impl<MemoryAccessKind>(default_root)) {}
 };
-  
-    explicit mpi_communicator(MPI_Comm comm, std::int64_t default_root = 0)
-            : spmd::communicator<MemoryAccessKind>(
-                  new mpi_communicator_impl<MemoryAccessKind>(comm, default_root)) {}
+
+explicit mpi_communicator(MPI_Comm comm, std::int64_t default_root = 0)
+        : spmd::communicator<MemoryAccessKind>(
+              new mpi_communicator_impl<MemoryAccessKind>(comm, default_root)) {}
 
 } // namespace v1
 

@@ -42,7 +42,8 @@ inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(s
 }
 
 template <>
-inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(sycl::queue& queue, std::int64_t comm) {
+inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(sycl::queue& queue,
+                                                                               std::int64_t comm) {
     MPI_Comm c = MPI_Comm_f2c(static_cast<MPI_Fint>(comm));
     return dal::detail::mpi_communicator<device_memory_access::usm>{ queue, c };
 }
