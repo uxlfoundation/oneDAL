@@ -139,6 +139,13 @@ public:
     /// @remark default = :expr:`data_layout::unknown`
     data_layout get_data_layout() const;
 
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Returns a queue that was used to create array object.
+    /// If no queue was provided at the array construction phase,
+    /// returns empty :literal:`std::optional` object.
+    std::optional<sycl::queue> get_queue() const;
+#endif
+
 protected:
     explicit table(detail::table_iface* impl) : impl_(impl) {}
     explicit table(const detail::shared<detail::table_iface>& impl) : impl_(impl) {}

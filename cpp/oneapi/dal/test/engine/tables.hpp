@@ -21,6 +21,8 @@
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
+#include <random>
+
 namespace oneapi::dal::test::engine {
 
 // NOTE: alloc_kind is compared only when check_alloc_kind is true, and is off by
