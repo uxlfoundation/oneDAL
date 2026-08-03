@@ -355,7 +355,6 @@ public:
 
     /// The fraction of observations per tree
     /// @invariant :expr:`observations_per_tree_fraction > 0.0`
-    /// @invariant :expr:`observations_per_tree_fraction <= 1.0`
     /// @remark default = 1.0
     double get_observations_per_tree_fraction() const {
         return base_t::get_observations_per_tree_fraction();
