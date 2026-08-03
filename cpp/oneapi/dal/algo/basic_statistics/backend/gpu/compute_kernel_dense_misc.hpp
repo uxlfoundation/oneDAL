@@ -65,40 +65,44 @@ class local_result {
 public:
     local_result() = default;
 
-    static own_t empty(sycl::queue& q, std::int64_t count, bool deffered_fin = false) {
+    static own_t empty(sycl::queue& q,
+                       std::int64_t count,
+                       alloc result_alloc_kind,
+                       bool deffered_fin = false) {
         own_t res;
+        ONEDAL_ASSERT(result_alloc_kind != alloc::unknown);
         if constexpr (check_mask_flag(bs_list::min, List)) {
-            res.rmin_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rmin_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::max, List)) {
-            res.rmax_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rmax_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if (check_mask_flag(bs_list::sum, List) ||
             (deffered_fin && check_mask_flag(bs_list::mean | sum2cent_based_stat, List))) {
-            res.rsum_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rsum_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::sum2 | bs_list::sorm, List)) {
-            res.rsum2_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rsum2_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if (check_mask_flag(bs_list::sum2cent, List) ||
             (deffered_fin &&
              check_mask_flag(bs_list::varc | bs_list::stdev | bs_list::vart, List))) {
-            res.rsum2cent_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rsum2cent_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::mean, List)) {
-            res.rmean_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rmean_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::sorm, List)) {
-            res.rsorm_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rsorm_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::varc, List)) {
-            res.rvarc_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rvarc_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::stdev, List)) {
-            res.rstdev_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rstdev_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
         if constexpr (check_mask_flag(bs_list::vart, List)) {
-            res.rvart_ = pr::ndarray<Float, 1>::empty(q, { count }, alloc::device);
+            res.rvart_ = pr::ndarray<Float, 1>::empty(q, { count }, result_alloc_kind);
         }
 
         return res;
@@ -156,6 +160,7 @@ class local_buffer_list {
 public:
     static own_t empty(sycl::queue& q, std::int64_t count) {
         own_t res;
+
         if constexpr (check_mask_flag(bs_list::mean | sum2cent_based_stat, List)) {
             res.rrow_count_ = pr::ndarray<std::int64_t, 1>::empty(q, { count }, alloc::device);
         }

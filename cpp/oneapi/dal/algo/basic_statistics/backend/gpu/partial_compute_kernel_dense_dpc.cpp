@@ -160,7 +160,7 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     const auto res_op = local_desc.get_result_options();
 
     auto result = partial_compute_result();
-    const auto input_ = input.get_prev();
+    const auto prev_partial_result = input.get_prev();
 
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t column_count = data.get_column_count();
@@ -170,22 +170,26 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     dal::detail::check_mul_overflow(column_count, column_count);
     dal::detail::check_mul_overflow(component_count, column_count);
 
-    const bool has_nobs_data = input_.get_partial_n_rows().has_data();
+    const bool has_nobs_data = prev_partial_result.get_partial_n_rows().has_data();
     if (has_nobs_data) {
+        // Here if it is not the first partial computation, we need to merge with previous partial results.
         if (weights_enabling) {
             compute_result_ = kernel(ctx, local_desc, { data, weights });
         }
         else {
             compute_result_ = kernel(ctx, local_desc, { data });
         }
-        const auto nobs_nd = pr::table2ndarray_1d<Float>(q, input_.get_partial_n_rows());
+        const auto nobs_nd =
+            pr::table2ndarray_1d<Float>(q, prev_partial_result.get_partial_n_rows());
         auto [result_nobs, nobs_update_event] =
             update_partial_n_rows_results(q, row_count, nobs_nd);
 
         if (res_op.test(result_options::min) || res_op.test(result_options::max)) {
-            const auto min_nd =
-                pr::table2ndarray_1d<Float>(q, input_.get_partial_min(), sycl::usm::alloc::device);
-            const auto max_nd = pr::table2ndarray_1d<Float>(q, input_.get_partial_max());
+            const auto min_nd = pr::table2ndarray_1d<Float>(q,
+                                                            prev_partial_result.get_partial_min(),
+                                                            sycl::usm::alloc::device);
+            const auto max_nd =
+                pr::table2ndarray_1d<Float>(q, prev_partial_result.get_partial_max());
             auto [result_min, result_max, update_min_max_event] =
                 update_min_max_results(q,
                                        min_nd,
@@ -207,11 +211,13 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         }
 
         if (res_op.test(result_options::sum)) {
-            const auto sums_nd =
-                pr::table2ndarray_1d<Float>(q, input_.get_partial_sum(), sycl::usm::alloc::device);
-            const auto sums2_nd = pr::table2ndarray_1d<Float>(q,
-                                                              input_.get_partial_sum_squares(),
-                                                              sycl::usm::alloc::device);
+            const auto sums_nd = pr::table2ndarray_1d<Float>(q,
+                                                             prev_partial_result.get_partial_sum(),
+                                                             sycl::usm::alloc::device);
+            const auto sums2_nd =
+                pr::table2ndarray_1d<Float>(q,
+                                            prev_partial_result.get_partial_sum_squares(),
+                                            sycl::usm::alloc::device);
             auto [result_sums, result_sums2, result_sums2cent, merge_sums_event] =
                 update_partial_sums(q,
                                     sums_nd,
@@ -242,6 +248,7 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             (homogen_table::wrap(result_nobs.flatten(q, { nobs_update_event }), 1, 1)));
     }
     else {
+        // Here if it is not the first partial computation, we need to merge with previous partial results.
         auto [init_nobs, init_event] =
             pr::ndarray<Float, 1>::full(q, { 1 }, row_count, sycl::usm::alloc::device);
         init_event.wait_and_throw();

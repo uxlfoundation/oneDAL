@@ -49,6 +49,12 @@ struct partial_compute_ops {
             if (r_count != data.get_row_count())
                 throw domain_error(msg::weight_dimension_doesnt_match_data_dimension());
 
+            if ((data.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
+                 weights.get_metadata().get_alloc_kind() != alloc_kind::non_usm) ||
+                (data.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
+                 weights.get_metadata().get_alloc_kind() == alloc_kind::non_usm))
+                throw domain_error(msg::weights_and_data_alloc_kind_mismatch());
+
             const auto c_count = weights.get_column_count();
             if (c_count != std::int64_t(1))
                 throw domain_error(msg::weights_column_count_ne_1());

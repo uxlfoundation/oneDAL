@@ -23,6 +23,7 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/table/backend/common_kernels.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
 
@@ -719,6 +720,7 @@ std::tuple<local_result<Float, List>, sycl::event>
 compute_kernel_dense_impl<Float, List>::merge_blocks(local_buffer_list<Float, List>&& ndbuf,
                                                      std::int64_t column_count,
                                                      std::int64_t block_count,
+                                                     sycl::usm::alloc result_alloc_kind,
                                                      const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(merge_blocks, q_);
 
@@ -726,7 +728,7 @@ compute_kernel_dense_impl<Float, List>::merge_blocks(local_buffer_list<Float, Li
     ONEDAL_ASSERT(block_count > 0);
 
     const bool distr_mode = comm_.get_rank_count() > 1;
-    auto ndres = local_result<Float, List>::empty(q_, column_count, distr_mode);
+    auto ndres = local_result<Float, List>::empty(q_, column_count, result_alloc_kind, distr_mode);
 
     // ndres asserts
     ASSERT_IF(bs_list::min, ndres.get_min().get_count() == column_count);
@@ -908,6 +910,7 @@ template <typename Float, bs_list List>
 template <bool use_weights>
 std::tuple<local_result<Float, List>, sycl::event>
 compute_kernel_dense_impl<Float, List>::compute_single_pass(const pr::ndview<Float, 2>& data,
+                                                            sycl::usm::alloc data_alloc_kind,
                                                             const pr::ndview<Float, 2>& weights) {
     ONEDAL_PROFILER_TASK(process_single_block, q_);
 
@@ -916,10 +919,11 @@ compute_kernel_dense_impl<Float, List>::compute_single_pass(const pr::ndview<Flo
     const auto row_count = data.get_dimension(0);
     const auto column_count = data.get_dimension(1);
     const auto stride = data.get_leading_stride();
+    const auto* const data_ptr = data.get_data();
 
     const bool distr_mode = comm_.get_rank_count() > 1;
 
-    auto ndres = local_result<Float, List>::empty(q_, column_count, distr_mode);
+    auto ndres = local_result<Float, List>::empty(q_, column_count, data_alloc_kind, distr_mode);
 
     ASSERT_IF(bs_list::min, ndres.get_min().get_count() == column_count);
     ASSERT_IF(bs_list::max, ndres.get_max().get_count() == column_count);
@@ -942,8 +946,6 @@ compute_kernel_dense_impl<Float, List>::compute_single_pass(const pr::ndview<Flo
     ASSERT_IF(bs_list::varc, ndres.get_varc().get_count() == column_count);
     ASSERT_IF(bs_list::stdev, ndres.get_stdev().get_count() == column_count);
     ASSERT_IF(bs_list::vart, ndres.get_vart().get_count() == column_count);
-
-    const auto* const data_ptr = data.get_data();
 
     DECLSET_IF(Float*, rmin_ptr, bs_list::min, ndres.get_min().get_mutable_data())
     DECLSET_IF(Float*, rmax_ptr, bs_list::max, ndres.get_max().get_mutable_data())
@@ -1049,6 +1051,7 @@ template <typename Float, bs_list List>
 template <bool use_weights>
 std::tuple<local_result<Float, List>, sycl::event>
 compute_kernel_dense_impl<Float, List>::compute_by_blocks(const pr::ndview<Float, 2>& data,
+                                                          sycl::usm::alloc data_alloc_kind,
                                                           std::int64_t row_block_count,
                                                           const pr::ndview<Float, 2>& weights) {
     ONEDAL_ASSERT(data.has_data());
@@ -1128,8 +1131,11 @@ compute_kernel_dense_impl<Float, List>::compute_by_blocks(const pr::ndview<Float
         });
     }
 
-    auto [ndres, merge_event] =
-        merge_blocks(std::move(ndbuf), column_count, row_block_count, { last_event });
+    auto [ndres, merge_event] = merge_blocks(std::move(ndbuf),
+                                             column_count,
+                                             row_block_count,
+                                             data_alloc_kind,
+                                             { last_event });
 
     return std::make_tuple(std::move(ndres), merge_event);
 }
@@ -1260,6 +1266,7 @@ result_t compute_kernel_dense_impl<Float, List>::operator()(const descriptor_t& 
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t column_count = data.get_column_count();
 
+    sycl::usm::alloc data_alloc_kind = be::alloc_kind_to_sycl(data.get_metadata().get_alloc_kind());
     const auto data_nd = pr::table2ndarray<Float>(q_, data, alloc::device);
 
     const auto row_block_count = get_row_block_count(row_count);
@@ -1270,13 +1277,15 @@ result_t compute_kernel_dense_impl<Float, List>::operator()(const descriptor_t& 
     if (weights.has_data()) {
         const auto weights_nd = pr::table2ndarray<Float>(q_, weights, alloc::device);
         std::tie(ndres, last_event) =
-            (row_block_count > 1) ? compute_by_blocks<true>(data_nd, row_block_count, weights_nd)
-                                  : compute_single_pass<true>(data_nd, weights_nd);
+            (row_block_count > 1)
+                ? compute_by_blocks<true>(data_nd, data_alloc_kind, row_block_count, weights_nd)
+                : compute_single_pass<true>(data_nd, data_alloc_kind, weights_nd);
     }
     else {
-        std::tie(ndres, last_event) = (row_block_count > 1)
-                                          ? compute_by_blocks<false>(data_nd, row_block_count)
-                                          : compute_single_pass<false>(data_nd);
+        std::tie(ndres, last_event) =
+            (row_block_count > 1)
+                ? compute_by_blocks<false>(data_nd, data_alloc_kind, row_block_count)
+                : compute_single_pass<false>(data_nd, data_alloc_kind);
     }
 
     std::tie(ndres, last_event) =
