@@ -31,7 +31,7 @@ inline communicator<device_memory_access::none> make_communicator<backend::mpi>(
 
 template <>
 inline communicator<device_memory_access::none> make_communicator<backend::mpi>(std::int64_t comm) {
-    MPI_Comm c = MPI_Comm_f2c(static_cast<MPI_Fint>(comm_handle));
+    MPI_Comm c = MPI_Comm_f2c(static_cast<MPI_Fint>(comm));
     return dal::detail::mpi_communicator<device_memory_access::none>{ c };
 }
 
