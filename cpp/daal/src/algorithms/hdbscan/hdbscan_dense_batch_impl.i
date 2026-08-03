@@ -29,6 +29,8 @@
  * Memory:     O(N^2) for the distance matrix.
  */
 
+#include <climits>
+
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -80,6 +82,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         DAAL_CHECK_BLOCK_STATUS(ncBlock);
         ncBlock.get()[0] = 0;
         return services::Status();
+    }
+
+    // Label output uses `int` (codebase-wide DAAL convention shared with
+    // kmeans / knn / decision_forest / etc.). Refuse inputs where the number of
+    // distinct labels could exceed INT_MAX. The label count is bounded above by
+    // the number of surviving clusters, itself bounded by `nRows / mcs`.
+    if (nRows / minClusterSize > static_cast<size_t>(INT_MAX))
+    {
+        return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
     }
 
     const size_t edgeCount = nRows - 1;
@@ -157,10 +168,16 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         ChebyshevDist<algorithmFPType> ch;
         fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, ch, distMatrix);
     }
-    else // minkowski
+    else if (pairwiseDistance == PairwiseDistanceType::minkowski)
     {
         MinkowskiDist<algorithmFPType> mk(minkowskiDegree);
         fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, mk, distMatrix);
+    }
+    else
+    {
+        // Unknown metric tag: fail loudly rather than silently routing to
+        // one of the branches above.
+        return services::Status(services::ErrorMethodNotSupported);
     }
 
     // =========================================================================

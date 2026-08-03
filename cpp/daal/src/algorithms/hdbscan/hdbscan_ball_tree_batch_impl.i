@@ -32,6 +32,8 @@
  *   max(0, dist(q, c) - r)
  */
 
+#include <climits>
+
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -784,6 +786,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         return services::Status();
     }
 
+    // Label output uses `int` (codebase-wide DAAL convention shared with
+    // kmeans / knn / decision_forest / etc.). Refuse inputs where the number of
+    // distinct labels could exceed INT_MAX. The label count is bounded above by
+    // the number of surviving clusters, itself bounded by `nRows / mcs`.
+    if (nRows / minClusterSize > static_cast<size_t>(INT_MAX))
+    {
+        return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
+    }
+
     const size_t edgeCount = nRows - 1;
 
     ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
@@ -833,8 +844,20 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Robust single linkage: alpha is applied only to dist(q,p) inside MRD
     // (canonical HDBSCAN). The metric used for ball-tree build, k-NN core
     // distances, and pruning is left unscaled.
+    //
+    // The upstream oneAPI check_preconditions() in detail/compute_ops.hpp
+    // rejects cosine with method::ball_tree (ball-tree pruning relies on
+    // the triangle inequality for an L_p distance). The explicit
+    // `case cosine:` below is a defense-in-depth guard so if the DAAL
+    // kernel is ever reached with cosine + ball_tree we fail loudly with
+    // ErrorMethodNotSupported rather than silently routing to euclidean
+    // via a `default:` fall-through.
     switch (pairwiseDistance)
     {
+    case PairwiseDistanceType::euclidean:
+        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
+                                                        mstTo, mstWeights, Eucl(), alpha);
+        break;
     case PairwiseDistanceType::manhattan:
         runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
                                                         mstTo, mstWeights, Manh(), alpha);
@@ -847,10 +870,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
                                                         mstTo, mstWeights, Cheb(), alpha);
         break;
-    default: // euclidean
-        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, Eucl(), alpha);
-        break;
+    case PairwiseDistanceType::cosine:
+    default: return services::Status(services::ErrorMethodNotSupported);
     }
 
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force/kd_tree)

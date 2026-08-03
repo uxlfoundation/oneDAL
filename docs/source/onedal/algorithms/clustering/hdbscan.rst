@@ -43,17 +43,21 @@ Supported distance metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The pairwise distance used for core-distance and mutual-reachability computation
-is selected via the ``metric`` parameter. HDBSCAN reuses the pairwise distance
-components documented elsewhere:
+is selected via the ``metric`` parameter. HDBSCAN reuses the
+:ref:`Minkowski distances <alg_minkowski_distance>` family with configurable
+``degree`` :math:`p > 0`: ``degree = 1`` yields the Manhattan (:math:`L_1`)
+distance, ``degree = 2`` yields the Euclidean (:math:`L_2`, default) distance,
+and the limit :math:`p \to \infty` corresponds to the
+:ref:`Chebyshev distance <alg_chebyshev_distance>` (:math:`L_\infty`); the
+Chebyshev distance is also exposed as its own ``metric`` value so callers do
+not have to pass a very large ``degree``. In addition, HDBSCAN supports the
+:ref:`Cosine distance <alg_cosine_distance>` for angular data.
 
-- :ref:`Minkowski distances <alg_minkowski_distance>` with the ``degree``
-  parameter :math:`p > 0`; ``degree = 1`` yields the Manhattan distance and
-  ``degree = 2`` yields the Euclidean distance (default).
-- :ref:`Chebyshev distance <alg_chebyshev_distance>`.
-- :ref:`Cosine distance <alg_cosine_distance>`.
-
-The ``kd_tree`` and ``ball_tree`` methods support the Minkowski and Chebyshev
-distances. The ``brute_force`` method additionally supports the Cosine distance.
+The ``kd_tree`` and ``ball_tree`` methods support the Minkowski (Manhattan,
+Euclidean, general :math:`L_p`) and Chebyshev distances -- tree pruning relies
+on the triangle inequality of an :math:`L_p` metric. The Cosine distance is
+only supported with the ``brute_force`` method; requesting Cosine with
+``kd_tree`` or ``ball_tree`` raises :expr:`invalid_argument`.
 
 HDBSCAN consists of the following steps:
 

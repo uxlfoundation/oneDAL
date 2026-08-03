@@ -33,11 +33,29 @@ using daal_pairwise_distance_t = daal::algorithms::internal::PairwiseDistanceTyp
 /// Every enumerator in `distance_metric` is mapped explicitly; any value that
 /// does not correspond to a known enumerator raises `invalid_argument` so a
 /// new metric added to the header without updating this switch is surfaced as
-/// a loud runtime error rather than silently routed to euclidean. The
-/// method-specific compatibility rules (e.g. cosine is only valid with
-/// `method::brute_force`) are enforced upstream in
-/// `detail/compute_ops.hpp::check_preconditions`, so this converter is
-/// reached only for combinations that have already passed that check.
+/// a loud runtime error rather than silently routed to euclidean.
+///
+/// Method-specific compatibility for cosine (only valid with
+/// `method::brute_force` -- the kd/ball-tree traversals rely on the metric
+/// being an L_p distance for their pruning bounds) is enforced in two places
+/// so no call route silently falls through to euclidean:
+///
+///   (1) Public entry: `check_preconditions` in
+///       `cpp/oneapi/dal/algo/hdbscan/detail/compute_ops.hpp` throws
+///       `dal::invalid_argument(error_messages::hdbscan_metric_not_compatible_with_kd_tree())`
+///       when `method::kd_tree` or `method::ball_tree` is combined with
+///       `distance_metric::cosine`. This is the path every public
+///       `dal::compute()` call takes.
+///
+///   (2) DAAL kernel: the per-metric `switch` in `HDBSCANBatchKernel::compute`
+///       for the kd-tree (`hdbscan_kd_tree_batch_impl.i:638`) and ball-tree
+///       (`hdbscan_ball_tree_batch_impl.i:844`) impls enumerates every
+///       supported `PairwiseDistanceType` and returns
+///       `services::Status(services::ErrorMethodNotSupported)` for
+///       `case cosine:` / `default:`. This is defense-in-depth for any
+///       future direct-DAAL entry that bypasses `check_preconditions`; the
+///       DAAL Status is then propagated through the oneAPI backend as an
+///       `unimplemented` exception.
 ///
 /// @param[in] m oneAPI metric tag
 ///

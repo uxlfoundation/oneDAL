@@ -111,6 +111,13 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
     DAAL_INT * compSize   = compSizeArr.get();
     DAAL_INT * compToNode = compToNodeArr.get();
 
+    // Both init loops write at the `TArray` base pointer via `service_memset_seq`
+    // which internally aligns its stores; the SIMD annotation on the first loop
+    // covers each of the four arrays' base offset. For the second loop the
+    // stores go through `service_memset_seq` too so no `aligned(...)` clause
+    // is needed on a SIMD loop -- the helper is the memset dispatch path shared
+    // with other DAAL kernels.
+    PRAGMA_OMP_SIMD_ARGS(aligned(nodeSize, leftChild, rightChild, nodeWeight : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (size_t i = 0; i < nRows; i++)
     {
         nodeSize[i]   = 1;
@@ -118,13 +125,16 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
         rightChild[i] = -1;
         nodeWeight[i] = algorithmFPType(0);
     }
-    for (size_t i = nRows; i < totalNodes; i++)
+    if (totalNodes > nRows)
     {
-        nodeSize[i]   = 0;
-        leftChild[i]  = -1;
-        rightChild[i] = -1;
-        nodeWeight[i] = algorithmFPType(0);
+        const size_t tail = totalNodes - nRows;
+        services::internal::service_memset_seq<DAAL_INT, cpu>(nodeSize + nRows, DAAL_INT(0), tail);
+        services::internal::service_memset_seq<DAAL_INT, cpu>(leftChild + nRows, DAAL_INT(-1), tail);
+        services::internal::service_memset_seq<DAAL_INT, cpu>(rightChild + nRows, DAAL_INT(-1), tail);
+        services::internal::service_memset_seq<algorithmFPType, cpu>(nodeWeight + nRows, algorithmFPType(0), tail);
     }
+    // Union-find init: writes only at offset 0 of every `TArray` base.
+    PRAGMA_OMP_SIMD_ARGS(aligned(ufParent, compSize, compToNode : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (size_t i = 0; i < nRows; i++)
     {
         ufParent[i]   = static_cast<DAAL_INT>(i);
@@ -741,11 +751,13 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
 
     // labelCounter fits in `int`: total distinct labels is bounded by the number
     // of selected clusters, itself bounded by `nRows / mcs` (`mcs >= 2` is
-    // enforced at the kernel entry). Even for datasets with `nRows > INT_MAX`
-    // rows, the number of clusters that can survive minCluster-size pruning
-    // stays well under INT_MAX. The output `assignments` table is int-typed by
-    // the oneAPI HDBSCAN result contract, so we materialise labels as `int`
-    // (and `-1` for noise) directly here.
+    // enforced at the kernel entry). The DAAL kernel entry point refuses
+    // inputs with `nRows / minClusterSize > INT_MAX` up front (see the guard
+    // at the top of each `_batch_impl.i::compute`), so this routine can
+    // materialise labels as `int` (and `-1` for noise) directly. The
+    // `int`-typed labels contract is codebase-wide across DAAL (kmeans, knn,
+    // decision_forest, svm, etc. all use `WriteOnlyRows<int, cpu>`); widening
+    // it here alone would break the convention.
     int labelCounter = 0;
     TArray<int, cpu> clusterLabelArr(nClusters);
     int * clusterLabel = clusterLabelArr.get();

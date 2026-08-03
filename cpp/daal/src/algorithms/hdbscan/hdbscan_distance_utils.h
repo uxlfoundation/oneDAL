@@ -77,6 +77,14 @@ static FPType rowNormSquared(const FPType * row, size_t nCols)
 template <typename FPType, daal::internal::CpuType cpu>
 static void rowNormsSquared(const FPType * rows, DAAL_INT count, size_t nCols, size_t rowStride, FPType * outNorms)
 {
+    // `outNorms` comes in as a `TArrayScalable::get()` base at every call
+    // site (see ball-tree build) and `rows + i*rowStride` is aligned
+    // per-row (`rowStride` = `alignedRowStride`). No `omp simd` clause on
+    // this outer loop because the body is a function call to
+    // `rowNormSquared`, which the compiler cannot inline through with the
+    // `-Werror -Wpass-failed=transform-warning` flags used in the DAAL
+    // build (SIMD-transform failure is a hard error, not a warning). The
+    // inner reduction in `rowNormSquared` is already SIMD-annotated.
     for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquared<FPType, cpu>(rows + i * rowStride, nCols);
 }
 
@@ -84,6 +92,29 @@ static void rowNormsSquared(const FPType * rows, DAAL_INT count, size_t nCols, s
 /// `DAAL_MALLOC_DEFAULT_ALIGNMENT` byte boundary. Callers that own an aligned
 /// base pointer (e.g. `TArrayScalable::get()`) can then reuse the same
 /// alignment guarantee for every row.
+///
+/// Consumers of the padded stride:
+///
+///   1) `EuclideanDist::blockDist` -- passes `rowStride` to BLAS as `lda` so
+///      the xxgemv call reads rows on aligned strides. The subsequent vSqrt
+///      finalize pass carries `aligned(rowNorms2, outDists : ...)` on its
+///      `omp simd` (both buffers are TArrayScalable-backed), so the padded
+///      stride is realized in the two vectorizable stages of blockDist.
+///   2) `rowNormsSquared` -- per-row calls to `rowNormSquared`. The compiler
+///      cannot vectorize across the function-call boundary (see the
+///      "OMP SIMD on function-call bodies" memory: DAAL builds with
+///      `-Werror -Wpass-failed=transform-warning`), so no `aligned(...)`
+///      clause is added on the outer loop. Alignment is a *correctness*
+///      property here (the vectorized inner reduction never crosses a row
+///      boundary), not a performance one.
+///   3) Non-Euclidean `blockDist` in `ManhattanDist` / `MinkowskiDist` /
+///      `ChebyshevDist` -- these loop through per-row `pointDist` calls, so
+///      the alignment guarantee is again not exposed on any SIMD clause.
+///      The per-metric `pointDist` bodies are vectorized internally with
+///      `PRAGMA_OMP_SIMD_ARGS(reduction(...))` but the caller has already
+///      committed to unpadded pointer arithmetic (`data + i*nCols`) at the
+///      DAAL kernel level, and adding an `aligned` clause on the outer loop
+///      would not help the inner reduction.
 ///
 /// @tparam FPType Floating-point type
 /// @param[in] nCols Feature count
@@ -170,6 +201,30 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 // All methods are templated on `cpu` so each per-CPU instantiation gets its
 // own ISA-specific math/BLAS bindings. Used to parameterize HDBSCAN tree
 // builds and Boruvka MRD queries by metric without code duplication.
+//
+// Alignment policy for the SIMD inner loops:
+//   - `pointDist` receives arbitrary row starts (`data + i*nCols`), which
+//     are not guaranteed to be on a `DAAL_MALLOC_DEFAULT_ALIGNMENT`
+//     boundary, so no `aligned(...)` clause is used inside pointDist. This
+//     also applies to non-Euclidean `blockDist` bodies whose inner
+//     accumulator delegates to `pointDist` per row.
+//   - `bboxLowerBound` receives `bboxLo + nodeIdx*nCols` where `bboxLo` is a
+//     `TArray` base but the row stride is `nCols` (unpadded), so per-row
+//     alignment is also not guaranteed. No `aligned(...)` clause is used.
+//   - `blockDist` for Euclidean operates on padded `scratchRows` (per-row
+//     start alignment is guaranteed via `alignedRowStride`, see
+//     `rowNormsSquared` and `gatherRows`) plus `TArrayScalable`-backed
+//     `rowNorms2` / `outDists`. The vectorizable pass -- the finalize loop
+//     that combines `rowNorms2`, `pivotNorm2`, and `outDists` -- carries an
+//     `aligned(rowNorms2, outDists : DAAL_MALLOC_DEFAULT_ALIGNMENT)` clause,
+//     so the padding cost is realized as SIMD alignment there. The xxgemv
+//     itself does not need a SIMD clause; MKL BLAS picks up the alignment
+//     internally via `lda = rowStride`.
+//   - The `pivotNorm2 = rowNormSquared(pivotPt, nCols)` in
+//     `EuclideanDist::blockDist` reads from an unpadded row of the caller's
+//     data buffer, so its internal reduction does not carry an aligned
+//     clause. This is the only vectorized read in `blockDist` that touches
+//     an unpadded pointer.
 // =========================================================================
 
 /// Euclidean (L2) distance functor.

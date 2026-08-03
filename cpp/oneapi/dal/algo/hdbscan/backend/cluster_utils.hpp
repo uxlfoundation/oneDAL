@@ -32,15 +32,24 @@ namespace oneapi::dal::hdbscan::backend {
 
 /// Compute the per-cluster centroid (mean point) of a labeled point set on the host.
 ///
+/// This is the CPU / host code path -- it runs on the host regardless of
+/// whether the algorithm was dispatched to a CPU or GPU backend. The GPU
+/// backend uses `compute_centroids_gpu` (defined further down under
+/// `ONEDAL_DATA_PARALLEL`) which does the same math directly on the SYCL
+/// device via `atomic_ref`, so `data` / `labels` never round-trip through
+/// host memory in that path.
+///
 /// Sums every labeled point into its cluster's row of `centroids`, counts the
 /// points per cluster, then divides by the count. Points whose label is
 /// negative or out of range are skipped (HDBSCAN noise). The accumulate and
 /// normalize inner loops are annotated with `PRAGMA_OMP_SIMD` so the compiler
-/// emits SIMD mul/adds; on modern compilers this is equivalent to a
-/// per-cluster `cblas_?scal`. A direct BLAS `?scal` is not used here because
-/// this header is not per-CPU-templated -- callers on the DAAL side that need
-/// dispatched `BlasInst<>::xscal` route through the DAAL cluster utilities
-/// instead.
+/// emits SIMD mul/adds. This function is not per-CPU-templated (no
+/// `CpuType cpu` parameter), so a direct call to the dispatched
+/// `daal::internal::BlasInst<Float, cpu>::xxscal` is not available; the ISA
+/// dispatch normally required for BLAS goes through the DAAL cluster
+/// utilities instead. On a host that supports it, the compiler's autovector
+/// pass already produces equivalent SIMD mul instructions for the normalize
+/// loop under `PRAGMA_OMP_SIMD`.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -81,8 +90,9 @@ static void compute_centroids(const Float* data,
             continue;
         Float* row = centroids + k * col_count;
         const Float inv = Float(1) / static_cast<Float>(counts[k]);
-        // Equivalent to `cblas_?scal(col_count, inv, row, 1)` on x86; the
-        // compiler emits vectorized mul on this loop under `PRAGMA_OMP_SIMD`.
+        // Same math as a per-row `cblas_?scal(col_count, inv, row, 1)`;
+        // the compiler emits vectorized mul on this loop under
+        // `PRAGMA_OMP_SIMD`.
         PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
             row[d] *= inv;
@@ -91,6 +101,10 @@ static void compute_centroids(const Float* data,
 }
 
 /// Compute the per-cluster medoid (closest input point to the centroid) on the host.
+///
+/// This is the CPU / host code path. The GPU counterpart is
+/// `compute_medoids_gpu` (defined further down under
+/// `ONEDAL_DATA_PARALLEL`) which keeps `data` / `labels` on the SYCL device.
 ///
 /// For each labeled point, computes its squared Euclidean distance to the
 /// cluster centroid and tracks the minimum per cluster. The chosen medoid is
@@ -166,12 +180,12 @@ namespace pr = oneapi::dal::backend::primitives;
 ///      atomic increments the count. Points with negative or out-of-range
 ///      labels are skipped -- these are HDBSCAN noise points.
 ///   2) A `parallel_for` over `(cluster_count, col_count)` divides each entry
-///      by its cluster count (skips empty clusters). This is the moral
-///      equivalent of a per-cluster `mkl::blas::scal(1/count)`; running one
-///      GPU kernel over the whole `cluster_count x col_count` grid amortizes
-///      the launch cost across all clusters, whereas issuing
-///      `cluster_count` separate `mkl::blas::scal` calls would serialize on
-///      queue submits.
+///      by its cluster count (skips empty clusters). Same math as a
+///      per-cluster `mkl::blas::scal(col_count, 1/count, row, 1)`; a single
+///      2D parallel_for is used rather than `cluster_count` back-to-back
+///      `mkl::blas::scal` submissions because a single grid over
+///      `cluster_count x col_count` requires only one kernel launch and
+///      one queue submit rather than `cluster_count` of each.
 ///
 /// @tparam Float Floating-point type
 ///

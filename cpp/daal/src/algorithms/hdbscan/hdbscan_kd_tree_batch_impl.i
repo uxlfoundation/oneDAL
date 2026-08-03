@@ -31,6 +31,8 @@
  * Memory: O(N * D * tree_nodes) for bounding boxes + O(N) working arrays.
  */
 
+#include <climits>
+
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
 #include "src/algorithms/hdbscan/hdbscan_boruvka_utils.h"
 #include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
@@ -567,6 +569,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         return services::Status();
     }
 
+    // Label output uses `int` (codebase-wide DAAL convention shared with
+    // kmeans / knn / decision_forest / etc.). Refuse inputs where the number of
+    // distinct labels could exceed INT_MAX. The label count is bounded above by
+    // the number of surviving clusters, itself bounded by `nRows / mcs`.
+    if (nRows / minClusterSize > static_cast<size_t>(INT_MAX))
+    {
+        return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
+    }
+
     const size_t edgeCount = nRows - 1;
 
     ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
@@ -627,8 +638,20 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Robust single linkage: alpha is applied only to dist(q,p) inside MRD
     // (canonical HDBSCAN). The metric used for k-NN core distances and for
     // kd-tree pruning is left unscaled.
+    //
+    // The upstream oneAPI check_preconditions() in detail/compute_ops.hpp
+    // rejects cosine with method::kd_tree (kd-tree pruning requires an L_p
+    // distance). The explicit `case cosine:` below is a defense-in-depth
+    // guard so if the DAAL kernel is ever reached with cosine + kd_tree
+    // (e.g. via a future direct-DAAL entry point that bypasses the oneAPI
+    // check), we fail loudly with ErrorMethodNotSupported rather than
+    // silently routing to euclidean via a `default:` fall-through.
     switch (pairwiseDistance)
     {
+    case PairwiseDistanceType::euclidean:
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
+        break;
     case PairwiseDistanceType::manhattan:
         computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                     coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {}, alpha);
@@ -642,10 +665,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
                                                     coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {}, alpha);
         break;
-    default: // euclidean
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
-        break;
+    case PairwiseDistanceType::cosine:
+    default: return services::Status(services::ErrorMethodNotSupported);
     }
 
     // =========================================================================
