@@ -21,13 +21,6 @@
 
 namespace oneapi::dal::backend {
 
-enum class alloc_kind {
-    host, /// Non-USM pointer allocated on host
-    usm_host, /// USM pointer allocated by sycl::alloc_host
-    usm_device, /// USM pointer allocated by sycl::alloc_device
-    usm_shared /// USM pointer allocated by sycl::alloc_shared
-};
-
 #ifdef ONEDAL_DATA_PARALLEL
 inline alloc_kind alloc_kind_from_sycl(sycl::usm::alloc alloc) {
     using error_msg = dal::detail::error_messages;
@@ -61,15 +54,15 @@ inline bool alloc_kind_requires_copy(alloc_kind src_alloc_kind, alloc_kind dst_a
         // and access is requested on host.
         // This might result in slower performance for some cases but shared usm
         // is not recommended to use for performance critical code anyway
-        case alloc_kind::host: //
+        case alloc_kind::non_usm: //
             return (src_alloc_kind == alloc_kind::usm_device || //
                     (src_alloc_kind == alloc_kind::usm_shared));
         case alloc_kind::usm_host: //
-            return (src_alloc_kind == alloc_kind::host) || //
+            return (src_alloc_kind == alloc_kind::non_usm) || //
                    (src_alloc_kind == alloc_kind::usm_device) || //
                    (src_alloc_kind == alloc_kind::usm_shared);
         case alloc_kind::usm_device: //
-            return (src_alloc_kind == alloc_kind::host) || //
+            return (src_alloc_kind == alloc_kind::non_usm) || //
                    (src_alloc_kind == alloc_kind::usm_host);
         case alloc_kind::usm_shared: //
             return (src_alloc_kind != alloc_kind::usm_shared);
@@ -77,8 +70,8 @@ inline bool alloc_kind_requires_copy(alloc_kind src_alloc_kind, alloc_kind dst_a
             ONEDAL_ASSERT(!"Unsupported alloc_kind");
     }
 #else
-    ONEDAL_ASSERT(src_alloc_kind == alloc_kind::host);
-    ONEDAL_ASSERT(dst_alloc_kind == alloc_kind::host);
+    ONEDAL_ASSERT(src_alloc_kind == alloc_kind::non_usm);
+    ONEDAL_ASSERT(dst_alloc_kind == alloc_kind::non_usm);
     return false;
 #endif
 }
@@ -93,7 +86,7 @@ inline alloc_kind get_alloc_kind(const array<T>& array) {
         return alloc_kind_from_sycl(array_alloc);
     }
 #endif
-    return alloc_kind::host;
+    return alloc_kind::non_usm;
 }
 
 template <typename Policy, typename Data>
@@ -102,10 +95,10 @@ ONEDAL_FORCEINLINE void reset_array(const Policy& policy,
                                     std::int64_t count,
                                     const alloc_kind& kind) {
     if constexpr (std::is_same_v<Policy, detail::default_host_policy>) {
-        ONEDAL_ASSERT(kind == alloc_kind::host, "Incompatible policy and type of allocation");
+        ONEDAL_ASSERT(kind == alloc_kind::non_usm, "Incompatible policy and type of allocation");
     }
 #ifdef ONEDAL_DATA_PARALLEL
-    if (kind == alloc_kind::host) {
+    if (kind == alloc_kind::non_usm) {
         array.reset(count);
     }
     else {
@@ -146,7 +139,18 @@ inline table_metadata create_metadata(std::int64_t feature_count, data_type dtyp
 
     auto dtypes = array<data_type>::full(feature_count, dtype);
     auto ftypes = array<feature_type>::full(feature_count, default_ftype);
-    return table_metadata{ dtypes, ftypes };
+    return table_metadata{ dtypes, ftypes, alloc_kind::non_usm };
+}
+
+inline table_metadata create_metadata(std::int64_t feature_count,
+                                      data_type dtype,
+                                      alloc_kind alloc) {
+    auto default_ftype =
+        detail::is_floating_point(dtype) ? feature_type::ratio : feature_type::ordinal;
+
+    auto dtypes = array<data_type>::full(feature_count, dtype);
+    auto ftypes = array<feature_type>::full(feature_count, default_ftype);
+    return table_metadata{ dtypes, ftypes, alloc };
 }
 
 /// The function tries to select correct policy for pull/push implementation
