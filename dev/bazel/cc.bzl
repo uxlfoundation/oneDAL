@@ -118,11 +118,11 @@ def _without_coverage_link_flags(linking_context, coverage_link_flags):
         linker_inputs.append(cc_common.create_linker_input(
             owner = linker_input.owner,
             libraries = depset(linker_input.libraries),
-            user_link_flags = [
+            user_link_flags = depset([
                 flag
                 for flag in linker_input.user_link_flags
                 if flag not in coverage_link_flags
-            ],
+            ]),
             additional_inputs = depset(linker_input.additional_inputs),
             linkstamps = depset(linker_input.linkstamps),
         ))
