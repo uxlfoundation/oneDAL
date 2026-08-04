@@ -24,7 +24,7 @@
 
 #include "oneapi/dal/backend/primitives/selection/row_partitioning_kernel.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows_base.hpp"
-#include "oneapi/dal/backend/primitives/rng/rnd_seq.hpp"
+#include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -43,10 +43,22 @@ class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
 
 public:
     kselect_by_rows_quick() = delete;
-    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape)
-            : rnd_seq_(queue, std::min(shape[1], max_rnd_seq_size_)) {
+    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape) {
+        const std::int64_t rnd_seq_length = std::min(shape[1], max_rnd_seq_size_);
         data_ = ndarray<Float, 2>::empty(queue, shape, sycl::usm::alloc::device);
         indices_ = ndarray<std::int32_t, 2>::empty(queue, shape, sycl::usm::alloc::device);
+        rnd_seq_ =
+            ndarray<Float, 1>::empty(queue, { rnd_seq_length }, sycl::usm::alloc::device);
+        // Fixed seed + philox4x32x10 keeps quick-select's pivot picks
+        // reproducible across runs -- callers only need "some" random pivots.
+        device_engine engine_gpu(queue, 777, engine_type_internal::philox4x32x10);
+        uniform<Float>(queue,
+                       rnd_seq_length,
+                       rnd_seq_.get_mutable_data(),
+                       engine_gpu,
+                       Float(0),
+                       Float(1))
+            .wait_and_throw();
     }
     ~kselect_by_rows_quick() {
         last_call_.wait_and_throw();
@@ -305,8 +317,7 @@ private:
     }
     static constexpr std::uint32_t preffered_sg_size = 16;
     static constexpr std::int64_t max_rnd_seq_size_ = 1024;
-    std::int64_t rnd_seq_size_ = max_rnd_seq_size_;
-    rnd_seq<Float> rnd_seq_;
+    ndarray<Float, 1> rnd_seq_;
     ndarray<Float, 2> data_;
     ndarray<std::int32_t, 2> indices_;
     sycl::event last_call_;

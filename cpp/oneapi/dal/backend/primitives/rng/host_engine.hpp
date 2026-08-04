@@ -157,17 +157,24 @@ void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
     }
 }
 
-/// Shuffles an array using random swaps on the CPU.
-/// @tparam Type The data type of the array elements.
-/// @param[in] count The number of elements to shuffle.
-/// @param[in, out] dst Pointer to the array to be shuffled.
-/// @param[in] engine_ Reference to the device engine.
+/// Partially shuffles the first `count = result_array.get_count()` elements of
+/// `[0, top)` using the Fisher-Yates draw pattern, on the CPU.
+///
+/// The engine is passed in so that the caller keeps ownership of the RNG stream
+/// and can compose multiple draws on the same state. Building a fresh engine
+/// per call (as an earlier version did) makes the routine non-composable and
+/// silently identical across calls with the same seed.
+///
+/// @tparam Type Integer type of `result_array` elements.
+/// @param[in,out] result_array The buffer to receive `count` distinct picks in
+///                             `[0, top)`; its length defines `count`.
+/// @param[in]     top          Exclusive upper bound of the sample domain.
+/// @param[in,out] engine_      Host engine to draw from; its state advances by
+///                             exactly `count` uniforms.
 template <typename Type>
 void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                                   std::int64_t top,
-                                  std::int64_t seed,
-                                  engine_type_internal method = engine_type_internal::mt19937) {
-    host_engine eng_ = host_engine(seed, method);
+                                  host_engine& engine_) {
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
@@ -176,7 +183,7 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
 
     std::int64_t k = 0;
     std::size_t value = 0;
-    auto state = eng_.get_host_engine_state();
+    auto state = engine_.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
         uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
         for (std::size_t j = i; j > 0; j--) {
@@ -190,6 +197,17 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
         k++;
     }
     ONEDAL_ASSERT(k == count);
+}
+
+/// Convenience overload that builds a one-shot engine from `seed` + `method`.
+/// Prefer the engine-taking overload when several draws should share state.
+template <typename Type>
+void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
+                                  std::int64_t top,
+                                  std::int64_t seed,
+                                  engine_type_internal method = engine_type_internal::mt19937) {
+    host_engine eng_(seed, method);
+    partial_fisher_yates_shuffle(result_array, top, eng_);
 }
 
 } // namespace oneapi::dal::backend::primitives

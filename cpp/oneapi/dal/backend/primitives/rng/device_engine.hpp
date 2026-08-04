@@ -17,6 +17,8 @@
 #pragma once
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/detail/error_messages.hpp"
+#include "oneapi/dal/exceptions.hpp"
 
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
@@ -70,10 +72,15 @@ public:
     }
 
     /// Skips ahead in the random number sequence for mt2203 on the GPU.
-    /// Currently, the skip functionality is not implemented.
+    ///
+    /// mt2203 is documented in `oneapi::mkl::rng` as supporting `skip_ahead` as
+    /// its parallelisation method (see MKL rng/engines.hpp), so we forward to
+    /// MKL's free-function `skip_ahead(engine, num_to_skip)` -- same pattern as
+    /// the other engines. The previous no-op silently desynchronised the CPU
+    /// and GPU streams whenever a caller mixed draws.
     /// @param[in] nSkip The number of steps to skip in the sequence.
     void skip_ahead_gpu(std::int64_t nSkip) override {
-        //skip;
+        skip_ahead(_gen, nSkip);
     }
 
     /// Retrieves a pointer to the underlying mt2203 generator.
@@ -389,7 +396,8 @@ void shuffle(std::int64_t count, Type* dst, device_engine& engine_) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }
-    engine_.skip_ahead_gpu(count);
+    // Two uniforms consumed per iteration -> mirror on GPU.
+    engine_.skip_ahead_gpu(2 * count);
 }
 
 /// Generates uniformly distributed random numbers on the GPU.
@@ -443,14 +451,29 @@ sycl::event shuffle(sycl::queue& queue,
                     device_engine& engine_,
                     const event_vector& deps = {});
 
-/// Partially shuffles the first `top` elements of an array using the Fisher-Yates algorithm.
-/// @tparam Type The data type of the array elements.
-/// @param[in] queue_ The SYCL queue for device execution.
-/// @param[in, out] result_array The array to be partially shuffled.
-/// @param[in] top The number of elements to shuffle.
-/// @param[in] seed The seed for the engine.
-/// @param[in] method The rng engine type. Defaults to `mt19937`.
-/// @param[in] deps Dependencies for the SYCL event.
+/// Partially shuffles the first `count = result_array.get_count()` elements of
+/// `[0, top)` on the GPU using the Fisher-Yates draw pattern.
+///
+/// The engine is passed in so callers can compose multiple RNG operations on a
+/// single stream instead of building a fresh engine per call.
+///
+/// @tparam Type Integer type of `result_array` elements.
+/// @param[in]     queue_       SYCL queue for the depend-on submit.
+/// @param[in,out] result_array Buffer to receive `count` distinct picks in
+///                             `[0, top)`; its length defines `count`.
+/// @param[in]     top          Exclusive upper bound of the sample domain.
+/// @param[in,out] engine_      Device engine to draw from; its state advances
+///                             by exactly `count` uniforms.
+/// @param[in]     deps         Dependencies for the returned event.
+template <typename Type>
+sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
+                                         ndview<Type, 1>& result_array,
+                                         std::int64_t top,
+                                         device_engine& engine_,
+                                         const event_vector& deps = {});
+
+/// Convenience overload that builds a one-shot engine from `seed` + `method`.
+/// Prefer the engine-taking overload when several draws should share state.
 template <typename Type>
 sycl::event partial_fisher_yates_shuffle(
     sycl::queue& queue_,
@@ -458,7 +481,10 @@ sycl::event partial_fisher_yates_shuffle(
     std::int64_t top,
     std::int64_t seed,
     engine_type_internal method = engine_type_internal::mt19937,
-    const event_vector& deps = {});
+    const event_vector& deps = {}) {
+    device_engine eng_(queue_, seed, method);
+    return partial_fisher_yates_shuffle(queue_, result_array, top, eng_, deps);
+}
 #endif
 
 } // namespace oneapi::dal::backend::primitives
