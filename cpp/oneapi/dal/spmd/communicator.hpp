@@ -546,7 +546,7 @@ communicator<device_memory_access::none> make_communicator() {
 }
 
 template <typename Backend>
-communicator<device_memory_access::none> make_communicator(std::int64_t comm_handle) {
+communicator<device_memory_access::none> make_communicator(std::int64_t comm) {
     static_assert(!std::is_same_v<Backend, Backend>, "Unsupported communicator backend");
 
     throw communication_error(dal::detail::error_messages::unsupported_communicator_backend());
@@ -561,8 +561,7 @@ communicator<device_memory_access::usm> make_communicator(sycl::queue& queue) {
 }
 
 template <typename Backend>
-communicator<device_memory_access::usm> make_communicator(sycl::queue& queue,
-                                                          std::int64_t comm_handle) {
+communicator<device_memory_access::usm> make_communicator(sycl::queue& queue, std::int64_t comm) {
     static_assert(!std::is_same_v<Backend, Backend>, "Unsupported communicator backend");
 
     throw communication_error(dal::detail::error_messages::unsupported_communicator_backend());
