@@ -176,8 +176,9 @@ MSG(input_responses_table_has_wrong_cc_expect_one,
 MSG(iteration_count_lt_zero, "Iteration count is lower than zero")
 MSG(max_iteration_count_leq_zero, "Max iteration count lower than or equal to zero")
 MSG(max_iteration_count_lt_zero, "Max iteration count lower than zero")
+MSG(partial_results_alloc_kind_mismatch, "Allocation kinds of partial results tables do not match");
 MSG(weights_and_data_alloc_kind_mismatch,
-    "Allocation types of weights and data tables do not match");
+    "Allocation kinds of weights and data tables do not match");
 
 /* K-Means */
 MSG(cluster_count_leq_zero, "Cluster count is lower than or equal to zero")

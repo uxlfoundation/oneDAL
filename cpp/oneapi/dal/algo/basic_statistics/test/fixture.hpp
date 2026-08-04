@@ -149,6 +149,7 @@ public:
                              alloc_kind first_block_alloc) {
         const auto use_weights = bool(weights_fr);
         CAPTURE(use_weights, compute_mode);
+        CAPTURE(first_block_alloc);
 
         const auto bs_desc = get_descriptor(compute_mode);
         const auto data_table_id = this->get_homogen_table_id();

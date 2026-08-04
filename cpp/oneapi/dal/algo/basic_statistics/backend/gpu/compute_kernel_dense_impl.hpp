@@ -76,6 +76,7 @@ private:
     result_t get_result(const descriptor_t& desc,
                         const local_result_t& ndres,
                         std::int64_t column_count,
+                        alloc_kind result_alloc_kind,
                         const bk::event_vector& deps = {});
 
     sycl::queue q_;

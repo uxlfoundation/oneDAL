@@ -16,6 +16,7 @@
 
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/partial_compute_kernel.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/compute_kernel.hpp"
+#include "oneapi/dal/algo/basic_statistics/backend/gpu/common_impl.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
@@ -44,10 +45,11 @@ template <typename Float>
 auto update_partial_n_rows_results(sycl::queue& q,
                                    const std::int64_t row_count,
                                    const pr::ndview<Float, 1>& nobs,
+                                   const sycl::usm::alloc result_alloc_kind,
                                    const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(update_partial_n_rows_results, q);
 
-    auto result_nobs = pr::ndarray<Float, 1>::empty(q, 1, alloc::device);
+    auto result_nobs = pr::ndarray<Float, 1>::empty(q, 1, result_alloc_kind);
     auto result_nobs_ptr = result_nobs.get_mutable_data();
     auto nobs_ptr = nobs.get_data();
 
@@ -70,11 +72,12 @@ auto update_min_max_results(sycl::queue& q,
                             const pr::ndview<Float, 1>& max,
                             const table current_max,
                             const std::int64_t column_count,
+                            const sycl::usm::alloc result_alloc_kind,
                             const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(update_min_max_results, q);
 
-    auto result_min = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_max = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
+    auto result_min = pr::ndarray<Float, 1>::empty(q, column_count, result_alloc_kind);
+    auto result_max = pr::ndarray<Float, 1>::empty(q, column_count, result_alloc_kind);
 
     auto result_min_ptr = result_min.get_mutable_data();
     auto result_max_ptr = result_max.get_mutable_data();
@@ -107,12 +110,13 @@ auto update_partial_sums(sycl::queue& q,
                          const table current_sums2,
                          const std::int64_t column_count,
                          const pr::ndview<Float, 1>& nobs,
+                         const sycl::usm::alloc result_alloc_kind,
                          const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(update_partial_results, q);
 
-    auto result_sums = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2 = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2cent = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
+    auto result_sums = pr::ndarray<Float, 1>::empty(q, column_count, result_alloc_kind);
+    auto result_sums2 = pr::ndarray<Float, 1>::empty(q, column_count, result_alloc_kind);
+    auto result_sums2cent = pr::ndarray<Float, 1>::empty(q, column_count, result_alloc_kind);
 
     auto result_sums_ptr = result_sums.get_mutable_data();
     auto result_sums2_ptr = result_sums2.get_mutable_data();
@@ -159,7 +163,6 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     auto local_desc = get_desc_to_compute<Float>(desc);
     const auto res_op = local_desc.get_result_options();
 
-    auto result = partial_compute_result();
     const auto prev_partial_result = input.get_prev();
 
     const std::int64_t row_count = data.get_row_count();
@@ -173,6 +176,12 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     const bool has_nobs_data = prev_partial_result.get_partial_n_rows().has_data();
     if (has_nobs_data) {
         // Here if it is not the first partial computation, we need to merge with previous partial results.
+
+        alloc_kind result_alloc_kind = prev_partial_result.get_alloc_kind();
+        sycl::usm::alloc result_usm_alloc_kind = (result_alloc_kind == alloc_kind::non_usm)
+                                                     ? sycl::usm::alloc::host
+                                                     : be::alloc_kind_to_sycl(result_alloc_kind);
+        auto result = partial_compute_result(result_alloc_kind);
         if (weights_enabling) {
             compute_result_ = kernel(ctx, local_desc, { data, weights });
         }
@@ -182,7 +191,7 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         const auto nobs_nd =
             pr::table2ndarray_1d<Float>(q, prev_partial_result.get_partial_n_rows());
         auto [result_nobs, nobs_update_event] =
-            update_partial_n_rows_results(q, row_count, nobs_nd);
+            update_partial_n_rows_results(q, row_count, nobs_nd, result_usm_alloc_kind);
 
         if (res_op.test(result_options::min) || res_op.test(result_options::max)) {
             const auto min_nd = pr::table2ndarray_1d<Float>(q,
@@ -197,17 +206,18 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
                                        max_nd,
                                        compute_result_.get_max(),
                                        column_count,
+                                       result_usm_alloc_kind,
                                        { nobs_update_event });
 
-            result.set_partial_min(
-                (homogen_table::wrap(result_min.flatten(q, { update_min_max_event }),
-                                     1,
-                                     column_count)));
+            result.set_partial_min(homogen_table::wrap(
+                flatten_result_array(q, result_min, result_alloc_kind, { update_min_max_event }),
+                1,
+                column_count));
 
-            result.set_partial_max(
-                (homogen_table::wrap(result_max.flatten(q, { update_min_max_event }),
-                                     1,
-                                     column_count)));
+            result.set_partial_max(homogen_table::wrap(
+                (flatten_result_array(q, result_max, result_alloc_kind, { update_min_max_event })),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::sum)) {
@@ -226,29 +236,36 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
                                     compute_result_.get_sum_squares(),
                                     column_count,
                                     result_nobs,
+                                    result_usm_alloc_kind,
                                     { nobs_update_event });
 
-            result.set_partial_sum(
-                (homogen_table::wrap(result_sums.flatten(q, { merge_sums_event }),
-                                     1,
-                                     column_count)));
+            result.set_partial_sum(homogen_table::wrap(
+                flatten_result_array(q, result_sums, result_alloc_kind, { merge_sums_event }),
+                1,
+                column_count));
 
-            result.set_partial_sum_squares(
-                (homogen_table::wrap(result_sums2.flatten(q, { merge_sums_event }),
-                                     1,
-                                     column_count)));
+            result.set_partial_sum_squares(homogen_table::wrap(
+                flatten_result_array(q, result_sums2, result_alloc_kind, { merge_sums_event }),
+                1,
+                column_count));
 
-            result.set_partial_sum_squares_centered(
-                (homogen_table::wrap(result_sums2cent.flatten(q, { merge_sums_event }),
-                                     1,
-                                     column_count)));
+            result.set_partial_sum_squares_centered(homogen_table::wrap(
+                flatten_result_array(q, result_sums2cent, result_alloc_kind, { merge_sums_event }),
+                1,
+                column_count));
         }
 
-        result.set_partial_n_rows(
-            (homogen_table::wrap(result_nobs.flatten(q, { nobs_update_event }), 1, 1)));
+        result.set_partial_n_rows(homogen_table::wrap(
+            flatten_result_array(q, result_nobs, result_alloc_kind, { nobs_update_event }),
+            1,
+            1));
+
+        return result;
     }
     else {
         // Here if it is not the first partial computation, we need to merge with previous partial results.
+        alloc_kind result_alloc_kind = data.get_metadata().get_alloc_kind();
+        auto result = partial_compute_result(result_alloc_kind);
         auto [init_nobs, init_event] =
             pr::ndarray<Float, 1>::full(q, { 1 }, row_count, sycl::usm::alloc::device);
         init_event.wait_and_throw();
@@ -279,10 +296,11 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         if (res_op.test(result_options::sum_squares_centered))
             result.set_partial_sum_squares_centered(compute_result_.get_sum_squares_centered());
 
-        result.set_partial_n_rows((homogen_table::wrap(init_nobs.flatten(q, {}), 1, 1)));
-    }
+        result.set_partial_n_rows(
+            (homogen_table::wrap(flatten_result_array(q, init_nobs, result_alloc_kind, {}), 1, 1)));
 
-    return result;
+        return result;
+    }
 }
 
 template <typename Float>
