@@ -46,7 +46,7 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 /// @tparam Float  Floating-point type used to perform computations
 ///
 /// @param[in]  q             The SYCL queue
-/// @param[in]  sums          The allreuced partial_result partial sums
+/// @param[in]  sums          The allreuced partial sums
 /// @param[in]  sums2         The allreuced partial sums squared
 /// @param[in]  sums2cent     The local partial sums squared centered. These sums are
 ///                           centered across local node and will be recalculated for all ranks
