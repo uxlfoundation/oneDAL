@@ -21,12 +21,16 @@
 set -euo pipefail
 
 bazel_cmd="${BAZEL:-bazel}"
+startup_args=()
+if [[ -n "${BAZEL_OUTPUT_USER_ROOT:-}" ]]; then
+    startup_args+=("--output_user_root=${BAZEL_OUTPUT_USER_ROOT}")
+fi
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
-"${bazel_cmd}" build //cpp/daal:core_static --code_coverage=true
+"${bazel_cmd}" "${startup_args[@]}" build //cpp/daal:core_static --code_coverage=true
 
-"${bazel_cmd}" aquery 'mnemonic("CppCompile", deps(//cpp/daal:core_static))' \
+"${bazel_cmd}" "${startup_args[@]}" aquery 'mnemonic("CppCompile", deps(//cpp/daal:core_static))' \
     --code_coverage=true --output=jsonproto >"${work}/core_actions.json"
 python3 -c "
 import json, sys
@@ -45,8 +49,8 @@ for action in target_actions:
 print('error_handling.cpp compile action carries -coverage and -DGCOV_BUILD')
 "
 
-"${bazel_cmd}" build //cpp/daal:thread_static --code_coverage=true
-"${bazel_cmd}" aquery 'mnemonic("CppCompile", deps(//cpp/daal:thread_static))' \
+"${bazel_cmd}" "${startup_args[@]}" build //cpp/daal:thread_static --code_coverage=true
+"${bazel_cmd}" "${startup_args[@]}" aquery 'mnemonic("CppCompile", deps(//cpp/daal:thread_static))' \
     --code_coverage=true --output=jsonproto >"${work}/thread_actions.json"
 python3 -c "
 import json, sys

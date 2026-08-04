@@ -37,6 +37,16 @@ pr:
     - docs
     - .ci/pipeline/docs.yml
 
+# DPC++ coverage needs the full compiler/runtime installation. Keep it out of
+# public PR CI; the dedicated job below runs from this scheduled main build.
+schedules:
+- cron: '0 4 * * *'
+  displayName: 'Nightly DPC++ coverage smoke'
+  branches:
+    include:
+    - main
+  always: true
+
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
   TBB_VERSION : 'v2023.1.0'
@@ -389,8 +399,8 @@ jobs:
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
   - script: |
-      .ci/env/apt.sh dpcpp
-    displayName: 'dpcpp installation'
+      .ci/env/apt.sh icx
+    displayName: 'icx installation (CPU-only coverage smoke)'
   - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
@@ -456,13 +466,15 @@ jobs:
 
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
-      # The coverage smoke uses a different compiler/configuration than the
-      # following GCC release build. Drop its large, non-reusable output tree
-      # before producing release artifacts on the space-constrained CI agent.
-      bazel clean
+      export BAZEL_OUTPUT_USER_ROOT="$(Agent.TempDirectory)/bazel-coverage-cpu"
+      echo '=== disk before CPU coverage smoke ==='
       df -h .
-    displayName: 'Bazel code-coverage icx smoke build'
+      BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
+      echo '=== disk after CPU coverage smoke ==='
+      df -h .
+      du -sh "${BAZEL_OUTPUT_USER_ROOT}" 2>/dev/null || true
+      rm -rf "${BAZEL_OUTPUT_USER_ROOT}"
+    displayName: 'Bazel CPU code-coverage smoke build'
 
   - script: |
       bazel build :release --release_dpc=false
@@ -626,6 +638,31 @@ jobs:
           echo "No need for cleanup"
       fi
     displayName: 'bazel-cache-limit'
+
+- job: 'LinuxBazelDpcCoverageNightly'
+  # The DPC++ linker smoke is deliberately not part of PR CI. It needs the
+  # complete oneAPI runtime and is isolated from the normal Bazel disk cache.
+  condition: and(succeeded(), eq(variables['Build.Reason'], 'Schedule'))
+  timeoutInMinutes: 0
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dpcpp
+    displayName: 'DPC++ compiler and runtime installation'
+  - script: |
+      source .ci/env/bazelisk.sh
+      echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
+      source /opt/intel/oneapi/setvars.sh
+      export BAZEL_OUTPUT_USER_ROOT="$(Agent.TempDirectory)/bazel-coverage-dpc"
+      echo '=== disk before DPC++ coverage smoke ==='
+      df -h .
+      BAZEL=bazel dev/bazel/tests/code_coverage_dpc_test.sh
+      echo '=== disk after DPC++ coverage smoke ==='
+      df -h .
+      du -sh "${BAZEL_OUTPUT_USER_ROOT}" 2>/dev/null || true
+      rm -rf "${BAZEL_OUTPUT_USER_ROOT}"
+    displayName: 'Bazel DPC++ code-coverage smoke build'
 
 - job: 'LinuxReleaseCompare'
   dependsOn:

@@ -35,6 +35,12 @@ function install_dpcpp {
     sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.0-235 intel-oneapi-runtime-libs
 }
 
+function install_icx {
+    # icx is distributed in the DPC++/C++ compiler package.  Do not install the
+    # extra oneAPI runtime meta-package: CPU-only build checks do not need it.
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.0-235
+}
+
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
     sudo apt-get install -y intel-oneapi-tbb-devel=2023.1.0-151
@@ -139,6 +145,9 @@ function install_abigail {
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
+elif [ "${component}" == "icx" ]; then
+    add_repo
+    install_icx
 elif [ "${component}" == "tbb" ]; then
     add_repo
     install_tbb
@@ -182,6 +191,6 @@ elif [ "${component}" == "opencl" ]; then
     install_opencl_apt
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
+    echo "   $0 [dpcpp|icx|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
     exit 1
 fi
