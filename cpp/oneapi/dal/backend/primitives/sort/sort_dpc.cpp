@@ -26,6 +26,7 @@
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #pragma clang diagnostic ignored "-Wsign-compare"
 #pragma clang diagnostic ignored "-Wkeyword-macro"
+#pragma clang diagnostic ignored "-Wunused-template"
 
 // Workaround: some oneTBB versions annotate the override of
 // std::exception::what() with __TBB_EXPORTED_METHOD, which on Windows-x86
