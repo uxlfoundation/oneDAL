@@ -14,8 +14,23 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel/toolchains:extra_toolchain.bzl", "onedal_extra_toolchain")
+"""External repo rule for oneCCL.
 
-onedal_extra_toolchain_extension = module_extension(
-    implementation = lambda ctx: onedal_extra_toolchain(name = "onedal_extra_toolchain"),
+Repo-side symbol only. The ccl_test rule (a BUILD-time Bazel `rule()`) lives
+in //dev/bazel/rules:ccl_test.bzl.
+"""
+
+load("@onedal//third_party:repo.bzl", "repos")
+
+ccl_repo = repos.prebuilt_libs_repo_rule(
+    includes = [
+        "include/cpu_gpu_dpcpp/oneapi/",
+    ],
+    libs = [
+        "lib/cpu_gpu_dpcpp/libccl.a",
+        "lib/cpu_gpu_dpcpp/libccl.so",
+        "lib/cpu_gpu_dpcpp/libccl.so.1",
+        "lib/cpu_gpu_dpcpp/libccl.so.1.0",
+    ],
+    build_template = "@onedal//third_party/ccl:ccl.tpl.BUILD",
 )

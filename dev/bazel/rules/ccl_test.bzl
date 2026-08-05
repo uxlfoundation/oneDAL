@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2020 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,25 +14,16 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+"""Bazel `rule()` that wraps a CCL test binary in an mpiexec launcher.
 
-ccl_repo = repos.prebuilt_libs_repo_rule(
-    includes = [
-        "include/cpu_gpu_dpcpp/oneapi/",
-    ],
-    libs = [
-        "lib/cpu_gpu_dpcpp/libccl.a",
-        "lib/cpu_gpu_dpcpp/libccl.so",
-        "lib/cpu_gpu_dpcpp/libccl.so.1",
-        "lib/cpu_gpu_dpcpp/libccl.so.1.0",
-    ],
-    build_template = "@onedal//dev/bazel/deps:ccl.tpl.BUILD",
-
-)
+Structurally identical to mpi_test — kept as a separate rule so tests
+depending on oneCCL declare intent explicitly, and so tag-based filtering
+in `.bazelrc` can distinguish CCL-only test groups from generic MPI tests.
+"""
 
 def _get_fi_providers_dir(fi_files):
     if len(fi_files) == 0:
-        fail("No fabrin interface files provided for MPI")
+        fail("No fabric interface files provided for CCL test")
     fi_dir = fi_files[0].dirname
     for fi in fi_files:
         if fi.dirname != fi_dir:
@@ -43,8 +34,6 @@ def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
     exec_wrapper = ctx.actions.declare_file(ctx.label.name)
     content = (
         "#!/bin/bash\n" +
-        "# We need to check if we are in the runfiles directory.\n" +
-        "# If no change current directory to runfiles.\n" +
         "runfiles_suffix=\".runfiles/{}\"\n".format(ctx.workspace_name) +
         "if [[ ! \"$(pwd)\" =~ \"$runfiles_suffix\" ]]; then\n" +
         "   script_path=\"${BASH_SOURCE[0]}\"\n" +
@@ -57,7 +46,6 @@ def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
     )
     ctx.actions.write(exec_wrapper, content, is_executable=True)
     return exec_wrapper
-
 
 def _ccl_test_impl(ctx):
     exec = ctx.executable.src

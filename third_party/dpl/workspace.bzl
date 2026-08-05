@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2023 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,15 +14,14 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+load("@onedal//third_party:repo.bzl", "repos")
 
-openblas_repo = repos.prebuilt_libs_repo_rule(
+dpl_repo = repos.prebuilt_libs_repo_rule(
     includes = [
         "include",
     ],
     libs = [
-            "lib/libopenblas.a", 
-            "lib/libgfortran.a", 
+        "lib",
     ],
-    build_template = "@onedal//dev/bazel/deps:openblas.tpl.BUILD",
+    build_template = "@onedal//third_party/dpl:dpl.tpl.BUILD",
 )

@@ -23,9 +23,6 @@ load("@onedal//dev/bazel:utils.bzl",
     "sets",
 )
 
-load("@onedal//dev/bazel/toolchains:action_names.bzl",
-    "CPP_MERGE_STATIC_LIBRARIES"
-)
 load("@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
@@ -45,6 +42,20 @@ def _filter_user_link_flags(feature_configuration, user_link_flags):
 
 def _merge_static_libs(filename, actions, cc_toolchain,
                        feature_configuration, static_libs, is_windows = False):
+    """Merge multiple static libraries into one.
+
+    Windows: uses lib.exe/llvm-lib (via the toolchain's static-link tool)
+    with `/OUT:` — natively supported.
+
+    Linux: uses `ar -M` with an MRI script `CREATE / ADDLIB* / SAVE`.
+    Previously this was a templated shell wrapper registered as a custom
+    `cpp_merge_static_libraries` action_config; now the MRI script is
+    emitted via `actions.write` and fed to `ar` through a one-line
+    `run_shell` invocation. `-M` reads MRI from stdin so a tiny shell
+    redirect is unavoidable; everything else (the custom action_config,
+    the templated wrapper, the ar_merge_path plumbing in the toolchain)
+    is gone.
+    """
     output_file = actions.declare_file(filename)
     if is_windows:
         merger_path = cc_common.get_tool_for_action(
@@ -66,40 +77,29 @@ def _merge_static_libs(filename, actions, cc_toolchain,
             use_default_shell_env = True,
         )
         return output_file
-    merger_path = cc_common.get_tool_for_action(
+
+    # Linux path: `ar -M` reads its MRI script from stdin, but Bazel
+    # actions cannot pipe. Instead we write the MRI script to a param
+    # file that `ar` reads via `-M < script.mri`. Since actions.run does
+    # not do redirection, we wrap that in a small `sh -c` invocation.
+    ar_path = cc_common.get_tool_for_action(
         feature_configuration = feature_configuration,
-        action_name = CPP_MERGE_STATIC_LIBRARIES,
+        action_name = ACTION_NAMES.cpp_link_static_library,
     )
-    merger_variables = cc_common.create_link_variables(
-        feature_configuration = feature_configuration,
-        cc_toolchain = cc_toolchain,
-        is_using_linker = False,
-    )
-    command_line = cc_common.get_memory_inefficient_command_line(
-        feature_configuration = feature_configuration,
-        action_name = CPP_MERGE_STATIC_LIBRARIES,
-        variables = merger_variables,
-    )
-    args = actions.args()
-    args.add_all(command_line)
-    args.add(output_file)
-    args.add_all(static_libs)
-    env = cc_common.get_environment_variables(
-        feature_configuration = feature_configuration,
-        action_name = CPP_MERGE_STATIC_LIBRARIES,
-        variables = merger_variables,
-    )
-    actions.run(
-        executable = merger_path,
-        arguments = [args],
-        env = env,
-        inputs = depset(
-            direct = static_libs,
-            transitive = [
-                cc_toolchain.all_files,
-            ],
-        ),
+    mri_script = actions.declare_file(filename + ".mri")
+    mri_lines = ["CREATE " + output_file.path]
+    for lib in static_libs:
+        mri_lines.append("ADDLIB " + lib.path)
+    mri_lines.append("SAVE")
+    mri_lines.append("END")
+    actions.write(output = mri_script, content = "\n".join(mri_lines) + "\n")
+    actions.run_shell(
+        command = "\"$1\" -M < \"$2\"",
+        arguments = [ar_path, mri_script.path],
+        inputs = depset(direct = static_libs + [mri_script]),
         outputs = [output_file],
+        mnemonic = "MergeStaticLibraries",
+        use_default_shell_env = True,
     )
     return output_file
 

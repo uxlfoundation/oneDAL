@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+load("@onedal//third_party:repo.bzl", "repos")
 load("@onedal//dev/bazel:utils.bzl", "paths")
 
 def _get_dpcpp_compiler_root(repo_ctx):
@@ -37,7 +37,7 @@ def _opencl_repo_impl(repo_ctx):
         repos.create_symlinks(repo_ctx, lib_dir, libs)
     repo_ctx.template(
         "BUILD",
-        Label("@onedal//dev/bazel/deps:opencl.tpl.BUILD"),
+        Label("@onedal//third_party/opencl:opencl.tpl.BUILD"),
     )
 
 opencl_repo = repository_rule(

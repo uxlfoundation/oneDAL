@@ -88,7 +88,7 @@ cc_library(
 cc_test(
     name = "library_test",
     srcs = glob(["test/**/*.cpp"]),
-    deps = [":library_name", "//dev/bazel/deps:gtest"],
+    deps = [":library_name", "@catch2//:catch2"],
 )
 ```
 

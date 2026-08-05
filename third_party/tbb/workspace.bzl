@@ -1,6 +1,5 @@
-#!/bin/bash
 #===============================================================================
-# Copyright 2014 Intel Corporation
+# Copyright 2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,16 +14,29 @@
 # limitations under the License.
 #===============================================================================
 
-output=$1
+load("@onedal//third_party:repo.bzl", "repos")
 
-shift
-input=$*
-
-mri="CREATE ${output}\n"
-for lib in $input
-do
-    mri+="ADDLIB ${lib}\n"
-done
-mri+="SAVE\n"
-
-printf "${mri[@]}" | %{ar_path} -M
+tbb_repo = repos.prebuilt_libs_repo_rule(
+    includes = [
+        "include",
+    ],
+    libs = [
+        "lib/libtbb.so",
+        "lib/libtbb.so.12",
+        "lib/libtbbmalloc.so",
+        "lib/libtbbmalloc.so.2",
+    ],
+    build_template = "@onedal//third_party/tbb:tbb.tpl.BUILD",
+    win_includes = [
+        "include",
+    ],
+    win_libs = [
+        "lib/tbb12.lib",
+        "lib/tbbmalloc.lib",
+    ],
+    win_bins = [
+        "bin/tbb12.dll",
+        "bin/tbbmalloc.dll",
+    ],
+    win_build_template = "@onedal//third_party/tbb:tbb.win.tpl.BUILD",
+)

@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2020 Intel Corporation
+# Copyright 2026 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +14,14 @@
 # limitations under the License.
 #===============================================================================
 
-CPP_MERGE_STATIC_LIBRARIES = "cpp_merge_static_libraries"
+load("@onedal//third_party:repo.bzl", "repos")
 
-ACTION_NAMES = struct(
-    cpp_merge_static_libraries = CPP_MERGE_STATIC_LIBRARIES,
+openmp_repo = repos.prebuilt_libs_repo_rule(
+    includes = [
+        "include",
+    ],
+    libs = [
+        "lib/libgomp.so*",
+    ],
+    build_template = "@onedal//third_party/openmp:openmp.tpl.BUILD",
 )

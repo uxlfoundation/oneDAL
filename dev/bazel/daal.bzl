@@ -140,10 +140,6 @@ daal_generate_version = rule(
     },
 )
 
-def _get_tool_for_kernel_defines_patching(ctx):
-    return ctx.toolchains["@onedal//dev/bazel/toolchains:extra"] \
-        .extra_toolchain_info.patch_daal_kernel_defines
-
 def _get_disabled_cpus(ctx):
     cpu_info = ctx.attr._cpus[CpuInfo]
     all_cpus = sets.make(cpu_info.allowed)
@@ -156,19 +152,25 @@ def _declare_patched_kernel_defines(ctx):
     return ctx.actions.declare_file(patched_path)
 
 def _daal_patch_kernel_defines_impl(ctx):
-    disabled_cpus = _get_disabled_cpus(ctx)
-    kernel_defines = _declare_patched_kernel_defines(ctx)
-    ctx.actions.run(
-        executable = _get_tool_for_kernel_defines_patching(ctx),
-        arguments = [
-            ctx.file.src.path,
-            kernel_defines.path,
-            " ".join(sets.to_list(disabled_cpus)),
-        ],
-        inputs = [ctx.file.src],
-        outputs = [kernel_defines],
+    """Strip `#define DAAL_KERNEL_<ISA>` lines for disabled CPUs.
+
+    Previously handled by three shell/cmd/ps1 tools registered via a
+    dedicated `extra_toolchain`. Doing the substitution with
+    `expand_template` moves it into pure Starlark: no shell, no platform
+    branch, no toolchain wiring.
+    """
+    disabled_cpus = sets.to_list(_get_disabled_cpus(ctx))
+    substitutions = {
+        "#define DAAL_KERNEL_{}\n".format(cpu.upper()): ""
+        for cpu in disabled_cpus
+    }
+    patched = _declare_patched_kernel_defines(ctx)
+    ctx.actions.expand_template(
+        template = ctx.file.src,
+        output = patched,
+        substitutions = substitutions,
     )
-    return [ DefaultInfo(files=depset([ kernel_defines ])) ]
+    return [ DefaultInfo(files=depset([patched])) ]
 
 daal_patch_kernel_defines = rule(
     implementation = _daal_patch_kernel_defines_impl,
@@ -179,5 +181,4 @@ daal_patch_kernel_defines = rule(
             default = "@config//:cpu",
         ),
     },
-    toolchains = ["@onedal//dev/bazel/toolchains:extra"],
 )

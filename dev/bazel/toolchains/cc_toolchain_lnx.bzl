@@ -49,27 +49,14 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
     if not is_found:
         if mandatory:
             auto_configure_fail("Cannot find {}; try to correct your $PATH".format(tool_name))
-        else:
-            repo_ctx.template(
-                "tool_not_found.sh",
-                Label("@onedal//dev/bazel/toolchains/tools:tool_not_found.tpl.sh"),
-                {"%{tool_name}": tool_name},
-            )
-            tool_path = repo_ctx.path("tool_not_found.sh")
+        # Return a sentinel path when the tool is optional and missing.
+        # Callers gate on the returned `is_found` before wiring the path
+        # into any action, so this string is never executed.
+        return "/dev/null/{}_not_found".format(tool_name), False
     return str(tool_path), is_found
 
 def find_tool(repo_ctx, tool_name, mandatory = False):
     return _find_tool(repo_ctx, tool_name, mandatory)
-
-def _create_ar_merge_tool(repo_ctx, ar_path):
-    ar_merge_name = "merge_static_libs.sh"
-    repo_ctx.template(
-        ar_merge_name,
-        Label("@onedal//dev/bazel/toolchains/tools:merge_static_libs_lnx.tpl.sh"),
-        {"%{ar_path}": ar_path},
-    )
-    ar_merge_path = repo_ctx.path(ar_merge_name)
-    return str(ar_merge_path)
 
 def _create_dynamic_link_wrapper(repo_ctx, prefix, cc_path):
     wrapper_name = prefix + "_dynamic_link.sh"
@@ -90,11 +77,10 @@ def _find_tools(repo_ctx, reqs):
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
     if dpcpp_found:
-        #The llvm-ar tool is used because bazel prepended directory names with +
-        #which caused issues with the default gnu ar tool on REHL. Since icx is clang based we can use the llvm-ar tool.
+        # Use llvm-ar because Bazel prefixes external repo dirs with `+`,
+        # which confuses gnu ar on RHEL. icx is clang-based so llvm-ar is
+        # a drop-in replacement.
         ar_path = cc_path[:-3] + "compiler/llvm-ar"
-
-    ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
 
     return struct(
         cc = cc_path,
@@ -103,7 +89,6 @@ def _find_tools(repo_ctx, reqs):
         dpcc_link = dpcc_link_path,
         strip = strip_path,
         ar = ar_path,
-        ar_merge = ar_merge_path,
         is_dpc_found = dpcpp_found,
         dpc_compiler_version = reqs.dpc_compiler_version
     )
@@ -209,9 +194,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{compiler_deps}": get_starlark_list([
                 ":builtin_include_directory_paths",
             ]),
-            "%{ar_deps}": get_starlark_list([
-                ":" + paths.basename(tools.ar_merge),
-            ]),
+            "%{ar_deps}": get_starlark_list([]),
             "%{linker_deps}": get_starlark_list([
                 ":" + paths.basename(tools.cc_link),
                 ":" + paths.basename(tools.dpcc_link),
@@ -223,7 +206,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{cc_link_path}": tools.cc_link,
             "%{dpcc_link_path}": tools.dpcc_link,
             "%{ar_path}": tools.ar,
-            "%{ar_merge_path}": tools.ar_merge,
             "%{strip_path}": tools.strip,
             "%{cxx_builtin_include_directories}": get_starlark_list(builtin_include_directories),
             "%{compile_flags_cc}": get_starlark_list(

@@ -20,16 +20,24 @@ dev/bazel/
 ├── BUILD           # Root Bazel configuration
 ├── cc/             # C++ build rules and configurations
 ├── config/         # Build configurations and toolchains
-├── deps/           # External dependencies
+├── rules/          # Bazel BUILD-time rules (mpi_test, ccl_test)
 └── toolchains/     # Compiler toolchain configurations
+
+third_party/
+├── repo.bzl        # Shared repo-rule factory for prebuilt-libs deps
+├── <dep>/
+│   ├── workspace.bzl        # External repo declaration
+│   ├── <dep>.tpl.BUILD      # BUILD template for the external repo
+│   └── <dep>.win.tpl.BUILD  # Windows variant (optional)
+└── catch2/catch2.BUILD      # Overlay for http_archive-fetched deps
 ```
 
 ## 🎯 Configuration Files
-- **[MODULE.bazel](MODULE.bazel)** - Root module configuration
+- **[MODULE.bazel](MODULE.bazel)** - Root module configuration; declares external deps via `//third_party/<dep>:workspace.bzl`
 - **[.bazelrc](.bazelrc)** - Bazel configuration options
 - **[dev/bazel/BUILD](BUILD)** - Root build configuration
 - **[dev/bazel/cc/BUILD](cc/BUILD)** - C++ build configuration
-- **[dev/bazel/deps/BUILD](deps/BUILD)** - Dependency management
+- **[third_party/](../../third_party)** - One folder per external C++ dep (MKL, TBB, MPI, oneCCL, oneDPL, OpenCL, OpenMP, OpenBLAS, onedal_release)
 
 ### Module Configuration
 ```python
@@ -53,7 +61,7 @@ cc_library(
     hdrs = glob(["include/**/*.h"]),
     deps = [
         "//path/to:dependency",
-        "//dev/bazel/deps:external_lib",
+        "@mkl//:mkl_core",         # external dep from //third_party/mkl
     ],
     visibility = ["//visibility:public"],
     copts = ["-std=c++17", "-O3"],
@@ -67,7 +75,7 @@ cc_test(
     srcs = glob(["test/**/*.cpp"]),
     deps = [
         ":library_name",
-        "//dev/bazel/deps:catch2",
+        "@catch2//:catch2",
     ],
     copts = ["-std=c++17", "-g"],
 )
@@ -92,22 +100,12 @@ bazel clean --expunge
 ## 🔧 Dependency Management
 
 ### External Dependencies
-```python
-# dev/bazel/deps/BUILD
-cc_library(
-    name = "tbb",
-    srcs = glob(["tbb/src/**/*.cpp"]),
-    hdrs = glob(["tbb/include/**/*.h"]),
-    visibility = ["//visibility:public"],
-)
+Each external C++ dep lives in `//third_party/<dep>/` with three files:
+- `workspace.bzl` - declares the repo rule (usually via `repos.prebuilt_libs_repo_rule`)
+- `<dep>.tpl.BUILD` - BUILD template evaluated inside the external repo; defines `cc_library` targets like `@<dep>//:headers` and `@<dep>//:<dep>_core`
+- `<dep>.win.tpl.BUILD` - Windows variant (optional; only some deps ship different layouts)
 
-cc_library(
-    name = "mkl",
-    srcs = glob(["mkl/lib/**/*.so"]),
-    hdrs = glob(["mkl/include/**/*.h"]),
-    visibility = ["//visibility:public"],
-)
-```
+Consumers reference deps by external label (e.g. `@mkl//:mkl_core`), not by any local `//dev/bazel/...` alias.
 
 ## 🎯 Development Guidelines
 
@@ -118,7 +116,7 @@ cc_library(
 
 ### Dependencies
 - **Internal**: Use relative paths (e.g., `//cpp/daal:daal`)
-- **External**: Use dependency rules (e.g., `//dev/bazel/deps:tbb`)
+- **External**: Use external labels (e.g., `@tbb//:tbb`); the repo is declared in `//third_party/<dep>/workspace.bzl` and wired in `MODULE.bazel`
 - **Visibility**: Set appropriate visibility levels
 
 ## 🔍 Common Patterns

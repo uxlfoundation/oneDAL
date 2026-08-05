@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2026 Intel Corporation
+# Copyright 2023 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,14 +14,15 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+load("@onedal//third_party:repo.bzl", "repos")
 
-openmp_repo = repos.prebuilt_libs_repo_rule(
+openblas_repo = repos.prebuilt_libs_repo_rule(
     includes = [
         "include",
     ],
     libs = [
-        "lib/libgomp.so*",
+            "lib/libopenblas.a", 
+            "lib/libgfortran.a", 
     ],
-    build_template = "@onedal//dev/bazel/deps:openmp.tpl.BUILD",
+    build_template = "@onedal//third_party/openblas:openblas.tpl.BUILD",
 )
