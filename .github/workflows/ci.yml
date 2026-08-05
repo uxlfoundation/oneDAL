@@ -123,13 +123,23 @@ jobs:
       - name: daal/cpp/mpi samples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            # Azure GHA runners expose a MANA paravirtualized NIC (mana_0) that
-            # Intel MPI's OFI autoselect probes as a verbs/PSM3 device; the UD QP
-            # open fails with EINVAL and MPI_Init aborts before the sample runs.
-            # All ranks are on a single VM, so pin the fabric to shared memory
-            # and force libfabric off the verbs/PSM3 providers.
-            export I_MPI_FABRICS=shm
-            export FI_PROVIDER=tcp
+            # Azure GHA runners expose a MANA paravirtualized NIC that Intel
+            # MPI's OFI autoselect probes as a verbs/PSM3 device; the UD QP
+            # open fails with EINVAL and MPI_Init aborts before the sample
+            # runs. Probe libfabric directly: if the verbs provider cannot
+            # enumerate a usable endpoint on this host, pin the fabric to
+            # shared memory and force libfabric onto tcp so autoselect never
+            # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
+            # and the override is skipped, preserving the native fabric.
+            if command -v fi_info > /dev/null 2>&1; then
+                if ! fi_info -p verbs > /dev/null 2>&1; then
+                    echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
+                    export I_MPI_FABRICS=shm
+                    export FI_PROVIDER=tcp
+                fi
+            else
+                echo "warning: fi_info not on PATH after setvars.sh; cannot probe verbs provider" >&2
+            fi
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
