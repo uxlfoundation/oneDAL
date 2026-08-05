@@ -98,8 +98,10 @@ test:dpc \
     --test_tag_filters="dpc"
 
 
-# Configuration: 'host-public'
-# Build & run all host tests for public interface
+# Composite configurations (host|dpc) x (public|private).
+# NOTE: cannot compose via --config=host --config=public because
+# --{build,test}_tag_filters is single-valued in bazel (repeats
+# overwrite), so tag lists must be spelled out per config.
 build:host-public \
     --build_tag_filters="host,-private"
 
@@ -107,8 +109,6 @@ test:host-public \
     --test_tag_filters="host,-private"
 
 
-# Configuration: 'host-private'
-# Build & run all host tests for internal functionality
 build:host-private \
     --build_tag_filters="host,-public"
 
@@ -116,8 +116,6 @@ test:host-private \
     --test_tag_filters="host,-public"
 
 
-# Configuration: 'dpc-public'
-# Build & run all DPC++ tests for public interface
 build:dpc-public \
     --build_tag_filters="dpc,-private"
 
@@ -125,8 +123,6 @@ test:dpc-public \
     --test_tag_filters="dpc,-private"
 
 
-# Configuration: 'dpc-private'
-# Build & run all DPC++ tests for internal functionality
 build:dpc-private \
     --build_tag_filters="dpc,-public"
 
