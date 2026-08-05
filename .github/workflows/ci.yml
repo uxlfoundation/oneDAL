@@ -131,7 +131,7 @@ jobs:
             # shared memory and force libfabric onto tcp so autoselect never
             # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
             # and the override is skipped, preserving the native fabric.
-            if command -v fi_info > /dev/null 2>&1; then
+            if [ ! -z "$(command -v fi_info)" ]; then
                 if ! fi_info -p verbs > /dev/null 2>&1; then
                     echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
                     export I_MPI_FABRICS=shm
