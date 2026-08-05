@@ -24,14 +24,17 @@ startup_args=()
 if [[ -n "${BAZEL_OUTPUT_USER_ROOT:-}" ]]; then
     startup_args+=("--output_user_root=${BAZEL_OUTPUT_USER_ROOT}")
 fi
+common_args=(--code_coverage=true --release_dpc=true)
+if [[ -n "${BAZEL_DISK_CACHE:-}" ]]; then
+    common_args+=("--disk_cache=${BAZEL_DISK_CACHE}")
+fi
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
 target="//cpp/oneapi/dal/table:table_dpc"
-"${bazel_cmd}" "${startup_args[@]}" build "${target}" \
-    --code_coverage=true --release_dpc=true
+"${bazel_cmd}" "${startup_args[@]}" build "${target}" "${common_args[@]}"
 "${bazel_cmd}" "${startup_args[@]}" aquery "deps(${target})" \
-    --code_coverage=true --release_dpc=true --output=jsonproto >"${work}/actions.json"
+    "${common_args[@]}" --output=jsonproto >"${work}/actions.json"
 
 python3 - "${work}/actions.json" <<'PY'
 import json

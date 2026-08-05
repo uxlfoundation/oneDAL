@@ -465,15 +465,24 @@ jobs:
     displayName: 'Bazel config smoke checks'
 
   - script: |
+      set -eo pipefail
       source /opt/intel/oneapi/setvars.sh
-      export BAZEL_OUTPUT_USER_ROOT="$(Agent.TempDirectory)/bazel-coverage-cpu"
+      coverage_root="$(Agent.TempDirectory)/bazel-coverage-cpu"
+      export BAZEL_OUTPUT_USER_ROOT="${coverage_root}/output"
+      export BAZEL_DISK_CACHE="${coverage_root}/disk-cache"
+      cleanup() {
+        result=$?
+        set +e
+        echo '=== disk after CPU coverage smoke ==='
+        df -h .
+        du -sh "${coverage_root}" 2>/dev/null || true
+        rm -rf "${coverage_root}"
+        exit "${result}"
+      }
+      trap cleanup EXIT
       echo '=== disk before CPU coverage smoke ==='
       df -h .
       BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
-      echo '=== disk after CPU coverage smoke ==='
-      df -h .
-      du -sh "${BAZEL_OUTPUT_USER_ROOT}" 2>/dev/null || true
-      rm -rf "${BAZEL_OUTPUT_USER_ROOT}"
     displayName: 'Bazel CPU code-coverage smoke build'
 
   - script: |
@@ -651,17 +660,26 @@ jobs:
       .ci/env/apt.sh dpcpp
     displayName: 'DPC++ compiler and runtime installation'
   - script: |
+      set -eo pipefail
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
       source /opt/intel/oneapi/setvars.sh
-      export BAZEL_OUTPUT_USER_ROOT="$(Agent.TempDirectory)/bazel-coverage-dpc"
+      coverage_root="$(Agent.TempDirectory)/bazel-coverage-dpc"
+      export BAZEL_OUTPUT_USER_ROOT="${coverage_root}/output"
+      export BAZEL_DISK_CACHE="${coverage_root}/disk-cache"
+      cleanup() {
+        result=$?
+        set +e
+        echo '=== disk after DPC++ coverage smoke ==='
+        df -h .
+        du -sh "${coverage_root}" 2>/dev/null || true
+        rm -rf "${coverage_root}"
+        exit "${result}"
+      }
+      trap cleanup EXIT
       echo '=== disk before DPC++ coverage smoke ==='
       df -h .
       BAZEL=bazel dev/bazel/tests/code_coverage_dpc_test.sh
-      echo '=== disk after DPC++ coverage smoke ==='
-      df -h .
-      du -sh "${BAZEL_OUTPUT_USER_ROOT}" 2>/dev/null || true
-      rm -rf "${BAZEL_OUTPUT_USER_ROOT}"
     displayName: 'Bazel DPC++ code-coverage smoke build'
 
 - job: 'LinuxReleaseCompare'
