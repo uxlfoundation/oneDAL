@@ -103,6 +103,8 @@ public:
     MSG(failed_to_generate_random_numbers);
 
     /* Tables */
+    MSG(alloc_kinds_of_chunks_do_not_match);
+    MSG(alloc_kinds_of_arrays_do_not_match);
     MSG(allocated_memory_size_is_not_enough_to_copy_data);
     MSG(cannot_get_data_type_from_empty_metadata);
     MSG(cannot_get_feature_type_from_empty_metadata);

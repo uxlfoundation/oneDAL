@@ -356,10 +356,10 @@ void setProbabilities(const size_t treeId, const size_t nodeId, const size_t res
                       const double * const prob);
 
 template <typename ClassOrResponseType>
-static services::Status addLeafNodeInternal(const data_management::DataCollectionPtr & serializationData, const size_t treeId, const size_t parentId,
-                                            const size_t position, ClassOrResponseType response, double cover, size_t & res,
-                                            const data_management::DataCollectionPtr probTbl = data_management::DataCollectionPtr(),
-                                            const double * const prob = nullptr, const size_t nClasses = 0)
+services::Status addLeafNodeInternal(const data_management::DataCollectionPtr & serializationData, const size_t treeId, const size_t parentId,
+                                     const size_t position, ClassOrResponseType response, double cover, size_t & res,
+                                     const data_management::DataCollectionPtr probTbl = data_management::DataCollectionPtr(),
+                                     const double * const prob = nullptr, const size_t nClasses = 0)
 {
     const size_t noParent = static_cast<size_t>(-1);
     if (prob != nullptr)
