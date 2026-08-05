@@ -347,7 +347,6 @@ def _copy_data(ctx, prefix):
     return dst_files
 
 def _copy_to_release_impl(ctx):
-    extra_toolchain = ctx.toolchains["@onedal//dev/bazel/toolchains:extra"]
     prefix = ctx.attr.name + "/daal/latest"
     version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
     files = []
@@ -410,9 +409,6 @@ _release = rule(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
     },
-    toolchains = [
-        "@onedal//dev/bazel/toolchains:extra"
-    ],
 )
 
 def _headers_filter_impl(ctx):

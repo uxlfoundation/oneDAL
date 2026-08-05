@@ -45,11 +45,6 @@ use_repo(sh_config_ext, "onedal_cc_toolchain")
 register_toolchains("@{}//:all".format("onedal_cc_toolchain"))
 
 
-extra_toolchain_ext = use_extension("@onedal//dev/bazel/toolchains:extra_toolchain_extension.bzl", "onedal_extra_toolchain_extension")
-use_repo(extra_toolchain_ext, "onedal_extra_toolchain")
-register_toolchains("@{}//:all".format("onedal_extra_toolchain"))
-
-
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_archive(
     name = "catch2",

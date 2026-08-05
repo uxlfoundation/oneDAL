@@ -33,15 +33,9 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
     if not is_found:
         if mandatory:
             fail("Cannot find {}; is it on PATH?".format(tool_name))
-        else:
-            # Stub path so repo generation does not fail; the resulting
-            # toolchain is only valid when the compiler is actually present.
-            repo_ctx.template(
-                "tool_not_found_{}.bat".format(tool_name),
-                Label("@onedal//dev/bazel/toolchains/tools:tool_not_found.tpl.bat"),
-                {"%{tool_name}": tool_name},
-            )
-            tool_path = repo_ctx.path("tool_not_found_{}.bat".format(tool_name))
+        # Sentinel path: non-existent, safe because callers gate on
+        # `is_found` before wiring the path into any action.
+        return "NUL\\tool_not_found_{}".format(tool_name), False
     return str(tool_path), is_found
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
@@ -75,8 +69,8 @@ def _find_tools_icx(repo_ctx):
     if not lld_found:
         cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
     # Static archiver: same as before, llvm-lib first then MSVC lib.
-    ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
-    if not ar_path or ar_path.endswith("tool_not_found_llvm-lib.bat"):
+    ar_path, ar_found = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
+    if not ar_found:
         ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
     return struct(
         cc = cc_path,
