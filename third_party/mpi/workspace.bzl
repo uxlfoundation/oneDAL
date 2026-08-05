@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2020 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,14 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+"""External repo rule for Intel MPI.
+
+Repo-side symbol only. The mpi_test rule (a BUILD-time Bazel `rule()`) lives
+in //dev/bazel/rules:mpi_test.bzl because it must be loadable from the main
+workspace, not from an external repository.
+"""
+
+load("@onedal//third_party:repo.bzl", "repos")
 
 mpi_repo = repos.prebuilt_libs_repo_rule(
     bins = [
@@ -40,12 +47,10 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "libfabric/lib/prov/libverbs-1.1-fi.so",
         "libfabric/lib/prov/libverbs-1.12-fi.so",
     ],
-    build_template = "@onedal//dev/bazel/deps:mpi.tpl.BUILD",
+    build_template = "@onedal//third_party/mpi:mpi.tpl.BUILD",
     download_mapping = {
-        # Required directory layout and layout in the downloaded
-        # archives may be different. Mapping helps to setup relations
-        # between the required layout (LHS) and downloaded (RHS).
-        #          REQUIRED                              DOWNLOADED
+        # Required layout and downloaded-archive layout may differ.
+        # LHS = required (from bazel's perspective), RHS = actual downloaded path.
         "libfabric/lib/libfabric.so":                   "lib/libfabric.so",
         "libfabric/lib/libfabric.so.1":                 "lib/libfabric.so.1",
         "lib/release/libmpi.so":                        "lib/libmpi.so",
@@ -62,62 +67,4 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "libfabric/lib/prov/libverbs-1.1-fi.so":        "lib/libverbs-1.1-fi.so",
         "libfabric/lib/prov/libverbs-1.12-fi.so":       "lib/libverbs-1.12-fi.so",
     },
-)
-
-def _get_fi_providers_dir(fi_files):
-    if len(fi_files) == 0:
-        fail("No fabrin interface files provided for MPI")
-    fi_dir = fi_files[0].dirname
-    for fi in fi_files:
-        if fi.dirname != fi_dir:
-            fail("All fabric interface files must reside in the same directory")
-    return fi_dir
-
-def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
-    exec_wrapper = ctx.actions.declare_file(ctx.label.name)
-    content = (
-        "#!/bin/bash\n" +
-        "# We need to check if we are in the runfiles directory.\n" +
-        "# If no change current directory to runfiles.\n" +
-        "runfiles_suffix=\".runfiles/{}\"\n".format(ctx.workspace_name) +
-        "if [[ ! \"$(pwd)\" =~ \"$runfiles_suffix\" ]]; then\n" +
-        "   script_path=\"${BASH_SOURCE[0]}\"\n" +
-        "   cd ${script_path}${runfiles_suffix}\n" +
-        "fi\n" +
-        "export FI_PROVIDER_PATH=\"{}\"\n".format(fi_dir) +
-        "{} -n {} {} \"$@\"\n".format(mpiexec.path,
-                                      ctx.attr.mpi_ranks,
-                                      executable.short_path)
-    )
-    ctx.actions.write(exec_wrapper, content, is_executable=True)
-    return exec_wrapper
-
-def _mpi_test_impl(ctx):
-    exec = ctx.executable.src
-    mpiexec = ctx.files.mpiexec[0]
-    fi_files = ctx.files.fi
-    fi_dir = _get_fi_providers_dir(fi_files)
-    exec_wrapper = _generate_mpiexec_wrapper(ctx, mpiexec, exec, fi_dir)
-    return DefaultInfo(
-        files = depset([ exec_wrapper ]),
-        runfiles = ctx.runfiles(
-            files = fi_files + [ exec ],
-            transitive_files = ctx.attr.mpiexec.default_runfiles.files,
-        ),
-        executable = exec_wrapper,
-    )
-
-mpi_test = rule(
-    implementation = _mpi_test_impl,
-    attrs = {
-        "src": attr.label(mandatory=True,
-                          executable=True,
-                          cfg="exec"),
-        "mpi_ranks": attr.int(mandatory=True),
-        "mpiexec": attr.label(mandatory=True,
-                              executable=True,
-                              cfg="exec"),
-        "fi": attr.label(mandatory=True),
-    },
-    test = True,
 )

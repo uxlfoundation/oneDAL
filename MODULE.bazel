@@ -28,6 +28,18 @@ use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
 declare_onedal_config(name = "config",)
 
+# =============================================================================
+# External C++ dependencies
+#
+# All third-party libraries live under //third_party/<dep>/. Each has:
+#   - workspace.bzl      : repo_rule declaration
+#   - BUILD.tpl.bazel    : Linux BUILD template
+#   - BUILD.win.tpl.bazel: Windows BUILD template (optional)
+#   - BUILD              : marker file (empty, present so labels resolve)
+#
+# The shared repo-rule factory lives in //third_party:repo.bzl.
+# =============================================================================
+
 sh_config_ext = use_extension("@onedal//dev/bazel/toolchains:cc_toolchain_extension.bzl", "cc_toolchain_extension")
 use_repo(sh_config_ext, "onedal_cc_toolchain")
 register_toolchains("@{}//:all".format("onedal_cc_toolchain"))
@@ -44,14 +56,14 @@ http_archive(
     url = "https://github.com/catchorg/Catch2/archive/v3.9.1.tar.gz",
     sha256 = "a215c2a723bd7483efd236dc86066842a389cb4e344c61119c978acdf24d39be",
     strip_prefix = "Catch2-3.9.1",
-    build_file = "//dev/bazel/deps:catch2.BUILD",
+    build_file = "//third_party/catch2:catch2.BUILD",
 )
 
-opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
+opencl_repo = use_repo_rule("@onedal//third_party/opencl:workspace.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
 
 # GNU OpenMP (libgomp) - required by MKL gnu_thread
-openmp_repo = use_repo_rule("@onedal//dev/bazel/deps:openmp.bzl", "openmp_repo")
+openmp_repo = use_repo_rule("@onedal//third_party/openmp:workspace.bzl", "openmp_repo")
 openmp_repo(
     name = "openmp",
     root_env_var = "GOMPROOT",
@@ -66,10 +78,10 @@ openmp_repo(
     ],
 )
 
-openblas_repo = use_repo_rule("@onedal//dev/bazel/deps:openblas.bzl", "openblas_repo")
+openblas_repo = use_repo_rule("@onedal//third_party/openblas:workspace.bzl", "openblas_repo")
 openblas_repo(name = "openblas", root_env_var = "OPENBLASROOT",)
 
-tbb_repo = use_repo_rule("@onedal//dev/bazel/deps:tbb.bzl", "tbb_repo")
+tbb_repo = use_repo_rule("@onedal//third_party/tbb:workspace.bzl", "tbb_repo")
 tbb_repo(
     name = "tbb",
     root_env_var = "TBBROOT",
@@ -99,7 +111,7 @@ tbb_repo(
     ],
 )
 
-mpi_repo = use_repo_rule("@onedal//dev/bazel/deps:mpi.bzl", "mpi_repo")
+mpi_repo = use_repo_rule("@onedal//third_party/mpi:workspace.bzl", "mpi_repo")
 mpi_repo(
     name = "mpi",
     root_env_var = "MPIROOT",
@@ -117,7 +129,7 @@ mpi_repo(
     ]
 )
 
-ccl_repo = use_repo_rule("@onedal//dev/bazel/deps:ccl.bzl", "ccl_repo")
+ccl_repo = use_repo_rule("@onedal//third_party/ccl:workspace.bzl", "ccl_repo")
 ccl_repo(
     name = "ccl",
     root_env_var = "CCL_ROOT",
@@ -132,7 +144,7 @@ ccl_repo(
     ]
 )
 
-dpl_repo = use_repo_rule("@onedal//dev/bazel/deps:dpl.bzl", "dpl_repo")
+dpl_repo = use_repo_rule("@onedal//third_party/dpl:workspace.bzl", "dpl_repo")
 dpl_repo(
     name = "dpl",
     root_env_var = "DPL_ROOT",
@@ -154,7 +166,7 @@ dpl_repo(
 # but for building and linking we also need the unversioned symlinks (e.g., libmkl_blas_sycl.so).
 # Anaconda packages provide both, so we use them to ensure proper dynamic linking.
 #
-mkl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo")
+mkl_repo = use_repo_rule("@onedal//third_party/mkl:workspace.bzl", "mkl_repo")
 mkl_repo(
     name = "mkl",
     root_env_var = "MKLROOT",
@@ -244,7 +256,7 @@ mkl_repo(
     ],
 )
 
-onedal_repo = use_repo_rule("@onedal//dev/bazel/deps:onedal.bzl", "onedal_repo")
+onedal_repo = use_repo_rule("@onedal//third_party/onedal_release:workspace.bzl", "onedal_repo")
 onedal_repo(
     name = "onedal_release",
     root_env_var = "DALROOT",

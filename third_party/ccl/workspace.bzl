@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2020 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,29 +14,23 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+"""External repo rule for oneCCL.
 
-tbb_repo = repos.prebuilt_libs_repo_rule(
+Repo-side symbol only. The ccl_test rule (a BUILD-time Bazel `rule()`) lives
+in //dev/bazel/rules:ccl_test.bzl.
+"""
+
+load("@onedal//third_party:repo.bzl", "repos")
+
+ccl_repo = repos.prebuilt_libs_repo_rule(
     includes = [
-        "include",
+        "include/cpu_gpu_dpcpp/oneapi/",
     ],
     libs = [
-        "lib/libtbb.so",
-        "lib/libtbb.so.12",
-        "lib/libtbbmalloc.so",
-        "lib/libtbbmalloc.so.2",
+        "lib/cpu_gpu_dpcpp/libccl.a",
+        "lib/cpu_gpu_dpcpp/libccl.so",
+        "lib/cpu_gpu_dpcpp/libccl.so.1",
+        "lib/cpu_gpu_dpcpp/libccl.so.1.0",
     ],
-    build_template = "@onedal//dev/bazel/deps:tbb.tpl.BUILD",
-    win_includes = [
-        "include",
-    ],
-    win_libs = [
-        "lib/tbb12.lib",
-        "lib/tbbmalloc.lib",
-    ],
-    win_bins = [
-        "bin/tbb12.dll",
-        "bin/tbbmalloc.dll",
-    ],
-    win_build_template = "@onedal//dev/bazel/deps:tbb_win.tpl.BUILD",
+    build_template = "@onedal//third_party/ccl:ccl.tpl.BUILD",
 )

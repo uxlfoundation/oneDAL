@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+load("@onedal//third_party:repo.bzl", "repos")
 
 onedal_repo = repos.prebuilt_libs_repo_rule(
     includes = [
@@ -63,6 +63,6 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "redist/intel64/onedal_core.%{version_binary_major}.dll",
         "redist/intel64/onedal_thread.%{version_binary_major}.dll",
     ],
-    build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
-    win_build_template = "@onedal//dev/bazel/deps:onedal_win.tpl.BUILD",
+    build_template = "@onedal//third_party/onedal_release:onedal.tpl.BUILD",
+    win_build_template = "@onedal//third_party/onedal_release:onedal.win.tpl.BUILD",
 )

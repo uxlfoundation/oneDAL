@@ -21,11 +21,11 @@ load("@onedal//dev/bazel:cc.bzl",
     "cc_test",
     "ModuleInfo",
 )
-load("@onedal//dev/bazel/deps:mpi.bzl",
+load("@onedal//dev/bazel/rules:mpi_test.bzl",
     "mpi_test",
 )
 
-load("@onedal//dev/bazel/deps:ccl.bzl",
+load("@onedal//dev/bazel/rules:ccl_test.bzl",
     "ccl_test",
 )
 load("@onedal//dev/bazel:release.bzl",

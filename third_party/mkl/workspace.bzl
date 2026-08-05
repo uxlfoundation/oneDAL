@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:repos.bzl", "repos")
+load("@onedal//third_party:repo.bzl", "repos")
 
 mkl_repo = repos.prebuilt_libs_repo_rule(
     includes = [
@@ -32,7 +32,7 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
     ],
-    build_template = "@onedal//dev/bazel/deps:mkl.tpl.BUILD",
+    build_template = "@onedal//third_party/mkl:mkl.tpl.BUILD",
     win_includes = [
         "include",
     ],
@@ -51,7 +51,7 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
     win_bins = [
         "bin/*.dll",
     ],
-    win_build_template = "@onedal//dev/bazel/deps:mkl_win.tpl.BUILD",
+    win_build_template = "@onedal//third_party/mkl:mkl.win.tpl.BUILD",
     download_mapping = {
     # Required directory layout and layout in the downloaded
     # archives may be different. Mapping helps to setup relations
