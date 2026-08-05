@@ -122,6 +122,7 @@ public:
             errorCode = ReducerErrorCode::memAllocationFailed;
             return;
         }
+        errorCode = ReducerErrorCode::ok;
     }
 
     /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
