@@ -79,6 +79,8 @@ MSG(alloc_kinds_of_chunks_do_not_match,
     "Allocation kinds of the chunks in the chunked array do not match")
 MSG(alloc_kinds_of_arrays_do_not_match,
     "Allocation kinds of the arrays the heterogeneous table is constructed from do not match")
+MSG(queues_of_arrays_do_not_match, "Queues of the arrays in table do not match")
+MSG(queues_of_chunks_do_not_match, "Queues of the chunks in the chunked array do not match")
 MSG(allocated_memory_size_is_not_enough_to_copy_data,
     "Allocated memory size is not enough to copy the data")
 MSG(cannot_get_data_type_from_empty_metadata, "Cannot get data type from empty metadata")
@@ -157,7 +159,7 @@ MSG(archive_is_in_invalid_state,
     "serialization or deserialization was interupted by an exception")
 
 /* General algorithms */
-MSG(accuracy_threshold_lt_zero, "Accuracy_threshold is lower than zero")
+MSG(accuracy_threshold_lt_zero, "Accuracy threshold is lower than zero")
 MSG(class_count_leq_one, "Class count is lower than or equal to one")
 MSG(conv_tol_lt_zero, "Convergence tolerance is less than zero")
 MSG(input_data_is_empty, "Input data is empty")

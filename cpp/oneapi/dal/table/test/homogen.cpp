@@ -209,4 +209,8 @@ TEST("create table from array") {
     REQUIRE(t.get_column_count() == column_count);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+
+#endif
+
 } // namespace oneapi::dal::test
