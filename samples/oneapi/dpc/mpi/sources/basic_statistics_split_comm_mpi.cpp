@@ -32,29 +32,21 @@
 
 namespace dal = oneapi::dal;
 
-// Build a homogen table of shape (row_count, column_count) filled with `value`
-// on the SYCL device associated with `queue`.
-dal::table make_filled_table(sycl::queue& queue,
-                             std::int64_t row_count,
-                             std::int64_t column_count,
-                             float value) {
-    const std::int64_t count = row_count * column_count;
-    auto arr = dal::array<float>::empty(queue, count, sycl::usm::alloc::device);
-    queue.fill(arr.get_mutable_data(), value, count).wait_and_throw();
-    return dal::homogen_table::wrap(arr, row_count, column_count);
-}
-
 float run(sycl::queue& queue, MPI_Comm split_comm, int color) {
     const std::int64_t row_count = 1000;
     const std::int64_t column_count = 10;
-    const float fill_value = static_cast<float>(color);
+    const std::int64_t count = row_count * column_count;
 
     // Each rank produces its own local block of data (zeros for group 0,
-    // ones for group 1). Aggregation across the ranks of each sub-communicator
-    // is performed by the compute() collective below. The two groups run this
-    // section concurrently -- collectives on the sub-communicator only
-    // synchronize the ranks within that group.
-    const auto data = make_filled_table(queue, row_count, column_count, fill_value);
+    // ones for group 1) using dal::array's built-in factories -- no manual
+    // sycl::queue::fill needed. Aggregation across the ranks of each
+    // sub-communicator is performed by the compute() collective below. The two
+    // groups run this section concurrently -- collectives on the
+    // sub-communicator only synchronize the ranks within that group.
+    auto arr = (color == 0)
+                   ? dal::array<float>::zeros(queue, count, sycl::usm::alloc::device)
+                   : dal::array<float>::full(queue, count, 1.0f, sycl::usm::alloc::device);
+    const auto data = dal::homogen_table::wrap(arr, row_count, column_count);
 
     const auto bs_desc = dal::basic_statistics::descriptor{};
 
@@ -73,7 +65,7 @@ float run(sycl::queue& queue, MPI_Comm split_comm, int color) {
     // Pull the mean row onto the host so we can return a scalar. basic_statistics
     // returns a 1 x column_count table for each statistic; every column of our
     // input is filled with the same value, so every entry of the mean row must
-    // equal `fill_value`.
+    // equal that value (0.0 for color 0, 1.0 for color 1).
     const auto mean_arr = dal::row_accessor<const float>{ result.get_mean() }.pull(queue);
     return mean_arr[0];
 }
