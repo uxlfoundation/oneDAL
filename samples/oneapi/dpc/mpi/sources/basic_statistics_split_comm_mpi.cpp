@@ -43,9 +43,8 @@ float run(sycl::queue& queue, MPI_Comm split_comm, int color) {
     // sub-communicator is performed by the compute() collective below. The two
     // groups run this section concurrently -- collectives on the
     // sub-communicator only synchronize the ranks within that group.
-    auto arr = (color == 0)
-                   ? dal::array<float>::zeros(queue, count, sycl::usm::alloc::device)
-                   : dal::array<float>::full(queue, count, 1.0f, sycl::usm::alloc::device);
+    auto arr = (color == 0) ? dal::array<float>::zeros(queue, count, sycl::usm::alloc::device)
+                            : dal::array<float>::full(queue, count, 1.0f, sycl::usm::alloc::device);
     const auto data = dal::homogen_table::wrap(arr, row_count, column_count);
 
     const auto bs_desc = dal::basic_statistics::descriptor{};
@@ -56,9 +55,8 @@ float run(sycl::queue& queue, MPI_Comm split_comm, int color) {
     // MPI communicator rather than defaulting to MPI_COMM_WORLD.
     const std::int64_t comm_handle = static_cast<std::int64_t>(MPI_Comm_c2f(split_comm));
 
-    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(
-        queue,
-        comm_handle);
+    auto comm =
+        dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(queue, comm_handle);
 
     const auto result = dal::preview::compute(comm, bs_desc, data);
 
@@ -116,13 +114,13 @@ int main(int argc, char const* argv[]) {
     // MPI_COMM_WORLD must participate in each MPI_Barrier, so the color guards
     // wrap only the std::cout call; both groups reach both barriers.
     if (color == 0 && sub_rank == 0) {
-        std::cout << "Group 0 (sub-communicator size = " << sub_size
-                  << ") mean: " << mean_value << std::endl;
+        std::cout << "Group 0 (sub-communicator size = " << sub_size << ") mean: " << mean_value
+                  << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if (color == 1 && sub_rank == 0) {
-        std::cout << "Group 1 (sub-communicator size = " << sub_size
-                  << ") mean: " << mean_value << std::endl;
+        std::cout << "Group 1 (sub-communicator size = " << sub_size << ") mean: " << mean_value
+                  << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
