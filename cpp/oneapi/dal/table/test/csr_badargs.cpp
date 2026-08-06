@@ -99,7 +99,7 @@ TEST((std::string("cannot construct table from arrays allocated on different dev
 
     REQUIRE_THROWS_AS(
         csr_table::wrap(data_array, column_indices_array, row_offsets_array, column_count),
-        dal::domain_error);
+        dal::invalid_argument);
 
     sycl::free(column_indices, q);
     sycl::free(row_offsets, q);
@@ -108,7 +108,7 @@ TEST((std::string("cannot construct table from arrays allocated on different dev
 TEST((std::string("cannot construct table from arrays from different queues")).c_str()) {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
-    sycl::queue q2 = sycl::queue{ sycl::gpu_selector{} };
+    sycl::queue q2 = sycl::queue{ q.get_device() };
     constexpr std::int64_t row_count{ 4 };
     constexpr std::int64_t column_count{ 4 };
     constexpr std::int64_t element_count{ 7 };

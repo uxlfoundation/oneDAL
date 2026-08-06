@@ -140,9 +140,9 @@ public:
     data_layout get_data_layout() const;
 
 #ifdef ONEDAL_DATA_PARALLEL
-    /// Returns a queue that was used to create array object.
-    /// If no queue was provided at the array construction phase,
-    /// returns empty :literal:`std::optional` object.
+    /// Returns the SYCL queue the table data is associated with.
+    /// If the table data is not associated with a queue,
+    /// returns an empty :literal:`std::optional` object.
     std::optional<sycl::queue> get_queue() const;
 #endif
 
