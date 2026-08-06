@@ -86,7 +86,7 @@ TEMPLATE_LIST_TEST_M(covariance_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(covariance_batch_test,
-                     "covariance big variance, small mean flow",
+                     "covariance big mean, small variance flow",
                      "[covariance][integration][online]",
                      covariance_types) {
     SKIP_IF(this->not_float64_friendly());
