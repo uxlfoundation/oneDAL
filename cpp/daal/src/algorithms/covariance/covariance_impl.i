@@ -355,7 +355,6 @@ public:
             return;
         }
         const size_t numRowsInLastBlock = _numRowsInBlock + _dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock;
-        algorithmFPType one             = 1.0;
 
         algorithmFPType * centeredDataBlock = nullptr;
 
@@ -385,7 +384,7 @@ public:
 
                 const algorithmFPType * meansPtr = means();
 
-                /* Sum input array elements in case of non-normalized data */
+                /* Center the input block by subtracting the precomputed column means */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
                     PRAGMA_OMP_SIMD
@@ -399,6 +398,7 @@ public:
             /// Update the cross-product matrix with the data from the block
             {
                 DAAL_PROFILER_THREADING_TASK(reducer.update.syrkData);
+                algorithmFPType one = 1.0;
                 BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, reinterpret_cast<DAAL_INT *>(&nRows), &one, centeredDataBlock,
                                                       &_nFeatures, &one, crossProductPtr, &_nFeatures);
             }
@@ -534,7 +534,9 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         }
 
         const algorithmFPType * resultSums = sumsResult.sums();
-        daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
+        const int memcpy_result =
+            daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
+        DAAL_CHECK(!memcpy_result, services::ErrorMemoryCopyFailedInternal);
     }
 
     CovarianceReducer<algorithmFPType, cpu> result(dataTable, sums, numRowsInBlock, numBlocks, isNormalized);
@@ -567,10 +569,10 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         return services::Status(services::ErrorMemoryAllocationFailed);
     }
 
-    /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
-
-    daal::services::internal::daal_memcpy_s(crossProduct, nFeatures * nFeatures * sizeof(algorithmFPType), resultCrossProduct,
-                                            nFeatures * nFeatures * sizeof(algorithmFPType));
+    /* Copy the result cross-product matrix to the output */
+    const int memcpy_result = daal::services::internal::daal_memcpy_s(crossProduct, nFeatures * nFeatures * sizeof(algorithmFPType),
+                                                                      resultCrossProduct, nFeatures * nFeatures * sizeof(algorithmFPType));
+    DAAL_CHECK(!memcpy_result, services::ErrorMemoryCopyFailedInternal);
 
     return services::Status();
 }
