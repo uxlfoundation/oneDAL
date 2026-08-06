@@ -52,6 +52,12 @@ public:
     std::int64_t get_size_in_bytes() const;
     std::int64_t get_chunk_count() const noexcept;
 
+    /// Returns the allocation kind shared by the populated chunks. All chunks
+    /// are guaranteed to have the same allocation kind, this invariant is
+    /// enforced when chunks are inserted. Returns non_usm when there are no
+    /// populated chunks.
+    alloc_kind get_alloc_kind() const;
+
     chunked_array_base(impl_ptr_t&& impl) : impl_{ std::forward<impl_ptr_t>(impl) } {}
 
     chunked_array_base(const impl_ptr_t& impl) : impl_{ impl } {}
@@ -198,6 +204,11 @@ private:
         const auto& internals = acc.get_pimpl(arr);
         return array_impl_t::reinterpret(*internals);
     }
+
+    /// Throws if the allocation kind of `incoming` differs from the allocation
+    /// kind already established by the populated chunks. Empty `incoming` chunks
+    /// and the case when the array holds no data yet are accepted unconditionally.
+    void check_same_alloc_kind(const array_impl_t& incoming) const;
 
     static impl_ptr_t make_array_impl(std::int64_t chunk_count);
 

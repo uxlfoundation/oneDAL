@@ -277,6 +277,38 @@ std::int64_t chunked_array_base::get_chunk_count() const noexcept {
     return detail::integral_cast_debug<std::int64_t>(res);
 }
 
+alloc_kind chunked_array_base::get_alloc_kind() const {
+    // All populated chunks share the same allocation kind, this invariant is
+    // enforced when chunks are inserted (see check_same_alloc_kind), so it is
+    // enough to inspect the first populated chunk.
+    const auto chunk_count = this->get_chunk_count();
+    for (std::int64_t c = 0l; c < chunk_count; ++c) {
+        const auto& chunk = this->get_chunk_impl(c);
+        if (chunk.get_data() != nullptr) {
+            return chunk.get_alloc_kind();
+        }
+    }
+
+    return alloc_kind::non_usm;
+}
+
+void chunked_array_base::check_same_alloc_kind(const array_impl_t& incoming) const {
+    if (incoming.get_data() == nullptr) {
+        return;
+    }
+
+    // When the array holds no data yet, get_alloc_kind() returns non_usm by
+    // convention. There is no existing allocation kind to match against in that
+    // case, so the incoming chunk is accepted unconditionally.
+    if (this->get_size_in_bytes() == 0l) {
+        return;
+    }
+
+    if (this->get_alloc_kind() != incoming.get_alloc_kind()) {
+        throw invalid_argument{ error_messages::alloc_kinds_of_chunks_do_not_match() };
+    }
+}
+
 const array_impl<byte_t>& chunked_array_base::get_chunk_impl(std::int64_t i) const {
     const auto cbegin = impl_->immutable_access().get_chunks().cbegin();
     using diff_t = typename decltype(cbegin)::difference_type;
@@ -296,6 +328,8 @@ array_impl<byte_t>& chunked_array_base::get_mut_chunk_impl(std::int64_t i) const
 }
 
 void chunked_array_base::set_chunk_impl(std::int64_t i, array_impl_t array) {
+    this->check_same_alloc_kind(array);
+
     auto accessor = impl_->mutable_access();
     const auto begin = accessor.get_chunks().begin();
 
@@ -317,6 +351,8 @@ void chunked_array_base::set_chunk_impl(std::int64_t i, array_impl_t array) {
 }
 
 void chunked_array_base::append_impl(array_impl_t arr) const {
+    this->check_same_alloc_kind(arr);
+
     auto accessor = impl_->mutable_access();
     accessor.get_chunks().emplace_back(std::move(arr));
 }

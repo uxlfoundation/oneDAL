@@ -73,15 +73,42 @@ inline dal::array<feature_type> find_array_ftypes() {
 }
 
 template <typename... Types>
-inline table_metadata make_default_metadata() {
+inline table_metadata make_default_metadata(const alloc_kind kind = alloc_kind::non_usm) {
     const auto dtypes = find_array_dtypes<Types...>();
     const auto ftypes = find_array_ftypes<Types...>();
-    return table_metadata(dtypes, ftypes);
+    return table_metadata(dtypes, ftypes, kind);
 }
 
-template <typename... Types>
-inline table_metadata make_default_metadata_from_arrays_impl(const std::tuple<Types...>* const) {
-    return make_default_metadata<Types...>();
+/// Deduces a single allocation kind shared by all the input arrays.
+/// The allocation kind of the first array is taken as the reference and all
+/// the remaining arrays are required to have the same allocation kind.
+/// @pre All arrays are allocated with the same allocation kind.
+template <typename... Arrays>
+inline alloc_kind deduce_common_alloc_kind(const Arrays&... arrays) {
+    if constexpr (sizeof...(Arrays) == 0ul) {
+        return alloc_kind::non_usm;
+    }
+    else {
+        bool first = true;
+        alloc_kind common = alloc_kind::non_usm;
+
+        detail::apply(
+            [&](const auto& array) -> void {
+                const auto current = array.get_alloc_kind();
+                if (first) {
+                    common = current;
+                    first = false;
+                }
+                else if (current != common) {
+                    throw invalid_argument{
+                        dal::detail::error_messages::alloc_kinds_of_arrays_do_not_match()
+                    };
+                }
+            },
+            arrays...);
+
+        return common;
+    }
 }
 
 template <typename Array>
@@ -106,9 +133,9 @@ template <typename Array, typename Raw = std::decay_t<Array>>
 using array_type_t = std::decay_t<typename array_type_map<Raw>::type>;
 
 template <typename... Arrays>
-inline table_metadata make_default_metadata_from_arrays() {
-    using type_seq_t = std::tuple<array_type_t<Arrays>...>;
-    return make_default_metadata_from_arrays_impl(reinterpret_cast<const type_seq_t*>(0ul));
+inline table_metadata make_default_metadata_from_arrays(const Arrays&... arrays) {
+    const alloc_kind kind = deduce_common_alloc_kind(arrays...);
+    return make_default_metadata<array_type_t<Arrays>...>(kind);
 }
 
 } // namespace v1

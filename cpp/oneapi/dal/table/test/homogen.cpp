@@ -16,8 +16,11 @@
 
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 namespace oneapi::dal::test {
+
+namespace te = dal::test::engine;
 
 TEST("can construct empty table") {
     homogen_table t;
@@ -46,6 +49,7 @@ TEST("can construct rowmajor table 3x2") {
         REQUIRE(meta.get_data_type(i) == data_type::float32);
         REQUIRE(meta.get_feature_type(i) == feature_type::ratio);
     }
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::non_usm);
 
     REQUIRE(t.get_data<float>() == data);
     // TODO: now have no ctor to specify feature_type of the data
@@ -68,6 +72,7 @@ TEST("can construct colmajor float64 table") {
         REQUIRE(meta.get_data_type(i) == data_type::float64);
         REQUIRE(meta.get_feature_type(i) == feature_type::ratio);
     }
+    REQUIRE(meta.get_alloc_kind() == alloc_kind::non_usm);
 
     REQUIRE(t.get_data<double>() == data);
 }
@@ -93,11 +98,8 @@ TEST("can construct table reference") {
     const auto& m2 = t2.get_metadata();
 
     REQUIRE(t1.get_data_layout() == t2.get_data_layout());
-    // TODO: replace with metadata objects comparison
-    for (std::int64_t i = 0; i < t1.get_column_count(); i++) {
-        REQUIRE(m1.get_data_type(i) == m2.get_data_type(i));
-        REQUIRE(m1.get_feature_type(i) == m2.get_feature_type(i));
-    }
+
+    te::check_if_metadata_equal(m1, m2, true);
 }
 
 TEST("can construct table with move") {
@@ -119,6 +121,7 @@ TEST("can construct table with move") {
     REQUIRE(t2.get_data_layout() == data_layout::row_major);
     REQUIRE(m2.get_data_type(0) == data_type::float32);
     REQUIRE(m2.get_data_type(1) == data_type::float32);
+    REQUIRE(m2.get_alloc_kind() == alloc_kind::non_usm);
     REQUIRE(t2.get_data<float>() == data);
 }
 
@@ -139,13 +142,15 @@ TEST("can assign two table references") {
 
     REQUIRE(t1.get_row_count() == 4);
     REQUIRE(t1.get_column_count() == 3);
-    REQUIRE(t1.get_metadata().get_data_type(0) == data_type::int32);
     REQUIRE(t1.get_data<std::int32_t>() == data_int);
 
     REQUIRE(t2.get_row_count() == 4);
     REQUIRE(t2.get_column_count() == 3);
-    REQUIRE(t2.get_metadata().get_data_type(0) == data_type::int32);
     REQUIRE(t2.get_data<std::int32_t>() == data_int);
+
+    const auto& m1 = t1.get_metadata();
+    const auto& m2 = t2.get_metadata();
+    te::check_if_metadata_equal(m1, m2, true);
 }
 
 TEST("can move assigned table reference") {
