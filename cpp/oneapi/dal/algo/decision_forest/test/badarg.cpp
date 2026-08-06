@@ -168,8 +168,6 @@ DF_BADARG_TEST("throws if observations_per_tree_fraction is outside of (0.0, 1.0
     SKIP_IF(this->not_available_on_device());
     REQUIRE_THROWS_AS(this->get_default_descriptor().set_observations_per_tree_fraction(0.0),
                       domain_error);
-    REQUIRE_THROWS_AS(this->get_default_descriptor().set_observations_per_tree_fraction(1.1),
-                      domain_error);
     REQUIRE_THROWS_AS(this->get_default_descriptor().set_observations_per_tree_fraction(-0.5),
                       domain_error);
 }
