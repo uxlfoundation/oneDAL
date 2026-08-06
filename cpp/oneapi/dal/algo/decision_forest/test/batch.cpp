@@ -281,7 +281,10 @@ DF_BATCH_CLS_TEST_NIGHTLY_EXT("df cls oob per observation flow") {
     const auto error_metric_mode_val =
         error_metric_mode::out_of_bag_error | error_metric_mode::out_of_bag_error_per_observation;
     const std::int64_t features_per_node_val = GENERATE_COPY(0, 4);
-    const double observations_per_tree_fraction_val = GENERATE_COPY(1.0, 0.5);
+    const double observations_per_tree_fraction_val = GENERATE_COPY(1.0, 0.5, 1.2);
+
+    std::cout << "observation per tree fraction: " << observations_per_tree_fraction_val
+              << std::endl;
 
     auto desc = this->get_default_descriptor();
 
@@ -322,9 +325,12 @@ DF_BATCH_CLS_TEST("df cls base check with default params and train weights") {
     const auto [data, data_test, class_count, checker_list] =
         this->get_cls_dataframe_weighted_base();
 
+    const double observations_per_tree_fraction_val = GENERATE_COPY(1.0, 0.5, 1.2);
+
     auto desc = this->get_default_descriptor();
 
     desc.set_class_count(class_count);
+    desc.set_observations_per_tree_fraction(observations_per_tree_fraction_val);
 
     const auto train_result =
         this->train_weighted_base_checks(desc, data, this->get_homogen_table_id());

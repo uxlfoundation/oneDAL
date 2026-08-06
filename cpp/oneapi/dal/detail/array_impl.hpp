@@ -383,6 +383,15 @@ public:
         return policy_var_t{ host_policy };
     }
 
+    alloc_kind get_alloc_kind() const {
+#ifdef ONEDAL_DATA_PARALLEL
+        if (dp_policy_.has_value()) {
+            return dal::detail::get_alloc_kind(dp_policy_.value().get_queue(), get_data());
+        }
+#endif
+        return alloc_kind::non_usm;
+    }
+
 private:
     void reset_policy() {
 #ifdef ONEDAL_DATA_PARALLEL

@@ -336,7 +336,6 @@ TEST("Can get row slice from heterogen to shared") {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
 
-    constexpr auto host = sycl::usm::alloc::host;
     constexpr auto device = sycl::usm::alloc::device;
     constexpr auto shared = sycl::usm::alloc::shared;
 
@@ -350,15 +349,14 @@ TEST("Can get row slice from heterogen to shared") {
     std::iota(begin(arr3), end(arr3), std::int8_t(0));
     chunked_array<std::int8_t> chunked2(arr3);
 
-    auto arr4 = array<std::uint16_t>::empty(q, 20, host);
+    // All columns of a heterogen table must share the same allocation kind.
+    auto arr4 = array<std::uint16_t>::empty(q, 20, shared);
     std::iota(begin(arr4), end(arr4), std::uint16_t(0));
     chunked_array<std::uint16_t> chunked3(arr4);
 
-    auto arr5 = array<std::int32_t>::empty(q, 20, host);
+    auto arr5 = array<std::int32_t>::empty(q, 20, shared);
     std::iota(begin(arr5), end(arr5), std::int32_t(0l));
-    auto arr6 = array<std::int32_t>::empty(q, 20, device);
-    /* Copying to device */ detail::copy(arr6, arr5);
-    chunked_array<std::int32_t> chunked4(arr6);
+    chunked_array<std::int32_t> chunked4(arr5);
 
     auto table = heterogen_table::wrap( //
         chunked1,
@@ -384,7 +382,6 @@ TEST("Can get column slice from heterogen to shared") {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
 
-    constexpr auto host = sycl::usm::alloc::host;
     constexpr auto device = sycl::usm::alloc::device;
     constexpr auto shared = sycl::usm::alloc::shared;
 
@@ -398,15 +395,14 @@ TEST("Can get column slice from heterogen to shared") {
     std::iota(begin(arr1), end(arr1), std::int16_t(0));
     chunked_array<std::int16_t> chunked1(arr1);
 
-    auto arr2 = array<std::uint16_t>::empty(q, count, host);
+    // All columns of a heterogen table must share the same allocation kind.
+    auto arr2 = array<std::uint16_t>::empty(q, count, shared);
     std::iota(begin(arr2), end(arr2), std::uint16_t(0));
     chunked_array<std::uint16_t> chunked2(arr2);
 
-    auto arr3 = array<std::int32_t>::empty(q, count, host);
+    auto arr3 = array<std::int32_t>::empty(q, count, shared);
     std::iota(begin(arr3), end(arr3), std::int32_t(0l));
-    auto arr4 = array<std::int32_t>::empty(q, count, device);
-    /* Copying to device */ detail::copy(arr4, arr3);
-    chunked_array<std::int32_t> chunked3(arr4);
+    chunked_array<std::int32_t> chunked3(arr3);
 
     auto table = heterogen_table::wrap( //
         chunked0,
@@ -437,6 +433,22 @@ TEST("Can get column slice from heterogen to shared") {
 
         check_column(col, first, last, res);
     }
+}
+
+TEST("Cannot build chunked array from chunks with different alloc kinds") {
+    DECLARE_TEST_POLICY(policy);
+    auto& q = policy.get_queue();
+
+    constexpr auto device = sycl::usm::alloc::device;
+    constexpr auto shared = sycl::usm::alloc::shared;
+
+    auto arr0 = array<float>::empty(q, 4l, shared);
+    std::iota(begin(arr0), end(arr0), float(0));
+    auto arr1 = array<float>::empty(q, 4l, device);
+
+    chunked_array<float> chunked(2);
+    chunked.set_chunk(0l, arr0);
+    REQUIRE_THROWS_AS(chunked.set_chunk(1l, arr1), invalid_argument);
 }
 
 #endif // ONEDAL_DATA_PARALLEL
