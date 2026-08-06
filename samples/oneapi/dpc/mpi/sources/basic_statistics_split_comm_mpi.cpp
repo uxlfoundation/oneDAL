@@ -47,7 +47,7 @@ dal::table make_filled_table(sycl::queue& queue,
 float run(sycl::queue& queue, MPI_Comm split_comm, int color) {
     const std::int64_t row_count = 1000;
     const std::int64_t column_count = 10;
-    const float fill_value = (color == 0) ? 0.0f : 1.0f;
+    const float fill_value = static_cast<float>(color);
 
     // Each rank produces its own local block of data (zeros for group 0,
     // ones for group 1). Aggregation across the ranks of each sub-communicator
