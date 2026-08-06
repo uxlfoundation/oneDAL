@@ -1,6 +1,7 @@
 /* file: tsne_gradient_descent_fpt_cpu.cpp */
 /*******************************************************************************
 * Copyright 2022 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -24,7 +25,7 @@
 #include "tsne_gradient_descent_kernel.h"
 #include "tsne_gradient_descent_impl.i"
 
-#if defined(DAAL_INTEL_CPP_COMPILER)
+#if defined(DAAL_INTEL_CPP_COMPILER) && defined(TARGET_X86_64)
     #if (__CPUID__(DAAL_CPU) == __avx512__)
 
         #include <immintrin.h>

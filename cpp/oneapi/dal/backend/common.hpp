@@ -50,7 +50,7 @@
 #define PRAGMA_VECTOR_ALWAYS
 #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
 #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-#elif defined(_MSC_VER) && !defined(__clang__)
+#elif defined(_MSC_VER)
 #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
 #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
 #define PRAGMA_VECTOR_UNALIGNED

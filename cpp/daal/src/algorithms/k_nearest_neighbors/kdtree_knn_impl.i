@@ -1,6 +1,7 @@
 /* file: kdtree_knn_impl.i */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -24,7 +25,7 @@
 #ifndef __KDTREE_KNN_IMPL_I__
 #define __KDTREE_KNN_IMPL_I__
 
-#if defined(_MSC_VER) && !defined(__clang__) || defined(DAAL_INTEL_CPP_COMPILER)
+#if (defined(_MSC_VER) || defined(DAAL_INTEL_CPP_COMPILER)) && defined(TARGET_X86_64)
     #include <immintrin.h>
 #endif
 

@@ -28,7 +28,7 @@
 #include "oneapi/dal/common.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER)
 #define ONEDAL_FORCEINLINE __forceinline
 #else
 #define ONEDAL_FORCEINLINE inline __attribute__((always_inline))

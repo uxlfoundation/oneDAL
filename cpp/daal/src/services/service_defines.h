@@ -137,7 +137,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_VECTOR_ALWAYS
     #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
     #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-#elif defined(_MSC_VER) && !defined(__clang__)
+#elif defined(_MSC_VER)
     #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
     #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
     #define PRAGMA_VECTOR_UNALIGNED
@@ -391,14 +391,14 @@ typedef union
 
 #define COMPUTE_DAAL_VERSION(majorVersion, minorVersion, updateVersion) (majorVersion * 10000 + minorVersion * 100 + updateVersion)
 
-#if defined(_MSC_VER) && !defined(__clang__) || defined(DAAL_INTEL_CPP_COMPILER)
+#if (defined(_MSC_VER) || defined(DAAL_INTEL_CPP_COMPILER)) && defined(TARGET_X86_64)
     #include <immintrin.h>
     #define DAAL_PREFETCH_READ_T0(addr) _mm_prefetch((char *)addr, _MM_HINT_T0)
 #else
     #define DAAL_PREFETCH_READ_T0(addr) __builtin_prefetch((char *)addr, 0, 3)
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER)
     #define DAAL_FORCEINLINE   __forceinline
     #define DAAL_FORCENOINLINE __declspec(noinline)
 #else
@@ -406,13 +406,13 @@ typedef union
     #define DAAL_FORCENOINLINE __attribute__((noinline))
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__) && (_MSC_VER < 1900)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
     #define DAAL_ALIGNAS(n) __declspec(align(n))
 #else
     #define DAAL_ALIGNAS(n) alignas(n)
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER)
     #define DAAL_PACKED_STRUCT(...) __pragma(pack(push, 1)) __VA_ARGS__ __pragma(pack(pop))
 #else
     #define DAAL_PACKED_STRUCT(...) __VA_ARGS__ __attribute__((packed))

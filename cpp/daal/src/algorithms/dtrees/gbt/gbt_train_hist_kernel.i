@@ -1,6 +1,7 @@
 /* file: gbt_train_hist_kernel.i */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,7 +26,7 @@
 #ifndef __GBT_TRAIN_SPLIT_HIST_KERNEL_I__
 #define __GBT_TRAIN_SPLIT_HIST_KERNEL_I__
 
-#if defined(DAAL_INTEL_CPP_COMPILER)
+#if defined(DAAL_INTEL_CPP_COMPILER) && defined(TARGET_X86_64)
     #include <immintrin.h>
 #endif
 

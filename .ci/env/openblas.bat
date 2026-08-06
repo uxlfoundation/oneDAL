@@ -1,6 +1,6 @@
 @echo off
 rem ============================================================================
-rem Copyright 2020 Intel Corporation
+rem Copyright contributors to the oneDAL project
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
@@ -16,10 +16,6 @@ rem limitations under the License.
 rem ============================================================================
 
 setlocal
-
-rem req: PowerShell 3.0+
-powershell.exe -command "if ($PSVersionTable.PSVersion.Major -lt 3) {Write-Host \"The script requires PowerShell 3.0 or above (current version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor))\"; exit 1} else {exit 0}"
-if errorlevel 1 goto Error_load
 
 if /I not "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     echo Current only available for ARM64.
@@ -46,17 +42,17 @@ IF "%VS_VER%"=="2026_build_tools" (
     @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
 )
 
-if not exist "%DST%" powershell.exe -command "New-Item -Path \"%DST%\" -ItemType Directory" >nul
-if not exist "%BLASSOURCEDIR%" powershell.exe -command "New-Item -Path \"%BLASSOURCEDIR%\" -ItemType Directory" >nul
+if not exist "%DST%" mkdir "%DST%" >nul
+if not exist "%BLASSOURCEDIR%" mkdir "%BLASSOURCEDIR%" >nul
 
-powershell.exe -command "(New-Object System.Net.WebClient).DownloadFile('%BLASURL%', '%BLASSOURCEDIR%\openblas.zip')"
+curl -L -o "%BLASSOURCEDIR%\openblas.zip" "%BLASURL%"
 if errorlevel 1 goto Error_load
 
-powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%BLASSOURCEDIR%\openblas.zip\", \"%BLASSOURCEDIR%\") } catch { $_.exception; exit 1 }} else {exit 1}"
+tar -xf "%BLASSOURCEDIR%\openblas.zip" -C "%BLASSOURCEDIR%"
 if errorlevel 1 goto Error_unpack
 
 pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
-    rmdir /s /q build-arm64
+    if exist build-arm64 rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
         -DCMAKE_BUILD_TYPE=Release ^
         -DTARGET=ARMV8 ^

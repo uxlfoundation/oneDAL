@@ -36,9 +36,9 @@
     #include <sys/auxv.h>
     #include <asm/hwcap.h>
 #elif defined(TARGET_ARM) && defined(_MSC_VER)
-    #define KUSER_SHARED_DATA_ADDR   0x7FFE0000UL
-    #define PROCESSOR_FEATURES_OFFSET 0x274
-    #define PF_ARM_SVE_INSTRUCTIONS_AVAILABLE  46
+    #define KUSER_SHARED_DATA_ADDR   0x7FFE0000UL   // Base address of the Windows Shared User Data structure (shared kernel/user-mode page)
+    #define PROCESSOR_FEATURES_OFFSET 0x274         // Byte offset within KUSER_SHARED_DATA where the processor feature flags are located
+    #define PF_ARM_SVE_INSTRUCTIONS_AVAILABLE  46   // Feature flag index for checking ARM Scalable Vector Extension (SVE) support
 #elif defined(TARGET_RISCV64)
 // TODO: Include vector if and when we need to use some vector intrinsics in
 // here

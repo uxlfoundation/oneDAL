@@ -29,7 +29,7 @@
 #include "algorithms/k_nearest_neighbors/kdtree_knn_classification_training_types.h"
 #include "src/algorithms/service_error_handling.h"
 
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER)
     #define DAAL_FORCEINLINE   __forceinline
     #define DAAL_FORCENOINLINE __declspec(noinline)
 #else

@@ -67,7 +67,7 @@
 #endif
 
 /* oneDAL 64-bit integer types */
-#if !(defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && defined(_MSC_VER) && !defined(__clang__)
+#if !(defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && defined(_MSC_VER)
     #define DAAL_INT64  __int64
     #define DAAL_UINT64 unsigned __int64
 #else
@@ -92,7 +92,7 @@
 #else
     #ifdef __GNUC__
         #define DAAL_DEPRECATED __attribute__((deprecated))
-    #elif defined(_MSC_VER) && !defined(__clang__)
+    #elif defined(_MSC_VER)
         #define DAAL_DEPRECATED __declspec(deprecated)
     #else
         #define DAAL_DEPRECATED
@@ -109,7 +109,7 @@
     #endif
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER)
     #define DAAL_FORCEINLINE __forceinline
 #else
     #define DAAL_FORCEINLINE inline __attribute__((always_inline))

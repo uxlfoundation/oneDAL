@@ -1,6 +1,7 @@
 /* file: service_sort.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,7 +29,7 @@
 #include "src/algorithms/service_heap.h"
 #include "services/collection.h"
 
-#if defined(DAAL_INTEL_CPP_COMPILER)
+#if defined(DAAL_INTEL_CPP_COMPILER) && defined(TARGET_X86_64)
     #include <immintrin.h>
 #endif
 
