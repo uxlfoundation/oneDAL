@@ -201,6 +201,17 @@ build:asan-static \
     --config=dbg-symbols
 
 
+# Configuration: 'lsan'
+# LeakSanitizer build for supported Linux non-DPC++ targets.
+# Equivalent to Make: REQSAN=leak
+#   bazel test //cpp/oneapi/dal:tests --config=lsan
+build:lsan \
+    --copt=-fsanitize=leak \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=leak \
+    --config=dbg-symbols
+
+
 # Configuration: 'tsan'
 # ThreadSanitizer build.
 # Equivalent to Make: REQSAN=thread

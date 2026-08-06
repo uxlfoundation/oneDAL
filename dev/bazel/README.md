@@ -515,6 +515,16 @@ For static libasan linkage (equivalent to Make `REQSAN=static`):
 bazel test //cpp/oneapi/dal:tests --config=asan-static --config=dbg
 ```
 
+### LeakSanitizer (LSan)
+
+Equivalent to Make `REQSAN=leak`. This configuration is for Linux non-DPC++ targets
+with a compiler that supports LeakSanitizer. Do not use it for DPC++ targets;
+DPC++ device compilation does not support LSan. Windows ICX does not support it.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=lsan
+```
+
 ### ThreadSanitizer (TSan)
 
 Equivalent to Make `REQSAN=thread`:
@@ -645,6 +655,7 @@ build --linkopt=-your-link-flag
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
 | `REQSAN=static`                | `--config=asan-static`                                       | ASan with static libasan                                                   |
+| `REQSAN=leak`                  | `--config=lsan`                                              | LeakSanitizer; Linux host builds only; compiler support required           |
 | `REQSAN=thread`                | `--config=tsan`                                              | ThreadSanitizer                                                            |
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
