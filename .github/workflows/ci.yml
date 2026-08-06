@@ -228,7 +228,7 @@ jobs:
       # producing libonedal.so). Scanning either library against the
       # other's headers would report every declaration as missing.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
+        uses: abicheck/abicheck@5465a8610e2a01f07abcd9f18ff93ecf2256114f # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -242,7 +242,7 @@ jobs:
           fail-on-api-break: 'false'
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@494d021f20adfec891ab6db3ab56ebf8f00d20aa # main
+        uses: abicheck/abicheck@5465a8610e2a01f07abcd9f18ff93ecf2256114f # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
