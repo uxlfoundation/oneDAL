@@ -290,6 +290,14 @@ def _link(owner, name, actions, cc_toolchain,
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([linker_input]),
     )
+    def_file_link_flags = []
+    if def_file:
+        # MSVC link.exe consumes module-definition files through /DEF:. The
+        # @file spelling is a response file, not a DEF file, and causes the
+        # Windows linker to export symbols discovered from whole archives
+        # instead of the explicit Make-compatible export surface.
+        def_file_link_flags = (["/DEF:" + def_file.path] if is_windows else
+                               ["@" + def_file.path])
     linking_outputs = cc_common.link(
         name = name,
         actions = actions,
@@ -299,7 +307,7 @@ def _link(owner, name, actions, cc_toolchain,
         linking_contexts = [linking_context],
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
-        user_link_flags = ["@" + def_file.path] if def_file else [],
+        user_link_flags = def_file_link_flags,
         additional_inputs = ([def_file] if def_file else []) + additional_link_inputs,
     )
     return unpacked_linking_context, linking_outputs

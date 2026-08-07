@@ -66,7 +66,12 @@ def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
     action output. Generating it from the DLL post-link is equivalent.
     """
     lib_file = ctx.actions.declare_file(lib_dst_path)
-    exp_file = ctx.actions.declare_file(lib_dst_path[:-len(".lib")] + ".exp")
+    # `lib /def:` requires an .exp output, but it is an intermediate rather
+    # than a release artifact. Keep it outside the staged release tree.
+    exp_file = ctx.actions.declare_file(paths.join(
+        "_release_intermediates",
+        lib_file.basename[:-len(".lib")] + ".exp",
+    ))
     script = ctx.file._dll_to_implib
     ctx.actions.run(
         executable = "cmd.exe",
