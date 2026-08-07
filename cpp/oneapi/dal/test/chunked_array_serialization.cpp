@@ -102,21 +102,21 @@ TEMPLATE_LIST_TEST_M(chunked_array_serialization_test,
 
 #ifdef ONEDAL_DATA_PARALLEL
 TEMPLATE_LIST_TEST_M(chunked_array_serialization_test,
-                     "serialize/deserialize two hetero arrays",
-                     "[host][device]",
+                     "serialize/deserialize device arrays",
+                     "[device]",
                      array_types) {
-    const std::int64_t host_count = GENERATE(3, 7, 1027);
-    const std::int64_t device_count = GENERATE(5, 11, 1023);
-    array<TestType> host_array = this->get_host_backed_array(host_count, host_count);
-    array<TestType> device_array = this->get_device_backed_array(device_count, device_count);
+    const std::int64_t arr1_count = GENERATE(3, 7, 1027);
+    const std::int64_t arr2_count = GENERATE(5, 11, 1023);
+    array<TestType> arr1 = this->get_device_backed_array(arr1_count, arr1_count);
+    array<TestType> arr2 = this->get_device_backed_array(arr2_count, arr2_count);
 
-    chunked_array<TestType> hetero_chunked;
+    chunked_array<TestType> chunked;
 
-    hetero_chunked.append(device_array, host_array, device_array);
+    chunked.append(arr1, arr2, arr1);
 
-    const auto deserialized = te::serialize_deserialize(hetero_chunked);
+    const auto deserialized = te::serialize_deserialize(chunked);
 
-    this->compare_arrays(hetero_chunked, deserialized);
+    this->compare_arrays(chunked, deserialized);
 }
 #endif
 

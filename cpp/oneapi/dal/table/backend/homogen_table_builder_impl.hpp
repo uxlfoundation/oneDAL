@@ -175,7 +175,7 @@ public:
                           data_,
                           block,
                           rows,
-                          alloc_kind::host,
+                          alloc_kind::non_usm,
                           preserve_mutability);
     }
 
@@ -191,7 +191,7 @@ public:
                             block,
                             column_index,
                             rows,
-                            alloc_kind::host,
+                            alloc_kind::non_usm,
                             preserve_mutability);
     }
 

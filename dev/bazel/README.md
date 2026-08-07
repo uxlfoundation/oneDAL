@@ -59,8 +59,8 @@ validation.
    bazelisk.exe version
    ```
 
-3. For `bazel test` on Windows, set `BAZEL_SH` to a Bash executable. Git for
-   Windows is sufficient.
+3. Before running Bazel build, test, or analysis commands on Windows, set
+   `BAZEL_SH` to a Bash executable. Git for Windows is sufficient.
    ```bat
    set BAZEL_SH=C:\Program Files\Git\bin\bash.exe
    ```
@@ -293,6 +293,24 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
+### Release validation and platform helpers
+
+Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
+`dev/release_tests/compare_release_trees.py` at check level 4 to compare their
+package trees, metadata, and exported symbols. Linux invokes the comparator
+directly; Windows uses `.ci/scripts/compare_windows_release.ps1`. Windows also
+runs `.ci/scripts/test_bazel_release_cmake_example.ps1` to verify that a CMake
+consumer can build and run against the Bazel package.
+
+Other Windows-specific helpers are `.ci/env/bazelisk.ps1`, the PowerShell
+counterpart of the Bazelisk installer, and
+`dev/bazel/toolchains/tools/dpc_link_win.ps1`, which keeps the Intel compiler
+driver in DPC++ link actions while moving large object lists to a response
+file. Each script contains detailed usage and maintenance comments.
+
+When package contents change, update the Bazel packaging rules or the common
+comparator rather than hiding differences in a platform wrapper.
+
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
   ```sh
@@ -497,6 +515,16 @@ For static libasan linkage (equivalent to Make `REQSAN=static`):
 bazel test //cpp/oneapi/dal:tests --config=asan-static --config=dbg
 ```
 
+### LeakSanitizer (LSan)
+
+Equivalent to Make `REQSAN=leak`. This configuration is for Linux non-DPC++ targets
+with a compiler that supports LeakSanitizer. Do not use it for DPC++ targets;
+DPC++ device compilation does not support LSan. Windows ICX does not support it.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=lsan
+```
+
 ### ThreadSanitizer (TSan)
 
 Equivalent to Make `REQSAN=thread`:
@@ -627,6 +655,7 @@ build --linkopt=-your-link-flag
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
 | `REQSAN=static`                | `--config=asan-static`                                       | ASan with static libasan                                                   |
+| `REQSAN=leak`                  | `--config=lsan`                                              | LeakSanitizer; Linux host builds only; compiler support required           |
 | `REQSAN=thread`                | `--config=tsan`                                              | ThreadSanitizer                                                            |
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
