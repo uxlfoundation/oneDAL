@@ -34,9 +34,9 @@ namespace pr = dal::backend::primitives;
 using alloc = sycl::usm::alloc;
 using address = sycl::access::address_space;
 
-using sycl::ext::oneapi::plus;
-using sycl::ext::oneapi::minimum;
-using sycl::ext::oneapi::maximum;
+using sycl::plus;
+using sycl::minimum;
+using sycl::maximum;
 
 template <typename Float, typename Bin, typename Index, typename Task>
 sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
@@ -194,7 +194,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                             maximum<Index>());
 
                 const Float rand_val = ftr_rnd_ptr[node_id * selected_ftr_count + ftr_idx];
-                const Index random_bin_ofs = static_cast<Index>(rand_val * (max_bin - min_bin + 1));
+                const Index random_bin_count = sycl::max(max_bin - min_bin, Index(1));
+                const Index random_bin_ofs =
+                    sycl::min(static_cast<Index>(rand_val * random_bin_count),
+                              random_bin_count - Index(1));
                 ts_scal.ftr_bin = min_bin + random_bin_ofs;
 
                 const Index count = Index(bin <= ts_scal.ftr_bin);
@@ -434,7 +437,7 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
             }
         }
         // Finalize regression case by calculating MSE
-        item.barrier(sycl::access::fence_space::local_space);
+        sycl::group_barrier(item.get_group());
         Float mse = 0;
         const Float mean = local_hist[loc_bin_pos + 1] / local_hist[loc_bin_pos + 0];
         for (Index row_idx = id / act_bin_block; row_idx < row_count; row_idx += work_size) {
@@ -636,7 +639,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                                       local_size,
                                       hist_prop_count,
                                       bin_block);
-                    item.barrier(sycl::access::fence_space::local_space);
+                    sycl::group_barrier(item.get_group());
                     // Calculate histogram for bin block
                     const Index act_bin_block = sycl::min(bin_block, bin_count - bin_ofs);
                     compute_histogram<Index, Float, Task, Bin, hist_type_t>(hist,
@@ -651,7 +654,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                                                                             hist_prop_count,
                                                                             arr);
                     // Wait until histogram computing will be finished
-                    item.barrier(sycl::access::fence_space::local_space);
+                    sycl::group_barrier(item.get_group());
                     // Calculate impurity decrease for block of bins
                     if (local_id < act_bin_block) {
                         auto cur_hist = local_hist + local_id * hist_prop_count;
@@ -693,11 +696,13 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                         }
                     }
                     // Select best split among bin block
-                    for (Index i = act_bin_block / 2; i > 0; i >>= 1) {
-                        item.barrier(sycl::access::fence_space::local_space);
-                        if (local_id < i && (local_id + i) < act_bin_block) {
+                    for (Index offset = 1; offset < act_bin_block; offset <<= 1) {
+                        sycl::group_barrier(item.get_group());
+                        const Index reduce_mask = (offset << 1) - 1;
+                        if (((local_id & reduce_mask) == 0) &&
+                            (local_id + offset < act_bin_block)) {
                             split_scalar_t& s1 = local_scalars[local_id];
-                            split_scalar_t& s2 = local_scalars[local_id + i];
+                            split_scalar_t& s2 = local_scalars[local_id + offset];
                             if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
                                 s1.copy(s2);
                             }
@@ -717,7 +722,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                             }
                         }
                     }
-                    item.barrier(sycl::access::fence_space::local_space);
+                    sycl::group_barrier(item.get_group());
                 }
             });
         });
@@ -744,7 +749,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                 ftr_ids.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
 
             ftr_indices[local_id] = local_id;
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
 
             // Select best split inside one working item
             for (Index ftr_id = local_id; ftr_id < ftr_count; ftr_id += local_size) {
@@ -757,14 +762,16 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
             }
 
             // Select best split among working group
-            for (Index i = local_size / 2; i > 0; i >>= 1) {
-                item.barrier(sycl::access::fence_space::local_space);
-                if (local_id < i && (local_id + i) < ftr_count) {
+            const Index reduce_count = sycl::min(local_size, ftr_count);
+            for (Index offset = 1; offset < reduce_count; offset <<= 1) {
+                sycl::group_barrier(item.get_group());
+                const Index reduce_mask = (offset << 1) - 1;
+                if (((local_id & reduce_mask) == 0) && (local_id + offset < reduce_count)) {
                     split_scalar_t& s1 = node_splits[local_id];
-                    split_scalar_t& s2 = node_splits[local_id + i];
+                    split_scalar_t& s2 = node_splits[local_id + offset];
                     if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
                         s1.copy(s2);
-                        ftr_indices[local_id] = ftr_indices[local_id + i];
+                        ftr_indices[local_id] = ftr_indices[local_id + offset];
                     }
                 }
             }

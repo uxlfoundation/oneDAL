@@ -16,9 +16,11 @@
 #===============================================================================
 
 import os
+import shlex
 import subprocess
 from typing import (
     Iterable,
+    Sequence,
     Union,
 )
 from glob import iglob
@@ -36,13 +38,18 @@ class _cd:
 
 
 class ProcessHandle(object):
-    def __init__(self, command, startup_dir: str = '.'):
+    def __init__(self, command: Union[str, Sequence[str]], startup_dir: str = '.'):
         self._command = command
         self._startup_dir = startup_dir
 
     def run(self):
         with _cd(self._startup_dir):
-            subprocess.check_call(self._command, shell=True)
+            command = (
+                shlex.split(self._command)
+                if isinstance(self._command, str)
+                else self._command
+            )
+            subprocess.check_call(command)
 
 
 class FileModificationTimer(object):

@@ -189,7 +189,7 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
             local_buf[stat::sum] = Float(0);
             local_buf[stat::sum2] = Float(0);
             local_buf[stat::sum2_cent] = Float(0);
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
             for (std::int64_t idx = 0; idx < n_items_per_work; ++idx) {
                 auto data_idx = data_ofs + local_id * n_items_per_work + idx;
                 if (data_idx >= nonzero_count) {
@@ -224,7 +224,7 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
                     col_sum2.fetch_add(val * val);
                 }
             }
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
             if ((local_id + col_ofs) >= column_count) {
                 return;
             }
@@ -292,7 +292,7 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
                 result_data_ptr[stat::sum * column_count + col_ofs + local_id] / row_count;
             row_counter_buf[local_id] = 0;
             work_group_buf[local_id] = Float(0);
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
             // Merge results of first order moments
             for (std::int64_t idx = 0; idx < n_items_per_work; ++idx) {
                 auto data_idx = data_ofs + local_id * n_items_per_work + idx;
@@ -317,7 +317,7 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
                     row_counter_at.fetch_add(1);
                 }
             }
-            item.barrier(sycl::access::fence_space::local_space);
+            sycl::group_barrier(item.get_group());
             if ((local_id + col_ofs) >= column_count) {
                 return;
             }

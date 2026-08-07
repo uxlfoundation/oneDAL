@@ -41,10 +41,8 @@
 #endif
 
 #define DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, cpuType, ...) ContainerTemplate<__VA_ARGS__, cpuType>
-#define DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, cpuType, ...)                              \
-case cpuType:                                                                                    \
-    _cntr = (new DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, cpuType, __VA_ARGS__)(daalEnv)); \
-    break;
+#define DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, cpuType, ...) \
+case cpuType: _cntr = (new DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, cpuType, __VA_ARGS__)(daalEnv)); break;
 
 #define DAAL_EXPAND(...) __VA_ARGS__
 

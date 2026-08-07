@@ -77,14 +77,14 @@ public:
 
         const auto desc = this->get_descriptor();
         std::vector<partial_result_t> partial_results;
-        auto input_table_x = base_t::template split_table_by_rows<double>(x_train, n_rank);
-        auto input_table_y = base_t::template split_table_by_rows<double>(y_train, n_rank);
+        auto input_table_x = te::split_table_by_rows<float_t>(this->get_policy(), x_train, n_rank);
+        auto input_table_y = te::split_table_by_rows<float_t>(this->get_policy(), y_train, n_rank);
         for (int64_t i = 0; i < n_rank; i++) {
             partial_result_t partial_result;
             auto input_table_x_blocks =
-                base_t::template split_table_by_rows<double>(input_table_x[i], n_blocks);
+                te::split_table_by_rows<float_t>(this->get_policy(), input_table_x[i], n_blocks);
             auto input_table_y_blocks =
-                base_t::template split_table_by_rows<double>(input_table_y[i], n_blocks);
+                te::split_table_by_rows<float_t>(this->get_policy(), input_table_y[i], n_blocks);
             for (int64_t j = 0; j < n_blocks; j++) {
                 partial_result = this->partial_train(desc,
                                                      partial_result,

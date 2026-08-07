@@ -28,9 +28,14 @@ on:
     paths:
       - .github/workflows/nightly-build.yml
       - .ci/pipeline/ci.yml
+      - .bazelrc
+      - MODULE.bazel
+      - BUILD
       - makefile
       - '.ci/env/**'
       - '.ci/scripts/**'
+      - 'dev/bazel/**'
+      - 'dev/release_tests/**'
       - 'dev/make/**'
       - 'dev/make/compiler_definitions/**'
       - 'dev/make/function_definitions/**'
@@ -55,7 +60,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -72,13 +77,27 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+      - name: Install Bazelisk
+        run: .ci/env/bazelisk.sh
+      - name: Bazel release
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          python dev/release_tests/compare_release_trees.py \
+            --platform linux \
+            --make ./__release_lnx/daal/latest \
+            --bazel ./bazel-bin/release/daal/latest \
+            --check-level 4
       - name: Archive build
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: oneDAL_env
           path: .ci/env
@@ -91,7 +110,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install DPC++
         shell: cmd
         run: |
@@ -125,6 +144,38 @@ jobs:
           call .\oneapi\setvars.bat
           call .\oneapi\compiler\latest\bin\sycl-ls.exe
           call .\.ci\scripts\build.bat onedal_dpc vc avx2
+      - name: Install Bazelisk
+        shell: pwsh
+        run: .\.ci\env\bazelisk.ps1
+      - name: Bazel release
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
+        run: |
+          if not exist "%BAZEL_SH%" (
+            echo ERROR: Required Bazel shell not found: %BAZEL_SH%
+            exit /b 1
+          )
+          set PATH=C:\msys64\usr\bin;%PATH%
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
+            -MakeReleaseDir .\__release_win_vc\daal\latest ^
+            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
+            -CheckLevel 4
+      - name: Build and run CMake example from Bazel release
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
+            -ReleaseDir .\bazel-bin\release\daal\latest
       - name: Compress Intel BaseKit
         shell: cmd
         run: |
@@ -134,17 +185,17 @@ jobs:
           for /D %%s in (.\oneapi\*) do for /f "tokens=2 delims=[]" %%H in ('dir /al %%s\ ^| findstr /i /c:"latest"') do rmdir %%s\latest & mklink /D %%s\latest .\%%~nxH
           tar -cvzf oneapi.tar.gz .\oneapi
       - name: Archive build
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: __release_win
           path: .\__release_win_vc
       - name: Archive Intel BaseKit
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: intel_oneapi_basekit
           path: .\oneapi.tar.gz
       - name: Archive Intel OpenCL CPU runtime
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opencl_rt_installer
           path: .\opencl_rt.msi

@@ -110,12 +110,12 @@ sycl::event gesvd(sycl::queue& queue,
     template ONEDAL_EXPORT sycl::event gesvd<jobu, jobvt, F>(sycl::queue & queue, \
                                                              std::int64_t m,      \
                                                              std::int64_t n,      \
-                                                             ndview<F, 2> & a,    \
+                                                             ndview<F, 2>& a,     \
                                                              std::int64_t lda,    \
-                                                             ndview<F, 1> & s,    \
-                                                             ndview<F, 2> & u,    \
+                                                             ndview<F, 1>& s,     \
+                                                             ndview<F, 2>& u,     \
                                                              std::int64_t ldu,    \
-                                                             ndview<F, 2> & vt,   \
+                                                             ndview<F, 2>& vt,    \
                                                              std::int64_t ldvt,   \
                                                              const event_vector& deps);
 

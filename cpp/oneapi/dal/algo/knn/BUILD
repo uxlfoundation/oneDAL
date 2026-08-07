@@ -31,7 +31,10 @@ dal_test_suite(
         "test/*.hpp",
     ]),
     srcs = glob([
-        "test/*.cpp",
+        "test/badarg.cpp",
+        "test/batch.cpp",
+        "test/serialization.cpp",
+        "test/spmd.cpp",
     ]),
     dal_deps = [
         ":knn",
@@ -39,8 +42,25 @@ dal_test_suite(
 )
 
 dal_test_suite(
+    name = "internal_tests",
+    framework = "catch2",
+    hdrs = glob([
+        "test/*.hpp",
+    ]),
+    srcs = glob([
+        "test/internal.cpp",
+    ]),
+    dal_deps = [
+        ":knn",
+    ],
+    private = True,
+)
+
+
+dal_test_suite(
     name = "tests",
     tests = [
         ":interface_tests",
+        ":internal_tests",
     ],
 )

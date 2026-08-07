@@ -68,24 +68,24 @@ class StateIface
 {
 public:
     virtual ~StateIface() {}
-    virtual int uniformRNG(const size_t n, size_t * r, const size_t a, const size_t b, const int method) = 0;
-    virtual int uniformRNG(const size_t n, int * r, const int a, const int b, const int method) = 0;
-    virtual int uniformRNG(const size_t n, float * r, const float a, const float b, const int method) = 0;
-    virtual int uniformRNG(const size_t n, double * r, const double a, const double b, const int method) = 0;
-    virtual int gaussianRNG(const size_t n, float * r, const float a, const float sigma, const int method) = 0;
+    virtual int uniformRNG(const size_t n, size_t * r, const size_t a, const size_t b, const int method)      = 0;
+    virtual int uniformRNG(const size_t n, int * r, const int a, const int b, const int method)               = 0;
+    virtual int uniformRNG(const size_t n, float * r, const float a, const float b, const int method)         = 0;
+    virtual int uniformRNG(const size_t n, double * r, const double a, const double b, const int method)      = 0;
+    virtual int gaussianRNG(const size_t n, float * r, const float a, const float sigma, const int method)    = 0;
     virtual int gaussianRNG(const size_t n, double * r, const double a, const double sigma, const int method) = 0;
-    virtual int bernoulliRNG(const size_t n, int * r, const double p, const int method) = 0;
-    virtual int getSize() = 0;
-    virtual void clone(void * dest) const = 0;
-    virtual StateIface * clone() const = 0;
-    virtual void assign(const void * src) = 0;
-    virtual void discard(size_t nSkip) = 0;
+    virtual int bernoulliRNG(const size_t n, int * r, const double p, const int method)                       = 0;
+    virtual int getSize()                                                                                     = 0;
+    virtual void clone(void * dest) const                                                                     = 0;
+    virtual StateIface * clone() const                                                                        = 0;
+    virtual void assign(const void * src)                                                                     = 0;
+    virtual void discard(size_t nSkip)                                                                        = 0;
 };
 
 template <typename Gen = std::mt19937>
 class State : public StateIface
 {
-    using ThisType = State<Gen>;
+    using ThisType                       = State<Gen>;
     static constexpr unsigned int elSize = sizeof(unsigned int);
 
 public:
@@ -137,20 +137,20 @@ public:
     int getSize() final { return sizeof(ThisType); }
     void clone(void * dest) const final
     {
-        State * destState = static_cast<State *>(dest);
+        State * destState    = static_cast<State *>(dest);
         destState->_seedSize = _seedSize;
-        destState->_brngId = _brngId;
-        destState->_nSkip = _nSkip;
-        destState->_seed = (unsigned int *)daal::services::daal_malloc(sizeof(unsigned int) * destState->_seedSize);
+        destState->_brngId   = _brngId;
+        destState->_nSkip    = _nSkip;
+        destState->_seed     = (unsigned int *)daal::services::daal_malloc(sizeof(unsigned int) * destState->_seedSize);
         daal::services::daal_memcpy_s(destState->_seed, destState->_seedSize * elSize, _seed, _seedSize * elSize);
     }
     StateIface * clone() const final { return new ThisType(*this); }
     void assign(const void * src) final
     {
         const State * srcState = static_cast<const State *>(src);
-        _seedSize = srcState->_seedSize;
-        _brngId = srcState->_brngId;
-        _nSkip = srcState->_nSkip;
+        _seedSize              = srcState->_seedSize;
+        _brngId                = srcState->_brngId;
+        _nSkip                 = srcState->_nSkip;
         if (_seed)
         {
             daal::services::daal_free((void *)_seed);

@@ -298,7 +298,7 @@ struct Task
           logSqrtInvDetSigma(_covs->getLogSqrtInvDetSigma()),
           nFeatures(_nFeatures),
           nComponents(_nComponents),
-          logLikelyhood(0)
+          logLikelihood(0)
     {
         size_t sizeOfOneCov           = covs->getOneCovSize();
         size_t memorySizeForOneThread = blockSizeDefault * nFeatures +   /* x_mu   */
@@ -367,7 +367,7 @@ struct Task
     const algorithmFPType * dataBlock;
     ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD;
     TArray<algorithmFPType, cpu> threadBufferPtr;
-    algorithmFPType logLikelyhood;
+    algorithmFPType logLikelihood;
 
     algorithmFPType * x_mu;
     algorithmFPType * Ax_mu;
@@ -380,7 +380,7 @@ struct Task
     algorithmFPType * means;
     algorithmFPType ** invSigma;
     algorithmFPType * logSqrtInvDetSigma;
-    algorithmFPType partLogLikelyhood;
+    algorithmFPType partLogLikelihood;
 
     algorithmFPType * wSums;
     algorithmFPType * partialMeans;

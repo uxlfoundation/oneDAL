@@ -751,7 +751,7 @@ def _impl(ctx):
         name = "runtime_library_search_directories",
         flag_sets = [
             flag_set(
-                actions = all_link_actions + lto_index_actions,
+                actions = [ACTION_NAMES.cpp_link_executable] + lto_index_actions,
                 flag_groups = [
                     flag_group(
                         iterate_over = "runtime_library_search_directories",
@@ -778,7 +778,7 @@ def _impl(ctx):
                 ],
             ),
             flag_set(
-                actions = all_link_actions + lto_index_actions,
+                actions = [ACTION_NAMES.cpp_link_executable] + lto_index_actions,
                 flag_groups = [
                     flag_group(
                         iterate_over = "runtime_library_search_directories",

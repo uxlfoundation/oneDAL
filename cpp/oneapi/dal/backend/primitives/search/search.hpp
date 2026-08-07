@@ -123,8 +123,8 @@ public:
         const auto* const impl_ptr = static_cast<const Impl* const>(this);
         auto sel_objs = impl_ptr->create_selection_objects(query_block, k_neighbors);
         auto tmp_objs = impl_ptr->create_temporary_objects(query_block, k_neighbors, last_event);
-        return this->
-        operator()(query_data, callback, query_block, k_neighbors, tmp_objs, sel_objs, deps);
+        return this
+            ->operator()(query_data, callback, query_block, k_neighbors, tmp_objs, sel_objs, deps);
     }
 
     template <ndorder qorder, typename CallbackImpl>

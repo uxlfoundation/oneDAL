@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -64,18 +64,18 @@ jobs:
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
           echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
           echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
-      - name: Make daal debug
+      - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
-          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
-      - name: Make onedal debug
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --jobs 20
+          rm -rf __work
+      - name: Make onedal
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --jobs 20
           rm -rf __work
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -84,7 +84,7 @@ jobs:
         run: cp -r __release_lnx __release_lnx_main
       - name: Cache build
         if: github.event_name != 'pull_request'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
           path: ./__release_lnx_main
@@ -93,17 +93,15 @@ jobs:
         run: rm -rf __release_lnx_main
       - name: Archive build
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Make onedal
         if: matrix.runner != 'ubuntu-24.04'
         run: |
-          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
           rm -rf __work
-          mv __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
           rm -rf __work
       - name: daal/cpp examples
@@ -125,6 +123,23 @@ jobs:
       - name: daal/cpp/mpi samples
         run: |
             source /opt/intel/oneapi/setvars.sh
+            # Azure GHA runners expose a MANA paravirtualized NIC that Intel
+            # MPI's OFI autoselect probes as a verbs/PSM3 device; the UD QP
+            # open fails with EINVAL and MPI_Init aborts before the sample
+            # runs. Probe libfabric directly: if the verbs provider cannot
+            # enumerate a usable endpoint on this host, pin the fabric to
+            # shared memory and force libfabric onto tcp so autoselect never
+            # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
+            # and the override is skipped, preserving the native fabric.
+            if [ ! -z "$(command -v fi_info)" ]; then
+                if ! fi_info -p verbs > /dev/null 2>&1; then
+                    echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
+                    export I_MPI_FABRICS=shm
+                    export FI_PROVIDER=tcp
+                fi
+            else
+                echo "warning: fi_info not on PATH after setvars.sh; cannot probe verbs provider" >&2
+            fi
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
@@ -141,7 +156,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: install ABI checking tools
         run: .ci/env/apt.sh abigail
       - name: Check Cache
@@ -153,7 +168,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download oneDAL main build
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ./__release_lnx_main
           key: ${{ steps.get-cache-key.outputs.key }}
@@ -164,7 +179,7 @@ jobs:
           path: ./__release_lnx
       - name: Check ABI conformance
         run: |
-          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 debug oneDAL build."
+          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 oneDAL build."
           echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
           echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
           echo "information that is ISA unique must be manually checked. If no shared objects are found, then "

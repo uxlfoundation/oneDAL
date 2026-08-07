@@ -136,8 +136,7 @@ public:
         return std::make_tuple(data, data_test, checker_list);
     }
 
-    auto get_reg_dataframe_base() {
-        const double required_mse = 0.05;
+    auto get_reg_dataframe_base(const double required_mse = 0.05) {
         constexpr std::int64_t row_count_train = 10;
         constexpr std::int64_t row_count_test = 5;
         constexpr std::int64_t column_count = 3;

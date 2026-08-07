@@ -332,7 +332,9 @@ TEST("can construct vector_container of given size of std::containers type with 
 TEST(
     "can construct vector_container of given size with value of primitive type with custom allocator") {
     allocated_bytes_count = 0;
-    { check_construct_given_size_with_value_with_custom_allocator<std::int32_t>(10, 1); }
+    {
+        check_construct_given_size_with_value_with_custom_allocator<std::int32_t>(10, 1);
+    }
     REQUIRE(allocated_bytes_count == 0);
 }
 
@@ -450,7 +452,9 @@ TEST("can copy vector_container of tuples of std::contaier") {
 
 TEST("can fill vector_container of primitives with value") {
     allocated_bytes_count = 0;
-    { check_fill<std::int32_t>(1); }
+    {
+        check_fill<std::int32_t>(1);
+    }
     REQUIRE(allocated_bytes_count == 0);
 }
 

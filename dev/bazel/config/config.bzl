@@ -16,6 +16,9 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 
+_BINARY_MAJOR = "4"
+_BINARY_MINOR = "0"
+
 ConfigFlagInfo = provider(
     fields = [
         "flag",
@@ -120,18 +123,25 @@ VersionInfo = provider(
         "build",
         "buildrev",
         "status",
+        # Binary ABI version (distinct from product version).
+        # Used for SONAME and shared library symlinks.
+        # oneDAL binary ABI version.
+        "binary_major",
+        "binary_minor",
     ],
 )
 
 def _version_info_impl(ctx):
     return [
         VersionInfo(
-            major    = ctx.attr.major,
-            minor    = ctx.attr.minor,
-            update   = ctx.attr.update,
-            build    = ctx.attr.build,
-            buildrev = ctx.attr.buildrev,
-            status   = ctx.attr.status,
+            major        = ctx.attr.major,
+            minor        = ctx.attr.minor,
+            update       = ctx.attr.update,
+            build        = ctx.attr.build,
+            buildrev     = ctx.attr.buildrev,
+            status       = ctx.attr.status,
+            binary_major = ctx.attr.binary_major,
+            binary_minor = ctx.attr.binary_minor,
         )
     ]
 
@@ -144,6 +154,9 @@ version_info = rule(
         "build": attr.string(mandatory=True),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
+        # ABI binary version used for SONAME and symlinks.
+        "binary_major": attr.string(mandatory=True),
+        "binary_minor": attr.string(mandatory=True),
     },
 )
 
@@ -182,12 +195,20 @@ dump_config_info = rule(
 
 def _detect_cpu_extension(repo_ctx):
     cpudetect_src = repo_ctx.path(repo_ctx.attr._cpudetect_src)
-    cpudetect_exe = repo_ctx.path("cpudetect")
+    is_windows = "windows" in repo_ctx.os.name
+    cpudetect_exe = repo_ctx.path("cpudetect.exe" if is_windows else "cpudetect")
     repo_ctx.report_progress("Compile cpu-detector")
-    compile_result = repo_ctx.execute([
-        "g++", "-pedantic", "-Wall", "-std=c++11",
-        cpudetect_src, "-o{}".format(cpudetect_exe),
-    ])
+    if is_windows:
+        compile_command = [
+            "cl", "/nologo", "/EHsc", "/std:c++17",
+            cpudetect_src, "/Fe:{}".format(cpudetect_exe),
+        ]
+    else:
+        compile_command = [
+            "g++", "-pedantic", "-Wall", "-std=c++17",
+            cpudetect_src, "-o{}".format(cpudetect_exe),
+        ]
+    compile_result = repo_ctx.execute(compile_command)
     if compile_result.return_code != 0:
         utils.warn("Cannot compile cpu-detector:\n" +
                    compile_result.stderr + "\n" +
@@ -204,20 +225,22 @@ def _detect_cpu_extension(repo_ctx):
 
 def _declare_onedal_config_impl(repo_ctx):
     auto_cpu = _detect_cpu_extension(repo_ctx)
+
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
         substitutions = {
-            "%{auto_cpu}":         auto_cpu,
-            "%{version_major}":    "2026",
-            "%{version_minor}":    "1",
-            "%{version_update}":   "0",
-            "%{version_build}":    utils.datestamp(repo_ctx),
-            "%{version_buildrev}": "work",
-            "%{version_status}":   "P",
+            "%{auto_cpu}":              auto_cpu,
+            "%{version_major}":         "2026",
+            "%{version_minor}":         "2",
+            "%{version_update}":        "0",
+            "%{version_build}":         utils.datestamp(repo_ctx),
+            "%{version_buildrev}":      "work",
+            "%{version_status}":        "P",
+            "%{version_binary_major}":  _BINARY_MAJOR,
+            "%{version_binary_minor}":  _BINARY_MINOR,
         },
     )
-
 declare_onedal_config = repository_rule(
     implementation = _declare_onedal_config_impl,
     local = True,

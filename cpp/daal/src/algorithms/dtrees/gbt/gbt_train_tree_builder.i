@@ -278,7 +278,7 @@ protected:
             localG = localH = 0;
             if (aSampleToF)
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : localG, localH))
                 for (size_t i = start; i < end; i++)
                 {
                     localG += pgh[aSampleToF[i]].g;
@@ -287,7 +287,7 @@ protected:
             }
             else
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : localG, localH))
                 for (size_t i = start; i < end; i++)
                 {
                     localG += pgh[i].g;

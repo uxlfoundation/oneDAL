@@ -90,9 +90,12 @@ def _find_tools(repo_ctx, reqs):
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
     if dpcpp_found:
-        #The llvm-ar tool is used because bazel prepended directory names with +
-        #which caused issues with the default gnu ar tool on REHL. Since icx is clang based we can use the llvm-ar tool.
-        ar_path = cc_path[:-3] + "compiler/llvm-ar"
+        # The llvm-ar tool is used because Bazel prepends directory names with +,
+        # which caused issues with GNU ar on RHEL. Derive it from the DPC++
+        # compiler, not from the unrelated host C/C++ compiler.
+        ar_path = paths.join(paths.dirname(dpcc_path), "compiler", "llvm-ar")
+        if not repo_ctx.path(ar_path).exists:
+            auto_configure_fail("Cannot find DPC++ archiver at {}".format(ar_path))
 
     ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
 
@@ -292,8 +295,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.cc,
-                    "-Wl,-no-as-needed",
-                    "-no-as-needed",
+                    "-Wl,--as-needed",
+                    "--as-needed",
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
@@ -327,8 +330,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.dpcc,
-                    "-Wl,-no-as-needed",
-                    "-no-as-needed",
+                    "-Wl,--as-needed",
+                    "--as-needed",
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
@@ -403,6 +406,10 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     # Some compilers like Intel uses -O2 by default
                     # Prefer -O1 because -O0 code may be painfully slow
                     "-O1",
+
+                    # Disable loop transformation warnings that appear with -O1
+                    # and are treated as errors in dbg configuration
+                    "-Wno-pass-failed",
 
                     # oneDAL specific defined to enabled assertions
                     "-DDEBUG_ASSERT",

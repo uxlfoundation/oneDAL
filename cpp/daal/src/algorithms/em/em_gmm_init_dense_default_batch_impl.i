@@ -69,10 +69,10 @@ services::Status EMInitKernelTask<algorithmFPType, method, cpu>::compute()
 
         ErrorID errorId = runEM();
 
-        if (!errorId && (loglikelyhood > maxLoglikelyhood))
+        if (!errorId && (loglikelihood > maxLoglikelihood))
         {
             isInitialized    = true;
-            maxLoglikelyhood = loglikelyhood;
+            maxLoglikelihood = loglikelihood;
             DAAL_CHECK_STATUS(s, writeValuesToTables())
         }
     }
@@ -94,7 +94,7 @@ EMInitKernelTask<algorithmFPType, method, cpu>::EMInitKernelTask(NumericTable & 
       nTrials(parameter.nTrials),
       nIterations(parameter.nIterations),
       accuracyThreshold(parameter.accuracyThreshold),
-      maxLoglikelyhood(-MaxVal<algorithmFPType>::get()),
+      maxLoglikelihood(-MaxVal<algorithmFPType>::get()),
       nFeatures(data.getNumberOfColumns()),
       nVectors(data.getNumberOfRows()),
       covs(parameter.covarianceStorage, parameter.nComponents, data.getNumberOfColumns(), status),
@@ -189,10 +189,10 @@ ErrorID EMInitKernelTask<algorithmFPType, method, cpu>::runEM()
     EMforKernel<algorithmFPType> em(nComponents);
     em.parameter.maxIterations     = nIterations;
     em.parameter.accuracyThreshold = accuracyThreshold;
-    ErrorID returnErrorId          = em.run(data, *alpha, *means, covs.getSigma(), parameter.covarianceStorage, loglikelyhood);
+    ErrorID returnErrorId          = em.run(data, *alpha, *means, covs.getSigma(), parameter.covarianceStorage, loglikelihood);
     if (returnErrorId != 0)
     {
-        loglikelyhood = -MaxVal<algorithmFPType>::get();
+        loglikelihood = -MaxVal<algorithmFPType>::get();
     }
     return returnErrorId;
 }

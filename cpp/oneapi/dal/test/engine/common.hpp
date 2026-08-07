@@ -21,7 +21,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include "oneapi/dal/train.hpp"
 #include "oneapi/dal/infer.hpp"

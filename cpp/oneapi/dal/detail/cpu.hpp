@@ -56,7 +56,8 @@ enum class cpu_feature : uint64_t {
     tb = 1ULL << 1, /// Intel(R) Turbo Boost
     avx512_bf16 = 1ULL << 2, /// AVX512 bfloat16
     avx512_vnni = 1ULL << 3, /// AVX512 VNNI
-    tb3 = 1ULL << 4 /// Intel(R) Turbo Boost Max 3.0
+    tb3 = 1ULL << 4, /// Intel(R) Turbo Boost Max 3.0
+    amx_bf16 = 1ULL << 5 /// Intel(R) Advanced Matrix Extensions bfloat16 (AMX-BF16)
 #endif
 };
 
@@ -71,7 +72,8 @@ inline const std::map<uint64_t, const std::string> cpu_feature_map = {
     { uint64_t(cpu_feature::tb), "Intel(R) Turbo Boost" },
     { uint64_t(cpu_feature::avx512_bf16), "AVX-512 bfloat16" },
     { uint64_t(cpu_feature::avx512_vnni), "AVX-512 VNNI" },
-    { uint64_t(cpu_feature::tb3), "Intel(R) Turbo Boost Max 3.0" }
+    { uint64_t(cpu_feature::tb3), "Intel(R) Turbo Boost Max 3.0" },
+    { uint64_t(cpu_feature::amx_bf16), "Intel(R) AMX bfloat16" }
 #endif
 };
 
@@ -97,6 +99,7 @@ uint64_t detect_cpu_features();
 } // namespace v1
 using v1::cpu_vendor;
 using v1::cpu_extension;
+using v1::cpu_feature;
 using v1::cpu_feature_map;
 using v1::detect_top_cpu_extension;
 using v1::detect_onedal_cpu_extension;

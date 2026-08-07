@@ -87,13 +87,16 @@ def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
 def get_tmp_dpcpp_inc_directories(repo_ctx, tools):
     return ["/tmp"] if tools.dpc_compiler_version >= "20210803" else []
 
+def _null_device(repo_ctx):
+    return "NUL" if "windows" in repo_ctx.os.name else "/dev/null"
+
 def is_compiler_option_supported(repo_ctx, cc, option):
     """Checks that `option` is supported by the C compiler."""
     result = repo_ctx.execute([
         cc,
         option,
         "-o",
-        "/dev/null",
+        _null_device(repo_ctx),
         "-c",
         str(repo_ctx.path(TEST_CPP_FILE)),
     ])
@@ -107,7 +110,7 @@ def is_linker_option_supported(repo_ctx, cc, option, pattern):
         cc,
         option,
         "-o",
-        "/dev/null",
+        _null_device(repo_ctx),
         str(repo_ctx.path(TEST_CPP_FILE)),
     ])
     return result.stderr.find(pattern) == -1

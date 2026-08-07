@@ -39,6 +39,23 @@ _CPU_SUFFIX_TO_ISA_BACK_MAP = {
 _CPU_SUFFIXES = _CPU_SUFFIX_TO_ISA_MAP.keys()
 _CPU_ISA_IDS = _CPU_SUFFIX_TO_ISA_MAP.values()
 
+_MSVC_CPU_FLAGS = {
+    "sse2": [],
+    "avx2": ["/arch:AVX2"],
+    # Match dev/make/compiler_definitions/vc.mkl.32e.mk: MSVC's skx
+    # objects use the AVX2 code-generation target.
+    "avx512": ["/arch:AVX2"],
+}
+
+def _get_cpu_compile_kwargs(toolchain, cpu, kwargs):
+    if toolchain.compiler != "msvc-cl":
+        return kwargs
+    cpu_kwargs = dict(kwargs)
+    cpu_kwargs["user_compile_flags"] = (
+        kwargs.get("user_compile_flags", []) + _MSVC_CPU_FLAGS[cpu]
+    )
+    return cpu_kwargs
+
 def _categorize_sources(source_files, cpu_files_supported = True,
                                       fpt_files_supported = True):
     fpt_cpu_files_supported = cpu_files_supported and fpt_files_supported
@@ -95,8 +112,8 @@ def _normalize_cpu_files(general_cpu_files, special_cpu_files):
 def _normalize_includes(ctx, includes, extra=[]):
     inc_dir = paths.dirname(ctx.build_file_path) + "/"
     gen_dir = ctx.genfiles_dir.path + "/" + inc_dir
-    normalized_includes = (utils.add_prefix(inc_dir, includes) +
-                           utils.add_prefix(gen_dir, includes))
+    normalized_includes = (utils.add_prefix(gen_dir, includes) +
+                           utils.add_prefix(inc_dir, includes))
     normalized_includes = [paths.normalize(x) for x in normalized_includes]
     normalized_includes = utils.unique(normalized_includes + extra)
     return normalized_includes
@@ -134,13 +151,14 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
-def _compile_wrapper(name, ctx, toolchain, feature_config, **kwargs):
+def _compile_wrapper(name, ctx, toolchain, feature_config,
+                     disallow_nopic_outputs = True, **kwargs):
     return cc_common.compile(
         name = name,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
-        disallow_nopic_outputs = True,
+        disallow_nopic_outputs = disallow_nopic_outputs,
         **kwargs,
     )
 
@@ -216,7 +234,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
                         sources_by_category.cpu_files),
                 local_defines = local_defines + cpu_defines[cpu],
                 compilation_contexts = dep_compilation_contexts,
-                **kwargs,
+                **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),
             )
             compilation_contexts.append(compilation_context)
             compilation_outputs.append(compulation_output)
@@ -230,7 +248,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
                     srcs = sources_by_category.fpt_cpu_files,
                     local_defines = local_defines + cpu_defines[cpu] + fpt_defines[fpt],
                     compilation_contexts = dep_compilation_contexts,
-                    **kwargs,
+                    **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),
                 )
                 compilation_contexts.append(compilation_context)
                 compilation_outputs.append(compulation_output)

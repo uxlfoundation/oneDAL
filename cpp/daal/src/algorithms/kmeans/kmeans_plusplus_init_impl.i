@@ -198,8 +198,7 @@ public:
         for (size_t iRow = 0u; iRow < nRowsToProcess; iRow++)
         {
             algorithmFPType dist2 = algorithmFPType(0);
-            PRAGMA_OMP_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : dist2))
             for (size_t i = 0u; i < dim; i++)
             {
                 dist2 += (pData[iRow * dim + i] - pLastAddedCenter[i]) * (pData[iRow * dim + i] - pLastAddedCenter[i]);

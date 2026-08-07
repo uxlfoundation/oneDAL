@@ -59,13 +59,8 @@ ifndef TBBROOT
     TBBROOT = ./../../../../../../tbb/latest
 endif
 
-OLD_TBB_LAYOUT := $(if $(wildcard $(TBBROOT)/lib/intel64/),yes,no)
+TBB_PATH = "$(TBBROOT)/lib"
 
-ifeq ($(OLD_TBB_LAYOUT),no)
-	TBB_PATH = "$(TBBROOT)/lib"
-else
-	TBB_PATH = "$(TBBROOT)/lib/intel64/gcc4.8"
-endif
 
 DAAL_PATH = "$(DALROOT)/lib/intel64"
 DAAL_LIB := $(DAAL_PATH)/libonedal_core.$(RES_EXT) $(DAAL_PATH)/libonedal_thread.$(RES_EXT)

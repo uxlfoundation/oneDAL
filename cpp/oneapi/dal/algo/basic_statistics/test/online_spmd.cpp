@@ -71,15 +71,18 @@ public:
         const auto bs_desc = base_t::get_descriptor(compute_mode);
         std::vector<partial_result_t> partial_results;
 
-        auto input_table = base_t::template split_table_by_rows<double>(data, rank_count_);
+        auto input_table = te::split_table_by_rows<float_t>(this->get_policy(), data, rank_count_);
         if (use_weights) {
-            auto input_weights = base_t::template split_table_by_rows<double>(weights, rank_count_);
+            auto input_weights =
+                te::split_table_by_rows<float_t>(this->get_policy(), weights, rank_count_);
             for (int64_t i = 0; i < rank_count_; i++) {
                 dal::basic_statistics::partial_compute_result<> partial_result;
-                auto input_table_blocks =
-                    base_t::template split_table_by_rows<double>(input_table[i], blocks_count_);
-                auto input_weights_blocks =
-                    base_t::template split_table_by_rows<double>(input_weights[i], blocks_count_);
+                auto input_table_blocks = te::split_table_by_rows<float_t>(this->get_policy(),
+                                                                           input_table[i],
+                                                                           blocks_count_);
+                auto input_weights_blocks = te::split_table_by_rows<float_t>(this->get_policy(),
+                                                                             input_weights[i],
+                                                                             blocks_count_);
                 for (int64_t j = 0; j < blocks_count_; j++) {
                     partial_result = this->partial_compute(bs_desc,
                                                            partial_result,
@@ -96,8 +99,9 @@ public:
         else {
             for (int64_t i = 0; i < rank_count_; i++) {
                 dal::basic_statistics::partial_compute_result<> partial_result;
-                auto input_table_blocks =
-                    base_t::template split_table_by_rows<double>(input_table[i], blocks_count_);
+                auto input_table_blocks = te::split_table_by_rows<float_t>(this->get_policy(),
+                                                                           input_table[i],
+                                                                           blocks_count_);
                 for (int64_t j = 0; j < blocks_count_; j++) {
                     partial_result =
                         this->partial_compute(bs_desc, partial_result, input_table_blocks[j]);

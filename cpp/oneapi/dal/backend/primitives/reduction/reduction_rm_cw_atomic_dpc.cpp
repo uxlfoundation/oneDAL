@@ -187,8 +187,8 @@ sycl::event reduction_rm_cw_atomic<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const UnaryOp& unary,
     const event_vector& deps,
     const bool override_init) const {
-    return this->
-    operator()(input, output, width, height, width, binary, unary, deps, override_init);
+    return this
+        ->operator()(input, output, width, height, width, binary, unary, deps, override_init);
 }
 
 #define INSTANTIATE(F, A, B, U) template class reduction_rm_cw_atomic<F, A, B, U>;

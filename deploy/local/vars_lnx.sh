@@ -248,13 +248,12 @@ if [ "$(basename "${my_script_path}")" = "env" ] ; then   # assume stand-alone
     export PKG_CONFIG_PATH="$__daal_tmp_dir/lib/pkgconfig${PKG_CONFIG_PATH+:${PKG_CONFIG_PATH}}"
     export CMAKE_PREFIX_PATH="$__daal_tmp_dir${CMAKE_PREFIX_PATH+:${CMAKE_PREFIX_PATH}}"
     export CPLUS_INCLUDE_PATH="$__daal_tmp_dir/include:$__daal_tmp_dir/include/dal${CPLUS_INCLUDE_PATH+:${CPLUS_INCLUDE_PATH}}"
-    if [ -d "${component_root}/include/dal" ]; then
-      export LIBRARY_PATH="$__daal_tmp_dir/lib${LIBRARY_PATH+:${LIBRARY_PATH}}"
-      export LD_LIBRARY_PATH="$__daal_tmp_dir/lib${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}"
-    else
-      export LIBRARY_PATH="$__daal_tmp_dir/lib/$ARCH_DIR_ONEDAL${LIBRARY_PATH+:${LIBRARY_PATH}}"
-      export LD_LIBRARY_PATH="$__daal_tmp_dir/lib/$ARCH_DIR_ONEDAL${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}"
+    __daal_lib_dir="$__daal_tmp_dir/lib"
+    if [ -d "$__daal_lib_dir/$ARCH_DIR_ONEDAL" ]; then
+      __daal_lib_dir="$__daal_lib_dir/$ARCH_DIR_ONEDAL"
     fi
+    export LIBRARY_PATH="$__daal_lib_dir${LIBRARY_PATH+:${LIBRARY_PATH}}"
+    export LD_LIBRARY_PATH="$__daal_lib_dir${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}"
   # ;;
 else   # must be a consolidated layout
     # within this "else" reference $ONEAPI_ROOT **not** $my_script_path

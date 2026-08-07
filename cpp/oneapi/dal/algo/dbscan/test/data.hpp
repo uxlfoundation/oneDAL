@@ -48,7 +48,7 @@ public:
     }
 
     static te::dataframe get_data() {
-        static std::array<float, row_count* column_count> data = {
+        static std::array<float, row_count * column_count> data = {
             -0.4211976,  -1.77513504, 1.27569859, //
             0.77215635,  0.83386471,  2.14067957, //
             0.73995455,  -0.27936096, 0.32836769, //

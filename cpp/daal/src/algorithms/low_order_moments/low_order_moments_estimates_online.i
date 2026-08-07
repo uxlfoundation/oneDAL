@@ -466,8 +466,8 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                         _sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
                     }
                 } /* if (nObs != 0) */
-            }     /* isOnline */
-        }         /* if (_cd.nVectors > 0) */
+            } /* isOnline */
+        } /* if (_cd.nVectors > 0) */
 #endif
     } // end for DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.MergeBlocks);
 

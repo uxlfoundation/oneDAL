@@ -51,7 +51,6 @@ class RstBuilder(object):
     def add_property_member(self, declaration: str, parent_fully_qualified_name: str, level=0):
         assert declaration
         assert parent_fully_qualified_name
-        fake_parent_namespace = '_'.join(parent_fully_qualified_name.split('::'))
         self(f'.. cpp:member:: {declaration}', level)
         self.add_blank_line()
 
@@ -62,7 +61,7 @@ class RstBuilder(object):
 
     def add_code_block(self, listing: List[Text], level=0):
         assert listing is not None
-        self(f'.. code-block:: cpp', level)
+        self('.. code-block:: cpp', level)
         self.add_blank_line()
         for line in listing:
             self(line, level + 1)
@@ -74,7 +73,7 @@ class RstBuilder(object):
     def add(self, string: str = '', level: int = 0):
         self._rst_list.append(' ' * level * 3 + string, self._filename, self._lineno)
 
-    # TODO: Remove
+    # Keep callable behavior for existing builder call sites.
     def __call__(self, string: str = '', level:int = 0):
         self._rst_list.append(' ' * level * 3 + string, self._filename, self._lineno)
 

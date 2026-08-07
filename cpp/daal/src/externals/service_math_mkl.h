@@ -142,6 +142,11 @@ struct MklMath<double, cpu>
         __DAAL_MKLFN_CALL_MATH(vmdSqrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
+    static void vInvSqrt(SizeType n, const double * a, double * b)
+    {
+        __DAAL_MKLFN_CALL_MATH(vmdInvSqrt, (n, a, b, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+    }
+
     static void vInvSqrtI(SizeType n, const double * a, const SizeType inca, double * b, const SizeType incb)
     {
         __DAAL_MKLFN_CALL_MATH(vmdInvSqrtI, (n, a, inca, b, incb, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
@@ -261,6 +266,11 @@ struct MklMath<float, cpu>
     static void vSqrt(SizeType n, const float * in, float * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmsSqrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+    }
+
+    static void vInvSqrt(SizeType n, const float * a, float * b)
+    {
+        __DAAL_MKLFN_CALL_MATH(vmsInvSqrt, (n, a, b, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
     static void vInvSqrtI(SizeType n, const float * a, const SizeType inca, float * b, const SizeType incb)

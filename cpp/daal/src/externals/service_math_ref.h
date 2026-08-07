@@ -120,10 +120,7 @@ struct RefMath<double, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = exp(in[i]);
     }
 
-    static double vExpThreshold()
-    {
-        return -650.0;
-    }
+    static double vExpThreshold() { return -650.0; }
 
     static void vTanh(SizeType n, const double * in, double * out)
     {
@@ -135,6 +132,12 @@ struct RefMath<double, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vInvSqrt(SizeType n, const double * a, double * b)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) b[i] = 1.0 / sqrt(a[i]);
     }
 
     static void vInvSqrtI(SizeType n, const double * a, const SizeType inca, double * b, const SizeType incb)
@@ -312,10 +315,7 @@ struct RefMath<float, cpu>
             out[i] = exp(in[i]);
         }
     }
-    static float vExpThreshold()
-    {
-        return -75.0f;
-    }
+    static float vExpThreshold() { return -75.0f; }
 
     static void vTanh(SizeType n, const float * in, float * out)
     {
@@ -327,6 +327,12 @@ struct RefMath<float, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vInvSqrt(SizeType n, const float * a, float * b)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) b[i] = 1.0f / sqrtf(a[i]);
     }
 
     static void vInvSqrtI(SizeType n, const float * a, const SizeType inca, float * b, const SizeType incb)

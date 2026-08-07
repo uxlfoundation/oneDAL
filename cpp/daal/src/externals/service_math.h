@@ -90,6 +90,8 @@ struct Math
 
     static void vSqrt(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vSqrt(n, in, out); }
 
+    static void vInvSqrt(SizeType n, const fpType * a, fpType * b) { _impl<fpType, cpu>::vInvSqrt(n, a, b); }
+
     static void vInvSqrtI(SizeType n, const fpType * a, const SizeType inca, fpType * b, const SizeType incb)
     {
         _impl<fpType, cpu>::vInvSqrtI(n, a, inca, b, incb);

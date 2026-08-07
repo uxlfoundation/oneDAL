@@ -71,7 +71,7 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
 
         for (size_t i = 0; i < blockSize1; i++)
         {
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t j = i; j < blockSize1; j++)
             {
                 rr[i * n + j] = buf[i * blockSize1 + j];
@@ -138,7 +138,7 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
 
             for (size_t i = 0; i < blockSize1; i++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t j = 0; j < blockSize2; j++)
                 {
                     buf[i * blockSize2 + j] = 1.0 - buf[i * blockSize2 + j] * r[i * nl + (shift1 + i)] * diag[j];
@@ -147,7 +147,7 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
 
             for (size_t i = 0; i < blockSize1; i++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t j = 0; j < blockSize2; j++)
                 {
                     rr[i * nl + j] = buf[i * blockSize2 + j];

@@ -124,8 +124,8 @@ bool traverseNodeDF(size_t level, size_t iRowInTable, const DecisionTreeNode * a
 typedef services::Collection<size_t> NodeIdxArray;
 
 template <typename OnSplitFunctor, typename OnLeafFunctor>
-static bool traverseNodesBF(size_t level, NodeIdxArray & aCur, NodeIdxArray & aNext, const DecisionTreeNode * aNode, OnSplitFunctor & visitSplit,
-                            OnLeafFunctor & visitLeaf)
+bool traverseNodesBF(size_t level, NodeIdxArray & aCur, NodeIdxArray & aNext, const DecisionTreeNode * aNode, OnSplitFunctor & visitSplit,
+                     OnLeafFunctor & visitLeaf)
 {
     for (size_t i = 0; i < aCur.size(); ++i)
     {

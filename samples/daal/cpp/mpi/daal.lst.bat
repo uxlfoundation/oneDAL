@@ -28,8 +28,6 @@ set MPI_SAMPLE_LIST=svd_fast_distributed_mpi                      ^
                     pca_svd_distributed_mpi                       ^
                     covariance_dense_distributed_mpi              ^
                     covariance_csr_distributed_mpi                ^
-                    multinomial_naive_bayes_dense_distributed_mpi ^
-                    multinomial_naive_bayes_csr_distributed_mpi   ^
                     kmeans_dense_distributed_mpi                  ^
                     kmeans_csr_distributed_mpi                    ^
                     kmeans_init_dense_distributed_mpi             ^

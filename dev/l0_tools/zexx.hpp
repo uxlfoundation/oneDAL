@@ -21,7 +21,7 @@
 #include <vector>
 #include <optional>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
 
