@@ -171,6 +171,14 @@ build:dev \
 # Opt in only when the conda env owns the sysroot:
 #   bazel build @config//:dump          --config=conda
 #   bazel test //examples/daal/cpp:all  --config=conda --test_link_mode=dev
+#
+# `--config=conda` composes with the sanitizer configs below -- the
+# conda opt-in only forwards the env vars that let icx resolve
+# conda-installed headers/libs, it does not touch copt/linkopt. To run
+# examples or tests under a sanitizer inside a conda env:
+#   bazel test //cpp/oneapi/dal:tests --config=conda --config=asan --config=dbg
+#   bazel test //cpp/oneapi/dal:tests --config=conda --config=tsan
+#   bazel test //cpp/oneapi/dal:tests --config=conda --config=ubsan
 build:conda --action_env=LD_LIBRARY_PATH
 build:conda --action_env=LIBRARY_PATH
 build:conda --action_env=CPATH
