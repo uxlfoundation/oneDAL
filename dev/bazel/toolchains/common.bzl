@@ -68,6 +68,8 @@ def detect_compiler(repo_ctx, os_id):
         return "icpx"
 
 # oneDAL's arch IDs, matching ARCH_DIR_ONEDAL in dev/make/function_definitions/*.mk.
+# Keyed by the machine name a cross-compiler triple starts with
+# (e.g. `aarch64-linux-gnu-gcc`).
 _ARCH_ID_BY_TRIPLE_PREFIX = {
     "aarch64": "arm",
     "riscv64": "riscv64",
@@ -75,8 +77,15 @@ _ARCH_ID_BY_TRIPLE_PREFIX = {
     "amd64": "intel64",
 }
 
+# Same arch IDs keyed by `uname -m` output. This is a superset of the triple
+# prefixes: `arm64` is not a GNU triple machine name, but some environments
+# report it from `uname -m`, and without it detect_host_arch() would silently
+# fall back to intel64 on an ARM host.
+_ARCH_ID_BY_UNAME = dict(_ARCH_ID_BY_TRIPLE_PREFIX)
+_ARCH_ID_BY_UNAME["arm64"] = "arm"
+
 def _arch_id_from_uname(value):
-    return _ARCH_ID_BY_TRIPLE_PREFIX.get(value)
+    return _ARCH_ID_BY_UNAME.get(value)
 
 def get_cross_tool_prefix(repo_ctx):
     """Returns the cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`)

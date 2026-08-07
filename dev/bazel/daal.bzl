@@ -72,8 +72,10 @@ def daal_module(name, features=[], lib_tag="daal",
         }) + select({
             # Matches dev/make/deps.ref.mk RNG_OPENRNG: swaps the ref RNG's
             # <random>-based shim for the OpenRNG (VSL-ABI-compatible)
-            # backend in src/externals/service_rng_ref.h.
-            "@config//:rng_backend_openrng": [
+            # backend in src/externals/service_rng_ref.h. Gated on the ref
+            # backend as well, since that shim is the only consumer of this
+            # define and it is not compiled in an MKL build.
+            "@config//:rng_backend_openrng_ref": [
                 "OPENRNG_BACKEND",
             ],
             "//conditions:default": [],

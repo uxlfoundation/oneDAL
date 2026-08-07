@@ -67,6 +67,20 @@ config_flag(
     ],
 )
 
+# Use this, not the bare `:rng_backend_openrng`, to gate the OpenRNG define and
+# dependency: RNG_OPENRNG lives in dev/make/deps.ref.mk, so Make can only reach
+# it on the ref backend, and .ci/scripts/build.sh guards `--use-openrng yes`
+# behind `backend_config == ref` too. Without the backend_config term,
+# `--rng_backend=openrng --backend_config=mkl` would require OPENRNGROOT and
+# link libopenrng into an MKL build whose ref RNG shim is never compiled.
+config_setting(
+    name = "rng_backend_openrng_ref",
+    flag_values = {
+        ":rng_backend": "openrng",
+        ":backend_config": "ref",
+    },
+)
+
 # Target platforms for cross-compiling to non-x86 Linux. Pass e.g.
 # `--platforms=@config//:linux_aarch64` together with
 # `CC=aarch64-linux-gnu-gcc` (or riscv64-linux-gnu-gcc) so the exec platform

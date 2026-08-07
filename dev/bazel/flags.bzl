@@ -106,9 +106,12 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),
             # unlike x86's runtime-dispatched sse2/avx2/avx512 objects, so
             # `-march` applies to every compile action, not only the
-            # `_cpu`-suffixed ones that go through get_cpu_flags(). Matches
-            # COMPILER.all.gnu / COMPILER.lnx.clang in
-            # dev/make/compiler_definitions/{gnu,clang}.ref.{arm,riscv64}.mk.
+            # `_cpu`-suffixed ones that go through get_cpu_flags(). Mirrors
+            # COMPILER.all.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk
+            # and COMPILER.lnx.clang in clang.ref.arm.mk. Make has no
+            # gnu.ref.riscv64.mk (RISC-V is clang-only there) and
+            # clang.ref.riscv64.mk carries `-march` only in rv64_OPT.clang, so
+            # for that combination this is Bazel-only coverage, not Make parity.
             flags = flags + _get_single_variant_march_flags(arch_id)
             if arch_id == "arm" and compiler_id == "gcc" and category == "common":
                 flags = flags + ["-ftree-vectorize"]
@@ -125,10 +128,11 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
     fail("Unsupported OS")
 
 _SINGLE_VARIANT_MARCH_FLAGS = {
-    # Matches a8sve_OPT.gnu / a8sve_OPT.clang in
-    # dev/make/compiler_definitions/{gnu,clang}.ref.arm.mk.
+    # Matches a8sve_OPT.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk and
+    # a8sve_OPT.clang in clang.ref.arm.mk.
     "arm": ["-march=armv8-a+sve"],
-    # Matches rv64_OPT.clang in dev/make/compiler_definitions/clang.ref.riscv64.mk.
+    # Matches rv64_OPT.clang in dev/make/compiler_definitions/clang.ref.riscv64.mk
+    # (Make has no gnu.ref.riscv64.mk; RISC-V is clang-only there).
     "riscv64": ["-march=rv64gc_v1p0_zvl128b"],
 }
 
