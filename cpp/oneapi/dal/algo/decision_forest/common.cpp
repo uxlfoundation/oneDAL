@@ -196,8 +196,7 @@ engine_type descriptor_base<Task>::get_engine_type() const {
 
 template <typename Task>
 void descriptor_base<Task>::set_observations_per_tree_fraction_impl(double value) {
-    check_domain_cond((value > 0.0 && value <= 1.0),
-                      "observations_per_tree_fraction should be > 0.0 and <= 1.0");
+    check_domain_cond((value > 0.0), "observations_per_tree_fraction should be > 0.0");
     impl_->observations_per_tree_fraction = value;
 }
 

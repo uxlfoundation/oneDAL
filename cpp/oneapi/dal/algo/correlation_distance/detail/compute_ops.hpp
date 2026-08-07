@@ -52,10 +52,8 @@ struct compute_ops {
         if (!input.get_x().has_data()) {
             throw domain_error(msg::input_x_is_empty());
         }
-        if (!input.get_y().has_data()) {
-            throw domain_error(msg::input_y_is_empty());
-        }
-        if (input.get_x().get_column_count() != input.get_y().get_column_count()) {
+        if (input.get_y().has_data() &&
+            input.get_x().get_column_count() != input.get_y().get_column_count()) {
             throw invalid_argument(msg::input_x_cc_neq_y_cc());
         }
     }
@@ -65,7 +63,9 @@ struct compute_ops {
                               const result_t& result) const {
         ONEDAL_ASSERT(result.get_values().has_data());
         ONEDAL_ASSERT(input.get_x().get_row_count() == result.get_values().get_row_count());
-        ONEDAL_ASSERT(input.get_y().get_row_count() == result.get_values().get_column_count());
+        if (input.get_y().has_data()) {
+            ONEDAL_ASSERT(input.get_y().get_row_count() == result.get_values().get_column_count());
+        }
     }
 
     template <typename Context>
