@@ -111,6 +111,37 @@ def _find_tools(repo_ctx, reqs):
         dpc_compiler_version = reqs.dpc_compiler_version
     )
 
+def _extra_builtin_include_dirs_from_env(repo_ctx):
+    # Standard toolchain-facing env vars name colon-separated lists of
+    # directories the compiler will search for system headers. Any
+    # directory the compiler may resolve at compile time must appear in
+    # `cxx_builtin_include_directories`, otherwise Bazel's
+    # `no_absolute_paths_for_builtins` check rejects the resulting .d
+    # entries as "absolute path inclusion(s) found". The probe below
+    # already picks up the compiler's default search list; this fold-in
+    # covers non-default roots the invoking shell has advertised
+    # (conda-forge sysroot, custom-prefix libc, vendored SDKs) without
+    # the toolchain having to know the specific prefix.
+    env_vars = [
+        "CPATH",
+        "CPLUS_INCLUDE_PATH",
+        "C_INCLUDE_PATH",
+        "BAZEL_CXX_BUILTIN_INCLUDE_DIRS",
+    ]
+    extra = []
+    for var in env_vars:
+        value = repo_ctx.os.environ.get(var, "")
+        if not value:
+            continue
+        for entry in value.split(":"):
+            entry = entry.strip()
+            if not entry:
+                continue
+            if not repo_ctx.path(entry).exists:
+                continue
+            extra.append(entry)
+    return extra
+
 def _preapre_builtin_include_directory_paths(repo_ctx, tools):
     required_tmp_includes = get_tmp_dpcpp_inc_directories(repo_ctx, tools) if tools.is_dpc_found else []
     builtin_include_directories = utils.unique(
@@ -142,7 +173,8 @@ def _preapre_builtin_include_directory_paths(repo_ctx, tools):
             _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
             _add_sycl_linkage(repo_ctx, tools.dpcc) if tools.is_dpc_found else [],
         ) +
-        required_tmp_includes,
+        required_tmp_includes +
+        _extra_builtin_include_dirs_from_env(repo_ctx),
     )
     write_builtin_include_directory_paths(repo_ctx, tools.cc, builtin_include_directories)
     return builtin_include_directories

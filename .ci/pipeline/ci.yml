@@ -344,9 +344,13 @@ jobs:
   # Extended scope: bazel build/test on the same conda env. Only the `dev`
   # link mode is exercised -- the goal is to confirm that examples build
   # and run against the conda MKL/TBB/impi (no release artifact is
-  # produced or staged). Sanitizer coverage under conda is compose-able:
-  # `bazel test --config=conda --config=asan` (or tsan/ubsan) picks up
-  # the sanitizer copts/linkopts on top of the conda env-var forwards.
+  # produced or staged). No conda-specific bazel config is required:
+  # the toolchain reads the standard CPATH / CPLUS_INCLUDE_PATH /
+  # LIBRARY_PATH env vars the conda activate hook exports (same
+  # contract as a custom-prefix sysroot or a sanitized libc), and the
+  # base `.bazelrc` forwards them into every action. Sanitizer coverage
+  # is orthogonal: `bazel test --config=asan` (or tsan/ubsan) picks up
+  # the sanitizer copts/linkopts on top of the env-var forwards.
   - script: |
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -365,7 +369,7 @@ jobs:
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       # Minimal CPU instruction set in Azure is AVX2
       echo "build --cpu=avx2" > ~/.bazelrc
-      bazel build @config//:dump --config=conda
+      bazel build @config//:dump
       echo
       cat bazel-bin/external/+declare_onedal_config+config/config.json
       echo
@@ -383,7 +387,6 @@ jobs:
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       bazel test //examples/daal/cpp:all \
-                 --config=conda \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-dev (conda env)'
@@ -404,7 +407,6 @@ jobs:
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       bazel test //examples/oneapi/cpp:all \
-                 --config=conda \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-dev (conda env)'

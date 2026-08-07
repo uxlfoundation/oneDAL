@@ -70,20 +70,29 @@ onedal_cc_toolchain = repository_rule(
         "PATH",
         "INCLUDE",
         "LIB",
-        # Linux + conda-forge dpcpp_linux-64 activate hooks set these to
-        # point at the oneAPI/conda sysroot. Include them so the toolchain
-        # is re-probed when the conda env changes; without them Bazel
-        # caches stale `cxx_builtin_include_directories` and rejects
-        # headers the compiler actually resolves at compile time
-        # (e.g. /usr/include/features.h under icx).
+        # Standard toolchain-facing env vars that describe an external
+        # sysroot -- conda-forge dpcpp_linux-64 activate hooks, custom-
+        # prefix glibc, oneAPI setvars.sh, sanitized libc builds, Yocto
+        # / Buildroot SDKs, Nix profiles all use these to point the
+        # compiler at their include / library trees. Listed here so
+        # Bazel invalidates the repo rule (re-probes the compiler and
+        # re-materialises `cxx_builtin_include_directories`) when any
+        # of them changes -- without that, the toolchain caches stale
+        # include roots and rejects headers the compiler actually
+        # resolves at compile time (e.g. /usr/include/features.h under
+        # icx with a conda-forge sysroot).
         "LD_LIBRARY_PATH",
         "LIBRARY_PATH",
         "CPATH",
         "C_INCLUDE_PATH",
         "CPLUS_INCLUDE_PATH",
-        "CMPLR_ROOT",
-        "ONEAPI_ROOT",
-        "CONDA_PREFIX",
+        # Escape hatch for adding include directories to
+        # `cxx_builtin_include_directories` without changing the
+        # compiler probe -- colon-separated list of absolute paths.
+        # Useful when a sysroot exposes headers via `-isystem` paths
+        # the probe doesn't naturally discover (vendored SDKs, custom
+        # sanitizer runtimes, etc.).
+        "BAZEL_CXX_BUILTIN_INCLUDE_DIRS",
         # Opt-in switch for the Intel oneAPI Windows toolchain:
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
         # back to the rules_cc MSVC cl auto-config.
