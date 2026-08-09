@@ -399,9 +399,6 @@ jobs:
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
   - script: |
-      .ci/env/apt.sh icx
-    displayName: 'icx installation (CPU-only coverage smoke)'
-  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -463,27 +460,6 @@ jobs:
       grep -F -- "--code_coverage=true requires host compiler ID 'icx'" <<< "${coverage_error}"
       grep -F -- "detected compiler ID: 'gcc'" <<< "${coverage_error}"
     displayName: 'Bazel config smoke checks'
-
-  - script: |
-      set -eo pipefail
-      source /opt/intel/oneapi/setvars.sh
-      coverage_root="$(Agent.TempDirectory)/bazel-coverage-cpu"
-      export BAZEL_OUTPUT_USER_ROOT="${coverage_root}/output"
-      export BAZEL_DISK_CACHE="${coverage_root}/disk-cache"
-      cleanup() {
-        result=$?
-        set +e
-        echo '=== disk after CPU coverage smoke ==='
-        df -h .
-        du -sh "${coverage_root}" 2>/dev/null || true
-        rm -rf "${coverage_root}"
-        exit "${result}"
-      }
-      trap cleanup EXIT
-      echo '=== disk before CPU coverage smoke ==='
-      df -h .
-      BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
-    displayName: 'Bazel CPU code-coverage smoke build'
 
   - script: |
       bazel build :release --release_dpc=false
@@ -647,6 +623,44 @@ jobs:
           echo "No need for cleanup"
       fi
     displayName: 'bazel-cache-limit'
+
+- job: 'LinuxBazelCpuCoverage'
+  # Runs on its own agent: installing icx (~3Gb) plus the coverage build tree
+  # does not fit next to the regular LinuxBazel build on a single 72Gb agent.
+  timeoutInMinutes: 0
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh icx
+    displayName: 'icx installation (CPU-only coverage smoke)'
+  - script: |
+      set -eo pipefail
+      source .ci/env/bazelisk.sh
+      echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
+    displayName: 'install-bazel'
+  - script: |
+      set -eo pipefail
+      source /opt/intel/oneapi/setvars.sh
+      # Minimal CPU instruction set in Azure is AVX2, same as the LinuxBazel job
+      echo "build --cpu=avx2" > ~/.bazelrc
+      coverage_root="$(Agent.TempDirectory)/bazel-coverage-cpu"
+      export BAZEL_OUTPUT_USER_ROOT="${coverage_root}/output"
+      export BAZEL_DISK_CACHE="${coverage_root}/disk-cache"
+      cleanup() {
+        result=$?
+        set +e
+        echo '=== disk after CPU coverage smoke ==='
+        df -h .
+        du -sh "${coverage_root}" 2>/dev/null || true
+        rm -rf "${coverage_root}"
+        exit "${result}"
+      }
+      trap cleanup EXIT
+      echo '=== disk before CPU coverage smoke ==='
+      df -h .
+      BAZEL=bazel dev/bazel/tests/code_coverage_test.sh
+    displayName: 'Bazel CPU code-coverage smoke build'
 
 - job: 'LinuxBazelDpcCoverageNightly'
   # The DPC++ linker smoke is deliberately not part of PR CI. It needs the
