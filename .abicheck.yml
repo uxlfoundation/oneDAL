@@ -1,0 +1,72 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Project-wide abicheck configuration (see abicheck's docs/reference/config-file.md).
+#
+# This holds the settings that are a property of oneDAL itself rather than of
+# one CI invocation: what the public header surface is, and how public headers
+# must be compiled to parse at all. The workflows in .github/workflows only
+# pass what genuinely varies per artifact (which .so, which umbrella header,
+# whether -fsycl is needed, which baseline).
+#
+# Config loading is strict: an unknown key or a wrong type is a hard error
+# (exit 64), so this file is deliberately limited to keys verified against
+# abicheck 0.5.0 / main.
+
+version: 1
+
+# Public header surface. oneDAL exports two independent APIs from two
+# libraries, so both roots are listed here; each CI step still points -H at
+# the one umbrella header matching the library it is scanning.
+sources:
+  public_headers:
+    - cpp/daal/include/**
+    - cpp/oneapi/dal/**
+  exclude:
+    # Not part of either public API: internal helpers that only ship because
+    # the install step copies whole directories.
+    - cpp/daal/include/services/internal/**
+    - cpp/daal/include/data_management/data/internal/**
+    - cpp/oneapi/dal/**/detail/**
+    - cpp/oneapi/dal/**/backend/**
+    - cpp/oneapi/dal/test/**
+
+# Stable half of the L2 header compile context. castxml (the default AST
+# frontend) has no SYCL support at all and cpp/oneapi/dal/detail/common.hpp
+# includes sycl/sycl.hpp, so the clang frontend driven by icpx is the only
+# workable parser for this project -- not a stopgap.
+#
+# include_dirs covers both header roots so a header included as
+# "oneapi/dal/..." or "data_management/..." resolves the same way the build
+# resolves it. Per-artifact driver flags (-fsycl for the oneapi::dal side)
+# stay on the CLI: compile.std/defines accept only single whitespace-free
+# option atoms.
+compile:
+  frontend: clang
+  std: c++17
+  include_dirs:
+    - cpp
+    - cpp/daal/include
+
+# Restrict findings to the exported public surface. This is the main
+# false-positive control and matches what .github/.abignore already asserts
+# for libabigail.
+scope:
+  public: true
+
+# Suppression-file hygiene: .github/.abicheck-suppress.yaml must stay
+# well-formed and every entry must carry a reason.
+suppression:
+  strict: true
+  require_justification: true

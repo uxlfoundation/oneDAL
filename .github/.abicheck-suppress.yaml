@@ -14,9 +14,13 @@
 #
 # Mirrors the namespaces already suppressed for libabigail in .github/.abignore.
 #
-# NOTE: mode: scan (used by the LinuxAbicheckScan CI job) has no --suppress
-# support -- this file is currently unused, kept for when a mode: compare
-# job is added (or if abicheck adds scan-mode suppression upstream).
+# This file IS applied by the LinuxAbicheckScan job in ci.yml. `abicheck scan`
+# supports --suppress at the CLI level (scan_cmd carries @policy_options); only
+# the composite Action's scan branch omits the forwarding, so ci.yml passes it
+# through `extra-args` instead. Verified locally: applying this file to a
+# libonedal.so scan drops the internal-namespace findings it names (e.g.
+# oneapi::dal::detail::v2::chunked_array_base::reset) and leaves every
+# public-surface finding in place.
 
 version: 1
 
