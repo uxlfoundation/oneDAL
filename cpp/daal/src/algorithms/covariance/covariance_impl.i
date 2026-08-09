@@ -539,7 +539,7 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         DAAL_CHECK(!memcpy_result, services::ErrorMemoryCopyFailedInternal);
     }
 
-    CovarianceReducer<algorithmFPType, cpu> result(dataTable, sums, numRowsInBlock, numBlocks, isNormalized);
+    CovarianceReducer<algorithmFPType, cpu> result(dataTable, sums, numRowsInBlock, numBlocks, isNormalized || assumeCentered);
     if (!result.crossProduct())
     {
         return services::Status(services::ErrorMemoryAllocationFailed);
