@@ -55,16 +55,16 @@ sycl::event covariance(sycl::queue& q,
                        bool assume_centered,
                        const event_vector& deps = {});
 
-///  A kernel that computes 2d array of covariance matrix from 2d xtx array
-///  based on the information that the input data was centering
+/// A kernel that computes 2d array of covariance matrix from 2d xtx array
+/// based on the information that the input data was centered
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  q          The SYCL queue
-/// @param[in]  row_count  The number of `row_count` of the input data
-/// @param[in]  cov        The input xtx matrix of size `column_count` x `column_count`
-/// @param[in]  bias       The input bias value
-/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
+/// @param[in]      q          The SYCL queue
+/// @param[in]      row_count  The number of `row_count` of the input data
+/// @param[in,out]  cov        The input cross-product matrix of size `column_count` x `column_count`
+/// @param[in]      bias       The input bias value
+/// @param[in]      deps       Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the covariance matrix array for reading and writing
@@ -111,28 +111,25 @@ sycl::event correlation(sycl::queue& q,
 /// @tparam Float Floating-point type used to perform computations
 ///
 /// @param[in]  queue The queue
-/// @param[in]  row_count  The number of rows
-/// @param[in]  sums  The [p] sums computed along each column of the data
 /// @param[out] cov   The [p x p] covariance matrix
 /// @param[out] corr  The [p x p] correlation matrix
-/// @param[out] tmp   The [p] temporary buffer
 /// @param[in]  bias  Determines if provided covariance estimation biased
+/// @param[in]  deps  Events indicating availability of the `cov` and `corr` for reading or writing
 template <typename Float>
 sycl::event correlation_from_covariance(sycl::queue& q,
-                                        std::int64_t row_count,
                                         const ndview<Float, 2>& cov,
                                         ndview<Float, 2>& corr,
                                         bool bias,
                                         const event_vector& deps = {});
 
-///  A wrapper that computes 1d array of sums of the columns from 2d data array
+/// A wrapper that computes 1d array of sums of the columns from 2d data array
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input data of size `row_count` x `column_count`
-/// @param[in]  assume_centered
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+/// @param[in]  queue            The SYCL queue
+/// @param[in]  data             The input data of size `row_count` x `column_count`
+/// @param[in]  assume_centered  If true, the input data is assumed to be centered
+/// @param[in]  deps             Events indicating availability of the `data` for reading or writing
 ///
 /// @return A tuple of two elements, where the first element is the resulting 1d array of sums
 /// of size `column_count` and the second element is a SYCL event indicating the availability
@@ -143,14 +140,14 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_sums(sycl::queue& queue,
                                                         bool assume_centered = false,
                                                         const event_vector& deps = {});
 
-///  A wrapper that computes 1d array of means of the columns from precomputed sums
+/// A wrapper that computes 1d array of means of the columns from precomputed sums
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  sums  The input sums of size `column_count`
-/// @param[in]  row_count  The number of `row_count` of the input data
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+/// @param[in]  queue     The SYCL queue
+/// @param[in]  sums      The input sums of size `column_count`
+/// @param[in]  row_count The number of `row_count` of the input data
+/// @param[in]  deps      Events indicating availability of the `data` for reading or writing
 ///
 /// @return A tuple of two elements, where the first element is the resulting 1d array of means
 /// of size `column_count` and the second element is a SYCL event indicating the availability
@@ -161,14 +158,14 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_means(sycl::queue& queue,
                                                          std::int64_t row_count,
                                                          const event_vector& deps = {});
 
-///  A wrapper that computes the mean centered data from the input data
+/// A wrapper that computes the mean centered data from the input data
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input block of the data of size `row_count` x `column_count`
-/// @param[in]  means  The input means of size `column_count`
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+/// @param[in]      queue The SYCL queue
+/// @param[in,out]  data  The block of data to be centered of size `row_count` x `column_count`
+/// @param[in]      means The input means of size `column_count`
+/// @param[in]      deps  Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the mean centered data array for reading and writing

@@ -101,17 +101,16 @@ inline sycl::event compute_covariance(sycl::queue& q,
     });
 }
 
-///  A kernel that computes 2d array of covariance matrix from 2d xtx array
-///  based on the information that the input data was centering
+/// A kernel that computes 2d array of covariance matrix from 2d xtx array
+/// based on the information that the input data was centered
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  q          The SYCL queue
-/// @param[in]  row_count  The number of `row_count` of the input data
-/// @param[in]  sums       The input sums of size `column_count`
-/// @param[in]  cov        The input xtx matrix of size `column_count` x `column_count`
-/// @param[in]  bias       The input bias value
-/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
+/// @param[in]      q          The SYCL queue
+/// @param[in]      row_count  The number of `row_count` of the input data
+/// @param[in,out]  cov        The input cross-product matrix of size `column_count` x `column_count`
+/// @param[in]      bias       The input bias value
+/// @param[in]      deps       Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the covariance matrix array for reading and writing
@@ -292,7 +291,6 @@ sycl::event correlation(sycl::queue& q,
 
 template <typename Float>
 inline sycl::event prepare_correlation_from_covariance(sycl::queue& q,
-                                                       std::int64_t row_count,
                                                        const ndview<Float, 2>& cov,
                                                        ndview<Float, 1>& tmp,
                                                        bool bias,
@@ -327,7 +325,6 @@ inline sycl::event prepare_correlation_from_covariance(sycl::queue& q,
 
 template <typename Float>
 inline sycl::event finalize_correlation_from_covariance(sycl::queue& q,
-                                                        std::int64_t row_count,
                                                         const ndview<Float, 2>& cov,
                                                         const ndview<Float, 1>& tmp,
                                                         ndview<Float, 2>& corr,
@@ -364,7 +361,6 @@ inline sycl::event finalize_correlation_from_covariance(sycl::queue& q,
 
 template <typename Float>
 sycl::event correlation_from_covariance(sycl::queue& q,
-                                        std::int64_t row_count,
                                         const ndview<Float, 2>& cov,
                                         ndview<Float, 2>& corr,
                                         bool bias,
@@ -377,9 +373,9 @@ sycl::event correlation_from_covariance(sycl::queue& q,
     ONEDAL_ASSERT(is_known_usm(q, corr.get_mutable_data()));
     ONEDAL_ASSERT(is_known_usm(q, cov.get_mutable_data()));
     auto tmp = ndarray<Float, 1>::empty(q, { cov.get_dimension(0) }, sycl::usm::alloc::device);
-    auto prepare_event = prepare_correlation_from_covariance(q, row_count, cov, tmp, bias, deps);
+    auto prepare_event = prepare_correlation_from_covariance(q, cov, tmp, bias, deps);
     auto finalize_event =
-        finalize_correlation_from_covariance(q, row_count, cov, tmp, corr, bias, { prepare_event });
+        finalize_correlation_from_covariance(q, cov, tmp, corr, bias, { prepare_event });
     finalize_event.wait_and_throw();
     return finalize_event;
 }
@@ -388,10 +384,10 @@ sycl::event correlation_from_covariance(sycl::queue& q,
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input data of size `row_count` x `column_count`
-/// @param[in]  assume_centered
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+/// @param[in]  queue            The SYCL queue
+/// @param[in]  data             The input data of size `row_count` x `column_count`
+/// @param[in]  assume_centered  If true, the input data is assumed to be centered
+/// @param[in]  deps             Events indicating availability of the `data` for reading or writing
 ///
 /// @return A tuple of two elements, where the first element is the resulting 1d array of sums
 /// of size `column_count` and the second element is a SYCL event indicating the availability
@@ -422,10 +418,10 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_sums(sycl::queue& queue,
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  sums  The input sums of size `column_count`
+/// @param[in]  queue      The SYCL queue
+/// @param[in]  sums       The input sums of size `column_count`
 /// @param[in]  row_count  The number of `row_count` of the input data
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
 ///
 /// @return A tuple of two elements, where the first element is the resulting 1d array of means
 /// of size `column_count` and the second element is a SYCL event indicating the availability
@@ -449,10 +445,10 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_means(sycl::queue& queue,
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in,out]  data  The input block of the data of size `row_count` x `column_count`
-/// @param[in]  means  The input means of size `column_count`
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+/// @param[in]      queue The SYCL queue
+/// @param[in,out]  data  The block of data to be centered of size `row_count` x `column_count`
+/// @param[in]      means The input means of size `column_count`
+/// @param[in]      deps  Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the mean centered data array for reading and writing
@@ -504,7 +500,6 @@ INSTANTIATE_COV(double)
 
 #define INSTANTIATE_COR_FROM_COV(F)                                          \
     template sycl::event correlation_from_covariance<F>(sycl::queue&,        \
-                                                        std::int64_t,        \
                                                         const ndview<F, 2>&, \
                                                         ndview<F, 2>&,       \
                                                         bool,                \
