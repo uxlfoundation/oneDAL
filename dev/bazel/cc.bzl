@@ -22,6 +22,7 @@ load("@onedal//dev/bazel:utils.bzl",
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
+    "ConfigFlagInfo",
     "CpuInfo",
     "VersionInfo",
 )
@@ -82,6 +83,39 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
         unsupported_features = ctx.disabled_features + disable_features,
     )
     return cc_toolchain, feature_config
+
+def _msvc_runtime_suffix(ctx, feature_config, is_windows):
+    """Return the `d` suffix appended to library names for the debug MSVC CRT.
+
+    Mirrors the Makefile's `$d` (makefile:124): on Windows a debug-runtime
+    build produces `onedal_cored.lib`, `onedal_cored.4.dll`, etc., so that MD
+    and MDd binaries can live side by side in one release tree. Always empty
+    on non-Windows platforms.
+
+    The naming is driven by the `msvc_runtime_debug` toolchain feature, which
+    is what actually selects `-MDd`. The `@config//:msvc_runtime` build
+    setting exists separately because `select()` cannot read toolchain
+    features; the two must agree, otherwise MD-compiled objects would be
+    published under debug names (or vice versa), so a mismatch fails loudly.
+    """
+    if not is_windows:
+        return ""
+    feature_enabled = cc_common.is_enabled(
+        feature_configuration = feature_config,
+        feature_name = "msvc_runtime_debug",
+    )
+    flag_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
+    if feature_enabled != flag_debug:
+        fail(
+            "Inconsistent Windows MSVC runtime configuration: " +
+            "toolchain feature 'msvc_runtime_debug' is {}, ".format(
+                "enabled" if feature_enabled else "disabled") +
+            "but --msvc_runtime={}. ".format(
+                "debug" if flag_debug else "release") +
+            "Both must be set together: use '--config=mdd' for the debug " +
+            "runtime, or omit it for the default release runtime.",
+        )
+    return "d" if feature_enabled else ""
 
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
@@ -193,9 +227,10 @@ def _cc_static_lib_impl(ctx):
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
+    rt_suffix = _msvc_runtime_suffix(ctx, feature_config, is_windows)
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
-        name = ctx.attr.lib_name,
+        name = ctx.attr.lib_name + rt_suffix,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
@@ -219,6 +254,10 @@ cc_static_lib = rule(
         "deps": attr.label_list(mandatory=True),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -281,7 +320,10 @@ def _cc_dynamic_lib_impl(ctx):
         ctx.attr.deps, ctx.attr.lib_tags)
 
     vi = ctx.attr._version_info[VersionInfo]
-    link_name = "{}.{}".format(ctx.attr.lib_name, vi.binary_major) if is_windows else ctx.attr.lib_name
+    # The CRT suffix goes before the ABI version, matching the Makefile:
+    # `onedal_cored.4.dll` / `onedal_cored_dll.lib` (makefile:337-347).
+    rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx, feature_config, is_windows)
+    link_name = "{}.{}".format(rt_name, vi.binary_major) if is_windows else rt_name
     linux_soname_flags = [] if is_windows else [
         "-Wl,-soname,lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major),
     ]
@@ -306,7 +348,7 @@ def _cc_dynamic_lib_impl(ctx):
     if is_windows:
         default_files = []
         if dynamic_outputs.dynamic_library:
-            dynamic_release_name = "{}.{}.dll".format(ctx.attr.lib_name, vi.binary_major)
+            dynamic_release_name = "{}.{}.dll".format(rt_name, vi.binary_major)
             if dynamic_outputs.dynamic_library.basename == dynamic_release_name:
                 default_files.append(dynamic_outputs.dynamic_library)
             else:
@@ -321,7 +363,7 @@ def _cc_dynamic_lib_impl(ctx):
             default_files.append(_copy_dynamic_release_file(
                 ctx,
                 dynamic_outputs.interface_library,
-                "{}_dll.lib".format(ctx.attr.lib_name),
+                "{}_dll.lib".format(rt_name),
                 is_windows = is_windows,
             ))
     default_info = DefaultInfo(
@@ -355,6 +397,10 @@ cc_dynamic_lib = rule(
         "_dll_to_implib": attr.label(
             default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
             allow_single_file = True,
+        ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],

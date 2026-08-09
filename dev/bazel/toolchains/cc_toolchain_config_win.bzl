@@ -195,6 +195,16 @@ def _impl(ctx):
     pedantic_feature = feature(name = "pedantic")
     dbg_feature = feature(name = "dbg")
     opt_feature = feature(name = "opt")
+
+    # Debug MSVC runtime (`-MDd`), equivalent to the Makefile's
+    # `MSVC_RUNTIME_VERSION=debug`. Kept separate from the built-in `dbg`
+    # feature (Make `REQDBG`) on purpose: the CRT flavour is an ABI choice
+    # that also renames the produced libraries (`onedal_cored.lib`) and
+    # switches the linked `msvcrt`/`tbb` variants, whereas `dbg` only adds
+    # debug info and assertions. Enable via `--config=mdd`, which also flips
+    # the `@config//:msvc_runtime` build setting that `select()`s read.
+    msvc_runtime_debug_feature = feature(name = "msvc_runtime_debug")
+
     runtime_library_feature = feature(
         name = "runtime_library",
         enabled = True,
@@ -202,12 +212,33 @@ def _impl(ctx):
             flag_set(
                 actions = all_compile_actions,
                 flag_groups = [flag_group(flags = ["-MDd"])],
-                with_features = [with_feature_set(features = ["dbg"])],
+                with_features = [with_feature_set(features = ["msvc_runtime_debug"])],
             ),
             flag_set(
                 actions = all_compile_actions,
                 flag_groups = [flag_group(flags = ["-MD"])],
-                with_features = [with_feature_set(not_features = ["dbg"])],
+                with_features = [with_feature_set(not_features = ["msvc_runtime_debug"])],
+            ),
+            # The icx driver does not add the SYCL runtime import library for
+            # Bazel's DLL link path when most device objects are supplied
+            # through a /WHOLEARCHIVE static library. Link it explicitly so
+            # generated registration thunks resolve
+            # __sycl_{,un}register_lib on Windows. The debug CRT needs the
+            # debug import library, mirroring `sycl$d.lib` in makefile:811.
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(flags = ["sycld.lib"])],
+                with_features = [with_feature_set(
+                    features = ["dpc++", "msvc_runtime_debug"],
+                )],
+            ),
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(flags = ["sycl.lib"])],
+                with_features = [with_feature_set(
+                    features = ["dpc++"],
+                    not_features = ["msvc_runtime_debug"],
+                )],
             ),
         ],
     )
@@ -728,6 +759,7 @@ def _impl(ctx):
         pedantic_feature,
         dbg_feature,
         opt_feature,
+        msvc_runtime_debug_feature,
         runtime_library_feature,
         supports_dynamic_linker_feature,
         do_not_link_dynamic_dependencies_feature,

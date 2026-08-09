@@ -685,6 +685,28 @@ jobs:
       xcopy /E /I /Y "bazel-bin\release" "$(release.dir)" >NUL
       echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
     displayName: 'Prepare standalone release directory'
+  # Debug MSVC runtime (Make MSVC_RUNTIME_VERSION=debug): checks that the
+  # `-MDd` build links and that its libraries land under the `d`-suffixed
+  # names, so an MD and an MDd release can share one tree. Built after the
+  # release tree above is copied out, since it overwrites bazel-bin/release.
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release-mdd'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $libDir = "bazel-bin\release\daal\latest\lib\intel64"
+      $expected = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
+                    "onedal_cored_dll.lib")
+      $missing = $expected | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      if ($missing) {
+          Write-Host "Files present in ${libDir}:"
+          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          throw "Debug-runtime build is missing: $($missing -join ', ')"
+      }
+      Write-Host "Debug-runtime library names OK."
+    displayName: 'Verify debug-runtime library names'
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel icx build'

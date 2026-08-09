@@ -301,6 +301,41 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
+#### Windows MSVC runtime (`-MD` / `-MDd`)
+
+On Windows the CRT flavour is selected independently of `--config=dbg`, matching
+the Makefile's split between `MSVC_RUNTIME_VERSION` and `REQDBG`. A debug-CRT
+build appends `d` to every library name — `onedal_cored.lib`,
+`onedal_cored.4.dll`, `onedal_cored_dll.lib` — exactly as the Make build does,
+so both flavours can share one release tree.
+
+```bat
+:: Release CRT (-MD), unsuffixed names. This is the default.
+bazelisk.exe build //:release
+
+:: Debug CRT (-MDd), `d`-suffixed names, `_debug` TBB variants.
+bazelisk.exe build //:release --config=mdd
+
+:: Both flavours merged into one release tree, in a single command.
+bazelisk.exe build //:release_all
+```
+
+`--config=mdd` is orthogonal to `--config=dbg`: combine them
+(`--config=mdd --config=dbg`) for a debug-CRT build that also carries debug
+info and assertions. `//:release_all` pins the runtime internally, so passing
+`--config=mdd` alongside it has no effect.
+
+`//:release_all` takes the libraries under `lib/intel64` and `redist/intel64`
+from both builds; everything else — headers, datasets, examples, env scripts,
+CMake config — comes from the release-CRT build, since those are identical
+between flavours. The pkg-config files describe the release CRT; debug-CRT
+consumers should use `oneDALConfig.cmake`, which appends its own
+`DAL_DEBUG_SUFFIX` based on `CMAKE_BUILD_TYPE`.
+
+The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries in
+the TBB layout being used. On non-Windows platforms both the `mdd` config and
+`//:release_all` are no-ops.
+
 ### Release validation and platform helpers
 
 Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
@@ -695,3 +730,6 @@ build --linkopt=-your-link-flag
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
+| `MSVC_RUNTIME_VERSION=release` | `<default>`                                                  | Windows release CRT (`-MD`); unsuffixed library names                      |
+| `MSVC_RUNTIME_VERSION=debug`   | `--config=mdd`                                               | Windows debug CRT (`-MDd`); `d`-suffixed library names                     |
+| Both runtimes in one tree      | `bazel build //:release_all`                                 | Windows only; equals `//:release` elsewhere                                |

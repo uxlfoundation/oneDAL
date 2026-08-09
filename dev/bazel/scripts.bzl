@@ -16,7 +16,7 @@
 
 """Rules for generating release scripts and configuration files."""
 
-load("@onedal//dev/bazel/config:config.bzl", "VersionInfo")
+load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo", "VersionInfo")
 
 # ---------------------------------------------------------------------------
 # Versioned template files
@@ -154,15 +154,24 @@ def _generate_pkgconfig_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.out)
 
     if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        # A debug MSVC runtime renames every oneDAL library (`onedal_cored.lib`)
+        # and switches both the CRT flag and the TBB variant, so the .pc file has
+        # to follow. See `_msvc_runtime_suffix` in dev/bazel/cc.bzl.
+        is_rt_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
+        d = "d" if is_rt_debug else ""
         # Keep this list in sync with the `_WIN32` branch of
         # `deploy/pkg-config/pkg-config.cpp`: the dynamic package exposes only
         # onedal and onedal_core, and Windows has no parameters library at all
         # (`makefile` errors out on `BUILD_PARAMETERS_LIB=yes` there).
+        #
+        # The braces around `libdir` are doubled because this string is formatted
+        # here, for `{d}`; it then goes into the template below as an argument,
+        # where `format` substitutes it without looking at it again.
         onedal_libs = (
-            "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
+            "${{libdir}}/onedal{d}.lib ${{libdir}}/onedal_core{d}.lib ${{libdir}}/onedal_thread{d}.lib"
             if ctx.attr.static else
-            "${libdir}/onedal_dll.lib ${libdir}/onedal_core_dll.lib"
-        )
+            "${{libdir}}/onedal{d}_dll.lib ${{libdir}}/onedal_core{d}_dll.lib"
+        ).format(d = d)
         ctx.actions.write(
             output = out,
             content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
@@ -174,12 +183,14 @@ Name: oneDAL
 Description: oneAPI Data Analytics Library
 Version: {major}.{minor}
 URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
-Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
+Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12{tbb_d}.lib tbbmalloc{tbb_d}.lib
+Cflags: /std:c++17 {crt} /wd4996 /EHsc -I${{includedir}}
 """.format(
                 major = vi.major,
                 minor = vi.minor,
                 onedal_libs = onedal_libs,
+                crt = "/MDd" if is_rt_debug else "/MD",
+                tbb_d = "_debug" if is_rt_debug else "",
             ),
         )
     else:
@@ -227,6 +238,10 @@ _generate_pkgconfig = rule(
         ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
         ),
     },
 )

@@ -24,6 +24,23 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 # because repo mapping is not applied in that context.
 _CPU_SETTING = str(Label("@config//:cpu"))
 
+# Windows library stems, in both MSVC-runtime flavours: a debug-CRT build
+# appends `d` to every library name (see `_msvc_runtime_suffix` in
+# dev/bazel/cc.bzl and `$d` in makefile:124). Listed explicitly rather than
+# stripping a trailing `d`, because `onedal_thread` already ends in one.
+_THREAD_STEMS = ["onedal_thread", "onedal_threadd"]
+
+# DLL stems that additionally ship an ABI-versioned import library
+# (`onedal_core_dll.4.lib`), matching `.release.a_win` in makefile:962-970.
+_VERSIONED_IMPLIB_STEMS = [
+    "onedal_core",
+    "onedal",
+    "onedal_dpc",
+    "onedal_cored",
+    "onedald",
+    "onedal_dpcd",
+]
+
 def _match_file_name(file, entries):
     # Use short_path (workspace-relative, e.g. "cpp/oneapi/dal/foo.h" or
     # "../mkl_repo~mkl/include/mkl.h") instead of file.path (which contains
@@ -349,7 +366,7 @@ def _copy_lib(ctx, prefix, version_info):
                 stem = base_no_ver[:-len(".dll")]
                 # The thread import library is not shipped in the Make
                 # DAAL package, mirror that here.
-                if stem == "onedal_thread":
+                if stem in _THREAD_STEMS:
                     continue
                 implib_name = "{}_dll.lib".format(stem)
                 # Prefer the link-emitted .if.lib (rules_cc MSVC auto-
@@ -367,7 +384,7 @@ def _copy_lib(ctx, prefix, version_info):
                         ctx, lib, paths.join(lib_prefix, implib_name),
                     )
                 dst_files.append(implib)
-                if version_info and stem in ["onedal_core", "onedal", "onedal_dpc"]:
+                if version_info and stem in _VERSIONED_IMPLIB_STEMS:
                     versioned_implib_name = "{}_dll.{}.lib".format(
                         stem,
                         version_info.binary_major,
@@ -589,6 +606,154 @@ headers_filter = rule(
         "exclude": attr.string_list(),
     },
 )
+
+_FEATURES_OPTION = "//command_line_option:features"
+_MSVC_RUNTIME_SETTING = str(Label("@config//:msvc_runtime"))
+_MSVC_RUNTIME_DEBUG_FEATURE = "msvc_runtime_debug"
+
+# Subdirectories of the release tree whose contents depend on the MSVC
+# runtime. Everything else (headers, datasets, examples, env scripts) is
+# runtime-independent and is taken from the release-runtime build only, so
+# the two trees can be merged without output collisions. Note this must stay
+# narrower than `lib/`: `lib/pkgconfig` and `lib/cmake` hold identically
+# named files in both flavours and are taken from the release build only.
+_RUNTIME_SPECIFIC_DIRS = ["lib/intel64/", "redist/intel64/"]
+
+def _force_msvc_runtime(settings, debug):
+    """Pin the MSVC runtime configuration, ignoring any inherited setting.
+
+    Both the `--features` flag (which drives `-MD`/`-MDd` in the toolchain)
+    and the `@config//:msvc_runtime` build setting (which dependencies
+    `select()` on) are rewritten together, so a `--config=mdd` on the command
+    line cannot leave one half of the pair pointing the other way.
+    """
+    features = [
+        f
+        for f in settings[_FEATURES_OPTION]
+        if f != _MSVC_RUNTIME_DEBUG_FEATURE and f != "-" + _MSVC_RUNTIME_DEBUG_FEATURE
+    ]
+    if debug:
+        features = features + [_MSVC_RUNTIME_DEBUG_FEATURE]
+    return {
+        _FEATURES_OPTION: features,
+        _MSVC_RUNTIME_SETTING: "debug" if debug else "release",
+    }
+
+def _force_msvc_runtime_release_impl(settings, attr):
+    return _force_msvc_runtime(settings, debug = False)
+
+def _force_msvc_runtime_debug_impl(settings, attr):
+    return _force_msvc_runtime(settings, debug = True)
+
+_force_msvc_runtime_release_transition = transition(
+    implementation = _force_msvc_runtime_release_impl,
+    inputs = [_FEATURES_OPTION],
+    outputs = [_FEATURES_OPTION, _MSVC_RUNTIME_SETTING],
+)
+
+_force_msvc_runtime_debug_transition = transition(
+    implementation = _force_msvc_runtime_debug_impl,
+    inputs = [_FEATURES_OPTION],
+    outputs = [_FEATURES_OPTION, _MSVC_RUNTIME_SETTING],
+)
+
+def _relativize_release_file(file, dep):
+    """Return `file`'s path relative to `dep`'s release root, or None.
+
+    The release rule declares its outputs under `<target name>/daal/latest`
+    within its own package, so a generated file's `short_path` ends up as
+    `[<package>/]release/daal/latest/lib/intel64/onedal.lib`. Locate the
+    release root by its `<name>/daal/latest` marker rather than assuming the
+    target sits in the root package.
+    """
+    marker = paths.join(dep.label.name, "daal", "latest") + "/"
+    index = file.short_path.find(marker)
+    if index == -1:
+        return None
+    return file.short_path[index + len(marker):]
+
+def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None):
+    dst_files = []
+    for src in dep[DefaultInfo].files.to_list():
+        rel = _relativize_release_file(src, dep)
+        if rel == None:
+            fail("Unexpected file '{}' in release tree of {}".format(
+                src.short_path, dep.label))
+        if only_dirs != None:
+            if not [d for d in only_dirs if rel.startswith(d)]:
+                continue
+        dst_files.append(_copy(ctx, src, paths.join(prefix, rel)))
+    return dst_files
+
+def _release_all_impl(ctx):
+    # `cfg` transitions turn the attribute into a list of configured targets.
+    release_md = ctx.attr.release_md[0]
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    if not is_windows:
+        # The MSVC runtime distinction does not exist here, so there is
+        # nothing to merge. Forward the single release tree as-is rather than
+        # copying it: the Linux tree contains `.so` version symlinks, and
+        # copying would dereference them into duplicate real files.
+        return [DefaultInfo(files = release_md[DefaultInfo].files)]
+    prefix = ctx.attr.name + "/daal/latest"
+    files = _copy_from_release_tree(ctx, release_md, prefix)
+    # Only the libraries differ between the two runtimes, and they carry the
+    # `d` suffix, so both flavours coexist in one lib/redist directory. The
+    # pkg-config files describe the release runtime only; debug-runtime
+    # consumers get the right names from oneDALConfig.cmake, which appends
+    # its own DAL_DEBUG_SUFFIX.
+    files += _copy_from_release_tree(
+        ctx, ctx.attr.release_mdd[0], prefix,
+        only_dirs = _RUNTIME_SPECIFIC_DIRS,
+    )
+    return [DefaultInfo(files = depset(files))]
+
+_release_all = rule(
+    implementation = _release_all_impl,
+    attrs = {
+        "release_md": attr.label(
+            mandatory = True,
+            cfg = _force_msvc_runtime_release_transition,
+            doc = "Release tree built against the release MSVC runtime.",
+        ),
+        "release_mdd": attr.label(
+            mandatory = True,
+            cfg = _force_msvc_runtime_debug_transition,
+            doc = "Release tree built against the debug MSVC runtime. " +
+                  "Only its lib/ and redist/ contents are used; ignored " +
+                  "entirely on non-Windows platforms.",
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
+        "_allowlist_function_transition": attr.label(
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+        ),
+    },
+)
+
+def release_all(name, release_target):
+    """Assemble one release tree holding both Windows MSVC runtime flavours.
+
+    Builds `release_target` twice — once against the release CRT (`-MD`) and
+    once against the debug CRT (`-MDd`) — and merges the results. The debug
+    libraries carry a `d` suffix (`onedal_cored.lib`), mirroring the Makefile,
+    so both sets live side by side in `lib/intel64` and `redist/intel64`.
+
+    On non-Windows platforms the runtime distinction does not exist and the
+    output is equivalent to `release_target` alone.
+
+    Args:
+        name:           Target name (also the output directory prefix).
+        release_target: The `release()` target to build in both flavours.
+    """
+    _release_all(
+        name = name,
+        release_md = release_target,
+        release_mdd = release_target,
+    )
 
 def release_include(hdrs, skip_prefix="", add_prefix=""):
     return (hdrs, add_prefix, skip_prefix)
