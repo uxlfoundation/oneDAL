@@ -92,17 +92,11 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
-    # On Windows, onedal.dll must resolve all DAAL algorithm and MKL backend
-    # symbols at link time (lld-link does not allow unresolved externals), so
-    # embed the same DAAL/MKL-tagged inputs the DPC variant does. On Linux,
-    # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
-    # libonedal_core.so, so the host-only build keeps just the "dal" tag to
-    # avoid duplicating DAAL into onedal.so.
-    lib_tags = select({
-        "@platforms//os:windows": ["dal", "daal", "mkl_embed"],
-        "//conditions:default": ["dal"],
-    }),
-    dpc_lib_tags = ["dal", "daal", "mkl_embed"],
+    # Both Make and Bazel consume DAAL/MKL implementation through onedal_core's
+    # import library. Selecting those tags here pulls their objects into
+    # onedal.dll via /WHOLEARCHIVE and widens its export surface.
+    lib_tags = ["dal"],
+    dpc_lib_tags = ["dal"],
     dal_deps = [
         ":core",
         ":optional",
@@ -114,7 +108,8 @@ dal_dynamic_lib(
         ],
         "//conditions:default": [],
     }),
-    # On Windows, onedal.dll must resolve all externals at link time:
+    # On Windows, link onedal_core's import library plus parameter objects and
+    # delay-load threading shims. Keep DAAL/MKL implementation in onedal_core.
     #   - static_parameters: parameter symbols not part of any other dep tree.
     #   - services_win_dll_shim: delay-load stubs for threading entry points
     #     (e.g. `_threaded_scalable_*`, `_daal_static_threader_reduce`) that
@@ -123,6 +118,7 @@ dal_dynamic_lib(
     #     and the original Make build.
     host_deps = select({
         "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
             ":static_parameters",
             "@onedal//cpp/daal:services_win_dll_shim",
         ],
@@ -133,12 +129,14 @@ dal_dynamic_lib(
 dal_dynamic_lib(
     name = "dynamic_parameters",
     lib_name = "onedal_parameters",
+    # On Windows, DAAL/MKL stay behind onedal_core's import library; only
+    # parameter and oneAPI objects belong in this DLL. Keep Linux unchanged.
     lib_tags = select({
-        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "@platforms//os:windows": ["parameters", "dal"],
         "//conditions:default": ["parameters"],
     }),
     dpc_lib_tags = select({
-        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "@platforms//os:windows": ["parameters", "dal"],
         "//conditions:default": ["parameters"],
     }),
     dal_deps = [
