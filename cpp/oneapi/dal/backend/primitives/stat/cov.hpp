@@ -55,6 +55,26 @@ sycl::event covariance(sycl::queue& q,
                        bool assume_centered,
                        const event_vector& deps = {});
 
+///  A kernel that computes 2d array of covariance matrix from 2d xtx array
+///  based on the information that the input data was centering
+///
+/// @tparam Float Floating-point type used to perform computations
+///
+/// @param[in]  q          The SYCL queue
+/// @param[in]  row_count  The number of `row_count` of the input data
+/// @param[in]  cov        The input xtx matrix of size `column_count` x `column_count`
+/// @param[in]  bias       The input bias value
+/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
+///
+/// @return A SYCL event indicating the availability
+/// of the covariance matrix array for reading and writing
+template <typename Float>
+sycl::event compute_covariance_centered(sycl::queue& q,
+                                        std::int64_t row_count,
+                                        ndview<Float, 2>& cov,
+                                        bool bias,
+                                        const event_vector& deps = {});
+
 /// Compute variances
 ///
 /// @tparam Float Floating-point type used to perform computations
@@ -104,6 +124,59 @@ sycl::event correlation_from_covariance(sycl::queue& q,
                                         ndview<Float, 2>& corr,
                                         bool bias,
                                         const event_vector& deps = {});
+
+///  A wrapper that computes 1d array of sums of the columns from 2d data array
+///
+/// @tparam Float Floating-point type used to perform computations
+///
+/// @param[in]  queue The SYCL queue
+/// @param[in]  data  The input data of size `row_count` x `column_count`
+/// @param[in]  assume_centered
+/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+///
+/// @return A tuple of two elements, where the first element is the resulting 1d array of sums
+/// of size `column_count` and the second element is a SYCL event indicating the availability
+/// of the sums array for reading and writing
+template <typename Float>
+std::tuple<ndarray<Float, 1>, sycl::event> compute_sums(sycl::queue& queue,
+                                                        const ndview<Float, 2>& data,
+                                                        bool assume_centered = false,
+                                                        const event_vector& deps = {});
+
+///  A wrapper that computes 1d array of means of the columns from precomputed sums
+///
+/// @tparam Float Floating-point type used to perform computations
+///
+/// @param[in]  queue The SYCL queue
+/// @param[in]  sums  The input sums of size `column_count`
+/// @param[in]  row_count  The number of `row_count` of the input data
+/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+///
+/// @return A tuple of two elements, where the first element is the resulting 1d array of means
+/// of size `column_count` and the second element is a SYCL event indicating the availability
+/// of the means array for reading and writing
+template <typename Float>
+std::tuple<ndarray<Float, 1>, sycl::event> compute_means(sycl::queue& queue,
+                                                         const ndview<Float, 1>& sums,
+                                                         std::int64_t row_count,
+                                                         const event_vector& deps = {});
+
+///  A wrapper that computes the mean centered data from the input data
+///
+/// @tparam Float Floating-point type used to perform computations
+///
+/// @param[in]  queue The SYCL queue
+/// @param[in]  data  The input block of the data of size `row_count` x `column_count`
+/// @param[in]  means  The input means of size `column_count`
+/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+///
+/// @return A SYCL event indicating the availability
+/// of the mean centered data array for reading and writing
+template <typename Float>
+sycl::event get_centered(sycl::queue& queue,
+                         ndview<Float, 2>& data,
+                         const ndview<Float, 1>& means,
+                         const event_vector& deps = {});
 
 #endif
 

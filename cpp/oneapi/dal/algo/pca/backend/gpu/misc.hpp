@@ -30,33 +30,6 @@ namespace pr = dal::backend::primitives;
 
 // Common
 
-///  A wrapper that computes 1d array of sums of the columns from 2d data array
-///
-/// @tparam Float Floating-point type used to perform computations
-///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input data of size `row_count` x `column_count`
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
-///
-/// @return A tuple of two elements, where the first element is the resulting 1d array of sums
-/// of size `column_count` and the second element is a SYCL event indicating the availability
-/// of the sums array for reading and writing
-template <typename Float>
-auto compute_sums(sycl::queue& queue,
-                  const pr::ndview<Float, 2>& data,
-                  const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_sums, queue);
-    ONEDAL_ASSERT(data.has_data());
-    ONEDAL_ASSERT(data.get_dimension(1) > 0);
-
-    const std::int64_t column_count = data.get_dimension(1);
-    auto sums = pr::ndarray<Float, 1>::empty(queue, { column_count }, alloc::device);
-    constexpr pr::sum<Float> binary{};
-    constexpr pr::identity<Float> unary{};
-    auto sums_event = pr::reduce_by_columns(queue, data, sums, binary, unary, deps);
-    return std::make_tuple(sums, sums_event);
-}
-
 ///  A wrapper that computes 1d array of eigenvalues and 2d array of eigenvectors from the covariance matrix
 ///
 /// @tparam Float Floating-point type used to perform computations
@@ -162,33 +135,6 @@ auto flip_eigenvalues(sycl::queue& queue,
     auto flipped_eigenvalues_host = flipped_eigenvalues.to_host(queue);
 
     return flipped_eigenvalues_host;
-}
-
-///  A wrapper that computes 1d array of means of the columns from precomputed sums
-///
-/// @tparam Float Floating-point type used to perform computations
-///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  sums  The input sums of size `column_count`
-/// @param[in]  row_count  The number of `row_count` of the input data
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
-///
-/// @return A tuple of two elements, where the first element is the resulting 1d array of means
-/// of size `column_count` and the second element is a SYCL event indicating the availability
-/// of the means array for reading and writing
-template <typename Float>
-auto compute_means(sycl::queue& queue,
-                   const pr::ndview<Float, 1>& sums,
-                   std::int64_t row_count,
-                   const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_means, queue);
-    ONEDAL_ASSERT(sums.has_data());
-    ONEDAL_ASSERT(sums.get_dimension(0) > 0);
-
-    const std::int64_t column_count = sums.get_dimension(0);
-    auto means = pr::ndarray<Float, 1>::empty(queue, { column_count }, alloc::device);
-    auto means_event = pr::means(queue, row_count, sums, means, deps);
-    return std::make_tuple(means, means_event);
 }
 
 ///  A wrapper that computes 1d array of explained variances ratio from the eigenvalues
@@ -495,42 +441,6 @@ auto slice_data(sycl::queue& queue,
         });
     });
     return std::make_tuple(sliced_data, slice_event);
-}
-
-///  A wrapper that computes the mean centered data from the input data
-///
-/// @tparam Float Floating-point type used to perform computations
-///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input block of the data of size `row_count` x `column_count`
-/// @param[in]  means  The input means of size `column_count`
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
-///
-/// @return A SYCL event indicating the availability
-/// of the mean centered data array for reading and writing
-template <typename Float>
-auto get_centered(sycl::queue& queue,
-                  pr::ndview<Float, 2>& data,
-                  const pr::ndview<Float, 1>& means,
-                  const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_centered_data, queue);
-    const std::int64_t row_count = data.get_dimension(0);
-    const std::int64_t column_count = data.get_dimension(1);
-
-    auto centered_data_ptr = data.get_mutable_data();
-    auto means_ptr = means.get_data();
-
-    auto centered_event = queue.submit([&](sycl::handler& h) {
-        const auto range = bk::make_range_2d(row_count, column_count);
-        h.depends_on(deps);
-        h.parallel_for(range, [=](sycl::id<2> id) {
-            const std::size_t i = id[0];
-            const std::size_t j = id[1];
-            centered_data_ptr[i * column_count + j] =
-                centered_data_ptr[i * column_count + j] - means_ptr[j];
-        });
-    });
-    return centered_event;
 }
 
 ///  A wrapper that computes the scaled data from the mean centered data
