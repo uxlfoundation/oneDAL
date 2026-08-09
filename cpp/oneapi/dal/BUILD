@@ -92,30 +92,39 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
-    # Both Make and Bazel consume DAAL/MKL implementation through onedal_core's
-    # import library. Selecting those tags here pulls their objects into
-    # onedal.dll via /WHOLEARCHIVE and widens its export surface.
+    # On Windows both Make and Bazel consume the DAAL/MKL implementation
+    # through onedal_core's import library. Selecting the "daal"/"mkl_embed"
+    # tags here instead pulls their objects into onedal.dll via /WHOLEARCHIVE
+    # and widens its export surface far beyond the Make contract. On Linux,
+    # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
+    # libonedal_core.so, so the host build keeps just the "dal" tag; the DPC
+    # variant keeps the tag set it has always had.
     lib_tags = ["dal"],
-    dpc_lib_tags = ["dal"],
+    dpc_lib_tags = select({
+        "@platforms//os:windows": ["dal"],
+        "//conditions:default": ["dal", "daal", "mkl_embed"],
+    }),
     dal_deps = [
         ":core",
         ":optional",
     ],
     dpc_deps = select({
-        "@platforms//os:windows": [
-            "@onedal//cpp/daal:core_dynamic",
-            ":static_parameters_dpc",
-        ],
+        "@platforms//os:windows": [":static_parameters_dpc"],
         "//conditions:default": [],
     }),
     # On Windows, link onedal_core's import library plus parameter objects and
     # delay-load threading shims. Keep DAAL/MKL implementation in onedal_core.
+    #   - core_dynamic: import library that resolves the DAAL algorithm and
+    #     MKL backend symbols the oneAPI objects reference. `host_deps` is
+    #     appended to both the host and the DPC link, so it must be listed
+    #     here only -- repeating it in `dpc_deps` makes the label duplicate in
+    #     `dynamic_dpc` and fails analysis.
     #   - static_parameters: parameter symbols not part of any other dep tree.
     #   - services_win_dll_shim: delay-load stubs for threading entry points
     #     (e.g. `_threaded_scalable_*`, `_daal_static_threader_reduce`) that
-    #     the embedded DAAL kernel objects reference. The real TBB-backed
-    #     symbols live in onedal_thread.dll. Mirrors onedal_core.dll above
-    #     and the original Make build.
+    #     the DAAL objects reference. The real TBB-backed symbols live in
+    #     onedal_thread.dll. Mirrors onedal_core.dll above and the original
+    #     Make build.
     host_deps = select({
         "@platforms//os:windows": [
             "@onedal//cpp/daal:core_dynamic",
@@ -149,14 +158,13 @@ dal_dynamic_lib(
         "@onedal//cpp/oneapi/dal/algo/logistic_regression/detail",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
-    dpc_deps = select({
+    # `host_deps` is appended to the host *and* the DPC link, so the shared
+    # Windows inputs belong here rather than being split across `dpc_deps`.
+    host_deps = select({
         "@platforms//os:windows": [
             "@onedal//cpp/daal:core_dynamic",
+            "@onedal//cpp/daal:services_win_dll_shim",
         ],
-        "//conditions:default": [],
-    }),
-    host_deps = select({
-        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
         "//conditions:default": [],
     }),
 )
