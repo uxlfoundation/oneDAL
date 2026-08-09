@@ -33,7 +33,14 @@ jobs:
   PublishBaseline:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Measured end to end in an ubuntu:24.04 container running the exact apt
+    # oneAPI packages this workflow installs: the two builds take ~20 min
+    # each, the daal snapshot 11m48s and the oneapi::dal snapshot 4m54s, so
+    # ~60 min of real work with no margin at all. The measurement box had 16.7
+    # GB of RAM to spare; the runner does not, so the daal snapshot will page
+    # (see the swap step below) and take longer than 11m48s here. 120 covers
+    # both that and a cold apt mirror.
+    timeout-minutes: 120
     steps:
       - name: Resolve baseline tag
         id: baseline
@@ -91,6 +98,25 @@ jobs:
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
+      # A full `dump` of the debug-symbol libonedal_core.so peaks at 16.7 GB
+      # RSS (measured with /usr/bin/time -v), above what a 16 GB standard
+      # runner has free. Most of that is the binary/DWARF layer, not the
+      # headers: the same library dumped at `--depth binary` with no headers
+      # at all still peaks at 12.2 GB in 3m42s, because this is a
+      # --debug symbols build carrying 108 MB of .debug_info and 56 MB of
+      # .debug_loc. So trimming the header list below would not help. Grow
+      # swap rather than move to a larger runner: the allocation is
+      # short-lived and this workflow is manual / per-release, not per-PR.
+      - name: Enlarge swap for the daal snapshot
+        run: |
+          sudo swapoff -a
+          sudo rm -f /mnt/abicheck-swap
+          sudo fallocate -l 16G /mnt/abicheck-swap
+          sudo chmod 600 /mnt/abicheck-swap
+          sudo mkswap /mnt/abicheck-swap
+          sudo swapon /mnt/abicheck-swap
+          free -h
+
       # L4 source-fact extraction (macro/constexpr/inline-body diffing) via
       # a Clang plugin is confirmed impossible against the apt-installed
       # icpx package (no LLVMConfig/ClangConfig CMake files -- see the
@@ -99,30 +125,65 @@ jobs:
       # Two separate dumps, not one -- see the matching comment in ci.yml's
       # LinuxAbicheckScan job for why cpp/daal/include and cpp/oneapi/dal
       # each need their own library/baseline file.
+      #
+      # The header roots below are umbrella-plus-explicit-list and must stay
+      # byte-for-byte in step with the ones in ci.yml's LinuxAbicheckScan
+      # job: a baseline dumped from a different header set than the scan uses
+      # reports every header-only difference as a spurious add/remove. The
+      # long rationale (why the plain directories fail, and why
+      # --public-header-dir is required for the provenance cross-checks to do
+      # anything at all) lives with that job.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@5465a8610e2a01f07abcd9f18ff93ecf2256114f # main
+        uses: abicheck/abicheck@43170460eefd708a89fc04f893798ae175621bf1 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
-          new-header: __baseline_src/cpp/daal/include
+          new-header: >-
+            __baseline_src/cpp/daal/include/daal.h
+            __baseline_src/cpp/daal/include/algorithms/tsne/tsne_gradient_descent.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/finiteness_checker.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/roc_auc_score.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/train_test_split.h
+            __baseline_src/cpp/daal/include/services/internal/hash_table.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/base_arrow_numeric_table.h
+          include: __baseline_src/cpp/daal/include
           new-version: ${{ steps.baseline.outputs.tag }}
           depth: headers
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-std=c++17"
+          extra-args: --public-header-dir __baseline_src/cpp/daal/include
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@5465a8610e2a01f07abcd9f18ff93ecf2256114f # main
+        uses: abicheck/abicheck@43170460eefd708a89fc04f893798ae175621bf1 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
-          new-header: __baseline_src/cpp/oneapi/dal
+          new-header: >-
+            __baseline_src/cpp/oneapi/dal.hpp
+            __baseline_src/cpp/oneapi/dal/algo/correlation_distance.hpp
+            __baseline_src/cpp/oneapi/dal/algo/cosine_distance.hpp
+            __baseline_src/cpp/oneapi/dal/algo/dbscan.hpp
+            __baseline_src/cpp/oneapi/dal/algo/linear_regression.hpp
+            __baseline_src/cpp/oneapi/dal/algo/logistic_regression.hpp
+            __baseline_src/cpp/oneapi/dal/table/csr_accessor.hpp
+          include: __baseline_src/cpp
           new-version: ${{ steps.baseline.outputs.tag }}
           depth: headers
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
+          extra-args: --public-header-dir __baseline_src/cpp/oneapi
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
+
+      # 149 MB (daal) + 115 MB (oneapi::dal) of JSON per release, ~57 MB of
+      # each being the L5 header-declaration graph that `depth: headers`
+      # attaches unconditionally. Report it so a reviewer sees the repo cost
+      # before the commit step below runs.
+      - name: Report snapshot sizes
+        run: |
+          ls -l --block-size=M .github/abicheck-baselines/
+          du -sh .github/abicheck-baselines/
 
       # Commit the dumps directly into the repo (rather than a GitHub
       # Release asset) so the baselines PRs compare against live in version

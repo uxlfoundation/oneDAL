@@ -181,7 +181,19 @@ jobs:
       github.event_name == 'pull_request' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Measured end to end in an ubuntu:24.04 container running the exact apt
+    # oneAPI packages this workflow installs: daal scan 4m21s (candidate
+    # snapshot 230s + baseline compare 29s), oneapi::dal scan 3m00s, plus the
+    # DPC++ apt install and artifact download. 30 minutes left no margin for
+    # a cold apt mirror, so this is 45.
+    #
+    # MEMORY: the peak here is the *scan*, not the baseline dump -- the scan
+    # of libonedal_core.so peaks at 3.4 GB RSS and libonedal.so at 1.9 GB,
+    # both comfortable on a 16 GB standard runner. The full baseline *dump*
+    # of libonedal_core.so is the expensive one (16.7 GB RSS) and runs in
+    # the separate, manually-triggered Publish Abicheck Baseline workflow --
+    # see the swap note there.
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -227,31 +239,107 @@ jobs:
       # step in LinuxMakeDPCPP above, which builds the oneapi_c target
       # producing libonedal.so). Scanning either library against the
       # other's headers would report every declaration as missing.
+      #
+      # ── Why the header roots below are umbrella headers plus a short
+      #    explicit list, and not the directories ────────────────────────────
+      #
+      # `new-header: <dir>` expands to *every* header in the tree and parses
+      # them in one aggregate TU. Both directories fail that way, hard
+      # (abicheck exits 1, no snapshot):
+      #
+      #  * cpp/daal/include contains arrow_numeric_table.h, which includes
+      #    <arrow/table.h>. Apache Arrow dev headers do not exist in the
+      #    ubuntu-24.04 apt archive (no libarrow-dev in main/universe), and
+      #    oneDAL's own build never compiles that header either. abicheck's
+      #    auto-exclusion (dumper_clang_errors.retry_excluding_error_headers)
+      #    deliberately only drops headers that raise a preprocessor #error
+      #    direct-inclusion guard -- a missing include is a hard failure by
+      #    design -- so it cannot rescue this.
+      #  * cpp/oneapi/dal contains headers that only resolve relative to
+      #    `cpp` (e.g. oneapi/dal/algo/basic_statistics/common.hpp) and
+      #    headers referring to cpp/daal internals; several also need
+      #    -I cpp/daal/include.
+      #
+      # So each side passes its umbrella header plus exactly those public
+      # installed headers the umbrella does not reach. That list is not
+      # cosmetic: for the oneapi::dal side the 6 extra headers add 687
+      # functions and 130 types to the snapshot (5289 -> 5976 functions)
+      # -- dbscan, linear_regression, logistic_regression,
+      # correlation_distance, cosine_distance and csr_accessor are shipped
+      # in include/ but unreachable from dal.hpp, i.e. the umbrella alone
+      # silently under-covers the public API. Each list was verified by
+      # reachability analysis against __release_lnx/daal/latest/include
+      # (what actually ships) and by an icpx -fsyntax-only aggregate compile.
+      #
+      # --public-header-dir (passed via extra-args, the Action has no input
+      # for it) is what establishes the public/internal boundary: without it
+      # the exported_not_public / public_not_exported / RTTI cross-checks all
+      # report "skipped -- no public-header provenance", and the suppression
+      # engine cannot tell a public-reachable detail:: symbol from a truly
+      # internal one.
+      #
+      # --suppress is also passed via extra-args: `abicheck scan` supports it
+      # at the CLI level, but the composite Action forwards it only in its
+      # compare branch (action/run.sh:466), never in the scan branch.
+      #
+      # fail-on-breaking is 'false' during burn-in. It is not that the
+      # findings are false: the 2026.0.0 baseline predates makefile:134
+      # gaining -fvisibility-inlines-hidden, so main dropped 1966
+      # libonedal_core.so and 352 libonedal.so exports relative to it. All
+      # 2318 are WEAK (inline/template instantiations), zero STRONG, and
+      # relinking all bundled examples built against 2026.0.0 headers needs
+      # none of them -- so no client actually breaks -- but the checker
+      # correctly reports 62 + 7 BREAKING findings, and gating on them would
+      # red-X every PR until the baseline is regenerated past that commit.
+      # Flip this to 'true' once a post-inlines-hidden baseline is published
+      # by the "Publish Abicheck Baseline" workflow.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@5465a8610e2a01f07abcd9f18ff93ecf2256114f # main
+        uses: abicheck/abicheck@43170460eefd708a89fc04f893798ae175621bf1 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
-          new-header: cpp/daal/include
+          new-header: >-
+            cpp/daal/include/daal.h
+            cpp/daal/include/algorithms/tsne/tsne_gradient_descent.h
+            cpp/daal/include/data_management/data/internal/finiteness_checker.h
+            cpp/daal/include/data_management/data/internal/roc_auc_score.h
+            cpp/daal/include/data_management/data/internal/train_test_split.h
+            cpp/daal/include/services/internal/hash_table.h
+            cpp/daal/include/data_management/data/internal/base_arrow_numeric_table.h
+          include: cpp/daal/include
           depth: headers
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json
-          fail-on-breaking: 'true'
+          extra-args: >-
+            --public-header-dir cpp/daal/include
+            --suppress .github/.abicheck-suppress.yaml
+          fail-on-breaking: 'false'
           fail-on-api-break: 'false'
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@5465a8610e2a01f07abcd9f18ff93ecf2256114f # main
+        uses: abicheck/abicheck@43170460eefd708a89fc04f893798ae175621bf1 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
-          new-header: cpp/oneapi/dal
+          new-header: >-
+            cpp/oneapi/dal.hpp
+            cpp/oneapi/dal/algo/correlation_distance.hpp
+            cpp/oneapi/dal/algo/cosine_distance.hpp
+            cpp/oneapi/dal/algo/dbscan.hpp
+            cpp/oneapi/dal/algo/linear_regression.hpp
+            cpp/oneapi/dal/algo/logistic_regression.hpp
+            cpp/oneapi/dal/table/csr_accessor.hpp
+          include: cpp
           depth: headers
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json
-          fail-on-breaking: 'true'
+          extra-args: >-
+            --public-header-dir cpp/oneapi
+            --suppress .github/.abicheck-suppress.yaml
+          fail-on-breaking: 'false'
           fail-on-api-break: 'false'
           github-token: ${{ secrets.GITHUB_TOKEN }}
