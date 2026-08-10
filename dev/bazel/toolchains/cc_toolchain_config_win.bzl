@@ -254,12 +254,26 @@ def _impl(ctx):
                     features = ["dpc++", "msvc_runtime_debug"],
                 )],
             ),
-            # The icx driver does not add the SYCL runtime import library for
-            # Bazel's DLL link path when most device objects are supplied
-            # through a /WHOLEARCHIVE static library. Link it explicitly so
-            # generated registration thunks resolve
-            # __sycl_{,un}register_lib on Windows. The debug CRT needs the
-            # debug import library, mirroring `sycl$d.lib` in makefile:811.
+        ],
+    )
+
+    # The icx driver does not add the SYCL runtime import library for Bazel's
+    # DLL link path when most device objects are supplied through a
+    # /WHOLEARCHIVE static library. Link it explicitly so generated
+    # registration thunks resolve __sycl_{,un}register_lib on Windows. The
+    # debug CRT needs the debug import library, mirroring `sycl$d.lib` in
+    # makefile:811.
+    #
+    # This is a feature of its own rather than part of `runtime_library` so it
+    # can be registered next to `default_link_flags` in the feature list
+    # below, which is where the flag sat when it came from `link_flags_dpcc`
+    # (dev/bazel/toolchains/cc_toolchain_win.bzl). Feature order determines
+    # flag order on the driver command line, and this keeps the DPC++ link
+    # line byte-identical to before apart from the library name itself.
+    sycl_runtime_library_feature = feature(
+        name = "sycl_runtime_library",
+        enabled = True,
+        flag_sets = [
             flag_set(
                 actions = all_link_actions + lto_index_actions,
                 flag_groups = [flag_group(flags = ["sycld.lib"])],
@@ -842,6 +856,11 @@ def _impl(ctx):
         shared_flag_feature,
         output_execpath_flags_feature,
         dpc_linker_mode_feature,
+        # `sycl.lib` / `sycld.lib` used to be appended to `link_flags_dpcc`,
+        # which is emitted before the separator. As an input library it belongs
+        # on lld-link's side of `/link`, so it sits here rather than next to the
+        # feature it was extracted from.
+        sycl_runtime_library_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
         user_link_flags_feature,

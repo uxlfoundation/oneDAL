@@ -84,22 +84,23 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
     )
     return cc_toolchain, feature_config
 
-def _msvc_runtime_suffix(ctx, feature_config, is_windows):
-    """Return the `d` suffix appended to library names for the debug MSVC CRT.
+def _msvc_runtime_is_debug(ctx, feature_config, is_windows):
+    """Return True for a Windows debug-CRT build, failing on a broken config.
 
-    Mirrors the Makefile's `$d` (makefile:124): on Windows a debug-runtime
-    build produces `onedal_cored.lib`, `onedal_cored.4.dll`, etc., so that MD
-    and MDd binaries can live side by side in one release tree. Always empty
-    on non-Windows platforms.
+    Two independent knobs have to agree: the `msvc_runtime_debug` toolchain
+    feature, which is what actually selects `-MDd`, and the
+    `@config//:msvc_runtime` build setting, which exists separately because
+    `select()` cannot read toolchain features. If they disagree, oneDAL would
+    be compiled against one CRT while its libraries — and its dependencies,
+    picked by `select()` — belong to the other, so refuse to build.
 
-    The naming is driven by the `msvc_runtime_debug` toolchain feature, which
-    is what actually selects `-MDd`. The `@config//:msvc_runtime` build
-    setting exists separately because `select()` cannot read toolchain
-    features; the two must agree, otherwise MD-compiled objects would be
-    published under debug names (or vice versa), so a mismatch fails loudly.
+    Called from every compile and every library link, so that the mismatch is
+    caught even on paths that link a prebuilt release tree
+    (`--test_link_mode=release_*`) and therefore instantiate no oneDAL
+    library rule at all.
     """
     if not is_windows:
-        return ""
+        return False
     feature_enabled = cc_common.is_enabled(
         feature_configuration = feature_config,
         feature_name = "msvc_runtime_debug",
@@ -130,7 +131,17 @@ def _msvc_runtime_suffix(ctx, feature_config, is_windows):
             "Do not pass --features=msvc_runtime_debug directly; use " +
             "'--config=mdd', which sets both halves.",
         )
-    return "d" if feature_enabled else ""
+    return feature_enabled
+
+def _msvc_runtime_suffix(ctx, feature_config, is_windows):
+    """Return the `d` suffix appended to library names for the debug MSVC CRT.
+
+    Mirrors the Makefile's `$d` (makefile:124): on Windows a debug-runtime
+    build produces `onedal_cored.lib`, `onedal_cored.4.dll`, etc., so that MD
+    and MDd binaries can live side by side in one release tree. Always empty
+    on non-Windows platforms.
+    """
+    return "d" if _msvc_runtime_is_debug(ctx, feature_config, is_windows) else ""
 
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
@@ -138,6 +149,13 @@ def _cc_module_impl(ctx):
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
+    # Validate the MSVC runtime configuration here as well as in the library
+    # rules. Targets that link a prebuilt release tree
+    # (`--test_link_mode=release_*`) never instantiate a oneDAL library rule,
+    # so this is the only place that catches a half-set runtime on that path —
+    # where it matters most, since the prebuilt dependency names come from a
+    # `select()` on the build setting while `-MD`/`-MDd` comes from the feature.
+    _msvc_runtime_is_debug(ctx, feature_config, is_windows)
     compilation_context, compilation_outputs = onedal_cc_compile.compile(
         name = ctx.label.name,
         ctx = ctx,
@@ -206,6 +224,10 @@ _cc_module = rule(
         "system_includes": attr.string_list(),
         "_cpus": attr.label(
             default = "@config//:cpu",
+        ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
         ),
         "_fpts": attr.string_list(default = ["f32", "f64"]),
         "_windows_constraint": attr.label(
