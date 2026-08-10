@@ -122,7 +122,7 @@ public:
                        data,
                        column_indices,
                        row_offsets,
-                       alloc_kind::host,
+                       alloc_kind::non_usm,
                        preserve_mutability);
     }
 
