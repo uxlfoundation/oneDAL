@@ -55,6 +55,14 @@ lnx_cc_flags = {
 win_icx_common_flags = [
     "-nologo",
     "-WX",
+    # C++ exception handling. The Makefile passes `-EHsc` for every oneAPI
+    # object on Windows (makefile:152, used at makefile:692/704/717); without
+    # it clang-cl defaults to exceptions disabled and any `throw` in
+    # cpp/oneapi/dal/detail/common.hpp is a hard error. This used to be
+    # supplied implicitly as a side effect of `-Qopenmp-simd` (which turns on
+    # -fexceptions in clang), so it only surfaced once that flag became
+    # release-runtime-only. Pass it explicitly instead of relying on that.
+    "-EHsc",
     # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
     # Windows too, so the released `.lib` files never reference `__svml_*`.
     # (`-Zl` itself, the other half of the makefile's variable, is deliberately
