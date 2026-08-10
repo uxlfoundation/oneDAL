@@ -181,8 +181,17 @@ if(MKL_DEPENDENCY STREQUAL "yes")
                 MKL::mkl_core
                 MKL::mkl_intel_lp64
                 MKL::mkl_gnu_thread${DAL_DEBUG_SUFFIX})
-            if(ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "no")
-                list(APPEND oneDAL_IMPORTED_TARGETS -lgomp)
+            # The oneMKL `gnu_thread` layer needs a GNU OpenMP runtime. MKLConfig.cmake
+            # only attaches it (through MKL_SUPP_LINK) to the aggregate `MKL::MKL`
+            # target, while the lines above link the individual component targets, so
+            # the runtime has to be requested explicitly.
+            if(MKL_THREADING STREQUAL "gnu_thread")
+                find_package(OpenMP COMPONENTS CXX)
+                if(TARGET OpenMP::OpenMP_CXX)
+                    list(APPEND oneDAL_IMPORTED_TARGETS OpenMP::OpenMP_CXX)
+                else()
+                    list(APPEND oneDAL_IMPORTED_TARGETS -lgomp)
+                endif()
             endif()
         endif()
     endif()
