@@ -156,6 +156,9 @@ daal_module(
 daal_module(
     name = "threading_tbb",
     srcs = glob(["src/threading/**/*.cpp"]),
+    # Match Make STDALLOC=yes: separately built threading objects keep TBB
+    # scalable allocation while core objects switch away from MKL allocation.
+    stdalloc = False,
     # Make builds these as THR_TBB.objs, outside GCOV_BUILD-scoped CORE.objs_a/y.
     define_gcov_build = False,
     visibility_hidden = False,
