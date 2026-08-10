@@ -332,9 +332,15 @@ between flavours. The pkg-config files describe the release CRT; debug-CRT
 consumers should use `oneDALConfig.cmake`, which appends its own
 `DAL_DEBUG_SUFFIX` based on `CMAKE_BUILD_TYPE`.
 
-The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries in
-the TBB layout being used. On non-Windows platforms both the `mdd` config and
-`//:release_all` are no-ops.
+The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries and
+MKL's `mkl_tbb_threadd` in the layouts being used; the oneAPI BaseKit ships all
+of them.
+
+On non-Windows platforms both the `mdd` config and `//:release_all` are no-ops.
+Note that `//:release_all` then forwards the `//:release` tree unchanged instead
+of copying it — copying would dereference the `.so` version symlinks — so its
+output stays at `bazel-bin/release/daal/latest`, not `bazel-bin/release_all/...`.
+Scripts that need a fixed path should use `//:release` on those platforms.
 
 ### Release validation and platform helpers
 

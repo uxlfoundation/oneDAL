@@ -689,6 +689,18 @@ jobs:
   # `-MDd` build links and that its libraries land under the `d`-suffixed
   # names, so an MD and an MDd release can share one tree. Built after the
   # release tree above is copied out, since it overwrites bazel-bin/release.
+  # Analysis-only check of both MSVC-runtime configurations, ahead of the
+  # builds below. The debug runtime is driven by two settings that have to
+  # agree — the `msvc_runtime_debug` toolchain feature and the
+  # `@config//:msvc_runtime` build setting — and a mismatch is reported during
+  # analysis (see `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
+  # surfaces that in seconds rather than after a full icx compile, and also
+  # proves the //:release_all transitions are well-formed.
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --nobuild --verbose_failures || exit /b 1
+    displayName: 'analyze-msvc-runtime-configs'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
