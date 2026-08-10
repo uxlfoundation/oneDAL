@@ -182,17 +182,16 @@ jobs:
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
     # Measured end to end in an ubuntu:24.04 container running the exact apt
-    # oneAPI packages this workflow installs: daal scan 4m21s (candidate
-    # snapshot 230s + baseline compare 29s), oneapi::dal scan 3m00s, plus the
-    # DPC++ apt install and artifact download. 30 minutes left no margin for
-    # a cold apt mirror, so this is 45.
+    # oneAPI packages this workflow installs, against abicheck main 4f906156:
+    # daal scan 7m06s-7m14s, oneapi::dal scan 3m57s-4m03s (five runs each,
+    # spread under a minute), plus the DPC++ apt install and artifact
+    # download. 30 minutes left no margin for a cold apt mirror, so this is 45.
     #
     # MEMORY: the peak here is the *scan*, not the baseline dump -- the scan
-    # of libonedal_core.so peaks at 3.4 GB RSS and libonedal.so at 1.9 GB,
+    # of libonedal_core.so peaks at 3.42 GB RSS and libonedal.so at 1.88 GB,
     # both comfortable on a 16 GB standard runner. The full baseline *dump*
-    # of libonedal_core.so is the expensive one (16.7 GB RSS) and runs in
-    # the separate, manually-triggered Publish Abicheck Baseline workflow --
-    # see the swap note there.
+    # of libonedal_core.so is the more expensive one (5.44 GB) and runs in
+    # the separate, manually-triggered Publish Abicheck Baseline workflow.
     timeout-minutes: 45
     permissions:
       contents: read
@@ -282,19 +281,52 @@ jobs:
       # at the CLI level, but the composite Action forwards it only in its
       # compare branch (action/run.sh:466), never in the scan branch.
       #
-      # fail-on-breaking is 'false' during burn-in. It is not that the
-      # findings are false: the 2026.0.0 baseline predates makefile:134
-      # gaining -fvisibility-inlines-hidden, so main dropped 1966
-      # libonedal_core.so and 352 libonedal.so exports relative to it. All
-      # 2318 are WEAK (inline/template instantiations), zero STRONG, and
-      # relinking all bundled examples built against 2026.0.0 headers needs
-      # none of them -- so no client actually breaks -- but the checker
-      # correctly reports 62 + 7 BREAKING findings, and gating on them would
-      # red-X every PR until the baseline is regenerated past that commit.
-      # Flip this to 'true' once a post-inlines-hidden baseline is published
-      # by the "Publish Abicheck Baseline" workflow.
+      # ── Gating ────────────────────────────────────────────────────────────
+      #
+      # The gate is the severity model plus change_kind-scoped
+      # suppressions, not fail-on-breaking: 'false'.
+      #
+      # fail-on-breaking only zeroes the *step's* exit status after the fact
+      # (action/run.sh:1483). The CLI still exits 4 and the report still says
+      # verdict: BREAKING, so the JSON, the SARIF upload and the PR comment
+      # all keep claiming oneDAL broke its ABI. That is the wrong signal to
+      # publish, and it also disables gating on genuine breaks.
+      #
+      # .abicheck.yml sets exit_code_scheme: severity (abicheck#700 wired
+      # `scan --against` to the severity model; the default is still "legacy",
+      # which ignores it) with preset: default -- so abi_breaking stays
+      # `error` and a real break still fails this job. The finding classes
+      # oneDAL currently has to tolerate are silenced individually, by
+      # change_kind, in .github/.abicheck-suppress.yaml, with the evidence for
+      # each recorded there:
+      #
+      #  * func_visibility_changed -- the 2026.0.0 baseline predates
+      #    makefile:134 gaining -fvisibility-inlines-hidden, so main dropped
+      #    1966 libonedal_core.so and 352 libonedal.so exports. All 2318 are
+      #    WEAK COMDAT inline/template instantiations that clients instantiate
+      #    locally; verified that zero STRONG symbols, data objects, vtables,
+      #    typeinfos or guard variables are affected and that no built client
+      #    object references any of them. Drop this entry once a
+      #    post-inlines-hidden baseline is published.
+      #  * experimental_removed_without_replacement -- the same four lost WEAK
+      #    spmd::communicator symbols, reported a second time under a second
+      #    kind (and with a mis-parsed "replacement leaf").
+      #  * internal_template_leaks_via_public_api -- two *added*
+      #    oneapi::dal::detail::v2::chunked_array_base members reported as
+      #    breaking; the detector ignores direction.
+      #  * type_vtable_changed / constant_changed -- abicheck false positives,
+      #    both reproduced by scanning a binary against a dump of itself. See
+      #    the suppression file for the full analysis of each.
+      #
+      # Verified locally against abicheck main (4f906156), both libraries, with
+      # this exact config + suppression file: verdict COMPATIBLE_WITH_RISK and
+      # exit 0 on each side, with every finding still present in the JSON
+      # (libonedal_core.so: 74 suppressed, 3 risk findings reported;
+      # libonedal.so: 59 suppressed, 2 reported). Negative control: the same
+      # daal scan with `severity.preset: strict` and no suppression file still
+      # exits 4, i.e. the gate has not been disabled.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@43170460eefd708a89fc04f893798ae175621bf1 # main
+        uses: abicheck/abicheck@4f9061560b2312138cd6d895088fb31c996b9de5 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -315,11 +347,10 @@ jobs:
           extra-args: >-
             --public-header-dir cpp/daal/include
             --suppress .github/.abicheck-suppress.yaml
-          fail-on-breaking: 'false'
-          fail-on-api-break: 'false'
+          build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@43170460eefd708a89fc04f893798ae175621bf1 # main
+        uses: abicheck/abicheck@4f9061560b2312138cd6d895088fb31c996b9de5 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -340,6 +371,5 @@ jobs:
           extra-args: >-
             --public-header-dir cpp/oneapi
             --suppress .github/.abicheck-suppress.yaml
-          fail-on-breaking: 'false'
-          fail-on-api-break: 'false'
+          build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}

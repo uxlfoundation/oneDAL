@@ -47,17 +47,27 @@ sources:
 # includes sycl/sycl.hpp, so the clang frontend driven by icpx is the only
 # workable parser for this project -- not a stopgap.
 #
-# include_dirs covers both header roots so a header included as
-# "oneapi/dal/..." or "data_management/..." resolves the same way the build
-# resolves it. Per-artifact driver flags (-fsycl for the oneapi::dal side)
-# stay on the CLI: compile.std/defines accept only single whitespace-free
-# option atoms.
+# Deliberately no `include_dirs:` here. Include directories belong on the CLI
+# (`include:` in each workflow step), because the two sides of a comparison
+# resolve them from different roots: a PR scan runs against the checkout root
+# (`cpp`, `cpp/daal/include`) while the baseline job builds a release tag into
+# `__baseline_src/` and needs `__baseline_src/cpp/...`. Putting them here
+# instead makes both sides load the *same* literal paths, which changes the
+# include sequence on exactly one side and abicheck then -- correctly --
+# refuses the comparison outright:
+#
+#   verdict: NOT_COMPARABLE (exit 6)
+#   "old and new snapshots were extracted under different compile contexts
+#    (profile_fingerprint mismatch; differing fields: include_sequence)"
+#
+# Verified: an otherwise-identical scan with `include_dirs` in this file exits
+# 6 with zero findings, and exits 4 (i.e. actually compares) without it.
+# Per-artifact driver flags (-fsycl for the oneapi::dal side) stay on the CLI
+# for the same reason; compile.std/defines also accept only single
+# whitespace-free option atoms.
 compile:
   frontend: clang
   std: c++17
-  include_dirs:
-    - cpp
-    - cpp/daal/include
 
 # Restrict findings to the exported public surface. This is the main
 # false-positive control and matches what .github/.abignore already asserts
@@ -70,3 +80,22 @@ scope:
 suppression:
   strict: true
   require_justification: true
+
+# Exit-code policy.
+#
+# `scan --against` historically computed its exit code straight from its own
+# verdict (BREAKING -> 4) and ignored the severity model entirely; abicheck
+# #700 wired the two together, but kept "legacy" as the default so existing
+# pipelines do not change behaviour. Opting in explicitly is what lets the
+# severity block below actually decide whether CI fails, instead of
+# .github/workflows papering over a non-zero exit after the fact.
+#
+# The preset stays `default` on purpose -- abi_breaking=error, so a genuine
+# ABI break still fails the job. Silencing a *category* wholesale (preset
+# info-only) would also silence real breaks; the two finding classes oneDAL
+# currently needs to tolerate are silenced individually, by change_kind, in
+# .github/.abicheck-suppress.yaml.
+exit_code_scheme: severity
+
+severity:
+  preset: default

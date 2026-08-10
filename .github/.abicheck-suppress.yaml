@@ -25,9 +25,163 @@
 version: 1
 
 suppressions:
-  - namespace: "daal::**::internal::**"
-    reason: "daal::*::internal is a documented non-public implementation namespace"
-  - namespace: "oneapi::dal::**::backend::**"
-    reason: "oneapi::dal::*::backend is a documented internal namespace"
-  - namespace: "oneapi::dal::**::detail::**"
-    reason: "oneapi::dal::*::detail is a documented internal namespace"
+  # NOTE on the glob spelling: `**` here is fnmatch, not git pathspec --
+  # abicheck compiles these with fnmatch.translate (suppression.py:86), so `**`
+  # becomes plain `.*` and matches across `::` on its own. Writing
+  # `daal::**::internal::**` therefore requires *at least one* namespace
+  # segment between `daal` and `internal` and silently misses `daal::internal::`
+  # itself; likewise `oneapi::dal::**::detail::**` misses
+  # `oneapi::dal::detail::`, which is where most of oneDAL's internals actually
+  # live. Verified by replaying _ns_match's ancestor walk over real symbols.
+  # `X::**internal::**` (no `::` before the wildcard) matches both the direct
+  # and the nested case and still rejects every public name tested.
+  - namespace: "daal::**internal::**"
+    reason: "daal::*internal is a documented non-public implementation namespace"
+  - namespace: "oneapi::dal::**backend::**"
+    reason: "oneapi::dal::*backend is a documented internal namespace"
+  - namespace: "oneapi::dal::**detail::**"
+    reason: "oneapi::dal::*detail is a documented internal namespace"
+
+  # Two change_kind-scoped entries, deliberately narrow: they silence one
+  # finding kind each, not a whole severity category, so a genuine ABI break
+  # of any other kind still fails the job.
+
+  # 2026.0.0 -> main lost 2318 exported symbols from libonedal_core.so and
+  # libonedal.so. Every one is a WEAK FUNC -- a COMDAT inline or template
+  # instantiation that -fvisibility-inlines-hidden (added at makefile:134
+  # after the 2026.0.0 tag) stopped exporting. Verified: zero STRONG symbols
+  # and zero data objects lost; zero _ZTV/_ZTI/_ZTS lost; zero _ZGV guard
+  # variables lost; and cross-linking every lost export against the 1556
+  # undefined symbols required by all 183 built client objects gives an empty
+  # intersection, i.e. nothing that actually ships resolves against them.
+  # Such a symbol is emitted into every TU that uses it, so a client links
+  # its own copy -- which is exactly what -fvisibility-inlines-hidden is for.
+  - symbol_pattern: ".*"
+    change_kind: "func_visibility_changed"
+    reason: >-
+      -fvisibility-inlines-hidden (makefile:134) stopped exporting COMDAT
+      inline/template instantiations. All 2318 affected symbols are WEAK FUNC
+      that clients instantiate locally; no STRONG symbol, data object, vtable,
+      typeinfo or guard variable is affected, and no built client object
+      references any of them.
+
+  # abicheck false positive, not an oneDAL change. Two types
+  # (SerializableArgument, AlgorithmContainerIfaceImpl) are reported as
+  # `type_vtable_changed` = BREAKING even though both snapshots record an
+  # identical single-slot vtable, identical size_bits and identical
+  # base_offsets. Confirmed by a control run: scanning the tree against a
+  # dump of *the same binary* still emits both findings with exit 4 -- so
+  # nothing changed between the two sides at all. abicheck itself emits a
+  # `layout_unverifiable` risk finding on the very same two types ("one side
+  # carries a layout descriptor but the other has no layout evidence ...
+  # Informational and non-escalating"), i.e. it reports the same missing-
+  # evidence condition twice with contradictory severities. The
+  # `_vtable_transition_is_evidenced` guard added upstream covers only the
+  # empty-vs-non-empty case, which is why these survive it.
+  # Drop this entry once abicheck stops escalating an evidence gap to
+  # BREAKING; it is a workaround, not a statement about oneDAL's ABI.
+  - symbol_pattern: ".*"
+    change_kind: "type_vtable_changed"
+    reason: >-
+      abicheck FP: fires on types whose vtable, size_bits and base_offsets are
+      identical on both sides, and which abicheck simultaneously reports as
+      layout_unverifiable. Reproduced by scanning a binary against a dump of
+      itself.
+
+  # The same four lost WEAK symbols, reported a second time under a second kind.
+  #
+  # oneapi::dal::preview::spmd::v1::communicator<...none>'s bcast, allgatherv,
+  # allreduce and sendrecv_replace are reported as
+  # experimental_removed_without_replacement (api_break) *in addition to* the
+  # func_visibility_changed findings the entry below already suppresses --
+  # verified: all four are in the lost-WEAK set (comm -23 of the old side's WEAK
+  # exports against every symbol the new side defines matches exactly 4), and
+  # cpp/oneapi/dal/spmd/communicator.hpp still declares every one of them on
+  # both sides. So this is one cause (-fvisibility-inlines-hidden) surfacing
+  # under two kinds, not a second, independent removal.
+  #
+  # The finding text is also mis-derived: it claims no replacement "with leaf
+  # 'data_type const&, long) const' was published", i.e. abicheck split a full
+  # demangled *signature* on `::` and took a fragment of a parameter type as the
+  # declaration's leaf name. There is no such leaf to look for, so the
+  # "without_replacement" half of this kind cannot be satisfied for any member
+  # function with a qualified parameter type.
+  #
+  # Scoped by symbol_pattern for the same ADR-044 D2 reason as the entry below.
+  - symbol_pattern: "oneapi::dal::preview::.*"
+    change_kind: "experimental_removed_without_replacement"
+    reason: >-
+      oneapi::dal::preview is oneDAL's documented experimental namespace, and
+      these four findings duplicate the func_visibility_changed findings for the
+      same four symbols: all four are WEAK COMDAT instantiations dropped by
+      -fvisibility-inlines-hidden, still declared in
+      cpp/oneapi/dal/spmd/communicator.hpp on both sides. abicheck's replacement
+      search also mis-parses the leaf name out of a demangled signature (it
+      reports the leaf as 'data_type const&, long) const'), so it cannot find a
+      replacement for any member function with a qualified parameter type.
+
+  # Additions to an internal namespace, reported as BREAKING.
+  #
+  # main added two member functions to oneapi::dal::detail::v2::
+  # chunked_array_base (check_same_alloc_kind and get_alloc_kind). Verified with
+  # nm -D --defined-only + c++filt on both libonedal.so binaries: the 2026.0.0
+  # side exports neither, main exports both as STRONG (T), and every other
+  # chunked_array_base export is byte-identical between the two. So this is a
+  # pure addition -- nothing removed, no signature altered, no vtable slot
+  # touched (the class's vtable symbol is unchanged and both new functions are
+  # non-virtual).
+  #
+  # abicheck classifies internal_template_leaks_via_public_api as
+  # unconditionally breaking (change_registry.py:900) and its detector compares
+  # only whether the instantiation *set* changed, without looking at the
+  # direction (diff_templates.py:305: `if old_sigs == new_sigs: continue`). The
+  # finding itself records the direction and shows it is one-way:
+  # "removed=[], added=['...check_same_alloc_kind(...array_impl<unsigned char>
+  # const&) const']". An added instantiation cannot break an existing consumer
+  # -- no already-linked mangled name disappeared or changed meaning.
+  #
+  # This must be a `symbol_pattern` rule, not a `namespace:` rule. The three
+  # namespace entries above do select this symbol, but abicheck's ADR-044 D2
+  # gate (_passes_public_break_gate) refuses to let a *broad* selector suppress
+  # a public-reachable BREAKING finding, and this detector hard-codes
+  # public_reachable=True / PROVEN_REACHABLE on every finding it emits
+  # (diff_templates.py:264). A symbol_pattern is a "primary narrow selector" and
+  # is exempt from that gate by design. The alternative -- adding
+  # allow_public_break: true to the namespace rules -- would lift the gate for
+  # *every* internal-namespace break, which is exactly what the gate is for.
+  # Note symbol_pattern is a regex fullmatch, not a glob.
+  - symbol_pattern: "(oneapi::dal|daal)::.*(detail|internal|backend)::.*"
+    change_kind: "internal_template_leaks_via_public_api"
+    reason: >-
+      Additions only, inside a documented internal namespace. abicheck's
+      detector flags any change to an internal template's instantiation set as
+      breaking regardless of direction; verified with nm on both libonedal.so
+      that the affected stem only gained instantiations (2026.0.0 exports
+      neither check_same_alloc_kind nor get_alloc_kind, main exports both as
+      STRONG) and lost none, so no existing consumer symbol can fail to
+      resolve. Scoped by symbol_pattern rather than namespace because the
+      detector marks its findings public_reachable and ADR-044 D2 blocks broad
+      selectors from suppressing those.
+
+  # abicheck false positive, not an oneDAL change. `scan --against` reports 11
+  # constants as changed even though the two snapshots' `constants` maps are
+  # byte-identical: comparing the 2026.0.0 and main *dumps* directly with
+  # `abicheck compare` yields zero constant_changed findings, and every one of
+  # the 194 recorded constants hashes identically in both. The same control run
+  # as above (scan a binary against a dump of that same binary) reproduces all
+  # 11, with the "old" side matching the dump's stored hash exactly and the
+  # "new" side reporting a value the dump never produces, e.g.
+  # daal::DAAL_DEFAULT_ALIGNMENT_MASK 'expr:39d668820ece8423' (both dumps) ->
+  # 'expr:5110f6ed57329681' (scan only). So scan's internal snapshot does not
+  # hash constant expressions the way `dump` does, and every comparison of a
+  # live scan against a stored baseline inherits the disagreement.
+  # These 11 are the reason the daal scan's verdict is API_BREAK rather than
+  # COMPATIBLE. Drop this entry once scan and dump agree.
+  - symbol_pattern: ".*"
+    change_kind: "constant_changed"
+    reason: >-
+      abicheck FP: scan hashes constant expressions differently from dump, so a
+      live scan disagrees with any stored baseline. The two dumps' constants
+      maps are byte-identical (0 of 194 differ) and `compare` between them
+      reports no constant_changed; scanning a binary against a dump of itself
+      reproduces all 11.
