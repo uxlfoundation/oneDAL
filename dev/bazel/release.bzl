@@ -685,9 +685,21 @@ def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None):
         dst_files.append(_copy(ctx, src, paths.join(prefix, rel)))
     return dst_files
 
+def _get_single_dep(deps, attr_name):
+    """Return the one configured target of a transitioned label_list attribute.
+
+    `release_all` passes exactly one label per attribute; using label_list
+    (rather than a plain label) keeps the value shape identical to the
+    existing `_release_cpu_all_transition` attributes in this file, which are
+    also label_lists holding ordinary configured targets.
+    """
+    if len(deps) != 1:
+        fail("Attribute '{}' must hold exactly one target, got {}".format(
+            attr_name, len(deps)))
+    return deps[0]
+
 def _release_all_impl(ctx):
-    # `cfg` transitions turn the attribute into a list of configured targets.
-    release_md = ctx.attr.release_md[0]
+    release_md = _get_single_dep(ctx.attr.release_md, "release_md")
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
@@ -705,7 +717,7 @@ def _release_all_impl(ctx):
     # consumers get the right names from oneDALConfig.cmake, which appends
     # its own DAL_DEBUG_SUFFIX.
     files += _copy_from_release_tree(
-        ctx, ctx.attr.release_mdd[0], prefix,
+        ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
         only_dirs = _RUNTIME_SPECIFIC_DIRS,
     )
     return [DefaultInfo(files = depset(files))]
@@ -713,17 +725,20 @@ def _release_all_impl(ctx):
 _release_all = rule(
     implementation = _release_all_impl,
     attrs = {
-        "release_md": attr.label(
+        # label_list rather than label: matches the existing transitioned
+        # attributes in this file and keeps the configured-target value shape
+        # unambiguous. Exactly one entry is expected (see _get_single_dep).
+        "release_md": attr.label_list(
             mandatory = True,
             cfg = _force_msvc_runtime_release_transition,
             doc = "Release tree built against the release MSVC runtime.",
         ),
-        "release_mdd": attr.label(
+        "release_mdd": attr.label_list(
             mandatory = True,
             cfg = _force_msvc_runtime_debug_transition,
             doc = "Release tree built against the debug MSVC runtime. " +
-                  "Only its lib/ and redist/ contents are used; ignored " +
-                  "entirely on non-Windows platforms.",
+                  "Only its lib/intel64 and redist/intel64 contents are " +
+                  "used; ignored entirely on non-Windows platforms.",
         ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
@@ -751,8 +766,8 @@ def release_all(name, release_target):
     """
     _release_all(
         name = name,
-        release_md = release_target,
-        release_mdd = release_target,
+        release_md = [release_target],
+        release_mdd = [release_target],
     )
 
 def release_include(hdrs, skip_prefix="", add_prefix=""):

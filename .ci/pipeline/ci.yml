@@ -707,6 +707,34 @@ jobs:
       }
       Write-Host "Debug-runtime library names OK."
     displayName: 'Verify debug-runtime library names'
+  # Both runtimes merged into a single release tree by one command. Built and
+  # checked separately from the two single-flavour builds above because it
+  # exercises a different code path (the transitions in release.bzl).
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release-all'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $libDir = "bazel-bin\release_all\daal\latest\lib\intel64"
+      if (-not (Test-Path $libDir)) {
+          throw "Combined release tree is missing: $libDir"
+      }
+      # Both flavours must be present side by side, and the shared
+      # runtime-independent files must not have been duplicated away.
+      $expected = @("onedal_core.lib", "onedal_cored.lib",
+                    "onedal_thread.lib", "onedal_threadd.lib",
+                    "onedal.lib", "onedald.lib",
+                    "onedal_core_dll.lib", "onedal_cored_dll.lib")
+      $missing = $expected | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      if ($missing) {
+          Write-Host "Files present in ${libDir}:"
+          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          throw "Combined release tree is missing: $($missing -join ', ')"
+      }
+      Write-Host "Combined MD + MDd release tree OK."
+    displayName: 'Verify combined release tree'
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel icx build'
