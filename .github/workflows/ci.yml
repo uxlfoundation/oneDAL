@@ -131,11 +131,14 @@ jobs:
             # shared memory and force libfabric onto tcp so autoselect never
             # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
             # and the override is skipped, preserving the native fabric.
-            # When fi_info is not on PATH (conda-forge Intel MPI omits the
-            # libfabric utilities) we cannot verify verbs, so fall back to
-            # pinning shm/tcp -- the Azure runner is the only environment
-            # that reaches this branch, and real HPC hosts always ship
-            # fi_info alongside Intel MPI.
+            #
+            # Note: this job installs the DPC++ compiler + MKL via apt but
+            # NOT intel-oneapi-mpi-devel; Intel MPI is provided by the
+            # conda-forge `impi-devel` package activated later inside
+            # test.sh via --conda-env ci-env. That conda package does not
+            # ship the libfabric utilities, so at probe time (before
+            # test.sh runs) fi_info is not on PATH and we cannot verify
+            # verbs. Pin shm/tcp defensively in that case.
             if [ ! -z "$(command -v fi_info)" ]; then
                 if ! fi_info -p verbs > /dev/null 2>&1; then
                     echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
@@ -143,7 +146,7 @@ jobs:
                     export FI_PROVIDER=tcp
                 fi
             else
-                echo "fi_info not on PATH; pinning MPI fabric to shm/tcp as a safe default"
+                echo "fi_info not on PATH (Intel MPI comes from conda-forge in test.sh); pinning MPI fabric to shm/tcp"
                 export I_MPI_FABRICS=shm
                 export FI_PROVIDER=tcp
             fi
