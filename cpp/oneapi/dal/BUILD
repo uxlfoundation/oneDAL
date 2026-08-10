@@ -97,8 +97,9 @@ dal_dynamic_lib(
     # tags here instead pulls their objects into onedal.dll via /WHOLEARCHIVE
     # and widens its export surface far beyond the Make contract. On Linux,
     # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
-    # libonedal_core.so, so the host build keeps just the "dal" tag; the DPC
-    # variant keeps the tag set it has always had.
+    # libonedal_core.so, so the host build keeps just the "dal" tag. Only the
+    # non-Windows DPC build keeps the historical "dal"/"daal"/"mkl_embed" set;
+    # the Windows DPC link is narrowed to "dal" for the same reason as the host.
     lib_tags = ["dal"],
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal"],

@@ -312,10 +312,50 @@ def _link(owner, name, actions, cc_toolchain,
     )
     return unpacked_linking_context, linking_outputs
 
+def _make_implib_for_dll(actions, dll_file, implib_name, dll_to_implib_tool):
+    """Derive `dll_file`'s Windows import library as a tracked action output.
+
+    The custom icx/lld-link toolchain config does not register
+    `supports_interface_shared_libraries`, so `cc_common.link()` returns no
+    `interface_library` and the `-IMPLIB:` side-effect file cannot be declared
+    as an action output. Without an import library, a DLL that links against
+    another oneDAL DLL has nothing to resolve its imports against and
+    lld-link reports every cross-DLL symbol as undefined.
+
+    Reuses the same dumpbin + `lib /def:` helper the release rule already
+    relies on, so both paths derive the import library identically.
+    """
+    implib = actions.declare_file(implib_name)
+    # `lib /def:` also writes an .exp next to the .lib. It is a build
+    # intermediate, not a release artifact, so keep it out of any staged tree.
+    exp_file = actions.declare_file(paths.join(
+        "_link_intermediates",
+        implib.basename[:-len(".lib")] + ".exp",
+    ))
+    actions.run(
+        executable = "cmd.exe",
+        inputs = [dll_file, dll_to_implib_tool],
+        outputs = [implib, exp_file],
+        arguments = [
+            "/d", "/c",
+            "{} {} {} {}".format(
+                dll_to_implib_tool.path.replace("/", "\\"),
+                dll_file.path.replace("/", "\\"),
+                implib.path.replace("/", "\\"),
+                exp_file.path.replace("/", "\\"),
+            ),
+        ],
+        use_default_shell_env = True,
+        mnemonic = "DllToImplib",
+        progress_message = "Generating import lib %s" % implib.short_path,
+    )
+    return implib
+
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
              def_file=None, user_link_flags=[], is_windows=False,
-             additional_inputs=[], is_dpc=False):
+             additional_inputs=[], is_dpc=False,
+             dll_to_implib_tool=None):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
@@ -337,6 +377,16 @@ def _dynamic(owner, name, actions, cc_toolchain,
             files = [],
             dynamic_library = None,
             interface_library = None,
+        )
+    # On Windows, derive the import library ourselves when the toolchain did
+    # not emit one, so downstream DLL links resolve imports against it instead
+    # of failing with undefined externals.
+    if is_windows and not interface_lib and dll_to_implib_tool:
+        interface_lib = _make_implib_for_dll(
+            actions, dynamic_lib,
+            "{}_dll.lib".format(utils.remove_substring(
+                dynamic_lib.basename, ".dll")),
+            dll_to_implib_tool,
         )
     dynamic_files = [dynamic_lib]
     if interface_lib:
