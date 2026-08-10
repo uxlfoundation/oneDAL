@@ -325,6 +325,22 @@ bazelisk.exe build //:release_all
 info and assertions. `//:release_all` pins the runtime internally, so passing
 `--config=mdd` alongside it has no effect.
 
+Two constraints worth knowing before reaching for the debug runtime:
+
+- It is implemented for the Intel oneAPI **icx** toolchain only. The `cl`
+  fallback (`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler
+  choice](#compiler-choice)) delegates to rules_cc's MSVC auto-config, which
+  does not define the `msvc_runtime_debug` feature, so `--config=mdd` there
+  fails during analysis with an explanatory message rather than silently
+  building against the wrong CRT.
+- Always select it through `--config=mdd`. It sets two things that have to
+  agree — the `msvc_runtime_debug` toolchain feature, which selects `-MDd`,
+  and the `@config//:msvc_runtime` build setting, which dependency `select()`s
+  read. Passing either half alone (`--features=msvc_runtime_debug` or
+  `--msvc_runtime=debug`) is rejected during analysis, because it would
+  compile against one CRT while naming libraries and picking dependencies for
+  the other.
+
 `//:release_all` takes the libraries under `lib/intel64` and `redist/intel64`
 from both builds; everything else — headers, datasets, examples, env scripts,
 CMake config — comes from the release-CRT build, since those are identical
