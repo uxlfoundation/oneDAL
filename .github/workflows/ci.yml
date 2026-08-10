@@ -131,6 +131,11 @@ jobs:
             # shared memory and force libfabric onto tcp so autoselect never
             # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
             # and the override is skipped, preserving the native fabric.
+            # When fi_info is not on PATH (conda-forge Intel MPI omits the
+            # libfabric utilities) we cannot verify verbs, so fall back to
+            # pinning shm/tcp -- the Azure runner is the only environment
+            # that reaches this branch, and real HPC hosts always ship
+            # fi_info alongside Intel MPI.
             if [ ! -z "$(command -v fi_info)" ]; then
                 if ! fi_info -p verbs > /dev/null 2>&1; then
                     echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
@@ -138,7 +143,9 @@ jobs:
                     export FI_PROVIDER=tcp
                 fi
             else
-                echo "warning: fi_info not on PATH after setvars.sh; cannot probe verbs provider" >&2
+                echo "fi_info not on PATH; pinning MPI fabric to shm/tcp as a safe default"
+                export I_MPI_FABRICS=shm
+                export FI_PROVIDER=tcp
             fi
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
