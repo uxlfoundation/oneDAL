@@ -92,15 +92,31 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
-    # On Windows both Make and Bazel consume the DAAL/MKL implementation
-    # through onedal_core's import library. Selecting the "daal"/"mkl_embed"
-    # tags here instead pulls their objects into onedal.dll via /WHOLEARCHIVE
-    # and widens its export surface far beyond the Make contract. On Linux,
-    # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
-    # libonedal_core.so, so the host build keeps just the "dal" tag. Only the
-    # non-Windows DPC build keeps the historical "dal"/"daal"/"mkl_embed" set;
-    # the Windows DPC link is narrowed to "dal" for the same reason as the host.
-    lib_tags = ["dal"],
+    # Mirror what Make puts on onedal.dll's Windows link line: the DAAL
+    # implementation arrives through onedal_core's import library (`host_deps`
+    # below), while the static MKL archives are linked in directly.
+    #
+    #   - Dropping the "daal" tag is what narrows the export surface. Those
+    #     contexts carry DAAL *object files*, which the Windows path bundles
+    #     into onedal.4_objects.lib and pulls in with /WHOLEARCHIVE, so their
+    #     dllexport directives leak into onedal.dll's exports.
+    #   - Keeping "mkl_embed" costs nothing in exports: it contributes
+    #     prebuilt archives (mkl_intel_ilp64/mkl_tbb_thread/mkl_core), which
+    #     stay outside the whole-archived object bundle and are searched only
+    #     for unresolved references. Without it the CPU RNG kernels have no
+    #     definition for MKL entry points such as `viRngUniform`.
+    #     Make links the same archives via
+    #     `daaldep.math_backend.shared_link_deps`.
+    #
+    # Linux is unchanged: libonedal.so resolves both DAAL and MKL symbols at
+    # runtime via DT_NEEDED libonedal_core.so, so the host build needs neither
+    # extra tag and the DPC build keeps its historical set. The Windows DPC
+    # link takes MKL through the SYCL import libraries `@mkl//:mkl_dpc`
+    # contributes, again matching Make.
+    lib_tags = select({
+        "@platforms//os:windows": ["dal", "mkl_embed"],
+        "//conditions:default": ["dal"],
+    }),
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal"],
         "//conditions:default": ["dal", "daal", "mkl_embed"],
