@@ -219,6 +219,30 @@ def _impl(ctx):
                 flag_groups = [flag_group(flags = ["-MD"])],
                 with_features = [with_feature_set(not_features = ["msvc_runtime_debug"])],
             ),
+            # icx refuses `#pragma omp simd` together with a debug CRT
+            # (-Wdebug-option-simd, fatal under -WX) because the debug
+            # iterators cannot be vectorized. Enable OpenMP SIMD for the
+            # release runtime only, as `COMPILER.win.icx` does in
+            # dev/make/compiler_definitions/icx.mkl.32e.mk:77. Applied to
+            # every compile action so the release build keeps the exact flag
+            # set it had when this came from `win_icx_common_flags`.
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["-Qopenmp-simd"])],
+                with_features = [with_feature_set(
+                    not_features = ["msvc_runtime_debug"],
+                )],
+            ),
+            # The DPC++ driver additionally disables debug info generation for
+            # the debug CRT, mirroring `-MDd /debug:none` in
+            # dev/make/compiler_definitions/dpcpp.mk:78.
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["/debug:none"])],
+                with_features = [with_feature_set(
+                    features = ["dpc++", "msvc_runtime_debug"],
+                )],
+            ),
             # The icx driver does not add the SYCL runtime import library for
             # Bazel's DLL link path when most device objects are supplied
             # through a /WHOLEARCHIVE static library. Link it explicitly so
