@@ -106,14 +106,29 @@ def _msvc_runtime_suffix(ctx, feature_config, is_windows):
     )
     flag_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
     if feature_enabled != flag_debug:
+        if flag_debug:
+            # The most likely cause is a toolchain that does not define the
+            # feature at all: the `cl` fallback delegates to rules_cc's MSVC
+            # auto-config (see _configure_cc_toolchain_win_cl in
+            # dev/bazel/toolchains/cc_toolchain_win.bzl), which knows nothing
+            # about `msvc_runtime_debug`. Saying "use --config=mdd" here would
+            # be useless advice to someone who just did exactly that.
+            fail(
+                "The debug MSVC runtime was requested (--msvc_runtime=debug, " +
+                "normally via --config=mdd) but the active C++ toolchain does " +
+                "not enable the 'msvc_runtime_debug' feature, so the compiler " +
+                "would still get -MD while libraries are named for -MDd.\n" +
+                "The debug runtime is currently implemented only for the " +
+                "Intel oneAPI icx toolchain. If ONEDAL_WIN_COMPILER=cl or " +
+                "CC=cl is set, unset it so icx is selected; otherwise drop " +
+                "--config=mdd to build against the release runtime.",
+            )
         fail(
-            "Inconsistent Windows MSVC runtime configuration: " +
-            "toolchain feature 'msvc_runtime_debug' is {}, ".format(
-                "enabled" if feature_enabled else "disabled") +
-            "but --msvc_runtime={}. ".format(
-                "debug" if flag_debug else "release") +
-            "Both must be set together: use '--config=mdd' for the debug " +
-            "runtime, or omit it for the default release runtime.",
+            "The 'msvc_runtime_debug' toolchain feature is enabled but " +
+            "--msvc_runtime=release, so oneDAL would be compiled against the " +
+            "debug CRT while its libraries keep release names.\n" +
+            "Do not pass --features=msvc_runtime_debug directly; use " +
+            "'--config=mdd', which sets both halves.",
         )
     return "d" if feature_enabled else ""
 

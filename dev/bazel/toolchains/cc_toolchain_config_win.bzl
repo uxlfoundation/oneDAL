@@ -205,6 +205,17 @@ def _impl(ctx):
     # the `@config//:msvc_runtime` build setting that `select()`s read.
     msvc_runtime_debug_feature = feature(name = "msvc_runtime_debug")
 
+    # NOTE on CRT libraries: the Makefile spells the CRT import libraries out
+    # explicitly (`msvcrtd.lib msvcprtd.lib /nodefaultlib:libucrtd.lib
+    # ucrtd.lib`, makefile:330-332) because it compiles with `-Zl`
+    # (dev/make/compiler_definitions/icx.mkl.32e.mk:66), which strips the
+    # `/defaultlib` directives clang-cl would otherwise embed in each object.
+    # This toolchain does not pass `-Zl`, so those directives survive and
+    # `-MD`/`-MDd` alone pulls in the matching CRT. The one thing not carried
+    # over is Make's `/nodefaultlib:libucrtd.lib` guard, which overrides a
+    # static-UCRT directive coming from a third-party input on the
+    # onedal_thread link (makefile:868); add it here if such an input ever
+    # reappears.
     runtime_library_feature = feature(
         name = "runtime_library",
         enabled = True,

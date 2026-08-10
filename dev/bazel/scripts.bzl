@@ -183,7 +183,7 @@ Name: oneDAL
 Description: oneAPI Data Analytics Library
 Version: {major}.{minor}
 URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12{tbb_d}.lib tbbmalloc{tbb_d}.lib
+Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread{mkl_d}.lib tbb12{tbb_d}.lib tbbmalloc{tbb_d}.lib
 Cflags: /std:c++17 {crt} /wd4996 /EHsc -I${{includedir}}
 """.format(
                 major = vi.major,
@@ -191,6 +191,10 @@ Cflags: /std:c++17 {crt} /wd4996 /EHsc -I${{includedir}}
                 onedal_libs = onedal_libs,
                 crt = "/MDd" if is_rt_debug else "/MD",
                 tbb_d = "_debug" if is_rt_debug else "",
+                # Only MKL's threading layer has a debug-CRT variant, and it
+                # uses a plain `d` (dev/make/deps.mkl.mk:51); mkl_core and
+                # mkl_intel_lp64 are unsuffixed in both flavours.
+                mkl_d = "d" if is_rt_debug else "",
             ),
         )
     else:

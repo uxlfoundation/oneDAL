@@ -696,14 +696,34 @@ jobs:
     displayName: 'release-mdd'
   - powershell: |
       $ErrorActionPreference = "Stop"
-      $libDir = "bazel-bin\release\daal\latest\lib\intel64"
-      $expected = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
-                    "onedal_cored_dll.lib")
-      $missing = $expected | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
-      if ($missing) {
-          Write-Host "Files present in ${libDir}:"
+      $root = "bazel-bin\release\daal\latest"
+      $libDir = Join-Path $root "lib\intel64"
+      $redistDir = Join-Path $root "redist\intel64"
+      if (-not (Test-Path $libDir)) { throw "Missing directory: $libDir" }
+      # The full set of debug-runtime artifacts, matching what the Make build
+      # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
+      $expectedLib = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
+                       "onedal_cored_dll.lib", "onedal_cored_dll.4.lib",
+                       "onedald_dll.lib", "onedald_dll.4.lib")
+      $expectedRedist = @("onedal_cored.4.dll", "onedal_threadd.4.dll",
+                          "onedald.4.dll")
+      $missing = @()
+      $missing += $expectedLib | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
+      # The import library for the threading DLL is deliberately not shipped,
+      # mirroring the Make package (release.bzl _THREAD_STEMS).
+      $unexpected = @("onedal_core.lib", "onedal.lib", "onedal_threadd_dll.lib") |
+          Where-Object { Test-Path (Join-Path $libDir $_) }
+      if ($missing -or $unexpected) {
+          Write-Host "lib\intel64:"
           Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
-          throw "Debug-runtime build is missing: $($missing -join ', ')"
+          if (Test-Path $redistDir) {
+              Write-Host "redist\intel64:"
+              Get-ChildItem $redistDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          }
+          if ($missing) { Write-Host "MISSING: $($missing -join ', ')" }
+          if ($unexpected) { Write-Host "UNEXPECTED: $($unexpected -join ', ')" }
+          throw "Debug-runtime release tree does not match the expected name set."
       }
       Write-Host "Debug-runtime library names OK."
     displayName: 'Verify debug-runtime library names'
