@@ -117,18 +117,23 @@ dal_dynamic_lib(
         "@platforms//os:windows": ["dal", "mkl_embed"],
         "//conditions:default": ["dal"],
     }),
+    # `BUILD_PARAMETERS_LIB` defaults to `no` on Windows, so Make folds the DPC
+    # parameter objects straight into onedal_dpc.dll
+    # (`ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)`). Those
+    # contexts are tagged "parameters", so the tag has to be accepted here or
+    # the objects never reach the link and their dllexport'ed
+    # `train_parameters_cpu` members are missing from the DLL's exports.
+    # Linking `static_parameters_dpc` instead does not work: an archive is
+    # searched only for unresolved references, while the export table is built
+    # from the whole-archived object bundle.
     dpc_lib_tags = select({
-        "@platforms//os:windows": ["dal"],
+        "@platforms//os:windows": ["dal", "parameters"],
         "//conditions:default": ["dal", "daal", "mkl_embed"],
     }),
     dal_deps = [
         ":core",
         ":optional",
     ],
-    dpc_deps = select({
-        "@platforms//os:windows": [":static_parameters_dpc"],
-        "//conditions:default": [],
-    }),
     # On Windows, link onedal_core's import library plus parameter objects and
     # delay-load threading shims. Keep DAAL/MKL implementation in onedal_core.
     #   - core_dynamic: import library that resolves the DAAL algorithm and
