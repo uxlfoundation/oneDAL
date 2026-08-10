@@ -120,6 +120,36 @@ def _copy(ctx, src_file, dst_path):
         )
     return dst_file
 
+def _copy_crlf(ctx, src_file, dst_path):
+    """Copy `src_file` to `dst_path` converting line endings to CRLF.
+
+    Make normalizes the files it stages through its `.release.x` recipe with
+    `sed -n -z -e 's/\\r*\\n/\\r\\n/g;p'` when `OS_is_win`, so text files such as
+    `config/config.txt` ship with CRLF even though they are stored with LF in
+    the repository. Plain `copy` leaves them as LF and the released file then
+    differs from the Make one on every line.
+    """
+    dst_file = ctx.actions.declare_file(dst_path)
+    script = ctx.file._to_crlf
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [src_file, script],
+        outputs = [dst_file],
+        use_default_shell_env = True,
+        arguments = [
+            "/d",
+            "/c",
+            "{} {} {}".format(
+                script.path.replace("/", "\\"),
+                src_file.path.replace("/", "\\"),
+                dst_file.path.replace("/", "\\"),
+            ),
+        ],
+        mnemonic = "CopyCrlf",
+        progress_message = "Staging %s with CRLF line endings" % dst_file.short_path,
+    )
+    return dst_file
+
 def _try_relativize(path, start):
     if path.startswith(start):
         return paths.relativize(path, start)
@@ -142,9 +172,35 @@ def _copy_version_header(ctx, src_file, dst_path, version_info):
     )
     return dst_file
 
+def _strip_os_suffix(dst_path, os_suffix):
+    """Drop a trailing `_<os>` from `dst_path`'s basename, if present.
+
+    Mirrors Make's `$(subst _$(_OS),,$d)` when staging
+    `release.HEADERS.OSSPEC`: `include/daal_win.h` ships as `include/daal.h`.
+    """
+    base = paths.basename(dst_path)
+    stem, _, extension = base.rpartition(".")
+    if not stem or not stem.endswith(os_suffix):
+        return dst_path
+    stripped = "{}.{}".format(stem[:-len(os_suffix)], extension)
+    return paths.join(paths.dirname(dst_path), stripped)
+
 def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
-    dst_files = []
+    # Make derives this from `$(_OS)`; only `win` currently has OS-specific
+    # public headers, but keep the other platforms symmetrical.
+    os_suffix = "_win" if ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    ) else "_lnx"
+
+    # Map each staged destination to the header that should provide it. An
+    # OS-specific header wins over the generic file of the same staged name,
+    # matching Make's `filter-out $(subst _$(_OS),,...)` against
+    # `release.HEADERS.COMMON`. Keeping one entry per destination also prevents
+    # declaring the same action output twice.
+    staged_order = []
+    staged = {}
+    os_specific = {}
     for include, prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
                                             ctx.attr.include_skip_prefix):
         headers = _collect_headers(include)
@@ -160,11 +216,25 @@ def _copy_include(ctx, prefix, version_info):
             elif prefix:
                 dst_path = paths.join(prefix, header.basename)
             dst_path = paths.join(include_prefix, dst_path)
-            if header.short_path == "cpp/daal/include/services/library_version_info.h":
-                dst_file = _copy_version_header(ctx, header, dst_path, version_info)
-            else:
-                dst_file = _copy(ctx, header, dst_path)
-            dst_files.append(dst_file)
+            stripped = _strip_os_suffix(dst_path, os_suffix)
+            is_os_specific = stripped != dst_path
+            dst_path = stripped
+            if dst_path not in staged:
+                staged_order.append(dst_path)
+            elif os_specific.get(dst_path) and not is_os_specific:
+                continue
+            staged[dst_path] = header
+            if is_os_specific:
+                os_specific[dst_path] = True
+
+    dst_files = []
+    for dst_path in staged_order:
+        header = staged[dst_path]
+        if header.short_path == "cpp/daal/include/services/library_version_info.h":
+            dst_file = _copy_version_header(ctx, header, dst_path, version_info)
+        else:
+            dst_file = _copy(ctx, header, dst_path)
+        dst_files.append(dst_file)
     return dst_files
 
 def _symlink(ctx, link_name, target_name, prefix):
@@ -309,6 +379,14 @@ def _copy_lib(ctx, prefix, version_info):
 
     return dst_files
 
+# Extra files that Make stages through its `.release.x` recipe, which runs
+# `sed -n -z -e 's/\r*\n/\r\n/g;p'` over the staged copy when `OS_is_win`. Their
+# sources are stored with LF (see `.gitattributes`), so Bazel has to convert
+# them too or the released file differs from the Make one on every line.
+# `env/vars.bat` is not listed: it is generated from a template that is already
+# checked in with CRLF.
+_CRLF_EXTRA_FILES = ["config/config.txt"]
+
 def _copy_extra_files(ctx, prefix):
     """Copy extra generated files (vars.sh, pkg-config, etc.) into the release tree.
 
@@ -335,7 +413,13 @@ def _copy_extra_files(ctx, prefix):
                 dep.label, len(srcs)))
         src = srcs[0]
         dst_path = paths.join(prefix, dst_subpath)
-        dst_files.append(_copy(ctx, src, dst_path))
+        # Files Make stages through its `.release.x` recipe get CRLF endings on
+        # Windows. The generated ones (pkg-config, cmake configs) do not go
+        # through that recipe and keep the endings their generator wrote.
+        if is_windows and dst_subpath in _CRLF_EXTRA_FILES:
+            dst_files.append(_copy_crlf(ctx, src, dst_path))
+        else:
+            dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
 def _copy_data(ctx, prefix):
@@ -410,6 +494,12 @@ _release = rule(
             allow_single_file = True,
             doc = "Helper that derives a Windows DLL's import library by " +
                   "running dumpbin+lib /def: post-link.",
+        ),
+        "_to_crlf": attr.label(
+            default = "@onedal//dev/bazel/toolchains/tools:copy_crlf.bat",
+            allow_single_file = True,
+            doc = "Helper that copies a text file converting line endings to " +
+                  "CRLF, matching the makefile's Windows release staging.",
         ),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
