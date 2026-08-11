@@ -139,8 +139,8 @@ def is_ignored_linux_export(symbol, library_path=None):
     return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
 
 
-# MSVC mangling prefixes for entities the compiler generates or inlines on its
-# own, rather than named functions that form the documented oneDAL surface.
+# Entities the compiler generates or inlines on its own, rather than named
+# functions that form the documented oneDAL surface.
 #
 # The Windows nightly builds the Make release with `vc` (cl) and the Bazel one
 # with icx, so the two toolchains disagree about which of these they emit and
@@ -152,37 +152,42 @@ def is_ignored_linux_export(symbol, library_path=None):
 #     writes the enclosing scope (`V<lambda_1>@?0???$copy_convert@...`) while
 #     icx writes a content hash (`V<lambda_0380cb5a...>`). Every one of the
 #     onedal.4.dll differences was of this form.
-#   * `??1` / `??0` / `??_7` / `??4` -- implicitly-declared destructors, copy
-#     and move constructors, vftables, and assignment operators. Whether these
-#     are emitted into a given DLL depends on where the compiler decided to
-#     instantiate them, not on the library's API.
+#   * `??1?$Distributed@...` / `??_7?$AlgorithmContainer@...` -- implicitly
+#     declared destructors, constructors, assignment operators and vftables of
+#     *class templates*. Whether these are emitted into a given DLL depends on
+#     where the compiler decided to instantiate them, not on the library's API.
 #
-# Ignoring them keeps the comparison focused on named entities. A missing or
-# extra oneDAL function still fails, which is what this check exists to catch.
-WINDOWS_IGNORED_EXPORT_PREFIXES = (
-    "??$",   # template instantiations
-    "??0",   # constructors
-    "??1",   # destructors
-    "??2",   # operator new
-    "??3",   # operator delete
-    "??4",   # operator=
-    "??R",   # operator()
-    "??_7",  # vftable
-    "??_F",  # default constructor closure
+# Both patterns are matched narrowly on purpose. A special member is only
+# ignored when it belongs to a class template (`?$` right after the tag), and a
+# template instantiation is only ignored when a lambda appears in its arguments.
+# Anything else -- a constructor, destructor or vftable of a named non-template
+# class, or an ordinary exported template function -- is still compared, because
+# on Windows those symbols *are* what a consumer links against. Measured against
+# the 494 symbols the nightly reported for onedal.4.dll and onedal_core.4.dll,
+# these two rules cover 222 of the 224 special members and all 400 template
+# instantiations; the two remaining special members are the `??_F` closures
+# below.
+WINDOWS_IGNORED_EXPORT_PATTERNS = (
+    # Special members of class templates: ctor, dtor, operator new/delete,
+    # operator=, operator(), vftable.
+    re.compile(r"^\?\?(?:[01234R]|_7)\?\$"),
+    # Template instantiations whose arguments name a lambda. `<lambda_` is cl's
+    # spelling and icx's alike; neither can match the other's.
+    re.compile(r"^\?\?\$.*<lambda_"),
+    # Default-constructor closures. Unlike the tags above these are never part
+    # of a linkable surface -- the closure exists only so the compiler can run
+    # a base initializer -- so the class does not have to be a template.
+    re.compile(r"^\?\?_F"),
+    # `daal::services::Collection<T>::_default_capacity` is a private static
+    # constant initialized in-class (cpp/daal/include/services/collection.h).
+    # Its out-of-line definition is emitted at the compiler's discretion, so cl
+    # exports it from onedal_core.dll for two instantiations that icx does not.
+    re.compile(r"^\?_default_capacity@\?\$Collection@"),
 )
 
 
-# `daal::services::Collection<T>::_default_capacity` is a private static
-# constant initialized in-class (cpp/daal/include/services/collection.h). Its
-# out-of-line definition is emitted at the compiler's discretion, so cl exports
-# it from onedal_core.dll for two instantiations that icx does not.
-WINDOWS_IGNORED_EXPORTS = re.compile(r"^\?_default_capacity@\?\$Collection@")
-
-
-def is_ignored_windows_export(symbol, library_path=None):
-    if symbol.startswith(WINDOWS_IGNORED_EXPORT_PREFIXES):
-        return True
-    return bool(WINDOWS_IGNORED_EXPORTS.match(symbol))
+def is_ignored_windows_export(symbol):
+    return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
 
 def rel(path, root):
@@ -361,7 +366,7 @@ def read_windows_exports(path):
         parts = stripped.split()
         if len(parts) >= 4 and parts[0].isdigit():
             symbol = parts[3].split("=", 1)[0]
-            if not is_ignored_windows_export(symbol, path):
+            if not is_ignored_windows_export(symbol):
                 symbols.add(symbol)
     return symbols
 
