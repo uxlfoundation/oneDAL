@@ -83,14 +83,9 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           bazel build //:release --config=release-dpc --cpu=avx2
-      - name: Compare make and Bazel releases
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          python dev/release_tests/compare_release_trees.py \
-            --platform linux \
-            --make ./__release_lnx/daal/latest \
-            --bazel ./bazel-bin/release/daal/latest \
-            --check-level 4
+      # Upload before validating. Downstream consumers depend on these artifacts,
+      # so a release-parity difference must not also cost them a build. The
+      # comparison below still fails the job, which is the signal we want.
       - name: Archive build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -101,12 +96,23 @@ jobs:
         with:
           name: oneDAL_env
           path: .ci/env
+      - name: Compare make and Bazel releases
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          python dev/release_tests/compare_release_trees.py \
+            --platform linux \
+            --make ./__release_lnx/daal/latest \
+            --bazel ./bazel-bin/release/daal/latest \
+            --check-level 4
 
   build_win:
     name: oneDAL Windows nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-2025
-    timeout-minutes: 180
+    # The last run that got past the comparison took 165m, and runs that fail
+    # fast at the comparison already reach 173m, so 180 leaves no room for the
+    # steps that only execute once the gate passes.
+    timeout-minutes: 240
 
     steps:
       - name: Checkout oneDAL
@@ -160,22 +166,11 @@ jobs:
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           bazel build //:release --config=release-dpc --cpu=avx2
-      - name: Compare make and Bazel releases
-        shell: cmd
-        run: |
-          call .\oneapi\setvars.bat
-          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
-            -MakeReleaseDir .\__release_win_vc\daal\latest ^
-            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
-            -CheckLevel 4
-      - name: Build and run CMake example from Bazel release
-        shell: cmd
-        run: |
-          call .\oneapi\setvars.bat
-          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
-            -ReleaseDir .\bazel-bin\release\daal\latest
+      # Upload before validating. scikit-learn-intelex's CI consumes
+      # `__release_win` (see the note at the top of this file), so a
+      # release-parity difference must not also cost that repository its Windows
+      # build. The comparison below still fails the job, which is the signal we
+      # want, but the artifacts are already published by then.
       - name: Compress Intel BaseKit
         shell: cmd
         run: |
@@ -199,3 +194,23 @@ jobs:
         with:
           name: opencl_rt_installer
           path: .\opencl_rt.msi
+      - name: Compare make and Bazel releases
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
+            -MakeReleaseDir .\__release_win_vc\daal\latest ^
+            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
+            -CheckLevel 4
+      # Runs after the comparison but must not be gated by it: this is the only
+      # end-to-end check that the Bazel release is consumable (headers, cmake
+      # package files, import libraries, runtime DLLs).
+      - name: Build and run CMake example from Bazel release
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
+            -ReleaseDir .\bazel-bin\release\daal\latest
