@@ -110,9 +110,10 @@ dal_dynamic_lib(
     #
     # Linux is unchanged: libonedal.so resolves both DAAL and MKL symbols at
     # runtime via DT_NEEDED libonedal_core.so, so the host build needs neither
-    # extra tag and the DPC build keeps its historical set. The Windows DPC
-    # link takes MKL through the SYCL import libraries `@mkl//:mkl_dpc`
-    # contributes, again matching Make.
+    # extra tag. Only the non-Windows DPC branch keeps the historical
+    # ["dal", "daal", "mkl_embed"] set; the Windows one is narrowed below. The
+    # Windows DPC link takes MKL through the SYCL import libraries
+    # `@mkl//:mkl_dpc` contributes, again matching Make.
     lib_tags = select({
         "@platforms//os:windows": ["dal", "mkl_embed"],
         "//conditions:default": ["dal"],
@@ -126,6 +127,13 @@ dal_dynamic_lib(
     # Linking `static_parameters_dpc` instead does not work: an archive is
     # searched only for unresolved references, while the export table is built
     # from the whole-archived object bundle.
+    #
+    # Linux must *not* accept the tag. There `BUILD_PARAMETERS_LIB` is `yes`, so
+    # Make emits the parameters as their own shared object
+    # (`parameters_y := $(plib)onedal_parameters...`, makefile:343) and
+    # libonedal_dpc.so never contains those objects. Adding the tag here would
+    # fold them into onedal_dpc, duplicating the definitions and diverging from
+    # the Make release the comparator checks against.
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal", "parameters"],
         "//conditions:default": ["dal", "daal", "mkl_embed"],
