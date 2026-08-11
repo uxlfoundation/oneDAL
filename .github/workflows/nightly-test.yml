@@ -34,7 +34,7 @@ jobs:
 
   cve-bin-tool-scan:
     runs-on: ubuntu-24.04
-    # Only scan artifacts from schedule/manual Nightly-build runs — never PR-originated ones.
+    # Only scan artifacts from schedule or manual Nightly-build runs. Do not scan PR-originated runs.
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && github.event.workflow_run.conclusion == 'success'

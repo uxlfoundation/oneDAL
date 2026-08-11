@@ -1,9 +1,17 @@
-# .github Directory - AI Agents Context Guide
+# .github Directory: AI Agent Context Guide
 
-> **Purpose**: Rules for AI agents editing CI/workflow files under `.github/`.
+> Purpose: rules for AI agents that edit CI and workflow files in `.github/`.
 
-## 🛑 Do NOT modify `nightly-build.yml`
+## Do not change `nightly-build.yml`
 
-`nightly-build.yml` is a load-bearing dependency of the [`scikit-learn-intelex`](https://github.com/uxlfoundation/scikit-learn-intelex) repo, which queries `gh run --workflow "Nightly-build" --status success` and downloads its `__release_lnx`, `oneDAL_env`, `__release_win`, `intel_oneapi_basekit`, and `opencl_rt_installer` artifacts.
+The `scikit-learn-intelex` repository depends on `nightly-build.yml`. Its CI queries `gh run --workflow "Nightly-build" --status success`. It then downloads these artifacts:
 
-Do NOT add steps, jobs, or artifact renames to `nightly-build.yml`. All new test steps (Bazel, comparisons, CVE scans, CMake example tests, etc.) belong in `nightly-test.yml`. Removing or renaming any of the listed artifacts requires a coordinated change in `scikit-learn-intelex/.github/workflows/ci.yml`.
+- `__release_lnx`
+- `oneDAL_env`
+- `__release_win`
+- `intel_oneapi_basekit`
+- `opencl_rt_installer`
+
+Do not add steps to `nightly-build.yml`. Do not add jobs to `nightly-build.yml`. Do not rename its artifacts. Put all new test steps in `nightly-test.yml`. This includes Bazel steps, comparison steps, CVE scans, and CMake example tests.
+
+If you must rename or remove one of the artifacts above, you must also change `scikit-learn-intelex/.github/workflows/ci.yml` in the same release. Link the `scikit-learn-intelex` repository at https://github.com/uxlfoundation/scikit-learn-intelex.
