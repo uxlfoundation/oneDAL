@@ -17,7 +17,7 @@
 name: Check Intel URLs
 on: 
   schedule:
-    - cron: "0 0 * * 6
+    - cron: "0 0 * * 6"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
