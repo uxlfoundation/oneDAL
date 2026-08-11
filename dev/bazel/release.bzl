@@ -379,29 +379,50 @@ def _copy_lib(ctx, prefix, version_info):
 
     return dst_files
 
-# Extra files that Make stages through its `.release.x` recipe, which runs
-# `sed -n -z -e 's/\r*\n/\r\n/g;p'` over the staged copy when `OS_is_win`. Their
-# sources are stored with LF (see `.gitattributes`), so Bazel has to convert
-# them too or the released file differs from the Make one on every line.
-# `env/vars.bat` is not listed: it is generated from a template that is already
-# checked in with CRLF.
-_CRLF_EXTRA_FILES = ["config/config.txt"]
-
-# The dataset tree goes through the same `.release.x` recipe (makefile:1046), so
-# every released dataset is CRLF in the Make Windows package too. Make selects
-# what to ship there with `expat` (makefile:395), so mirror that suffix list
-# rather than converting whatever happens to be under `data/`.
+# Files the Make Windows package ships with CRLF, which Bazel therefore has to
+# convert as well or the released file differs on every line. Two independent
+# mechanisms produce them:
 #
-# Examples and samples are *not* listed: they are staged through the earlier
+#   * Make's `.release.x` recipe pipes whatever it stages through
+#     `sed -n -z -e 's/\r*\n/\r\n/g;p'` when `OS_is_win` (makefile:1043). That
+#     covers `config/config.txt` (makefile:1049) and the dataset tree
+#     (makefile:1046); both are stored with LF in the repository
+#     (see `.gitattributes`).
+#   * cmake's `configure_file` normalises output to the *host's* newline rather
+#     than the input's, so the oneDALConfig files that the makefile stages via
+#     `cmake/scripts/generate_config.cmake` (makefile:1103) come out CRLF on
+#     Windows even though the templates are LF. Bazel writes them with
+#     `expand_template`, which keeps the template's LF.
+#
+# The reference direction is deliberate: Make's bytes are what has shipped in
+# every release, and `generate_config.cmake` is also called by
+# `deploy/nuget/prepare_dal_nuget.sh`, so teaching it `NEWLINE_STYLE LF` would
+# change the published NuGet packages to fix a comparison.
+#
+# `env/vars.bat` is deliberately absent: it is generated from a template already
+# checked in with CRLF, so both sides agree without help.
+_CRLF_EXTRA_FILES = [
+    "config/config.txt",
+    "lib/cmake/oneDAL/oneDALConfig.cmake",
+    "lib/cmake/oneDAL/oneDALConfigVersion.cmake",
+]
+
+# Make picks what to ship under `data/` with `expat` (makefile:395); mirror that
+# suffix list rather than converting whatever happens to live there.
+#
+# Examples and samples are *not* covered: they are staged through the earlier
 # `.release.x` and `.release.d` definitions (makefile:1026, :1053), neither of
 # which runs the line-ending sed, so they keep LF in both packages.
 _CRLF_DATA_SUFFIXES = [".cmake", ".cpp", ".csv", ".h", ".hpp", ".txt"]
 
-def _is_crlf_staged_data(short_path):
-    if not short_path.startswith("data/"):
+def _is_crlf_staged(dst_subpath):
+    """True when the Make Windows package ships `dst_subpath` with CRLF."""
+    if dst_subpath in _CRLF_EXTRA_FILES:
+        return True
+    if not dst_subpath.startswith("data/"):
         return False
     for suffix in _CRLF_DATA_SUFFIXES:
-        if short_path.endswith(suffix):
+        if dst_subpath.endswith(suffix):
             return True
     return False
 
@@ -431,10 +452,11 @@ def _copy_extra_files(ctx, prefix):
                 dep.label, len(srcs)))
         src = srcs[0]
         dst_path = paths.join(prefix, dst_subpath)
-        # Files Make stages through its `.release.x` recipe get CRLF endings on
-        # Windows. The generated ones (pkg-config, cmake configs) do not go
-        # through that recipe and keep the endings their generator wrote.
-        if is_windows and dst_subpath in _CRLF_EXTRA_FILES:
+        # See `_is_crlf_staged`: some of these are CRLF in the Make Windows
+        # package, either because Make's staging recipe rewrites them or because
+        # cmake generated them on a Windows host. The pkg-config files are not,
+        # since Bazel and Make both write them with LF.
+        if is_windows and _is_crlf_staged(dst_subpath):
             dst_files.append(_copy_crlf(ctx, src, dst_path))
         else:
             dst_files.append(_copy(ctx, src, dst_path))
@@ -452,7 +474,7 @@ def _copy_data(ctx, prefix):
             if src.short_path.startswith("../"):
                 continue
             dst_path = paths.join(prefix, src.short_path)
-            if is_windows and _is_crlf_staged_data(src.short_path):
+            if is_windows and _is_crlf_staged(src.short_path):
                 dst_files.append(_copy_crlf(ctx, src, dst_path))
             else:
                 dst_files.append(_copy(ctx, src, dst_path))
