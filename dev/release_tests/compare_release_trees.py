@@ -192,7 +192,55 @@ WINDOWS_IGNORED_EXPORT_PATTERNS = (
 )
 
 
+# Inline members of exported class templates that cl instantiates and exports
+# while clang-cl does not, because clang-cl only emits the ones the DLL itself
+# odr-uses. They are listed one by one rather than matched by pattern so that a
+# member which genuinely disappears from a released library still fails.
+#
+# None of them can be part of a consumer's link surface. `DAAL_EXPORT` expands to
+# `__declspec(dllexport)` only while oneDAL itself is being built and to nothing
+# otherwise (cpp/daal/include/services/daal_defines.h), and no public header
+# declares anything `dllimport`. A consumer therefore instantiates whichever of
+# these it uses in its own object file and never emits a reference the DLL would
+# have to satisfy. Every entry below is defined in-class in a released header.
+#
+# Populated from the Windows nightly's own report for onedal_core.4.dll; if a new
+# member of one of these class templates starts diverging, the comparison will
+# flag it and this list needs a deliberate update.
+WINDOWS_IGNORED_EXPORTS = frozenset([
+    # daal::algorithms::optimization_solver::precomputed::interface2::Batch
+    "?allocateResult@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEAA?AVStatus@interface1@services@6@XZ",
+    "?allocateResult@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEAA?AVStatus@interface1@services@6@XZ",
+    "?cloneImpl@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEBAPEAV123456@XZ",
+    "?cloneImpl@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEBAPEAV123456@XZ",
+    "?getMethod@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@UEBAHXZ",
+    "?getMethod@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@UEBAHXZ",
+    # daal::algorithms::interface1::Algorithm<batch>
+    "?allocateResultMemory@?$Algorithm@$00@interface1@algorithms@daal@@IEAA?AVStatus@2services@4@XZ",
+    "?getBaseHyperparameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAPEBUHyperparameter@234@XZ",
+    "?getBaseParameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAPEAUParameter@234@XZ",
+    "?setHyperparameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAXPEBUHyperparameter@234@@Z",
+    "?setParameter@?$Algorithm@$00@interface1@algorithms@daal@@MEAAXXZ",
+    # daal::algorithms::interface1::AlgorithmContainerImpl<batch>
+    "?getResult@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@QEAAPEAVResult@234@XZ",
+    "?resetCompute@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@UEAA?AVStatus@2services@4@XZ",
+    "?setArguments@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@QEAAXPEAVInput@234@PEAVResult@234@PEAUParameter@234@PEBUHyperparameter@234@@Z",
+    "?setupCompute@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@UEAA?AVStatus@2services@4@XZ",
+    # daal::algorithms::covariance::interface1::DistributedIface<step1Local>
+    "?checkFinalizeComputeParams@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@XZ",
+    "?clone@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEBA?AV?$SharedPtr@V?$DistributedIface@$00@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?getPartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEAA?AV?$SharedPtr@VPartialResult@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?getResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEAA?AV?$SharedPtr@VResult@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?initialize@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@IEAAXXZ",
+    "?initializePartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@MEAA?AVStatus@2services@5@XZ",
+    "?setPartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@AEBV?$SharedPtr@VPartialResult@interface1@covariance@algorithms@daal@@@275@_N@Z",
+    "?setResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@AEBV?$SharedPtr@VResult@interface1@covariance@algorithms@daal@@@275@@Z",
+])
+
+
 def is_ignored_windows_export(symbol):
+    if symbol in WINDOWS_IGNORED_EXPORTS:
+        return True
     return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
 
@@ -237,7 +285,18 @@ def is_text_path(path):
 
 
 def read_normalized_text(root, path):
-    content = (root / path).read_text(encoding="utf-8", errors="surrogateescape")
+    # `newline=""` keeps each line's own ending. Without it Python's universal
+    # newline translation folds CRLF to LF, which would make the files listed in
+    # NORMALIZED_TEXT_LINES the only released text files where a line-ending
+    # difference is invisible -- every other one is compared byte for byte.
+    # `Path.read_text` only grew a `newline` parameter in Python 3.13, and CI
+    # still runs 3.12, so go through `open`.
+    with (root / path).open(
+        encoding="utf-8",
+        errors="surrogateescape",
+        newline="",
+    ) as handle:
+        content = handle.read()
     prefixes = NORMALIZED_TEXT_LINES.get(path, ())
     if not prefixes:
         return content
@@ -245,8 +304,11 @@ def read_normalized_text(root, path):
     for line in content.splitlines(keepends=True):
         stripped = line.lstrip()
         if any(stripped.startswith(f"#define {prefix} ") for prefix in prefixes):
-            newline = "\n" if line.endswith("\n") else ""
-            normalized.append(f"#define {stripped.split()[1]} <normalized>{newline}")
+            # Carry the original ending over to the placeholder, for the same
+            # reason: normalising the value must not normalise the endings.
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            normalized.append(f"#define {stripped.split()[1]} <normalized>{ending}")
         else:
             normalized.append(line)
     return "".join(normalized)
