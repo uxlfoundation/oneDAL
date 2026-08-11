@@ -102,14 +102,14 @@ struct TaskKMeansLloyd
     }
 
     Status addNTToTaskThreadedDense(const NumericTable * const ntData, const algorithmFPType * const catCoef, const size_t blockSizeDefault,
-                                    NumericTable * ntAssign = nullptr);
+                                    NumericTable * ntAssign = nullptr, int * pointAssignments = nullptr);
 
     Status addNTToTaskThreadedCSR(const NumericTable * const ntData, const algorithmFPType * const catCoef, const size_t blockSizeDefault,
-                                  NumericTable * ntAssign = nullptr);
+                                  NumericTable * ntAssign = nullptr, int * pointAssignments = nullptr);
 
     template <Method method>
     Status addNTToTaskThreaded(const NumericTable * const ntData, const algorithmFPType * const catCoef, const size_t blockSizeDefault,
-                               NumericTable * ntAssign = nullptr);
+                               NumericTable * ntAssign = nullptr, int * pointAssignments = nullptr);
 
     template <typename centroidsFPType>
     int kmeansUpdateCluster(int jidx, centroidsFPType * s1);
@@ -135,7 +135,8 @@ struct TaskKMeansLloyd
 
 template <typename algorithmFPType, CpuType cpu>
 Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const NumericTable * const ntData, const algorithmFPType * const catCoef,
-                                                                       const size_t blockSizeDefault, NumericTable * ntAssign)
+                                                                       const size_t blockSizeDefault, NumericTable * ntAssign,
+                                                                       int * pointAssignments)
 {
     const size_t n = ntData->getNumberOfRows();
 
@@ -233,6 +234,12 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
 
             goal += minGoalVal;
 
+            if (pointAssignments)
+            {
+                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
+                pointAssignments[k * blockSizeDefault + i] = (int)minIdx;
+            }
+
             if (ntAssign)
             {
                 DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
@@ -247,7 +254,8 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
 
 template <typename algorithmFPType, CpuType cpu>
 Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const NumericTable * const ntData, const algorithmFPType * const catCoef,
-                                                                     const size_t blockSizeDefault, NumericTable * ntAssign)
+                                                                     const size_t blockSizeDefault, NumericTable * ntAssign,
+                                                                     int * pointAssignments)
 {
     CSRNumericTableIface * ntDataCsr = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(ntData));
 
@@ -332,6 +340,12 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
 
             cS0[minIdx]++;
 
+            if (pointAssignments)
+            {
+                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
+                pointAssignments[k * blockSizeDefault + i] = (int)minIdx;
+            }
+
             if (ntAssign)
             {
                 DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
@@ -346,15 +360,16 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
 template <typename algorithmFPType, CpuType cpu>
 template <Method method>
 Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreaded(const NumericTable * const ntData, const algorithmFPType * const catCoef,
-                                                                  const size_t blockSizeDefault, NumericTable * ntAssign)
+                                                                  const size_t blockSizeDefault, NumericTable * ntAssign,
+                                                                  int * pointAssignments)
 {
     if (method == lloydDense)
     {
-        return addNTToTaskThreadedDense(ntData, catCoef, blockSizeDefault, ntAssign);
+        return addNTToTaskThreadedDense(ntData, catCoef, blockSizeDefault, ntAssign, pointAssignments);
     }
     else if (method == lloydCSR)
     {
-        return addNTToTaskThreadedCSR(ntData, catCoef, blockSizeDefault, ntAssign);
+        return addNTToTaskThreadedCSR(ntData, catCoef, blockSizeDefault, ntAssign, pointAssignments);
     }
     DAAL_ASSERT(false);
     return Status();

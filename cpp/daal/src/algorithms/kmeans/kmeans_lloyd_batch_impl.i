@@ -63,7 +63,17 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     TArray<int, cpu> clusterS0(nClusters);
     TArray<algorithmFPType, cpu> clusterS1(nClusters * p);
-    DAAL_CHECK(clusterS0.get() && clusterS1.get(), services::ErrorMemoryAllocationFailed);
+    TArray<bool, cpu> clusterReplaced(nClusters);
+    DAAL_CHECK(clusterS0.get() && clusterS1.get() && clusterReplaced.get(), services::ErrorMemoryAllocationFailed);
+
+    // Per-point cluster assignment tracked across the outer Lloyd loop.
+    // Needed only when at least one cluster ends up empty: the replacement
+    // candidate steals a point from its previously-assigned cluster, and we
+    // must decrement that cluster's counters (clusterS0 / clusterS1) before
+    // computing its new centroid.
+    TArray<int, cpu> pointAssignmentsHolder(n);
+    DAAL_CHECK(pointAssignmentsHolder.get(), services::ErrorMemoryAllocationFailed);
+    int * pointAssignments = pointAssignmentsHolder.get();
 
     ReadRows<algorithmFPType, cpu> mtInClusters(*const_cast<NumericTable *>(a[1]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtInClusters);
@@ -121,7 +131,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         {
             DAAL_PROFILER_TASK(addNTToTaskThreaded);
             /* For the last iteration we do not need to recount of assignmets */
-            s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize, assignmetsNT && (kIter == nIter - 1) ? assignmetsNT : nullptr);
+            s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize, assignmetsNT && (kIter == nIter - 1) ? assignmetsNT : nullptr,
+                                                           pointAssignments);
         }
 
         if (!s)
@@ -141,10 +152,27 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
         algorithmFPType newCentersGoalFunc = (algorithmFPType)0.0;
         algorithmFPType l2Norm             = (algorithmFPType)0.0;
+        service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
         {
             DAAL_PROFILER_TASK(kmeansMergeReduceCentroids);
 
-            // Read previous centroids from `inClusters`, not from the
+            // Two-pass merge:
+            //   Pass 1: replace each empty cluster's centroid with a candidate
+            //           row (the farthest-from-nearest-centroid point that
+            //           kmeansComputeCentroidsCandidates produced). The
+            //           candidate is stolen from the cluster it was assigned
+            //           to on this iteration, so decrement that source
+            //           cluster's counters (clusterS0, clusterS1) here so the
+            //           subsequent centroid computation in pass 2 reflects
+            //           the theft.
+            //   Pass 2: compute centroids for the originally-non-empty
+            //           clusters from the (now theft-adjusted) aggregates and
+            //           accumulate the L2 shift. If a source cluster ended up
+            //           fully drained, fall back to its previous centroid
+            //           (inClusters) so `clusters[i * p + j]` is always
+            //           defined on iter 0.
+            //
+            // Reading previous centroids from `inClusters`, not from the
             // write-only `clusters` buffer: on the very first iteration
             // `clusters` is the user-supplied result table whose contents
             // are uninitialized prior to being written. From iteration 1
@@ -152,6 +180,46 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
             // so the L2-norm of the centroid shift is unchanged.
             for (size_t i = 0; i < nClusters; i++)
             {
+                if (clusterS0[i] == 0)
+                {
+                    DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
+                    newCentersGoalFunc += cValues[cPos];
+                    const size_t candidateRowIdx = cIndices[cPos];
+                    ReadRows<algorithmFPType, cpu> mtRow(ntData, candidateRowIdx, 1);
+                    const algorithmFPType * row = mtRow.get();
+
+                    // Take the candidate away from its currently-assigned cluster
+                    // so pass 2 computes that cluster's centroid without it.
+                    const int srcCluster = pointAssignments[candidateRowIdx];
+                    DAAL_ASSERT(srcCluster >= 0 && (size_t)srcCluster < nClusters);
+                    DAAL_ASSERT(clusterS0[srcCluster] > 0);
+                    clusterS0[srcCluster]--;
+                    PRAGMA_OMP_SIMD
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j < p; j++)
+                    {
+                        clusterS1[srcCluster * p + j] -= row[j];
+                    }
+
+                    PRAGMA_OMP_SIMD
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j < p; j++)
+                    {
+                        const algorithmFPType dist = inClusters[i * p + j] - row[j];
+                        l2Norm += dist * dist;
+                    }
+                    result |=
+                        daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType));
+                    clusterReplaced[i] = true;
+                    cPos++;
+                }
+            }
+            for (size_t i = 0; i < nClusters; i++)
+            {
+                if (clusterReplaced[i])
+                {
+                    continue;
+                }
                 if (clusterS0[i] > 0)
                 {
                     const algorithmFPType coeff = 1.0 / clusterS0[i];
@@ -166,23 +234,17 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                         clusters[i * p + j] = newCluster;
                     }
                 }
-                else
+                else if (clusters + i * p != inClusters + i * p)
                 {
-                    DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
-                    newCentersGoalFunc += cValues[cPos];
-                    ReadRows<algorithmFPType, cpu> mtRow(ntData, cIndices[cPos], 1);
-                    const algorithmFPType * row = mtRow.get();
-
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < p; j++)
-                    {
-                        const algorithmFPType dist = inClusters[i * p + j] - row[j];
-                        l2Norm += dist * dist;
-                    }
-                    result |=
-                        daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType));
-                    cPos++;
+                    // Cluster was non-empty at the start of the iteration but
+                    // pass 1 drained all its points as candidates. Fall back
+                    // to the previous centroid so we never leave
+                    // `clusters[i]` uninitialized on iter 0. Skipped when
+                    // `clusters` and `inClusters` alias (iter >= 1 with
+                    // tClusters unused), in which case the value is already
+                    // there.
+                    result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &inClusters[i * p],
+                                                                       p * sizeof(algorithmFPType));
                 }
             }
         }
