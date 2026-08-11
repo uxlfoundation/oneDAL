@@ -387,6 +387,24 @@ def _copy_lib(ctx, prefix, version_info):
 # checked in with CRLF.
 _CRLF_EXTRA_FILES = ["config/config.txt"]
 
+# The dataset tree goes through the same `.release.x` recipe (makefile:1046), so
+# every released dataset is CRLF in the Make Windows package too. Make selects
+# what to ship there with `expat` (makefile:395), so mirror that suffix list
+# rather than converting whatever happens to be under `data/`.
+#
+# Examples and samples are *not* listed: they are staged through the earlier
+# `.release.x` and `.release.d` definitions (makefile:1026, :1053), neither of
+# which runs the line-ending sed, so they keep LF in both packages.
+_CRLF_DATA_SUFFIXES = [".cmake", ".cpp", ".csv", ".h", ".hpp", ".txt"]
+
+def _is_crlf_staged_data(short_path):
+    if not short_path.startswith("data/"):
+        return False
+    for suffix in _CRLF_DATA_SUFFIXES:
+        if short_path.endswith(suffix):
+            return True
+    return False
+
 def _copy_extra_files(ctx, prefix):
     """Copy extra generated files (vars.sh, pkg-config, etc.) into the release tree.
 
@@ -424,6 +442,8 @@ def _copy_extra_files(ctx, prefix):
 
 def _copy_data(ctx, prefix):
     """Copy data files (datasets, examples, config) preserving directory structure."""
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+
     dst_files = []
     for dep in ctx.attr.data:
         srcs = dep[DefaultInfo].files.to_list()
@@ -432,7 +452,10 @@ def _copy_data(ctx, prefix):
             if src.short_path.startswith("../"):
                 continue
             dst_path = paths.join(prefix, src.short_path)
-            dst_files.append(_copy(ctx, src, dst_path))
+            if is_windows and _is_crlf_staged_data(src.short_path):
+                dst_files.append(_copy_crlf(ctx, src, dst_path))
+            else:
+                dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
 def _copy_to_release_impl(ctx):
