@@ -16,6 +16,7 @@
 #===============================================================================
 
 import argparse
+import difflib
 import filecmp
 import re
 import os
@@ -172,9 +173,10 @@ def is_ignored_linux_export(symbol, library_path=None):
 # instantiations; the two remaining special members are the `??_F` closures
 # below.
 WINDOWS_IGNORED_EXPORT_PATTERNS = (
-    # Special members of class templates: ctor, dtor, operator new/delete,
-    # operator=, operator(), vftable.
-    re.compile(r"^\?\?(?:[01234R]|_7)\?\$"),
+    # Special members of class templates: ctor, dtor, operator new/delete
+    # (scalar `??2`/`??3` and array `??_U`/`??_V`), operator=, operator(),
+    # vftable.
+    re.compile(r"^\?\?(?:[01234R]|_7|_U|_V)\?\$"),
     # Template instantiations whose arguments name a lambda. `<lambda_` is cl's
     # spelling and icx's alike; neither can match the other's.
     re.compile(r"^\?\?\$.*<lambda_"),
@@ -306,9 +308,68 @@ def compare_text_files(make_root, bazel_root, files, limit):
         errors += len(mismatches)
         print(f"Text content mismatches: {len(mismatches)}")
         for item in mismatches[:limit]:
-            print(f"  ! {item}")
+            print(f"  ! {item} {describe_text_mismatch(make_root, bazel_root, item)}")
+            for line in text_mismatch_diff(make_root, bazel_root, item):
+                print(f"      {line}")
     print(f"Compared text files: {compared}")
     return errors
+
+
+def line_ending_counts(data):
+    crlf = data.count(b"\r\n")
+    lf = data.count(b"\n") - crlf
+    cr = data.count(b"\r") - crlf
+    return crlf, lf, cr
+
+
+def describe_text_mismatch(make_root, bazel_root, path):
+    """Summarise *how* two text files differ, so a CI log is enough to diagnose.
+
+    Printing only the path leaves the reader unable to tell a line-ending
+    difference from a content one without reproducing the build, which on
+    Windows means a multi-hour job.
+    """
+    make_bytes = (make_root / path).read_bytes()
+    bazel_bytes = (bazel_root / path).read_bytes()
+    make_eol = line_ending_counts(make_bytes)
+    bazel_eol = line_ending_counts(bazel_bytes)
+    detail = f"Make={len(make_bytes)}B Bazel={len(bazel_bytes)}B"
+    if make_eol != bazel_eol:
+        detail += (
+            " EOL Make(crlf={},lf={},cr={}) Bazel(crlf={},lf={},cr={})"
+            .format(*make_eol, *bazel_eol)
+        )
+    # Same text once endings are normalised means the endings are the only
+    # difference; say so explicitly rather than making the reader infer it.
+    if make_bytes.replace(b"\r\n", b"\n") == bazel_bytes.replace(b"\r\n", b"\n"):
+        detail += " (line endings only)"
+    return detail
+
+
+def text_mismatch_diff(make_root, bazel_root, path, context=1, max_lines=12):
+    """Return a bounded unified diff of the two files, endings made visible."""
+    def read_lines(root):
+        raw = (root / path).read_bytes()
+        text = raw.decode("utf-8", errors="replace")
+        # Keep the endings and render them, so a CRLF/LF difference is legible
+        # instead of invisible.
+        return [
+            line.replace("\r", "<CR>").replace("\n", "<LF>")
+            for line in text.splitlines(keepends=True)
+        ]
+
+    diff = difflib.unified_diff(
+        read_lines(make_root),
+        read_lines(bazel_root),
+        fromfile="make",
+        tofile="bazel",
+        n=context,
+        lineterm="",
+    )
+    lines = list(diff)[:max_lines]
+    if len(lines) == max_lines:
+        lines.append("... diff truncated")
+    return lines
 
 
 def run_tool(args):
