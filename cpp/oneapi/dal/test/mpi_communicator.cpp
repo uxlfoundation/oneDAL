@@ -14,8 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <mpi.h>
+
 #include "oneapi/dal/test/engine/mpi_global.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
+#include "oneapi/dal/spmd/mpi/communicator.hpp"
 
 namespace spmd = oneapi::dal::preview::spmd;
 
@@ -338,6 +341,35 @@ TEST_M(mpi_comm_test, "allgatherv") {
     for (std::int64_t i = 0; i < total_size; i++) {
         REQUIRE(recv_buffer[i] == final_buffer[i]);
     }
+}
+
+TEST_M(mpi_comm_test, "make_communicator from split MPI_Comm handle") {
+    int world_rank = 0;
+    int world_size = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    SKIP_IF(world_size < 2);
+
+    const int color = (world_rank < world_size / 2) ? 0 : 1;
+    MPI_Comm split_comm = MPI_COMM_NULL;
+    REQUIRE(MPI_Comm_split(MPI_COMM_WORLD, color, world_rank, &split_comm) == MPI_SUCCESS);
+    const std::int64_t comm_handle = static_cast<std::int64_t>(MPI_Comm_c2f(split_comm));
+
+#ifdef ONEDAL_DATA_PARALLEL
+    auto ext_comm = spmd::make_communicator<spmd::backend::mpi>(get_queue(), comm_handle);
+#else
+    auto ext_comm = spmd::make_communicator<spmd::backend::mpi>(comm_handle);
+#endif
+
+    const int expected_size = (color == 0) ? (world_size / 2) : (world_size - world_size / 2);
+    REQUIRE(ext_comm.get_rank_count() == expected_size);
+
+    // Ensure the wrapped sub-communicator can drive a collective end-to-end.
+    float value = 1.0f;
+    ext_comm.allreduce(value, spmd::reduce_op::sum).wait();
+    REQUIRE(value == float(expected_size));
+
+    MPI_Comm_free(&split_comm);
 }
 
 TEST_M(mpi_comm_test, "sendrecv_replace") {
