@@ -21,15 +21,24 @@ on:
     workflows: [Nightly-build]
     types:
       - completed
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
 
   cve-bin-tool-scan:
     runs-on: ubuntu-24.04
-    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
+    # Only scan artifacts from schedule/manual Nightly-build runs — never PR-originated ones.
+    if: >
+      ${{ github.repository == 'uxlfoundation/oneDAL'
+          && github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.event != 'pull_request' }}
     permissions:
       security-events: write
     env:
@@ -61,8 +70,28 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 120
+    permissions:
+      contents: read
+      checks: write
 
     steps:
+      # Publish a Check Run bound to the originating commit so this job appears
+      # as its own line on the PR's Checks list, even though workflow_run
+      # triggers do not otherwise surface on the PR.
+      - name: Report check run (start)
+        id: check_start
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { data } = await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Nightly-test / oneDAL Linux Bazel test',
+              head_sha: context.payload.workflow_run.head_sha,
+              status: 'in_progress',
+              details_url: context.payload.workflow_run.html_url,
+            })
+            core.setOutput('check_run_id', data.id)
       - name: Checkout oneDAL
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -92,14 +121,52 @@ jobs:
             --make ./__release_lnx/daal/latest \
             --bazel ./bazel-bin/release/daal/latest \
             --check-level 4
+      - name: Report check run (finish)
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECK_RUN_ID: ${{ steps.check_start.outputs.check_run_id }}
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const checkRunId = Number(process.env.CHECK_RUN_ID)
+            if (!checkRunId) return
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: checkRunId,
+              status: 'completed',
+              conclusion: process.env.JOB_STATUS === 'success' ? 'success' : 'failure',
+              details_url: context.payload.workflow_run.html_url,
+            })
 
   bazel_win:
     name: oneDAL Windows Bazel test
     runs-on: windows-2025
     if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 180
+    permissions:
+      contents: read
+      checks: write
 
     steps:
+      # Publish a Check Run bound to the originating commit so this job appears
+      # as its own line on the PR's Checks list, even though workflow_run
+      # triggers do not otherwise surface on the PR.
+      - name: Report check run (start)
+        id: check_start
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { data } = await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Nightly-test / oneDAL Windows Bazel test',
+              head_sha: context.payload.workflow_run.head_sha,
+              status: 'in_progress',
+              details_url: context.payload.workflow_run.html_url,
+            })
+            core.setOutput('check_run_id', data.id)
       - name: Checkout oneDAL
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -154,3 +221,21 @@ jobs:
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
             -ReleaseDir .\bazel-bin\release\daal\latest
+      - name: Report check run (finish)
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECK_RUN_ID: ${{ steps.check_start.outputs.check_run_id }}
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const checkRunId = Number(process.env.CHECK_RUN_ID)
+            if (!checkRunId) return
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: checkRunId,
+              status: 'completed',
+              conclusion: process.env.JOB_STATUS === 'success' ? 'success' : 'failure',
+              details_url: context.payload.workflow_run.html_url,
+            })
