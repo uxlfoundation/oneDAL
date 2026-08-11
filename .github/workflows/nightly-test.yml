@@ -55,3 +55,102 @@ jobs:
           # W/A (Pt. 2): This is not the actual 'build_command'; it just copies the artifacts
           #              downloaded in the previous step to the working directory
           build_command: "mv ${{ runner.temp }}/${{ env.BUILD_FOLDER }} ./"
+
+  bazel_lnx:
+    name: oneDAL Linux Bazel test
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Download oneDAL Linux build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: __release_lnx
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: ./__release_lnx
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+      - name: Install Bazelisk
+        run: .ci/env/bazelisk.sh
+      - name: Bazel release
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          python dev/release_tests/compare_release_trees.py \
+            --platform linux \
+            --make ./__release_lnx/daal/latest \
+            --bazel ./bazel-bin/release/daal/latest \
+            --check-level 4
+
+  bazel_win:
+    name: oneDAL Windows Bazel test
+    runs-on: windows-2025
+    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Download oneDAL Windows build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: __release_win
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: ./__release_win_vc
+      - name: Download Intel BaseKit artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: intel_oneapi_basekit
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Decompress Intel BaseKit
+        shell: cmd
+        run: |
+          tar -xvzf oneapi.tar.gz
+          echo "Unzip complete"
+      - name: Install Bazelisk
+        shell: pwsh
+        run: .\.ci\env\bazelisk.ps1
+      - name: Bazel release
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
+        run: |
+          if not exist "%BAZEL_SH%" (
+            echo ERROR: Required Bazel shell not found: %BAZEL_SH%
+            exit /b 1
+          )
+          set PATH=C:\msys64\usr\bin;%PATH%
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
+            -MakeReleaseDir .\__release_win_vc\daal\latest ^
+            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
+            -CheckLevel 4
+      - name: Build and run CMake example from Bazel release
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
+            -ReleaseDir .\bazel-bin\release\daal\latest
