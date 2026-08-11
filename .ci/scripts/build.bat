@@ -44,8 +44,11 @@ IF "%VS_VER%"=="2017_build_tools" (
 echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3
 make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3 || set errorcode=1
 
-rem `generate_config.cmake` reads ARCH_DIR_ONEDAL, so passing ARCH_DIR left the
-rem staged configs with an empty architecture directory, overwriting the correct
-rem files the makefile itself generates (see the `_release_cmake_configs` target).
-cmake -DINSTALL_DIR=__release_win_vc\daal\latest\lib\cmake\oneDAL -DARCH_DIR_ONEDAL=intel64 -P cmake\scripts\generate_config.cmake || set errorcode=1
+rem No cmake config generation here: the makefile stages the oneDALConfig files
+rem itself through `_release_cmake_configs`, added in #2243 shortly after this
+rem script grew its own call in #2222. Re-running the script overwrote those
+rem files with a second `configure_file` pass whose output differed from the
+rem staged one, which the release comparator reported as a text mismatch.
+rem `.ci/scripts/build.sh` has never had an equivalent call, which is why Linux
+rem compared clean.
 EXIT /B %errorcode%
