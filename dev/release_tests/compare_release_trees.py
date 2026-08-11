@@ -139,6 +139,52 @@ def is_ignored_linux_export(symbol, library_path=None):
     return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
 
 
+# MSVC mangling prefixes for entities the compiler generates or inlines on its
+# own, rather than named functions that form the documented oneDAL surface.
+#
+# The Windows nightly builds the Make release with `vc` (cl) and the Bazel one
+# with icx, so the two toolchains disagree about which of these they emit and
+# how they spell them. Two examples from that comparison:
+#
+#   * `??$threader_for@...` -- `inline ONEDAL_EXPORT` templates instantiated on
+#     lambdas (cpp/oneapi/dal/detail/threading.hpp). cl and icx encode the
+#     lambda's identity differently, so no instantiation can ever match: cl
+#     writes the enclosing scope (`V<lambda_1>@?0???$copy_convert@...`) while
+#     icx writes a content hash (`V<lambda_0380cb5a...>`). Every one of the
+#     onedal.4.dll differences was of this form.
+#   * `??1` / `??0` / `??_7` / `??4` -- implicitly-declared destructors, copy
+#     and move constructors, vftables, and assignment operators. Whether these
+#     are emitted into a given DLL depends on where the compiler decided to
+#     instantiate them, not on the library's API.
+#
+# Ignoring them keeps the comparison focused on named entities. A missing or
+# extra oneDAL function still fails, which is what this check exists to catch.
+WINDOWS_IGNORED_EXPORT_PREFIXES = (
+    "??$",   # template instantiations
+    "??0",   # constructors
+    "??1",   # destructors
+    "??2",   # operator new
+    "??3",   # operator delete
+    "??4",   # operator=
+    "??R",   # operator()
+    "??_7",  # vftable
+    "??_F",  # default constructor closure
+)
+
+
+# `daal::services::Collection<T>::_default_capacity` is a private static
+# constant initialized in-class (cpp/daal/include/services/collection.h). Its
+# out-of-line definition is emitted at the compiler's discretion, so cl exports
+# it from onedal_core.dll for two instantiations that icx does not.
+WINDOWS_IGNORED_EXPORTS = re.compile(r"^\?_default_capacity@\?\$Collection@")
+
+
+def is_ignored_windows_export(symbol, library_path=None):
+    if symbol.startswith(WINDOWS_IGNORED_EXPORT_PREFIXES):
+        return True
+    return bool(WINDOWS_IGNORED_EXPORTS.match(symbol))
+
+
 def rel(path, root):
     return path.relative_to(root).as_posix()
 
@@ -314,7 +360,9 @@ def read_windows_exports(path):
             continue
         parts = stripped.split()
         if len(parts) >= 4 and parts[0].isdigit():
-            symbols.add(parts[3].split("=", 1)[0])
+            symbol = parts[3].split("=", 1)[0]
+            if not is_ignored_windows_export(symbol, path):
+                symbols.add(symbol)
     return symbols
 
 
