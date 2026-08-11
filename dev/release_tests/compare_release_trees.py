@@ -30,6 +30,10 @@ TEXT_SUFFIXES = {
     ".cfg",
     ".cmake",
     ".cpp",
+    # Datasets. Make stages these through the recipe that rewrites line endings
+    # on Windows (makefile:1046), so their contents are part of the parity the
+    # release comparison is meant to cover.
+    ".csv",
     ".cxx",
     ".h",
     ".hpp",
