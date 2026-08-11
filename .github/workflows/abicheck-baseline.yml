@@ -128,10 +128,29 @@ jobs:
       # job: a baseline dumped from a different header set than the scan uses
       # reports every header-only difference as a spurious add/remove. The
       # long rationale (why the plain directories fail, and why
-      # --public-header-dir is required for the provenance cross-checks to do
+      # public-header-dir is required for the provenance cross-checks to do
       # anything at all) lives with that job.
+      #
+      # ── Keep this pin equal to the one in ci.yml ──────────────────────────
+      #
+      # The abicheck commit pinned below and the one pinned by ci.yml's
+      # LinuxAbicheckScan job must be the same, and bumping either obliges
+      # re-dispatching this workflow for the tags already published under
+      # .github/abicheck-baselines/. A baseline dumped by a different
+      # abicheck than the one scanning invents findings: measured across a
+      # schema_version 18 baseline vs a schema_version 24 scanner, 173 of 440
+      # findings were pure version-skew artifacts, because two detectors key
+      # identity on a `name` field the two versions spell differently.
+      # abicheck will not catch it for you -- it rejects a snapshot *newer*
+      # than the reader (serialization.py:794) and silently accepts an older
+      # one, which is the direction that happens here. Full analysis in
+      # .github/.abicheck-suppress.yaml.
+      #
+      # Re-measured on the pinned commit: the daal dump takes 20m21s and
+      # peaks at 5.44 GB RSS, producing 152 MB of JSON; oneapi::dal 6m52s /
+      # 3.91 GB / 115 MB.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@4f9061560b2312138cd6d895088fb31c996b9de5 # main
+        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -149,10 +168,10 @@ jobs:
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-std=c++17"
-          extra-args: --public-header-dir __baseline_src/cpp/daal/include
+          public-header-dir: __baseline_src/cpp/daal/include
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@4f9061560b2312138cd6d895088fb31c996b9de5 # main
+        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -170,32 +189,37 @@ jobs:
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
-          extra-args: --public-header-dir __baseline_src/cpp/oneapi
+          public-header-dir: __baseline_src/cpp/oneapi
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
 
-      # 149 MB (daal) + 115 MB (oneapi::dal) of JSON per release, ~57 MB of
+      # 152 MB (daal) + 115 MB (oneapi::dal) of JSON per release, ~57 MB of
       # each being the L5 header-declaration graph that `depth: headers`
       # attaches unconditionally. Report it so a reviewer sees the repo cost
       # before the commit step below runs.
       #
       # These stay *uncompressed* on purpose, even though abicheck can now
-      # write .json.zst and the ratio is dramatic (149 MB -> 2.2 MB and
-      # 115 MB -> 2.1 MB, ~68x and ~55x, measured on these exact snapshots).
-      # `scan --against a-baseline.json.zst` currently fails before it starts:
+      # write .json.zst and the ratio is dramatic (152 MB -> 3.0 MB and
+      # 115 MB -> 2.1 MB, ~50x and ~55x, measured on these exact snapshots).
+      # `scan --against a-baseline.json.zst` still fails before it starts on
+      # the commit pinned above:
       #
       #   Error: Failed to load --baseline ...json.zst: Cannot detect format
       #   of '...json.zst'. Expected: ELF (.so), PE (.dll), Mach-O (.dylib),
       #   JSON snapshot, or ABICC Perl dump.
       #
       # so a compressed baseline would break every PR's scan. Root-caused to
-      # a unit bug in abicheck's own reader (its zstd window-size ceiling is
-      # passed in KiB where the library expects bytes, capping the accepted
-      # window at 2 MiB against the 8 MiB window its writer picks), i.e.
-      # abicheck cannot read back the compressed snapshot it just wrote. With
-      # that fixed locally, a .json.zst baseline yields byte-identical
-      # findings to the uncompressed one (same 63 breaking, same 20 reported,
-      # identical finding_id sets), so switching is a one-line change to the
-      # two output-file paths below -- once the fix is released.
+      # a unit bug in abicheck's own reader: snapshot_io.py derives its zstd
+      # window ceiling in KiB (_ZSTD_MAX_WINDOW_SIZE_KIB) but hands it to a
+      # decompressor that takes bytes, capping the accepted window at 2 MiB
+      # against the 8 MiB window its own writer picks -- so abicheck cannot
+      # read back the compressed snapshot it just wrote. Reproduced directly
+      # on one of these baselines (frame window_size 8388608): the KiB-derived
+      # value raises "Frame requires too much memory for decoding", the
+      # byte-derived one decodes all 149453406 bytes. With that fixed locally,
+      # a .json.zst baseline yields byte-identical findings to the
+      # uncompressed one (same 63 breaking, same 20 reported, identical
+      # finding_id sets), so switching is a one-line change to the two
+      # output-file paths above -- once the fix is released.
       - name: Report snapshot sizes
         run: |
           ls -l --block-size=M .github/abicheck-baselines/

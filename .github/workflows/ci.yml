@@ -182,10 +182,15 @@ jobs:
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
     # Measured end to end in an ubuntu:24.04 container running the exact apt
-    # oneAPI packages this workflow installs, against abicheck main 4f906156:
-    # daal scan 7m06s-7m14s, oneapi::dal scan 3m57s-4m03s (five runs each,
-    # spread under a minute), plus the DPC++ apt install and artifact
-    # download. 30 minutes left no margin for a cold apt mirror, so this is 45.
+    # oneAPI packages this workflow installs: daal scan 7m06s-7m16s (eight
+    # cold runs across two abicheck pins, spread under 10s), oneapi::dal scan
+    # 3m57s-4m06s, plus the DPC++ apt install and artifact download. 30
+    # minutes left no margin for a cold apt mirror, so this is 45.
+    #
+    # Do not read anything into a *rerun* being much faster (the same daal
+    # scan finishes in ~2m05s the second time): abicheck caches the candidate
+    # snapshot, so only the first run in a fresh runner is representative,
+    # and that is the one this timeout has to cover.
     #
     # MEMORY: the peak here is the *scan*, not the baseline dump -- the scan
     # of libonedal_core.so peaks at 3.42 GB RSS and libonedal.so at 1.88 GB,
@@ -270,16 +275,50 @@ jobs:
       # reachability analysis against __release_lnx/daal/latest/include
       # (what actually ships) and by an icpx -fsyntax-only aggregate compile.
       #
-      # --public-header-dir (passed via extra-args, the Action has no input
-      # for it) is what establishes the public/internal boundary: without it
-      # the exported_not_public / public_not_exported / RTTI cross-checks all
-      # report "skipped -- no public-header provenance", and the suppression
-      # engine cannot tell a public-reachable detail:: symbol from a truly
-      # internal one.
+      # public-header-dir is what establishes the public/internal boundary:
+      # without it the exported_not_public / public_not_exported / RTTI
+      # cross-checks all report "skipped -- no public-header provenance", and
+      # the suppression engine cannot tell a public-reachable detail:: symbol
+      # from a truly internal one.
       #
-      # --suppress is also passed via extra-args: `abicheck scan` supports it
-      # at the CLI level, but the composite Action forwards it only in its
-      # compare branch (action/run.sh:466), never in the scan branch.
+      # public-header-dir and suppress are passed as real Action inputs here.
+      # An earlier revision of this job had to smuggle both through
+      # extra-args, because the composite Action forwarded them only in its
+      # compare branch, never in scan. The pinned commit forwards both in the
+      # scan branch (action/run.sh:661 and :726), so extra-args is no longer
+      # needed. The suppress forwarding is gated on a baseline being present,
+      # which is the case here.
+      #
+      # Not set, and deliberately: `policy`. It has a non-empty action.yml
+      # default (strict_abi) that now reaches the CLI as an explicit
+      # --policy strict_abi. Verified inert for oneDAL -- the same scan with
+      # and without it produces identical finding_id sets and the same exit
+      # code -- because the gate this job relies on is the severity model in
+      # .abicheck.yml, not the named policy.
+      #
+      # ── The baseline must come from this exact abicheck commit ────────────
+      #
+      # Both `uses:` below and both dump steps in abicheck-baseline.yml pin
+      # the SAME commit, and that is a hard requirement, not tidiness. A
+      # baseline dumped by a different abicheck than the one scanning
+      # fabricates findings: measured across a schema_version 18 baseline vs a
+      # schema_version 24 scanner, 173 of 440 findings were pure version-skew
+      # artifacts (internal_template_leaks 46 -> 0 and constant_changed 55 ->
+      # 2 once the baseline was re-dumped by the scanning version), because two
+      # detectors key identity on a `name` field the two versions spell
+      # differently. abicheck does not warn: it rejects a snapshot *newer*
+      # than the reader (serialization.py:794) but accepts an *older* one
+      # silently, and older is the direction CI hits, since baselines are
+      # committed once and outlive several pin bumps.
+      #
+      # So: bumping the pin below obliges re-dispatching
+      # .github/workflows/abicheck-baseline.yml for the same tag, and the two
+      # pins must be changed together. The full analysis lives in
+      # .github/.abicheck-suppress.yaml.
+      #
+      # Note also that .github/abicheck-baselines/ does not exist until that
+      # workflow has been dispatched at least once; until then both steps
+      # below fail on the missing abi-baseline file.
       #
       # ── Gating ────────────────────────────────────────────────────────────
       #
@@ -306,27 +345,39 @@ jobs:
       #    WEAK COMDAT inline/template instantiations that clients instantiate
       #    locally; verified that zero STRONG symbols, data objects, vtables,
       #    typeinfos or guard variables are affected and that no built client
-      #    object references any of them. Drop this entry once a
-      #    post-inlines-hidden baseline is published.
-      #  * experimental_removed_without_replacement -- the same four lost WEAK
-      #    spmd::communicator symbols, reported a second time under a second
-      #    kind (and with a mis-parsed "replacement leaf").
-      #  * internal_template_leaks_via_public_api -- two *added*
-      #    oneapi::dal::detail::v2::chunked_array_base members reported as
-      #    breaking; the detector ignores direction.
-      #  * type_vtable_changed / constant_changed -- abicheck false positives,
-      #    both reproduced by scanning a binary against a dump of itself. See
-      #    the suppression file for the full analysis of each.
+      #    object references any of them. This is the only entry that
+      #    suppresses a real change in what oneDAL exports, it accounts for
+      #    77 of the 79 breaking findings on libonedal_core.so and 6 of the 7
+      #    on libonedal.so, and it goes away once a post-inlines-hidden
+      #    release is published as the baseline.
+      #  * experimental_removed_without_replacement -- four of those same lost
+      #    WEAK spmd::communicator symbols, reported a second time under a
+      #    second kind, twice each (once per inline-namespace spelling).
+      #  * type_vtable_changed -- an abicheck false positive, reproduced by
+      #    scanning a binary against a dump of itself, and reported by
+      #    abicheck simultaneously as non-escalating layout_unverifiable.
+      #  * three internal namespaces, mirroring .abignore -- 4 compatible-
+      #    bucket imported_symbol_removed plus the one genuine internal
+      #    addition main made (an amx_bf16 row in detail::cpu_feature_map).
       #
-      # Verified locally against abicheck main (4f906156), both libraries, with
-      # this exact config + suppression file: verdict COMPATIBLE_WITH_RISK and
-      # exit 0 on each side, with every finding still present in the JSON
-      # (libonedal_core.so: 74 suppressed, 3 risk findings reported;
-      # libonedal.so: 59 suppressed, 2 reported). Negative control: the same
-      # daal scan with `severity.preset: strict` and no suppression file still
-      # exits 4, i.e. the gate has not been disabled.
+      # See the suppression file for the per-entry evidence, and for the two
+      # entries an earlier revision of this job needed that are now gone:
+      # internal_template_leaks_via_public_api and a blanket constant_changed
+      # were both version-skew artifacts and match nothing against a
+      # correctly-versioned baseline.
+      #
+      # Verified locally against the pinned abicheck, both libraries, with this
+      # exact config + suppression file and a baseline dumped by that same
+      # commit: verdict COMPATIBLE_WITH_RISK and exit 0 on each side, with
+      # every finding still present in the JSON (libonedal_core.so: 79
+      # suppressed, 3 risk findings reported; libonedal.so: 21 suppressed, 3
+      # reported). The reported findings are 2 layout_unverifiable + 1
+      # header_binary_context_mismatch per library, all non-escalating.
+      # Negative controls: the same two scans with no suppression file exit 4
+      # (79 breaking on daal; 7 breaking + 10 api_break on oneapi::dal), so
+      # the gate has not been disabled.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@4f9061560b2312138cd6d895088fb31c996b9de5 # main
+        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -344,13 +395,12 @@ jobs:
           gcc-path: icpx
           gcc-options: "-std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json
-          extra-args: >-
-            --public-header-dir cpp/daal/include
-            --suppress .github/.abicheck-suppress.yaml
+          public-header-dir: cpp/daal/include
+          suppress: .github/.abicheck-suppress.yaml
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@4f9061560b2312138cd6d895088fb31c996b9de5 # main
+        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -368,8 +418,7 @@ jobs:
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json
-          extra-args: >-
-            --public-header-dir cpp/oneapi
-            --suppress .github/.abicheck-suppress.yaml
+          public-header-dir: cpp/oneapi
+          suppress: .github/.abicheck-suppress.yaml
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
