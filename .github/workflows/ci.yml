@@ -318,7 +318,12 @@ jobs:
       #
       # Note also that .github/abicheck-baselines/ does not exist until that
       # workflow has been dispatched at least once; until then both steps
-      # below fail on the missing abi-baseline file.
+      # below fail on the missing abi-baseline file. That dispatch is itself
+      # blocked today: an uncompressed snapshot is 151.5 MiB (daal) and
+      # 114.9 MiB (oneapi::dal), both over GitHub's hard 100 MiB per-file
+      # push limit, and the compressed form abicheck writes instead (2.1 MiB)
+      # cannot be read back by abicheck yet. Details and the four strings that
+      # need changing once it can are in abicheck-baseline.yml.
       #
       # ── Gating ────────────────────────────────────────────────────────────
       #
