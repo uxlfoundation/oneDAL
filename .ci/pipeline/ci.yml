@@ -921,13 +921,25 @@ jobs:
       artifact: 'win32e Bazel icx build'
       path: '$(Pipeline.Workspace)\bazel'
   - powershell: |
+      # `read_windows_exports` shells out to dumpbin, which is not on PATH in a
+      # job that installs no toolchain. vswhere ships on every hosted image and
+      # reports the MSVC bin directory without pinning a Visual Studio version.
+      $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+      $dumpbin = & $vswhere -latest -products * `
+        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        -find 'VC\Tools\MSVC\*\bin\HostX64\x64\dumpbin.exe' | Select-Object -First 1
+      if (-not $dumpbin) { Write-Error 'dumpbin.exe not found on this image'; exit 1 }
+      $dir = Split-Path -Parent $dumpbin
+      Write-Host "Using dumpbin from $dir"
+      Write-Host "##vso[task.prependpath]$dir"
+    displayName: 'Locate MSVC dumpbin'
+  - powershell: |
       python dev/release_tests/compare_release_trees.py `
         --platform windows `
-        --structure-only `
+        --check-level 4 `
         --make "$(Pipeline.Workspace)\make\daal\latest" `
         --bazel "$(Pipeline.Workspace)\bazel"
-    displayName: 'Compare Make and Bazel release tree structure'
-    continueOnError: true
+    displayName: 'Compare Make and Bazel release trees'
 
 
 - job: WindowsSklearnex
