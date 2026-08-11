@@ -37,7 +37,7 @@ static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const 
 
     auto& queue = ctx.get_queue();
     const auto x = input.get_x();
-    const auto y = input.get_y();
+    const auto y = input.get_y().has_data() ? input.get_y() : input.get_x();
 
     const std::int64_t x_row_count = x.get_row_count();
     const std::int64_t y_row_count = y.get_row_count();

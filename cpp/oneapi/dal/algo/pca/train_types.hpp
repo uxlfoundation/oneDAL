@@ -216,6 +216,14 @@ public:
         set_singular_values_impl(value);
         return *this;
     }
+    /// A value that contains the noise variance.
+    double get_noise_variance() const;
+
+    auto& set_noise_variance(const double value) {
+        set_noise_variance_impl(value);
+        return *this;
+    }
+
     /// A $1 \\times r$ table that contains the explained variances values for the first :literal:`r`
     /// features.
     /// @remark default = table{}
@@ -240,6 +248,7 @@ protected:
     void set_eigenvectors_impl(const table&);
     void set_variances_impl(const table&);
     void set_means_impl(const table&);
+    void set_noise_variance_impl(const double);
     void set_explained_variances_ratio_impl(const table&);
     void set_singular_values_impl(const table&);
     void set_result_options_impl(const result_option_id&);
@@ -284,9 +293,14 @@ public:
         return *this;
     }
 
+    /// The number of auxiliary tables.
+    /// @remark default = 0l
     std::int64_t get_auxiliary_table_count() const;
 
-    const table& get_auxiliary_table(const std::int64_t) const;
+    /// Returns the auxiliary table at the specified index.
+    /// @param  index The index of the auxiliary table to retrieve.
+    /// @return The auxiliary table at the specified index.
+    const table& get_auxiliary_table(const std::int64_t index) const;
 
     auto& set_auxiliary_table(const table& value) {
         set_auxiliary_table_impl(value);
@@ -325,6 +339,9 @@ public:
     partial_train_input& operator=(const partial_train_input&);
     partial_train_input& operator=(partial_train_input&&) noexcept;
 
+    /// An $n_i \\times p$ table with the $i$-th block of training data, where each row stores one
+    /// feature vector.
+    /// @remark default = table{}
     const table& get_data() const {
         return train_input<Task>::get_data();
     }
@@ -334,6 +351,8 @@ public:
         return *this;
     }
 
+    /// The previous partial train result.
+    /// @remark default = partial_train_result<Task>{}
     const partial_train_result<Task>& get_prev() const {
         return prev_;
     }

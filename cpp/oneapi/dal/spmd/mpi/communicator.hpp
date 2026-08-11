@@ -29,10 +29,26 @@ inline communicator<device_memory_access::none> make_communicator<backend::mpi>(
     return dal::detail::mpi_communicator<device_memory_access::none>{};
 }
 
+template <>
+inline communicator<device_memory_access::none> make_communicator<backend::mpi>(std::int64_t comm) {
+    // make_communicator takes in a int64 representation of the MPI_comm raw pointer in order
+    // to be as general as possible (for all possible MPI comm sources: from other languages
+    // MPICH vs Intel MPI, generalized architecture support, etc.) by using MPI_Comm_f2c.
+    MPI_Comm c = MPI_Comm_f2c(static_cast<MPI_Fint>(comm));
+    return dal::detail::mpi_communicator<device_memory_access::none>{ c };
+}
+
 #ifdef ONEDAL_DATA_PARALLEL
 template <>
 inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(sycl::queue& queue) {
     return dal::detail::mpi_communicator<device_memory_access::usm>{ queue };
+}
+
+template <>
+inline communicator<device_memory_access::usm> make_communicator<backend::mpi>(sycl::queue& queue,
+                                                                               std::int64_t comm) {
+    MPI_Comm c = MPI_Comm_f2c(static_cast<MPI_Fint>(comm));
+    return dal::detail::mpi_communicator<device_memory_access::usm>{ queue, c };
 }
 #endif
 

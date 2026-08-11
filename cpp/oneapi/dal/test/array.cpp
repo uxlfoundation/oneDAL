@@ -33,6 +33,7 @@ TEST("can construct array of zeros") {
 
     REQUIRE(arr.get_count() == 5);
     REQUIRE(arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::non_usm);
 
     for (std::int32_t i = 0; i < arr.get_count(); i++) {
         REQUIRE(arr[i] == Approx(0.0f));
@@ -270,6 +271,7 @@ TEST("can construct array of zeros with queue") {
 
     REQUIRE(arr.get_count() == 5);
     REQUIRE(arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
 
     for (std::int32_t i = 0; i < arr.get_count(); i++) {
         REQUIRE(arr[i] == Approx(0.0f));
@@ -283,6 +285,7 @@ TEST("can construct array of ones with queue") {
 
     REQUIRE(arr.get_count() == 5);
     REQUIRE(arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
 
     for (std::int32_t i = 0; i < arr.get_count(); i++) {
         REQUIRE(arr[i] == Approx(1.0f));
@@ -298,6 +301,7 @@ TEST("can construct device array with queue and without initialization") {
     REQUIRE(arr.get_count() == 10);
     REQUIRE(arr.has_mutable_data());
 
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_device);
     REQUIRE(sycl::get_pointer_type(arr.get_data(), q.get_context()) == sycl::usm::alloc::device);
 }
 
@@ -318,6 +322,7 @@ TEST("can construct array with queue and events") {
 
     REQUIRE(arr.get_count() == 10);
     REQUIRE(arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
 
     for (std::int32_t i = 0; i < arr.get_count(); i++) {
         REQUIRE(arr[i] == Approx(float(i)));
@@ -333,6 +338,7 @@ TEST("can reset array with queue and bigger size") {
 
     REQUIRE(arr.get_count() == 10);
     REQUIRE(arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
 }
 
 TEST("can reset array with queue and smaller size") {
@@ -344,6 +350,7 @@ TEST("can reset array with queue and smaller size") {
 
     REQUIRE(arr.get_count() == 4);
     REQUIRE(arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
 }
 
 TEST("can reset array with queue and raw pointer") {
@@ -362,6 +369,7 @@ TEST("can reset array with queue and raw pointer") {
 
     arr.reset(data, count, detail::make_default_delete<float>(q));
 
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
     REQUIRE(arr.get_size() == count * sizeof(float));
     REQUIRE(arr.get_count() == count);
     REQUIRE(arr.has_mutable_data());
@@ -387,6 +395,7 @@ TEST("can wrap const data with queue, offset and deleter") {
     REQUIRE(arr.get_count() == 2);
     REQUIRE(arr.get_data() == cdata);
     REQUIRE(!arr.has_mutable_data());
+    REQUIRE(arr.get_alloc_kind() == alloc_kind::usm_shared);
 }
 #endif
 
