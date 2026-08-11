@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cstring>
 #include <limits>
 
 #include "oneapi/dal/array.hpp"
@@ -66,7 +65,11 @@ static void compute_centroids(const Float* data,
 
     auto counts_arr = dal::array<std::int64_t>::zeros(cluster_count);
     std::int64_t* counts = counts_arr.get_mutable_data();
-    std::memset(centroids, 0, cluster_count * col_count * sizeof(Float));
+    const std::int64_t centroids_size = cluster_count * col_count;
+    PRAGMA_OMP_SIMD
+    for (std::int64_t i = 0; i < centroids_size; i++) {
+        centroids[i] = Float(0);
+    }
 
     for (std::int64_t i = 0; i < row_count; i++) {
         const std::int32_t label = labels[i];
@@ -153,10 +156,17 @@ static void compute_medoids(const Float* data,
     for (std::int64_t k = 0; k < cluster_count; k++) {
         Float* row = medoids + k * col_count;
         if (best_idx[k] >= 0) {
-            std::memcpy(row, data + best_idx[k] * col_count, col_count * sizeof(Float));
+            const Float* src = data + best_idx[k] * col_count;
+            PRAGMA_OMP_SIMD
+            for (std::int64_t d = 0; d < col_count; d++) {
+                row[d] = src[d];
+            }
         }
         else {
-            std::memset(row, 0, col_count * sizeof(Float));
+            PRAGMA_OMP_SIMD
+            for (std::int64_t d = 0; d < col_count; d++) {
+                row[d] = Float(0);
+            }
         }
     }
 }

@@ -35,9 +35,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 0.0, 0.2,  0.15, 0.15, 5.0,
+    constexpr Float data[] = { 0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 0.0, 0.2,  0.15, 0.15, 5.0,
                                  5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2, 5.15, 5.15, 10.0, 0.0 };
     const auto x = homogen_table::wrap(data, 11, 2);
 
@@ -60,9 +60,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
+    constexpr Float data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
     const auto x = homogen_table::wrap(data, 5, 1);
 
     constexpr std::int64_t min_cluster_size = 10;
@@ -76,9 +76,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -100,9 +100,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -134,9 +134,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0, 0.0, //
         0.1, 0.1, //
         0.2, 0.0, //
@@ -154,9 +154,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0, 0.0, 1.0, 1.0 };
+    constexpr Float data[] = { 0.0, 0.0, 1.0, 1.0 };
     const auto x = homogen_table::wrap(data, 2, 2);
 
     // min_cluster_size=2: both points should form a cluster
@@ -168,9 +168,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         1.0, 1.0, //
         1.0, 1.0, //
         1.0, 1.0, //
@@ -188,10 +188,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     // Three clusters in 1D, well-separated
-    constexpr float_t data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
+    constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
                                  5.0,  5.1,  5.2,  5.15,  5.05, //
                                  10.0, 10.1, 10.2, 10.15, 10.05 };
     const auto x = homogen_table::wrap(data, 15, 1);
@@ -204,22 +204,22 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     // 10-dimensional data with 2 clusters
     constexpr std::int64_t n = 10;
     constexpr std::int64_t d = 10;
-    float_t data[n * d];
+    Float data[n * d];
 
     // Cluster 0: near origin
     for (std::int64_t i = 0; i < 5; i++)
         for (std::int64_t j = 0; j < d; j++)
-            data[i * d + j] = static_cast<float_t>(0.01 * (i + j));
+            data[i * d + j] = static_cast<Float>(0.01 * (i + j));
 
     // Cluster 1: far from origin
     for (std::int64_t i = 5; i < 10; i++)
         for (std::int64_t j = 0; j < d; j++)
-            data[i * d + j] = static_cast<float_t>(10.0 + 0.01 * (i + j));
+            data[i * d + j] = static_cast<Float>(10.0 + 0.01 * (i + j));
 
     const auto x = homogen_table::wrap(data, n, d);
 
@@ -231,9 +231,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0, 0.0, //
         0.1, 0.1, //
         0.2, 0.0, //
@@ -252,10 +252,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     // Three clusters with varying sizes: 3, 5, 7 points
-    constexpr float_t data[] = { // Cluster A: 3 points
+    constexpr Float data[] = { // Cluster A: 3 points
                                  0.0,
                                  0.0,
                                  0.1,
@@ -310,9 +310,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -334,9 +334,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -358,9 +358,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -382,13 +382,13 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     // For cosine, clusters must differ in direction, not just magnitude.
     // 8 points per cluster with wider angular spread for stability.
     // Cluster 0: points near direction (1, 0)
     // Cluster 1: points near direction (0, 1)
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         10.0, 0.5, //
         10.0, 1.0, //
         10.0, 0.0, //
@@ -416,9 +416,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -437,11 +437,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto mink_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto mink_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                .set_result_options(result_options::responses)
                                .set_metric(distance_metric::minkowski)
                                .set_degree(1.0);
-    const auto manh_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto manh_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                .set_result_options(result_options::responses)
                                .set_metric(distance_metric::manhattan);
 
@@ -450,8 +450,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(mink_result.get_cluster_count() == manh_result.get_cluster_count());
 
-    const auto mink_rows = row_accessor<const float_t>(mink_result.get_responses()).pull({ 0, -1 });
-    const auto manh_rows = row_accessor<const float_t>(manh_result.get_responses()).pull({ 0, -1 });
+    const auto mink_rows = row_accessor<const Float>(mink_result.get_responses()).pull({ 0, -1 });
+    const auto manh_rows = row_accessor<const Float>(manh_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(mink_rows, manh_rows, row_count);
 }
@@ -461,9 +461,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -482,11 +482,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto mink_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto mink_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                .set_result_options(result_options::responses)
                                .set_metric(distance_metric::minkowski)
                                .set_degree(2.0);
-    const auto eucl_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto eucl_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                .set_result_options(result_options::responses)
                                .set_metric(distance_metric::euclidean);
 
@@ -495,8 +495,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(mink_result.get_cluster_count() == eucl_result.get_cluster_count());
 
-    const auto mink_rows = row_accessor<const float_t>(mink_result.get_responses()).pull({ 0, -1 });
-    const auto eucl_rows = row_accessor<const float_t>(eucl_result.get_responses()).pull({ 0, -1 });
+    const auto mink_rows = row_accessor<const Float>(mink_result.get_responses()).pull({ 0, -1 });
+    const auto eucl_rows = row_accessor<const Float>(eucl_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(mink_rows, eucl_rows, row_count);
 }
@@ -512,9 +512,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -550,9 +550,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
+    constexpr Float data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
     const auto x = homogen_table::wrap(data, 5, 1);
 
     this->run_checks(x, 10, 2, 0);
@@ -563,9 +563,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0, 0.0, //
         0.1, 0.1, //
         0.2, 0.0, //
@@ -583,9 +583,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
+    constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
                                  5.0,  5.1,  5.2,  5.15,  5.05, //
                                  10.0, 10.1, 10.2, 10.15, 10.05 };
     const auto x = homogen_table::wrap(data, 15, 1);
@@ -598,19 +598,19 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     constexpr std::int64_t n = 10;
     constexpr std::int64_t d = 10;
-    float_t data[n * d];
+    Float data[n * d];
 
     for (std::int64_t i = 0; i < 5; i++)
         for (std::int64_t j = 0; j < d; j++)
-            data[i * d + j] = static_cast<float_t>(0.01 * (i + j));
+            data[i * d + j] = static_cast<Float>(0.01 * (i + j));
 
     for (std::int64_t i = 5; i < 10; i++)
         for (std::int64_t j = 0; j < d; j++)
-            data[i * d + j] = static_cast<float_t>(10.0 + 0.01 * (i + j));
+            data[i * d + j] = static_cast<Float>(10.0 + 0.01 * (i + j));
 
     const auto x = homogen_table::wrap(data, n, d);
 
@@ -626,9 +626,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -650,9 +650,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -674,9 +674,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -702,7 +702,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch][gold]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
     const std::int64_t row_count = gold_dataset::get_row_count();
@@ -710,10 +710,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     std::int64_t min_samples = gold_dataset::get_min_samples();
 
     const auto bf_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
     const auto kd_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     INFO("run brute_force");
@@ -726,8 +726,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
     INFO("compare partitions (permutation-invariant)");
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -737,9 +737,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -759,10 +759,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t min_samples = 5;
 
     const auto bf_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
     const auto kd_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     const auto bf_result = dal::compute(bf_desc, x);
@@ -770,8 +770,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -781,19 +781,19 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
+    constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
                                  5.0,  5.1,  5.2,  5.15,  5.05, //
                                  10.0, 10.1, 10.2, 10.15, 10.05 };
     const std::int64_t row_count = 15;
     const auto x = homogen_table::wrap(data, row_count, 1);
 
     const auto bf_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5).set_result_options(
             result_options::responses);
     const auto kd_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(5, 5).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(5, 5).set_result_options(
             result_options::responses);
 
     const auto bf_result = dal::compute(bf_desc, x);
@@ -801,8 +801,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -816,9 +816,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -837,10 +837,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto bf_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto bf_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::manhattan);
-    const auto kd_desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto kd_desc = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::manhattan);
 
@@ -849,8 +849,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -860,9 +860,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -881,10 +881,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto bf_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto bf_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::chebyshev);
-    const auto kd_desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto kd_desc = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::chebyshev);
 
@@ -893,8 +893,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -904,9 +904,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -925,11 +925,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto bf_desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto bf_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::minkowski)
                              .set_degree(3.0);
-    const auto kd_desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto kd_desc = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::minkowski)
                              .set_degree(3.0);
@@ -939,8 +939,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -954,10 +954,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     // Three clusters: A and B are close (distance ~1.0), C is far (distance ~10.0)
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.05,  0.05, //
         0.1,   0.0, //
@@ -981,14 +981,14 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t ms = 5;
 
     // Without epsilon: should find 3 clusters
-    const auto desc_no_eps = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto desc_no_eps = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_cluster_selection_epsilon(0.0);
     const auto result_no_eps = dal::compute(desc_no_eps, x);
     const auto count_no_eps = result_no_eps.get_cluster_count();
 
     // With large epsilon: should merge close clusters, resulting in fewer clusters
-    const auto desc_eps = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto desc_eps = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                               .set_result_options(result_options::responses)
                               .set_cluster_selection_epsilon(5.0);
     const auto result_eps = dal::compute(desc_eps, x);
@@ -1003,9 +1003,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.05,  0.05, //
         0.1,   0.0, //
@@ -1028,12 +1028,12 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_no_eps = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto desc_no_eps = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_cluster_selection_epsilon(0.0);
     const auto result_no_eps = dal::compute(desc_no_eps, x);
 
-    const auto desc_eps = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto desc_eps = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                               .set_result_options(result_options::responses)
                               .set_cluster_selection_epsilon(5.0);
     const auto result_eps = dal::compute(desc_eps, x);
@@ -1050,9 +1050,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1072,9 +1072,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // Default (alpha=1.0) and explicit alpha=1.0 should give same result
     const auto desc_default =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms).set_result_options(
             result_options::responses);
-    const auto desc_alpha1 = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto desc_alpha1 = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_alpha(1.0);
 
@@ -1084,9 +1084,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     REQUIRE(result_default.get_cluster_count() == result_alpha1.get_cluster_count());
 
     const auto rows_default =
-        row_accessor<const float_t>(result_default.get_responses()).pull({ 0, -1 });
+        row_accessor<const Float>(result_default.get_responses()).pull({ 0, -1 });
     const auto rows_alpha1 =
-        row_accessor<const float_t>(result_alpha1.get_responses()).pull({ 0, -1 });
+        row_accessor<const Float>(result_alpha1.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_default, rows_alpha1, row_count);
 }
@@ -1096,9 +1096,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1112,7 +1112,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     };
     const auto x = homogen_table::wrap(data, 10, 2);
 
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5)
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5)
                           .set_result_options(result_options::responses)
                           .set_alpha(1.5);
     REQUIRE_NOTHROW(dal::compute(desc, x));
@@ -1123,9 +1123,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1139,7 +1139,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     };
     const auto x = homogen_table::wrap(data, 10, 2);
 
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(5, 5)
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(5, 5)
                           .set_result_options(result_options::responses)
                           .set_alpha(1.5);
     REQUIRE_NOTHROW(dal::compute(desc, x));
@@ -1154,9 +1154,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_kd_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1174,10 +1174,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_leaf10 = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto desc_leaf10 = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_leaf_size(10);
-    const auto desc_leaf40 = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto desc_leaf40 = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_leaf_size(40);
 
@@ -1186,8 +1186,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(result_leaf10.get_cluster_count() == result_leaf40.get_cluster_count());
 
-    const auto rows_10 = row_accessor<const float_t>(result_leaf10.get_responses()).pull({ 0, -1 });
-    const auto rows_40 = row_accessor<const float_t>(result_leaf40.get_responses()).pull({ 0, -1 });
+    const auto rows_10 = row_accessor<const Float>(result_leaf10.get_responses()).pull({ 0, -1 });
+    const auto rows_40 = row_accessor<const Float>(result_leaf40.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_10, rows_40, row_count);
 }
@@ -1201,9 +1201,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1223,9 +1223,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // max_cluster_size=0 should behave same as default
     const auto desc_default =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms).set_result_options(
             result_options::responses);
-    const auto desc_max0 = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+    const auto desc_max0 = hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms)
                                .set_result_options(result_options::responses)
                                .set_max_cluster_size(0);
 
@@ -1235,8 +1235,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     REQUIRE(result_default.get_cluster_count() == result_max0.get_cluster_count());
 
     const auto rows_default =
-        row_accessor<const float_t>(result_default.get_responses()).pull({ 0, -1 });
-    const auto rows_max0 = row_accessor<const float_t>(result_max0.get_responses()).pull({ 0, -1 });
+        row_accessor<const Float>(result_default.get_responses()).pull({ 0, -1 });
+    const auto rows_max0 = row_accessor<const Float>(result_max0.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_default, rows_max0, row_count);
 }
@@ -1246,9 +1246,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1263,7 +1263,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto x = homogen_table::wrap(data, 10, 2);
 
     // max_cluster_size should run without error (functional check)
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(5, 5)
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5)
                           .set_result_options(result_options::responses)
                           .set_max_cluster_size(3);
     REQUIRE_NOTHROW(dal::compute(desc, x));
@@ -1298,10 +1298,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const table x = data.get_table(this->get_policy(), this->get_homogen_table_id());
 
     // Use kd_tree method explicitly via descriptor
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(50, 25).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(50, 25).set_result_options(
             result_options::responses);
 
     const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
@@ -1320,7 +1320,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][nightly][batch][external-dataset][susy]",
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     const te::dataframe data =
         te::dataframe_builder{ "workloads/susy/dataset/susy_test.csv" }.build();
@@ -1331,10 +1331,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t ms = 25;
 
     const auto bf_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(mcs, ms).set_result_options(
             result_options::responses);
     const auto kd_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms).set_result_options(
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms).set_result_options(
             result_options::responses);
 
     const auto bf_result = oneapi::dal::test::engine::compute(this->get_policy(), bf_desc, x);
@@ -1342,8 +1342,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
 }
@@ -1360,9 +1360,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1398,9 +1398,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
+    constexpr Float data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
     const auto x = homogen_table::wrap(data, 5, 1);
 
     this->run_checks(x, 10, 2, 0);
@@ -1411,9 +1411,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0, 0.0, //
         0.1, 0.1, //
         0.2, 0.0, //
@@ -1431,9 +1431,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
+    constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
                                  5.0,  5.1,  5.2,  5.15,  5.05, //
                                  10.0, 10.1, 10.2, 10.15, 10.05 };
     const auto x = homogen_table::wrap(data, 15, 1);
@@ -1446,19 +1446,19 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     constexpr std::int64_t n = 10;
     constexpr std::int64_t d = 10;
-    float_t data[n * d];
+    Float data[n * d];
 
     for (std::int64_t i = 0; i < 5; i++)
         for (std::int64_t j = 0; j < d; j++)
-            data[i * d + j] = static_cast<float_t>(0.01 * (i + j));
+            data[i * d + j] = static_cast<Float>(0.01 * (i + j));
 
     for (std::int64_t i = 5; i < 10; i++)
         for (std::int64_t j = 0; j < d; j++)
-            data[i * d + j] = static_cast<float_t>(10.0 + 0.01 * (i + j));
+            data[i * d + j] = static_cast<Float>(10.0 + 0.01 * (i + j));
 
     const auto x = homogen_table::wrap(data, n, d);
 
@@ -1474,9 +1474,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1498,9 +1498,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1522,9 +1522,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1550,7 +1550,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch][gold]",
                      hdbscan_bt_only) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
     const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
     const std::int64_t row_count = gold_dataset::get_row_count();
@@ -1558,10 +1558,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     std::int64_t min_samples = gold_dataset::get_min_samples();
 
     const auto bt_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
     const auto bf_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     const auto bt_result = dal::compute(bt_desc, x);
@@ -1569,8 +1569,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bt_result.get_cluster_count() == bf_result.get_cluster_count());
 
-    const auto bt_rows = row_accessor<const float_t>(bt_result.get_responses()).pull({ 0, -1 });
-    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto bt_rows = row_accessor<const Float>(bt_result.get_responses()).pull({ 0, -1 });
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bt_rows, bf_rows, row_count);
 }
@@ -1580,9 +1580,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_only) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1602,10 +1602,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t min_samples = 5;
 
     const auto bt_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
     const auto kd_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     const auto bt_result = dal::compute(bt_desc, x);
@@ -1613,8 +1613,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bt_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bt_rows = row_accessor<const float_t>(bt_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bt_rows = row_accessor<const Float>(bt_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bt_rows, kd_rows, row_count);
 }
@@ -1624,9 +1624,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_only) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1645,10 +1645,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto bt_desc = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+    const auto bt_desc = hdbscan::descriptor<Float, hdbscan::method::ball_tree>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::manhattan);
-    const auto kd_desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+    const auto kd_desc = hdbscan::descriptor<Float, hdbscan::method::kd_tree>(mcs, ms)
                              .set_result_options(result_options::responses)
                              .set_metric(distance_metric::manhattan);
 
@@ -1657,8 +1657,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(bt_result.get_cluster_count() == kd_result.get_cluster_count());
 
-    const auto bt_rows = row_accessor<const float_t>(bt_result.get_responses()).pull({ 0, -1 });
-    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bt_rows = row_accessor<const Float>(bt_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bt_rows, kd_rows, row_count);
 }
@@ -1668,9 +1668,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_only) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1684,7 +1684,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     };
     const auto x = homogen_table::wrap(data, 10, 2);
 
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(5, 5)
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::ball_tree>(5, 5)
                           .set_result_options(result_options::responses)
                           .set_alpha(1.5);
     REQUIRE_NOTHROW(dal::compute(desc, x));
@@ -1695,9 +1695,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1715,10 +1715,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_leaf10 = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+    const auto desc_leaf10 = hdbscan::descriptor<Float, hdbscan::method::ball_tree>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_leaf_size(10);
-    const auto desc_leaf40 = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+    const auto desc_leaf40 = hdbscan::descriptor<Float, hdbscan::method::ball_tree>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_leaf_size(40);
 
@@ -1727,8 +1727,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(result_leaf10.get_cluster_count() == result_leaf40.get_cluster_count());
 
-    const auto rows_10 = row_accessor<const float_t>(result_leaf10.get_responses()).pull({ 0, -1 });
-    const auto rows_40 = row_accessor<const float_t>(result_leaf40.get_responses()).pull({ 0, -1 });
+    const auto rows_10 = row_accessor<const Float>(result_leaf10.get_responses()).pull({ 0, -1 });
+    const auto rows_40 = row_accessor<const Float>(result_leaf40.get_responses()).pull({ 0, -1 });
 
     check_same_partition(rows_10, rows_40, row_count);
 }
@@ -1738,9 +1738,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "[hdbscan][batch]",
                      hdbscan_bt_types) {
     SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.05,  0.05, //
         0.1,   0.0, //
@@ -1763,12 +1763,12 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t mcs = 5;
     constexpr std::int64_t ms = 5;
 
-    const auto desc_no_eps = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+    const auto desc_no_eps = hdbscan::descriptor<Float, hdbscan::method::ball_tree>(mcs, ms)
                                  .set_result_options(result_options::responses)
                                  .set_cluster_selection_epsilon(0.0);
     const auto result_no_eps = dal::compute(desc_no_eps, x);
 
-    const auto desc_eps = hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(mcs, ms)
+    const auto desc_eps = hdbscan::descriptor<Float, hdbscan::method::ball_tree>(mcs, ms)
                               .set_result_options(result_options::responses)
                               .set_cluster_selection_epsilon(5.0);
     const auto result_eps = dal::compute(desc_eps, x);
@@ -1788,9 +1788,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      hdbscan_bf_types) {
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->get_policy().is_cpu());
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr float_t data[] = {
+    constexpr Float data[] = {
         0.0,   0.0, //
         0.1,   0.1, //
         0.2,   0.0, //
@@ -1810,7 +1810,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t min_samples = 5;
 
     const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     INFO("run on CPU (no queue)");
@@ -1822,8 +1822,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     INFO("compare CPU vs GPU responses (permutation-invariant)");
     REQUIRE(cpu_result.get_cluster_count() == gpu_result.get_cluster_count());
 
-    const auto cpu_rows = row_accessor<const float_t>(cpu_result.get_responses()).pull({ 0, -1 });
-    const auto gpu_rows = row_accessor<const float_t>(gpu_result.get_responses()).pull({ 0, -1 });
+    const auto cpu_rows = row_accessor<const Float>(cpu_result.get_responses()).pull({ 0, -1 });
+    const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
 }
@@ -1841,9 +1841,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     std::int64_t min_cluster_size = gold_dataset::get_min_cluster_size();
     std::int64_t min_samples = gold_dataset::get_min_samples();
 
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
     const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     INFO("run on CPU (no queue)");
@@ -1854,8 +1854,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(cpu_result.get_cluster_count() == gpu_result.get_cluster_count());
 
-    const auto cpu_rows = row_accessor<const float_t>(cpu_result.get_responses()).pull({ 0, -1 });
-    const auto gpu_rows = row_accessor<const float_t>(gpu_result.get_responses()).pull({ 0, -1 });
+    const auto cpu_rows = row_accessor<const Float>(cpu_result.get_responses()).pull({ 0, -1 });
+    const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
 }
@@ -1873,9 +1873,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     std::int64_t min_cluster_size = gold_dataset::get_min_cluster_size();
     std::int64_t min_samples = gold_dataset::get_min_samples();
 
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
     const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     INFO("run on CPU (no queue)");
@@ -1886,8 +1886,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(cpu_result.get_cluster_count() == gpu_result.get_cluster_count());
 
-    const auto cpu_rows = row_accessor<const float_t>(cpu_result.get_responses()).pull({ 0, -1 });
-    const auto gpu_rows = row_accessor<const float_t>(gpu_result.get_responses()).pull({ 0, -1 });
+    const auto cpu_rows = row_accessor<const Float>(cpu_result.get_responses()).pull({ 0, -1 });
+    const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
 }
@@ -1905,9 +1905,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     std::int64_t min_cluster_size = gold_dataset::get_min_cluster_size();
     std::int64_t min_samples = gold_dataset::get_min_samples();
 
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
     const auto desc =
-        hdbscan::descriptor<float_t, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
+        hdbscan::descriptor<Float, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
 
     INFO("run on CPU (no queue)");
@@ -1918,8 +1918,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     REQUIRE(cpu_result.get_cluster_count() == gpu_result.get_cluster_count());
 
-    const auto cpu_rows = row_accessor<const float_t>(cpu_result.get_responses()).pull({ 0, -1 });
-    const auto gpu_rows = row_accessor<const float_t>(gpu_result.get_responses()).pull({ 0, -1 });
+    const auto cpu_rows = row_accessor<const Float>(cpu_result.get_responses()).pull({ 0, -1 });
+    const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
 }

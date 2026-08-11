@@ -65,13 +65,13 @@ template <typename TestType, typename Derived>
 class hdbscan_test : public te::crtp_algo_fixture<TestType, Derived> {
 public:
     using base_t = te::crtp_algo_fixture<TestType, Derived>;
-    using float_t = std::tuple_element_t<0, TestType>;
+    using Float = std::tuple_element_t<0, TestType>;
     using method_t = std::tuple_element_t<1, TestType>;
     using result_t = compute_result<task::clustering>;
     using input_t = compute_input<task::clustering>;
 
     auto get_descriptor(std::int64_t min_cluster_size, std::int64_t min_samples) const {
-        return hdbscan::descriptor<float_t, method_t>(min_cluster_size, min_samples)
+        return hdbscan::descriptor<Float, method_t>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
     }
 
@@ -79,7 +79,7 @@ public:
                         std::int64_t min_samples,
                         distance_metric metric,
                         double degree = 2.0) const {
-        return hdbscan::descriptor<float_t, method_t>(min_cluster_size, min_samples)
+        return hdbscan::descriptor<Float, method_t>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses)
             .set_metric(metric)
             .set_degree(degree);
@@ -135,7 +135,7 @@ public:
         REQUIRE(responses.get_column_count() == 1);
 
         INFO("check response values");
-        const auto rows = row_accessor<const float_t>(responses).pull({ 0, -1 });
+        const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
         for (std::int64_t i = 0; i < data.get_row_count(); i++) {
             const auto label = static_cast<std::int32_t>(rows[i]);
             // Labels should be >= -1 (noise) and < cluster_count
@@ -168,8 +168,8 @@ public:
         ONEDAL_ASSERT(responses.get_column_count() == ref_responses.get_column_count());
         ONEDAL_ASSERT(responses.get_column_count() == 1);
         const auto row_count = responses.get_row_count();
-        const auto rows = row_accessor<const float_t>(responses).pull({ 0, -1 });
-        const auto ref_rows = row_accessor<const float_t>(ref_responses).pull({ 0, -1 });
+        const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
+        const auto ref_rows = row_accessor<const Float>(ref_responses).pull({ 0, -1 });
         for (std::int64_t i = 0; i < row_count; i++) {
             REQUIRE(ref_rows[i] == rows[i]);
         }

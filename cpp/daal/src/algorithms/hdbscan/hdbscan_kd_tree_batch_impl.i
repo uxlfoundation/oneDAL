@@ -16,8 +16,9 @@
 *******************************************************************************/
 
 /*
- * HDBSCAN implementation using a k-d tree with Boruvka's Minimum Spanning Tree
- * (MST) algorithm: https://arxiv.org/html/2412.07789v1
+ * HDBSCAN implementation using a k-d tree with Boruvka's Minimum Spanning
+ * Tree (MST) algorithm. Follows McInnes & Healy, "Accelerated Hierarchical
+ * Density Based Clustering", https://arxiv.org/abs/1705.07321.
  *
  * The approach:
  *   1. Build a k-d tree over the input data (with bounding boxes per node)
