@@ -17,8 +17,7 @@
 name: Check Intel URLs
 on: 
   schedule:
-    - cron: "0 0 * * 6"
-  workflow_dispatch:
+    - cron: "0 0 * * 6
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
@@ -41,6 +40,7 @@ jobs:
             FILENAME: ".ci/scripts/collect_opencl_rt.ps1"
             DEPENDENCY: "OpenCL"
     name: Windows_${{ matrix.DEPENDENCY }}
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
