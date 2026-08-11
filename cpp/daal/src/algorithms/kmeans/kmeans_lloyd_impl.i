@@ -236,13 +236,11 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
 
             if (pointAssignments)
             {
-                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
                 pointAssignments[k * blockSizeDefault + i] = (int)minIdx;
             }
 
             if (ntAssign)
             {
-                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
                 assignments[i] = (int)minIdx;
             }
         } /* for (size_t i = 0; i < blockSize; i++) */
@@ -342,13 +340,11 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
 
             if (pointAssignments)
             {
-                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
                 pointAssignments[k * blockSizeDefault + i] = (int)minIdx;
             }
 
             if (ntAssign)
             {
-                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
                 assignments[i] = (int)minIdx;
             }
         }

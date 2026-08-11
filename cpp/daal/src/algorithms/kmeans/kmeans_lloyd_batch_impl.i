@@ -21,6 +21,8 @@
 //--
 */
 
+#include <cstdint>
+
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "src/threading/threading.h"
@@ -55,6 +57,15 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
     const size_t p         = ntData->getNumberOfColumns();
     const size_t nClusters = par->nClusters;
     int result             = 0;
+
+    // Cluster indices are written into `int`-typed assignment tables
+    // (WriteOnlyRows<int, cpu>) and into the internal `pointAssignments`
+    // buffer. Refuse inputs whose cluster count exceeds what an int can
+    // represent so the downstream narrowing cast never silently overflows.
+    if (nClusters > static_cast<size_t>(INT32_MAX))
+    {
+        return services::Status(services::ErrorKMeansNumberOfClustersIsTooLarge);
+    }
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(int));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, p);
@@ -201,7 +212,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                         clusterS1[srcCluster * p + j] -= row[j];
                     }
 
-                    PRAGMA_OMP_SIMD
+                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : l2Norm))
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {
@@ -224,7 +235,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 {
                     const algorithmFPType coeff = 1.0 / clusterS0[i];
 
-                    PRAGMA_OMP_SIMD
+                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : l2Norm))
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {

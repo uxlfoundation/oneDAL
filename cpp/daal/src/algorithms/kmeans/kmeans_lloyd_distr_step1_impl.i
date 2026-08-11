@@ -21,6 +21,8 @@
 //--
 */
 
+#include <cstdint>
+
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "src/threading/threading.h"
@@ -54,6 +56,16 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     const size_t p         = ntData->getNumberOfColumns();
     const size_t nClusters = par->nClusters;
     int result             = 0;
+
+    // Cluster indices are narrowed to `int` when they are written into
+    // `ntAssignments` (WriteOnlyRows<int, cpu>). Refuse inputs whose
+    // cluster count exceeds INT32_MAX so the cast never silently
+    // overflows.
+    if (nClusters > static_cast<size_t>(INT32_MAX))
+    {
+        return services::Status(services::ErrorKMeansNumberOfClustersIsTooLarge);
+    }
+
     size_t blockSize       = 0;
     DAAL_SAFE_CPU_CALL((blockSize = BSHelper<method, algorithmFPType, cpu>::kmeansGetBlockSize(n, p, nClusters)), (blockSize = 512))
 
