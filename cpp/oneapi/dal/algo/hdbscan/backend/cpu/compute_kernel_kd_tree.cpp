@@ -16,7 +16,7 @@
 
 #include "oneapi/dal/algo/hdbscan/backend/cpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/cpu/compute_kernel_common.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/cpu/cluster_utils.hpp"
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 
@@ -133,7 +133,8 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
 
             if (need_centroids) {
                 auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-                compute_centroids(data_ptr,
+                compute_centroids(ctx,
+                                  data_ptr,
                                   resp_ptr,
                                   row_count,
                                   col_count,
@@ -144,7 +145,8 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
 
                 if (need_medoids) {
                     auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                    compute_medoids(data_ptr,
+                    compute_medoids(ctx,
+                                    data_ptr,
                                     resp_ptr,
                                     row_count,
                                     col_count,
@@ -157,14 +159,16 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
             }
             else if (need_medoids) {
                 auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-                compute_centroids(data_ptr,
+                compute_centroids(ctx,
+                                  data_ptr,
                                   resp_ptr,
                                   row_count,
                                   col_count,
                                   cluster_count,
                                   arr_centroids.get_mutable_data());
                 auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                compute_medoids(data_ptr,
+                compute_medoids(ctx,
+                                data_ptr,
                                 resp_ptr,
                                 row_count,
                                 col_count,

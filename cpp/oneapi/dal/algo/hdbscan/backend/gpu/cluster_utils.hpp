@@ -17,8 +17,8 @@
 #pragma once
 
 #include <limits>
+#include <vector>
 
-#include "oneapi/dal/array.hpp"
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
@@ -28,148 +28,6 @@
 #endif
 
 namespace oneapi::dal::hdbscan::backend {
-
-/// Compute the per-cluster centroid (mean point) of a labeled point set on the host.
-///
-/// This is the CPU / host code path -- it runs on the host regardless of
-/// whether the algorithm was dispatched to a CPU or GPU backend. The GPU
-/// backend uses `compute_centroids_gpu` (defined further down under
-/// `ONEDAL_DATA_PARALLEL`) which does the same math directly on the SYCL
-/// device via `atomic_ref`, so `data` / `labels` never round-trip through
-/// host memory in that path.
-///
-/// Sums every labeled point into its cluster's row of `centroids`, counts the
-/// points per cluster, then divides by the count. Points whose label is
-/// negative or out of range are skipped (HDBSCAN noise). Accumulate and
-/// normalize inner loops carry `PRAGMA_OMP_SIMD` so the compiler autovectorizes
-/// the mul/add.
-///
-/// TODO: explore `mkl::blas::scal` for the normalize loop.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in]  data          Row-major input buffer of size `row_count x col_count`
-/// @param[in]  labels        Cluster id per point, length `row_count` (-1 = noise)
-/// @param[in]  row_count     Number of input points
-/// @param[in]  col_count     Number of features per point
-/// @param[in]  cluster_count Number of clusters
-/// @param[out] centroids     Row-major centroid buffer, size `cluster_count x col_count`
-template <typename Float>
-static void compute_centroids(const Float* data,
-                              const std::int32_t* labels,
-                              std::int64_t row_count,
-                              std::int64_t col_count,
-                              std::int64_t cluster_count,
-                              Float* centroids) {
-    ONEDAL_ASSERT(cluster_count > 0);
-
-    auto counts_arr = dal::array<std::int64_t>::zeros(cluster_count);
-    std::int64_t* counts = counts_arr.get_mutable_data();
-    const std::int64_t centroids_size = cluster_count * col_count;
-    PRAGMA_OMP_SIMD
-    for (std::int64_t i = 0; i < centroids_size; i++) {
-        centroids[i] = Float(0);
-    }
-
-    for (std::int64_t i = 0; i < row_count; i++) {
-        const std::int32_t label = labels[i];
-        if (label < 0 || label >= cluster_count)
-            continue;
-        counts[label]++;
-        Float* row_out = centroids + label * col_count;
-        const Float* row_in = data + i * col_count;
-        PRAGMA_OMP_SIMD
-        for (std::int64_t d = 0; d < col_count; d++) {
-            row_out[d] += row_in[d];
-        }
-    }
-
-    for (std::int64_t k = 0; k < cluster_count; k++) {
-        if (counts[k] == 0)
-            continue;
-        Float* row = centroids + k * col_count;
-        const Float inv = Float(1) / static_cast<Float>(counts[k]);
-        // TODO: consider `mkl::blas::scal(col_count, inv, row, 1)`.
-        PRAGMA_OMP_SIMD
-        for (std::int64_t d = 0; d < col_count; d++) {
-            row[d] *= inv;
-        }
-    }
-}
-
-/// Compute the per-cluster medoid (closest input point to the centroid) on the host.
-///
-/// This is the CPU / host code path. The GPU counterpart is
-/// `compute_medoids_gpu` (defined further down under
-/// `ONEDAL_DATA_PARALLEL`) which keeps `data` / `labels` on the SYCL device.
-///
-/// For each labeled point, computes its squared Euclidean distance to the
-/// cluster centroid and tracks the minimum per cluster. The chosen medoid is
-/// then copied row-by-row into `medoids`. Empty clusters get a zero row.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in]  data          Row-major input buffer of size `row_count x col_count`
-/// @param[in]  labels        Cluster id per point, length `row_count` (-1 = noise)
-/// @param[in]  row_count     Number of input points
-/// @param[in]  col_count     Number of features per point
-/// @param[in]  cluster_count Number of clusters
-/// @param[in]  centroids     Cluster centroids, size `cluster_count x col_count`
-/// @param[out] medoids       Output medoid rows, size `cluster_count x col_count`
-template <typename Float>
-static void compute_medoids(const Float* data,
-                            const std::int32_t* labels,
-                            std::int64_t row_count,
-                            std::int64_t col_count,
-                            std::int64_t cluster_count,
-                            const Float* centroids,
-                            Float* medoids) {
-    ONEDAL_ASSERT(cluster_count > 0);
-
-    auto best_dist_arr = dal::array<Float>::empty(cluster_count);
-    auto best_idx_arr = dal::array<std::int64_t>::empty(cluster_count);
-    Float* best_dist = best_dist_arr.get_mutable_data();
-    std::int64_t* best_idx = best_idx_arr.get_mutable_data();
-    for (std::int64_t k = 0; k < cluster_count; k++) {
-        best_dist[k] = std::numeric_limits<Float>::max();
-        best_idx[k] = -1;
-    }
-
-    for (std::int64_t i = 0; i < row_count; i++) {
-        const std::int32_t label = labels[i];
-        if (label < 0 || label >= cluster_count)
-            continue;
-        const Float* pt = data + i * col_count;
-        const Float* center = centroids + label * col_count;
-        Float dist = Float(0);
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : dist))
-        for (std::int64_t d = 0; d < col_count; d++) {
-            const Float diff = pt[d] - center[d];
-            dist += diff * diff;
-        }
-        if (dist < best_dist[label]) {
-            best_dist[label] = dist;
-            best_idx[label] = i;
-        }
-    }
-
-    for (std::int64_t k = 0; k < cluster_count; k++) {
-        Float* row = medoids + k * col_count;
-        if (best_idx[k] >= 0) {
-            const Float* src = data + best_idx[k] * col_count;
-            PRAGMA_OMP_SIMD
-            for (std::int64_t d = 0; d < col_count; d++) {
-                row[d] = src[d];
-            }
-        }
-        else {
-            PRAGMA_OMP_SIMD
-            for (std::int64_t d = 0; d < col_count; d++) {
-                row[d] = Float(0);
-            }
-        }
-    }
-}
 
 #ifdef ONEDAL_DATA_PARALLEL
 

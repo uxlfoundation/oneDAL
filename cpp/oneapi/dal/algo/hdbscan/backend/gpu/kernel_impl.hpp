@@ -17,7 +17,6 @@
 #pragma once
 
 #include "oneapi/dal/algo/hdbscan/common.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/backend/common.hpp"

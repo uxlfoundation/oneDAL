@@ -20,7 +20,7 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/algo/hdbscan/compute_types.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/gpu/cluster_utils.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
