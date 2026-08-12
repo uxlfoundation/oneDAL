@@ -1,8 +1,8 @@
-# Set the default behavior, in case people don't have core.autocrlf set.
-* text=auto
+# Normalize all text files to LF; overrides below can still change this
+* text=auto eol=lf
 
 # Explicitly declare text files you want to always be normalized and converted
-# to native line endings on checkout.
+# to LF line endings on checkout.
 *.c text
 *.h text
 *.i text
@@ -53,6 +53,8 @@
 # Declare files that will always have CRLF line endings on checkout.
 *.sln text eol=crlf
 *.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
 *.rc text eol=crlf
 *makefile_win text eol=crlf
 *.vcxproj text eol=crlf

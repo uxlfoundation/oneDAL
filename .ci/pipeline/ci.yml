@@ -48,7 +48,7 @@ variables:
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/bae85ab1-cfcd-4251-8d42-a0c27949ea33/intel-oneapi-toolkit-2026.0.0.193_offline.exe'
+  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/4144bec3-82ce-4672-bd71-5c93a79cd5e7/intel-oneapi-toolkit-2026.1.0.191_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.cpp-dpcpp-common:intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
@@ -430,13 +430,16 @@ jobs:
   - script: |
       set -euo pipefail
 
-      for config in dbg dbg-symbols asan asan-static tsan ubsan msan type; do
+      for config in dbg dbg-symbols asan asan-static lsan tsan ubsan msan type; do
         echo "Checking Bazel config: ${config}"
         bazel build --nobuild :release --config="${config}"
       done
 
       echo "Checking Bazel config: release-dpc"
       bazel build --nobuild :release --config=release-dpc --cpu=all
+
+      echo "Checking Bazel config: stdalloc"
+      bazel build --nobuild :release --stdalloc=true --release_dpc=false
 
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev

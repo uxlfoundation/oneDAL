@@ -59,8 +59,8 @@ validation.
    bazelisk.exe version
    ```
 
-3. For `bazel test` on Windows, set `BAZEL_SH` to a Bash executable. Git for
-   Windows is sufficient.
+3. Before running Bazel build, test, or analysis commands on Windows, set
+   `BAZEL_SH` to a Bash executable. Git for Windows is sufficient.
    ```bat
    set BAZEL_SH=C:\Program Files\Git\bin\bash.exe
    ```
@@ -261,6 +261,14 @@ The most used Bazel commands are `build`, `test` and `run`.
   Example:
   ```sh
   bazel test --test_disable_fp64 //cpp/oneapi/dal/algo/pca:tests
+  ```
+
+- `--stdalloc` Selects standard-library aligned allocation for DAAL core
+  objects. Disabled by default and supported only for Linux targets.
+
+  Example:
+  ```sh
+  bazel build //cpp/daal:core_static --stdalloc=true
   ```
 
 ## Build recipes for oneDAL
@@ -466,6 +474,27 @@ dal_test_suite(
 ## What is missing in this guide
 - How to get make-like release structure
 
+## Standard-library allocator
+
+For Linux DAAL core objects, this is equivalent to the allocator-selection
+part of Make `STDALLOC=yes`:
+
+```sh
+bazel build //:release --stdalloc=true
+```
+
+The option is disabled by default. When enabled, Bazel defines
+`USE_STD_ALLOC` only while compiling DAAL core objects, switching the MKL
+allocation wrappers to `std::aligned_alloc` and `std::free`. It intentionally
+does not define the macro for the separately built `threading_tbb` objects;
+this matches the current Make target-specific flag scope, so the threading
+library continues to use TBB scalable allocation.
+
+The setting rejects every non-Linux target because this allocator path is
+currently supported only on Linux. It controls allocator selection only. Make
+builds with `COMPILER=icx STDALLOC=yes` additionally pass
+`-static-libstdc++`; `--stdalloc=true` does not change Bazel link options.
+
 ## Debug and Sanitizer Builds
 
 ### Debug build with assertions
@@ -513,6 +542,16 @@ For static libasan linkage (equivalent to Make `REQSAN=static`):
 
 ```sh
 bazel test //cpp/oneapi/dal:tests --config=asan-static --config=dbg
+```
+
+### LeakSanitizer (LSan)
+
+Equivalent to Make `REQSAN=leak`. This configuration is for Linux non-DPC++ targets
+with a compiler that supports LeakSanitizer. Do not use it for DPC++ targets;
+DPC++ device compilation does not support LSan. Windows ICX does not support it.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=lsan
 ```
 
 ### ThreadSanitizer (TSan)
@@ -645,10 +684,12 @@ build --linkopt=-your-link-flag
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
 | `REQSAN=static`                | `--config=asan-static`                                       | ASan with static libasan                                                   |
+| `REQSAN=leak`                  | `--config=lsan`                                              | LeakSanitizer; Linux host builds only; compiler support required           |
 | `REQSAN=thread`                | `--config=tsan`                                              | ThreadSanitizer                                                            |
 | `REQSAN=undefined`             | `--config=ubsan`                                             | UBSan                                                                      |
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
+| `STDALLOC=yes`                  | `--stdalloc=true`                                            | Allocator-selection equivalent for Linux DAAL core objects; threading objects unchanged. Make ICX also adds `-static-libstdc++` |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |

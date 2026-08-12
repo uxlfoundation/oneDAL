@@ -323,22 +323,18 @@ mpiexec -n {num_processes} ./_cmake_results/{platform_name}/{example}
 
 ### Executing examples with ASAN
 
-When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assuming a Linux system** (ASAN on Windows has not been tested):
+When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assuming a Linux system** (ASan on Windows has not been tested):
 
-* Configure CMake to build the examples with the same compiler as was one for oneDAL (ICX by default) and with dynamic linkage to ASAN - e.g. by setting these flags:
+* Configure CMake to build the examples with the same compiler as was one for oneDAL (ICX by default) and with dynamic linkage to ASan:
     ```shell
     export CC=icx
     export CXX=icpx
-    export CXXFLAGS="-fsanitize=address"
-    export LDFLAGS="-shared-libasan"
+    export CFLAGS="-fsanitize=address -g" # used by CMake, even with C++
+    export CXXFLAGS="-fsanitize=address -g"
     ```
-* Create a symlink to the ASAN runtime in the same folder from where the examples are executed. ICX uses the same ASAN runtime as CLANG, so something like this should do:
+* Create a symlink to the ASan runtime in the same folder from where the examples are executed. ICX uses the same ASAN runtime as CLANG, so something like this should do:
     ```shell
     ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
-    ```
-* Use the verbose mode in oneDAL when executing examples (otherwise ASAN won't produce prints):
-    ```shell
-    export ONEDAL_VERBOSE=1
     ```
 
 Putting it all together, the earlier snippets for executing the examples but with ASAN enabled should look like this:
@@ -347,13 +343,28 @@ Putting it all together, the earlier snippets for executing the examples but wit
 cd daal/latest/examples/daal/cpp
 mkdir -p build
 cd build
-CC=icx CXX=icpx CXXFLAGS="-fsanitize=address" LDFLAGS="-shared-libasan" cmake ..
+CC=icx CXX=icpx CFLAGS="-fsanitize=address -g" CXXFLAGS="-fsanitize=address -g" LDFLAGS="-shared-libasan" cmake ..
 make -j$(nproc)
 ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
-ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
 
-_Be aware that ASAN is known to generate many false-positive reports of memory leaks when used with oneDAL._
+Alternatively, one may use `$LD_PRELOAD` instead to load the ASan runtime:
+```shell
+LD_PRELOAD="$(icx -print-file-name=libclang_rt.asan.so)" ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+Note that different compilers will require different ASan runtimes - for example, if using GCC to build oneDAL:
+```shell
+cd daal/latest/examples/daal/cpp
+mkdir -p build
+cd build
+CC=gcc CXX=g++ CFLAGS="-fsanitize=address -g" CXXFLAGS="-fsanitize=address -g" cmake ..
+make -j$(nproc)
+LD_PRELOAD="$(gcc -print-file-name=libasan.so)" ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+_Be aware that ASan is known to generate many false-positive reports of memory leaks when used with oneDAL._
 
 ## Conda Development Environment Setup
 
