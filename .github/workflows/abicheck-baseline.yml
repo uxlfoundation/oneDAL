@@ -136,21 +136,21 @@ jobs:
       # The abicheck commit pinned below and the one pinned by ci.yml's
       # LinuxAbicheckScan job must be the same, and bumping either obliges
       # re-dispatching this workflow for the tags already published under
-      # .github/abicheck-baselines/. A baseline dumped by a different
-      # abicheck than the one scanning invents findings: measured across a
-      # schema_version 18 baseline vs a schema_version 24 scanner, 173 of 440
-      # findings were pure version-skew artifacts, because two detectors key
-      # identity on a `name` field the two versions spell differently.
-      # abicheck will not catch it for you -- it rejects a snapshot *newer*
-      # than the reader (serialization.py:794) and silently accepts an older
-      # one, which is the direction that happens here. Full analysis in
+      # .github/abicheck-baselines/. A baseline dumped by an older abicheck
+      # than the one scanning does not fail -- it silently under-reports,
+      # because detectors whose evidence postdates the snapshot's
+      # schema_version decline to run rather than trust stale facts. Measured
+      # across a schema_version 18 baseline read by a schema_version 24
+      # scanner, the scan misses three genuine findings the matched baseline
+      # surfaces. abicheck warns about it on stderr, naming each degraded
+      # fact, but a warning is not a gate. Full analysis in
       # .github/.abicheck-suppress.yaml.
       #
-      # Re-measured on the pinned commit: the daal dump takes 20m21s and
-      # peaks at 5.44 GB RSS, producing 152 MB of JSON; oneapi::dal 6m52s /
-      # 3.91 GB / 115 MB.
+      # Re-measured on the pinned commit, writing compressed snapshots: the
+      # daal dump takes 20m21s and peaks at 5.44 GB RSS; oneapi::dal 7m11s /
+      # 3.72 GB. See the size step below for the resulting file sizes.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
+        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -169,9 +169,9 @@ jobs:
           gcc-path: icpx
           gcc-options: "-std=c++17"
           public-header-dir: __baseline_src/cpp/daal/include
-          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json"
+          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
+        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -190,48 +190,38 @@ jobs:
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
           public-header-dir: __baseline_src/cpp/oneapi
-          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
+          output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json.zst"
 
-      # ── This workflow cannot land its output yet. Read before dispatching. ─
+      # ── Why the baselines are committed compressed ─────────────────────────
       #
-      # An uncompressed snapshot is 151.5 MiB (daal) + 114.9 MiB
-      # (oneapi::dal), ~57 MiB of each being the L5 header-declaration graph
-      # that `depth: headers` attaches unconditionally. Both are over
+      # The .zst suffix on the two output-file paths above is load-bearing, not
+      # a nicety. An uncompressed snapshot is 151.5 MiB (daal) and 114.9 MiB
+      # (oneapi::dal) -- ~57 MiB of each being the L5 header-declaration graph
+      # that `depth: headers` attaches unconditionally -- and both are over
       # GitHub's hard 100 MiB per-file push limit, so the "Commit baseline
-      # dumps" step below would be rejected by the remote after ~70 minutes
-      # of building and dumping. The guard step immediately below fails the
-      # job early and says so, rather than letting it die at `git push`.
+      # dumps" step below would be rejected by the remote after ~70 minutes of
+      # building and dumping. zstd brings the same content to ~2.1 MiB (1.8%
+      # of the decoded size; abicheck logs the ratio in the dump step).
       #
-      # The fix is compression, and abicheck already writes it: the same two
-      # snapshots are 2.1 MiB and 2.0 MiB as .json.zst (~72x and ~57x),
-      # comfortably commitable. What blocks it is that abicheck cannot read
-      # back the compressed snapshot it just wrote --
-      # `scan --against a-baseline.json.zst` fails before it starts on the
-      # commit pinned above:
+      # abicheck infers the envelope from the suffix on both ends
+      # (--compression auto), and it is a storage detail only: a scan against
+      # the compressed baseline yields byte-identical findings to the same scan
+      # against the uncompressed one. Verified end to end on the pinned commit
+      # -- dump straight to .json.zst, then `scan --against` that file. Note
+      # this needs an abicheck at or after the fix for its zstd window-size
+      # unit bug, where the reader derived its window ceiling in KiB and
+      # handed it to a decompressor taking bytes, so it refused any frame
+      # above 2 MiB with "Frame requires too much memory for decoding" -- i.e.
+      # every snapshot this workflow produces. Re-verified fixed on the commit
+      # pinned above, which is another reason the two pins must move together.
       #
-      #   Error: Failed to load --baseline ...json.zst: Cannot detect format
-      #   of '...json.zst'. Expected: ELF (.so), PE (.dll), Mach-O (.dylib),
-      #   JSON snapshot, or ABICC Perl dump.
-      #
-      # Root-caused to a unit bug in abicheck's reader: snapshot_io.py derives
-      # its zstd window ceiling in KiB (_ZSTD_MAX_WINDOW_SIZE_KIB = 1 << 31 //
-      # 1024) but hands it to a decompressor that takes bytes, capping the
-      # accepted window at 2 MiB against the 8 MiB window its own writer
-      # picks. Reproduced directly on one of these baselines (frame
-      # window_size 8388608): the KiB-derived value raises "Frame requires too
-      # much memory for decoding", the byte-derived one decodes all 149453406
-      # bytes. With that fixed locally, a .json.zst baseline yields
-      # byte-identical findings to the uncompressed one (same 63 breaking,
-      # same 20 reported, identical finding_id sets).
-      #
-      # So once that fix is released, this workflow becomes usable by
-      # appending .zst to the two output-file paths above and the two
-      # abi-baseline paths in ci.yml's LinuxAbicheckScan job -- four strings,
-      # no logic. Until then the alternatives are all worse: git-lfs adds a
-      # bandwidth-quota dependency to every clone, Release assets give up the
-      # reviewable-in-version-control property this design was chosen for,
-      # and dropping to `depth: binary` to shrink the JSON would discard the
-      # header evidence the whole scan is built on.
+      # The guard step below is kept as a backstop: it fails the job early,
+      # with the reason, rather than letting a size regression die at
+      # `git push` after the full build. The alternatives to compression were
+      # all worse: git-lfs adds a bandwidth-quota dependency to every clone,
+      # Release assets give up the reviewable-in-version-control property this
+      # design was chosen for, and dropping to `depth: binary` to shrink the
+      # JSON would discard the header evidence the whole scan is built on.
       - name: Report snapshot sizes and check the push limit
         run: |
           ls -l --block-size=M .github/abicheck-baselines/
@@ -240,11 +230,11 @@ jobs:
           # here, with the reason, instead of at the `git push` below.
           limit=$((100 * 1024 * 1024))
           rc=0
-          for f in ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json" \
-                   ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"; do
+          for f in ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst" \
+                   ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json.zst"; do
             size=$(stat -c %s "$f")
             if [ "$size" -gt "$limit" ]; then
-              echo "::error file=${f}::$(( size / 1048576 )) MiB exceeds GitHub's 100 MiB per-file push limit; this snapshot cannot be committed uncompressed. See the comment above this step: switch the output-file paths to .json.zst once abicheck can read its own compressed snapshots back."
+              echo "::error file=${f}::$(( size / 1048576 )) MiB exceeds GitHub's 100 MiB per-file push limit, so this snapshot cannot be committed. A compressed baseline is expected to be ~2 MiB; a jump to this size means compression did not apply (check the dump step's 'Storage:' line) or the snapshot grew by two orders of magnitude."
               rc=1
             fi
           done
@@ -257,8 +247,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json" \
-                  ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json"
+          git add ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst" \
+                  ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json.zst"
           if git diff --cached --quiet; then
             echo "No changes to the baseline dumps; nothing to commit."
             exit 0

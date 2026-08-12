@@ -300,16 +300,20 @@ jobs:
       #
       # Both `uses:` below and both dump steps in abicheck-baseline.yml pin
       # the SAME commit, and that is a hard requirement, not tidiness. A
-      # baseline dumped by a different abicheck than the one scanning
-      # fabricates findings: measured across a schema_version 18 baseline vs a
-      # schema_version 24 scanner, 173 of 440 findings were pure version-skew
-      # artifacts (internal_template_leaks 46 -> 0 and constant_changed 55 ->
-      # 2 once the baseline was re-dumped by the scanning version), because two
-      # detectors key identity on a `name` field the two versions spell
-      # differently. abicheck does not warn: it rejects a snapshot *newer*
-      # than the reader (serialization.py:794) but accepts an *older* one
-      # silently, and older is the direction CI hits, since baselines are
-      # committed once and outlive several pin bumps.
+      # snapshot carries a schema_version, and detectors whose evidence
+      # postdates that version decline to run rather than trust stale facts --
+      # so a baseline dumped by an older abicheck than the one scanning does
+      # not fail, it silently *under-reports*. Measured against a
+      # schema_version 18 baseline read by this schema_version 24 scanner, the
+      # scan misses the two genuine constant_changed findings and the
+      # type_vtable_changed finding that the matched baseline surfaces, because
+      # clang_vtable_facts_reliable and four sibling flags are marked
+      # unreliable on the old snapshot. The pinned commit does warn about this
+      # on stderr, naming every degraded flag ("Snapshot schema_version 18
+      # predates this abicheck's schema_version 24: ... Detection coverage for
+      # these fields is reduced until this snapshot is regenerated"), so the
+      # skew is visible in the job log -- but a warning is not a gate, and the
+      # reverse direction (a snapshot newer than the reader) is a hard reject.
       #
       # So: bumping the pin below obliges re-dispatching
       # .github/workflows/abicheck-baseline.yml for the same tag, and the two
@@ -318,12 +322,17 @@ jobs:
       #
       # Note also that .github/abicheck-baselines/ does not exist until that
       # workflow has been dispatched at least once; until then both steps
-      # below fail on the missing abi-baseline file. That dispatch is itself
-      # blocked today: an uncompressed snapshot is 151.5 MiB (daal) and
-      # 114.9 MiB (oneapi::dal), both over GitHub's hard 100 MiB per-file
-      # push limit, and the compressed form abicheck writes instead (2.1 MiB)
-      # cannot be read back by abicheck yet. Details and the four strings that
-      # need changing once it can are in abicheck-baseline.yml.
+      # below fail on the missing abi-baseline file.
+      #
+      # The baselines are .json.zst, which is what makes committing them
+      # possible at all: the uncompressed snapshots are 151.5 MiB (daal) and
+      # 114.9 MiB (oneapi::dal), both over GitHub's hard 100 MiB per-file push
+      # limit, while zstd brings them to ~2.1 MiB each (1.8% of the decoded
+      # size). Compression is a storage envelope only -- abicheck infers it
+      # from the .zst suffix on both the dump and the scan side, and a scan
+      # against the compressed baseline produces byte-identical findings to
+      # the same scan against the uncompressed one (same finding_id sets, same
+      # verdict, same exit code). Verified end to end on the pinned commit.
       #
       # ── Gating ────────────────────────────────────────────────────────────
       #
@@ -357,10 +366,16 @@ jobs:
       #    release is published as the baseline.
       #  * experimental_removed_without_replacement -- four of those same lost
       #    WEAK spmd::communicator symbols, reported a second time under a
-      #    second kind, twice each (once per inline-namespace spelling).
-      #  * type_vtable_changed -- an abicheck false positive, reproduced by
-      #    scanning a binary against a dump of itself, and reported by
+      #    second kind.
+      #  * type_vtable_changed -- fires on types whose recorded vtable,
+      #    size_bits and base_offsets are identical on both sides, reproduced
+      #    by scanning a binary against a dump of itself, and reported by
       #    abicheck simultaneously as non-escalating layout_unverifiable.
+      #    abicheck considers this correct-by-design rather than a bug: it
+      #    keeps the finding BREAKING deliberately (an unverifiable vtable
+      #    transition may hide a real break) and only cross-references the
+      #    paired layout finding. So this entry is oneDAL's policy decision,
+      #    not a workaround waiting on an upstream fix.
       #  * three internal namespaces, mirroring .abignore -- 4 compatible-
       #    bucket imported_symbol_removed plus the one genuine internal
       #    addition main made (an amx_bf16 row in detail::cpu_feature_map).
@@ -375,14 +390,14 @@ jobs:
       # exact config + suppression file and a baseline dumped by that same
       # commit: verdict COMPATIBLE_WITH_RISK and exit 0 on each side, with
       # every finding still present in the JSON (libonedal_core.so: 79
-      # suppressed, 3 risk findings reported; libonedal.so: 21 suppressed, 3
+      # suppressed, 3 risk findings reported; libonedal.so: 17 suppressed, 3
       # reported). The reported findings are 2 layout_unverifiable + 1
       # header_binary_context_mismatch per library, all non-escalating.
       # Negative controls: the same two scans with no suppression file exit 4
-      # (79 breaking on daal; 7 breaking + 10 api_break on oneapi::dal), so
+      # (79 breaking on daal; 7 breaking + 6 api_break on oneapi::dal), so
       # the gate has not been disabled.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
+        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -399,13 +414,13 @@ jobs:
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-std=c++17"
-          abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json
+          abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json.zst
           public-header-dir: cpp/daal/include
           suppress: .github/.abicheck-suppress.yaml
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@d90882da12cd66f3a010cc58598358891f0b3a2f # main
+        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -422,7 +437,7 @@ jobs:
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
-          abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json
+          abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json.zst
           public-header-dir: cpp/oneapi
           suppress: .github/.abicheck-suppress.yaml
           build-config: .abicheck.yml
