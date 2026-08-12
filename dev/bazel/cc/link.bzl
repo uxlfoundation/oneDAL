@@ -233,7 +233,7 @@ def _static(owner, name, actions, cc_toolchain,
 def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
           def_file=None, is_executable=False, user_link_flags=[],
-          is_windows=False, additional_inputs=[], is_dpc=False):
+          is_windows=False, additional_inputs=[]):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
@@ -259,8 +259,10 @@ def _link(owner, name, actions, cc_toolchain,
             pic_static_library = object_archive,
         )
         libraries_to_link = [object_archive_to_link] + libraries_to_link
-        if is_dpc:
-            object_archive_link_flags.append("/link")
+        # No `/link` separator here, even for DPC++ links: the toolchain's
+        # `dpc_linker_mode` feature already emits exactly one, and it is
+        # ordered ahead of `user_link_flags`. A second `/link` reaches the
+        # linker itself, which reports `LNK4044: unrecognized option '/link'`.
         # Windows DLL exports are discovered from dllexport directives inside
         # object files. A normal static library is searched only for unresolved
         # references, so these objects are otherwise not pulled into leaf DLLs
@@ -354,7 +356,7 @@ def _make_implib_for_dll(actions, dll_file, implib_name, dll_to_implib_tool):
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
              def_file=None, user_link_flags=[], is_windows=False,
-             additional_inputs=[], is_dpc=False,
+             additional_inputs=[],
              dll_to_implib_tool=None):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
@@ -363,7 +365,6 @@ def _dynamic(owner, name, actions, cc_toolchain,
         user_link_flags=user_link_flags,
         is_windows=is_windows,
         additional_inputs=additional_inputs,
-        is_dpc=is_dpc,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None
