@@ -25,28 +25,27 @@ name: Nightly-test
 #      `source_run_id`. The test jobs will download artifacts from that build
 #      and run against the workflow definition on the dispatched branch.
 # Post the dispatch run URL as a comment on the PR for reviewers.
-# The CVE scan is intentionally skipped on dispatch — it uploads SARIF to
+# The CVE scan is intentionally skipped on dispatch. It uploads SARIF to
 # the Security tab and must only run on genuine Nightly-build completions.
 #
 # agent: SECURITY MODEL. Bazel tests must build against the exact tree that
-# produced the artifacts under test. For fork PRs that tree lives on the fork,
-# and actions/checkout refuses to fetch it under workflow_run (rightly — the
-# token is elevated). To keep untrusted code away from any write-scoped token,
-# each Bazel test is split into three jobs:
-#   * <name>_start   — permissions: checks: write. Runs no untrusted code.
-#                      Only reads platform-supplied context and publishes an
-#                      in_progress Check Run. Outputs the check_run_id.
-#   * <name>_run     — permissions: actions: read, contents: read (no writes
-#                      of any kind). Does the untrusted-code work: clones the
-#                      fork tree via plain `git fetch` (safe when the token
-#                      has no write scopes), downloads artifacts, builds
-#                      Bazel, runs the compare.
-#   * <name>_finish  — permissions: checks: write. Runs no untrusted code.
-#                      Reads only needs.<run>.result and platform context, and
-#                      finalizes the Check Run.
-# Do NOT add checks:write or any other write permission to the _run job. Do
-# NOT execute repo code, run bash from the repo, or evaluate user-controlled
-# expressions in the _start / _finish jobs.
+# produced the artifacts. For fork PRs that tree lives on the fork.
+# actions/checkout refuses to fetch it under workflow_run. That guard is
+# correct because the token is usually elevated. To keep untrusted code
+# away from any write-scoped token, each Bazel test uses three jobs:
+#   * <name>_start:  permissions: checks: write. Runs no untrusted code.
+#                    Reads only platform-supplied context. Publishes an
+#                    in_progress Check Run. Outputs the check_run_id.
+#   * <name>_run:    permissions: actions: read, contents: read. No write
+#                    permissions. Runs the untrusted work: clones the fork
+#                    tree with plain git fetch, downloads artifacts, builds
+#                    Bazel, and runs the compare.
+#   * <name>_finish: permissions: checks: write. Runs no untrusted code.
+#                    Reads only needs.<run>.result and platform context.
+#                    Finalizes the Check Run.
+# Do not add checks:write or any other write permission to the _run job.
+# Do not execute repo code, run bash from the repo, or evaluate
+# user-controlled expressions in the _start or _finish jobs.
 
 on:
   workflow_run:
@@ -71,8 +70,9 @@ jobs:
 
   cve-bin-tool-scan:
     runs-on: ubuntu-24.04
-    # Only scan artifacts from schedule or manual Nightly-build runs. Do not scan PR-originated
-    # runs or workflow_dispatch verification runs — SARIF uploads must come from real nightlies.
+    # Only scan artifacts from schedule or manual Nightly-build runs. Do not
+    # scan PR-originated runs or workflow_dispatch verification runs. SARIF
+    # uploads must come from real nightlies.
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && github.event_name == 'workflow_run'
@@ -105,7 +105,7 @@ jobs:
           build_command: "mv ${{ runner.temp }}/${{ env.BUILD_FOLDER }} ./"
 
   # ---------------------------------------------------------------------------
-  # Linux Bazel test — split into start / run / finish (see SECURITY MODEL above)
+  # Linux Bazel test: split into start / run / finish (see SECURITY MODEL above).
   # ---------------------------------------------------------------------------
 
   bazel_lnx_start:
@@ -123,9 +123,10 @@ jobs:
       details_url: ${{ steps.resolve.outputs.details_url }}
     steps:
       # Resolve head_sha and details_url from platform-supplied context only.
-      # On workflow_dispatch, github.sha is the HEAD of the dispatched ref (set
-      # by the platform, not a caller input). On workflow_run, head_sha comes
-      # from the completed upstream run. Never derive these from user input.
+      # On workflow_dispatch, github.sha is the HEAD of the dispatched ref.
+      # The platform sets this value. It is not a caller input. On
+      # workflow_run, head_sha comes from the completed upstream run.
+      # Do not derive these values from user input.
       - name: Resolve identifiers
         id: resolve
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -160,17 +161,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     # Minimum permissions to download artifacts from a different workflow run.
-    # No checks:write — this job runs untrusted PR code.
+    # Do not add checks:write. This job runs untrusted PR code.
     permissions:
       actions: read
       contents: read
     steps:
       # For workflow_run on a fork PR, actions/checkout refuses to fetch the
-      # fork's tree. That guard exists because workflow_run typically has an
-      # elevated token; here it does not (see permissions: above). Fetching
-      # the fork tree with plain git is safe under the current token scopes
-      # and is required because the Bazel compare must build from the same
-      # tree that produced the artifacts under test.
+      # fork tree. That guard exists because workflow_run usually has an
+      # elevated token. This job does not have that token (see permissions
+      # above). Fetching the fork tree with plain git is safe under the
+      # current token scopes. The Bazel compare requires the same tree that
+      # produced the artifacts under test.
       - name: Checkout PR head (workflow_run)
         if: github.event_name == 'workflow_run'
         env:
@@ -178,7 +179,7 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          # Reject anything that isn't a plain owner/repo slug (defense in depth).
+          # Reject any value that is not a plain owner/repo slug (defense in depth).
           case "$HEAD_REPO" in
             */*) ;;
             *) echo "Unexpected HEAD_REPO: $HEAD_REPO"; exit 1 ;;
@@ -248,7 +249,7 @@ jobs:
             })
 
   # ---------------------------------------------------------------------------
-  # Windows Bazel test — split into start / run / finish (see SECURITY MODEL above)
+  # Windows Bazel test: split into start / run / finish (see SECURITY MODEL above).
   # ---------------------------------------------------------------------------
 
   bazel_win_start:
