@@ -23,35 +23,53 @@
 # ── The baseline and the scanner must be the same abicheck build ─────────────
 #
 # This matters more than any single entry here, so it is repeated in both
-# workflows: a baseline dumped by a *different* abicheck commit than the one
-# the scan runs invents findings out of nothing. Measured, comparing a
-# schema_version 18 baseline against a schema_version 24 scanner:
+# workflows: the findings a scan produces depend on the abicheck version that
+# dumped the baseline, not just on oneDAL's two trees. Measured, a
+# schema_version 18 baseline read by a schema_version 24 scanner, against the
+# same baseline re-dumped by the scanning version (oneapi::dal side):
 #
-#              baseline dumped by     baseline re-dumped by
-#              the older abicheck     the scanning abicheck
-#   internal_template_leaks        46                      0
-#   experimental_removed           93                      8
-#   constant_changed               44                      2   (oneapi::dal)
-#   constant_changed               11                      0   (daal)
-#   func_visibility_changed         6                      6
-#   func_removed_elf_only         237                    237
+#                                stale baseline    re-dumped baseline
+#   internal_template_leaks                  46                     0
+#   experimental_removed                     93                     4
+#   constant_changed                         44                     2
+#   type_vtable_changed                       0                     1
+#   func_visibility_changed                   6                     6
 #
-# 173 of the 440 findings were pure artifacts of the version gap. Cause: the
-# `name` field's spelling changed between the two versions (`check_ranges` vs
-# `oneapi::dal::decision_forest::detail::v1::train_parameters<...>::
-# check_ranges`) and two detectors key their identity on it -- so every
-# affected declaration read as removed-and-re-added even though `mangled`,
-# visibility, provenance and header were byte-identical on both sides.
-# Constants were the same story via hash-collapsing (267 constants over 60
-# distinct hashes on the old side vs 92 on the new).
+# Both failure directions are in that table, and the second is the dangerous
+# one:
 #
-# abicheck does not warn about this. serialization.py:794 rejects a snapshot
-# *newer* than the reader and warns on the near-miss, but a snapshot *older*
-# than the reader is accepted silently, which is the direction that actually
-# happens in CI (baselines are committed once and outlive several pin bumps).
-# So it is on this repo to keep them in step: bumping the abicheck pin in
-# ci.yml obliges re-dispatching .github/workflows/abicheck-baseline.yml, and
-# both workflows pin the same commit for that reason.
+#  * Over-reporting. The template-leak and experimental-removal detectors used
+#    to key identity on the `name` field, which the two versions spelled
+#    differently (`check_ranges` vs `oneapi::dal::decision_forest::detail::v1::
+#    train_parameters<...>::check_ranges`), so affected declarations read as
+#    removed-and-re-added even though `mangled`, visibility, provenance and
+#    header were byte-identical on both sides; constants collapsed the same way
+#    by hash (267 constants over 60 distinct hashes on the old side vs 92 on
+#    the new). Current abicheck keys on stable identity instead, so a stale
+#    baseline no longer manufactures these -- the 46 and the 44 above are 0 and
+#    0 on today's scanner even *without* re-dumping.
+#  * Under-reporting, which is what remains. A snapshot records which classes
+#    of fact it was able to establish, and a detector whose evidence postdates
+#    the snapshot declines to run rather than trust a stale fact. So the
+#    schema-18 baseline makes the scan *miss* the one type_vtable_changed and
+#    both genuine constant_changed findings that the matched baseline surfaces:
+#    clang_vtable_facts_reliable, clang_deprecation_facts_reliable,
+#    clang_field_initializer_facts_reliable, clang_restrict_facts_reliable and
+#    clang_va_list_facts_reliable are all marked unreliable on it.
+#
+# abicheck does say so. Loading an older snapshot emits, on stderr and so into
+# the job log, "Snapshot schema_version 18 predates this abicheck's
+# schema_version 24: <the five flags> are marked unreliable on this snapshot,
+# so the affected detectors will decline to trust these stale facts rather than
+# risk a false positive purely from this tool upgrade. Detection coverage for
+# these fields is reduced until this snapshot is regenerated with the current
+# abicheck." The opposite direction -- a snapshot *newer* than the reader -- is
+# a hard reject (serialization.py:794). But a warning is not a gate, and stale
+# is the direction CI hits, since baselines are committed once and outlive
+# several pin bumps. So it is on this repo to keep them in step: bumping the
+# abicheck pin in ci.yml obliges re-dispatching
+# .github/workflows/abicheck-baseline.yml, and both workflows pin the same
+# commit for that reason.
 
 version: 1
 
@@ -80,10 +98,14 @@ suppressions:
   #    -fvisibility-inlines-hidden dropped (see func_visibility_changed
   #    below). Bucketed `compatible`, so these do not gate -- suppressing
   #    them just keeps the report about the public surface.
-  #  * oneapi::dal::**::detail::** -- 2 constant_changed, both the same
-  #    entry seen through the inline-namespace alias
+  #  * oneapi::dal::**::detail::** -- 2 constant_changed, both the same entry
+  #    seen through the inline-namespace alias
   #    (oneapi::dal::detail::v1::cpu_feature_map and
-  #    oneapi::dal::detail::cpu_feature_map). This one is a *true positive*:
+  #    oneapi::dal::detail::cpu_feature_map, identical old and new value
+  #    hashes: expr:3a04b5e463f1ca23 -> expr:6c4859024638b5ce). The constant
+  #    detector does not collapse the two spellings the way the experimental
+  #    one now does, so expect the count to halve to 1 if it ever gains the
+  #    same treatment. This one is a *true positive*:
   #    main really did add `{ uint64_t(cpu_feature::amx_bf16),
   #    "Intel(R) AMX bfloat16" }` to cpu_feature_map in
   #    cpp/oneapi/dal/detail/cpu.hpp. It is an addition to an internal table,
@@ -121,29 +143,36 @@ suppressions:
       typeinfo or guard variable is affected, and no built client object
       references any of them.
 
-  # abicheck false positive, not an oneDAL change. Types are reported as
-  # `type_vtable_changed` = BREAKING (2 on libonedal_core.so, 1 --
-  # system_parameters -- on libonedal.so) even though both snapshots record an
-  # identical single-slot vtable, identical size_bits and identical
-  # base_offsets. Confirmed by a control run: scanning the tree against a dump
-  # of *the same binary* still emits the finding with exit 4, so nothing
-  # differs between the two sides at all. abicheck simultaneously emits a
-  # `layout_unverifiable` risk finding on the very same types ("one side
+  # An evidence gap, not an oneDAL change -- and, unlike the entries above,
+  # this one is oneDAL's own risk call rather than a workaround.
+  #
+  # Types are reported as `type_vtable_changed` = BREAKING (2 on
+  # libonedal_core.so, 1 -- system_parameters -- on libonedal.so) even though
+  # both snapshots record an identical single-slot vtable, identical size_bits
+  # and identical base_offsets. Confirmed by a control run: scanning the tree
+  # against a dump of *the same binary* still emits the finding with exit 4, so
+  # nothing differs between the two sides at all. abicheck simultaneously emits
+  # a `layout_unverifiable` risk finding on the very same types ("one side
   # carries a layout descriptor but the other has no layout evidence ...
-  # Informational and non-escalating"), i.e. it reports one missing-evidence
-  # condition twice under contradictory severities. Neither the
-  # `_vtable_transition_is_evidenced` guard nor the clang vtable
-  # reconstruction in abicheck/abicheck#711 removes these -- re-verified on
-  # the pinned commit.
-  # Drop this entry once abicheck stops escalating an evidence gap to
-  # BREAKING; it is a workaround, not a statement about oneDAL's ABI.
+  # Informational and non-escalating").
+  #
+  # Reported upstream and answered deliberately: abicheck now cross-references
+  # the two findings so the pairing is visible, but keeps the vtable one at
+  # BREAKING on the stated grounds that demoting an unevidenced vtable
+  # transition to RISK could hide a real ABI break. Re-verified on the pinned
+  # commit: still 2 + 1, still BREAKING. So this entry is not waiting on an
+  # upstream fix -- it is oneDAL choosing to accept that risk for these three
+  # types, on the strength of the same-binary control run above, and it should
+  # be revisited if the count ever changes or if any of the three gains a real
+  # virtual member.
   - symbol_pattern: ".*"
     change_kind: "type_vtable_changed"
     reason: >-
-      abicheck FP: fires on types whose vtable, size_bits and base_offsets are
-      identical on both sides, and which abicheck simultaneously reports as
-      layout_unverifiable. Reproduced by scanning a binary against a dump of
-      itself.
+      Evidence gap, not a change: fires on types whose vtable, size_bits and
+      base_offsets are identical on both sides, and which abicheck
+      simultaneously reports as non-escalating layout_unverifiable. Reproduced
+      by scanning a binary against a dump of itself. Accepted deliberately --
+      abicheck keeps this BREAKING by design, so the judgement is oneDAL's.
 
   # The same lost WEAK symbols, reported a second time under a second kind.
   #
@@ -155,9 +184,10 @@ suppressions:
   # symbol the new side defines is exactly these 4 under this stem), and
   # cpp/oneapi/dal/spmd/communicator.hpp still declares every one of them on
   # both sides. So this is one cause (-fvisibility-inlines-hidden) surfacing
-  # under two kinds, not a second, independent removal. The count is 8 rather
-  # than 4 because each symbol is reported once per inline-namespace spelling
-  # (preview::spmd::v1::communicator and preview::spmd::communicator).
+  # under two kinds, not a second, independent removal. Exactly 4 findings, one
+  # per symbol: an earlier abicheck reported each twice, once per
+  # inline-namespace spelling (preview::spmd::v1::communicator and
+  # preview::spmd::communicator), and the pinned commit deduplicates them.
   #
   # Scoped by symbol_pattern rather than namespace for the ADR-044 D2 reason:
   # abicheck's _passes_public_break_gate refuses to let a broad selector
@@ -172,19 +202,19 @@ suppressions:
       oneapi::dal::preview is oneDAL's documented experimental namespace, and
       these findings duplicate the func_visibility_changed findings for the
       same four symbols: all four are WEAK COMDAT instantiations dropped by
-      -fvisibility-inlines-hidden, still declared in
-      cpp/oneapi/dal/spmd/communicator.hpp on both sides, and each is reported
-      once per inline-namespace spelling.
+      -fvisibility-inlines-hidden and still declared in
+      cpp/oneapi/dal/spmd/communicator.hpp on both sides.
 
   # Two entries an earlier revision of this file carried are deliberately
   # gone, because with a version-matched baseline they match nothing:
   #
   #  * internal_template_leaks_via_public_api -- was 46 findings, now 0. All
   #    46 were the version-skew artifact described at the top of this file:
-  #    the detector keys its instantiation set on the `name` field
+  #    the detector keyed its instantiation set on the `name` field
   #    (diff_templates.py:512), which the two abicheck versions spelled
   #    differently, and every one of the 53 instantiations it listed as
-  #    removed was still exported by `nm` on the new side.
+  #    removed was still exported by `nm` on the new side. Current abicheck
+  #    keys on stable identity, so this is 0 against a stale baseline too.
   #  * constant_changed (blanket, symbol_pattern ".*") -- was 44 on
   #    libonedal.so and 11 on libonedal_core.so, now 2 and 0. The same hash
   #    collapse. The 2 that survive are the genuine cpu_feature_map addition,
