@@ -60,8 +60,9 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     // Cluster indices are written into `int`-typed assignment tables
     // (WriteOnlyRows<int, cpu>) and into the internal `pointAssignments`
-    // buffer. Refuse inputs whose cluster count exceeds what an int can
-    // represent so the downstream narrowing cast never silently overflows.
+    // buffer. Refuse inputs whose cluster count exceeds the maximum
+    // positive value representable by `int32_t` so the downstream
+    // narrowing cast never silently overflows.
     if (nClusters > static_cast<size_t>(INT32_MAX))
     {
         return services::Status(services::ErrorKMeansNumberOfClustersIsTooLarge);
@@ -127,6 +128,11 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     TArray<algorithmFPType, cpu> cValues(nClusters);
     TArray<size_t, cpu> cIndices(nClusters);
+    // Per-candidate source cluster IDs. Batch already resolves srcCluster via
+    // pointAssignments[candidateRowIdx], so this buffer's contents are not read
+    // here -- the parameter exists so batch and distributed can share
+    // kmeansComputeCentroidsCandidates.
+    TArray<int, cpu> cSources(nClusters);
 
     algorithmFPType oldTargetFunc(0.0);
 
@@ -158,7 +164,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         }
 
         size_t cNum;
-        DAAL_CHECK_STATUS(s, task->kmeansComputeCentroidsCandidates(cValues.get(), cIndices.get(), cNum));
+        DAAL_CHECK_STATUS(s, task->kmeansComputeCentroidsCandidates(cValues.get(), cIndices.get(), cSources.get(), cNum));
         size_t cPos = 0;
 
         algorithmFPType newCentersGoalFunc = (algorithmFPType)0.0;
@@ -255,7 +261,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     // tClusters unused), in which case the value is already
                     // there.
                     result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &inClusters[i * p],
-                                                                       p * sizeof(algorithmFPType));
+                                                                      p * sizeof(algorithmFPType));
                 }
             }
         }

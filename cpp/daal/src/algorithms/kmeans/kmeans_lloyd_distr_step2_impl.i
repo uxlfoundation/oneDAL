@@ -62,9 +62,12 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::compute(size_
     DAAL_CHECK_BLOCK_STATUS(mtTargetFunc);
     algorithmFPType * goalFunc = mtTargetFunc.get();
 
+    // partialCandidatesDistances is a 2-column table: col 0 = distance,
+    // col 1 = source cluster id on the emitting rank. See
+    // kmeans_partialresult.h for the layout rationale.
     WriteOnlyRows<algorithmFPType, cpu> mtCValues(*const_cast<NumericTable *>(r[3]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtCValues);
-    algorithmFPType * cValues = mtCValues.get();
+    algorithmFPType * cValuesTbl = mtCValues.get();
     WriteOnlyRows<algorithmFPType, cpu> mtCCentroids(*const_cast<NumericTable *>(r[4]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtCCentroids);
     algorithmFPType * cCentroids = mtCCentroids.get();
@@ -86,16 +89,28 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::compute(size_
 
     for (size_t j = 0; j < nClusters; j++)
     {
-        cValues[j] = (algorithmFPType)-1.0;
+        cValuesTbl[j * 2 + 0] = (algorithmFPType)-1.0;
+        cValuesTbl[j * 2 + 1] = (algorithmFPType)-1.0;
     }
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(algorithmFPType));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(size_t));
 
+    // Merge tracks value (distance), the merged candidate slot id
+    // `block * nClusters + posInBlock`, and the source cluster id on that
+    // emitting rank. cCentroids in the output table is populated at the end
+    // of this method from the winning candidate rows.
     TArray<algorithmFPType, cpu> tmpValues(nClusters);
     TArray<size_t, cpu> tmpIndices(nClusters);
+    TArray<int, cpu> tmpSources(nClusters);
     TArray<size_t, cpu> cIndices(nClusters);
-    DAAL_CHECK_MALLOC(tmpValues.get() && tmpIndices.get() && cIndices.get());
+    TArray<int, cpu> cSources(nClusters);
+    DAAL_CHECK_MALLOC(tmpValues.get() && tmpIndices.get() && tmpSources.get() && cIndices.get() && cSources.get());
+
+    // Running merge state stored in cValuesTbl col 0 (distance).
+    // Convenience alias for the two columns.
+    auto cValueAt  = [&](size_t idx) -> algorithmFPType & { return cValuesTbl[idx * 2 + 0]; };
+    auto cSourceAt = [&](size_t idx) -> algorithmFPType & { return cValuesTbl[idx * 2 + 1]; };
 
     for (size_t i = 0; i < nBlocks; i++)
     {
@@ -128,32 +143,42 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::compute(size_
         size_t cPos = 0, clPos = 0, cNum = 0;
         while (cNum < nClusters)
         {
-            if (cValues[cPos] < (algorithmFPType)0.0 && inCValues[clPos] < (algorithmFPType)0.0)
+            const algorithmFPType curDist = cValueAt(cPos);
+            const algorithmFPType inDist  = inCValues[clPos * 2 + 0];
+            if (curDist < (algorithmFPType)0.0 && inDist < (algorithmFPType)0.0)
             {
                 break;
             }
-            if (cValues[cPos] > inCValues[clPos])
+            if (curDist > inDist)
             {
-                tmpValues[cNum]  = cValues[cPos];
+                tmpValues[cNum]  = curDist;
                 tmpIndices[cNum] = cIndices[cPos];
+                tmpSources[cNum] = cSources[cPos];
                 cNum++;
                 cPos++;
             }
             else
             {
-                tmpValues[cNum]  = inCValues[clPos];
+                tmpValues[cNum]  = inDist;
                 tmpIndices[cNum] = i * nClusters + clPos;
+                tmpSources[cNum] = static_cast<int>(inCValues[clPos * 2 + 1]);
                 cNum++;
                 clPos++;
             }
         }
-        result |= daal::services::internal::daal_memcpy_s(cValues, cNum * sizeof(algorithmFPType), tmpValues.get(), cNum * sizeof(algorithmFPType));
+        // Snapshot the merged top-K back into the running cValuesTbl / cIndices / cSources.
+        for (size_t k = 0; k < cNum; k++)
+        {
+            cValueAt(k)  = tmpValues[k];
+            cSourceAt(k) = static_cast<algorithmFPType>(tmpSources[k]);
+        }
         result |= daal::services::internal::daal_memcpy_s(cIndices.get(), cNum * sizeof(size_t), tmpIndices.get(), cNum * sizeof(size_t));
+        result |= daal::services::internal::daal_memcpy_s(cSources.get(), cNum * sizeof(int), tmpSources.get(), cNum * sizeof(int));
     }
 
     for (size_t i = 0; i < nClusters; i++)
     {
-        if (cValues[i] < (algorithmFPType)0.0)
+        if (cValueAt(i) < (algorithmFPType)0.0)
         {
             break;
         }
@@ -177,24 +202,31 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     const size_t nClusters = par->nClusters;
     int result             = 0;
 
-    ReadRows<int, cpu> mtInClusterS0(*const_cast<NumericTable *>(a[0]), 0, nClusters);
-    DAAL_CHECK_BLOCK_STATUS(mtInClusterS0);
-    ReadRows<algorithmFPType, cpu> mtInClusterS1(*const_cast<NumericTable *>(a[1]), 0, nClusters);
-    DAAL_CHECK_BLOCK_STATUS(mtInClusterS1);
+    // The aggregated clusterS0 / clusterS1 arriving from step2::compute() are
+    // treated here as mutable working buffers -- we may need to subtract off
+    // the contribution of a candidate row that gets used to seed an empty
+    // cluster. This mirrors the two-pass empty-cluster replacement logic in
+    // kmeans_lloyd_batch_impl.i (see the "Two-pass merge" comment there). We
+    // cannot use ReadRows for these because their rows must be mutable in
+    // the theft-adjustment step.
+    ReadWriteMode readWriteAggregates = readWrite;
+    BlockDescriptor<int> blkClusterS0;
+    BlockDescriptor<algorithmFPType> blkClusterS1;
+    const_cast<NumericTable *>(a[0])->getBlockOfRows(0, nClusters, readWriteAggregates, blkClusterS0);
+    const_cast<NumericTable *>(a[1])->getBlockOfRows(0, nClusters, readWriteAggregates, blkClusterS1);
+    int * clusterS0             = blkClusterS0.getBlockPtr();
+    algorithmFPType * clusterS1 = blkClusterS1.getBlockPtr();
+
     ReadRows<algorithmFPType, cpu> mtInTargetFunc(*const_cast<NumericTable *>(a[2]), 0, 1);
     DAAL_CHECK_BLOCK_STATUS(mtInTargetFunc);
+    const algorithmFPType * inTarget = mtInTargetFunc.get();
 
     ReadRows<algorithmFPType, cpu> mtCValues(*const_cast<NumericTable *>(a[3]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtCValues);
     ReadRows<algorithmFPType, cpu> mtCCentroids(*const_cast<NumericTable *>(a[4]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtCCentroids);
 
-    /* TODO: That should be size_t or double */
-    const int * clusterS0             = mtInClusterS0.get();
-    const algorithmFPType * clusterS1 = mtInClusterS1.get();
-    const algorithmFPType * inTarget  = mtInTargetFunc.get();
-
-    const algorithmFPType * cValues    = mtCValues.get();
+    const algorithmFPType * cValuesTbl = mtCValues.get(); // 2 columns: [dist, srcCluster]
     const algorithmFPType * cCentroids = mtCCentroids.get();
 
     WriteOnlyRows<algorithmFPType, cpu> mtClusters(*const_cast<NumericTable *>(r[0]), 0, nClusters);
@@ -207,13 +239,67 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
 
     *outTarget = *inTarget;
 
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(bool));
+    TArray<bool, cpu> clusterReplaced(nClusters);
+    DAAL_CHECK_MALLOC(clusterReplaced.get());
+    service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
+
+    // Two-pass merge (mirror of kmeans_lloyd_batch_impl.i):
+    //   Pass 1: for every empty cluster i, promote the next unused candidate
+    //           row (cCentroids[cPos]) to its centroid. The candidate was
+    //           originally assigned to some source cluster srcCluster on its
+    //           emitting rank; that cluster's clusterS0/clusterS1 already
+    //           carries the row's contribution after step2::compute()
+    //           aggregation. Undo it now so pass 2 computes the source
+    //           cluster's centroid without the stolen row.
+    //   Pass 2: normalize the remaining non-empty, non-replaced clusters.
+    //           Corner case: a source cluster drained completely by pass 1
+    //           has clusterS0[src]==0 in pass 2. In that case there is no
+    //           previous-iteration centroid available to step2 (the master
+    //           broadcasts it back only at the start of the next iteration),
+    //           so we fall back to the drained cluster's original candidate
+    //           row -- the same row we already promoted, which is guaranteed
+    //           to have been in that cluster before the theft.
     size_t cPos = 0;
 
+    // Pass 1: replace empties.
     for (size_t i = 0; i < nClusters; i++)
     {
+        if (clusterS0[i] == 0)
+        {
+            DAAL_CHECK(!(cValuesTbl[cPos * 2 + 0] < (algorithmFPType)0.0), services::ErrorKMeansNumberOfClustersIsTooLarge);
+            outTarget[0] -= cValuesTbl[cPos * 2 + 0];
+
+            const int srcCluster            = static_cast<int>(cValuesTbl[cPos * 2 + 1]);
+            const algorithmFPType * candRow = &cCentroids[cPos * p];
+            result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), candRow, p * sizeof(algorithmFPType));
+
+            if (srcCluster >= 0 && static_cast<size_t>(srcCluster) < nClusters && clusterS0[srcCluster] > 0)
+            {
+                clusterS0[srcCluster]--;
+                PRAGMA_OMP_SIMD
+                PRAGMA_VECTOR_ALWAYS
+                for (size_t j = 0; j < p; j++)
+                {
+                    clusterS1[srcCluster * p + j] -= candRow[j];
+                }
+            }
+
+            clusterReplaced[i] = true;
+            cPos++;
+        }
+    }
+
+    // Pass 2: normalize the non-empty, non-replaced clusters.
+    for (size_t i = 0; i < nClusters; i++)
+    {
+        if (clusterReplaced[i])
+        {
+            continue;
+        }
         if (clusterS0[i] > 0)
         {
-            algorithmFPType coeff = 1.0 / clusterS0[i];
+            const algorithmFPType coeff = (algorithmFPType)1.0 / clusterS0[i];
 
             for (size_t j = 0; j < p; j++)
             {
@@ -222,13 +308,19 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
         }
         else
         {
-            DAAL_CHECK(!(cValues[cPos] < (algorithmFPType)0.0), services::ErrorKMeansNumberOfClustersIsTooLarge);
-            outTarget[0] -= cValues[cPos];
+            // Source cluster fully drained by pass 1. Reuse the last-known
+            // candidate row that was in this cluster before the theft; this
+            // is the closest local approximation to the previous centroid
+            // that finalizeCompute has visibility into.
+            DAAL_CHECK(!(cValuesTbl[cPos * 2 + 0] < (algorithmFPType)0.0), services::ErrorKMeansNumberOfClustersIsTooLarge);
             result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &cCentroids[cPos * p],
                                                               p * sizeof(algorithmFPType));
             cPos++;
         }
     }
+
+    const_cast<NumericTable *>(a[0])->releaseBlockOfRows(blkClusterS0);
+    const_cast<NumericTable *>(a[1])->releaseBlockOfRows(blkClusterS1);
 
     return (!result) ? services::Status() : services::Status(services::ErrorMemoryCopyFailedInternal);
 }
