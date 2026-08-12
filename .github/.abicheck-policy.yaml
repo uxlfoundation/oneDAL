@@ -1,0 +1,313 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Verdict policy for the LinuxAbicheckScan job in .github/workflows/ci.yml.
+#
+# ── Why this is a policy file and not a suppression file ──────────────────────
+#
+# An earlier revision of this job carried .github/.abicheck-suppress.yaml
+# instead. It produced the right exit code for the wrong reason, because a
+# suppression rule *removes* a matching change before the verdict and the
+# severity counts are computed (abicheck docs/use/ci-gating.md). The findings
+# then leave no trace at all in the format this job actually runs:
+# `scan --format text` -- the only formats `scan` accepts are text and json, and
+# text is the default -- prints `breaking=/api_break=/risk=/compatible=` and
+# itemizes those buckets, and nothing else. Measured on the real artifact: with
+# the six-rule suppression file in place the reviewer saw three findings, while
+# seventeen were silently dropped, six `func_visibility_changed` and one
+# `type_vtable_changed` among them, i.e. exactly the ones a human most needs to
+# see. Not even the count of suppressed findings appears, and nothing indicates
+# that a suppression file was in effect. (The markdown reporter does itemize
+# them, but markdown is not a legal format for `scan`; SARIF drops them and is
+# compare-only; the sticky PR comment mentions neither the list nor the count.)
+#
+# A policy-file override changes only the *classification*. The finding stays in
+# the reported list, with its symbol and source location, under the severity
+# this file assigns. So the job reports every difference between the baseline
+# and the PR, and separately answers "did oneDAL break its ABI" -- the two
+# questions the suppression file conflated.
+#
+# Verified end to end with this exact file, on both libraries, against
+# baselines dumped by the abicheck commit ci.yml pins:
+#
+#   libonedal_core.so  verdict COMPATIBLE_WITH_RISK  exit 0
+#                      breaking=0 api_break=0 risk=82 compatible=1
+#                      82 findings printed: 77 func_visibility_changed,
+#                      2 type_vtable_changed, 2 layout_unverifiable,
+#                      1 header_binary_context_mismatch
+#   libonedal.so       verdict COMPATIBLE_WITH_RISK  exit 0
+#                      breaking=0 api_break=0 risk=16 compatible=12
+#                      16 findings printed: 6 func_visibility_changed,
+#                      4 experimental_removed_without_replacement,
+#                      2 constant_changed, 2 layout_unverifiable,
+#                      1 type_vtable_changed,
+#                      1 header_binary_context_mismatch
+#
+# On both: severity.categories.abi_breaking count 0, blocking false, "severity
+# gate: pass (no error-level findings)", and no `suppressed` key in the JSON at
+# all -- nothing was removed from the report. Also verified with `--policy
+# strict_abi` present alongside `--policy-file`, which is what the composite
+# Action forwards (action/run.sh:723-727 sends both, since `policy` has a
+# non-empty default): byte-identical results, so the file wins and the pairing
+# is not a usage error.
+#
+# Negative control: the reverse direction (scanning the 2026.0.0 binaries
+# against a baseline dumped from main, so that symbols really are gone) still
+# yields verdict BREAKING, exit 4, blocking true, on 5 func_removed +
+# 2 type_removed + 1 enum_member_removed. The overrides below do not soften
+# that.
+#
+# ── What each override gives up ──────────────────────────────────────────────
+#
+# A policy override is per-kind and global: it cannot be narrowed to a symbol
+# pattern or a namespace the way a suppression rule can. Each entry below
+# therefore states the class of real break it would fail to *gate* on, which is
+# the honest cost of keeping these findings visible. In every case the finding
+# is still reported, so the residual exposure is "a reviewer must look", not "a
+# reviewer cannot know". abicheck has no mechanism today that is both
+# selector-scoped and non-deleting; that gap is the one thing worth asking
+# upstream for.
+#
+# Note also that a policy downgrade is silent where a suppression is not: there
+# is no `expires`, no `require_justification` and no `--strict-policy`, and
+# abicheck's own PolicyFile.validate_overrides() -- which does emit
+# "RISK: 'type_vtable_changed' downgraded to 'risk' -- this kind usually causes
+# binary incompatibility" for this very file -- is not called from any CLI path.
+# So the review discipline has to live in this file's comments instead.
+#
+# ── The baseline and the scanner must be the same abicheck build ─────────────
+#
+# This matters more than any single entry here, so it is repeated in both
+# workflows: the findings a scan produces depend on the abicheck version that
+# dumped the baseline, not just on oneDAL's two trees. Measured, a
+# schema_version 18 baseline read by a schema_version 24 scanner, against the
+# same baseline re-dumped by the scanning version (oneapi::dal side):
+#
+#                                stale baseline    re-dumped baseline
+#   internal_template_leaks                  46                     0
+#   experimental_removed                     93                     4
+#   constant_changed                         44                     2
+#   type_vtable_changed                       0                     1
+#   func_visibility_changed                   6                     6
+#
+# Both failure directions are in that table, and the second is the dangerous
+# one:
+#
+#  * Over-reporting. The template-leak and experimental-removal detectors used
+#    to key identity on the `name` field, which the two versions spelled
+#    differently (`check_ranges` vs `oneapi::dal::decision_forest::detail::v1::
+#    train_parameters<...>::check_ranges`), so affected declarations read as
+#    removed-and-re-added even though `mangled`, visibility, provenance and
+#    header were byte-identical on both sides; constants collapsed the same way
+#    by hash (267 constants over 60 distinct hashes on the old side vs 92 on
+#    the new). Current abicheck keys on stable identity instead, so a stale
+#    baseline no longer manufactures these -- the 46 and the 44 above are 0 and
+#    0 on today's scanner even *without* re-dumping.
+#  * Under-reporting, which is what remains. A snapshot records which classes
+#    of fact it was able to establish, and a detector whose evidence postdates
+#    the snapshot declines to run rather than trust a stale fact. So the
+#    schema-18 baseline makes the scan *miss* the one type_vtable_changed and
+#    both genuine constant_changed findings that the matched baseline surfaces:
+#    clang_vtable_facts_reliable, clang_deprecation_facts_reliable,
+#    clang_field_initializer_facts_reliable, clang_restrict_facts_reliable and
+#    clang_va_list_facts_reliable are all marked unreliable on it.
+#
+# abicheck does say so. Loading an older snapshot emits, on stderr and so into
+# the job log, "Snapshot schema_version 18 predates this abicheck's
+# schema_version 24: <the five flags> are marked unreliable on this snapshot,
+# so the affected detectors will decline to trust these stale facts rather than
+# risk a false positive purely from this tool upgrade. Detection coverage for
+# these fields is reduced until this snapshot is regenerated with the current
+# abicheck." The opposite direction -- a snapshot *newer* than the reader -- is
+# a hard reject. But a warning is not a gate, and stale is the direction CI
+# hits, since baselines are committed once and outlive several pin bumps. So it
+# is on this repo to keep them in step: bumping the abicheck pin in ci.yml
+# obliges re-dispatching .github/workflows/abicheck-baseline.yml, and both
+# workflows pin the same commit for that reason.
+
+base_policy: strict_abi
+
+overrides:
+  # 2026.0.0 -> main lost 2318 exported symbols from libonedal_core.so and
+  # libonedal.so. Every one is a WEAK FUNC -- a COMDAT inline or template
+  # instantiation that -fvisibility-inlines-hidden (added at makefile:134 after
+  # the 2026.0.0 tag) stopped exporting. Verified: zero STRONG symbols and zero
+  # data objects lost; zero _ZTV/_ZTI/_ZTS lost; zero _ZGV guard variables
+  # lost; and cross-linking every lost export against the 1556 undefined
+  # symbols required by all 183 built client objects gives an empty
+  # intersection, i.e. nothing that actually ships resolves against them. Such
+  # a symbol is emitted into every TU that uses it, so a client links its own
+  # copy -- which is exactly what -fvisibility-inlines-hidden is for.
+  #
+  # The strongest single piece of evidence is not the absence of client
+  # references but the new binaries' own .symtab: all 2318 symbols are still
+  # present and defined there, as LOCAL FUNC (1966/1966 and 352/352). The code
+  # was not removed; only its export visibility was demoted, which is the
+  # signature of -fvisibility-inlines-hidden and not of a deletion.
+  #
+  # This accounts for 77 of the 79 findings on libonedal_core.so and 6 of the 7
+  # on libonedal.so, and it goes away by itself once a post-inlines-hidden
+  # release is published as the baseline -- at which point this override should
+  # be deleted rather than left to rot.
+  #
+  # Gives up: gating on a genuine visibility regression -- a STRONG exported
+  # function that a future change stops exporting -- and this is the most
+  # dangerous entry in this file, so it is worth being exact about why the
+  # override cannot be narrowed. abicheck picks this kind from `visibility` and
+  # `elf_only_mode` alone (_check_removed_function, diff_symbols.py:273-303);
+  # symbol *binding* never reaches the Function model at all, only
+  # elf.symbols[].binding, and it is not available as a selector. `is_inline` is
+  # not a usable proxy either: an in-class-defined (implicitly inline, WEAK
+  # COMDAT) member is recorded with is_inline false. So a WEAK COMDAT demotion
+  # and a STRONG public-API demotion are the *same record* to this code path,
+  # and no rule of any kind -- suppression or policy -- can separate them today.
+  #
+  # What this override still buys over the suppression file it replaces:
+  # visibility. Synthesizing exactly that regression on a copy of the real
+  # snapshot (oneapi::dal::v1::homogen_table::kind(), cpp/oneapi/dal/table/
+  # homogen.hpp:30, a non-inline non-template GLOBAL symbol, set to hidden and
+  # dropped from elf.symbols) took the unsuppressed breaking count from 6 to 7
+  # and kept exit 4; with the old suppression file the mutated run's visible
+  # finding set was byte-identical to the clean run's, exit 0, the only trace
+  # anywhere being suppressed_count 16 -> 17, which nothing gates on. Under this
+  # policy file the same regression appears as an additional
+  # `[risk] func_visibility_changed` line naming the symbol and its header, so a
+  # reviewer sees a new entry in a list they are expected to read. It still does
+  # not fail the job -- that needs binding as a selector, upstream.
+  #
+  # Enabling L3 build-context evidence would name the root cause directly:
+  # -fvisibility-inlines-hidden is in ABI_RELEVANT_FLAG_PREFIXES
+  # (buildsource/adapters/base.py:55) and yields exactly one
+  # `abi_relevant_build_flag_changed` finding, itself `risk`. Measured on the
+  # real flag sets. Worth doing, but note it is *additive*: nothing correlates
+  # that finding with the per-symbol ones, so it would explain the 77 rather
+  # than replace them. Both workflows would have to collect L3 for it to fire.
+  func_visibility_changed: risk
+
+  # An evidence gap in abicheck's own capture path, not a change in oneDAL.
+  #
+  # Three types are reported as type_vtable_changed = BREAKING: on
+  # libonedal_core.so daal::algorithms::interface1::SerializableArgument
+  # (cpp/daal/include/algorithms/algorithm_types.h:284) and
+  # daal::algorithms::interface1::AlgorithmContainerIfaceImpl
+  # (cpp/daal/include/algorithms/algorithm_container_base.h:65), and on
+  # libonedal.so oneapi::dal::detail::system_parameters
+  # (cpp/oneapi/dal/detail/parameters/system_parameters.hpp:33).
+  #
+  # Exactly four recorded fields differ, and all four differ in the same
+  # direction -- the scan's capture of the new side has no layout facts at all:
+  #
+  #   SerializableArgument         vtable ["...D4Ev"] -> [],  size_bits 384 -> null,
+  #                                base_offsets {SerializationIface:0, Argument:64} -> {},
+  #                                vptr_offset_bits 0 -> null
+  #   AlgorithmContainerIfaceImpl  vtable ["...D4Ev"] -> [],  size_bits 192 -> null,
+  #                                base_offsets {AlgorithmContainerIface:0} -> {},
+  #                                vptr_offset_bits 0 -> null
+  #   system_parameters            vtable ["...D4Ev"] -> [],  size_bits 192 -> null,
+  #                                base_offsets {base:0} -> {}, vptr_offset_bits 0 -> null
+  #
+  # Everything else on the records is equal, including kind, virtual_bases,
+  # source_location, data_size_bits, is_standard_layout and
+  # is_trivially_copyable. The single vtable slot lost on each side is the
+  # implicit virtual destructor; all three types still have one today.
+  #
+  # That asymmetry is produced by abicheck, not by oneDAL, and not by baseline
+  # staleness: `abicheck dump` of the *current* tree, under identical flags,
+  # records system_parameters with vtable = 1 slot, size_bits = 192 and
+  # base_offsets = {base: 0} -- byte-identical to the 2026.0.0 baseline's own
+  # record -- while `abicheck scan` of that same tree records none of them. So
+  # `compare <dump of 2026.0.0> <dump of main>` emits no vtable finding and no
+  # layout finding at all, and only the scan path does. The two trees do agree
+  # on these types; the two capture paths do not agree with each other. (An
+  # earlier revision of this repo justified the suppression as "identical
+  # vtable, size_bits and base_offsets on both sides". That is true of the two
+  # *dumps*, and false of the snapshots the CI scan actually compares, where
+  # the new side is empty. The conclusion was right and the stated mechanism
+  # was wrong; this is the measured version.)
+  #
+  # abicheck reaches BREAKING here through
+  # `if t_old.size_bits is None or t_new.size_bits is None: return True` in
+  # _vtable_transition_is_evidenced (diff_types.py:1227) -- an unknown size
+  # refutes nothing, so the transition counts as evidenced. The same missing
+  # size_bits also raises a non-escalating `layout_unverifiable` risk finding on
+  # the same types, and abicheck cross-references the two so the pairing is
+  # visible. Reported upstream and answered deliberately: abicheck keeps the
+  # vtable finding at BREAKING on the grounds that demoting an unevidenced
+  # vtable transition could hide a real break. So this override is oneDAL's own
+  # risk call, not a wait on an upstream fix, and it should be revisited if the
+  # set of three ever changes.
+  #
+  # Gives up: gating on a real vtable slot reorder or insertion. Discriminator
+  # for a reviewer: a genuinely evidenced vtable change carries no paired
+  # layout_unverifiable finding, because both sides would have size_bits. A
+  # type_vtable_changed that appears *without* that pairing is the real thing
+  # and must be treated as a break regardless of this override.
+  type_vtable_changed: risk
+
+  # The same lost WEAK symbols, reported a second time under a second kind.
+  #
+  # oneapi::dal::preview::spmd::communicator<...>'s bcast, allgatherv,
+  # allreduce and sendrecv_replace are reported as
+  # experimental_removed_without_replacement in addition to the
+  # func_visibility_changed findings the first override already covers.
+  # Verified: all four are in the lost-WEAK set (the old side's WEAK exports
+  # minus every symbol the new side defines is exactly these four under this
+  # stem), and cpp/oneapi/dal/spmd/communicator.hpp still declares every one of
+  # them on both sides. One cause surfacing under two kinds, not a second,
+  # independent removal. Exactly four findings, one per symbol: an earlier
+  # abicheck reported each twice, once per inline-namespace spelling
+  # (preview::spmd::v1::communicator and preview::spmd::communicator), and the
+  # commit pinned by ci.yml deduplicates them.
+  #
+  # Gives up: gating on a real removal from oneapi::dal::preview -- which
+  # oneDAL documents as its experimental namespace and does not promise ABI
+  # stability for, so `risk` is the classification this kind should have had
+  # for this project in the first place. Note the override is global, so it
+  # also covers a hypothetical experimental removal outside preview::; there is
+  # none today.
+  experimental_removed_without_replacement: risk
+
+  # 2 findings, and they are one entity reported twice:
+  # oneapi::dal::detail::v1::cpu_feature_map and
+  # oneapi::dal::detail::cpu_feature_map, with identical value hashes on both
+  # spellings on both sides (expr:3a04b5e463f1ca23 -> expr:6c4859024638b5ce).
+  #
+  # Not an inline namespace, despite how it reads:
+  # cpp/oneapi/dal/detail/cpu.hpp:26 opens a plain `namespace v1 {` and line 103
+  # re-exports with `using v1::cpu_feature_map;`. The snapshot records that
+  # using-declaration as a second full declaration. It is not specific to this
+  # constant either -- the same dump carries 98 such alias groups among 267
+  # constants, 1477 duplicated mangled function names out of 6009, and duplicate
+  # `range`/`v1::range` types. abicheck already collapses the type and variable
+  # cases, which is what the "Duplicate type names skipped (first-wins)" and
+  # "Duplicate mangled variables skipped" warnings in this job's log are; the
+  # constant path has no equivalent, so the count here is 2 instead of 1. The
+  # duplication does not reproduce under vanilla clang-18 -ast-dump=json on the
+  # same headers (UsingShadowDecl comes through implicit and unnamed, and the
+  # dumper's _categorize skips it), so it is icpx-frontend-specific and belongs
+  # upstream rather than in this file.
+  #
+  # This one is a true positive: main really did add
+  # `{ uint64_t(cpu_feature::amx_bf16), "Intel(R) AMX bfloat16" }` to
+  # cpu_feature_map in cpp/oneapi/dal/detail/cpu.hpp. It is an addition to a
+  # table in an internal namespace, and it is exactly the kind of change this
+  # job should print and not fail on.
+  #
+  # Gives up: gating on a changed *public* constant, including on the daal
+  # side, where constants such as daal::DAAL_DEFAULT_ALIGNMENT_MASK sit in the
+  # `daal::` root and no namespace-based scoping would cover them. There are
+  # none today (daal-side constant_changed is 0). This is the override most
+  # worth narrowing if abicheck ever grows a selector-scoped reclassification,
+  # and the one to re-examine first when this file is next reviewed.
+  constant_changed: risk

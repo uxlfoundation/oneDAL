@@ -75,8 +75,12 @@ compile:
 scope:
   public: true
 
-# Suppression-file hygiene: .github/.abicheck-suppress.yaml must stay
-# well-formed and every entry must carry a reason.
+# Suppression-file hygiene. oneDAL deliberately ships no suppression file --
+# .github/.abicheck-policy.yaml reclassifies findings instead of deleting them,
+# so that every difference stays in the report; see the rationale there. These
+# two keys are inert while no --suppress is passed, and are kept so that any
+# suppression file added later has to be well-formed and has to justify every
+# entry, rather than that requirement having to be remembered.
 suppression:
   strict: true
   require_justification: true
@@ -92,9 +96,9 @@ suppression:
 #
 # The preset stays `default` on purpose -- abi_breaking=error, so a genuine
 # ABI break still fails the job. Silencing a *category* wholesale (preset
-# info-only) would also silence real breaks; the two finding classes oneDAL
-# currently needs to tolerate are silenced individually, by change_kind, in
-# .github/.abicheck-suppress.yaml.
+# info-only) would also silence real breaks; the finding kinds oneDAL currently
+# needs to tolerate are reclassified individually, per kind, in
+# .github/.abicheck-policy.yaml, which keeps them in the report.
 exit_code_scheme: severity
 
 severity:
