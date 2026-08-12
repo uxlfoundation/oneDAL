@@ -144,7 +144,7 @@ jobs:
       # scanner, the scan misses three genuine findings the matched baseline
       # surfaces. abicheck warns about it on stderr, naming each degraded
       # fact, but a warning is not a gate. Full analysis in
-      # .github/.abicheck-suppress.yaml.
+      # .github/.abicheck-policy.yaml.
       #
       # Re-measured on the pinned commit, writing compressed snapshots: the
       # daal dump takes 20m47s and peaks at 5.47 GB RSS, producing 2.25 MiB of
@@ -210,7 +210,7 @@ jobs:
       # the compressed baseline yields identical findings to the same scan
       # against the uncompressed one -- verified on both libraries, identical
       # finding_id sets, same verdict COMPATIBLE_WITH_RISK, same exit 0, same
-      # 79 and 17 suppressed. Verified end to end on the pinned commit: dump
+      # 82 and 16 reported findings. Verified end to end on the pinned commit: dump
       # straight to .json.zst, then `scan --against` that file. Note
       # this needs an abicheck at or after the fix for its zstd window-size
       # unit bug, where the reader derived its window ceiling in KiB and

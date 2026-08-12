@@ -278,23 +278,32 @@ jobs:
       # public-header-dir is what establishes the public/internal boundary:
       # without it the exported_not_public / public_not_exported / RTTI
       # cross-checks all report "skipped -- no public-header provenance", and
-      # the suppression engine cannot tell a public-reachable detail:: symbol
-      # from a truly internal one.
+      # abicheck cannot tell a public-reachable detail:: symbol from a truly
+      # internal one.
       #
-      # public-header-dir and suppress are passed as real Action inputs here.
-      # An earlier revision of this job had to smuggle both through
-      # extra-args, because the composite Action forwarded them only in its
-      # compare branch, never in scan. The pinned commit forwards both in the
-      # scan branch (action/run.sh:661 and :726), so extra-args is no longer
-      # needed. The suppress forwarding is gated on a baseline being present,
-      # which is the case here.
+      # public-header-dir and policy-file are passed as real Action inputs
+      # here. An earlier revision of this job had to smuggle them through
+      # extra-args, because the composite Action forwarded the policy and
+      # suppression options only in its compare branch, never in scan. The
+      # pinned commit forwards them in the scan branch too (action/run.sh:661
+      # and :723-727), gated on a baseline being present, which is the case
+      # here.
+      #
+      # extra-args is still used, for one thing only: --max-findings. It
+      # defaults to 20 (cli_scan.py:1223-1233) and the text renderer stops
+      # there with "... additional findings omitted; rerun `compare` for the
+      # full list" -- measured, exactly 20 of daal's 82 findings printed
+      # without it. Raising the cap cannot change the verdict or the exit code,
+      # only how much of the list a reviewer gets to see.
       #
       # Not set, and deliberately: `policy`. It has a non-empty action.yml
-      # default (strict_abi) that now reaches the CLI as an explicit
-      # --policy strict_abi. Verified inert for oneDAL -- the same scan with
-      # and without it produces identical finding_id sets and the same exit
-      # code -- because the gate this job relies on is the severity model in
-      # .abicheck.yml, not the named policy.
+      # default (strict_abi) that reaches the CLI as an explicit
+      # --policy strict_abi whenever a baseline is present, so it is passed on
+      # every run whether this job asks for it or not. Verified harmless
+      # alongside policy-file: the same scan with `--policy strict_abi
+      # --policy-file .github/.abicheck-policy.yaml` and with the policy file
+      # alone produce byte-identical results, so the file takes precedence and
+      # the combination is not a usage error.
       #
       # ── The baseline must come from this exact abicheck commit ────────────
       #
@@ -318,7 +327,7 @@ jobs:
       # So: bumping the pin below obliges re-dispatching
       # .github/workflows/abicheck-baseline.yml for the same tag, and the two
       # pins must be changed together. The full analysis lives in
-      # .github/.abicheck-suppress.yaml.
+      # .github/.abicheck-policy.yaml.
       #
       # Note also that .github/abicheck-baselines/ does not exist until that
       # workflow has been dispatched at least once; until then both steps
@@ -332,71 +341,107 @@ jobs:
       # abicheck infers it from the .zst suffix on both the dump and the scan
       # side, and a scan against the compressed baseline produces identical
       # findings to the same scan against the uncompressed one (same
-      # finding_id sets, same verdict, same exit code, same suppressed counts).
-      # Verified on both libraries, end to end on the pinned commit.
+      # finding_id sets, same verdict, same exit code). Verified on both
+      # libraries, end to end on the pinned commit.
       #
-      # ── Gating ────────────────────────────────────────────────────────────
+      # ── Gating: report every difference, gate only on a real break ────────
       #
-      # The gate is the severity model plus change_kind-scoped
-      # suppressions, not fail-on-breaking: 'false'.
+      # Two separate questions, answered by two separate mechanisms:
       #
-      # fail-on-breaking only zeroes the *step's* exit status after the fact
-      # (action/run.sh:1483). The CLI still exits 4 and the report still says
-      # verdict: BREAKING, so the JSON, the SARIF upload and the PR comment
-      # all keep claiming oneDAL broke its ABI. That is the wrong signal to
-      # publish, and it also disables gating on genuine breaks.
+      #  * "what changed" -- every finding is printed, with its symbol and its
+      #    source location. Nothing is filtered out of the report.
+      #  * "did oneDAL break its ABI" -- the severity model in .abicheck.yml,
+      #    reclassified per finding kind by .github/.abicheck-policy.yaml.
+      #
+      # An earlier revision of this job answered both with a suppression file,
+      # and that was wrong, because a suppression rule *removes* the matching
+      # change before the verdict and the severity counts are computed. In the
+      # format this job runs -- `scan --format text`, the only formats scan
+      # accepts being text and json -- a suppressed finding leaves no trace at
+      # all: not the finding, not a count, not even a note that a suppression
+      # file was in effect. Measured on libonedal.so: 3 findings shown, 17
+      # dropped, among them 6 func_visibility_changed and 1
+      # type_vtable_changed. (The markdown reporter does itemize suppressed
+      # findings, but markdown is not a legal format for scan; SARIF drops
+      # them and is compare-only; the sticky PR comment mentions neither the
+      # list nor the count.) The worst case is not noise but silence: a
+      # synthesized STRONG-symbol visibility regression -- exactly the class of
+      # break the kind rule was covering for -- produced a suppressed run whose
+      # visible finding set was byte-identical to a clean run's, exit 0, with
+      # the change of suppressed_count from 16 to 17 as its only trace
+      # anywhere.
+      #
+      # A policy-file override changes only the classification, so the finding
+      # stays in the list. That is the whole reason for the swap.
+      #
+      # Not used, and deliberately: fail-on-breaking. It only zeroes the
+      # *step's* exit status after the fact (action/run.sh:1483). The CLI still
+      # exits 4 and the report still says verdict: BREAKING, so the JSON, the
+      # SARIF upload and the PR comment all keep claiming oneDAL broke its ABI.
+      # That is the wrong signal to publish, and it also disables gating on
+      # genuine breaks.
       #
       # .abicheck.yml sets exit_code_scheme: severity (abicheck#700 wired
       # `scan --against` to the severity model; the default is still "legacy",
-      # which ignores it) with preset: default -- so abi_breaking stays
-      # `error` and a real break still fails this job. The finding classes
-      # oneDAL currently has to tolerate are silenced individually, by
-      # change_kind, in .github/.abicheck-suppress.yaml, with the evidence for
-      # each recorded there:
+      # which ignores it) with preset: default -- so abi_breaking stays `error`
+      # and a real break still fails this job. .github/.abicheck-policy.yaml
+      # moves four kinds to `risk`, each with the evidence and, importantly,
+      # the class of break the override gives up gating on, recorded there:
       #
       #  * func_visibility_changed -- the 2026.0.0 baseline predates
       #    makefile:134 gaining -fvisibility-inlines-hidden, so main dropped
       #    1966 libonedal_core.so and 352 libonedal.so exports. All 2318 are
       #    WEAK COMDAT inline/template instantiations that clients instantiate
-      #    locally; verified that zero STRONG symbols, data objects, vtables,
-      #    typeinfos or guard variables are affected and that no built client
-      #    object references any of them. This is the only entry that
-      #    suppresses a real change in what oneDAL exports, it accounts for
-      #    77 of the 79 breaking findings on libonedal_core.so and 6 of the 7
-      #    on libonedal.so, and it goes away once a post-inlines-hidden
+      #    locally, and all 2318 are still defined in the new binaries' .symtab
+      #    as LOCAL FUNC -- the code was not removed, only its export
+      #    visibility demoted. Zero STRONG symbols, data objects, vtables,
+      #    typeinfos or guard variables are affected. 77 of daal's 82 findings
+      #    and 6 of oneapi::dal's 16. Goes away once a post-inlines-hidden
       #    release is published as the baseline.
+      #  * type_vtable_changed -- 2 types on libonedal_core.so, 1 on
+      #    libonedal.so, and an artifact of abicheck's own capture path rather
+      #    than a change in oneDAL: `abicheck dump` of the current tree records
+      #    the same vtable, size_bits and base_offsets as the baseline, while
+      #    `abicheck scan` of that same tree records none of them, so the diff
+      #    sees populated -> empty. dump-vs-dump emits neither this finding nor
+      #    its paired layout_unverifiable; only the scan path does. abicheck
+      #    keeps the finding BREAKING by design (an unverifiable vtable
+      #    transition may hide a real break) and only cross-references the
+      #    paired layout finding, so the demotion is oneDAL's own risk call.
       #  * experimental_removed_without_replacement -- four of those same lost
       #    WEAK spmd::communicator symbols, reported a second time under a
-      #    second kind.
-      #  * type_vtable_changed -- fires on types whose recorded vtable,
-      #    size_bits and base_offsets are identical on both sides, reproduced
-      #    by scanning a binary against a dump of itself, and reported by
-      #    abicheck simultaneously as non-escalating layout_unverifiable.
-      #    abicheck considers this correct-by-design rather than a bug: it
-      #    keeps the finding BREAKING deliberately (an unverifiable vtable
-      #    transition may hide a real break) and only cross-references the
-      #    paired layout finding. So this entry is oneDAL's policy decision,
-      #    not a workaround waiting on an upstream fix.
-      #  * three internal namespaces, mirroring .abignore -- 4 compatible-
-      #    bucket imported_symbol_removed plus the one genuine internal
-      #    addition main made (an amx_bf16 row in detail::cpu_feature_map).
+      #    second kind; all four still declared in
+      #    cpp/oneapi/dal/spmd/communicator.hpp on both sides.
+      #  * constant_changed -- one entity reported twice through a
+      #    `using v1::cpu_feature_map;` re-export, whose real content is the
+      #    amx_bf16 row main added to detail::cpu_feature_map. A true positive,
+      #    in an internal table, of exactly the kind this job should print and
+      #    not fail on.
       #
-      # See the suppression file for the per-entry evidence, and for the two
-      # entries an earlier revision of this job needed that are now gone:
-      # internal_template_leaks_via_public_api and a blanket constant_changed
-      # were both version-skew artifacts and match nothing against a
-      # correctly-versioned baseline.
+      # Two kinds an earlier revision of this job had to silence are absent
+      # from the policy file because they no longer fire at all against a
+      # version-matched baseline: internal_template_leaks_via_public_api (was
+      # 46) and constant_changed at its old scale (was 44 on libonedal.so, now
+      # 2) were both version-skew artifacts of detectors that keyed identity on
+      # a `name` field the two abicheck versions spelled differently.
       #
       # Verified locally against the pinned abicheck, both libraries, with this
-      # exact config + suppression file and a baseline dumped by that same
-      # commit: verdict COMPATIBLE_WITH_RISK and exit 0 on each side, with
-      # every finding still present in the JSON (libonedal_core.so: 79
-      # suppressed, 3 risk findings reported; libonedal.so: 17 suppressed, 3
-      # reported). The reported findings are 2 layout_unverifiable + 1
-      # header_binary_context_mismatch per library, all non-escalating.
-      # Negative controls: the same two scans with no suppression file exit 4
-      # (79 breaking on daal; 7 breaking + 6 api_break on oneapi::dal), so
-      # the gate has not been disabled.
+      # exact config and policy file and a baseline dumped by that same commit:
+      #
+      #   libonedal_core.so  COMPATIBLE_WITH_RISK  exit 0
+      #                      breaking=0 api_break=0 risk=82 compatible=1
+      #   libonedal.so       COMPATIBLE_WITH_RISK  exit 0
+      #                      breaking=0 api_break=0 risk=16 compatible=12
+      #
+      # abi_breaking count 0 and blocking false on both, "severity gate: pass
+      # (no error-level findings)", every finding printed with symbol and
+      # location, and no `suppressed` key in the JSON at all. Negative
+      # controls: the same two scans with neither policy file nor suppressions
+      # exit 4 (79 breaking on daal; 7 breaking + 6 api_break on oneapi::dal),
+      # and the reverse direction -- 2026.0.0's binaries scanned against a
+      # baseline dumped from main, so that symbols really are gone -- exits 4
+      # with verdict BREAKING and blocking true even *with* this policy file
+      # applied. The gate has not been disabled.
       - name: Run abicheck (daal)
         uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
         with:
@@ -417,7 +462,8 @@ jobs:
           gcc-options: "-std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json.zst
           public-header-dir: cpp/daal/include
-          suppress: .github/.abicheck-suppress.yaml
+          policy-file: .github/.abicheck-policy.yaml
+          extra-args: --max-findings 200
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
@@ -440,6 +486,7 @@ jobs:
           gcc-options: "-fsycl -std=c++17"
           abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json.zst
           public-header-dir: cpp/oneapi
-          suppress: .github/.abicheck-suppress.yaml
+          policy-file: .github/.abicheck-policy.yaml
+          extra-args: --max-findings 200
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
