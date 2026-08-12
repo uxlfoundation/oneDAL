@@ -28,7 +28,7 @@ Sphinx==9.1.0
 sphinx-book-theme==1.4.0
 sphinx-notfound-page==1.1.0
 sphinx-prompt==1.10.2
-Sphinx-Substitution-Extensions==2026.8.2
+Sphinx-Substitution-Extensions==2026.6.17
 sphinx-tabs==3.5.0
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
