@@ -327,12 +327,13 @@ jobs:
       # The baselines are .json.zst, which is what makes committing them
       # possible at all: the uncompressed snapshots are 151.5 MiB (daal) and
       # 114.9 MiB (oneapi::dal), both over GitHub's hard 100 MiB per-file push
-      # limit, while zstd brings them to ~2.1 MiB each (1.8% of the decoded
-      # size). Compression is a storage envelope only -- abicheck infers it
-      # from the .zst suffix on both the dump and the scan side, and a scan
-      # against the compressed baseline produces byte-identical findings to
-      # the same scan against the uncompressed one (same finding_id sets, same
-      # verdict, same exit code). Verified end to end on the pinned commit.
+      # limit, while zstd brings them to 2.25 MiB and 2.07 MiB (1.5% and 1.8%
+      # of the decoded size). Compression is a storage envelope only --
+      # abicheck infers it from the .zst suffix on both the dump and the scan
+      # side, and a scan against the compressed baseline produces identical
+      # findings to the same scan against the uncompressed one (same
+      # finding_id sets, same verdict, same exit code, same suppressed counts).
+      # Verified on both libraries, end to end on the pinned commit.
       #
       # ── Gating ────────────────────────────────────────────────────────────
       #

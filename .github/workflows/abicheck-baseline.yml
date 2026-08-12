@@ -147,8 +147,10 @@ jobs:
       # .github/.abicheck-suppress.yaml.
       #
       # Re-measured on the pinned commit, writing compressed snapshots: the
-      # daal dump takes 20m21s and peaks at 5.44 GB RSS; oneapi::dal 7m11s /
-      # 3.72 GB. See the size step below for the resulting file sizes.
+      # daal dump takes 20m47s and peaks at 5.47 GB RSS, producing 2.25 MiB of
+      # .json.zst from 159,154,547 decoded bytes (1.5%); oneapi::dal 7m11s /
+      # 3.90 GB / 2.07 MiB from 120,748,896 bytes (1.8%). abicheck logs that
+      # ratio itself, as a "Storage: zstd, ... -> ... bytes" line.
       - name: Dump baseline snapshot (daal)
         uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
         with:
@@ -200,14 +202,16 @@ jobs:
       # that `depth: headers` attaches unconditionally -- and both are over
       # GitHub's hard 100 MiB per-file push limit, so the "Commit baseline
       # dumps" step below would be rejected by the remote after ~70 minutes of
-      # building and dumping. zstd brings the same content to ~2.1 MiB (1.8%
-      # of the decoded size; abicheck logs the ratio in the dump step).
+      # building and dumping. zstd brings the same content to 2.25 MiB and
+      # 2.07 MiB, 1.5% and 1.8% of the decoded size.
       #
       # abicheck infers the envelope from the suffix on both ends
       # (--compression auto), and it is a storage detail only: a scan against
-      # the compressed baseline yields byte-identical findings to the same scan
-      # against the uncompressed one. Verified end to end on the pinned commit
-      # -- dump straight to .json.zst, then `scan --against` that file. Note
+      # the compressed baseline yields identical findings to the same scan
+      # against the uncompressed one -- verified on both libraries, identical
+      # finding_id sets, same verdict COMPATIBLE_WITH_RISK, same exit 0, same
+      # 79 and 17 suppressed. Verified end to end on the pinned commit: dump
+      # straight to .json.zst, then `scan --against` that file. Note
       # this needs an abicheck at or after the fix for its zstd window-size
       # unit bug, where the reader derived its window ceiling in KiB and
       # handed it to a decompressor taking bytes, so it refused any frame
