@@ -38,7 +38,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using Float = std::tuple_element_t<0, TestType>;
 
     constexpr Float data[] = { 0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 0.0, 0.2,  0.15, 0.15, 5.0,
-                                 5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2, 5.15, 5.15, 10.0, 0.0 };
+                               5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2, 5.15, 5.15, 10.0, 0.0 };
     const auto x = homogen_table::wrap(data, 11, 2);
 
     constexpr std::int64_t min_cluster_size = 5;
@@ -192,8 +192,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // Three clusters in 1D, well-separated
     constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
-                                 5.0,  5.1,  5.2,  5.15,  5.05, //
-                                 10.0, 10.1, 10.2, 10.15, 10.05 };
+                               5.0,  5.1,  5.2,  5.15,  5.05, //
+                               10.0, 10.1, 10.2, 10.15, 10.05 };
     const auto x = homogen_table::wrap(data, 15, 1);
 
     this->run_checks(x, 5, 5, 3);
@@ -256,38 +256,38 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 
     // Three clusters with varying sizes: 3, 5, 7 points
     constexpr Float data[] = { // Cluster A: 3 points
-                                 0.0,
-                                 0.0,
-                                 0.1,
-                                 0.1,
-                                 0.2,
-                                 0.0,
-                                 // Cluster B: 5 points
-                                 5.0,
-                                 5.0,
-                                 5.1,
-                                 5.1,
-                                 5.2,
-                                 5.0,
-                                 5.0,
-                                 5.2,
-                                 5.15,
-                                 5.15,
-                                 // Cluster C: 7 points
-                                 10.0,
-                                 10.0,
-                                 10.1,
-                                 10.1,
-                                 10.2,
-                                 10.0,
-                                 10.0,
-                                 10.2,
-                                 10.15,
-                                 10.15,
-                                 10.05,
-                                 10.05,
-                                 10.1,
-                                 10.0
+                               0.0,
+                               0.0,
+                               0.1,
+                               0.1,
+                               0.2,
+                               0.0,
+                               // Cluster B: 5 points
+                               5.0,
+                               5.0,
+                               5.1,
+                               5.1,
+                               5.2,
+                               5.0,
+                               5.0,
+                               5.2,
+                               5.15,
+                               5.15,
+                               // Cluster C: 7 points
+                               10.0,
+                               10.0,
+                               10.1,
+                               10.1,
+                               10.2,
+                               10.0,
+                               10.0,
+                               10.2,
+                               10.15,
+                               10.15,
+                               10.05,
+                               10.05,
+                               10.1,
+                               10.0
     };
     const auto x = homogen_table::wrap(data, 15, 2);
 
@@ -586,8 +586,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using Float = std::tuple_element_t<0, TestType>;
 
     constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
-                                 5.0,  5.1,  5.2,  5.15,  5.05, //
-                                 10.0, 10.1, 10.2, 10.15, 10.05 };
+                               5.0,  5.1,  5.2,  5.15,  5.05, //
+                               10.0, 10.1, 10.2, 10.15, 10.05 };
     const auto x = homogen_table::wrap(data, 15, 1);
 
     this->run_checks(x, 5, 5, 3);
@@ -784,8 +784,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using Float = std::tuple_element_t<0, TestType>;
 
     constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
-                                 5.0,  5.1,  5.2,  5.15,  5.05, //
-                                 10.0, 10.1, 10.2, 10.15, 10.05 };
+                               5.0,  5.1,  5.2,  5.15,  5.05, //
+                               10.0, 10.1, 10.2, 10.15, 10.05 };
     const std::int64_t row_count = 15;
     const auto x = homogen_table::wrap(data, row_count, 1);
 
@@ -1434,8 +1434,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using Float = std::tuple_element_t<0, TestType>;
 
     constexpr Float data[] = { 0.0,  0.1,  0.2,  0.15,  0.05, //
-                                 5.0,  5.1,  5.2,  5.15,  5.05, //
-                                 10.0, 10.1, 10.2, 10.15, 10.05 };
+                               5.0,  5.1,  5.2,  5.15,  5.05, //
+                               10.0, 10.1, 10.2, 10.15, 10.05 };
     const auto x = homogen_table::wrap(data, 15, 1);
 
     this->run_checks(x, 5, 5, 3);
