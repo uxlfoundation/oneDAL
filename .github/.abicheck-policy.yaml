@@ -186,13 +186,55 @@ overrides:
   # reviewer sees a new entry in a list they are expected to read. It still does
   # not fail the job -- that needs binding as a selector, upstream.
   #
-  # Enabling L3 build-context evidence would name the root cause directly:
+  # Enabling L3 build-context evidence names the root cause directly:
   # -fvisibility-inlines-hidden is in ABI_RELEVANT_FLAG_PREFIXES
   # (buildsource/adapters/base.py:55) and yields exactly one
-  # `abi_relevant_build_flag_changed` finding, itself `risk`. Measured on the
-  # real flag sets. Worth doing, but note it is *additive*: nothing correlates
-  # that finding with the per-symbol ones, so it would explain the 77 rather
-  # than replace them. Both workflows would have to collect L3 for it to fire.
+  # `abi_relevant_build_flag_changed` finding, itself `risk`. Note it is
+  # *additive*: nothing correlates that finding with the per-symbol ones, so it
+  # explains the 77 rather than replacing them, and both workflows have to
+  # collect L3 for it to fire at all.
+  #
+  # Measured end to end on the oneapi::dal side, with L3 supplied from oneDAL's
+  # *Bazel* build rather than a compile DB -- `bazel aquery --output=jsonproto`
+  # is an analysis query, so it needs no build (7s, 0 executed actions) and its
+  # JSON goes straight to `--build-info`, which abicheck sniffs and routes to
+  # its Bazel adapter. Both sides at `--depth build`:
+  #
+  #   L3_build present   bazel, 2202 compile units
+  #   verdict COMPATIBLE_WITH_RISK, exit 0, abi_breaking 0, blocking false
+  #   risk 24 (16 at depth headers, +8 from L3)
+  #
+  # The +8 are worth knowing before turning this on:
+  #  * 1 abi_relevant_build_flag_changed -- '-fvisibility-inlines-hidden'
+  #    added. The one wanted here, and it agrees with makefile:134, i.e. it
+  #    describes the make-built binaries CI actually scans.
+  #  * 6 link_export_policy_changed -- SONAME appears on six shared-library
+  #    targets. True of the Bazel build (main's dev/bazel/cc.bzl:275 adds
+  #    -Wl,-soname, 2026.0.0 had none) and a non-event for the scanned
+  #    artifacts, whose SONAME is libonedal.so.4 on *both* sides per readelf.
+  #    The cost of describing one build system while scanning another.
+  #  * 1 header_parse_context_drift -- permanent with Bazel L3: it fires
+  #    whenever the headers were not parsed from a compile DB, and Bazel emits
+  #    none. Same root as the header_binary_context_mismatch already reported.
+  #
+  # Two collection details are load-bearing. Pin the ISA (`--cpu=avx2`, what
+  # oneDAL's own nightly Bazel job uses): unpinned, the tag resolves one ISA
+  # set and main another, and -march reads as changed ('-march=nocona,
+  # -march=skx' -> '+haswell') purely from that -- a false positive, since
+  # dev/make/compiler_definitions/icx.mkl.32e.mk pins the same -march values in
+  # both trees. And capture the aquery explicitly rather than letting abicheck
+  # infer one: its inferred query is deps(//...), which does not even load on
+  # oneDAL (cpp/oneapi/dal/algo/pca/backend/test has no .hpp, so dal.bzl:53's
+  # glob fails with allow_empty=False), and a `build.query` in .abicheck.yml
+  # cannot stand in -- that path ingests only a compile DB file, never the
+  # command's stdout.
+  #
+  # The cost is not the aquery (7s + ~1s to ingest) but the S2 preprocessor
+  # tier that `--depth build` turns on: the oneapi::dal scan goes from ~4 to
+  # 20m08s (preprocessor_scan 919.72s over 1952 TUs, 257 clang runs failing),
+  # while the dump is unchanged (7m19s vs 7m11s) and the snapshot grows 2.07 ->
+  # 2.29 MiB. Seed the scan with the PR diff to narrow that tier before paying
+  # it on every PR.
   func_visibility_changed: risk
 
   # An evidence gap in abicheck's own capture path, not a change in oneDAL.
