@@ -123,11 +123,10 @@ def _unpack_linking_contexts(linking_contexts):
                     dynamic_libs_to_link.append(lib_to_link)
                     dynamic_libs.append(lib_to_link.dynamic_library)
                 elif lib_to_link.interface_library:
-                    # A `cc_import` that only carries an `interface_library`
-                    # (`system_provided = True`) is a Windows import library:
-                    # the shared object itself comes from the environment.
-                    # Treat it as a dynamic dependency so it is linked, never
-                    # merged into oneDAL's static archives.
+                    # A Windows import library with no shared library recorded
+                    # next to it. Without this branch it matches nothing and is
+                    # dropped without a word, and every symbol it was supposed
+                    # to import comes back undefined at link time.
                     libs_to_link.append(lib_to_link)
                     dynamic_libs_to_link.append(lib_to_link)
                 elif lib_to_link.static_library or lib_to_link.pic_static_library:

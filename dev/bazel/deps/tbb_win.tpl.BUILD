@@ -15,13 +15,18 @@ cc_library(
 # Two import libraries both define `__NULL_IMPORT_DESCRIPTOR`, so the merge
 # emits `LNK4006: __NULL_IMPORT_DESCRIPTOR already defined in tbb12.lib`, and
 # the released `onedal_core.lib` ends up carrying TBB import descriptors that
-# the Make package does not ship. `cc_import` with `system_provided = True`
-# keeps them on the link line only; the DLLs are resolved from `PATH` at run
-# time, exactly as with the Make build.
+# the Make package does not ship.
+#
+# `cc_import` pairs each import library with the DLL it stands for, which is
+# how oneDAL already models its own cross-DLL dependencies (see
+# `_make_implib_for_dll` in dev/bazel/cc/link.bzl): the import library goes on
+# the link line, the archives stay clean. Do not use `system_provided = True`
+# here -- an import library with no shared library behind it is dropped before
+# it reaches lld-link, and every TBB symbol comes back undefined.
 cc_import(
     name = "tbb_import",
     interface_library = "lib/tbb12.lib",
-    system_provided = True,
+    shared_library = "bin/tbb12.dll",
 )
 
 cc_library(
@@ -49,7 +54,7 @@ cc_library(
 cc_import(
     name = "tbbmalloc_import",
     interface_library = "lib/tbbmalloc.lib",
-    system_provided = True,
+    shared_library = "bin/tbbmalloc.dll",
 )
 
 cc_library(
