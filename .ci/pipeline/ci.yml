@@ -688,7 +688,7 @@ jobs:
   # Debug MSVC runtime (Make MSVC_RUNTIME_VERSION=debug): checks that the
   # `-MDd` build links and that its libraries land under the `d`-suffixed
   # names, so an MD and an MDd release can share one tree. Built after the
-  # release tree above is copied out, since it overwrites bazel-bin/release.
+  # release tree above is copied out, since it reuses bazel-bin/release.
   # Analysis-only check of both MSVC-runtime configurations, ahead of the
   # builds below. The debug runtime is driven by two settings that have to
   # agree — the `msvc_runtime_debug` toolchain feature and the
@@ -703,6 +703,13 @@ jobs:
     displayName: 'analyze-msvc-runtime-configs'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
+      rem Clear the staged tree the MD build left behind. Bazel only replaces
+      rem the files the current build declares, so onedal_core.lib and friends
+      rem would still sit next to onedal_cored.lib and the name check below
+      rem could not tell a leftover from a library that failed to pick up the
+      rem `d` suffix. The MD tree itself is already copied out to
+      rem $(release.dir), and the deleted outputs are re-staged on demand.
+      if exist "bazel-bin\release\daal" rmdir /S /Q "bazel-bin\release\daal"
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release-mdd'
@@ -724,7 +731,8 @@ jobs:
       $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
       # The import library for the threading DLL is deliberately not shipped,
       # mirroring the Make package (release.bzl _THREAD_STEMS).
-      $unexpected = @("onedal_core.lib", "onedal.lib", "onedal_threadd_dll.lib") |
+      $unexpected = @("onedal_core.lib", "onedal_thread.lib", "onedal.lib",
+                      "onedal_threadd_dll.lib") |
           Where-Object { Test-Path (Join-Path $libDir $_) }
       if ($missing -or $unexpected) {
           Write-Host "lib\intel64:"
