@@ -100,6 +100,29 @@ def _collect_and_filter_linking_contexts(deps, tags):
     linking_contexts = _filter_tagged_linking_contexts(tagged_linking_contexts, tags)
     return linking_contexts
 
+# Windows import libraries that Bazel cannot tell apart from static archives:
+# they arrive as plain `.lib` files in a dependency's `srcs`, so a
+# `LibraryToLink` describes them as a static library. Merging them into oneDAL's
+# own static libraries is wrong twice over -- every import library defines
+# `__NULL_IMPORT_DESCRIPTOR`, so `lib.exe` warns
+# `LNK4006: __NULL_IMPORT_DESCRIPTOR already defined in tbb12.lib`, and the
+# released `onedal_core.lib` ends up carrying TBB import descriptors that the
+# Make package does not ship (Make links these libraries, it never archives
+# them; the pkg-config and CMake configs already tell consumers to link
+# `tbb12.lib` / `tbbmalloc.lib` themselves).
+#
+# Declaring them through `cc_import` would be the idiomatic fix, but an import
+# library with no static counterpart never reaches lld-link: neither
+# `system_provided = True` nor pairing it with its DLL puts it back on the
+# command line, and every TBB symbol comes back undefined. So keep Bazel's
+# classification and filter by name at the one place that matters.
+_WINDOWS_IMPORT_LIBRARIES = [
+    "tbb12.lib",
+    "tbb12_debug.lib",
+    "tbbmalloc.lib",
+    "tbbmalloc_debug.lib",
+]
+
 def _unpack_linking_contexts(linking_contexts):
     link_flags = []
     objects = []
@@ -122,18 +145,17 @@ def _unpack_linking_contexts(linking_contexts):
                     libs_to_link.append(lib_to_link)
                     dynamic_libs_to_link.append(lib_to_link)
                     dynamic_libs.append(lib_to_link.dynamic_library)
-                elif lib_to_link.interface_library:
-                    # A Windows import library with no shared library recorded
-                    # next to it. Without this branch it matches nothing and is
-                    # dropped without a word, and every symbol it was supposed
-                    # to import comes back undefined at link time.
-                    libs_to_link.append(lib_to_link)
-                    dynamic_libs_to_link.append(lib_to_link)
                 elif lib_to_link.static_library or lib_to_link.pic_static_library:
+                    static_lib = (lib_to_link.static_library or
+                                  lib_to_link.pic_static_library)
                     libs_to_link.append(lib_to_link)
-                    static_libs_to_link.append(lib_to_link)
-                    static_libs.append(lib_to_link.static_library or
-                                       lib_to_link.pic_static_library)
+                    if static_lib.basename in _WINDOWS_IMPORT_LIBRARIES:
+                        # Link it, propagate it, but keep it out of
+                        # `static_libraries` so the archive merge never sees it.
+                        dynamic_libs_to_link.append(lib_to_link)
+                    else:
+                        static_libs_to_link.append(lib_to_link)
+                        static_libs.append(static_lib)
             link_flags += linker_input.user_link_flags
     return struct(
         pic_objects = depset(pic_objects).to_list(),
