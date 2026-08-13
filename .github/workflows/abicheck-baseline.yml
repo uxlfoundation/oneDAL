@@ -147,12 +147,14 @@ jobs:
       # .github/.abicheck-policy.yaml.
       #
       # Re-measured on the pinned commit, writing compressed snapshots: the
-      # daal dump takes 20m47s and peaks at 5.47 GB RSS, producing 2.25 MiB of
-      # .json.zst from 159,154,547 decoded bytes (1.5%); oneapi::dal 7m11s /
-      # 3.90 GB / 2.07 MiB from 120,748,896 bytes (1.8%). abicheck logs that
-      # ratio itself, as a "Storage: zstd, ... -> ... bytes" line.
+      # daal dump takes 21m30s and peaks at 5.46 GB RSS, producing 2.26 MiB of
+      # .json.zst from 158,803,873 decoded bytes (1.5%); oneapi::dal 7m36s /
+      # 3.91 GB / 2.07 MiB from 120,920,987 bytes (1.8%). abicheck logs that
+      # ratio itself, as a "Storage: zstd, ... -> ... bytes" line. (Measured on
+      # a 224-core / 499 GB host, so the wall times are a lower bound for a
+      # GitHub-hosted runner; the RSS peak is the number that has to fit.)
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
+        uses: abicheck/abicheck@93374aad379e6319bfc2d044336ceb6a41bb7df2 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -173,7 +175,7 @@ jobs:
           public-header-dir: __baseline_src/cpp/daal/include
           output-file: ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
+        uses: abicheck/abicheck@93374aad379e6319bfc2d044336ceb6a41bb7df2 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so

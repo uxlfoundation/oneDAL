@@ -334,9 +334,9 @@ jobs:
       # below fail on the missing abi-baseline file.
       #
       # The baselines are .json.zst, which is what makes committing them
-      # possible at all: the uncompressed snapshots are 151.5 MiB (daal) and
-      # 114.9 MiB (oneapi::dal), both over GitHub's hard 100 MiB per-file push
-      # limit, while zstd brings them to 2.25 MiB and 2.07 MiB (1.5% and 1.8%
+      # possible at all: the uncompressed snapshots are 151.4 MiB (daal) and
+      # 115.3 MiB (oneapi::dal), both over GitHub's hard 100 MiB per-file push
+      # limit, while zstd brings them to 2.26 MiB and 2.07 MiB (1.5% and 1.8%
       # of the decoded size). Compression is a storage envelope only --
       # abicheck infers it from the .zst suffix on both the dump and the scan
       # side, and a scan against the compressed baseline produces identical
@@ -385,10 +385,14 @@ jobs:
       # `scan --against` to the severity model; the default is still "legacy",
       # which ignores it) with preset: default -- so abi_breaking stays `error`
       # and a real break still fails this job. .github/.abicheck-policy.yaml
-      # moves four kinds to `risk`, each with the evidence and, importantly,
-      # the class of break the override gives up gating on, recorded there:
+      # moves five things to `risk` -- four of them as selector-scoped
+      # `reclassify:` rules naming the specific types, namespace and constant
+      # involved, and only one as a kind-global `overrides:` entry -- each with
+      # the evidence and, importantly, the class of break it gives up gating
+      # on, recorded there:
       #
-      #  * func_visibility_changed -- the 2026.0.0 baseline predates
+      #  * func_visibility_changed (the one kind-global entry) -- the 2026.0.0
+      #    baseline predates
       #    makefile:134 gaining -fvisibility-inlines-hidden, so main dropped
       #    1966 libonedal_core.so and 352 libonedal.so exports. All 2318 are
       #    WEAK COMDAT inline/template instantiations that clients instantiate
@@ -398,7 +402,9 @@ jobs:
       #    typeinfos or guard variables are affected. 77 of daal's 82 findings
       #    and 6 of oneapi::dal's 16. Goes away once a post-inlines-hidden
       #    release is published as the baseline.
-      #  * type_vtable_changed -- 2 types on libonedal_core.so, 1 on
+      #  * type_vtable_changed (three rules, one per named type, each also
+      #    scoped to the header it is declared in) -- 2 types on
+      #    libonedal_core.so, 1 on
       #    libonedal.so, and an artifact of abicheck's own capture path rather
       #    than a change in oneDAL: `abicheck dump` of the current tree records
       #    the same vtable, size_bits and base_offsets as the baseline, while
@@ -408,15 +414,28 @@ jobs:
       #    keeps the finding BREAKING by design (an unverifiable vtable
       #    transition may hide a real break) and only cross-references the
       #    paired layout finding, so the demotion is oneDAL's own risk call.
-      #  * experimental_removed_without_replacement -- four of those same lost
+      #  * experimental_removed_without_replacement (scoped to the
+      #    oneapi::dal::preview namespace) -- four of those same lost
       #    WEAK spmd::communicator symbols, reported a second time under a
       #    second kind; all four still declared in
       #    cpp/oneapi/dal/spmd/communicator.hpp on both sides.
-      #  * constant_changed -- one entity reported twice through a
+      #  * constant_changed (scoped to detail::cpu_feature_map, both spellings)
+      #    -- one entity reported twice through a
       #    `using v1::cpu_feature_map;` re-export, whose real content is the
       #    amx_bf16 row main added to detail::cpu_feature_map. A true positive,
       #    in an internal table, of exactly the kind this job should print and
       #    not fail on.
+      #
+      # Only the first of those five is kind-global, and only because abicheck
+      # cannot yet tell a WEAK COMDAT demotion from a STRONG one on this finding
+      # kind: its `binding:` selector reads Change.symbol_binding, which is
+      # stamped on the removal kinds (func_removed / func_removed_elf_only /
+      # var_removed) and not on func_visibility_changed, where the symbol is
+      # still present but hidden. The other four name the exact types,
+      # namespace and constant involved, so a vtable change on any other type, an
+      # experimental removal outside preview::, and a change to any other
+      # constant -- including the daal-side ones in the `daal::` root -- all still
+      # gate. See the policy file for the per-rule evidence.
       #
       # Two kinds an earlier revision of this job had to silence are absent
       # from the policy file because they no longer fire at all against a
@@ -435,15 +454,27 @@ jobs:
       #
       # abi_breaking count 0 and blocking false on both, "severity gate: pass
       # (no error-level findings)", every finding printed with symbol and
-      # location, and no `suppressed` key in the JSON at all. Negative
-      # controls: the same two scans with neither policy file nor suppressions
-      # exit 4 (79 breaking on daal; 7 breaking + 6 api_break on oneapi::dal),
-      # and the reverse direction -- 2026.0.0's binaries scanned against a
-      # baseline dumped from main, so that symbols really are gone -- exits 4
-      # with verdict BREAKING and blocking true even *with* this policy file
-      # applied. The gate has not been disabled.
+      # location, and no `suppressed` key in the JSON at all. Both runs used
+      # `--max-findings 200` and `--policy strict_abi --policy-file ...`, i.e.
+      # exactly what the steps below send. Three negative controls:
+      #
+      #  * the same two scans with neither policy file nor suppressions exit 4
+      #    (79 breaking on daal; 7 breaking + 6 api_break on oneapi::dal);
+      #  * the policy file with every selector string suffixed so that each rule
+      #    still parses but matches nothing -- libonedal.so returns to verdict
+      #    BREAKING, exit 4, with type_vtable_changed back at breaking and both
+      #    experimental_removed_without_replacement and constant_changed back at
+      #    api_break, which is what shows the four scoped rules and not the
+      #    kind-global one are doing that work;
+      #  * the reverse direction -- 2026.0.0's binaries scanned against a
+      #    baseline dumped from main, so that symbols really are gone -- exits 4
+      #    with verdict BREAKING, blocking true, abi_breaking 8 (5 func_removed,
+      #    2 type_removed, 1 enum_member_removed) even *with* this policy file
+      #    applied.
+      #
+      # The gate has not been disabled.
       - name: Run abicheck (daal)
-        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
+        uses: abicheck/abicheck@93374aad379e6319bfc2d044336ceb6a41bb7df2 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -467,7 +498,7 @@ jobs:
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
-        uses: abicheck/abicheck@1b0c186e33aad84de3f681f7938f80bf83b4b96a # main
+        uses: abicheck/abicheck@93374aad379e6319bfc2d044336ceb6a41bb7df2 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
