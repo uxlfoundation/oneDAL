@@ -352,6 +352,13 @@ The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries and
 MKL's `mkl_tbb_threadd` in the layouts being used; the oneAPI BaseKit ships all
 of them.
 
+CI builds `//:release` in both flavours on every pull request and checks the
+resulting names, but `//:release_all` is only analysed there
+(`--nobuild`): building it means building the whole Windows release twice,
+which does not fit alongside the two single-flavour builds in one hosted job.
+The `WindowsBazelReleaseAll` job builds it and verifies the merged tree, and it
+runs on manual or scheduled pipeline runs rather than per pull request.
+
 On non-Windows platforms both the `mdd` config and `//:release_all` are no-ops.
 Note that `//:release_all` then forwards the `//:release` tree unchanged instead
 of copying it — copying would dereference the `.so` version symlinks — so its
