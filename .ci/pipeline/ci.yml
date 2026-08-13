@@ -928,10 +928,18 @@ jobs:
       # job that installs no toolchain. vswhere ships on every hosted image and
       # reports the MSVC bin directory without pinning a Visual Studio version.
       $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-      $dumpbin = & $vswhere -latest -products * `
+      # Collect every match first. Piping a native command into
+      # `Select-Object -First 1` closes the pipe early, which kills vswhere and
+      # leaves $LASTEXITCODE non-zero -- the Azure PowerShell task then fails the
+      # step even though the path was found. Sorting descending also picks the
+      # newest MSVC toolset instead of whichever the image lists first.
+      $found = @(& $vswhere -latest -products * `
         -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-        -find 'VC\Tools\MSVC\*\bin\HostX64\x64\dumpbin.exe' | Select-Object -First 1
-      if (-not $dumpbin) { Write-Error 'dumpbin.exe not found on this image'; exit 1 }
+        -find 'VC\Tools\MSVC\*\bin\HostX64\x64\dumpbin.exe')
+      if ($LASTEXITCODE -ne 0 -or $found.Count -eq 0) {
+          Write-Error 'dumpbin.exe not found on this image'; exit 1
+      }
+      $dumpbin = ($found | Sort-Object -Descending)[0]
       $dir = Split-Path -Parent $dumpbin
       Write-Host "Using dumpbin from $dir"
       Write-Host "##vso[task.prependpath]$dir"
