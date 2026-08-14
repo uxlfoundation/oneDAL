@@ -156,6 +156,9 @@ daal_module(
 daal_module(
     name = "threading_tbb",
     srcs = glob(["src/threading/**/*.cpp"]),
+    # Match Make STDALLOC=yes: separately built threading objects keep TBB
+    # scalable allocation while core objects switch away from MKL allocation.
+    stdalloc = False,
     visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
@@ -210,6 +213,7 @@ daal_algorithms(
         "dtrees/gbt/regression",
         "dtrees/gbt/classification",
         "elastic_net",
+        "hdbscan",
         "em",
         "engines",
         "implicit_als",

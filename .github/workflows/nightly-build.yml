@@ -16,8 +16,11 @@
 
 name: Nightly-build
 
-# Note: This action is only for building oneDAL, implement tests in Nightly-test
-# It is a dependency of uxlfoundation/scikit-learn-intelex's `CI` GitHub action
+# agent: This action is only for building oneDAL, implement tests in Nightly-test
+# It is a dependency of uxlfoundation/scikit-learn-intelex's `CI` GitHub action.
+# Therefore all changes must be coordinated with .github/workflows/ci.yml in
+# scikit-learn-intelex. In all circumstances, this job should stay green.
+
 
 on:
   schedule:
@@ -26,6 +29,7 @@ on:
     branches:
       - main
     paths:
+      # running on PRs is to enable 1) no breakages in this action 2) run Nightly-test
       - .github/workflows/nightly-build.yml
       - .ci/pipeline/ci.yml
       - .bazelrc
@@ -34,12 +38,16 @@ on:
       - makefile
       - '.ci/env/**'
       - '.ci/scripts/**'
+      # Bazel is included for enabling Nightly-test.yml functionality
       - 'dev/bazel/**'
       - 'dev/release_tests/**'
       - 'dev/make/**'
       - 'dev/make/compiler_definitions/**'
       - 'dev/make/function_definitions/**'
   workflow_dispatch:
+    # use workflow dispatch to force recent changes in oneDAL for use in sklearnex.
+    # That way waiting for the cron job does not occur, especially in time critical
+    # circumstances.
 
 permissions:
   contents: read
@@ -77,20 +85,6 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
-      - name: Install Bazelisk
-        run: .ci/env/bazelisk.sh
-      - name: Bazel release
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          bazel build //:release --config=release-dpc --cpu=avx2
-      - name: Compare make and Bazel releases
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          python dev/release_tests/compare_release_trees.py \
-            --platform linux \
-            --make ./__release_lnx/daal/latest \
-            --bazel ./bazel-bin/release/daal/latest \
-            --check-level 4
       - name: Archive build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -101,6 +95,9 @@ jobs:
         with:
           name: oneDAL_env
           path: .ci/env
+            # The environment is reused in sklearnex in order to prevent version mismatch
+            # in dependencies like the ICX compiler, TBB and MKL. This in essence replicates
+            # The storage of the basekit which occurs in the Windows build.
 
   build_win:
     name: oneDAL Windows nightly build
@@ -115,11 +112,15 @@ jobs:
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
+          REM There is a single source of truth for the basekit URL used in oneDAL for tracking
+          REM by renovatebot. This is for maintainability and should not be redefined in this file.
           for /f "delims=" %%i in ('grep -oP -m 1 "(?<=WINDOWS_BASEKIT_URL: ).*" .ci\pipeline\ci.yml') do set "baseurl=%%i"
           call .ci\scripts\install_basekit.bat %baseurl:'="% ${{ env.WINDOWS_ALL_COMPONENTS }} .\oneapi\
       - name: Prepare Intel OpenCL CPU runtime
         run: |
           # Store the unpacked runtime to centralize and reduce external downloads
+          # Doing this prevents spamming Intel servers which would take longer and waste resources
+          # When used in scikit-learn-intelex github CI systems
           & .ci/scripts/collect_opencl_rt.ps1
       - name: System Info
         shell: cmd
@@ -131,6 +132,14 @@ jobs:
       - name: Make daal
         shell: cmd
         run: |
+          REM This builds a hybrid VC-icx(dpc) build. This reflects
+          REM legacy capability where development using publicly-available
+          REM compilers was only possible with Visual Studio on Windows.
+          REM Note this has an impact on internal optimizations used in oneDAL,
+          REM and has downstream impacts on performance and accuracy on sklearnex.
+          REM By default build.bat with VC does NOT use -O2. This hybrid build provides
+          REM diversity in downstream code path execution in sklearnex for robustness.
+          REM Changes in this must be justified with respect to these characteristics.
           call .\oneapi\setvars.bat
           call .\.ci\scripts\build.bat daal vc avx2
       - name: Make onedal
@@ -141,41 +150,17 @@ jobs:
       - name: Make oneapi_dpc
         shell: cmd
         run: |
+          REM SYCL code compilation requires the ICX compiler
           call .\oneapi\setvars.bat
           call .\oneapi\compiler\latest\bin\sycl-ls.exe
           call .\.ci\scripts\build.bat onedal_dpc vc avx2
-      - name: Install Bazelisk
-        shell: pwsh
-        run: .\.ci\env\bazelisk.ps1
-      - name: Bazel release
-        shell: cmd
-        run: |
-          set PATH=C:\msys64\usr\bin;%PATH%
-          call .\oneapi\setvars.bat
-          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          bazel build //:release --config=release-dpc --cpu=avx2
-      - name: Compare make and Bazel releases
-        shell: cmd
-        run: |
-          call .\oneapi\setvars.bat
-          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
-            -MakeReleaseDir .\__release_win_vc\daal\latest ^
-            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
-            -CheckLevel 4
-      - name: Build and run CMake example from Bazel release
-        shell: cmd
-        run: |
-          call .\oneapi\setvars.bat
-          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
-            -ReleaseDir .\bazel-bin\release\daal\latest
+          REM While the build is now complete, no testing should occur. Only upload.
       - name: Compress Intel BaseKit
         shell: cmd
         run: |
-          # change absolute symlinks to relative symlinks for reuse (fix issue in Intel BaseKit)
-          # iterate through all dirs in basekit (%%s), use dir to find the symlink target for symlinks named 'latest' (%%H)
-          # delete the symlink, and make a new symlink using the last foldername (%%~nxH) in a relative fashion
+          REM change absolute symlinks to relative symlinks for reuse (fix issue in Intel BaseKit which is still unresolved)
+          REM iterate through all dirs in basekit (%%s), use dir to find the symlink target for symlinks named 'latest' (%%H)
+          REM delete the symlink, and make a new symlink using the last foldername (%%~nxH) in a relative fashion
           for /D %%s in (.\oneapi\*) do for /f "tokens=2 delims=[]" %%H in ('dir /al %%s\ ^| findstr /i /c:"latest"') do rmdir %%s\latest & mklink /D %%s\latest .\%%~nxH
           tar -cvzf oneapi.tar.gz .\oneapi
       - name: Archive build

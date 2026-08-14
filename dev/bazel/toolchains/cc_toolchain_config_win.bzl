@@ -195,6 +195,22 @@ def _impl(ctx):
     pedantic_feature = feature(name = "pedantic")
     dbg_feature = feature(name = "dbg")
     opt_feature = feature(name = "opt")
+    runtime_library_feature = feature(
+        name = "runtime_library",
+        enabled = True,
+        flag_sets = [
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["-MDd"])],
+                with_features = [with_feature_set(features = ["dbg"])],
+            ),
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["-MD"])],
+                with_features = [with_feature_set(not_features = ["dbg"])],
+            ),
+        ],
+    )
     # Windows PE/COFF objects have no PIC/non-PIC distinction, so we do not
     # register a `supports_pic` feature. Matches rules_cc's MSVC auto-config
     # and keeps `cc_common.compile` from emitting both variants (which the
@@ -712,6 +728,7 @@ def _impl(ctx):
         pedantic_feature,
         dbg_feature,
         opt_feature,
+        runtime_library_feature,
         supports_dynamic_linker_feature,
         do_not_link_dynamic_dependencies_feature,
         default_compile_flags_feature,
