@@ -131,8 +131,8 @@ auto update_min_max_results(sycl::queue& q,
 }
 
 /// Merge previous partial sums / sum_squares with current-batch sums / sum_squares.
-/// sums2cent stored on the partial is the "single-node" running estimate
-/// `sum^2 - sum*sum/n`; finalize will recompute the exact value.
+/// sum_squares_centered stored on the partial is computed via the identity
+/// `sum_squares_centered = sum_squares - sum^2 / n`; finalize will recompute it exactly.
 template <typename Float>
 auto update_partial_sums(sycl::queue& q,
                          const pr::ndview<Float, 1>& prev_sum,

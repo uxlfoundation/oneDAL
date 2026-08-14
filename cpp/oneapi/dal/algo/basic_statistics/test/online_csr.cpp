@@ -53,10 +53,17 @@ inline std::vector<csr_table> split_csr_by_rows(const csr_table& source, std::in
         const std::int64_t nnz = nnz_end - nnz_start;
 
         // csr_accessor::pull returns column indices as std::int64_t.
-        // Skip fully-empty blocks (nnz == 0): csr_table::wrap requires column indices
-        // to satisfy 0 <= idx <= column_count - 1 with zero-based indexing, and an
-        // empty column_indices array trivially satisfies the check but downstream
-        // partial_compute callers expect has_data() to reject empty rows anyway.
+        // NOTE on empty (nnz == 0) blocks: in principle they still contribute
+        // implicit zero rows to the online statistics and should be forwarded to
+        // partial_compute, but the downstream `host_csr_table_adapter` for a
+        // zero_based CSR unconditionally calls `array<size_t>::reset(nnz)` to build
+        // its one-based mirror; `daal_malloc(0)` returns null and the array
+        // allocator throws `host_bad_alloc`. Fixing that adapter is out of scope
+        // for this test; instead we emit an empty `csr_table{}` and gate on
+        // `has_data()` at the call site. The current builder settings never emit a
+        // block with block_rows > 0 && nnz == 0 (nnz_fraction * row_count *
+        // column_count >= row_count for every (row_count, column_count) tuple
+        // exercised below), so this path is defensive only.
         if (nnz == 0) {
             blocks[b] = csr_table{};
             row_offset += block_rows;
