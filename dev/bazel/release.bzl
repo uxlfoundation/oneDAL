@@ -155,19 +155,28 @@ def _try_relativize(path, start):
         return paths.relativize(path, start)
     return path
 
-def _copy_version_header(ctx, src_file, dst_path, version_info):
+def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
     dst_file = ctx.actions.declare_file(dst_path)
+
+    # Make rewrites these seven lines with `sed`, and on Windows every
+    # replacement carries a trailing `\r` (`sed.eol.win` in
+    # dev/make/common.mk:177, used by `update_headers_version` in
+    # makefile.ver:62-80). The rest of the header keeps the LF endings it has in
+    # the repository, so the released file is deliberately mixed: seven CRLF
+    # lines among LF ones. Reproduce that instead of writing the whole file with
+    # one ending, or the release comparison reports a 7-byte difference.
+    eol = "\r" if is_windows else ""
     ctx.actions.expand_template(
         template = src_file,
         output = dst_file,
         substitutions = {
-            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}".format(version_info.build),
-            "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}".format(version_info.major),
-            "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}".format(version_info.minor),
-            "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}".format(version_info.update),
-            "#define __INTEL_DAAL_STATUS__ 'A'": "#define __INTEL_DAAL_STATUS__ \"{}\"".format(version_info.status),
-            "#define __INTEL_DAAL_MAJOR_BINARY__ 999": "#define __INTEL_DAAL_MAJOR_BINARY__ {}".format(version_info.binary_major),
-            "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}".format(version_info.binary_minor),
+            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}{}".format(version_info.build, eol),
+            "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}{}".format(version_info.major, eol),
+            "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}{}".format(version_info.minor, eol),
+            "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}{}".format(version_info.update, eol),
+            "#define __INTEL_DAAL_STATUS__ 'A'": "#define __INTEL_DAAL_STATUS__ \"{}\"{}".format(version_info.status, eol),
+            "#define __INTEL_DAAL_MAJOR_BINARY__ 999": "#define __INTEL_DAAL_MAJOR_BINARY__ {}{}".format(version_info.binary_major, eol),
+            "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}{}".format(version_info.binary_minor, eol),
         },
     )
     return dst_file
@@ -187,11 +196,12 @@ def _strip_os_suffix(dst_path, os_suffix):
 
 def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
     # Make derives this from `$(_OS)`; only `win` currently has OS-specific
     # public headers, but keep the other platforms symmetrical.
-    os_suffix = "_win" if ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    ) else "_lnx"
+    os_suffix = "_win" if is_windows else "_lnx"
 
     # Map each staged destination to the header that should provide it. An
     # OS-specific header wins over the generic file of the same staged name,
@@ -231,7 +241,8 @@ def _copy_include(ctx, prefix, version_info):
     for dst_path in staged_order:
         header = staged[dst_path]
         if header.short_path == "cpp/daal/include/services/library_version_info.h":
-            dst_file = _copy_version_header(ctx, header, dst_path, version_info)
+            dst_file = _copy_version_header(ctx, header, dst_path, version_info,
+                                            is_windows)
         else:
             dst_file = _copy(ctx, header, dst_path)
         dst_files.append(dst_file)
