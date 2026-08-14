@@ -27,9 +27,9 @@ class host_engine_collection {
 public:
     explicit host_engine_collection(std::int64_t count,
                                     std::int64_t seed = 777,
-                                    engine_type_internal method = engine_type_internal::mt2203)
+                                    engine_type_internal method = default_engine_type_internal)
             : count_(count),
-              engine_(initialize_host_engine(seed, method)),
+              engine_(make_daal_engine(seed, method)),
               params_(count),
               technique_(daal::algorithms::engines::internal::family),
               daal_engine_list_(count) {}
@@ -57,23 +57,6 @@ public:
     }
 
 private:
-    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
-                                                                engine_type_internal method) {
-        switch (method) {
-            case engine_type_internal::mt2203:
-                return daal::algorithms::engines::mt2203::Batch<>::create(seed);
-            case engine_type_internal::mcg59:
-                return daal::algorithms::engines::mcg59::Batch<>::create(seed);
-            case engine_type_internal::mrg32k3a:
-                return daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
-            case engine_type_internal::philox4x32x10:
-                return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
-            case engine_type_internal::mt19937:
-                return daal::algorithms::engines::mt19937::Batch<>::create(seed);
-            default: throw std::invalid_argument("Unsupported engine type");
-        }
-    }
-
     void select_parallelization_technique(
         daal::algorithms::engines::internal::ParallelizationTechnique& technique) {
         auto daal_engine_impl =
