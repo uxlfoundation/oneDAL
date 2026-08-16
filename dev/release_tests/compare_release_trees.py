@@ -16,6 +16,7 @@
 #===============================================================================
 
 import argparse
+import difflib
 import filecmp
 import re
 import os
@@ -30,6 +31,10 @@ TEXT_SUFFIXES = {
     ".cfg",
     ".cmake",
     ".cpp",
+    # Datasets. Make stages these through the recipe that rewrites line endings
+    # on Windows (makefile:1046), so their contents are part of the parity the
+    # release comparison is meant to cover.
+    ".csv",
     ".cxx",
     ".h",
     ".hpp",
@@ -139,6 +144,106 @@ def is_ignored_linux_export(symbol, library_path=None):
     return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
 
 
+# Entities the compiler generates or inlines on its own, rather than named
+# functions that form the documented oneDAL surface.
+#
+# The Windows nightly builds the Make release with `vc` (cl) and the Bazel one
+# with icx, so the two toolchains disagree about which of these they emit and
+# how they spell them. Two examples from that comparison:
+#
+#   * `??$threader_for@...` -- `inline ONEDAL_EXPORT` templates instantiated on
+#     lambdas (cpp/oneapi/dal/detail/threading.hpp). cl and icx encode the
+#     lambda's identity differently, so no instantiation can ever match: cl
+#     writes the enclosing scope (`V<lambda_1>@?0???$copy_convert@...`) while
+#     icx writes a content hash (`V<lambda_0380cb5a...>`). Every one of the
+#     onedal.4.dll differences was of this form.
+#   * `??1?$Distributed@...` / `??_7?$AlgorithmContainer@...` -- implicitly
+#     declared destructors, constructors, assignment operators and vftables of
+#     *class templates*. Whether these are emitted into a given DLL depends on
+#     where the compiler decided to instantiate them, not on the library's API.
+#
+# Both patterns are matched narrowly on purpose. A special member is only
+# ignored when it belongs to a class template (`?$` right after the tag), and a
+# template instantiation is only ignored when a lambda appears in its arguments.
+# Anything else -- a constructor, destructor or vftable of a named non-template
+# class, or an ordinary exported template function -- is still compared, because
+# on Windows those symbols *are* what a consumer links against. Measured against
+# the 494 symbols the nightly reported for onedal.4.dll and onedal_core.4.dll,
+# these two rules cover 222 of the 224 special members and all 400 template
+# instantiations; the two remaining special members are the `??_F` closures
+# below.
+WINDOWS_IGNORED_EXPORT_PATTERNS = (
+    # Special members of class templates: ctor, dtor, operator new/delete
+    # (scalar `??2`/`??3` and array `??_U`/`??_V`), operator=, operator(),
+    # vftable.
+    re.compile(r"^\?\?(?:[01234R]|_7|_U|_V)\?\$"),
+    # Template instantiations whose arguments name a lambda. `<lambda_` is cl's
+    # spelling and icx's alike; neither can match the other's.
+    re.compile(r"^\?\?\$.*<lambda_"),
+    # Default-constructor closures. Unlike the tags above these are never part
+    # of a linkable surface -- the closure exists only so the compiler can run
+    # a base initializer -- so the class does not have to be a template.
+    re.compile(r"^\?\?_F"),
+    # `daal::services::Collection<T>::_default_capacity` is a private static
+    # constant initialized in-class (cpp/daal/include/services/collection.h).
+    # Its out-of-line definition is emitted at the compiler's discretion, so cl
+    # exports it from onedal_core.dll for two instantiations that icx does not.
+    re.compile(r"^\?_default_capacity@\?\$Collection@"),
+)
+
+
+# Inline members of exported class templates that cl instantiates and exports
+# while clang-cl does not, because clang-cl only emits the ones the DLL itself
+# odr-uses. They are listed one by one rather than matched by pattern so that a
+# member which genuinely disappears from a released library still fails.
+#
+# None of them can be part of a consumer's link surface. `DAAL_EXPORT` expands to
+# `__declspec(dllexport)` only while oneDAL itself is being built and to nothing
+# otherwise (cpp/daal/include/services/daal_defines.h), and no public header
+# declares anything `dllimport`. A consumer therefore instantiates whichever of
+# these it uses in its own object file and never emits a reference the DLL would
+# have to satisfy. Every entry below is defined in-class in a released header.
+#
+# Populated from the Windows nightly's own report for onedal_core.4.dll; if a new
+# member of one of these class templates starts diverging, the comparison will
+# flag it and this list needs a deliberate update.
+WINDOWS_IGNORED_EXPORTS = frozenset([
+    # daal::algorithms::optimization_solver::precomputed::interface2::Batch
+    "?allocateResult@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEAA?AVStatus@interface1@services@6@XZ",
+    "?allocateResult@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEAA?AVStatus@interface1@services@6@XZ",
+    "?cloneImpl@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEBAPEAV123456@XZ",
+    "?cloneImpl@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEBAPEAV123456@XZ",
+    "?getMethod@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@UEBAHXZ",
+    "?getMethod@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@UEBAHXZ",
+    # daal::algorithms::interface1::Algorithm<batch>
+    "?allocateResultMemory@?$Algorithm@$00@interface1@algorithms@daal@@IEAA?AVStatus@2services@4@XZ",
+    "?getBaseHyperparameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAPEBUHyperparameter@234@XZ",
+    "?getBaseParameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAPEAUParameter@234@XZ",
+    "?setHyperparameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAXPEBUHyperparameter@234@@Z",
+    "?setParameter@?$Algorithm@$00@interface1@algorithms@daal@@MEAAXXZ",
+    # daal::algorithms::interface1::AlgorithmContainerImpl<batch>
+    "?getResult@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@QEAAPEAVResult@234@XZ",
+    "?resetCompute@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@UEAA?AVStatus@2services@4@XZ",
+    "?setArguments@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@QEAAXPEAVInput@234@PEAVResult@234@PEAUParameter@234@PEBUHyperparameter@234@@Z",
+    "?setupCompute@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@UEAA?AVStatus@2services@4@XZ",
+    # daal::algorithms::covariance::interface1::DistributedIface<step1Local>
+    "?checkFinalizeComputeParams@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@XZ",
+    "?clone@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEBA?AV?$SharedPtr@V?$DistributedIface@$00@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?getPartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEAA?AV?$SharedPtr@VPartialResult@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?getResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEAA?AV?$SharedPtr@VResult@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?initialize@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@IEAAXXZ",
+    "?initializePartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@MEAA?AVStatus@2services@5@XZ",
+    "?setPartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@AEBV?$SharedPtr@VPartialResult@interface1@covariance@algorithms@daal@@@275@_N@Z",
+    "?setResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@AEBV?$SharedPtr@VResult@interface1@covariance@algorithms@daal@@@275@@Z",
+])
+
+
+def is_ignored_windows_export(symbol):
+    if symbol in WINDOWS_IGNORED_EXPORTS:
+        return True
+    return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
+
+
 def rel(path, root):
     return path.relative_to(root).as_posix()
 
@@ -180,7 +285,18 @@ def is_text_path(path):
 
 
 def read_normalized_text(root, path):
-    content = (root / path).read_text(encoding="utf-8", errors="surrogateescape")
+    # `newline=""` keeps each line's own ending. Without it Python's universal
+    # newline translation folds CRLF to LF, which would make the files listed in
+    # NORMALIZED_TEXT_LINES the only released text files where a line-ending
+    # difference is invisible -- every other one is compared byte for byte.
+    # `Path.read_text` only grew a `newline` parameter in Python 3.13, and CI
+    # still runs 3.12, so go through `open`.
+    with (root / path).open(
+        encoding="utf-8",
+        errors="surrogateescape",
+        newline="",
+    ) as handle:
+        content = handle.read()
     prefixes = NORMALIZED_TEXT_LINES.get(path, ())
     if not prefixes:
         return content
@@ -188,8 +304,11 @@ def read_normalized_text(root, path):
     for line in content.splitlines(keepends=True):
         stripped = line.lstrip()
         if any(stripped.startswith(f"#define {prefix} ") for prefix in prefixes):
-            newline = "\n" if line.endswith("\n") else ""
-            normalized.append(f"#define {stripped.split()[1]} <normalized>{newline}")
+            # Carry the original ending over to the placeholder, for the same
+            # reason: normalising the value must not normalise the endings.
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            normalized.append(f"#define {stripped.split()[1]} <normalized>{ending}")
         else:
             normalized.append(line)
     return "".join(normalized)
@@ -251,9 +370,68 @@ def compare_text_files(make_root, bazel_root, files, limit):
         errors += len(mismatches)
         print(f"Text content mismatches: {len(mismatches)}")
         for item in mismatches[:limit]:
-            print(f"  ! {item}")
+            print(f"  ! {item} {describe_text_mismatch(make_root, bazel_root, item)}")
+            for line in text_mismatch_diff(make_root, bazel_root, item):
+                print(f"      {line}")
     print(f"Compared text files: {compared}")
     return errors
+
+
+def line_ending_counts(data):
+    crlf = data.count(b"\r\n")
+    lf = data.count(b"\n") - crlf
+    cr = data.count(b"\r") - crlf
+    return crlf, lf, cr
+
+
+def describe_text_mismatch(make_root, bazel_root, path):
+    """Summarise *how* two text files differ, so a CI log is enough to diagnose.
+
+    Printing only the path leaves the reader unable to tell a line-ending
+    difference from a content one without reproducing the build, which on
+    Windows means a multi-hour job.
+    """
+    make_bytes = (make_root / path).read_bytes()
+    bazel_bytes = (bazel_root / path).read_bytes()
+    make_eol = line_ending_counts(make_bytes)
+    bazel_eol = line_ending_counts(bazel_bytes)
+    detail = f"Make={len(make_bytes)}B Bazel={len(bazel_bytes)}B"
+    if make_eol != bazel_eol:
+        detail += (
+            " EOL Make(crlf={},lf={},cr={}) Bazel(crlf={},lf={},cr={})"
+            .format(*make_eol, *bazel_eol)
+        )
+    # Same text once endings are normalised means the endings are the only
+    # difference; say so explicitly rather than making the reader infer it.
+    if make_bytes.replace(b"\r\n", b"\n") == bazel_bytes.replace(b"\r\n", b"\n"):
+        detail += " (line endings only)"
+    return detail
+
+
+def text_mismatch_diff(make_root, bazel_root, path, context=1, max_lines=12):
+    """Return a bounded unified diff of the two files, endings made visible."""
+    def read_lines(root):
+        raw = (root / path).read_bytes()
+        text = raw.decode("utf-8", errors="replace")
+        # Keep the endings and render them, so a CRLF/LF difference is legible
+        # instead of invisible.
+        return [
+            line.replace("\r", "<CR>").replace("\n", "<LF>")
+            for line in text.splitlines(keepends=True)
+        ]
+
+    diff = difflib.unified_diff(
+        read_lines(make_root),
+        read_lines(bazel_root),
+        fromfile="make",
+        tofile="bazel",
+        n=context,
+        lineterm="",
+    )
+    lines = list(diff)[:max_lines]
+    if len(lines) == max_lines:
+        lines.append("... diff truncated")
+    return lines
 
 
 def run_tool(args):
@@ -314,7 +492,9 @@ def read_windows_exports(path):
             continue
         parts = stripped.split()
         if len(parts) >= 4 and parts[0].isdigit():
-            symbols.add(parts[3].split("=", 1)[0])
+            symbol = parts[3].split("=", 1)[0]
+            if not is_ignored_windows_export(symbol):
+                symbols.add(symbol)
     return symbols
 
 

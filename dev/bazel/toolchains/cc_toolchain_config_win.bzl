@@ -764,11 +764,19 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
-        library_search_directories_feature,
+        # `dpc_linker_mode` emits the single `/link` separator on DPC++ links.
+        # Everything the icx driver itself has to see (`-fsycl`, `-LD`,
+        # `-o<out>`) stays in front of it; everything meant for lld-link
+        # (`-libpath:`, input libraries, `/DEF:`, `/WHOLEARCHIVE:`) has to come
+        # after, otherwise clang-cl swallows it and warns
+        # "unknown argument ignored in clang-cl: '-libpath:...'".
+        # Non-DPC links invoke lld-link.exe directly and emit no `/link`, so
+        # the order is irrelevant for them.
         shared_flag_feature,
-        libraries_to_link_feature,
         output_execpath_flags_feature,
         dpc_linker_mode_feature,
+        library_search_directories_feature,
+        libraries_to_link_feature,
         user_link_flags_feature,
         default_dynamic_libraries_feature,
         archiver_flags_feature,

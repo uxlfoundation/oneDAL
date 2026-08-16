@@ -24,6 +24,18 @@ rem Bazel cannot intercept the import lib that lld-link writes as a side
 rem effect of /DLL link, so release.bzl invokes this script as a follow-up
 rem action that takes the freshly-built DLL as a Bazel-tracked input and
 rem produces the import lib as a Bazel-tracked output.
+rem
+rem KNOWN LIMITATION: `dumpbin /exports` on a DLL does not say which exports are
+rem data rather than code, so every entry lands in the .def without a `DATA`
+rem keyword and `lib /def:` builds a call thunk for all of them. oneDAL does
+rem export data -- vftables (`??_7...`) and `Collection<T>::_default_capacity` --
+rem and a consumer importing one of those through this generated .lib gets a
+rem thunk where it needs an address. The makefile does not have this problem
+rem because it takes the import lib straight from the linker (`-IMPLIB:`).
+rem The real fix is to declare `supports_interface_shared_libraries` on the icx
+rem toolchain and pass `/IMPLIB:` so cc_common.link() produces the import lib as
+rem a declared output; release.bzl already prefers a link-emitted `.if.lib` when
+rem one exists, so that path would replace this script entirely.
 
 setlocal EnableExtensions EnableDelayedExpansion
 
@@ -69,8 +81,17 @@ rem Keep just <name> (the 4th token) for entries whose first token is a
 rem decimal ordinal. findstr drops headers/footers; the for /f loop
 rem iterates dumpbin's output via a sub-shell so we do not depend on a
 rem temp file.
+rem
+rem The name is assigned to a variable and echoed through delayed expansion
+rem rather than as `echo %%n`. A FOR variable is substituted before the command
+rem line is parsed, so metacharacters in its value are taken as operators --
+rem and icx's exported lambda instantiations contain angle brackets, e.g.
+rem `??$threader_for@V<lambda_0380cb5a...>@@...`, which cmd would read as
+rem redirection. `!SYM!` is expanded after parsing, so the name reaches the
+rem .def intact.
 for /f "tokens=4" %%n in ('dumpbin /nologo /exports "%DLL_IN%" ^| findstr /R /C:"^ *[0-9][0-9]* "') do (
-    >>"%DEF_TMP%" echo     %%n
+    set "SYM=%%n"
+    >>"%DEF_TMP%" echo     !SYM!
 )
 
 if not exist "%DEF_TMP%" (
