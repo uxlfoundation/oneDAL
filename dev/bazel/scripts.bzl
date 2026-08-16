@@ -127,41 +127,11 @@ def generate_cmake_config(name, template, out, **kwargs):
 # pkg-config
 # ---------------------------------------------------------------------------
 
-def _generate_pkgconfig_impl(ctx):
-    """Generate pkg-config files matching deploy/pkg-config/pkg-config.cpp."""
-    vi = ctx.attr._version_info[VersionInfo]
-    out = ctx.actions.declare_file(ctx.attr.out)
-
-    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
-        onedal_libs = (
-            "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
-            if ctx.attr.static else
-            "${libdir}/onedal_dll.lib ${libdir}/onedal_parameters_dll.lib ${libdir}/onedal_core_dll.lib"
-        )
-        ctx.actions.write(
-            output = out,
-            content = """prefix=${{pcfiledir}}/../../
-exec_prefix=${{prefix}}
-libdir=${{exec_prefix}}/lib/intel64
-includedir=${{prefix}}/include
-
-Name: oneDAL
-Description: oneAPI Data Analytics Library
-Version: {major}.{minor}
-URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: {onedal_libs} mkl_core.lib mkl_intel_ilp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
-Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
-""".format(
-                major = vi.major,
-                minor = vi.minor,
-                onedal_libs = onedal_libs,
-            ),
-        )
-    else:
-        suffix = "a" if ctx.attr.static else "so"
-        ctx.actions.write(
-            output = out,
-            content = """#===============================================================================
+# Make builds the .pc files by running the C preprocessor over
+# `deploy/pkg-config/pkg-config.cpp`, prepending that file's first 16 lines and
+# rewriting `//` into `#` (see the `_release_c` recipe in `makefile`). The result
+# is this 15-line header on every platform, so both branches below emit it.
+_PKGCONFIG_LICENSE_HEADER = """#===============================================================================
 # Copyright contributors to the oneDAL Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -176,7 +146,47 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #===============================================================================
-prefix=${{pcfiledir}}/../../
+"""
+
+def _generate_pkgconfig_impl(ctx):
+    """Generate pkg-config files matching deploy/pkg-config/pkg-config.cpp."""
+    vi = ctx.attr._version_info[VersionInfo]
+    out = ctx.actions.declare_file(ctx.attr.out)
+
+    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        # Keep this list in sync with the `_WIN32` branch of
+        # `deploy/pkg-config/pkg-config.cpp`: the dynamic package exposes only
+        # onedal and onedal_core, and Windows has no parameters library at all
+        # (`makefile` errors out on `BUILD_PARAMETERS_LIB=yes` there).
+        onedal_libs = (
+            "${libdir}/onedal.lib ${libdir}/onedal_core.lib ${libdir}/onedal_thread.lib"
+            if ctx.attr.static else
+            "${libdir}/onedal_dll.lib ${libdir}/onedal_core_dll.lib"
+        )
+        ctx.actions.write(
+            output = out,
+            content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
+exec_prefix=${{prefix}}
+libdir=${{exec_prefix}}/lib/intel64
+includedir=${{prefix}}/include
+
+Name: oneDAL
+Description: oneAPI Data Analytics Library
+Version: {major}.{minor}
+URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
+Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
+Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
+""".format(
+                major = vi.major,
+                minor = vi.minor,
+                onedal_libs = onedal_libs,
+            ),
+        )
+    else:
+        suffix = "a" if ctx.attr.static else "so"
+        ctx.actions.write(
+            output = out,
+            content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
 exec_prefix=${{prefix}}
 libdir=${{exec_prefix}}/lib/intel64
 includedir=${{prefix}}/include
