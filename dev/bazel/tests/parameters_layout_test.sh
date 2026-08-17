@@ -59,7 +59,15 @@ for label in //cpp/oneapi/dal:static_dpc //cpp/oneapi/dal:dynamic_dpc; do
     done
 done
 
-for label in static_parameters static_parameters_dpc dynamic_parameters dynamic_parameters_dpc; do
+# BUILD_PARAMETERS_LIB=no folds parameter code into the main libraries, so
+# the release graph must not select any standalone parameter artifacts (above).
+# Static parameter targets remain valid direct build targets, while the dynamic
+# variants are intentionally incompatible in the folded layout.
+for label in static_parameters static_parameters_dpc; do
+    "${bazel_cmd}" build "//cpp/oneapi/dal:${label}" "${common[@]}" --nobuild \
+        --build_parameters_lib=no >"${work}/${label}.log" 2>&1
+done
+for label in dynamic_parameters dynamic_parameters_dpc; do
     if "${bazel_cmd}" build "//cpp/oneapi/dal:${label}" "${common[@]}" --nobuild \
         --build_parameters_lib=no >"${work}/${label}.log" 2>&1; then
         echo "folded layout unexpectedly permits direct target ${label}" >&2
