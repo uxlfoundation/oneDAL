@@ -96,6 +96,7 @@ def _generate_cmake_config_impl(ctx):
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
             "@oneDAL_VERSION@": "",
+            "@ONEDAL_USE_PARAMETERS_LIBRARY@": "yes" if ctx.attr.parameters_lib else "no",
         },
     )
     return [DefaultInfo(files = depset([out]))]
@@ -108,6 +109,7 @@ _generate_cmake_config = rule(
             mandatory = True,
         ),
         "out": attr.string(mandatory = True),
+        "parameters_lib": attr.bool(default = True),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
