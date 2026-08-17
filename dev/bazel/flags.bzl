@@ -102,7 +102,7 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 # the released static archives keep the references and any
                 # consumer that links `libonedal_core.a` with gcc/g++ fails
                 # with `undefined reference to __svml_u64rem4_l9`.
-                "-qno-intel-lib",
+                "-no-intel-lib",
                 "-no-canonical-prefixes",
             ]
         if compiler_id == "icpx":
