@@ -111,11 +111,11 @@ def _collect_and_filter_linking_contexts(deps, tags):
 # them; the pkg-config and CMake configs already tell consumers to link
 # `tbb12.lib` / `tbbmalloc.lib` themselves).
 #
-# Declaring them through `cc_import` would be the idiomatic fix, but an import
-# library with no static counterpart never reaches lld-link: neither
-# `system_provided = True` nor pairing it with its DLL puts it back on the
-# command line, and every TBB symbol comes back undefined. So keep Bazel's
-# classification and filter by name at the one place that matters.
+# Declaring them through `cc_import(interface_library = ...)` would require a
+# separate `interface_library` branch in `_unpack_linking_contexts`: that
+# provider is not currently propagated by this custom linker wrapper. Keep
+# Bazel's existing classification and filter these known TBB import libraries
+# at the one place that matters, rather than broadening that behavior here.
 _WINDOWS_IMPORT_LIBRARIES = [
     "tbb12.lib",
     "tbb12_debug.lib",
