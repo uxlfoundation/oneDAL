@@ -316,7 +316,6 @@ def _cc_dynamic_lib_impl(ctx):
         user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts,
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts,
-        is_dpc = ctx.attr.lib_name.endswith("_dpc") or ctx.label.name.endswith("_dpc"),
         dll_to_implib_tool = ctx.file._dll_to_implib if is_windows else None,
     )
     default_files = dynamic_outputs.files
