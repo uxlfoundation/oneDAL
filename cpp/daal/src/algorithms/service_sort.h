@@ -29,7 +29,7 @@
 #include "src/algorithms/service_heap.h"
 #include "services/collection.h"
 
-#if defined(DAAL_INTEL_CPP_COMPILER) && defined(TARGET_X86_64)
+#if defined(DAAL_INTEL_CPP_COMPILER)
     #include <immintrin.h>
 #endif
 

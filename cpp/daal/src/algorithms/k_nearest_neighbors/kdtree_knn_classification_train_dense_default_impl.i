@@ -40,7 +40,7 @@
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_impl.i"
 #include "src/algorithms/engines/engine_batch_impl.h"
 
-#if defined(DAAL_INTEL_CPP_COMPILER) && defined(TARGET_X86_64)
+#if defined(DAAL_INTEL_CPP_COMPILER)
     #include <immintrin.h>
 #endif
 

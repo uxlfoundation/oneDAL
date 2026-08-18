@@ -36,9 +36,15 @@
     #include <sys/auxv.h>
     #include <asm/hwcap.h>
 #elif defined(TARGET_ARM) && defined(_MSC_VER)
-    #define KUSER_SHARED_DATA_ADDR   0x7FFE0000UL   // Base address of the Windows Shared User Data structure (shared kernel/user-mode page)
-    #define PROCESSOR_FEATURES_OFFSET 0x274         // Byte offset within KUSER_SHARED_DATA where the processor feature flags are located
-    #define PF_ARM_SVE_INSTRUCTIONS_AVAILABLE  46   // Feature flag index for checking ARM Scalable Vector Extension (SVE) support
+    #include <windows.h>
+
+    #ifdef min
+    #undef min
+    #endif
+
+    #ifdef max
+    #undef max
+    #endif
 #elif defined(TARGET_RISCV64)
 // TODO: Include vector if and when we need to use some vector intrinsics in
 // here
@@ -349,8 +355,7 @@ static bool check_sve_features()
         unsigned long hwcap = getauxval(AT_HWCAP);
         return (hwcap & HWCAP_SVE) != 0;
     #else
-        const volatile uint8_t* features = (const volatile uint8_t*)(KUSER_SHARED_DATA_ADDR + PROCESSOR_FEATURES_OFFSET);
-        return features[PF_ARM_SVE_INSTRUCTIONS_AVAILABLE] != 0;
+        return IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
     #endif
 }
 

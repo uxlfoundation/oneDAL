@@ -25,7 +25,7 @@
 #ifndef __KERNEL_FUNCTION_CSR_IMPL_I__
 #define __KERNEL_FUNCTION_CSR_IMPL_I__
 
-#if defined(DAAL_INTEL_CPP_COMPILER) && defined(TARGET_X86_64)
+#if defined(DAAL_INTEL_CPP_COMPILER)
     #include <immintrin.h>
 #endif
 
