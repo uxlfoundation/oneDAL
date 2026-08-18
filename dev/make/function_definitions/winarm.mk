@@ -23,6 +23,8 @@ _IA := ARM64
 COMPILERs = clang
 COMPILER ?= clang
 
+SVE_SUPPORTED := $(shell powershell -NoProfile -Command "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class Native { [DllImport(\"kernel32.dll\")] public static extern bool IsProcessorFeaturePresent(uint f); }'; if ([Native]::IsProcessorFeaturePresent(46)) { '1' } else { '0' }")
+
 include dev/make/function_definitions/arm.mk
 
 # Used as $(eval $(call set_daal_rt_deps))

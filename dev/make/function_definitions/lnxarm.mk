@@ -23,6 +23,8 @@ _IA := arm
 COMPILERs = gnu clang
 COMPILER ?= gnu
 
+SVE_SUPPORTED := $(shell grep -qm1 ' sve' /proc/cpuinfo 2>/dev/null && echo 1 || echo 0)
+
 include dev/make/function_definitions/arm.mk
 
 # Used as $(eval $(call set_daal_rt_deps))
