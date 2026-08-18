@@ -238,8 +238,65 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 ])
 
 
+# Inheriting constructors of the exported oneAPI exception classes. Every entry
+# is a `??0` constructor of a class that declares `using Base::Base;` and nothing
+# else -- `oneapi::dal::invalid_argument`, `system_error`, ... in
+# cpp/oneapi/dal/exceptions.hpp and `coworker_error`, `communication_error` in
+# cpp/oneapi/dal/spmd/exceptions.hpp. cl materialises and exports the inherited
+# constructors of a `__declspec(dllexport)` class whether or not the DLL uses
+# them; icx and clang-cl emit them only where they are odr-used. The classes that
+# declare their own constructor out of line (`spmd::error_holder`) are emitted by
+# both, so they are absent here.
+#
+# The nightly is the only comparison that sees these: it builds the Make release
+# with `vc` (cl), while Azure's `WindowsReleaseCompare` builds it with icx and
+# reports no export differences at all.
+#
+# Not part of a consumer's link surface. `ONEDAL_EXPORT` is defined only under
+# `__ONEDAL_ENABLE_EXPORT__` (cpp/oneapi/dal/common.hpp:35), which only oneDAL's
+# own builds set (makefile:709,723 and dev/bazel/dal.bzl:532). For a consumer the
+# macro expands to nothing, so `throw oneapi::dal::invalid_argument{ msg }`
+# instantiates the constructor in the consumer's own object file and never emits
+# a reference the DLL has to satisfy.
+#
+# Listed one by one, like WINDOWS_IGNORED_EXPORTS above, so that a constructor of
+# a *different* class disappearing from a released library still fails.
+WINDOWS_IGNORED_INHERITED_CTORS = frozenset([
+    # oneapi::dal::v1, cpp/oneapi/dal/exceptions.hpp
+    "??0domain_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0domain_error@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0internal_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0internal_error@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0invalid_argument@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0invalid_argument@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0out_of_range@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0out_of_range@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0range_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0range_error@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@PEBD@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@PEBD@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@@Z",
+    "??0unimplemented@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0unimplemented@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0uninitialized_optional_result@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0uninitialized_optional_result@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0unsupported_device@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0unsupported_device@v1@dal@oneapi@@QEAA@PEBD@Z",
+    # oneapi::dal::preview::spmd::v1, cpp/oneapi/dal/spmd/exceptions.hpp
+    "??0communication_error@v1@spmd@preview@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0communication_error@v1@spmd@preview@dal@oneapi@@QEAA@PEBD@Z",
+    "??0coworker_error@v1@spmd@preview@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0coworker_error@v1@spmd@preview@dal@oneapi@@QEAA@PEBD@Z",
+])
+
+
 def is_ignored_windows_export(symbol):
     if symbol in WINDOWS_IGNORED_EXPORTS:
+        return True
+    if symbol in WINDOWS_IGNORED_INHERITED_CTORS:
         return True
     return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
@@ -271,6 +328,55 @@ def classify(root):
                 files.add(rel_path)
 
     return dirs, files, links
+
+
+def absorb_dereferenced_links(make_root, make_files, bazel_root, bazel_links, limit):
+    """Reconcile symlinks a transport turned into copies on the Make side.
+
+    `actions/upload-artifact` stores the *contents* a symlink points at, so a
+    Make release that travels through a GitHub artifact arrives with
+    `libonedal.so` and `libonedal.so.4` as ordinary files -- the tree the
+    makefile built (`makefile:975` does `cp` plus two `ln -sf`) has them as
+    symlinks, exactly as Bazel stages them. Comparing the two verbatim reports
+    every such entry twice, as a Make-only file and a Bazel-only symlink, and
+    hides whatever else level 1 would have found.
+
+    Where Bazel has a symlink and Make a plain file at the same path, the pair is
+    removed from level 1 and checked the only way the transport still permits:
+    the Make file must be byte-identical to the target the Bazel symlink resolves
+    to. Both collections are mutated in place; the number of reconciled entries
+    is printed, because a silently tolerated difference reads like a comparison
+    that covered everything.
+    """
+    errors = 0
+    absorbed = []
+    mismatches = []
+
+    for path in sorted(set(bazel_links).intersection(make_files)):
+        target = (bazel_root / path).resolve()
+        # A symlink escaping the release tree is a staging bug, not a transport
+        # artefact, so leave it in level 1 to be reported there.
+        if not target.is_relative_to(bazel_root) or not target.is_file():
+            continue
+        make_files.discard(path)
+        del bazel_links[path]
+        absorbed.append(path)
+        if not filecmp.cmp(make_root / path, target, shallow=False):
+            mismatches.append((path, rel(target, bazel_root)))
+
+    if mismatches:
+        errors += len(mismatches)
+        print(f"Dereferenced symlink content mismatches: {len(mismatches)}")
+        for path, target in mismatches[:limit]:
+            print(f"  ! {path}: Make file differs from Bazel {path} -> {target}")
+    if absorbed:
+        print(
+            f"Make files reconciled against Bazel symlinks: {len(absorbed)}"
+            " (--make-symlinks-dereferenced)"
+        )
+        for path in absorbed[:limit]:
+            print(f"  ~ {path}")
+    return errors
 
 
 def is_text_path(path):
@@ -565,6 +671,15 @@ def main():
     parser.add_argument("--platform", choices=("linux", "windows"), required=True)
     parser.add_argument("--check-level", type=int, choices=range(1, 5), default=4)
     parser.add_argument("--structure-only", action="store_true")
+    parser.add_argument(
+        "--make-symlinks-dereferenced",
+        action="store_true",
+        help=(
+            "the Make release travelled through a transport that replaces "
+            "symlinks with copies of their targets, such as a GitHub artifact; "
+            "compare those entries by content instead of by kind"
+        ),
+    )
     parser.add_argument("--summary-limit", type=int, default=50)
     args = parser.parse_args()
     if args.structure_only:
@@ -599,6 +714,14 @@ def main():
     errors = 0
     print("")
     print("=== level 1: release tree entries ===")
+    if args.make_symlinks_dereferenced:
+        errors += absorb_dereferenced_links(
+            make_root,
+            make_files,
+            bazel_root,
+            bazel_links,
+            args.summary_limit,
+        )
     errors += compare_sets("directories", make_dirs, bazel_dirs, args.summary_limit)
     errors += compare_sets("files", make_files, bazel_files, args.summary_limit)
     errors += compare_sets("symlinks", set(make_links), set(bazel_links), args.summary_limit)
