@@ -82,12 +82,17 @@ jobs:
       # actually compares against: daal produces libonedal_core.so (the
       # classic DAAL API), oneapi_c produces libonedal.so (the oneapi::dal
       # API) -- see the "Make onedal debug" step in LinuxMakeDPCPP.
+      #
+      # No `--jobs`: build.sh then uses `-j$(nproc --all)`
+      # (.ci/scripts/build.sh:143-149), which follows whatever runner this
+      # lands on instead of pinning a count that outlives the image it was
+      # chosen for.
       - name: Build daal + oneapi_c (avx2 debug)
         working-directory: __baseline_src
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols --jobs 20
-          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_c --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal --debug symbols
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_c --debug symbols
 
       - name: Ensure baseline output directory exists
         run: mkdir -p .github/abicheck-baselines
