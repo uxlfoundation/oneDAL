@@ -57,4 +57,15 @@ echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3
 make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3 || set errorcode=1
 
 cmake -DINSTALL_DIR=__release_win_%2\daal\latest\lib\cmake\oneDAL -DARCH_DIR="%ARCH_DIR%" -P cmake\scripts\generate_config.cmake || set errorcode=1
+rem No cmake config generation here. This script used to call
+rem cmake/scripts/generate_config.cmake itself, added by PR #2222 (merged
+rem 2023-01-04). Two weeks later PR #2243 (merged 2023-01-20) taught the makefile
+rem to stage the oneDALConfig files on its own through `_release_cmake_configs`,
+rem which made the call here redundant. Both PR numbers are from January 2023 --
+rem this code has been dead for over three years.
+rem
+rem Keeping it hurt: the second `configure_file` pass overwrote the staged files
+rem with output that did not reproduce them byte for byte, which the release
+rem comparator reported as a text mismatch. `.ci/scripts/build.sh` has never had
+rem an equivalent call, which is why Linux compared clean.
 EXIT /B %errorcode%

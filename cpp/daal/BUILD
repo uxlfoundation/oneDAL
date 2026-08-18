@@ -59,6 +59,19 @@ daal_module(
     includes = [ "include" ],
 )
 
+# Headers that ship under their generic name on one OS only. Make selects them
+# via `release.HEADERS.OSSPEC` and stages each one with the `_<os>` suffix
+# stripped, dropping the generic file from that platform's package. They stay
+# out of `public_includes` because the in-tree build always compiles against the
+# generic header; only the released copy differs.
+filegroup(
+    name = "os_specific_includes",
+    srcs = select({
+        "@platforms//os:windows": [ "include/daal_win.h" ],
+        "//conditions:default": [ ],
+    }),
+)
+
 daal_module(
     name = "includes",
     hdrs = [ ":kernel_defines",
@@ -156,6 +169,9 @@ daal_module(
 daal_module(
     name = "threading_tbb",
     srcs = glob(["src/threading/**/*.cpp"]),
+    # Match Make STDALLOC=yes: separately built threading objects keep TBB
+    # scalable allocation while core objects switch away from MKL allocation.
+    stdalloc = False,
     visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
@@ -210,6 +226,7 @@ daal_algorithms(
         "dtrees/gbt/regression",
         "dtrees/gbt/classification",
         "elastic_net",
+        "hdbscan",
         "em",
         "engines",
         "implicit_als",

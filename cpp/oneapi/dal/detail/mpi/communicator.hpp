@@ -120,11 +120,20 @@ public:
             : mpi_comm_(MPI_COMM_WORLD),
               default_root_(default_root) {}
 
+    explicit mpi_communicator_impl(MPI_Comm comm, std::int64_t default_root = 0)
+            : mpi_comm_(comm),
+              default_root_(default_root) {}
+
 #ifdef ONEDAL_DATA_PARALLEL
     //    template<typename T = MemoryAccessKind, spmd::enable_if_device_memory_accessible_t<T>>
     explicit mpi_communicator_impl(sycl::queue& queue, std::int64_t default_root = 0)
             : base_t(queue),
               mpi_comm_(MPI_COMM_WORLD),
+              default_root_(default_root) {}
+
+    explicit mpi_communicator_impl(sycl::queue& queue, MPI_Comm comm, std::int64_t default_root = 0)
+            : base_t(queue),
+              mpi_comm_(comm),
               default_root_(default_root) {}
 #endif
 
@@ -384,10 +393,20 @@ public:
     explicit mpi_communicator(sycl::queue& queue, std::int64_t default_root = 0)
             : spmd::communicator<MemoryAccessKind>(
                   new mpi_communicator_impl<MemoryAccessKind>(queue, default_root)) {}
+
+    template <typename T = MemoryAccessKind,
+              typename = spmd::enable_if_device_memory_accessible_t<T>>
+    explicit mpi_communicator(sycl::queue& queue, MPI_Comm comm, std::int64_t default_root = 0)
+            : spmd::communicator<MemoryAccessKind>(
+                  new mpi_communicator_impl<MemoryAccessKind>(queue, comm, default_root)) {}
 #endif
     explicit mpi_communicator(std::int64_t default_root = 0)
             : spmd::communicator<MemoryAccessKind>(
                   new mpi_communicator_impl<MemoryAccessKind>(default_root)) {}
+
+    explicit mpi_communicator(MPI_Comm comm, std::int64_t default_root = 0)
+            : spmd::communicator<MemoryAccessKind>(
+                  new mpi_communicator_impl<MemoryAccessKind>(comm, default_root)) {}
 };
 
 } // namespace v1

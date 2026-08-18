@@ -139,6 +139,12 @@ release(
             hdrs = [ "@onedal//cpp/daal:kernel_defines" ],
             add_prefix = "services/internal",
         ),
+        # Ships after `public_includes` so the OS-specific header replaces the
+        # generic one it shadows (`daal_win.h` -> `include/daal.h`).
+        release_include(
+            hdrs = [ "@onedal//cpp/daal:os_specific_includes" ],
+            skip_prefix = "cpp/daal/include",
+        ),
         release_include(
             hdrs = [ ":release_oneapi_includes" ],
             skip_prefix = "cpp",

@@ -18,7 +18,6 @@
 #include "oneapi/dal/algo/pca/backend/gpu/misc.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
@@ -61,29 +60,29 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
 
     if (desc.get_result_options().test(result_options::vars)) {
         auto [vars, vars_event] = compute_variances(q_, data_nd);
-        result.set_variances(homogen_table::wrap(vars.flatten(q_), 1, column_count));
+        result.set_variances(
+            homogen_table::wrap(vars.flatten(q_, { vars_event }), 1, column_count));
     }
     if (desc.get_result_options().test(result_options::eigenvectors |
                                        result_options::eigenvalues)) {
         auto [eigvals, syevd_event] = syevd_computation(q_, data_nd, {});
 
-        auto flipped_eigvals_host = flip_eigenvalues(q_, eigvals, component_count, { syevd_event });
+        auto [reordered_eigvals, reordered_eigenvectors] =
+            reorder_eigenpairs_descending(q_, eigvals, data_nd, component_count, { syevd_event });
 
-        auto flipped_eigenvectors_host =
-            flip_eigenvectors(q_, data_nd, component_count, { syevd_event });
         if (desc.get_result_options().test(result_options::eigenvalues)) {
             result.set_eigenvalues(
-                homogen_table::wrap(flipped_eigvals_host.flatten(), 1, component_count));
+                homogen_table::wrap(reordered_eigvals.flatten(q_, {}), 1, component_count));
         }
 
         if (desc.get_deterministic()) {
-            sign_flip(flipped_eigenvectors_host);
+            sign_flip(q_, reordered_eigenvectors, {}).wait_and_throw();
         }
+
         if (desc.get_result_options().test(result_options::eigenvectors)) {
-            result.set_eigenvectors(
-                homogen_table::wrap(flipped_eigenvectors_host.flatten(),
-                                    flipped_eigenvectors_host.get_dimension(0),
-                                    flipped_eigenvectors_host.get_dimension(1)));
+            result.set_eigenvectors(homogen_table::wrap(reordered_eigenvectors.flatten(q_),
+                                                        reordered_eigenvectors.get_dimension(0),
+                                                        reordered_eigenvectors.get_dimension(1)));
         }
     }
 

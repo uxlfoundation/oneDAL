@@ -48,6 +48,10 @@ public:
     /// Creates a new instance of the class with the given :literal:`x` and :literal:`y`.
     compute_input(const table& x, const table& y);
 
+    /// Creates a new instance of the class with the given :literal:`x` and a
+    /// default-constructed (empty) :literal:`y`.
+    compute_input(const table& x);
+
     /// An $n \\times p$ table with the data x, where each row
     /// stores one feature vector.
     /// @remark default = table{}

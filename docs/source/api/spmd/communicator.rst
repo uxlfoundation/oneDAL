@@ -80,3 +80,15 @@ The following reduction operations are supported:
 - Max
 - Min
 - Sum
+
+MPI Communicator
+----------------
+
+The MPI communicator will use the default MPI communicator (``MPI_COMM_WORLD``) in creating an MPI communicator object unless otherwise specified.
+The use of sub-communicators in oneDAL requires passing an integer (int64) representation of the raw ``MPI Comm`` object pointer to the MPI communicator constructor.
+The MPI library used for this process must be compatible with the MPI library used to compile oneDAL.
+
+CCL Communicator
+----------------
+
+This communicator uses the `Intel oneCCL <https://github.com/uxlfoundation/oneCCL>`_ library. It can only be used in conjunction with a dpc build of oneDAL.
