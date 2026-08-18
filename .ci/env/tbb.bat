@@ -1,6 +1,7 @@
 @echo off
 rem ============================================================================
 rem Copyright 2020 Intel Corporation
+rem Copyright contributors to the oneDAL project
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
@@ -15,8 +16,9 @@ rem See the License for the specific language governing permissions and
 rem limitations under the License.
 rem ============================================================================
 
-rem req: PowerShell 3.0+
-powershell.exe -command "if ($PSVersionTable.PSVersion.Major -ge 3) {exit 1} else {Write-Host \"The script requires PowerShell 3.0 or above (current version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor))\"}" && goto Error_load
+rem Pure CMD version with PowerShell fallback for extraction
+
+setlocal enabledelayedexpansion
 
 set TBBVERSION=2023.0.0
 if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
@@ -30,65 +32,138 @@ if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
 set TBBURL=%TBBURLROOT%%TBBPACKAGE%.zip
 
 if /i "%1"=="" (
-    set DST=%~dp0..\..\__deps\tbb
+    set "DST=%~dp0..\..\__deps\tbb"
 ) else (
-    set DST=%1\..\..\__deps\tbb
+    set "DST=%1\..\..\__deps\tbb"
 )
 
-if not exist %DST% powershell.exe -command "New-Item -Path \"%DST%\" -ItemType Directory"
-if not exist %DST%\win powershell.exe -command "New-Item -Path \"%DST%\win\" -ItemType Directory"
-if not exist %DST%\win\tbb powershell.exe -command "New-Item -Path \"%DST%\win\tbb\" -ItemType Directory"
+rem Create directories
+if not exist "%DST%" mkdir "%DST%"
+if not exist "%DST%\win" mkdir "%DST%\win"
+if not exist "%DST%\win\tbb" mkdir "%DST%\win\tbb"
 
 if not exist "%DST%\win\bin" (
-    powershell.exe -command "(New-Object System.Net.WebClient).DownloadFile('%TBBURL%', '%DST%\%TBBPACKAGE%.zip')" && goto Unpack || goto Error_load
-
-:Unpack
-    if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
-        powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%DST%\%TBBPACKAGE%.zip\", \"%DST%\") ; }catch{$_.exception ; exit 1}} else {exit 1}" && goto Build_oneTBB || goto Error_unpack
-    ) else (
-        powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%DST%\%TBBPACKAGE%.zip\", \"%DST%\") ; Copy-Item \"%DST%\oneapi-tbb-%TBBVERSION%\*\" -Destination \"%DST%\win\tbb\" -Recurse }catch{$_.exception ; exit 1}} else {exit 1}" || goto Error_unpack
-        if not exist %DST%\win\tbb\redist\intel64\vc14 powershell.exe -command "New-Item -Path \"%DST%\win\tbb\redist\intel64\vc14\" -ItemType Directory"
+    rem Download TBB archive
+    echo Downloading %TBBURL% ...
+    certutil -urlcache -split -f "%TBBURL%" "%DST%\%TBBPACKAGE%.zip" >nul
+    if !errorlevel! neq 0 (
+        echo tbb.bat : Error: Failed to download from %TBBURL%
+        exit /B 1
     )
-    goto Exit 
+
+    rem Extract archive
+    echo Extracting %TBBPACKAGE%.zip ...
+    
+    rem Try tar first (Windows 10+)
+    tar -xf "%DST%\%TBBPACKAGE%.zip" -C "%DST%" 2>nul
+    if !errorlevel! neq 0 (
+        echo Tar extraction failed, attempting alternative method...
+        
+        rem Fallback: Use PowerShell for extraction
+        powershell.exe -Command "Add-Type -Assembly 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory('%DST%\%TBBPACKAGE%.zip', '%DST%')" 2>nul
+        if !errorlevel! neq 0 (
+            echo tbb.bat : Error: Failed to extract %DST%\%TBBPACKAGE%.zip
+            echo Please ensure one of the following:
+            echo   - Windows 10+ with tar.exe available
+            echo   - PowerShell with System.IO.Compression support
+            exit /B 1
+        )
+    )
+
+    if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
+        goto Build_oneTBB
+    ) else (
+        rem Copy extracted files for non-ARM64
+        echo Copying extracted files ...
+        xcopy "%DST%\oneapi-tbb-%TBBVERSION%\*" "%DST%\win\tbb" /E /I /Y >nul
+        if !errorlevel! neq 0 (
+            echo tbb.bat : Error: Failed to copy extracted files
+            exit /B 1
+        )
+        if not exist "%DST%\win\tbb\redist\intel64\vc14" mkdir "%DST%\win\tbb\redist\intel64\vc14"
+        goto Exit
+    )
 
 :Build_oneTBB
-    IF "%VS_VER%"=="2026_build_tools" (
-        @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
-    ) ELSE IF "%VS_VER%"=="2019_build_tools" (
-        @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
-    ) ELSE IF "%VS_VER%"=="2017_build_tools" (
-        @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo Building oneTBB for ARM64 ...
+    
+    rem Detect and setup Visual Studio environment
+    if "%VS_VER%"=="2026_build_tools" (
+        if exist "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+        ) else (
+            echo Error: Visual Studio 2026 Build Tools not found
+            exit /B 1
+        )
+    ) else if "%VS_VER%"=="2019_build_tools" (
+        if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+        ) else (
+            echo Error: Visual Studio 2019 Build Tools not found
+            exit /B 1
+        )
+    ) else if "%VS_VER%"=="2017_build_tools" (
+        if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+        ) else (
+            echo Error: Visual Studio 2017 Build Tools not found
+            exit /B 1
+        )
     )
-    pushd "%DST%\oneTBB-%TBBVERSION%"
-        rmdir /s /q build-arm64
-        cmake -B build-arm64 -S . -GNinja ^
-            -DCMAKE_BUILD_TYPE=Release ^
-            -DTBB_TEST=OFF ^
-            -DCMAKE_INSTALL_PREFIX="%DST%\win\tbb"
-        cmake --build build-arm64
-        cmake --install build-arm64
-        mkdir "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
-        mkdir "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
 
-        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" /E
-        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\vc14" /E
-        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\bin\vc14" /E
-        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" *.lib
-        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\vc14" *.lib
+    pushd "%DST%\oneTBB-%TBBVERSION%"
+    
+    if exist "build-arm64" rmdir /s /q "build-arm64"
+    
+    echo Running CMake configure ...
+    cmake -B build-arm64 -S . -GNinja ^
+        -DCMAKE_BUILD_TYPE=Release ^
+        -DTBB_TEST=OFF ^
+        -DCMAKE_INSTALL_PREFIX="%DST%\win\tbb"
+    
+    if !errorlevel! neq 0 (
+        echo Error: CMake configuration failed
+        popd
+        exit /B 1
+    )
+    
+    echo Building oneTBB ...
+    cmake --build build-arm64
+    
+    if !errorlevel! neq 0 (
+        echo Error: CMake build failed
+        popd
+        exit /B 1
+    )
+    
+    echo Installing oneTBB ...
+    cmake --install build-arm64
+    
+    if !errorlevel! neq 0 (
+        echo Error: CMake install failed
+        popd
+        exit /B 1
+    )
+    
+    rem Create directories for redist/lib
+    if not exist "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" mkdir "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14"
+    if not exist "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" mkdir "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14"
+    
+    rem Copy binaries and libraries
+    echo Organizing output files ...
+    robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" /E
+    robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\vc14" /E
+    robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\bin\vc14" /E
+    robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" *.lib
+    robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\vc14" *.lib
+    
     popd
     exit /B 0
-
-:Error_load
-    echo tbb.bat : Error: Failed to load %TBBURL% to %DST%, try to load it manually
-    exit /B 1
-
-:Error_unpack
-    echo tbb.bat : Error: Failed to unpack %DST%\%TBBPACKAGE%.zip to %DST%, try unpack the archive manually
-    exit /B 1
 
 :Exit
     echo Downloaded and unpacked oneTBB small libraries to %DST%
     exit /B 0
+
 ) else (
     echo oneTBB small libraries are already installed in %DST%
     exit /B 0
