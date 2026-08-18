@@ -403,7 +403,9 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 /// grandparent sees the propagated score). If the parent wins, every
 /// descendant is unselected via an explicit stack walk over
 /// `childOffset`/`childList`. Oversized clusters (size > `mcsMax`) are forced
-/// onto the children-win branch unconditionally.
+/// onto the children-win branch unconditionally; this applies to leaf clusters
+/// too, which are otherwise skipped since they have no children to compare
+/// against.
 ///
 /// `treeTop` controls whether the root cluster participates. When the caller
 /// allows a single-cluster outcome, `treeTop == rootCid` and the root may win
@@ -431,7 +433,19 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 {
     for (DAAL_INT c = nClusters - 1; c >= treeTop; c--)
     {
-        if (isLeafCluster[c]) continue;
+        if (isLeafCluster[c])
+        {
+            // A leaf cluster has no children to compare against, so the
+            // stability comparison can never unselect it -- but the size cap
+            // still has to be honoured. Its propagated stability is the (empty)
+            // child sum, i.e. zero, matching the non-leaf children-win branch.
+            if (clusterSz[c] > mcsMax)
+            {
+                isSelected[c] = false;
+                stability[c]  = algorithmFPType(0);
+            }
+            continue;
+        }
 
         algorithmFPType childSum       = algorithmFPType(0);
         const DAAL_INT childOffsetC    = childOffset[c];

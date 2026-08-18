@@ -1260,13 +1260,43 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
         10.0,  10.2, //
         10.15, 10.15, //
     };
-    const auto x = homogen_table::wrap(data, 10, 2);
+    const std::int64_t row_count = 10;
+    const auto x = homogen_table::wrap(data, row_count, 2);
 
-    // max_cluster_size should run without error (functional check)
-    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5)
-                          .set_result_options(result_options::responses)
-                          .set_max_cluster_size(3);
-    REQUIRE_NOTHROW(dal::compute(desc, x));
+    // Sizes of every reported (non-noise) cluster, keyed by label.
+    const auto cluster_sizes = [&](std::int64_t max_cluster_size) {
+        const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5)
+                              .set_result_options(result_options::responses)
+                              .set_max_cluster_size(max_cluster_size);
+        const auto responses = dal::compute(desc, x).get_responses();
+        const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
+
+        std::map<std::int64_t, std::int64_t> sizes;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const auto label = static_cast<std::int64_t>(rows[i]);
+            if (label >= 0) {
+                sizes[label]++;
+            }
+        }
+        return sizes;
+    };
+
+    // Uncapped: the two blobs are found as clusters of 5 points each. They are
+    // leaves of the condensed tree, so they have no children to lose the EOM
+    // stability comparison against -- only the size cap can unselect them.
+    const auto uncapped = cluster_sizes(0);
+    REQUIRE(uncapped.size() == 2);
+    for (const auto& [label, size] : uncapped) {
+        INFO("label = " << label);
+        REQUIRE(size == 5);
+    }
+
+    // Capped below the blob size: neither blob may be reported as a cluster.
+    constexpr std::int64_t max_cluster_size = 3;
+    for (const auto& [label, size] : cluster_sizes(max_cluster_size)) {
+        INFO("label = " << label);
+        REQUIRE(size <= max_cluster_size);
+    }
 }
 
 // =========================================================================
