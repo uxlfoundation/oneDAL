@@ -1226,8 +1226,17 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
             else {
                 const std::int32_t tree_top = w.allow_single_cluster ? root_cid : (root_cid + 1);
                 for (std::int32_t c = n_clusters - 1; c >= tree_top; c--) {
-                    if (w.ilc_ptr[c])
+                    if (w.ilc_ptr[c]) {
+                        // Leaf clusters have no children, so the stability
+                        // comparison below can never unselect them -- but the
+                        // size cap still applies. Propagated stability is the
+                        // (empty) child sum, i.e. zero.
+                        if (w.csz_ptr[c] > mcs_max) {
+                            w.is_ptr[c] = 0;
+                            w.stab_ptr[c] = Float(0);
+                        }
                         continue;
+                    }
 
                     Float child_sum = Float(0);
                     if (w.cc0_ptr[c] >= 0)
