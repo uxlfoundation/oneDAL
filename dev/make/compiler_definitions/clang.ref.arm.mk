@@ -23,10 +23,6 @@ include dev/make/compiler_definitions/clang.mk
 
 PLATs.clang = lnxarm winarm
 
-ifneq ($(SVE_SUPPORTED),1)
-    $(error SVE is not supported on this system — aborting build. Pass SVE_SUPPORTED=1 to override.)
-endif
-
 LINKERS_SUPPORTED := bfd gold lld
 
 ifneq ($(LINKER),)
@@ -44,7 +40,7 @@ COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
                      -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type \
                      $(COMPILER.lnx.clang.target) \
                      $(COMPILER.sysroot)
-COMPILER.win.clang= clang-cl -march=armv8-a+sve \
+COMPILER.win.clang= clang-cl -march=armv8-a$(if $(filter 1,$(SVE_SUPPORTED)),+sve,) \
                      -fms-runtime-lib=$(if $(MSVC_RT_is_release),dll,dll_dbg) \
                      -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type -Wno-deprecated-declarations \
                      $(COMPILER.win.clang.target)
