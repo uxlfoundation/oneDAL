@@ -61,6 +61,11 @@ resources:
 
 jobs:
 - job: 'FormatterChecks'
+  # Two dependency installs and two source sweeps; fifteen minutes is generous.
+  # Without a limit the job inherits the hosted-agent default of an hour and a
+  # hung download reports as a cancellation an hour later, which reads like an
+  # unrelated infrastructure fault rather than a stuck step (build 62527).
+  timeoutInMinutes: 15
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
