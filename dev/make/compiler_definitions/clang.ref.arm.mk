@@ -23,6 +23,9 @@ include dev/make/compiler_definitions/clang.mk
 
 PLATs.clang = lnxarm winarm
 
+ifneq ($(SVE_SUPPORTED),1)
+    $(error SVE is not supported on this system. Cannot proceed with the build. Pass SVE_SUPPORTED=1 to override if cross-compiling for an SVE-capable target.)
+endif
 
 LINKERS_SUPPORTED := bfd gold lld
 
