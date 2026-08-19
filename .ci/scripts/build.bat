@@ -1,6 +1,7 @@
 @echo off
 rem ============================================================================
 rem Copyright 2022 Intel Corporation
+rem Copyright contributors to the oneDAL project
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
@@ -22,8 +23,8 @@ rem %3 - Instruction set
 set errorcode=0
 echo CPUCOUNT=%NUMBER_OF_PROCESSORS%
 
-echo "PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%"
-set "PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%"
+echo "PATH=%ProgramFiles%\LLVM\bin;C:\msys64\usr\bin;%PATH%"
+set "PATH=%ProgramFiles%\LLVM\bin;C:\msys64\usr\bin;%PATH%"
 
 echo pacman -S --noconfirm msys/make
 pacman -S --noconfirm msys/make

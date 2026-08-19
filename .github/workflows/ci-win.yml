@@ -60,14 +60,14 @@ jobs:
         run: |
           Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
           Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
-          echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "%ProgramFiles%\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           
       - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
         shell: pwsh
         run: |
           Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
           Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
-          echo "C:\Program Files\CMake\bin" >> $env:GITHUB_PATH
+          echo "%ProgramFiles%\CMake\bin" >> $env:GITHUB_PATH
           
           Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
           Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
@@ -76,44 +76,44 @@ jobs:
       - name: Build OpenBLAS
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\env\openblas.bat
 
       - name: Build oneTBB
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\env\tbb.bat
 
       - name: Build daal
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\scripts\build.bat daal ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
       - name: Build onedal_c
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
       - name: Test daal
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
         shell: cmd
         run: |
-          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
 

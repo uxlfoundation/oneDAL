@@ -32,14 +32,14 @@ set BLASVERSION=0.3.33
 set BLASURLROOT=https://github.com/OpenMathLib/OpenBLAS/archive/refs/tags/v%BLASVERSION%
 set BLASPACKAGE=
 set BLASURL=%BLASURLROOT%%BLASPACKAGE%.zip
-set "PATH=C:\Program Files\LLVM\bin;%PATH%"
+set "PATH=%ProgramFiles%\LLVM\bin;%PATH%"
 
 IF "%VS_VER%"=="2026_build_tools" (
-    @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    @call "%ProgramFiles(x86)%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
 ) ELSE IF "%VS_VER%"=="2019_build_tools" (
-    @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    @call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
 ) ELSE IF "%VS_VER%"=="2017_build_tools" (
-    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    @call "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
 )
 
 if not exist "%DST%" mkdir "%DST%" >nul
@@ -78,3 +78,4 @@ exit /B 0
 :Error_unpack
     echo openblas.bat : Error: Failed to unpack %BLASSOURCEDIR%\openblas.zip to %BLASSOURCEDIR%, try unpack the archive manually
     exit /B 1
+    
