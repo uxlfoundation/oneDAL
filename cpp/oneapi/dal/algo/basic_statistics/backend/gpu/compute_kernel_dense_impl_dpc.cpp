@@ -17,12 +17,14 @@
 #include <limits>
 #include <algorithm>
 #include <type_traits>
+#include "oneapi/dal/algo/basic_statistics/backend/gpu/common_impl.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/compute_kernel_dense_impl.hpp"
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/table/backend/common_kernels.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
 
@@ -96,6 +98,7 @@ template <typename Float, bs_list List>
 result_t compute_kernel_dense_impl<Float, List>::get_result(const descriptor_t& desc,
                                                             const local_result<Float, List>& ndres,
                                                             std::int64_t column_count,
+                                                            alloc_kind result_alloc_kind,
                                                             const bk::event_vector& deps) {
     ONEDAL_ASSERT(column_count > 0);
     result_t res;
@@ -105,48 +108,75 @@ result_t compute_kernel_dense_impl<Float, List>::get_result(const descriptor_t& 
 
     if (res_op.test(result_options::min)) {
         ONEDAL_ASSERT(ndres.get_min().get_count() == column_count);
-        res.set_min(homogen_table::wrap(ndres.get_min().flatten(q_, deps), 1, column_count));
+        res.set_min(
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_min(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::max)) {
         ONEDAL_ASSERT(ndres.get_max().get_count() == column_count);
-        res.set_max(homogen_table::wrap(ndres.get_max().flatten(q_, deps), 1, column_count));
+        res.set_max(
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_max(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::sum)) {
         ONEDAL_ASSERT(ndres.get_sum().get_count() == column_count);
-        res.set_sum(homogen_table::wrap(ndres.get_sum().flatten(q_, deps), 1, column_count));
+        res.set_sum(
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_sum(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::sum_squares)) {
         ONEDAL_ASSERT(ndres.get_sum2().get_count() == column_count);
         res.set_sum_squares(
-            homogen_table::wrap(ndres.get_sum2().flatten(q_, deps), 1, column_count));
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_sum2(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::sum_squares_centered)) {
         ONEDAL_ASSERT(ndres.get_sum2cent().get_count() == column_count);
-        res.set_sum_squares_centered(
-            homogen_table::wrap(ndres.get_sum2cent().flatten(q_, deps), 1, column_count));
+        res.set_sum_squares_centered(homogen_table::wrap(
+            flatten_result_array(q_, ndres.get_sum2cent(), result_alloc_kind, deps),
+            1,
+            column_count));
     }
     if (res_op.test(result_options::mean)) {
         ONEDAL_ASSERT(ndres.get_mean().get_count() == column_count);
-        res.set_mean(homogen_table::wrap(ndres.get_mean().flatten(q_, deps), 1, column_count));
+        res.set_mean(
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_mean(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::second_order_raw_moment)) {
         ONEDAL_ASSERT(ndres.get_sorm().get_count() == column_count);
         res.set_second_order_raw_moment(
-            homogen_table::wrap(ndres.get_sorm().flatten(q_, deps), 1, column_count));
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_sorm(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::variance)) {
         ONEDAL_ASSERT(ndres.get_varc().get_count() == column_count);
-        res.set_variance(homogen_table::wrap(ndres.get_varc().flatten(q_, deps), 1, column_count));
+        res.set_variance(
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_varc(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
     if (res_op.test(result_options::standard_deviation)) {
         ONEDAL_ASSERT(ndres.get_stdev().get_count() == column_count);
-        res.set_standard_deviation(
-            homogen_table::wrap(ndres.get_stdev().flatten(q_, deps), 1, column_count));
+        res.set_standard_deviation(homogen_table::wrap(
+            flatten_result_array(q_, ndres.get_stdev(), result_alloc_kind, deps),
+            1,
+            column_count));
     }
     if (res_op.test(result_options::variation)) {
         ONEDAL_ASSERT(ndres.get_vart().get_count() == column_count);
-        res.set_variation(homogen_table::wrap(ndres.get_vart().flatten(q_, deps), 1, column_count));
+        res.set_variation(
+            homogen_table::wrap(flatten_result_array(q_, ndres.get_vart(), result_alloc_kind, deps),
+                                1,
+                                column_count));
     }
+
     return res;
 }
 
@@ -719,6 +749,7 @@ std::tuple<local_result<Float, List>, sycl::event>
 compute_kernel_dense_impl<Float, List>::merge_blocks(local_buffer_list<Float, List>&& ndbuf,
                                                      std::int64_t column_count,
                                                      std::int64_t block_count,
+                                                     sycl::usm::alloc result_alloc_kind,
                                                      const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(merge_blocks, q_);
 
@@ -726,7 +757,7 @@ compute_kernel_dense_impl<Float, List>::merge_blocks(local_buffer_list<Float, Li
     ONEDAL_ASSERT(block_count > 0);
 
     const bool distr_mode = comm_.get_rank_count() > 1;
-    auto ndres = local_result<Float, List>::empty(q_, column_count, distr_mode);
+    auto ndres = local_result<Float, List>::empty(q_, column_count, result_alloc_kind, distr_mode);
 
     // ndres asserts
     ASSERT_IF(bs_list::min, ndres.get_min().get_count() == column_count);
@@ -908,6 +939,7 @@ template <typename Float, bs_list List>
 template <bool use_weights>
 std::tuple<local_result<Float, List>, sycl::event>
 compute_kernel_dense_impl<Float, List>::compute_single_pass(const pr::ndview<Float, 2>& data,
+                                                            sycl::usm::alloc data_alloc_kind,
                                                             const pr::ndview<Float, 2>& weights) {
     ONEDAL_PROFILER_TASK(process_single_block, q_);
 
@@ -916,10 +948,11 @@ compute_kernel_dense_impl<Float, List>::compute_single_pass(const pr::ndview<Flo
     const auto row_count = data.get_dimension(0);
     const auto column_count = data.get_dimension(1);
     const auto stride = data.get_leading_stride();
+    const auto* const data_ptr = data.get_data();
 
     const bool distr_mode = comm_.get_rank_count() > 1;
 
-    auto ndres = local_result<Float, List>::empty(q_, column_count, distr_mode);
+    auto ndres = local_result<Float, List>::empty(q_, column_count, data_alloc_kind, distr_mode);
 
     ASSERT_IF(bs_list::min, ndres.get_min().get_count() == column_count);
     ASSERT_IF(bs_list::max, ndres.get_max().get_count() == column_count);
@@ -942,8 +975,6 @@ compute_kernel_dense_impl<Float, List>::compute_single_pass(const pr::ndview<Flo
     ASSERT_IF(bs_list::varc, ndres.get_varc().get_count() == column_count);
     ASSERT_IF(bs_list::stdev, ndres.get_stdev().get_count() == column_count);
     ASSERT_IF(bs_list::vart, ndres.get_vart().get_count() == column_count);
-
-    const auto* const data_ptr = data.get_data();
 
     DECLSET_IF(Float*, rmin_ptr, bs_list::min, ndres.get_min().get_mutable_data())
     DECLSET_IF(Float*, rmax_ptr, bs_list::max, ndres.get_max().get_mutable_data())
@@ -1049,6 +1080,7 @@ template <typename Float, bs_list List>
 template <bool use_weights>
 std::tuple<local_result<Float, List>, sycl::event>
 compute_kernel_dense_impl<Float, List>::compute_by_blocks(const pr::ndview<Float, 2>& data,
+                                                          sycl::usm::alloc data_alloc_kind,
                                                           std::int64_t row_block_count,
                                                           const pr::ndview<Float, 2>& weights) {
     ONEDAL_ASSERT(data.has_data());
@@ -1128,8 +1160,11 @@ compute_kernel_dense_impl<Float, List>::compute_by_blocks(const pr::ndview<Float
         });
     }
 
-    auto [ndres, merge_event] =
-        merge_blocks(std::move(ndbuf), column_count, row_block_count, { last_event });
+    auto [ndres, merge_event] = merge_blocks(std::move(ndbuf),
+                                             column_count,
+                                             row_block_count,
+                                             data_alloc_kind,
+                                             { last_event });
 
     return std::make_tuple(std::move(ndres), merge_event);
 }
@@ -1260,6 +1295,10 @@ result_t compute_kernel_dense_impl<Float, List>::operator()(const descriptor_t& 
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t column_count = data.get_column_count();
 
+    const alloc_kind data_alloc_kind = data.get_metadata().get_alloc_kind();
+    const sycl::usm::alloc data_usm_alloc_kind =
+        ((data_alloc_kind == alloc_kind::non_usm) ? sycl::usm::alloc::host
+                                                  : be::alloc_kind_to_sycl(data_alloc_kind));
     const auto data_nd = pr::table2ndarray<Float>(q_, data, alloc::device);
 
     const auto row_block_count = get_row_block_count(row_count);
@@ -1270,19 +1309,21 @@ result_t compute_kernel_dense_impl<Float, List>::operator()(const descriptor_t& 
     if (weights.has_data()) {
         const auto weights_nd = pr::table2ndarray<Float>(q_, weights, alloc::device);
         std::tie(ndres, last_event) =
-            (row_block_count > 1) ? compute_by_blocks<true>(data_nd, row_block_count, weights_nd)
-                                  : compute_single_pass<true>(data_nd, weights_nd);
+            (row_block_count > 1)
+                ? compute_by_blocks<true>(data_nd, data_usm_alloc_kind, row_block_count, weights_nd)
+                : compute_single_pass<true>(data_nd, data_usm_alloc_kind, weights_nd);
     }
     else {
-        std::tie(ndres, last_event) = (row_block_count > 1)
-                                          ? compute_by_blocks<false>(data_nd, row_block_count)
-                                          : compute_single_pass<false>(data_nd);
+        std::tie(ndres, last_event) =
+            (row_block_count > 1)
+                ? compute_by_blocks<false>(data_nd, data_usm_alloc_kind, row_block_count)
+                : compute_single_pass<false>(data_nd, data_usm_alloc_kind);
     }
 
     std::tie(ndres, last_event) =
         finalize(std::move(ndres), row_count, column_count, { last_event });
 
-    return get_result(desc, std::move(ndres), column_count, { last_event })
+    return get_result(desc, std::move(ndres), column_count, data_alloc_kind, { last_event })
         .set_result_options(desc.get_result_options());
 }
 

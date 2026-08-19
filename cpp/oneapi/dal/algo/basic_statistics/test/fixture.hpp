@@ -141,6 +141,71 @@ public:
         }
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
+    void online_mixed_checks(const te::dataframe& data_fr,
+                             std::shared_ptr<te::dataframe> weights_fr,
+                             bs::result_option_id compute_mode,
+                             std::int64_t nBlocks,
+                             alloc_kind first_block_alloc) {
+        const auto use_weights = bool(weights_fr);
+        CAPTURE(use_weights, compute_mode);
+        CAPTURE(first_block_alloc);
+
+        const auto bs_desc = get_descriptor(compute_mode);
+        const auto data_table_id = this->get_homogen_table_id();
+
+        table weights, data = data_fr.get_table(data_table_id);
+        dal::basic_statistics::partial_compute_result<> partial_result;
+
+        auto input_table = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                  data,
+                                                                  nBlocks,
+                                                                  first_block_alloc);
+        if (use_weights) {
+            weights = weights_fr->get_table(data_table_id);
+            auto weights_table = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                        weights,
+                                                                        nBlocks,
+                                                                        first_block_alloc);
+            for (std::int64_t i = 0; i < nBlocks; ++i) {
+                partial_result = this->partial_compute(bs_desc,
+                                                       partial_result,
+                                                       input_table[i],
+                                                       weights_table[i]);
+            }
+        }
+        else {
+            for (std::int64_t i = 0; i < nBlocks; ++i) {
+                partial_result = this->partial_compute(bs_desc, partial_result, input_table[i]);
+            }
+        }
+        auto compute_result = this->finalize_compute(bs_desc, partial_result);
+        // const alloc_kind expected_alloc = alloc_kind::usm_device;
+        check_result_alloc(compute_mode, compute_result, first_block_alloc);
+        check_compute_result(compute_mode, data, weights, compute_result);
+        check_for_exception_for_non_requested_results(compute_mode, compute_result);
+    }
+
+    void check_result_alloc(bs::result_option_id compute_mode,
+                            const result_t& result,
+                            alloc_kind expected_alloc) {
+        const auto ctx = this->get_queue().get_context();
+        // const alloc_kind expected_alloc = alloc_kind::usm_device;
+        if (compute_mode.test(result_options::min)) {
+            REQUIRE(result.get_min().get_metadata().get_alloc_kind() == expected_alloc);
+        }
+        if (compute_mode.test(result_options::max)) {
+            REQUIRE(result.get_max().get_metadata().get_alloc_kind() == expected_alloc);
+        }
+        if (compute_mode.test(result_options::mean)) {
+            REQUIRE(result.get_mean().get_metadata().get_alloc_kind() == expected_alloc);
+        }
+        if (compute_mode.test(result_options::variance)) {
+            REQUIRE(result.get_variance().get_metadata().get_alloc_kind() == expected_alloc);
+        }
+    }
+#endif
+
     void check_compute_result(bs::result_option_id compute_mode,
                               const table& data,
                               const table& weights,

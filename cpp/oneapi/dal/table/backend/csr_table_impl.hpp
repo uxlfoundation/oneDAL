@@ -25,7 +25,12 @@
 namespace oneapi::dal::backend {
 
 class csr_table_impl : public detail::csr_table_template<csr_table_impl>,
-                       public ONEDAL_SERIALIZABLE(csr_table_id) {
+                       public ONEDAL_SERIALIZABLE(csr_table_id)
+#ifdef ONEDAL_DATA_PARALLEL
+        ,
+                       public detail::queue_provider_iface
+#endif
+{
 public:
     csr_table_impl()
             : col_count_(0),
@@ -56,6 +61,13 @@ public:
         if (data.get_count() != element_count * dtype_size) {
             throw dal::domain_error(error_msg::invalid_data_block_size());
         }
+
+#ifdef ONEDAL_DATA_PARALLEL
+        if (data.get_queue() != column_indices.get_queue() ||
+            data.get_queue() != row_offsets.get_queue()) {
+            throw dal::domain_error(error_msg::alloc_kinds_of_arrays_do_not_match());
+        }
+#endif // ONEDAL_DATA_PARALLEL
 
         const std::int64_t* const row_offsets_ptr = row_offsets.get_data();
         if (!std::is_sorted(row_offsets_ptr, row_offsets_ptr + row_offsets.get_count())) {
@@ -119,7 +131,7 @@ public:
             throw dal::domain_error(error_msg::column_indices_gt_max_value());
         }
     }
-#endif
+#endif // ONEDAL_DATA_PARALLEL
 
     std::int64_t get_column_count() const override {
         return col_count_;
@@ -231,6 +243,12 @@ public:
                        column_indices,
                        row_offsets,
                        alloc_kind_from_sycl(alloc));
+    }
+#endif
+
+#ifdef ONEDAL_DATA_PARALLEL
+    std::optional<sycl::queue> get_queue() const override {
+        return data_.get_queue();
     }
 #endif
 
