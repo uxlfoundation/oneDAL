@@ -24,9 +24,31 @@ BAZEL_CMD="${BAZEL:-bazel}"
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
-! find "${DALROOT}/lib" -type f -o -type l | grep -q 'onedal_parameters'
-grep -Fq 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' "${DALROOT}/lib/cmake/oneDAL/oneDALConfig.cmake"
-! grep -q 'onedal_parameters' "${DALROOT}/lib/pkgconfig/"*.pc
+# `! producer | grep -q` is also satisfied when the *producer* fails, so an
+# absent lib/ directory or an unmatched .pc glob would pass these three checks
+# without looking at anything. Materialise the inputs first, then assert.
+find "${DALROOT}/lib" \( -type f -o -type l \) -print >"${work}/lib-entries"
+if grep 'onedal_parameters' "${work}/lib-entries"; then
+    echo "folded release still ships a parameters library (above)" >&2
+    exit 1
+fi
+
+config="${DALROOT}/lib/cmake/oneDAL/oneDALConfig.cmake"
+if ! grep -Fq 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' "${config}"; then
+    echo "${config} does not advertise the folded layout; it says:" >&2
+    grep -F 'ONEDAL_USE_PARAMETERS_LIBRARY' "${config}" >&2 || echo "  (no such line)" >&2
+    exit 1
+fi
+
+pc_files=("${DALROOT}/lib/pkgconfig/"*.pc)
+if [[ ! -e "${pc_files[0]}" ]]; then
+    echo "no pkg-config files staged under ${DALROOT}/lib/pkgconfig" >&2
+    exit 1
+fi
+if grep -H 'onedal_parameters' "${pc_files[@]}"; then
+    echo "folded release still advertises a parameters library in pkg-config (above)" >&2
+    exit 1
+fi
 
 cat >"${work}/smoke.cpp" <<'CPP'
 #include "oneapi/dal/algo/covariance.hpp"
@@ -76,7 +98,13 @@ if [[ -n "${TBBROOT:-}" ]]; then
     export LIBRARY_PATH="${TBBROOT}/lib:${LIBRARY_PATH:-}"
 fi
 for pc in dal-dynamic-threading-host dal-static-threading-host; do
-    c++ "${work}/smoke.cpp" -o "${work}/pkg-${pc}" $(pkg-config --cflags --libs "${pc}")
+    # Resolved in its own statement: inside `c++ ... $(pkg-config ...)` a failing
+    # substitution is not the command's own status, so `set -e` would let the
+    # compile proceed with no flags and report a wall of undefined references
+    # instead of the missing .pc.
+    pc_flags="$(pkg-config --cflags --libs "${pc}")"
+    # shellcheck disable=SC2086 # deliberate word splitting of the flag list
+    c++ "${work}/smoke.cpp" -o "${work}/pkg-${pc}" ${pc_flags}
     LD_LIBRARY_PATH="${DALROOT}/lib/intel64:${LD_LIBRARY_PATH:-}" "${work}/pkg-${pc}"
 done
 

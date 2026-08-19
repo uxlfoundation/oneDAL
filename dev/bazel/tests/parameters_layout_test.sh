@@ -20,10 +20,43 @@ set -euo pipefail
 
 bazel_cmd="${BAZEL:-bazel}"
 common=(--noshow_progress --cpu=avx2)
-query() { "${bazel_cmd}" cquery "$1" "${common[@]}" "${@:2}" --output=label 2>/dev/null | awk '{print $1}' | sort -u; }
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
+
+# cquery writes loading/analysis chatter to stderr, so it is captured rather
+# than inherited -- but only shown when the query itself fails. Swallowing it
+# outright leaves `set -e` killing the script on a broken query with nothing in
+# the log to say which query, or why.
+query() {
+    local expr="$1"
+    shift
+    if ! "${bazel_cmd}" cquery "${expr}" "${common[@]}" "$@" --output=label \
+        >"${work}/query.out" 2>"${work}/query.err"; then
+        echo "cquery failed: ${expr} ${*}" >&2
+        cat "${work}/query.err" >&2
+        return 1
+    fi
+    awk '{print $1}' "${work}/query.out" | sort -u
+}
+
+# Every assertion below says which pair it was checking when it fails. A bare
+# `query ... | grep -q .` exits the script silently, which is indistinguishable
+# in a CI log from the step dying for an unrelated reason.
+assert_depends() {
+    if ! query "somepath($1, $2)" --build_parameters_lib=no | grep -q .; then
+        echo "expected ${1} to reach ${2} with --build_parameters_lib=no" >&2
+        exit 1
+    fi
+}
+
+assert_log_contains() {
+    if ! grep -qi -- "$2" "$1"; then
+        echo "expected ${3} to mention '${2}'; got:" >&2
+        cat "$1" >&2
+        exit 1
+    fi
+}
 
 query 'labels(lib, //:release)' --build_parameters_lib=auto >"${work}/auto"
 query 'labels(lib, //:release)' --build_parameters_lib=yes >"${work}/yes"
@@ -44,7 +77,7 @@ dpc_parameter_modules=(
 )
 for label in //cpp/oneapi/dal:static //cpp/oneapi/dal:dynamic; do
     for module in "${host_parameter_modules[@]}"; do
-        query "somepath(${label}, ${module})" --build_parameters_lib=no | grep -q .
+        assert_depends "${label}" "${module}"
     done
 done
 for label in //cpp/oneapi/dal:static_dpc //cpp/oneapi/dal:dynamic_dpc; do
@@ -55,7 +88,7 @@ for label in //cpp/oneapi/dal:static_dpc //cpp/oneapi/dal:dynamic_dpc; do
         fi
     done
     for module in "${dpc_parameter_modules[@]}"; do
-        query "somepath(${label}, ${module})" --build_parameters_lib=no | grep -q .
+        assert_depends "${label}" "${module}"
     done
 done
 
@@ -64,8 +97,12 @@ done
 # Static parameter targets remain valid direct build targets, while the dynamic
 # variants are intentionally incompatible in the folded layout.
 for label in static_parameters static_parameters_dpc; do
-    "${bazel_cmd}" build "//cpp/oneapi/dal:${label}" "${common[@]}" --nobuild \
-        --build_parameters_lib=no >"${work}/${label}.log" 2>&1
+    if ! "${bazel_cmd}" build "//cpp/oneapi/dal:${label}" "${common[@]}" --nobuild \
+        --build_parameters_lib=no >"${work}/${label}.log" 2>&1; then
+        echo "folded layout rejected direct target ${label}, which stays valid:" >&2
+        cat "${work}/${label}.log" >&2
+        exit 1
+    fi
 done
 for label in dynamic_parameters dynamic_parameters_dpc; do
     if "${bazel_cmd}" build "//cpp/oneapi/dal:${label}" "${common[@]}" --nobuild \
@@ -73,7 +110,7 @@ for label in dynamic_parameters dynamic_parameters_dpc; do
         echo "folded layout unexpectedly permits direct target ${label}" >&2
         exit 1
     fi
-    grep -qi 'incompatible' "${work}/${label}.log"
+    assert_log_contains "${work}/${label}.log" 'incompatible' "${label}'s rejection"
 done
 
 if "${bazel_cmd}" cquery @config//:validate_build_parameters_lib \
@@ -82,6 +119,8 @@ if "${bazel_cmd}" cquery @config//:validate_build_parameters_lib \
     echo "Windows --build_parameters_lib=yes unexpectedly passed validation" >&2
     exit 1
 fi
-grep -Fq -- '--build_parameters_lib=yes is not supported on Windows' "${work}/windows.log"
+assert_log_contains "${work}/windows.log" \
+    '--build_parameters_lib=yes is not supported on Windows' \
+    "the Windows validation failure"
 
 echo "BUILD_PARAMETERS_LIB configured-graph checks passed"
