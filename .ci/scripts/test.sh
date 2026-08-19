@@ -162,7 +162,7 @@ if [[ "${interface}" == *"/mpi" ]]; then
     # that is what puts Intel MPI (and hence the fi_info shipped by its
     # libfabric) on PATH.
     if [ ! -z "$(command -v fi_info)" ]; then
-        if ! fi_info -p verbs > /dev/null 2>&1; then
+        if [ ! -z "$(command -v fi_info -p verbs)"; then
             echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
             export I_MPI_FABRICS=shm
             export FI_PROVIDER=tcp
