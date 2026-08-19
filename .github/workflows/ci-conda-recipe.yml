@@ -16,16 +16,11 @@
 
 name: CI Conda Recipe
 
+# TEMPORARY (MPI fabric stress, revert before merge): triggers stripped
+# down to workflow_dispatch so this workflow stays out of the way while
+# CI / LinuxMakeDPCPP(avx2) is replicated 10 times.
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'conda-recipe/**'
-      - '.github/workflows/ci-conda-recipe.yml'
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read

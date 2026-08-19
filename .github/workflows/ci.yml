@@ -38,13 +38,47 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     strategy:
       fail-fast: false
+      # TEMPORARY (MPI fabric stress, revert before merge): the MPI_Init abort
+      # this branch fixes is runner-VM dependent - only some Azure hosts expose
+      # a MANA paravirtualized NIC that Intel MPI's OFI autoselect probes as
+      # verbs/PSM3, after which the UD QP open fails with EINVAL. A single green
+      # run proves nothing, so the whole job is replicated 10 times to land on
+      # 10 independent VMs and raise the odds of drawing a bad one.
       matrix:
         include:
           - ISA: avx2
             runner: ubuntu-24.04
+            copy: 1
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 2
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 3
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 4
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 5
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 6
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 7
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 8
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 9
+          - ISA: avx2
+            runner: ubuntu-24.04
+            copy: 10
 
     runs-on: ${{ matrix.runner }}
-    name: LinuxMakeDPCPP(${{ matrix.ISA }})
+    name: LinuxMakeDPCPP(${{ matrix.ISA }})-${{ matrix.copy }}
     timeout-minutes: 360
 
     steps:
@@ -80,19 +114,21 @@ jobs:
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Prepare Cache build
-        if: github.event_name != 'pull_request'
+        # TEMPORARY (MPI fabric stress, revert before merge): only one copy may
+        # touch the shared cache key / artifact name, the other 9 would collide.
+        if: github.event_name != 'pull_request' && matrix.copy == 1
         run: cp -r __release_lnx __release_lnx_main
       - name: Cache build
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && matrix.copy == 1
         uses: actions/cache/save@v6
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
           path: ./__release_lnx_main
       - name: Remove Cache build
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && matrix.copy == 1
         run: rm -rf __release_lnx_main
       - name: Archive build
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.copy == 1
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: __release_lnx
@@ -128,7 +164,11 @@ jobs:
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
+    # TEMPORARY (MPI fabric stress, revert before merge): `false &&` disables the
+    # ABI check, it only has an artifact from copy 1 and is not what we are
+    # stressing here.
     if: |
+      false &&
       github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')

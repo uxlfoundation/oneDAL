@@ -16,19 +16,11 @@
 
 name: renovate-validation
 
+# TEMPORARY (MPI fabric stress, revert before merge): triggers stripped
+# down to workflow_dispatch so this workflow stays out of the way while
+# CI / LinuxMakeDPCPP(avx2) is replicated 10 times.
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - .github/workflows/renovate-validation.yml
-      - .github/renovate.json
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/renovate-validation.yml
-      - .github/renovate.json
+  workflow_dispatch:
 
 permissions:
   contents: read
