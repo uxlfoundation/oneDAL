@@ -87,7 +87,23 @@ jobs:
             -d file_name=@cov-int.tgz \
             https://scan.coverity.com/projects/${{env.COVERITY_PROJECT_ID}}/builds/init \
             | tee response
-          upload_url=$(jq -r '.url' response)
+          # Coverity refuses a second submission while the previous one is still
+          # being analysed, and answers in plain text rather than JSON:
+          #
+          #   Your build is already in the queue for analysis. Please wait till
+          #   analysis finishes before uploading another build.
+          #
+          # That is a state of the Coverity queue, not a defect in this build, so
+          # it ends the job green with an annotation. It has to be handled before
+          # the jq below: the default shell is `bash -e`, so jq's parse error on
+          # that body aborts the step (exit 5) before the diagnostics underneath
+          # ever run -- which is how the scheduled scan came to report a queue
+          # collision as `jq: parse error: Invalid numeric literal`.
+          if grep -qi 'already in the queue' response; then
+            echo "::warning title=Coverity upload skipped::A previous build is still queued for analysis; ${GITHUB_SHA} was not uploaded. The next scheduled scan covers it."
+            exit 0
+          fi
+          upload_url=$(jq -r '.url' response 2>/dev/null || true)
           if [ -z "$upload_url" ] || [ "$upload_url" == "null" ]; then
             echo "Error: Failed to extract 'url' from API response." >&2
             cat response >&2
