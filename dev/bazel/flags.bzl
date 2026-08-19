@@ -122,6 +122,16 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 "-Wno-gnu-zero-variadic-macro-arguments",
                 "-fopenmp-simd",
             ]
+        if compiler_id in ["clang", "icx", "icpx"]:
+            flags = flags + [
+                # LLVM-based compilers report every vectorization pragma they
+                # cannot honor (for example `omp simd reduction(max : ...)`)
+                # starting from `-O1`, and `-Werror` above turns such a report
+                # into a build failure. Matches `warn.opts.clang` in
+                # dev/make/compiler_definitions/clang.mk and `-Wno-pass-failed`
+                # in the `COMPILER.*.icx` options.
+                "-Wno-pass-failed",
+            ]
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
         return flags

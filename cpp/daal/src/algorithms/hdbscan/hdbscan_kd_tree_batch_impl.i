@@ -129,9 +129,7 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
         algorithmFPType lo = daal::services::internal::MaxVal<algorithmFPType>::get();
         algorithmFPType hi = -daal::services::internal::MaxVal<algorithmFPType>::get();
         // Reduction body uses `?:` rather than `if (...) x = ...` per OMP simd conformance.
-#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(min : lo) reduction(max : hi))
-#endif
         for (DAAL_INT i = begin; i < end; i++)
         {
             const algorithmFPType val = data[pointIndices[i] * nCols + d];
@@ -254,9 +252,7 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
     {
         algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
         // Reduction body uses `?:` per OMP simd conformance.
-#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(min : minCD))
-#endif
         for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];

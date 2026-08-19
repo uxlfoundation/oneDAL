@@ -64,18 +64,22 @@ ifeq ($(STDALLOC), yes)
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan
 
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 
+# `-Wno-pass-failed` belongs to the always-on options rather than to `-DEBC.icx`,
+# which the top-level makefile expands for debug builds only: icx is LLVM-based
+# and reports every vectorization pragma it cannot honor, and `-Werror`/`-WX`
+# below turn such a report into a build failure.
 COMPILER.lnx.icx = icx -m64 \
-                     -Werror -Wno-empty-body -Wreturn-type -qopenmp-simd ${CXXFLAGS} $(-stdalloc.icx)
+                     -Werror -Wno-empty-body -Wreturn-type -Wno-pass-failed -qopenmp-simd ${CXXFLAGS} $(-stdalloc.icx)
 COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX \
-                     -Wno-deprecated-declarations -Wno-empty-body ${CXXFLAGS} $(-stdalloc.icx)
+                     -Wno-deprecated-declarations -Wno-empty-body -Wno-pass-failed ${CXXFLAGS} $(-stdalloc.icx)
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
