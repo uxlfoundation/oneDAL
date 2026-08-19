@@ -149,26 +149,20 @@ else
 fi
 
 if [[ "${interface}" == *"/mpi" ]]; then
-    # Some cloud runners (e.g. Azure VMs with a MANA paravirtualized NIC)
-    # are probed by Intel MPI's OFI autoselect as a verbs/PSM3 device, but
-    # opening the UD queue pair fails with EINVAL and MPI_Init aborts before
-    # the sample runs. Probe libfabric directly: if the verbs provider cannot
-    # enumerate a usable endpoint on this host, pin the fabric to shared
-    # memory and force libfabric onto tcp so autoselect never touches
-    # verbs/PSM3. On real IB / OPA hardware fi_info succeeds and the override
-    # is skipped, preserving the native fabric.
-    #
-    # This has to run after the Conda environment is activated above, since
-    # that is what puts Intel MPI (and hence the fi_info shipped by its
-    # libfabric) on PATH.
-    if [ ! -z "$(command -v fi_info)" ]; then
-        if [ ! -z "$(fi_info -p verbs)"; then
-            echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
-            export I_MPI_FABRICS=shm
-            export FI_PROVIDER=tcp
-        fi
+    # The MPI samples launch every rank on the runner itself, so shared memory
+    # and tcp are the only fabrics they need. Some cloud runners (e.g. Azure
+    # VMs with a MANA paravirtualized NIC) nevertheless expose a device under
+    # /sys/class/infiniband, which Intel MPI's OFI autoselect picks up as a
+    # PSM3/verbs device. Opening the endpoint then fails ("Unable to create UD
+    # QP on mana_0") and MPI_Init aborts before the sample runs. Probing with
+    # fi_info does not distinguish those hosts: the provider enumerates fine
+    # and only the endpoint open fails. So pin libfabric to tcp instead, unless
+    # the caller has already selected a provider explicitly.
+    if [ -z "${FI_PROVIDER:-}" ]; then
+        export FI_PROVIDER=tcp
+        echo "Pinning libfabric to FI_PROVIDER=${FI_PROVIDER} for MPI ${TEST_KIND}"
     else
-        echo "warning: fi_info not on PATH; cannot probe verbs provider" >&2
+        echo "Keeping caller-provided FI_PROVIDER=${FI_PROVIDER} for MPI ${TEST_KIND}"
     fi
 fi
 
