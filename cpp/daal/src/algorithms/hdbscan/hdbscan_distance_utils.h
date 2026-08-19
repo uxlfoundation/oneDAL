@@ -556,7 +556,9 @@ struct ChebyshevDist
         // OpenMP requires reduction-body updates to be expression-form (via `?:`)
         // rather than branch-form (`if (...) x = ...`) so the compiler can safely
         // fold each lane into the max-reduction pattern under `omp simd`.
+#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
+#endif
         for (size_t d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
@@ -579,7 +581,9 @@ struct ChebyshevDist
     {
         FPType mx = FPType(0);
         // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
+#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
+#endif
         for (size_t d = 0; d < nCols; d++)
         {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
