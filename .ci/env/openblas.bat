@@ -78,4 +78,3 @@ exit /B 0
 :Error_unpack
     echo openblas.bat : Error: Failed to unpack %BLASSOURCEDIR%\openblas.zip to %BLASSOURCEDIR%, try unpack the archive manually
     exit /B 1
-    
