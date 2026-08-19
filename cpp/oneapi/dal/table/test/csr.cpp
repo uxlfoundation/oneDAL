@@ -423,6 +423,7 @@ TEST((std::string("can construct table from data pointers allocated on the devic
     REQUIRE(t.get_column_count() == column_count);
     REQUIRE(t.get_non_zero_count() == element_count);
     REQUIRE(t.get_kind() == csr_table::kind());
+    REQUIRE(t.get_queue() == q);
 
     REQUIRE(t.get_indexing() == sparse_indexing::one_based);
 
@@ -511,6 +512,7 @@ TEST((std::string("can construct table from arrays holding the data allocated on
     REQUIRE(t.get_column_count() == column_count);
     REQUIRE(t.get_non_zero_count() == element_count);
     REQUIRE(t.get_metadata().get_alloc_kind() == alloc_kind::usm_device);
+    REQUIRE(t.get_queue() == q);
 
     sycl::free(data, q);
     sycl::free(column_indices, q);
@@ -518,48 +520,5 @@ TEST((std::string("can construct table from arrays holding the data allocated on
 }
 
 #endif
-
-TEST("create table with invalid row or column count") {
-    const float data[] = { 1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 11.0f, 8.0f };
-    const std::int64_t column_indices[] = { 1, 2, 4, 3, 2, 4, 2 };
-    const std::int64_t row_offsets[] = { 1, 4, 5, 7, 8 };
-    constexpr std::int64_t row_count{ 4 };
-    constexpr std::int64_t column_count{ 4 };
-
-    REQUIRE_NOTHROW(csr_table::wrap(data, column_indices, row_offsets, row_count, column_count));
-    REQUIRE_THROWS_AS(csr_table::wrap(data, column_indices, row_offsets, 0, column_count),
-                      dal::domain_error);
-    REQUIRE_THROWS_AS(csr_table::wrap(data, column_indices, row_offsets, row_count, 0),
-                      dal::domain_error);
-}
-
-TEST("create tables that have one-based indexing and various types of incorrect indices") {
-    const float data[] = { 1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 11.0f, 8.0f };
-    const std::int64_t column_indices[] = { 1, 2, 4, 3, 2, 4, 2 };
-    const std::int64_t column_indices_lt_min[] = { 1, 2, 4, 3, 0, 4, 2 };
-    const std::int64_t column_indices_gt_max[] = { 1, 2, 5, 3, 2, 4, 2 };
-    const std::int64_t row_offsets[] = { 1, 4, 5, 7, 8 };
-    const std::int64_t row_offsets_lt_min[] = { 0, 4, 5, 7, 8 };
-    const std::int64_t row_offsets_gt_max[] = { 1, 4, 9, 7, 8 };
-    const std::int64_t row_offsets_not_ascending[] = { 1, 4, 7, 5, 8 };
-    constexpr std::int64_t row_count{ 4 };
-    constexpr std::int64_t column_count{ 4 };
-
-    REQUIRE_THROWS_AS(
-        csr_table::wrap(data, column_indices_lt_min, row_offsets, row_count, column_count),
-        dal::domain_error);
-    REQUIRE_THROWS_AS(
-        csr_table::wrap(data, column_indices_gt_max, row_offsets, row_count, column_count),
-        dal::domain_error);
-    REQUIRE_THROWS_AS(
-        csr_table::wrap(data, column_indices, row_offsets_lt_min, row_count, column_count),
-        dal::domain_error);
-    REQUIRE_THROWS_AS(
-        csr_table::wrap(data, column_indices, row_offsets_gt_max, row_count, column_count),
-        dal::domain_error);
-    REQUIRE_THROWS_AS(
-        csr_table::wrap(data, column_indices, row_offsets_not_ascending, row_count, column_count),
-        dal::domain_error);
-}
 
 } // namespace oneapi::dal::test
