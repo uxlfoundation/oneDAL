@@ -49,6 +49,12 @@ win_icx_common_flags = [
     "-nologo",
     "-WX",
     "-Qopenmp-simd",
+    # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
+    # Windows too, so the released `.lib` files never reference `__svml_*`.
+    # (`-Zl` itself, the other half of the makefile's variable, is deliberately
+    # not mirrored: it strips the CRT default-library directives that this
+    # toolchain's DLL links still rely on.)
+    "-Qno-intel-lib",
     "-Wno-deprecated-declarations",
     "-Wno-ignored-attributes",
     "-Wno-empty-body",
@@ -82,11 +88,27 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         if compiler_id == "icx" and category == "common":
             flags = flags + [
                 "-qopenmp-simd",
-                "-no-intel-lib=libirc",
+                # Disable *all* Intel-specific runtime libraries, not just
+                # libirc. This mirrors `-Zl.icx` in
+                # dev/make/compiler_definitions/icx.mkl.32e.mk, which the
+                # makefile applies to every object (makefile:528,537,692,877).
+                #
+                # It has to be the bare form: with SVML left enabled icx
+                # vectorises integer division/remainder (for example
+                # `wsIndex % nVectors` in
+                # cpp/daal/src/algorithms/svm/svm_train_thunder_impl.i) into
+                # `__svml_u64rem4_*` calls. The shared libraries hide that
+                # because the toolchain links them with `-static-intel`, but
+                # the released static archives keep the references and any
+                # consumer that links `libonedal_core.a` with gcc/g++ fails
+                # with `undefined reference to __svml_u64rem4_l9`.
+                "-no-intel-lib",
                 "-no-canonical-prefixes",
             ]
         if compiler_id == "icpx":
             flags = flags + [
+                # `-Zl.dpcpp` in dev/make/compiler_definitions/dpcpp.mk:70.
+                "-no-intel-lib",
                 "-fsycl",
                 "-fno-canonical-system-headers",
                 "-no-canonical-prefixes",
