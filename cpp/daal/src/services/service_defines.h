@@ -153,6 +153,30 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_OMP_SIMD_ARGS(ARGS)
 #endif
 
+// Floating-point min/max reductions written in select (`?:`) form, which is what
+// OpenMP requires of a reduction body.
+//
+// Clang's loop vectorizer does not recognise a select-based floating-point
+// min/max as a reduction without fast-math relaxations --
+// `-Rpass-analysis=loop-vectorize` reports "value that could not be identified
+// as reduction is used outside the loop" -- and clang reports an unhonoured
+// vectorization pragma as `-Wpass-failed`, which oneDAL's clang builds promote
+// to an error through `-Werror`
+// (dev/make/compiler_definitions/clang.32e.mk:56). The pragma is therefore
+// hidden from plain clang, which is what
+// df_train_dense_default_impl.i:70, gbt_classification_train_dense_default_impl.i:165
+// and cross_entropy_loss_dense_default_batch_impl.i:100 each do inline with
+// `#ifndef __clang__`.
+//
+// icx also defines `__clang__`, but it does vectorize these loops and it is the
+// compiler oneDAL ships, so it keeps the pragma -- as do gcc and MSVC, through
+// the definitions above.
+#if defined(__clang__) && !defined(__INTEL_LLVM_COMPILER)
+    #define PRAGMA_OMP_SIMD_MINMAX_ARGS(ARGS)
+#else
+    #define PRAGMA_OMP_SIMD_MINMAX_ARGS(ARGS) PRAGMA_OMP_SIMD_ARGS(ARGS)
+#endif
+
 #ifdef DEBUG_ASSERT
     #include <assert.h>
     #define DAAL_ASSERT(cond) assert(cond);

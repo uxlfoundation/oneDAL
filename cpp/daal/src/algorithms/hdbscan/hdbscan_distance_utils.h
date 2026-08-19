@@ -555,8 +555,11 @@ struct ChebyshevDist
         FPType mx = FPType(0);
         // OpenMP requires reduction-body updates to be expression-form (via `?:`)
         // rather than branch-form (`if (...) x = ...`) so the compiler can safely
-        // fold each lane into the max-reduction pattern under `omp simd`.
-        PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
+        // fold each lane into the max-reduction pattern under `omp simd`. That
+        // form is also why the pragma comes through PRAGMA_OMP_SIMD_MINMAX_ARGS:
+        // plain clang cannot treat a select-based FP min/max as a reduction, and
+        // says so as an error under `-Werror` (see service_defines.h).
+        PRAGMA_OMP_SIMD_MINMAX_ARGS(reduction(max : mx))
         for (size_t d = 0; d < nCols; d++)
         {
             const FPType diff = a[d] - b[d];
@@ -579,7 +582,7 @@ struct ChebyshevDist
     {
         FPType mx = FPType(0);
         // OpenMP: reduction body uses `?:` rather than `if (...) x = ...`.
-        PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
+        PRAGMA_OMP_SIMD_MINMAX_ARGS(reduction(max : mx))
         for (size_t d = 0; d < nCols; d++)
         {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);

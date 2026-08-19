@@ -274,7 +274,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     algorithmFPType maxR = algorithmFPType(0);
     // `d2` is `TArrayScalable`-backed (see d2Arr above); its start is aligned to
     // DAAL_MALLOC_DEFAULT_ALIGNMENT. Reduction body uses `?:` per OMP conformance.
-    PRAGMA_OMP_SIMD_ARGS(reduction(max : maxR) aligned(d2 : DAAL_MALLOC_DEFAULT_ALIGNMENT))
+    PRAGMA_OMP_SIMD_MINMAX_ARGS(reduction(max : maxR) aligned(d2 : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (DAAL_INT i = 0; i < count; i++)
     {
         maxR = (d2[i] > maxR) ? d2[i] : maxR;
@@ -415,7 +415,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
     if (node.left < 0)
     {
         algorithmFPType minCD = daal::services::internal::MaxVal<algorithmFPType>::get();
-        PRAGMA_OMP_SIMD_ARGS(reduction(min : minCD))
+        PRAGMA_OMP_SIMD_MINMAX_ARGS(reduction(min : minCD))
         for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
         {
             const algorithmFPType cd = coreDistances[pointIndices[i]];
