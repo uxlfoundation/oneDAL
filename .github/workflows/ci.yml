@@ -200,6 +200,14 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+    # The baseline tag appears in three places -- the guard below and both
+    # abicheck steps -- and all three have to name the same snapshots, so it
+    # lives here. Moving to a newer baseline means editing these two lines and
+    # re-dispatching .github/workflows/abicheck-baseline.yml for that tag; see
+    # the pin discussion further down.
+    env:
+      ABICHECK_BASELINE_DAAL: .github/abicheck-baselines/2026.0.0-daal.abicheck.json.zst
+      ABICHECK_BASELINE_ONEAPI_DAL: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json.zst
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@v6
@@ -236,6 +244,44 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+      # `.github/abicheck-baselines/` is produced by
+      # .github/workflows/abicheck-baseline.yml, which commits the snapshots to
+      # main. That workflow can only be dispatched once it is *on* main, so on
+      # the way in -- and on any branch older than the first dispatch -- the
+      # directory does not exist yet and there is nothing to compare against.
+      #
+      # Left unguarded, that state does not report itself as "no baseline". The
+      # Action's `abi-baseline` input takes a file path *or* a release tag, so a
+      # path that is not on disk falls through to a release lookup and the job
+      # dies with `release not found` / `No ABI baseline found in release
+      # '.github/abicheck-baselines/…json.zst'` -- which reads like a broken
+      # action, not a bootstrap state, and blocks the very pull request that
+      # would deliver the publishing workflow.
+      #
+      # So: skip the scans and say so loudly, in the annotations and in the job
+      # summary, rather than fail or pass quietly. Once the baselines are on
+      # main the guard is satisfied on every branch that merges it and the gate
+      # arms itself with no further edit.
+      - name: Locate ABI baselines
+        id: baselines
+        run: |
+          set -euo pipefail
+          missing=""
+          for f in "${ABICHECK_BASELINE_DAAL}" "${ABICHECK_BASELINE_ONEAPI_DAL}"; do
+            [ -f "$f" ] || missing="${missing} ${f}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "available=false" >> "$GITHUB_OUTPUT"
+          note="ABI scan skipped: no committed baseline (missing:${missing}). Dispatch the 'Publish Abicheck Baseline' workflow on main to arm this gate."
+          echo "::warning title=ABI baseline missing::${note}"
+          {
+            echo "### Abicheck"
+            echo ""
+            echo "${note}"
+          } >> "$GITHUB_STEP_SUMMARY"
       # Two separate scans, not one: scan/dump analyse exactly one artifact
       # (no per-library fan-out), and cpp/daal/include's classic DAAL API
       # and cpp/oneapi/dal's API are exported from two different .so files
@@ -330,8 +376,9 @@ jobs:
       # .github/.abicheck-policy.yaml.
       #
       # Note also that .github/abicheck-baselines/ does not exist until that
-      # workflow has been dispatched at least once; until then both steps
-      # below fail on the missing abi-baseline file.
+      # workflow has been dispatched at least once; until then the `Locate ABI
+      # baselines` step above skips both scans with a warning, so this gate is
+      # inert rather than red.
       #
       # The baselines are .json.zst, which is what makes committing them
       # possible at all: the uncompressed snapshots are 151.4 MiB (daal) and
@@ -474,6 +521,7 @@ jobs:
       #
       # The gate has not been disabled.
       - name: Run abicheck (daal)
+        if: steps.baselines.outputs.available == 'true'
         uses: abicheck/abicheck@93374aad379e6319bfc2d044336ceb6a41bb7df2 # main
         with:
           mode: scan
@@ -491,13 +539,14 @@ jobs:
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-std=c++17"
-          abi-baseline: .github/abicheck-baselines/2026.0.0-daal.abicheck.json.zst
+          abi-baseline: ${{ env.ABICHECK_BASELINE_DAAL }}
           public-header-dir: cpp/daal/include
           policy-file: .github/.abicheck-policy.yaml
           extra-args: --max-findings 200
           build-config: .abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
+        if: steps.baselines.outputs.available == 'true'
         uses: abicheck/abicheck@93374aad379e6319bfc2d044336ceb6a41bb7df2 # main
         with:
           mode: scan
@@ -515,7 +564,7 @@ jobs:
           ast-frontend: clang
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
-          abi-baseline: .github/abicheck-baselines/2026.0.0-oneapi-dal.abicheck.json.zst
+          abi-baseline: ${{ env.ABICHECK_BASELINE_ONEAPI_DAL }}
           public-header-dir: cpp/oneapi
           policy-file: .github/.abicheck-policy.yaml
           extra-args: --max-findings 200
