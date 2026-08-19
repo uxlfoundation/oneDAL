@@ -59,6 +59,9 @@ Required Software:
 * BLAS and LAPACK libraries - both provided by oneMKL
 * oneTBB library (repository contains script to download it)
 * oneDPL library
+* LLVM 22.1.8 or later (Windows-arm64 only)
+* CMake 4.4.0+
+* Ninja 1.13.2+
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
 * `make`; which can be installed using MSYS2 on Windows\* as follows:
@@ -77,6 +80,38 @@ All of these dependencies can alternatively be installed through the `conda` sof
 
 [Docker file](https://github.com/uxlfoundation/oneDAL/tree/main/dev/docker) with the oneDAL development environment
 is available as an alternative to the manual setup.
+
+## Windows ARM64 Installation Steps
+1. Clone the sources from GitHub\* as follows:
+
+        git clone https://github.com/uxlfoundation/oneDAL.git
+        cd oneDAL
+
+2. Set the PATH environment variable to the MSYS2\* and LLVM\* bin directory (Windows-arm64 only). For example:
+
+        set PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%
+
+3. Set the environment variables for one of the supported C/C++ compilers. For example:
+
+    - **Microsoft Visual Studio\* 2022**:
+
+            call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" arm64
+
+4. Build OpenBLAS Dependency
+
+        .ci\env\openblas.bat
+
+5. Build oneTBB Dependency
+
+        .ci\env\tbb.bat
+
+6. Build oneDAL Core (DAAL)
+
+        .ci\scripts\build.bat daal clang sve
+
+7. Build oneDAL C API
+
+        .ci\scripts\build.bat onedal_c clang sve
 
 ## Installation Steps
 
