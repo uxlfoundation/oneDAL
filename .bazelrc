@@ -45,6 +45,34 @@ build --action_env=INCLUDE
 build --action_env=LIB
 build --action_env=PATH
 
+# Standard toolchain-facing env vars that describe an external sysroot
+# (conda-forge dpcpp_linux-64, custom-prefix glibc / sanitized libc,
+# oneAPI setvars.sh, Yocto / Buildroot SDKs, Nix, etc.). When any of
+# these is set in the invoking shell, the compiler resolves system
+# headers and libraries relative to those directories -- forwarding is
+# required so the sandbox sees the same values the toolchain-probe saw
+# at repo-rule time. When unset, Bazel forwards nothing (no cache-key
+# entropy). No hard-coded path lives in the build system: whichever
+# prefix owns the sysroot, exporting its include/lib paths through
+# these vars is the same portable contract.
+#
+# BAZEL_CXX_BUILTIN_INCLUDE_DIRS is a colon-separated escape hatch --
+# a user can add directories to `cxx_builtin_include_directories`
+# without changing the compiler probe (useful for headers pulled in
+# via -isystem paths the probe doesn't naturally discover, e.g.
+# vendored SDKs).
+build --action_env=LD_LIBRARY_PATH
+build --action_env=LIBRARY_PATH
+build --action_env=CPATH
+build --action_env=C_INCLUDE_PATH
+build --action_env=CPLUS_INCLUDE_PATH
+build --action_env=BAZEL_CXX_BUILTIN_INCLUDE_DIRS
+test --test_env=LIBRARY_PATH
+test --test_env=CPATH
+test --test_env=C_INCLUDE_PATH
+test --test_env=CPLUS_INCLUDE_PATH
+
+
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
 # the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
