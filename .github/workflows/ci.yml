@@ -132,21 +132,30 @@ jobs:
             # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
             # and the override is skipped, preserving the native fabric.
             #
-            # Note: this job installs the DPC++ compiler + MKL via apt but
-            # NOT intel-oneapi-mpi-devel; Intel MPI is provided by the
-            # conda-forge `impi-devel` package activated later inside
-            # test.sh via --conda-env ci-env. That conda package does not
-            # ship the libfabric utilities, so at probe time (before
-            # test.sh runs) fi_info is not on PATH and we cannot verify
-            # verbs. Pin shm/tcp defensively in that case.
-            if [ ! -z "$(command -v fi_info)" ]; then
+            # Where Intel MPI is installed, setvars.sh puts its bin/fi_info
+            # on PATH. That is a small wrapper which points libfabric at the
+            # bundled providers in bin/libfabric and then execs the real
+            # bin/libfabric/fi_info binary, so probing the one on PATH is
+            # both the intended entry point and the one that reflects the
+            # providers MPI itself will load.
+            #
+            # Note: fi_info is expected to be missing in this particular
+            # job. It installs only the DPC++ compiler and MKL via apt, so
+            # setvars.sh brings no MPI at all; Intel MPI comes from the
+            # conda-forge ci-env environment (`impi-devel` plus the
+            # `impi_rt` runtime it depends on, which is what actually ships
+            # libfabric and its utilities), and that environment is only
+            # activated later, inside test.sh. The probe therefore cannot
+            # inspect the fabric the samples will really use, so pin
+            # shm/tcp in that case as well.
+            if command -v fi_info > /dev/null 2>&1; then
                 if ! fi_info -p verbs > /dev/null 2>&1; then
                     echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
                     export I_MPI_FABRICS=shm
                     export FI_PROVIDER=tcp
                 fi
             else
-                echo "fi_info not on PATH (Intel MPI comes from conda-forge in test.sh); pinning MPI fabric to shm/tcp"
+                echo "fi_info not on PATH (Intel MPI is activated later, inside test.sh); pinning MPI fabric to shm/tcp"
                 export I_MPI_FABRICS=shm
                 export FI_PROVIDER=tcp
             fi
