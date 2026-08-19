@@ -148,6 +148,30 @@ else
     exit 1
 fi
 
+if [[ "${interface}" == *"/mpi" ]]; then
+    # Some cloud runners (e.g. Azure VMs with a MANA paravirtualized NIC)
+    # are probed by Intel MPI's OFI autoselect as a verbs/PSM3 device, but
+    # opening the UD queue pair fails with EINVAL and MPI_Init aborts before
+    # the sample runs. Probe libfabric directly: if the verbs provider cannot
+    # enumerate a usable endpoint on this host, pin the fabric to shared
+    # memory and force libfabric onto tcp so autoselect never touches
+    # verbs/PSM3. On real IB / OPA hardware fi_info succeeds and the override
+    # is skipped, preserving the native fabric.
+    #
+    # This has to run after the Conda environment is activated above, since
+    # that is what puts Intel MPI (and hence the fi_info shipped by its
+    # libfabric) on PATH.
+    if [ ! -z "$(command -v fi_info)" ]; then
+        if ! fi_info -p verbs > /dev/null 2>&1; then
+            echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
+            export I_MPI_FABRICS=shm
+            export FI_PROVIDER=tcp
+        fi
+    else
+        echo "warning: fi_info not on PATH; cannot probe verbs provider" >&2
+    fi
+fi
+
 if [[ -n "${jobs}" ]]; then
     make_op="-j${jobs}"
 elif [ "$(uname)" == "Linux" ]; then

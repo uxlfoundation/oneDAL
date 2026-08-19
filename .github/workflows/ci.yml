@@ -123,42 +123,6 @@ jobs:
       - name: daal/cpp/mpi samples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            # Azure GHA runners expose a MANA paravirtualized NIC that Intel
-            # MPI's OFI autoselect probes as a verbs/PSM3 device; the UD QP
-            # open fails with EINVAL and MPI_Init aborts before the sample
-            # runs. Probe libfabric directly: if the verbs provider cannot
-            # enumerate a usable endpoint on this host, pin the fabric to
-            # shared memory and force libfabric onto tcp so autoselect never
-            # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
-            # and the override is skipped, preserving the native fabric.
-            #
-            # Where Intel MPI is installed, setvars.sh puts its bin/fi_info
-            # on PATH. That is a small wrapper which points libfabric at the
-            # bundled providers in bin/libfabric and then execs the real
-            # bin/libfabric/fi_info binary, so probing the one on PATH is
-            # both the intended entry point and the one that reflects the
-            # providers MPI itself will load.
-            #
-            # Note: fi_info is expected to be missing in this particular
-            # job. It installs only the DPC++ compiler and MKL via apt, so
-            # setvars.sh brings no MPI at all; Intel MPI comes from the
-            # conda-forge ci-env environment (`impi-devel` plus the
-            # `impi_rt` runtime it depends on, which is what actually ships
-            # libfabric and its utilities), and that environment is only
-            # activated later, inside test.sh. The probe therefore cannot
-            # inspect the fabric the samples will really use, so pin
-            # shm/tcp in that case as well.
-            if command -v fi_info > /dev/null 2>&1; then
-                if ! fi_info -p verbs > /dev/null 2>&1; then
-                    echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
-                    export I_MPI_FABRICS=shm
-                    export FI_PROVIDER=tcp
-                fi
-            else
-                echo "fi_info not on PATH (Intel MPI is activated later, inside test.sh); pinning MPI fabric to shm/tcp"
-                export I_MPI_FABRICS=shm
-                export FI_PROVIDER=tcp
-            fi
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
