@@ -70,7 +70,7 @@ Required Software:
 
 For details, see [System Requirements for oneDAL](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/system-requirements-for-oneapi-data-analytics-library.html).
 
-Note: LLVM must be installed to build oneDAL in Windows\*-arm64
+_Note: LLVM must be installed to build oneDAL in Windows\*-arm64._
 
 Note: the Intel(R) oneAPI components listed here can be installed together through the oneAPI Base Toolkit bundle:
 
