@@ -90,7 +90,7 @@ is available as an alternative to the manual setup.
 
         git clone https://github.com/uxlfoundation/oneDAL.git
 
-2. Set the PATH environment variable to the MSYS2\* & LLVM\* bin directory (Windows\* only). For example:
+2. Set the PATH environment variable to the MSYS2\* and LLVM\* bin directory (Windows\*-arm64 only). For example:
 
     - **Windows-x86**:
 
