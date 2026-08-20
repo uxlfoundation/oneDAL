@@ -59,9 +59,9 @@ Required Software:
 * BLAS and LAPACK libraries - both provided by oneMKL
 * oneTBB library (repository contains script to download it)
 * oneDPL library
-* [LLVM 22.1.8](https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-woa64.exe) or later (Windows-arm64 only)
-* CMake 4.4.0+ (Windows-arm64 only)
-* Ninja 1.13.2+ (Windows-arm64 only)
+* [LLVM 22.1.8](https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-woa64.exe) or later (Windows\*-arm64 only)
+* CMake 4.4.0+ (Windows\*-arm64 only)
+* Ninja 1.13.2+ (Windows\*-arm64 only)
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
 * `make`; which can be installed using MSYS2 on Windows\* as follows:
@@ -70,7 +70,7 @@ Required Software:
 
 For details, see [System Requirements for oneDAL](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/system-requirements-for-oneapi-data-analytics-library.html).
 
-Note: LLVM must be installed to build oneDAL in Windows-arm64
+Note: LLVM must be installed to build oneDAL in Windows\*-arm64
 
 Note: the Intel(R) oneAPI components listed here can be installed together through the oneAPI Base Toolkit bundle:
 
@@ -96,17 +96,17 @@ is available as an alternative to the manual setup.
 
             set PATH=C:\msys64\usr\bin;%PATH%
 
-    - **Windows-arm64**:
+    - **Windows\*-arm64**:
 
             set PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%
 
 3. Set the environment variables for one of the supported C/C++ compilers, such as [Intel(R)'s DPC++ compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html). For example:
 
-    - **Microsoft Visual Studio\* 2022 (Windows-x86)**:
+    - **Microsoft Visual Studio\* 2022 (Windows\*-x86)**:
 
             call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x64
 
-    - **Microsoft Visual Studio\* 2022 (Windows-arm64)**:
+    - **Microsoft Visual Studio\* 2022 (Windows\*-arm64)**:
 
             call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" arm64
 
@@ -114,7 +114,7 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/compiler/latest/env/vars.sh
 
-    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Windows-x86)**:
+    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Windows\*-x86)**:
 
             call "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\env\vars.bat"
 
@@ -144,11 +144,11 @@ is available as an alternative to the manual setup.
     Download and install [oneTBB](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html).
     Set the environment variables for for oneTBB. For example:
 
-    - oneTBB (Windows-x86):
+    - oneTBB (Windows\*-x86):
 
             call "C:\Program Files (x86)\Intel\oneAPI\tbb\latest\env\vars.bat" intel64
 
-    - oneTBB (Windows-arm64):
+    - oneTBB (Windows\*-arm64):
 
             .ci\env\tbb.bat
 
@@ -177,7 +177,7 @@ is available as an alternative to the manual setup.
 
 7. Set up OpenBLAS
 
-    - OpenBLAS (Windows-arm64):
+    - OpenBLAS (Windows\*-arm64):
 
           .ci\env\openblas.bat
 
@@ -199,11 +199,11 @@ is available as an alternative to the manual setup.
 
             make -f makefile oneapi PLAT=win32e LINKER=llvm-lib
 
-    - DAAL interfaces on **Windows-arm64** using **Clang\***:
+    - DAAL interfaces on **Windows\*-arm64** using **Clang\***:
 
             .ci\scripts\build.bat daal clang sve
 
-    - oneAPI C++ interfaces on **Windows-arm64** using **Clang\***:
+    - oneAPI C++ interfaces on **Windows\*-arm64** using **Clang\***:
 
             .ci\scripts\build.bat onedal_c clang sve
 
