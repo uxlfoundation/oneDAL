@@ -206,6 +206,8 @@ is available as an alternative to the manual setup.
     - oneAPI C++ interfaces on **Windows\*-arm64** using **Clang\***:
 
             .ci\scripts\build.bat onedal_c clang sve
+      
+        _Note: You **must use clang-cl from LLVM** to build oneDAL on Windows\*-arm64. MSVC is not supported for this platform. Ensure clang-cl is installed and properly configured in your PATH before proceeding with the build.
 
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
 
