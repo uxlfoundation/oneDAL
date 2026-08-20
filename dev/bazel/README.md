@@ -301,6 +301,44 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
+### Documentation tree in the release
+
+The release package is expected to carry a `documentation/` tree — the release
+BOM lists `documentation/en/common/license.txt` and the
+`third-party-programs*.txt` files from it. That tree is **not** part of this
+repository. It is produced by a separate documentation build, and both the Make
+and the Bazel packaging step only copy it when it happens to be present:
+
+| | Make | Bazel |
+|---|---|---|
+| Source | `$(DIR)/../documentation`, i.e. next to the repository | `documentation/` inside the workspace |
+| Destination | `daal/latest/documentation` | `daal/latest/documentation` |
+| When absent | recipe is guarded by `if [ -d ... ]` (`makefile:442-444`, `:1051-1058`) | `glob(..., allow_empty = True)` expands to nothing |
+
+Bazel cannot glob above the workspace, so the tree has to be reachable from
+inside it. Stage it before building the release, by symlink or copy:
+
+```sh
+ln -sfn /path/to/documentation documentation
+bazel build //:release
+```
+
+`documentation/` is in `.gitignore` so a staged tree is never committed. The
+`release_documentation` filegroup in the root `BUILD` file picks it up, and the
+release rule copies it with its directory structure preserved, so nothing has to
+enumerate the documentation layout.
+
+Nothing in CI stages the tree today, which means the Bazel release built by CI
+ships without documentation, exactly as the Make release does there. Whoever
+produces an official package is responsible for staging it first — the same
+responsibility the Make build already places on them.
+
+If a packaging job would rather copy the tree into the release directory *after*
+`bazel build //:release`, this hook is unnecessary and can be dropped; keeping it
+means the Bazel release rule owns the whole package, so the release tree is
+complete the moment the build finishes and the Make/Bazel comparator sees the
+same set of files on both sides.
+
 ### Release validation and platform helpers
 
 Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
