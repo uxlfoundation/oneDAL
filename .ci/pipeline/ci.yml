@@ -454,6 +454,15 @@ jobs:
 
   - script: |
       set -euo pipefail
+      # This step is the largest consumer of disk in the job -- a second full
+      # release under a different configuration, plus a packaged consumer that
+      # builds through CMake, pkg-config and Bazel. The agent starts at over 95%
+      # of / in use, and a link that runs out of space reports nothing but
+      # `collect2: error: ld returned 1 exit status`, so account for the space
+      # here rather than diagnosing it several steps later.
+      echo "Disk before the folded consumer smoke:"
+      df -h / "${HOME}"
+      du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
       # Build with the same environment as the other Bazel steps. `setvars.sh`
       # exports `MKLROOT`, which `mkl_repo` declares in `environ`, so sourcing it
       # before the build would repoint `@mkl` at the oneAPI installation and
@@ -469,6 +478,9 @@ jobs:
       DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
         BAZEL=bazel dev/release_tests/parameters_layout_consumer_test.sh \
         "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
+      echo "Disk after the folded consumer smoke:"
+      df -h / "${HOME}"
+      du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
     displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |

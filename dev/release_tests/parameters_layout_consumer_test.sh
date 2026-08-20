@@ -22,7 +22,27 @@ DALROOT="$(cd "${1:?usage: parameters_layout_consumer_test.sh DALROOT [source-ro
 SOURCE_ROOT="$(cd "${2:-$(dirname "$0")/../..}" && pwd)"
 BAZEL_CMD="${BAZEL:-bazel}"
 work="$(mktemp -d)"
-trap 'rm -rf "${work}"' EXIT
+
+# The consumer workspace below is a throwaway directory, but the Bazel output
+# base it gets is not: Bazel derives the output base from a hash of the
+# workspace path, so it lands in its own directory under
+# `~/.cache/bazel/_bazel_$USER/` and survives `rm -rf "${work}"`. It also
+# survives the `bazel clean --expunge` steps around this test in
+# .ci/pipeline/ci.yml, which expunge the *oneDAL* workspace's output base and
+# know nothing about this one. Left behind, it costs about a gigabyte and a
+# stranded Bazel server for the rest of the job -- on an agent that already
+# reports over 95% of / in use, that is enough to make a later link fail with
+# nothing but `collect2: error: ld returned 1 exit status`.
+#
+# Expunge it while the workspace still exists, before removing the workspace.
+# `clean --expunge` also stops the server, so nothing keeps holding the files.
+cleanup() {
+    if [ -f "${work}/MODULE.bazel" ]; then
+        (cd "${work}" && "${BAZEL_CMD}" clean --expunge) >/dev/null 2>&1 || true
+    fi
+    rm -rf "${work}"
+}
+trap cleanup EXIT
 
 # `! producer | grep -q` is also satisfied when the *producer* fails, so an
 # absent lib/ directory or an unmatched .pc glob would pass these three checks
