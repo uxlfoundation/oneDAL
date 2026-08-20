@@ -22,11 +22,32 @@ name: Nightly-build
 # scikit-learn-intelex. In all circumstances, this job should stay green.
 
 
-# TEMPORARY (MPI fabric stress, revert before merge): triggers stripped
-# down to workflow_dispatch so this workflow stays out of the way while
-# CI / LinuxMakeDPCPP(avx2) is replicated 10 times.
 on:
+  schedule:
+    - cron: '0 21 * * *'
+  pull_request:
+    branches:
+      - main
+    paths:
+      # running on PRs is to enable 1) no breakages in this action 2) run Nightly-test
+      - .github/workflows/nightly-build.yml
+      - .ci/pipeline/ci.yml
+      - .bazelrc
+      - MODULE.bazel
+      - BUILD
+      - makefile
+      - '.ci/env/**'
+      - '.ci/scripts/**'
+      # Bazel is included for enabling Nightly-test.yml functionality
+      - 'dev/bazel/**'
+      - 'dev/release_tests/**'
+      - 'dev/make/**'
+      - 'dev/make/compiler_definitions/**'
+      - 'dev/make/function_definitions/**'
   workflow_dispatch:
+    # use workflow dispatch to force recent changes in oneDAL for use in sklearnex.
+    # That way waiting for the cron job does not occur, especially in time critical
+    # circumstances.
 
 permissions:
   contents: read

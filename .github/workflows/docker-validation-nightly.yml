@@ -16,11 +16,25 @@
 
 name: docker-validation Nightly
 
-# TEMPORARY (MPI fabric stress, revert before merge): triggers stripped
-# down to workflow_dispatch so this workflow stays out of the way while
-# CI / LinuxMakeDPCPP(avx2) is replicated 10 times.
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/docker-validation-nightly.yml
+      - dev/docker/onedal-dev.Dockerfile
+      - '.ci/env/**'
+      - '.ci/scripts/**'
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/docker-validation-nightly.yml
+      - dev/docker/onedal-dev.Dockerfile
+      - '.ci/env/**'
+      - '.ci/scripts/**'
 
 permissions:
   contents: read
