@@ -25,8 +25,27 @@ name: Nightly-test
 #      `source_run_id`. The test jobs will download artifacts from that build
 #      and run against the workflow definition on the dispatched branch.
 # Post the dispatch run URL as a comment on the PR for reviewers.
-# The CVE scan is intentionally skipped on dispatch — it uploads SARIF to
+# The CVE scan is intentionally skipped on dispatch. It uploads SARIF to
 # the Security tab and must only run on genuine Nightly-build completions.
+#
+# agent: SECURITY MODEL. Bazel tests must build against the exact tree that
+# produced the artifacts. For fork PRs that tree lives on the fork.
+# actions/checkout refuses to fetch it under workflow_run. That guard is
+# correct because the token is usually elevated. To keep untrusted code
+# away from any write-scoped token, each Bazel test uses three jobs:
+#   * <name>_start:  permissions: checks: write. Runs no untrusted code.
+#                    Reads only platform-supplied context. Publishes an
+#                    in_progress Check Run. Outputs the check_run_id.
+#   * <name>_run:    permissions: actions: read, contents: read. No write
+#                    permissions. Runs the untrusted work: clones the fork
+#                    tree with plain git fetch, downloads artifacts, builds
+#                    Bazel, and runs the compare.
+#   * <name>_finish: permissions: checks: write. Runs no untrusted code.
+#                    Reads only needs.<run>.result and platform context.
+#                    Finalizes the Check Run.
+# Do not add checks:write or any other write permission to the _run job.
+# Do not execute repo code, run bash from the repo, or evaluate
+# user-controlled expressions in the _start or _finish jobs.
 
 on:
   workflow_run:
@@ -51,8 +70,9 @@ jobs:
 
   cve-bin-tool-scan:
     runs-on: ubuntu-24.04
-    # Only scan artifacts from schedule or manual Nightly-build runs. Do not scan PR-originated
-    # runs or workflow_dispatch verification runs — SARIF uploads must come from real nightlies.
+    # Only scan artifacts from schedule or manual Nightly-build runs. Do not
+    # scan PR-originated runs or workflow_dispatch verification runs. SARIF
+    # uploads must come from real nightlies.
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && github.event_name == 'workflow_run'
@@ -84,47 +104,97 @@ jobs:
           #              downloaded in the previous step to the working directory
           build_command: "mv ${{ runner.temp }}/${{ env.BUILD_FOLDER }} ./"
 
-  bazel_lnx:
-    name: oneDAL Linux Bazel test
+  # ---------------------------------------------------------------------------
+  # Linux Bazel test: split into start / run / finish (see SECURITY MODEL above).
+  # ---------------------------------------------------------------------------
+
+  bazel_lnx_start:
+    name: oneDAL Linux Bazel test (start)
     runs-on: ubuntu-24.04
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}
-    timeout-minutes: 120
     permissions:
-      contents: read
       checks: write
-
+    outputs:
+      check_run_id: ${{ steps.check_start.outputs.check_run_id }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      details_url: ${{ steps.resolve.outputs.details_url }}
     steps:
-      # Publish a Check Run bound to the originating commit so this job appears
-      # as its own line on the PR's Checks list, even though workflow_run
-      # triggers do not otherwise surface on the PR. On workflow_dispatch,
-      # bind to github.sha (HEAD of the dispatched ref); the platform sets
-      # this — never take head_sha from a caller-supplied input.
-      - name: Report check run (start)
-        id: check_start
+      # Resolve head_sha and details_url from platform-supplied context only.
+      # On workflow_dispatch, github.sha is the HEAD of the dispatched ref.
+      # The platform sets this value. It is not a caller input. On
+      # workflow_run, head_sha comes from the completed upstream run.
+      # Do not derive these values from user input.
+      - name: Resolve identifiers
+        id: resolve
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const headSha = context.payload.workflow_run?.head_sha || context.sha
             const detailsUrl = context.payload.workflow_run?.html_url
               || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            core.setOutput('head_sha', headSha)
+            core.setOutput('details_url', detailsUrl)
+      - name: Report check run (start)
+        id: check_start
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          DETAILS_URL: ${{ steps.resolve.outputs.details_url }}
+        with:
+          script: |
             const { data } = await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               name: 'Nightly-test / oneDAL Linux Bazel test',
-              head_sha: headSha,
+              head_sha: process.env.HEAD_SHA,
               status: 'in_progress',
-              details_url: detailsUrl,
+              details_url: process.env.DETAILS_URL,
             })
             core.setOutput('check_run_id', data.id)
-      - name: Checkout oneDAL
+
+  bazel_lnx_run:
+    name: oneDAL Linux Bazel test
+    needs: bazel_lnx_start
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    # Minimum permissions to download artifacts from a different workflow run.
+    # Do not add checks:write. This job runs untrusted PR code.
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      # For workflow_run on a fork PR, actions/checkout refuses to fetch the
+      # fork tree. That guard exists because workflow_run usually has an
+      # elevated token. This job does not have that token (see permissions
+      # above). Fetching the fork tree with plain git is safe under the
+      # current token scopes. The Bazel compare requires the same tree that
+      # produced the artifacts under test.
+      - name: Checkout PR head (workflow_run)
+        if: github.event_name == 'workflow_run'
+        env:
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # Reject any value that is not a plain owner/repo slug (defense in depth).
+          case "$HEAD_REPO" in
+            */*) ;;
+            *) echo "Unexpected HEAD_REPO: $HEAD_REPO"; exit 1 ;;
+          esac
+          case "$HEAD_SHA" in
+            [0-9a-f]*) ;;
+            *) echo "Unexpected HEAD_SHA: $HEAD_SHA"; exit 1 ;;
+          esac
+          git init -q
+          git remote add origin "https://github.com/${HEAD_REPO}"
+          git fetch --depth=1 origin "$HEAD_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Checkout dispatched ref (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # workflow_run: pin to the commit that produced the artifacts.
-          # workflow_dispatch: default to the dispatched ref (github.ref).
-          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - name: Download oneDAL Linux build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -150,68 +220,112 @@ jobs:
             --make ./__release_lnx/daal/latest \
             --bazel ./bazel-bin/release/daal/latest \
             --check-level 4
+
+  bazel_lnx_finish:
+    name: oneDAL Linux Bazel test (finish)
+    needs: [bazel_lnx_start, bazel_lnx_run]
+    if: always() && needs.bazel_lnx_start.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      checks: write
+    steps:
       - name: Report check run (finish)
-        if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          CHECK_RUN_ID: ${{ steps.check_start.outputs.check_run_id }}
-          JOB_STATUS: ${{ job.status }}
+          CHECK_RUN_ID: ${{ needs.bazel_lnx_start.outputs.check_run_id }}
+          DETAILS_URL: ${{ needs.bazel_lnx_start.outputs.details_url }}
+          RUN_RESULT: ${{ needs.bazel_lnx_run.result }}
         with:
           script: |
             const checkRunId = Number(process.env.CHECK_RUN_ID)
             if (!checkRunId) return
-            const detailsUrl = context.payload.workflow_run?.html_url
-              || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             await github.rest.checks.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
               check_run_id: checkRunId,
               status: 'completed',
-              conclusion: process.env.JOB_STATUS === 'success' ? 'success' : 'failure',
-              details_url: detailsUrl,
+              conclusion: process.env.RUN_RESULT === 'success' ? 'success' : 'failure',
+              details_url: process.env.DETAILS_URL,
             })
 
-  bazel_win:
-    name: oneDAL Windows Bazel test
-    runs-on: windows-2025
+  # ---------------------------------------------------------------------------
+  # Windows Bazel test: split into start / run / finish (see SECURITY MODEL above).
+  # ---------------------------------------------------------------------------
+
+  bazel_win_start:
+    name: oneDAL Windows Bazel test (start)
+    runs-on: ubuntu-24.04
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}
-    timeout-minutes: 180
     permissions:
-      contents: read
       checks: write
-
+    outputs:
+      check_run_id: ${{ steps.check_start.outputs.check_run_id }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      details_url: ${{ steps.resolve.outputs.details_url }}
     steps:
-      # Publish a Check Run bound to the originating commit so this job appears
-      # as its own line on the PR's Checks list, even though workflow_run
-      # triggers do not otherwise surface on the PR. On workflow_dispatch,
-      # bind to github.sha (HEAD of the dispatched ref); the platform sets
-      # this — never take head_sha from a caller-supplied input.
-      - name: Report check run (start)
-        id: check_start
+      - name: Resolve identifiers
+        id: resolve
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const headSha = context.payload.workflow_run?.head_sha || context.sha
             const detailsUrl = context.payload.workflow_run?.html_url
               || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            core.setOutput('head_sha', headSha)
+            core.setOutput('details_url', detailsUrl)
+      - name: Report check run (start)
+        id: check_start
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          DETAILS_URL: ${{ steps.resolve.outputs.details_url }}
+        with:
+          script: |
             const { data } = await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               name: 'Nightly-test / oneDAL Windows Bazel test',
-              head_sha: headSha,
+              head_sha: process.env.HEAD_SHA,
               status: 'in_progress',
-              details_url: detailsUrl,
+              details_url: process.env.DETAILS_URL,
             })
             core.setOutput('check_run_id', data.id)
-      - name: Checkout oneDAL
+
+  bazel_win_run:
+    name: oneDAL Windows Bazel test
+    needs: bazel_win_start
+    runs-on: windows-2025
+    timeout-minutes: 180
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout PR head (workflow_run)
+        if: github.event_name == 'workflow_run'
+        shell: bash
+        env:
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          case "$HEAD_REPO" in
+            */*) ;;
+            *) echo "Unexpected HEAD_REPO: $HEAD_REPO"; exit 1 ;;
+          esac
+          case "$HEAD_SHA" in
+            [0-9a-f]*) ;;
+            *) echo "Unexpected HEAD_SHA: $HEAD_SHA"; exit 1 ;;
+          esac
+          git init -q
+          git remote add origin "https://github.com/${HEAD_REPO}"
+          git fetch --depth=1 origin "$HEAD_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Checkout dispatched ref (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # workflow_run: pin to the commit that produced the artifacts.
-          # workflow_dispatch: default to the dispatched ref (github.ref).
-          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - name: Download oneDAL Windows build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -262,23 +376,30 @@ jobs:
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
             -ReleaseDir .\bazel-bin\release\daal\latest
+
+  bazel_win_finish:
+    name: oneDAL Windows Bazel test (finish)
+    needs: [bazel_win_start, bazel_win_run]
+    if: always() && needs.bazel_win_start.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      checks: write
+    steps:
       - name: Report check run (finish)
-        if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          CHECK_RUN_ID: ${{ steps.check_start.outputs.check_run_id }}
-          JOB_STATUS: ${{ job.status }}
+          CHECK_RUN_ID: ${{ needs.bazel_win_start.outputs.check_run_id }}
+          DETAILS_URL: ${{ needs.bazel_win_start.outputs.details_url }}
+          RUN_RESULT: ${{ needs.bazel_win_run.result }}
         with:
           script: |
             const checkRunId = Number(process.env.CHECK_RUN_ID)
             if (!checkRunId) return
-            const detailsUrl = context.payload.workflow_run?.html_url
-              || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             await github.rest.checks.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
               check_run_id: checkRunId,
               status: 'completed',
-              conclusion: process.env.JOB_STATUS === 'success' ? 'success' : 'failure',
-              details_url: detailsUrl,
+              conclusion: process.env.RUN_RESULT === 'success' ? 'success' : 'failure',
+              details_url: process.env.DETAILS_URL,
             })
