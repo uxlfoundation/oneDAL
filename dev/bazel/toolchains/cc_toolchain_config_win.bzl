@@ -845,6 +845,19 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
+        # `sycl.lib` / `sycld.lib` has to stay on this side of the `/link`
+        # separator emitted below, because it is where `link_flags_dpcc` used to
+        # put it and because a bare `.lib` on a clang-cl command line is a
+        # *driver input file*, not a linker-only option. Bazel emits the object
+        # files and archives through `libraries_to_link`, which is registered
+        # after `dpc_linker_mode` and therefore lands on lld-link's side, so on
+        # a DPC++ link this library is the only input the icx driver itself
+        # sees. Move it past `/link` and the driver has nothing left to do:
+        #
+        #     icx: error: no input files
+        #
+        # which is how `Linking cpp/oneapi/dal/onedal_dpc.4.dll` fails.
+        sycl_runtime_library_feature,
         # `dpc_linker_mode` emits the single `/link` separator on DPC++ links.
         # Everything the icx driver itself has to see (`-fsycl`, `-LD`,
         # `-o<out>`) stays in front of it; everything meant for lld-link
@@ -856,11 +869,6 @@ def _impl(ctx):
         shared_flag_feature,
         output_execpath_flags_feature,
         dpc_linker_mode_feature,
-        # `sycl.lib` / `sycld.lib` used to be appended to `link_flags_dpcc`,
-        # which is emitted before the separator. As an input library it belongs
-        # on lld-link's side of `/link`, so it sits here rather than next to the
-        # feature it was extracted from.
-        sycl_runtime_library_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
         user_link_flags_feature,
