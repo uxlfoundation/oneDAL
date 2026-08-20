@@ -17,7 +17,7 @@
 
 # Installation from Sources
 
-## Installation with `conda-build` (`Linux-x86_64`-only)
+## Installation with `conda-build` (`Linux\*-x86_64`-only)
 
 You can build and install oneDAL using few simple command with `conda` environment manager.
 It automatically creates temporal environments for building and testing of oneDAL and outputs
@@ -110,7 +110,7 @@ is available as an alternative to the manual setup.
 
             call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" arm64
 
-    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Linux-x86)**:
+    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Linux\*-x86)**:
 
             source /opt/intel/oneapi/compiler/latest/env/vars.sh
 
