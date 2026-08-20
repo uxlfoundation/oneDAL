@@ -92,7 +92,7 @@ is available as an alternative to the manual setup.
 
 2. Set the PATH environment variable to the MSYS2\* and LLVM\* bin directory (Windows\*-arm64 only). For example:
 
-    - **Windows-x86**:
+    - **Windows\*-x86**:
 
             set PATH=C:\msys64\usr\bin;%PATH%
 
