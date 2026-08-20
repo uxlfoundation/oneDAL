@@ -108,14 +108,14 @@ jobs:
         run: |
           echo "::warning::This step is designed to always pass, please look for more details"
           # timeout added due to hanging enable_thread_pinning example, and should be removed when fixed
-          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref || true
+          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref
         env:
           CMAKE_GENERATOR: Ninja
 
       - name: oneapi/cpp examples
         run: |
           echo "::warning::This step is designed to always pass, please look for more details"
-          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref || true
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref
         env:
           CMAKE_GENERATOR: Ninja
 
@@ -185,7 +185,7 @@ jobs:
         run: |
           echo "::warning::This step is designed to always pass, please check logs for more details"
           # timeout added due to hanging enable_thread_pinning example, and should be removed when fixed
-          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref --rng-backend openrng || true
+          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref --rng-backend openrng
         env:
           CMAKE_GENERATOR: Ninja
 
@@ -193,7 +193,7 @@ jobs:
         run: |
           echo "::warning::This step is designed to always pass, please check logs for more details"
           # excludes examples from EXCLUDE_LIST present in examples/daal/cpp/CMakeLists.txt
-          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref --rng-backend openrng || true
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref --rng-backend openrng
         env:
           CMAKE_GENERATOR: Ninja
 
