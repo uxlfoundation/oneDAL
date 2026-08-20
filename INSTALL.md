@@ -17,7 +17,7 @@
 
 # Installation from Sources
 
-## Installation with `conda-build` (`Linux\*-x86_64`-only)
+## Installation with `conda-build` (`Linux*-x86_64`-only)
 
 You can build and install oneDAL using few simple command with `conda` environment manager.
 It automatically creates temporal environments for building and testing of oneDAL and outputs
