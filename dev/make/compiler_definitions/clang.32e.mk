@@ -51,9 +51,9 @@ else
 endif
 
 COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
-                     -Werror -Wno-empty-body -Wreturn-type ${CXXFLAGS}
+                     $(warn.opts.clang) ${CXXFLAGS}
 COMPILER.lnx.clang = clang++ -m64 \
-                     -Werror -Wno-empty-body -Wreturn-type -fopenmp-simd ${CXXFLAGS}
+                     $(warn.opts.clang) -fopenmp-simd ${CXXFLAGS}
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.mac.clang = clang++ $(linker.ld.flag) -m64
