@@ -155,7 +155,7 @@ sycl::event shuffle(sycl::queue& queue,
 /// @param[in, out] result_array The array to be partially shuffled.
 /// @param[in] top The number of elements to shuffle.
 /// @param[in] seed The seed for the engine.
-/// @param[in] method The rng engine type. Defaults to `mt19937`.
+/// @param[in] method The rng engine type. Defaults to `philox4x32x10`.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
 sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
