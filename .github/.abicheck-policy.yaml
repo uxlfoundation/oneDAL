@@ -52,49 +52,72 @@
 # policy -- a selector-scoped rule is strictly more specific, so it is consulted
 # first.
 #
-# Verified end to end with this exact file, on both libraries, against baselines
-# dumped by the abicheck commit ci.yml pins (93374aad):
+# Verified end to end with this exact file, on all three libraries, against
+# baselines dumped by the abicheck commit ci.yml pins (dec73723), from the same
+# no-debug-info build LinuxMakeDPCPP produces:
 #
 #   libonedal_core.so  verdict COMPATIBLE_WITH_RISK  exit 0
-#                      breaking=0 api_break=0 risk=82 compatible=1
-#                      82 findings printed: 77 func_visibility_changed,
-#                      2 type_vtable_changed, 2 layout_unverifiable,
-#                      1 header_binary_context_mismatch
+#                      breaking=0 api_break=0 risk=78 compatible=1
+#                      78 findings printed: 77 func_visibility_changed,
+#                      1 exported_object_alignment_reduced
 #   libonedal.so       verdict COMPATIBLE_WITH_RISK  exit 0
-#                      breaking=0 api_break=0 risk=16 compatible=12
-#                      16 findings printed: 6 func_visibility_changed,
+#                      breaking=0 api_break=0 risk=27 compatible=45
+#                      27 findings printed: 16 imported_symbol_added,
+#                      6 func_visibility_changed,
 #                      4 experimental_removed_without_replacement,
-#                      2 constant_changed, 2 layout_unverifiable,
-#                      1 type_vtable_changed,
-#                      1 header_binary_context_mismatch
+#                      1 exported_object_alignment_reduced
+#   libonedal_dpc.so   verdict COMPATIBLE_WITH_RISK  exit 0
+#                      breaking=0 api_break=0 risk=47 compatible=49
+#                      47 findings printed: 20 imported_symbol_added,
+#                      13 func_visibility_changed,
+#                      8 experimental_removed_without_replacement,
+#                      6 exported_object_alignment_reduced
 #
-# On both: severity.categories.abi_breaking count 0, blocking false, "severity
-# gate: pass (no error-level findings)", and no `suppressed` key in the JSON at
-# all -- nothing was removed from the report. Bucket counts are identical to the
-# earlier all-kind-global revision of this file, measured side by side on the
-# same two snapshots, so narrowing the four rules costs nothing on today's diff
-# while restoring the gating described under each. Also verified with `--policy
-# strict_abi` present alongside `--policy-file`, which is what the composite
-# Action forwards (action/run.sh sends both, since `policy` has a non-empty
-# default): byte-identical results, so the file wins and the pairing is not a
-# usage error.
+# On all three: severity.categories.abi_breaking count 0, blocking false,
+# "severity gate: pass (no error-level findings)", every finding printed with
+# symbol and location, and no `suppressed` key in the JSON at all -- nothing was
+# removed from the report.
 #
-# Three negative controls, all on the same two snapshots:
+# ── Which rules are live in this build configuration, and which are not ───────
+#
+# LinuxMakeDPCPP builds without --debug symbols, so the scan runs on ELF exports
+# plus the public-header AST and no DWARF. That is enough for the whole
+# comparison to work, but three kinds of evidence are simply not collected:
+# vtable/layout facts, and the public-constant values. So of the five entries
+# below, only `func_visibility_changed` (kind-global) and the
+# `experimental_removed_without_replacement` rule scoped to
+# oneapi::dal::preview match anything today. The three `type_vtable_changed`
+# rules and the `constant_changed` rule match nothing in this configuration.
+#
+# They are kept, not deleted, because they are not stale evidence -- they were
+# measured against a debug-info build of the same two libraries, and that is the
+# configuration this repository moves to if uxlfoundation/oneDAL#3725 lands
+# `--debug symbols` for the host libraries. When it does, both this file and the
+# published baselines have to be re-verified: re-dispatch Publish Abicheck
+# Baseline for the tag first (the baseline must carry the same evidence the scan
+# does), then re-measure the numbers above.
+#
+# Negative controls, all on the same three snapshots:
 #
 #  * No policy file at all: libonedal_core.so exits 4, verdict BREAKING,
-#    79 breaking (77 func_visibility_changed + 2 type_vtable_changed);
-#    libonedal.so exits 4, 7 breaking + 6 api_break.
+#    breaking=77 (all func_visibility_changed); libonedal.so exits 4, verdict
+#    BREAKING, breaking=6 + api_break=4.
 #  * Selectors deliberately mismatched -- this file with every selector string
-#    suffixed, so each rule still parses but matches nothing: libonedal.so
-#    returns to verdict BREAKING, exit 4, with type_vtable_changed back at
-#    breaking and both experimental_removed_without_replacement and
-#    constant_changed back at api_break. That is the proof the four
-#    selector-scoped rules, and not the one kind-global override, are what
-#    reclassify those findings.
+#    suffixed, so each rule still parses but matches nothing: libonedal.so's
+#    verdict moves COMPATIBLE_WITH_RISK -> API_BREAK, with
+#    experimental_removed_without_replacement back at api_break=4 and risk
+#    dropping 27 -> 23. That is the proof the namespace-scoped rule, not the
+#    kind-global override, is what reclassifies those four findings. Note the
+#    *exit code* stays 0 across that move: under `exit_code_scheme: severity`
+#    with `preset: default` only abi_breaking is error-level, so a source-level
+#    API break is reported (and named in the verdict) without failing the job --
+#    deliberate for the burn-in period, and the reason the exit code alone is
+#    not a sufficient regression signal for this file.
 #  * Reverse direction -- scanning the 2026.0.0 binaries against a baseline
 #    dumped from main, so that symbols really are gone: still verdict BREAKING,
-#    exit 4, blocking true, abi_breaking 8 = 5 func_removed + 2 type_removed +
-#    1 enum_member_removed. Nothing in this file softens that.
+#    exit 4, blocking true, abi_breaking 28 = 22 func_removed + 5 type_removed +
+#    1 enum_member_removed, with this file applied. Nothing here softens a real
+#    removal.
 #
 # ── What is still given up, and what a reviewer must do ───────────────────────
 #
