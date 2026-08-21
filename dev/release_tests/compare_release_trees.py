@@ -347,7 +347,26 @@ def absorb_dereferenced_links(make_root, make_files, bazel_root, bazel_links, li
     to. Both collections are mutated in place; the number of reconciled entries
     is printed, because a silently tolerated difference reads like a comparison
     that covered everything.
+
+    What this cannot check, and no other comparison covers either: the *shape* of
+    the Bazel link chain. `resolve()` collapses every hop, so a Bazel tree that
+    staged `libonedal_core.so` pointing straight at `libonedal_core.so.4.0`,
+    skipping the `libonedal_core.so.4` hop that carries the ELF SONAME, still
+    passes here -- the bytes at the end of the chain are the same either way. The
+    Make side no longer holds the targets to compare against, and Azure's
+    `LinuxReleaseCompare` dereferences *both* trees, so it has no symlinks to
+    compare at all. A dedicated Bazel-side assertion on the chain would close
+    that, and is worth having, since a broken SONAME chain is what produced
+    `libonedal_core.so.3: cannot open shared object file` in #3513.
     """
+    # Resolved so the containment test below cannot be defeated by a caller
+    # passing a relative root, or one whose prefix is itself a symlink -- which
+    # `bazel-bin/release/...` always is. `main()` already resolves both, so this
+    # is a no-op there; it keeps the guard meaningful for any other caller,
+    # instead of silently reconciling nothing.
+    make_root = Path(make_root).resolve()
+    bazel_root = Path(bazel_root).resolve()
+
     errors = 0
     absorbed = []
     mismatches = []
