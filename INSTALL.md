@@ -201,11 +201,11 @@ is available as an alternative to the manual setup.
 
     - DAAL interfaces on **Windows\*-arm64** using **Clang\***:
 
-            .ci\scripts\build.bat daal clang sve
+            make -f makefile daal COMPILER=clang PLAT=winarm REQCPU=sve
 
     - oneAPI C++ interfaces on **Windows\*-arm64** using **Clang\***:
 
-            .ci\scripts\build.bat onedal_c clang sve
+            make -f makefile onedal_c COMPILER=clang PLAT=winarm REQCPU=sve
       
         _Note: You **must use clang-cl from LLVM** to build oneDAL on Windows\*-arm64. MSVC is not supported for this platform. Ensure clang-cl is installed and properly configured in your PATH before proceeding with the build.
 
