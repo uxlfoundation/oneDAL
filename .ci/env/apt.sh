@@ -31,14 +31,23 @@ function add_repo {
 }
 
 function install_dpcpp {
-    # DPC++ compiler version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.1-325 intel-oneapi-runtime-libs
+    # DPC++ compiler version monitored by Renovate and sets exact value available via apt.
+    # Pass `--compiler-only` to leave out the oneAPI runtime meta-package. The pin stays
+    # spelled out here, and only here: Renovate finds it by matching
+    # `intel-oneapi-compiler-dpcpp-cpp=<version>` literally in this file
+    # (.github/renovate.json), so moving it into a variable would stop it being tracked,
+    # and repeating it in a second function is how the two drift apart.
+    local extra=(intel-oneapi-runtime-libs)
+    if [ "${1:-}" == "--compiler-only" ]; then
+        extra=()
+    fi
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.1-325 "${extra[@]}"
 }
 
 function install_icx {
-    # icx is distributed in the DPC++/C++ compiler package.  Do not install the
-    # extra oneAPI runtime meta-package: CPU-only build checks do not need it.
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.0-235
+    # icx is distributed in the DPC++/C++ compiler package, so this is the same
+    # install without the runtime meta-package: CPU-only build checks do not need it.
+    install_dpcpp --compiler-only
 }
 
 function install_tbb {
