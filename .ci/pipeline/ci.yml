@@ -460,14 +460,32 @@ jobs:
       # of / in use, and a link that runs out of space reports nothing but
       # `collect2: error: ld returned 1 exit status`, so account for the space
       # here rather than diagnosing it several steps later.
-      echo "Disk before the folded consumer smoke:"
-      df -h / "${HOME}"
-      du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
+      report_disk() {
+        echo "Disk ${1} the folded consumer smoke:"
+        df -h /
+        # Both of these matter and only one is reclaimed between steps. The
+        # output base under ~/.cache/bazel goes away at the next `Clean Bazel
+        # cache (expunge)`; the --disk_cache directory does not -- `clean` has
+        # no effect on it and `bazel-cache-limit` only trims it, at 4Gb, once
+        # the whole job is over.
+        du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
+        du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
+      }
+      report_disk before
       # Build with the same environment as the other Bazel steps. `setvars.sh`
       # exports `MKLROOT`, which `mkl_repo` declares in `environ`, so sourcing it
       # before the build would repoint `@mkl` at the oneAPI installation and
       # invalidate the dependency for this step only.
-      bazel build :release --release_dpc=false --build_parameters_lib=no
+      #
+      # `--disk_cache=` disables the shared cache that `~/.bazelrc` points at
+      # (written in the `bazel-configure` step above) for this build alone.
+      # Nothing will ever reuse these artifacts: this is a one-off validation
+      # under a configuration no other step builds, so the entries share nothing
+      # with the default configuration and only occupy the cache for the rest of
+      # the job. `bazel clean --expunge` cannot reclaim them -- it clears the
+      # output base, not a disk cache -- which is what left `cpp-tests-thread-dev`
+      # linking at 97% of / in use.
+      bazel build :release --release_dpc=false --build_parameters_lib=no --disk_cache=
       # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
       # oneAPI environment as an installed package user. `setvars.sh` reads
       # optional variables such as `OCL_ICD_FILENAMES` unguarded, so `nounset`
@@ -478,9 +496,7 @@ jobs:
       DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
         BAZEL=bazel dev/release_tests/parameters_layout_consumer_test.sh \
         "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
-      echo "Disk after the folded consumer smoke:"
-      df -h / "${HOME}"
-      du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
+      report_disk after
     displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
@@ -610,6 +626,13 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      # These links are the largest of the job and the first thing to fail when
+      # the agent runs out of space, with no diagnostic of its own -- GNU ld
+      # reports only `collect2: error: ld returned 1 exit status`, and the target
+      # it happens to die on moves from run to run. Record the space so a red
+      # here says whether that was the reason.
+      df -h /
+      du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
