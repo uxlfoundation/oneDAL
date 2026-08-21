@@ -301,6 +301,36 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
+### Documentation tree in the release
+
+The release package carries a `documentation/` tree — the release BOM lists
+`documentation/en/common/license.txt` and the `third-party-programs*.txt` files
+from it. That tree is **not** part of this repository; it comes from a separate
+documentation build. Make takes it from beside the repository and skips it when
+it is not there:
+
+```make
+DOC.srcdir:= $(DIR)/../documentation
+release.DOC := $(shell if [ -d $(DOC.srcdir) ]; then find $(DOC.srcdir) -not -wholename '*.svn*' -type f ;fi)
+```
+
+Bazel cannot glob above the workspace, so the tree has to be staged inside it as
+`documentation/`, by symlink or copy, before building the release:
+
+```sh
+ln -sfn /path/to/documentation documentation
+bazel build //:release
+```
+
+The `release_documentation` filegroup in the root `BUILD` file globs it with
+`allow_empty = True`, so an absent tree is not an error, and the release rule
+copies it to `daal/latest/documentation` with its structure preserved.
+`/documentation/` is listed in `.gitignore`, so a staged tree is never
+committed.
+
+No CI job stages the tree, so releases built in CI ship without documentation on
+both Make and Bazel. Staging it is the packaging job's responsibility either way.
+
 ### Release validation and platform helpers
 
 Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
