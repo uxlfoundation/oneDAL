@@ -39,7 +39,7 @@ public:
                    std::int64_t column_count,
                    data_type dtype,
                    sparse_indexing indexing)
-            : meta_(create_metadata(column_count, dtype)),
+            : meta_(create_metadata(column_count, dtype, data.get_alloc_kind())),
               data_(data),
               column_indices_(column_indices),
               row_offsets_(row_offsets),
@@ -84,7 +84,7 @@ public:
                    data_type dtype,
                    sparse_indexing indexing,
                    const std::vector<sycl::event>& dependencies)
-            : meta_(create_metadata(column_count, dtype)),
+            : meta_(create_metadata(column_count, dtype, data.get_alloc_kind())),
               data_(data),
               column_indices_(column_indices),
               row_offsets_(row_offsets),
@@ -198,7 +198,7 @@ public:
                        data,
                        column_indices,
                        row_offsets,
-                       alloc_kind::host);
+                       alloc_kind::non_usm);
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -240,6 +240,15 @@ public:
 
     void deserialize(detail::input_archive& ar) override {
         ar(meta_, data_, column_indices_, row_offsets_, col_count_, row_count_, layout_, indexing_);
+        // The allocation kind is not persisted in the archive; re-establish it
+        // from the deserialized data, which was materialized according to the
+        // deserialization context (queue/policy). The deserialized feature and
+        // data types are preserved as-is.
+        if (data_.get_count() > 0) {
+            meta_ = table_metadata{ meta_.get_data_types(),
+                                    meta_.get_feature_types(),
+                                    data_.get_alloc_kind() };
+        }
     }
 
 private:

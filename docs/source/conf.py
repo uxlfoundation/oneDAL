@@ -328,6 +328,13 @@ nitpick_ignore = [
     ('cpp:identifier', 'oneapi::dal::dbscan::method'),
     ('cpp:identifier', 'oneapi::dal::dbscan::method::v1'),
     ('cpp:identifier', 'oneapi::dal::dbscan::method::v1::brute_force'),
+    # hdbscan
+    ('cpp:identifier', 'hdbscan'),
+    ('cpp:identifier', 'hdbscan::descriptor'),
+    ('cpp:identifier', 'hdbscan::compute_result'),
+    ('cpp:identifier', 'hdbscan::compute_input'),
+    ('cpp:identifier', 'degree'),
+    ('cpp:identifier', 'invalid_argument'),
     # common for algorithms
     ('cpp:identifier', 'result'),
     # common for result options
@@ -345,6 +352,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'data_layout::unknown'),
     ('cpp:identifier', 'feature_type'),
     ('cpp:identifier', 'data_type'),
+    ('cpp:identifier', 'alloc_kind'),
     ('cpp:identifier', 'table_metadata'),
     ('cpp:identifier', 'mutable_data'),
     ('cpp:identifier', 'data'),

@@ -66,7 +66,12 @@ def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
     action output. Generating it from the DLL post-link is equivalent.
     """
     lib_file = ctx.actions.declare_file(lib_dst_path)
-    exp_file = ctx.actions.declare_file(lib_dst_path[:-len(".lib")] + ".exp")
+    # `lib /def:` requires an .exp output, but it is an intermediate rather
+    # than a release artifact. Keep it outside the staged release tree.
+    exp_file = ctx.actions.declare_file(paths.join(
+        "_release_intermediates",
+        lib_file.basename[:-len(".lib")] + ".exp",
+    ))
     script = ctx.file._dll_to_implib
     ctx.actions.run(
         executable = "cmd.exe",
@@ -115,35 +120,103 @@ def _copy(ctx, src_file, dst_path):
         )
     return dst_file
 
+def _copy_crlf(ctx, src_file, dst_path):
+    """Copy `src_file` to `dst_path` converting line endings to CRLF.
+
+    Make normalizes the files it stages through its `.release.x` recipe with
+    `sed -n -z -e 's/\\r*\\n/\\r\\n/g;p'` when `OS_is_win`, so text files such as
+    `config/config.txt` ship with CRLF even though they are stored with LF in
+    the repository. Plain `copy` leaves them as LF and the released file then
+    differs from the Make one on every line.
+    """
+    dst_file = ctx.actions.declare_file(dst_path)
+    script = ctx.file._to_crlf
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [src_file, script],
+        outputs = [dst_file],
+        use_default_shell_env = True,
+        arguments = [
+            "/d",
+            "/c",
+            "{} {} {}".format(
+                script.path.replace("/", "\\"),
+                src_file.path.replace("/", "\\"),
+                dst_file.path.replace("/", "\\"),
+            ),
+        ],
+        mnemonic = "CopyCrlf",
+        progress_message = "Staging %s with CRLF line endings" % dst_file.short_path,
+    )
+    return dst_file
+
 def _try_relativize(path, start):
     if path.startswith(start):
         return paths.relativize(path, start)
     return path
 
-def _copy_version_header(ctx, src_file, dst_path, version_info):
+def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
     dst_file = ctx.actions.declare_file(dst_path)
+
+    # Make rewrites these seven lines with `sed`, and on Windows every
+    # replacement carries a trailing `\r` (`sed.eol.win` in
+    # dev/make/common.mk:177, used by `update_headers_version` in
+    # makefile.ver:62-80). The rest of the header keeps the LF endings it has in
+    # the repository, so the released file is deliberately mixed: seven CRLF
+    # lines among LF ones. Reproduce that instead of writing the whole file with
+    # one ending, or the release comparison reports a 7-byte difference.
+    eol = "\r" if is_windows else ""
     ctx.actions.expand_template(
         template = src_file,
         output = dst_file,
         substitutions = {
-            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}".format(version_info.build),
-            "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}".format(version_info.major),
-            "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}".format(version_info.minor),
-            "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}".format(version_info.update),
-            "#define __INTEL_DAAL_STATUS__ 'A'": "#define __INTEL_DAAL_STATUS__ \"{}\"".format(version_info.status),
-            "#define __INTEL_DAAL_MAJOR_BINARY__ 999": "#define __INTEL_DAAL_MAJOR_BINARY__ {}".format(version_info.binary_major),
-            "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}".format(version_info.binary_minor),
+            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}{}".format(version_info.build, eol),
+            "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}{}".format(version_info.major, eol),
+            "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}{}".format(version_info.minor, eol),
+            "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}{}".format(version_info.update, eol),
+            "#define __INTEL_DAAL_STATUS__ 'A'": "#define __INTEL_DAAL_STATUS__ \"{}\"{}".format(version_info.status, eol),
+            "#define __INTEL_DAAL_MAJOR_BINARY__ 999": "#define __INTEL_DAAL_MAJOR_BINARY__ {}{}".format(version_info.binary_major, eol),
+            "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}{}".format(version_info.binary_minor, eol),
         },
     )
     return dst_file
 
+def _strip_os_suffix(dst_path, os_suffix):
+    """Drop a trailing `_<os>` from `dst_path`'s basename, if present.
+
+    Mirrors Make's `$(subst _$(_OS),,$d)` when staging
+    `release.HEADERS.OSSPEC`: `include/daal_win.h` ships as `include/daal.h`.
+    """
+    base = paths.basename(dst_path)
+    stem, _, extension = base.rpartition(".")
+    if not stem or not stem.endswith(os_suffix):
+        return dst_path
+    stripped = "{}.{}".format(stem[:-len(os_suffix)], extension)
+    return paths.join(paths.dirname(dst_path), stripped)
+
 def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
-    dst_files = []
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    # Make derives this from `$(_OS)`; only `win` currently has OS-specific
+    # public headers, but keep the other platforms symmetrical.
+    os_suffix = "_win" if is_windows else "_lnx"
+
+    # Map each staged destination to the header that should provide it. An
+    # OS-specific header wins over the generic file of the same staged name,
+    # matching Make's `filter-out $(subst _$(_OS),,...)` against
+    # `release.HEADERS.COMMON`. Keeping one entry per destination also prevents
+    # declaring the same action output twice.
+    staged_order = []
+    staged = {}
+    os_specific = {}
     for include, prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
                                             ctx.attr.include_skip_prefix):
         headers = _collect_headers(include)
         for header in headers:
+            if header.basename == "_dal_cpu_dispatcher_gen.hpp":
+                continue
             if skip_prefix:
                 # Use short_path for deterministic workspace-relative include layout.
                 # file.path contains bazel-out/<cfg>/... prefixes that prevent
@@ -153,11 +226,26 @@ def _copy_include(ctx, prefix, version_info):
             elif prefix:
                 dst_path = paths.join(prefix, header.basename)
             dst_path = paths.join(include_prefix, dst_path)
-            if header.short_path == "cpp/daal/include/services/library_version_info.h":
-                dst_file = _copy_version_header(ctx, header, dst_path, version_info)
-            else:
-                dst_file = _copy(ctx, header, dst_path)
-            dst_files.append(dst_file)
+            stripped = _strip_os_suffix(dst_path, os_suffix)
+            is_os_specific = stripped != dst_path
+            dst_path = stripped
+            if dst_path not in staged:
+                staged_order.append(dst_path)
+            elif os_specific.get(dst_path) and not is_os_specific:
+                continue
+            staged[dst_path] = header
+            if is_os_specific:
+                os_specific[dst_path] = True
+
+    dst_files = []
+    for dst_path in staged_order:
+        header = staged[dst_path]
+        if header.short_path == "cpp/daal/include/services/library_version_info.h":
+            dst_file = _copy_version_header(ctx, header, dst_path, version_info,
+                                            is_windows)
+        else:
+            dst_file = _copy(ctx, header, dst_path)
+        dst_files.append(dst_file)
     return dst_files
 
 def _symlink(ctx, link_name, target_name, prefix):
@@ -279,8 +367,9 @@ def _copy_lib(ctx, prefix, version_info):
                         ctx, lib, paths.join(lib_prefix, implib_name),
                     )
                 dst_files.append(implib)
-                if version_info and stem == "onedal_core":
-                    versioned_implib_name = "onedal_core_dll.{}.lib".format(
+                if version_info and stem in ["onedal_core", "onedal", "onedal_dpc"]:
+                    versioned_implib_name = "{}_dll.{}.lib".format(
+                        stem,
                         version_info.binary_major,
                     )
                     dst_files.append(_copy(
@@ -293,11 +382,60 @@ def _copy_lib(ctx, prefix, version_info):
             # declare the same output twice.
             if is_windows and (lib.basename.endswith(".if.lib") or lib.basename.endswith("_dll.lib")):
                 continue
+            if is_windows and lib.extension == "exp":
+                continue
 
             dst_path = paths.join(lib_prefix, lib.basename)
             dst_files.append(_copy(ctx, lib, dst_path))
 
     return dst_files
+
+# Files the Make Windows package ships with CRLF, which Bazel therefore has to
+# convert as well or the released file differs on every line. Two independent
+# mechanisms produce them:
+#
+#   * Make's `.release.x` recipe pipes whatever it stages through
+#     `sed -n -z -e 's/\r*\n/\r\n/g;p'` when `OS_is_win` (makefile:1043). That
+#     covers `config/config.txt` (makefile:1049) and the dataset tree
+#     (makefile:1046); both are stored with LF in the repository
+#     (see `.gitattributes`).
+#   * cmake's `configure_file` normalises output to the *host's* newline rather
+#     than the input's, so the oneDALConfig files that the makefile stages via
+#     `cmake/scripts/generate_config.cmake` (makefile:1103) come out CRLF on
+#     Windows even though the templates are LF. Bazel writes them with
+#     `expand_template`, which keeps the template's LF.
+#
+# The reference direction is deliberate: Make's bytes are what has shipped in
+# every release, and `generate_config.cmake` is also called by
+# `deploy/nuget/prepare_dal_nuget.sh`, so teaching it `NEWLINE_STYLE LF` would
+# change the published NuGet packages to fix a comparison.
+#
+# `env/vars.bat` is deliberately absent: it is generated from a template already
+# checked in with CRLF, so both sides agree without help.
+_CRLF_EXTRA_FILES = [
+    "config/config.txt",
+    "lib/cmake/oneDAL/oneDALConfig.cmake",
+    "lib/cmake/oneDAL/oneDALConfigVersion.cmake",
+]
+
+# Make picks what to ship under `data/` with `expat` (makefile:395); mirror that
+# suffix list rather than converting whatever happens to live there.
+#
+# Examples and samples are *not* covered: they are staged through the earlier
+# `.release.x` and `.release.d` definitions (makefile:1026, :1053), neither of
+# which runs the line-ending sed, so they keep LF in both packages.
+_CRLF_DATA_SUFFIXES = [".cmake", ".cpp", ".csv", ".h", ".hpp", ".txt"]
+
+def _is_crlf_staged(dst_subpath):
+    """True when the Make Windows package ships `dst_subpath` with CRLF."""
+    if dst_subpath in _CRLF_EXTRA_FILES:
+        return True
+    if not dst_subpath.startswith("data/"):
+        return False
+    for suffix in _CRLF_DATA_SUFFIXES:
+        if dst_subpath.endswith(suffix):
+            return True
+    return False
 
 def _copy_extra_files(ctx, prefix):
     """Copy extra generated files (vars.sh, pkg-config, etc.) into the release tree.
@@ -325,11 +463,20 @@ def _copy_extra_files(ctx, prefix):
                 dep.label, len(srcs)))
         src = srcs[0]
         dst_path = paths.join(prefix, dst_subpath)
-        dst_files.append(_copy(ctx, src, dst_path))
+        # See `_is_crlf_staged`: some of these are CRLF in the Make Windows
+        # package, either because Make's staging recipe rewrites them or because
+        # cmake generated them on a Windows host. The pkg-config files are not,
+        # since Bazel and Make both write them with LF.
+        if is_windows and _is_crlf_staged(dst_subpath):
+            dst_files.append(_copy_crlf(ctx, src, dst_path))
+        else:
+            dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
 def _copy_data(ctx, prefix):
     """Copy data files (datasets, examples, config) preserving directory structure."""
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+
     dst_files = []
     for dep in ctx.attr.data:
         srcs = dep[DefaultInfo].files.to_list()
@@ -338,7 +485,10 @@ def _copy_data(ctx, prefix):
             if src.short_path.startswith("../"):
                 continue
             dst_path = paths.join(prefix, src.short_path)
-            dst_files.append(_copy(ctx, src, dst_path))
+            if is_windows and _is_crlf_staged(src.short_path):
+                dst_files.append(_copy_crlf(ctx, src, dst_path))
+            else:
+                dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
 def _copy_to_release_impl(ctx):
@@ -401,6 +551,12 @@ _release = rule(
             doc = "Helper that derives a Windows DLL's import library by " +
                   "running dumpbin+lib /def: post-link.",
         ),
+        "_to_crlf": attr.label(
+            default = "@onedal//dev/bazel/toolchains/tools:copy_crlf.bat",
+            allow_single_file = True,
+            doc = "Helper that copies a text file converting line endings to " +
+                  "CRLF, matching the makefile's Windows release staging.",
+        ),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
@@ -449,7 +605,7 @@ def release(name, include, lib, extra_files = [], data = []):
                      Example:
                        extra_files = [
                            release_extra_file(":release_vars_sh", "env/vars.sh"),
-                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc"),
+                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
                        ]
         data:        List of filegroup targets to copy preserving directory structure.
                      Example:

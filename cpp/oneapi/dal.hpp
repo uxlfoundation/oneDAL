@@ -52,6 +52,7 @@
 #include "oneapi/dal/algo/connected_components.hpp"
 #include "oneapi/dal/algo/covariance.hpp"
 #include "oneapi/dal/algo/decision_forest.hpp"
+#include "oneapi/dal/algo/hdbscan.hpp"
 #include "oneapi/dal/algo/jaccard.hpp"
 #include "oneapi/dal/algo/subgraph_isomorphism.hpp"
 #include "oneapi/dal/algo/kmeans.hpp"

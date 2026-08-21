@@ -195,6 +195,22 @@ def _impl(ctx):
     pedantic_feature = feature(name = "pedantic")
     dbg_feature = feature(name = "dbg")
     opt_feature = feature(name = "opt")
+    runtime_library_feature = feature(
+        name = "runtime_library",
+        enabled = True,
+        flag_sets = [
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["-MDd"])],
+                with_features = [with_feature_set(features = ["dbg"])],
+            ),
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["-MD"])],
+                with_features = [with_feature_set(not_features = ["dbg"])],
+            ),
+        ],
+    )
     # Windows PE/COFF objects have no PIC/non-PIC distinction, so we do not
     # register a `supports_pic` feature. Matches rules_cc's MSVC auto-config
     # and keeps `cc_common.compile` from emitting both variants (which the
@@ -712,6 +728,7 @@ def _impl(ctx):
         pedantic_feature,
         dbg_feature,
         opt_feature,
+        runtime_library_feature,
         supports_dynamic_linker_feature,
         do_not_link_dynamic_dependencies_feature,
         default_compile_flags_feature,
@@ -747,11 +764,19 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
-        library_search_directories_feature,
+        # `dpc_linker_mode` emits the single `/link` separator on DPC++ links.
+        # Everything the icx driver itself has to see (`-fsycl`, `-LD`,
+        # `-o<out>`) stays in front of it; everything meant for lld-link
+        # (`-libpath:`, input libraries, `/DEF:`, `/WHOLEARCHIVE:`) has to come
+        # after, otherwise clang-cl swallows it and warns
+        # "unknown argument ignored in clang-cl: '-libpath:...'".
+        # Non-DPC links invoke lld-link.exe directly and emit no `/link`, so
+        # the order is irrelevant for them.
         shared_flag_feature,
-        libraries_to_link_feature,
         output_execpath_flags_feature,
         dpc_linker_mode_feature,
+        library_search_directories_feature,
+        libraries_to_link_feature,
         user_link_flags_feature,
         default_dynamic_libraries_feature,
         archiver_flags_feature,

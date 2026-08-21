@@ -69,7 +69,7 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     PRAGMA_OMP_SIMD_ARGS(reduction(max : maxWeight))
     for (size_t i = 0; i < nRows; ++i)
     {
-        if (src[i] > maxWeight) maxWeight = src[i];
+        maxWeight = src[i] > maxWeight ? src[i] : maxWeight;
     }
     if (!(maxWeight > 0)) return empty;
 

@@ -92,30 +92,72 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
-    # On Windows, onedal.dll must resolve all DAAL algorithm and MKL backend
-    # symbols at link time (lld-link does not allow unresolved externals), so
-    # embed the same DAAL/MKL-tagged inputs the DPC variant does. On Linux,
-    # libonedal.so resolves DAAL symbols at runtime via DT_NEEDED
-    # libonedal_core.so, so the host-only build keeps just the "dal" tag to
-    # avoid duplicating DAAL into onedal.so.
+    # Mirror what Make puts on onedal.dll's Windows link line: the DAAL
+    # implementation arrives through onedal_core's import library (`host_deps`
+    # below), while the static MKL archives are linked in directly.
+    #
+    #   - Dropping the "daal" tag is what narrows the export surface. Those
+    #     contexts carry DAAL *object files*, which the Windows path bundles
+    #     into onedal.4_objects.lib and pulls in with /WHOLEARCHIVE, so their
+    #     dllexport directives leak into onedal.dll's exports.
+    #   - Keeping "mkl_embed" costs nothing in exports: it contributes
+    #     prebuilt archives (mkl_intel_ilp64/mkl_tbb_thread/mkl_core), which
+    #     stay outside the whole-archived object bundle and are searched only
+    #     for unresolved references. Without it the CPU RNG kernels have no
+    #     definition for MKL entry points such as `viRngUniform`.
+    #     Make links the same archives via
+    #     `daaldep.math_backend.shared_link_deps`.
+    #
+    # Linux is unchanged: libonedal.so resolves both DAAL and MKL symbols at
+    # runtime via DT_NEEDED libonedal_core.so, so the host build needs neither
+    # extra tag. Only the non-Windows DPC branch keeps the historical
+    # ["dal", "daal", "mkl_embed"] set; the Windows one is narrowed below. The
+    # Windows DPC link takes MKL through the SYCL import libraries
+    # `@mkl//:mkl_dpc` contributes, again matching Make.
     lib_tags = select({
-        "@platforms//os:windows": ["dal", "daal", "mkl_embed"],
+        "@platforms//os:windows": ["dal", "mkl_embed"],
         "//conditions:default": ["dal"],
     }),
-    dpc_lib_tags = ["dal", "daal", "mkl_embed"],
+    # `BUILD_PARAMETERS_LIB` defaults to `no` on Windows, so Make folds the DPC
+    # parameter objects straight into onedal_dpc.dll
+    # (`ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)`). Those
+    # contexts are tagged "parameters", so the tag has to be accepted here or
+    # the objects never reach the link and their dllexport'ed
+    # `train_parameters_cpu` members are missing from the DLL's exports.
+    # Linking `static_parameters_dpc` instead does not work: an archive is
+    # searched only for unresolved references, while the export table is built
+    # from the whole-archived object bundle.
+    #
+    # Linux must *not* accept the tag. There `BUILD_PARAMETERS_LIB` is `yes`, so
+    # Make emits the parameters as their own shared object
+    # (`parameters_y := $(plib)onedal_parameters...`, makefile:343) and
+    # libonedal_dpc.so never contains those objects. Adding the tag here would
+    # fold them into onedal_dpc, duplicating the definitions and diverging from
+    # the Make release the comparator checks against.
+    dpc_lib_tags = select({
+        "@platforms//os:windows": ["dal", "parameters"],
+        "//conditions:default": ["dal", "daal", "mkl_embed"],
+    }),
     dal_deps = [
         ":core",
         ":optional",
     ],
-    # On Windows, onedal.dll must resolve all externals at link time:
+    # On Windows, link onedal_core's import library plus parameter objects and
+    # delay-load threading shims. Keep DAAL/MKL implementation in onedal_core.
+    #   - core_dynamic: import library that resolves the DAAL algorithm and
+    #     MKL backend symbols the oneAPI objects reference. `host_deps` is
+    #     appended to both the host and the DPC link, so it must be listed
+    #     here only -- repeating it in `dpc_deps` makes the label duplicate in
+    #     `dynamic_dpc` and fails analysis.
     #   - static_parameters: parameter symbols not part of any other dep tree.
     #   - services_win_dll_shim: delay-load stubs for threading entry points
     #     (e.g. `_threaded_scalable_*`, `_daal_static_threader_reduce`) that
-    #     the embedded DAAL kernel objects reference. The real TBB-backed
-    #     symbols live in onedal_thread.dll. Mirrors onedal_core.dll above
-    #     and the original Make build.
+    #     the DAAL objects reference. The real TBB-backed symbols live in
+    #     onedal_thread.dll. Mirrors onedal_core.dll above and the original
+    #     Make build.
     host_deps = select({
         "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
             ":static_parameters",
             "@onedal//cpp/daal:services_win_dll_shim",
         ],
@@ -126,12 +168,14 @@ dal_dynamic_lib(
 dal_dynamic_lib(
     name = "dynamic_parameters",
     lib_name = "onedal_parameters",
+    # On Windows, DAAL/MKL stay behind onedal_core's import library; only
+    # parameter and oneAPI objects belong in this DLL. Keep Linux unchanged.
     lib_tags = select({
-        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "@platforms//os:windows": ["parameters", "dal"],
         "//conditions:default": ["parameters"],
     }),
     dpc_lib_tags = select({
-        "@platforms//os:windows": ["parameters", "dal", "daal", "mkl_embed"],
+        "@platforms//os:windows": ["parameters", "dal"],
         "//conditions:default": ["parameters"],
     }),
     dal_deps = [
@@ -144,8 +188,13 @@ dal_dynamic_lib(
         "@onedal//cpp/oneapi/dal/algo/logistic_regression/detail",
         "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
+    # `host_deps` is appended to the host *and* the DPC link, so the shared
+    # Windows inputs belong here rather than being split across `dpc_deps`.
     host_deps = select({
-        "@platforms//os:windows": ["@onedal//cpp/daal:services_win_dll_shim"],
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
         "//conditions:default": [],
     }),
 )

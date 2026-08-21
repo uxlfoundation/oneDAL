@@ -15,6 +15,7 @@
 #===============================================================================
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
@@ -46,6 +47,10 @@ def _merge_static_libs(filename, actions, cc_toolchain,
                        feature_configuration, static_libs, is_windows = False):
     output_file = actions.declare_file(filename)
     if is_windows:
+        merger_path = cc_common.get_tool_for_action(
+            feature_configuration = feature_configuration,
+            action_name = ACTION_NAMES.cpp_link_static_library,
+        )
         args = actions.args()
         args.use_param_file("@%s", use_always = True)
         args.set_param_file_format("multiline")
@@ -53,7 +58,7 @@ def _merge_static_libs(filename, actions, cc_toolchain,
         args.add("/OUT:" + output_file.path)
         args.add_all(static_libs)
         actions.run(
-            executable = "xilib.exe",
+            executable = merger_path,
             arguments = [args],
             inputs = static_libs,
             outputs = [output_file],
@@ -233,38 +238,39 @@ def _link(owner, name, actions, cc_toolchain,
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
             name, unpacked_linking_context.objects))
-    object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
-    additional_inputs = ([def_file] if def_file else []) + additional_inputs
-    direct_user_link_flags = ["@" + def_file.path] if def_file else []
-    direct_libraries_to_link = []
-
-    # Windows link.exe rejects response-file lines longer than 131071
-    # characters. Full all-ISA DPC DLLs can produce thousands of objects, so
-    # aggregate them into one private archive and link it whole-archive.
-    if is_windows and not is_executable and object_list:
-        direct_objects = [object_list[0]]
-        archived_objects = object_list[1:]
-        object_list = direct_objects
-        if archived_objects:
-            object_archive = _merge_static_libs(
-                filename = name + "_objects.lib",
-                actions = actions,
-                cc_toolchain = cc_toolchain,
-                feature_configuration = feature_configuration,
-                static_libs = archived_objects,
-                is_windows = True,
-            )
-            additional_inputs.append(object_archive)
-            direct_user_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
-            direct_libraries_to_link.append(cc_common.create_library_to_link(
-                actions = actions,
-                cc_toolchain = cc_toolchain,
-                feature_configuration = feature_configuration,
-                static_library = object_archive,
-                pic_static_library = object_archive,
-            ))
-
-    all_objects = depset(object_list)
+    all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
+    libraries_to_link = unpacked_linking_context.libraries_to_link
+    object_archive_link_flags = []
+    additional_link_inputs = list(additional_inputs)
+    if is_windows and all_object_list and not is_executable:
+        object_archive = _merge_static_libs(
+            filename = name + "_objects.lib",
+            actions = actions,
+            cc_toolchain = cc_toolchain,
+            feature_configuration = feature_configuration,
+            static_libs = all_object_list,
+            is_windows = True,
+        )
+        object_archive_to_link = cc_common.create_library_to_link(
+            actions = actions,
+            cc_toolchain = cc_toolchain,
+            feature_configuration = feature_configuration,
+            static_library = object_archive,
+            pic_static_library = object_archive,
+        )
+        libraries_to_link = [object_archive_to_link] + libraries_to_link
+        # No `/link` separator here, even for DPC++ links: the toolchain's
+        # `dpc_linker_mode` feature already emits exactly one, and it is
+        # ordered ahead of `user_link_flags`. A second `/link` reaches the
+        # linker itself, which reports `LNK4044: unrecognized option '/link'`.
+        # Windows DLL exports are discovered from dllexport directives inside
+        # object files. A normal static library is searched only for unresolved
+        # references, so these objects are otherwise not pulled into leaf DLLs
+        # such as onedal_thread.dll and the link can miss the CRT startup.
+        object_archive_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
+        additional_link_inputs.append(object_archive)
+        all_object_list = []
+    all_objects = depset(all_object_list)
     compilation_outputs = cc_common.create_compilation_outputs(
         objects = all_objects,
         pic_objects = all_objects,
@@ -274,11 +280,10 @@ def _link(owner, name, actions, cc_toolchain,
         unpacked_linking_context.user_link_flags
     )
     # Merge user_link_flags from both linking context and function parameters
-    all_user_link_flags = unpacked_user_link_flags + user_link_flags
+    all_user_link_flags = unpacked_user_link_flags + user_link_flags + object_archive_link_flags
     linker_input = cc_common.create_linker_input(
         owner = owner,
-        libraries = depset(direct_libraries_to_link +
-                           unpacked_linking_context.libraries_to_link),
+        libraries = depset(libraries_to_link),
         user_link_flags = depset(all_user_link_flags),
     )
     # TODO: Pass compilations outputs via linking contexts
@@ -287,6 +292,14 @@ def _link(owner, name, actions, cc_toolchain,
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([linker_input]),
     )
+    def_file_link_flags = []
+    if def_file:
+        # MSVC link.exe consumes module-definition files through /DEF:. The
+        # @file spelling is a response file, not a DEF file, and causes the
+        # Windows linker to export symbols discovered from whole archives
+        # instead of the explicit Make-compatible export surface.
+        def_file_link_flags = (["/DEF:" + def_file.path] if is_windows else
+                               ["@" + def_file.path])
     linking_outputs = cc_common.link(
         name = name,
         actions = actions,
@@ -296,14 +309,55 @@ def _link(owner, name, actions, cc_toolchain,
         linking_contexts = [linking_context],
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
-        user_link_flags = direct_user_link_flags,
-        additional_inputs = additional_inputs,
+        user_link_flags = def_file_link_flags,
+        additional_inputs = ([def_file] if def_file else []) + additional_link_inputs,
     )
     return unpacked_linking_context, linking_outputs
 
+def _make_implib_for_dll(actions, dll_file, implib_name, dll_to_implib_tool):
+    """Derive `dll_file`'s Windows import library as a tracked action output.
+
+    The custom icx/lld-link toolchain config does not register
+    `supports_interface_shared_libraries`, so `cc_common.link()` returns no
+    `interface_library` and the `-IMPLIB:` side-effect file cannot be declared
+    as an action output. Without an import library, a DLL that links against
+    another oneDAL DLL has nothing to resolve its imports against and
+    lld-link reports every cross-DLL symbol as undefined.
+
+    Reuses the same dumpbin + `lib /def:` helper the release rule already
+    relies on, so both paths derive the import library identically.
+    """
+    implib = actions.declare_file(implib_name)
+    # `lib /def:` also writes an .exp next to the .lib. It is a build
+    # intermediate, not a release artifact, so keep it out of any staged tree.
+    exp_file = actions.declare_file(paths.join(
+        "_link_intermediates",
+        implib.basename[:-len(".lib")] + ".exp",
+    ))
+    actions.run(
+        executable = "cmd.exe",
+        inputs = [dll_file, dll_to_implib_tool],
+        outputs = [implib, exp_file],
+        arguments = [
+            "/d", "/c",
+            "{} {} {} {}".format(
+                dll_to_implib_tool.path.replace("/", "\\"),
+                dll_file.path.replace("/", "\\"),
+                implib.path.replace("/", "\\"),
+                exp_file.path.replace("/", "\\"),
+            ),
+        ],
+        use_default_shell_env = True,
+        mnemonic = "DllToImplib",
+        progress_message = "Generating import lib %s" % implib.short_path,
+    )
+    return implib
+
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
-             def_file=None, user_link_flags=[], is_windows=False, additional_inputs=[]):
+             def_file=None, user_link_flags=[], is_windows=False,
+             additional_inputs=[],
+             dll_to_implib_tool=None):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
@@ -324,6 +378,16 @@ def _dynamic(owner, name, actions, cc_toolchain,
             files = [],
             dynamic_library = None,
             interface_library = None,
+        )
+    # On Windows, derive the import library ourselves when the toolchain did
+    # not emit one, so downstream DLL links resolve imports against it instead
+    # of failing with undefined externals.
+    if is_windows and not interface_lib and dll_to_implib_tool:
+        interface_lib = _make_implib_for_dll(
+            actions, dynamic_lib,
+            "{}_dll.lib".format(utils.remove_substring(
+                dynamic_lib.basename, ".dll")),
+            dll_to_implib_tool,
         )
     dynamic_files = [dynamic_lib]
     if interface_lib:
@@ -358,6 +422,7 @@ def _executable(owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         is_executable = True,
         user_link_flags = user_link_flags,
+        is_windows = False,
     )
     if not linking_outputs.executable:
         return utils.warn("'{}' executable does not contain any " +

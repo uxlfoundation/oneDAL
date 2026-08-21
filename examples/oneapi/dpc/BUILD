@@ -4,6 +4,17 @@ load("@onedal//dev/bazel:dal.bzl",
     "dal_algo_example_suite",
 )
 
+filegroup(
+    name = "release_files",
+    srcs = glob([
+        "CMakeLists.txt",
+        "source/**/CMakeLists.txt",
+        "source/**/*.cpp",
+        "source/**/*.hpp",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
 dal_module(
     name = "example_util",
     hdrs = glob(["source/example_util/*.hpp"]),
@@ -61,6 +72,7 @@ dal_algo_example_suite(
         "decision_forest",
         "kmeans",
         "dbscan",
+        "hdbscan",
         "knn",
         "linear_kernel",
         "linear_regression",

@@ -16,8 +16,12 @@
 #===============================================================================
 
 import argparse
+import difflib
 import filecmp
+import re
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +31,10 @@ TEXT_SUFFIXES = {
     ".cfg",
     ".cmake",
     ".cpp",
+    # Datasets. Make stages these through the recipe that rewrites line endings
+    # on Windows (makefile:1046), so their contents are part of the parity the
+    # release comparison is meant to cover.
+    ".csv",
     ".cxx",
     ".h",
     ".hpp",
@@ -54,11 +62,186 @@ BINARY_SUFFIXES = {
     ".so",
 }
 
+SHARED_LIBRARY_SUFFIXES = {
+    "linux": (".so",),
+    "windows": (".dll",),
+}
+
+IGNORED_FILES = {
+    "linux": set(),
+}
+
 NORMALIZED_TEXT_LINES = {
     "include/services/library_version_info.h": (
         "__INTEL_DAAL_BUILD_DATE",
     ),
 }
+
+LINUX_IGNORED_EXPORTS = {
+    # ELF linker-defined section boundary symbols. These are not part of the
+    # oneDAL ABI, but GNU nm reports them as dynamic definitions for some
+    # shared objects.
+    "__bss_start",
+    "_edata",
+    "_end",
+    # Intel compiler/runtime implementation details that can be pulled into the
+    # Bazel-built shared objects without changing the oneDAL API surface.
+    "_LIB_VERSIONIMF",
+    "log",
+}
+
+LINUX_IGNORED_EXPORT_PREFIXES = (
+    # Implementation details instantiated through oneTBB/libstdc++ may vary
+    # between Make and Bazel builds while keeping the public oneDAL ABI intact.
+    "_ZN3tbb6detail",
+    "_ZNK3tbb6detail",
+    "_ZTIN3tbb6detail",
+    "_ZTSN3tbb6detail",
+    "_ZTVN3tbb6detail",
+    "_ZNSt",
+    "_ZSt",
+    "__intel_",
+    "__libm_",
+    "__svml_",
+    "_Z28_daal_parallel_sort_template",
+    "_ZN4daal10algorithms8internal5qSort",
+    "MKL_",
+    "mkl_",
+)
+
+LINUX_DPC_IGNORED_EXPORT_PREFIXES = (
+    # Bazel may expose symbols from static dependencies linked into the DPC
+    # library that Make keeps hidden. These symbols do not describe the public
+    # DPC package surface being validated by this comparison.
+    "_Z22__daal_serv_cpu_detect",
+    "_Z23daal_check_is_intel_cpu",
+    "_Z23daal_enabled_cpu_detect",
+    "_Z28daal_serv_cpu_feature_detect",
+    "_ZN21mkl_lapack_tbb_compat",
+    "_ZTIN21mkl_lapack_tbb_compat",
+    "_ZTSN21mkl_lapack_tbb_compat",
+    "_ZTVN21mkl_lapack_tbb_compat",
+    "_ZN4daal",
+    "_ZNK4daal",
+    "_ZThn",
+    "_ZTIN4daal",
+    "_ZTSN4daal",
+    "_ZTVN4daal",
+)
+
+
+def is_ignored_linux_export(symbol, library_path=None):
+    if symbol in LINUX_IGNORED_EXPORTS:
+        return True
+    if symbol.startswith(LINUX_IGNORED_EXPORT_PREFIXES):
+        return True
+    if library_path and Path(library_path).name.startswith("libonedal_dpc.so"):
+        if symbol.startswith(LINUX_DPC_IGNORED_EXPORT_PREFIXES):
+            return True
+        if re.match(r"^_ZNK\d+mkl_sparse_", symbol):
+            return True
+    # BLAS/LAPACK entry points from MKL are uppercase Fortran-style names.
+    return bool(re.match(r"^[A-Z][A-Z0-9_]+(_64)?$", symbol))
+
+
+# Entities the compiler generates or inlines on its own, rather than named
+# functions that form the documented oneDAL surface.
+#
+# The Windows nightly builds the Make release with `vc` (cl) and the Bazel one
+# with icx, so the two toolchains disagree about which of these they emit and
+# how they spell them. Two examples from that comparison:
+#
+#   * `??$threader_for@...` -- `inline ONEDAL_EXPORT` templates instantiated on
+#     lambdas (cpp/oneapi/dal/detail/threading.hpp). cl and icx encode the
+#     lambda's identity differently, so no instantiation can ever match: cl
+#     writes the enclosing scope (`V<lambda_1>@?0???$copy_convert@...`) while
+#     icx writes a content hash (`V<lambda_0380cb5a...>`). Every one of the
+#     onedal.4.dll differences was of this form.
+#   * `??1?$Distributed@...` / `??_7?$AlgorithmContainer@...` -- implicitly
+#     declared destructors, constructors, assignment operators and vftables of
+#     *class templates*. Whether these are emitted into a given DLL depends on
+#     where the compiler decided to instantiate them, not on the library's API.
+#
+# Both patterns are matched narrowly on purpose. A special member is only
+# ignored when it belongs to a class template (`?$` right after the tag), and a
+# template instantiation is only ignored when a lambda appears in its arguments.
+# Anything else -- a constructor, destructor or vftable of a named non-template
+# class, or an ordinary exported template function -- is still compared, because
+# on Windows those symbols *are* what a consumer links against. Measured against
+# the 494 symbols the nightly reported for onedal.4.dll and onedal_core.4.dll,
+# these two rules cover 222 of the 224 special members and all 400 template
+# instantiations; the two remaining special members are the `??_F` closures
+# below.
+WINDOWS_IGNORED_EXPORT_PATTERNS = (
+    # Special members of class templates: ctor, dtor, operator new/delete
+    # (scalar `??2`/`??3` and array `??_U`/`??_V`), operator=, operator(),
+    # vftable.
+    re.compile(r"^\?\?(?:[01234R]|_7|_U|_V)\?\$"),
+    # Template instantiations whose arguments name a lambda. `<lambda_` is cl's
+    # spelling and icx's alike; neither can match the other's.
+    re.compile(r"^\?\?\$.*<lambda_"),
+    # Default-constructor closures. Unlike the tags above these are never part
+    # of a linkable surface -- the closure exists only so the compiler can run
+    # a base initializer -- so the class does not have to be a template.
+    re.compile(r"^\?\?_F"),
+    # `daal::services::Collection<T>::_default_capacity` is a private static
+    # constant initialized in-class (cpp/daal/include/services/collection.h).
+    # Its out-of-line definition is emitted at the compiler's discretion, so cl
+    # exports it from onedal_core.dll for two instantiations that icx does not.
+    re.compile(r"^\?_default_capacity@\?\$Collection@"),
+)
+
+
+# Inline members of exported class templates that cl instantiates and exports
+# while clang-cl does not, because clang-cl only emits the ones the DLL itself
+# odr-uses. They are listed one by one rather than matched by pattern so that a
+# member which genuinely disappears from a released library still fails.
+#
+# None of them can be part of a consumer's link surface. `DAAL_EXPORT` expands to
+# `__declspec(dllexport)` only while oneDAL itself is being built and to nothing
+# otherwise (cpp/daal/include/services/daal_defines.h), and no public header
+# declares anything `dllimport`. A consumer therefore instantiates whichever of
+# these it uses in its own object file and never emits a reference the DLL would
+# have to satisfy. Every entry below is defined in-class in a released header.
+#
+# Populated from the Windows nightly's own report for onedal_core.4.dll; if a new
+# member of one of these class templates starts diverging, the comparison will
+# flag it and this list needs a deliberate update.
+WINDOWS_IGNORED_EXPORTS = frozenset([
+    # daal::algorithms::optimization_solver::precomputed::interface2::Batch
+    "?allocateResult@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEAA?AVStatus@interface1@services@6@XZ",
+    "?allocateResult@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEAA?AVStatus@interface1@services@6@XZ",
+    "?cloneImpl@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEBAPEAV123456@XZ",
+    "?cloneImpl@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@MEBAPEAV123456@XZ",
+    "?getMethod@?$Batch@M$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@UEBAHXZ",
+    "?getMethod@?$Batch@N$0A@@interface2@precomputed@optimization_solver@algorithms@daal@@UEBAHXZ",
+    # daal::algorithms::interface1::Algorithm<batch>
+    "?allocateResultMemory@?$Algorithm@$00@interface1@algorithms@daal@@IEAA?AVStatus@2services@4@XZ",
+    "?getBaseHyperparameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAPEBUHyperparameter@234@XZ",
+    "?getBaseParameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAPEAUParameter@234@XZ",
+    "?setHyperparameter@?$Algorithm@$00@interface1@algorithms@daal@@QEAAXPEBUHyperparameter@234@@Z",
+    "?setParameter@?$Algorithm@$00@interface1@algorithms@daal@@MEAAXXZ",
+    # daal::algorithms::interface1::AlgorithmContainerImpl<batch>
+    "?getResult@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@QEAAPEAVResult@234@XZ",
+    "?resetCompute@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@UEAA?AVStatus@2services@4@XZ",
+    "?setArguments@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@QEAAXPEAVInput@234@PEAVResult@234@PEAUParameter@234@PEBUHyperparameter@234@@Z",
+    "?setupCompute@?$AlgorithmContainerImpl@$00@interface1@algorithms@daal@@UEAA?AVStatus@2services@4@XZ",
+    # daal::algorithms::covariance::interface1::DistributedIface<step1Local>
+    "?checkFinalizeComputeParams@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@XZ",
+    "?clone@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEBA?AV?$SharedPtr@V?$DistributedIface@$00@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?getPartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEAA?AV?$SharedPtr@VPartialResult@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?getResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@QEAA?AV?$SharedPtr@VResult@interface1@covariance@algorithms@daal@@@2services@5@XZ",
+    "?initialize@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@IEAAXXZ",
+    "?initializePartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@MEAA?AVStatus@2services@5@XZ",
+    "?setPartialResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@AEBV?$SharedPtr@VPartialResult@interface1@covariance@algorithms@daal@@@275@_N@Z",
+    "?setResult@?$DistributedIface@$00@interface1@covariance@algorithms@daal@@UEAA?AVStatus@2services@5@AEBV?$SharedPtr@VResult@interface1@covariance@algorithms@daal@@@275@@Z",
+])
+
+
+def is_ignored_windows_export(symbol):
+    if symbol in WINDOWS_IGNORED_EXPORTS:
+        return True
+    return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
 
 def rel(path, root):
@@ -102,7 +285,18 @@ def is_text_path(path):
 
 
 def read_normalized_text(root, path):
-    content = (root / path).read_text(encoding="utf-8", errors="surrogateescape")
+    # `newline=""` keeps each line's own ending. Without it Python's universal
+    # newline translation folds CRLF to LF, which would make the files listed in
+    # NORMALIZED_TEXT_LINES the only released text files where a line-ending
+    # difference is invisible -- every other one is compared byte for byte.
+    # `Path.read_text` only grew a `newline` parameter in Python 3.13, and CI
+    # still runs 3.12, so go through `open`.
+    with (root / path).open(
+        encoding="utf-8",
+        errors="surrogateescape",
+        newline="",
+    ) as handle:
+        content = handle.read()
     prefixes = NORMALIZED_TEXT_LINES.get(path, ())
     if not prefixes:
         return content
@@ -110,8 +304,11 @@ def read_normalized_text(root, path):
     for line in content.splitlines(keepends=True):
         stripped = line.lstrip()
         if any(stripped.startswith(f"#define {prefix} ") for prefix in prefixes):
-            newline = "\n" if line.endswith("\n") else ""
-            normalized.append(f"#define {stripped.split()[1]} <normalized>{newline}")
+            # Carry the original ending over to the placeholder, for the same
+            # reason: normalising the value must not normalise the endings.
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            normalized.append(f"#define {stripped.split()[1]} <normalized>{ending}")
         else:
             normalized.append(line)
     return "".join(normalized)
@@ -132,6 +329,22 @@ def compare_sets(name, make_values, bazel_values, limit):
         print(f"Only Bazel {name}: {len(only_bazel)}")
         for item in only_bazel[:limit]:
             print(f"  + {item}")
+    return errors
+
+
+def compare_link_targets(make_links, bazel_links, limit):
+    errors = 0
+    common_links = set(make_links).intersection(bazel_links)
+    bad_links = [
+        path for path in sorted(common_links)
+        if make_links[path] != bazel_links[path]
+    ]
+    if bad_links:
+        errors += len(bad_links)
+        print(f"Symlink target mismatches: {len(bad_links)}")
+        for path in bad_links[:limit]:
+            print(f"  ! {path}: Make -> {make_links[path]}, Bazel -> {bazel_links[path]}")
+    print(f"Compared symlink targets: {len(common_links)}")
     return errors
 
 
@@ -157,8 +370,189 @@ def compare_text_files(make_root, bazel_root, files, limit):
         errors += len(mismatches)
         print(f"Text content mismatches: {len(mismatches)}")
         for item in mismatches[:limit]:
-            print(f"  ! {item}")
+            print(f"  ! {item} {describe_text_mismatch(make_root, bazel_root, item)}")
+            for line in text_mismatch_diff(make_root, bazel_root, item):
+                print(f"      {line}")
     print(f"Compared text files: {compared}")
+    return errors
+
+
+def line_ending_counts(data):
+    crlf = data.count(b"\r\n")
+    lf = data.count(b"\n") - crlf
+    cr = data.count(b"\r") - crlf
+    return crlf, lf, cr
+
+
+def describe_text_mismatch(make_root, bazel_root, path):
+    """Summarise *how* two text files differ, so a CI log is enough to diagnose.
+
+    Printing only the path leaves the reader unable to tell a line-ending
+    difference from a content one without reproducing the build, which on
+    Windows means a multi-hour job.
+    """
+    make_bytes = (make_root / path).read_bytes()
+    bazel_bytes = (bazel_root / path).read_bytes()
+    make_eol = line_ending_counts(make_bytes)
+    bazel_eol = line_ending_counts(bazel_bytes)
+    detail = f"Make={len(make_bytes)}B Bazel={len(bazel_bytes)}B"
+    if make_eol != bazel_eol:
+        detail += (
+            " EOL Make(crlf={},lf={},cr={}) Bazel(crlf={},lf={},cr={})"
+            .format(*make_eol, *bazel_eol)
+        )
+    # Same text once endings are normalised means the endings are the only
+    # difference; say so explicitly rather than making the reader infer it.
+    if make_bytes.replace(b"\r\n", b"\n") == bazel_bytes.replace(b"\r\n", b"\n"):
+        detail += " (line endings only)"
+    return detail
+
+
+def text_mismatch_diff(make_root, bazel_root, path, context=1, max_lines=12):
+    """Return a bounded unified diff of the two files, endings made visible."""
+    def read_lines(root):
+        raw = (root / path).read_bytes()
+        text = raw.decode("utf-8", errors="replace")
+        # Keep the endings and render them, so a CRLF/LF difference is legible
+        # instead of invisible.
+        return [
+            line.replace("\r", "<CR>").replace("\n", "<LF>")
+            for line in text.splitlines(keepends=True)
+        ]
+
+    diff = difflib.unified_diff(
+        read_lines(make_root),
+        read_lines(bazel_root),
+        fromfile="make",
+        tofile="bazel",
+        n=context,
+        lineterm="",
+    )
+    lines = list(diff)[:max_lines]
+    if len(lines) == max_lines:
+        lines.append("... diff truncated")
+    return lines
+
+
+def run_tool(args):
+    result = subprocess.run(
+        args,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        errors="replace",
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+    return result.stdout
+
+
+def read_linux_exports(path):
+    nm = shutil.which("nm")
+    if nm:
+        output = run_tool([nm, "-D", "--defined-only", str(path)])
+        symbols = set()
+        for line in output.splitlines():
+            parts = line.split()
+            if len(parts) >= 3:
+                symbol = parts[-1].split("@", 1)[0]
+                if not is_ignored_linux_export(symbol, path):
+                    symbols.add(symbol)
+        return symbols
+
+    readelf = shutil.which("readelf")
+    if readelf:
+        output = run_tool([readelf, "-Ws", str(path)])
+        symbols = set()
+        for line in output.splitlines():
+            parts = line.split()
+            if len(parts) >= 8 and parts[3] == "FUNC" and parts[6] != "UND":
+                symbol = parts[7].split("@", 1)[0]
+                if not is_ignored_linux_export(symbol, path):
+                    symbols.add(symbol)
+        return symbols
+
+    raise RuntimeError("neither nm nor readelf is available")
+
+
+def read_windows_exports(path):
+    dumpbin = shutil.which("dumpbin")
+    if not dumpbin:
+        raise RuntimeError("dumpbin is required to compare Windows DLL exports")
+    output = run_tool([dumpbin, "/NOLOGO", "/EXPORTS", str(path)])
+    symbols = set()
+    in_exports = False
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("ordinal hint"):
+            in_exports = True
+            continue
+        if not in_exports or not stripped:
+            continue
+        parts = stripped.split()
+        if len(parts) >= 4 and parts[0].isdigit():
+            symbol = parts[3].split("=", 1)[0]
+            if not is_ignored_windows_export(symbol):
+                symbols.add(symbol)
+    return symbols
+
+
+def read_exports(platform, path):
+    if platform == "linux":
+        return read_linux_exports(path)
+    if platform == "windows":
+        return read_windows_exports(path)
+    raise ValueError(f"unsupported platform: {platform}")
+
+
+def is_shared_library(platform, path):
+    if platform == "linux":
+        return ".so" in Path(path).name
+    suffixes = SHARED_LIBRARY_SUFFIXES[platform]
+    return Path(path).suffix.lower() in suffixes
+
+
+def compare_shared_library_exports(platform, make_root, bazel_root, files, limit):
+    errors = 0
+    compared = 0
+    mismatches = []
+    unreadable = []
+
+    for path in sorted(files):
+        if not is_shared_library(platform, path):
+            continue
+        compared += 1
+        make_path = make_root / path
+        bazel_path = bazel_root / path
+        try:
+            make_exports = read_exports(platform, make_path)
+            bazel_exports = read_exports(platform, bazel_path)
+        except RuntimeError as err:
+            unreadable.append((path, str(err)))
+            continue
+        only_make = make_exports - bazel_exports
+        only_bazel = bazel_exports - make_exports
+        if only_make or only_bazel:
+            mismatches.append((path, only_make, only_bazel))
+
+    if unreadable:
+        errors += len(unreadable)
+        print(f"Shared library export read failures: {len(unreadable)}")
+        for path, err in unreadable[:limit]:
+            print(f"  ! {path}: {err}")
+
+    if mismatches:
+        errors += len(mismatches)
+        print(f"Shared library export mismatches: {len(mismatches)}")
+        for path, only_make, only_bazel in mismatches[:limit]:
+            print(f"  ! {path}: Make-only={len(only_make)}, Bazel-only={len(only_bazel)}")
+            for symbol in sorted(only_make)[:limit]:
+                print(f"    - {symbol}")
+            for symbol in sorted(only_bazel)[:limit]:
+                print(f"    + {symbol}")
+
+    print(f"Compared shared library exports: {compared}")
     return errors
 
 
@@ -169,9 +563,12 @@ def main():
     parser.add_argument("--make", required=True, type=Path)
     parser.add_argument("--bazel", required=True, type=Path)
     parser.add_argument("--platform", choices=("linux", "windows"), required=True)
+    parser.add_argument("--check-level", type=int, choices=range(1, 5), default=4)
     parser.add_argument("--structure-only", action="store_true")
     parser.add_argument("--summary-limit", type=int, default=50)
     args = parser.parse_args()
+    if args.structure_only:
+        args.check_level = 1
 
     make_root = args.make.resolve()
     bazel_root = args.bazel.resolve()
@@ -190,28 +587,43 @@ def main():
     make_dirs, make_files, make_links = classify(make_root)
     bazel_dirs, bazel_files, bazel_links = classify(bazel_root)
 
+    ignored_files = IGNORED_FILES.get(args.platform, set())
+    make_files -= ignored_files
+    bazel_files -= ignored_files
+
     print(f"Make:  {len(make_dirs)} dirs, {len(make_files)} files, {len(make_links)} links")
     print(f"Bazel: {len(bazel_dirs)} dirs, {len(bazel_files)} files, {len(bazel_links)} links")
 
+    print(f"Check level: {args.check_level}")
+
     errors = 0
+    print("")
+    print("=== level 1: release tree entries ===")
     errors += compare_sets("directories", make_dirs, bazel_dirs, args.summary_limit)
     errors += compare_sets("files", make_files, bazel_files, args.summary_limit)
     errors += compare_sets("symlinks", set(make_links), set(bazel_links), args.summary_limit)
 
-    common_links = set(make_links).intersection(bazel_links)
-    bad_links = [
-        path for path in sorted(common_links)
-        if make_links[path] != bazel_links[path]
-    ]
-    if bad_links:
-        errors += len(bad_links)
-        print(f"Symlink target mismatches: {len(bad_links)}")
-        for path in bad_links[:args.summary_limit]:
-            print(f"  ! {path}: Make -> {make_links[path]}, Bazel -> {bazel_links[path]}")
+    if args.check_level >= 2:
+        print("")
+        print("=== level 2: symlink targets ===")
+        errors += compare_link_targets(make_links, bazel_links, args.summary_limit)
 
-    if not args.structure_only:
-        common_files = make_files.intersection(bazel_files)
+    common_files = make_files.intersection(bazel_files)
+    if args.check_level >= 3:
+        print("")
+        print("=== level 3: text file contents ===")
         errors += compare_text_files(make_root, bazel_root, common_files, args.summary_limit)
+
+    if args.check_level >= 4:
+        print("")
+        print("=== level 4: shared library exports ===")
+        errors += compare_shared_library_exports(
+            args.platform,
+            make_root,
+            bazel_root,
+            common_files,
+            args.summary_limit,
+        )
 
     if errors:
         print(f"Release comparison failed: {errors} difference(s)")

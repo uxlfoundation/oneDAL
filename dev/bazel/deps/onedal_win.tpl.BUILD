@@ -39,7 +39,6 @@ cc_library(
     name = "onedal_static",
     srcs = [
         "lib/intel64/onedal.lib",
-        "lib/intel64/onedal_parameters.lib",
     ],
     deps = [
         ":headers",
@@ -99,11 +98,9 @@ cc_library(
     name = "onedal_dynamic",
     srcs = [
         "lib/intel64/onedal_dll.lib",
-        "lib/intel64/onedal_parameters_dll.lib",
     ],
     data = [
         "redist/intel64/onedal.%{version_binary_major}.dll",
-        "redist/intel64/onedal_parameters.%{version_binary_major}.dll",
     ],
     deps = [
         ":headers",
