@@ -193,6 +193,7 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                           empty_cluster_count,
                                           cluster_counts,
                                           arr_closest_distances,
+                                          arr_responses,
                                           { update_event });
                 last_event = empty_cluster_event;
             }

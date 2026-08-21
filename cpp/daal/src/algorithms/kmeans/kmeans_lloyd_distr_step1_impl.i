@@ -21,6 +21,8 @@
 //--
 */
 
+#include <cstdint>
+
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "src/threading/threading.h"
@@ -54,7 +56,17 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     const size_t p         = ntData->getNumberOfColumns();
     const size_t nClusters = par->nClusters;
     int result             = 0;
-    size_t blockSize       = 0;
+
+    // Cluster indices are narrowed to `int` when they are written into
+    // `ntAssignments` (WriteOnlyRows<int, cpu>). Refuse inputs whose
+    // cluster count exceeds the maximum positive value representable by
+    // `int32_t` so the cast never silently overflows.
+    if (nClusters > static_cast<size_t>(INT32_MAX))
+    {
+        return services::Status(services::ErrorKMeansNumberOfClustersIsTooLarge);
+    }
+
+    size_t blockSize = 0;
     DAAL_SAFE_CPU_CALL((blockSize = BSHelper<method, algorithmFPType, cpu>::kmeansGetBlockSize(n, p, nClusters)), (blockSize = 512))
 
     ReadRows<algorithmFPType, cpu> mtInitClusters(*const_cast<NumericTable *>(a[1]), 0, nClusters);
@@ -71,9 +83,12 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     DAAL_CHECK_BLOCK_STATUS(mtTargetFunc);
     algorithmFPType * goalFunc = mtTargetFunc.get();
 
+    // partialCandidatesDistances is a 2-column table: col 0 = distance,
+    // col 1 = source cluster id (encoded in algorithmFPType). See
+    // kmeans_partialresult.h for the layout rationale.
     WriteOnlyRows<algorithmFPType, cpu> mtCValues(*const_cast<NumericTable *>(r[3]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtCValues);
-    algorithmFPType * cValues = mtCValues.get();
+    algorithmFPType * cValuesTbl = mtCValues.get();
     WriteOnlyRows<algorithmFPType, cpu> mtCCentroids(*const_cast<NumericTable *>(r[4]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtCCentroids);
     algorithmFPType * cCentroids = mtCCentroids.get();
@@ -111,7 +126,9 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(size_t));
 
     TArray<size_t, cpu> cIndices(nClusters);
-    DAAL_CHECK_MALLOC(cIndices.get());
+    TArray<algorithmFPType, cpu> cValues(nClusters);
+    TArray<int, cpu> cSources(nClusters);
+    DAAL_CHECK_MALLOC(cIndices.get() && cValues.get() && cSources.get());
 
     Status s;
     algorithmFPType oldTargetFunc = (algorithmFPType)0.0;
@@ -145,16 +162,19 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
         task->template kmeansComputeCentroids<method>(clusterS0, clusterS1, dS1.get());
 
         size_t cNum;
-        DAAL_CHECK_STATUS(s, task->kmeansComputeCentroidsCandidates(cValues, cIndices.get(), cNum));
+        DAAL_CHECK_STATUS(s, task->kmeansComputeCentroidsCandidates(cValues.get(), cIndices.get(), cSources.get(), cNum));
         for (size_t i = 0; i < cNum; i++)
         {
             ReadRows<algorithmFPType, cpu> mtRow(ntData, cIndices.get()[i], 1);
             const algorithmFPType * row = mtRow.get();
             result |= daal::services::internal::daal_memcpy_s(&cCentroids[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType));
+            cValuesTbl[i * 2 + 0] = cValues[i];
+            cValuesTbl[i * 2 + 1] = static_cast<algorithmFPType>(cSources[i]);
         }
         for (size_t i = cNum; i < nClusters; i++)
         {
-            cValues[i] = (algorithmFPType)-1.0;
+            cValuesTbl[i * 2 + 0] = (algorithmFPType)-1.0;
+            cValuesTbl[i * 2 + 1] = (algorithmFPType)-1.0;
         }
 
         task->kmeansClearClusters(goalFunc);

@@ -209,11 +209,35 @@ public:
         float_t initial_centroids[] = { -10, -10, -10 };
         const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
 
-        float_t final_centroids[] = { -1.65, 10, 9.5 };
+        float_t final_centroids[] = { -4.5, 10, 9.5 };
         const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
 
         float_t responses[] = { 0, 0, 0, 0, 0, 0, 0, 2, 2, 1 };
         const auto y = homogen_table::wrap(responses, 10, 1);
+
+        this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
+    }
+
+    void check_empty_clusters_distinct_inits() {
+        // Three distinct initial centroids (not the repeated -10 of
+        // check_empty_clusters), all to the left of the data: every
+        // point is closest to -10, so on iter 0 all six points land in
+        // cluster 0 and clusters 1, 2 are empty. The two-pass merge
+        // then fills cluster 1 with the farthest-from-own-centroid
+        // candidate (10) and cluster 2 with the next farthest (9),
+        // decrementing cluster 0's cS0 / cS1 on the way so its new
+        // centroid becomes (-10 -9 +0 +1) / 4 = -4.5.
+        float_t data[] = { -10, -9, 0, 1, 9, 10 };
+        const auto x = homogen_table::wrap(data, 6, 1);
+
+        float_t initial_centroids[] = { -10, -10.5, -11 };
+        const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
+
+        float_t final_centroids[] = { -4.5, 10, 9 };
+        const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
+
+        float_t responses[] = { 0, 0, 0, 0, 2, 1 };
+        const auto y = homogen_table::wrap(responses, 6, 1);
 
         this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
     }
