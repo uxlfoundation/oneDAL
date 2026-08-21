@@ -67,14 +67,17 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
           rm -rf __work
       - name: Make onedal
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
           rm -rf __work
+          # TODO: enable --debug symbols for oneapi_dpc once CI memory pressure is addressed
+          # (e.g. suppress device DWARF via -Xarch_device -g0 / -fsycl-device-debug=none, or larger runner).
+          # Currently omitted because DPC++ device DWARF blows up per-object size and icx peak RSS at -j20.
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
@@ -163,6 +166,10 @@ jobs:
       - name: Check ABI conformance
         run: |
           echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 oneDAL build."
+          echo "Host libraries (libonedal_core, libonedal, libonedal_thread, libonedal_parameters) are built"
+          echo "with --debug symbols so abidiff can use DWARF for full function/variable sub-type checks."
+          echo "The DPC++ libraries (libonedal_dpc, libonedal_parameters_dpc) are built without debug info"
+          echo "to keep CI memory usage in check; abidiff falls back to ELF-symbol addition/removal on them."
           echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
           echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
           echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
