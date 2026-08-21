@@ -175,7 +175,7 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
-7. Set up OpenBLAS
+7. Set up OpenBLAS (not needed in x86 when building with MKL)
 
     - OpenBLAS (Windows\*-arm64):
 
