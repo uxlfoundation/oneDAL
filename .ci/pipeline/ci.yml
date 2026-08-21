@@ -482,9 +482,10 @@ jobs:
       # Nothing will ever reuse these artifacts: this is a one-off validation
       # under a configuration no other step builds, so the entries share nothing
       # with the default configuration and only occupy the cache for the rest of
-      # the job. `bazel clean --expunge` cannot reclaim them -- it clears the
-      # output base, not a disk cache -- which is what left `cpp-tests-thread-dev`
-      # linking at 97% of / in use.
+      # the job -- `bazel clean --expunge` cannot reclaim them, since it clears
+      # the output base and not a disk cache. Worth keeping on its own terms; it
+      # is not, as first assumed, the cause of the `cpp-tests-thread-dev` link
+      # failures, which persist with 4.6Gb free.
       bazel build :release --release_dpc=false --build_parameters_lib=no --disk_cache=
       # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
       # oneAPI environment as an installed package user. `setvars.sh` reads
@@ -626,18 +627,38 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
-      # These links are the largest of the job and the first thing to fail when
-      # the agent runs out of space, with no diagnostic of its own -- GNU ld
-      # reports only `collect2: error: ld returned 1 exit status`, and the target
-      # it happens to die on moves from run to run. Record the space so a red
-      # here says whether that was the reason.
+      # These links are the largest in the job and they fail here without saying
+      # why: GNU ld reports only `collect2: error: ld returned 1 exit status`,
+      # and the target it dies on moves between runs -- correlation_distance,
+      # covariance, linear_regression, pca across four builds, always exactly one
+      # of 112. Disk has been measured and is not the cause (4.6Gb free at this
+      # point), so record memory too, and keep the sandbox and the failing
+      # command so ld's own stderr survives into the log.
+      free -m
       df -h /
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --verbose_failures \
+                 --sandbox_debug
     displayName: 'cpp-tests-thread-dev'
+
+  - script: |
+      # Only reached when a step above failed. Two concurrent link actions of
+      # debug-mode test binaries on an 8Gb agent is the current hypothesis for
+      # the failure described in the previous step, and an OOM-killed `ld` exits
+      # without printing anything itself -- the evidence is in the kernel log.
+      echo '=== memory ==='
+      free -m
+      echo '=== kernel OOM records ==='
+      sudo dmesg 2>/dev/null | grep -iE 'killed process|out of memory|oom-kill' | tail -20 \
+        || echo '(none, or dmesg not readable)'
+      echo '=== disk ==='
+      df -h /
+    displayName: 'Diagnose test link failure'
+    condition: failed()
 
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
