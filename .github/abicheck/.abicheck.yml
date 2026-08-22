@@ -14,6 +14,18 @@
 #
 # Project-wide abicheck configuration (see abicheck's docs/reference/config-file.md).
 #
+# Location: abicheck discovers this file at three paths, in precedence order --
+# `.abicheck.yml` at the repository root, `.github/.abicheck.yml`, and
+# `.github/abicheck/.abicheck.yml` (abicheck/abicheck#828). It lives here so
+# everything abicheck needs sits in one directory. The *filename* still has to
+# be `.abicheck.yml`: discovery matches that exact name at each location.
+# Relative paths inside this file resolve against the repository root, not
+# against .github/abicheck/, so `cpp/daal/include/**` below means what it says.
+#
+# Both workflows also pass `build-config:` explicitly, so CI does not rely on
+# discovery. Discovery is what makes a bare local `abicheck scan` at the repo
+# root use the same scope and severity settings CI uses.
+#
 # This holds the settings that are a property of oneDAL itself rather than of
 # one CI invocation: what the public header surface is, and how public headers
 # must be compiled to parse at all. The workflows in .github/workflows only
@@ -76,7 +88,7 @@ scope:
   public: true
 
 # Suppression-file hygiene. oneDAL deliberately ships no suppression file --
-# .github/.abicheck-policy.yaml reclassifies findings instead of deleting them,
+# .github/abicheck/policy.yaml reclassifies findings instead of deleting them,
 # so that every difference stays in the report; see the rationale there. These
 # two keys are inert while no --suppress is passed, and are kept so that any
 # suppression file added later has to be well-formed and has to justify every
@@ -98,7 +110,7 @@ suppression:
 # ABI break still fails the job. Silencing a *category* wholesale (preset
 # info-only) would also silence real breaks; the finding kinds oneDAL currently
 # needs to tolerate are reclassified individually, per kind, in
-# .github/.abicheck-policy.yaml, which keeps them in the report.
+# .github/abicheck/policy.yaml, which keeps them in the report.
 exit_code_scheme: severity
 
 severity:

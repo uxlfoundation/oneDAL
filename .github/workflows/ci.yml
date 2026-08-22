@@ -181,7 +181,7 @@ jobs:
   # What each of the two checks sees and misses, why the header roots are an
   # explicit list rather than the directories, how the baselines are published
   # and digest-verified, and the evidence behind every policy downgrade:
-  # .github/abi-checks.md. Keep that document in step with this job.
+  # .github/abicheck/README.md. Keep that document in step with this job.
   LinuxAbicheckScan:
     name: Abicheck (header scan + binary, avx2)
     needs: LinuxMakeDPCPP
@@ -213,7 +213,7 @@ jobs:
       # The baseline release tag lives here once: the fetch step and all three
       # scans have to name the same snapshots. Rotating to a newer baseline
       # means dispatching "Publish Abicheck Baseline" for that tag and editing
-      # this line -- see .github/abi-checks.md ("Rotation").
+      # this line -- see .github/abicheck/README.md ("Rotation").
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_BASELINE_DIR: __abi_baselines
     steps:
@@ -230,7 +230,7 @@ jobs:
       # clang / gcc-path: icpx) because cpp/oneapi/dal pulls in sycl/sycl.hpp,
       # which castxml/GCC cannot parse at all. setvars.sh has to be sourced and
       # PATH persisted so `icpx` resolves. Rationale and the L4/plugin
-      # limitation: .github/abi-checks.md.
+      # limitation: .github/abicheck/README.md.
       - name: Put icpx on PATH
         run: |
           source /opt/intel/oneapi/setvars.sh
@@ -255,7 +255,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          sums=".github/abicheck-baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
+          sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
           if [ ! -f "$sums" ]; then
             echo "available=false" >> "$GITHUB_OUTPUT"
             note="ABI scan skipped: no baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
@@ -318,7 +318,7 @@ jobs:
       # public-header provenance". Those are advisory cross-source warnings,
       # not part of the baseline verdict, so the gate itself is unaffected;
       # restoring them needs an upstream provenance-only input on dump (filed,
-      # see .github/abi-checks.md).
+      # see .github/abicheck/README.md).
       #
       # extra-args carries one thing only: --max-findings. It defaults to 20
       # and the text renderer stops there, so without it a reviewer sees 20 of
@@ -328,10 +328,10 @@ jobs:
       # The abicheck commit pinned by all three steps below must stay equal to
       # the one pinned by abicheck-baseline.yml -- a baseline dumped by an
       # older abicheck silently under-reports rather than failing. See
-      # .github/abi-checks.md ("The abicheck pin ... must move together").
+      # .github/abicheck/README.md ("The abicheck pin ... must move together").
       - name: Run abicheck (daal)
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@dec737231f7b0b2cb92a2033734bb8c5aa167bf1 # main
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -349,13 +349,13 @@ jobs:
           gcc-path: icpx
           gcc-options: "-std=c++17"
           against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-daal.abicheck.json.zst
-          policy-file: .github/.abicheck-policy.yaml
+          policy-file: .github/abicheck/policy.yaml
           extra-args: --max-findings 200
-          build-config: .abicheck.yml
+          build-config: .github/abicheck/.abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@dec737231f7b0b2cb92a2033734bb8c5aa167bf1 # main
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -373,9 +373,9 @@ jobs:
           gcc-path: icpx
           gcc-options: "-fsycl -std=c++17"
           against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-oneapi-dal.abicheck.json.zst
-          policy-file: .github/.abicheck-policy.yaml
+          policy-file: .github/abicheck/policy.yaml
           extra-args: --max-findings 200
-          build-config: .abicheck.yml
+          build-config: .github/abicheck/.abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       # Same headers as the host scan above, plus -DONEDAL_DATA_PARALLEL: that
       # macro is what makes the sycl::queue overloads in cpp/oneapi/dal visible
@@ -384,7 +384,7 @@ jobs:
       # whole SYCL surface as exported-but-not-declared.
       - name: Run abicheck (oneapi::dal dpc)
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@dec737231f7b0b2cb92a2033734bb8c5aa167bf1 # main
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
@@ -402,7 +402,7 @@ jobs:
           gcc-path: icpx
           gcc-options: "-fsycl -DONEDAL_DATA_PARALLEL -std=c++17"
           against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-oneapi-dal-dpc.abicheck.json.zst
-          policy-file: .github/.abicheck-policy.yaml
+          policy-file: .github/abicheck/policy.yaml
           extra-args: --max-findings 200
-          build-config: .abicheck.yml
+          build-config: .github/abicheck/.abicheck.yml
           github-token: ${{ secrets.GITHUB_TOKEN }}
