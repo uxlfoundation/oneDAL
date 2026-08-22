@@ -626,10 +626,13 @@ jobs:
       bazel clean --expunge
       # `clean --expunge` clears the output base and leaves the --disk_cache
       # directory alone, so by itself it reclaims nothing of the ~4.5Gb sitting
-      # there, and the step below has only ~4.6Gb to work with. It needs more:
-      # it links 112 debug-mode test binaries, fills / to 100%, and ld then fails
-      # on whichever link is running while reporting only
-      # `collect2: error: ld returned 1 exit status`.
+      # there, and the step below -- which links 112 debug-mode test binaries and
+      # is the largest consumer in the job -- gets only ~4.6Gb to work with.
+      # Reclaiming here takes that to ~9.1Gb.
+      #
+      # This is not on its own enough; see `--disk_cache=` on that step, without
+      # which it refills the cache as it builds and fills / anyway. Both are
+      # needed: this frees the space, that stops it being spent twice.
       #
       # Dropped here rather than at the first expunge of this sequence so the
       # example suites above keep their cache hits -- without them they rebuild
@@ -649,14 +652,26 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
-      # These links are the largest in the job and they fail without saying why:
-      # GNU ld reports only `collect2: error: ld returned 1 exit status`, and the
-      # target it dies on moves between runs -- correlation_distance, covariance,
-      # linear_regression, pca, louvain across five builds, always exactly one of
-      # 112. The cause is space: this step starts with ~4.6Gb free and ends with
-      # / at 100% and 4Mb left, and ld reports nothing when it cannot write. The
-      # step above now reclaims the disk cache so there is room; keep reporting
-      # both numbers, because the margin is what matters and it is not large.
+      # This step fills / and dies, on a target that moves between runs --
+      # correlation_distance, covariance, linear_regression, pca, louvain over
+      # five builds, always exactly one of 112, and for five of them with nothing
+      # from ld but `collect2: error: ld returned 1 exit status`, because that is
+      # all ld says when it cannot write. With enough headroom to get further,
+      # Bazel names it:
+      #
+      #   WARNING: Remote Cache: No space left on device
+      #   BulkTransferException: No space left on device
+      #
+      # "Remote Cache" there is the `--disk_cache` from `~/.bazelrc`. So this step
+      # needs room for two copies of everything it produces: the output base, and
+      # a cache entry for each action. Emptying the cache beforehand does not
+      # help, since the step immediately refills it -- with 9.1Gb free it still
+      # reached 100% and 16Mb.
+      #
+      # `--disk_cache=` drops the second copy. Nothing is lost: the step above
+      # empties the cache, so there are no entries left to hit either way, and
+      # these outputs are of no use to anything downstream -- this is the last
+      # build in the job.
       free -m
       df -h /
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
@@ -664,8 +679,8 @@ jobs:
                  --config=host \
                  --test_link_mode=dev \
                  --test_thread_mode=par \
-                 --verbose_failures \
-                 --sandbox_debug
+                 --disk_cache= \
+                 --verbose_failures
     displayName: 'cpp-tests-thread-dev'
 
   - script: |
