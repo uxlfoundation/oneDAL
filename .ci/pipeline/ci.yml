@@ -525,24 +525,6 @@ jobs:
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
-      # `clean --expunge` clears the output base and leaves the --disk_cache
-      # directory untouched, so on its own it does not reclaim the largest thing
-      # on the agent. Everything from here on is examples and tests, and
-      # `cpp-tests-thread-dev` needs more than the ~4.6Gb that remains: it links
-      # 112 debug-mode test binaries and fills / completely, at which point ld
-      # fails on whichever link is running and reports only
-      # `collect2: error: ld returned 1 exit status`.
-      #
-      # Dropping the disk cache here costs nothing. It is 4.5Gb, above the 4Gb
-      # BAZEL_CACHE_MAX_SIZE_KB ceiling, so `bazel-cache-limit` already deletes
-      # it at the end of every run -- this only moves that deletion to the point
-      # where the space is needed instead of after the job that needed it.
-      if [ -d "${BAZEL_CACHE_DIR:-}" ]; then
-        echo "Reclaiming Bazel disk cache: $(du -sh "${BAZEL_CACHE_DIR}" | cut -f1)"
-        rm -rf "${BAZEL_CACHE_DIR}"
-        mkdir -p "${BAZEL_CACHE_DIR}"
-      fi
-      df -h /
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
@@ -642,6 +624,28 @@ jobs:
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
+      # `clean --expunge` clears the output base and leaves the --disk_cache
+      # directory alone, so by itself it reclaims nothing of the ~4.5Gb sitting
+      # there, and the step below has only ~4.6Gb to work with. It needs more:
+      # it links 112 debug-mode test binaries, fills / to 100%, and ld then fails
+      # on whichever link is running while reporting only
+      # `collect2: error: ld returned 1 exit status`.
+      #
+      # Dropped here rather than at the first expunge of this sequence so the
+      # example suites above keep their cache hits -- without them they rebuild
+      # oneDAL from scratch six times over, which is a much larger cost than the
+      # one step below losing its own.
+      #
+      # And this costs nothing at all: at 4.5Gb the cache is already over the 4Gb
+      # BAZEL_CACHE_MAX_SIZE_KB ceiling, so `bazel-cache-limit` deletes it at the
+      # end of every run regardless. This only moves that deletion to the point
+      # where the space is needed instead of after the step that needed it.
+      if [ -d "${BAZEL_CACHE_DIR:-}" ]; then
+        echo "Reclaiming Bazel disk cache: $(du -sh "${BAZEL_CACHE_DIR}" | cut -f1)"
+        rm -rf "${BAZEL_CACHE_DIR}"
+        mkdir -p "${BAZEL_CACHE_DIR}"
+      fi
+      df -h /
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
