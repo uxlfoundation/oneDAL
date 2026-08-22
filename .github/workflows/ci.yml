@@ -170,3 +170,239 @@ jobs:
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+
+  # Second, independent ABI gate, running in parallel with the libabigail
+  # LinuxABICheck job above -- both depend only on LinuxMakeDPCPP, not on each
+  # other. abicheck's `scan` diffs this PR's public-header AST plus its
+  # exported symbols against a snapshot of the last release, so it catches
+  # header/binary mismatches and release-over-release drift that a
+  # binary-vs-last-main `abidiff` cannot see.
+  #
+  # What each of the two checks sees and misses, why the header roots are an
+  # explicit list rather than the directories, how the baselines are published
+  # and digest-verified, and the evidence behind every policy downgrade:
+  # .github/abicheck/README.md. Keep that document in step with this job.
+  LinuxAbicheckScan:
+    name: Abicheck (header scan + binary, avx2)
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: ubuntu-24.04
+    # Measured with the abicheck commit pinned below, against baselines dumped
+    # by that same commit, on the same no-debug-info build LinuxMakeDPCPP
+    # produces: libonedal_core.so 7m21s / 3.32 GB peak RSS, libonedal.so 4m16s
+    # / 2.33 GB, libonedal_dpc.so 11m15s / 6.25 GB. ~23 min of scanning; 45
+    # leaves room for the DPC++ apt install and the artifact download. The
+    # DPC++ library is both the slowest and the largest -- its snapshot is
+    # ~5 MiB against ~2 MiB for the two host libraries -- but 6.25 GB still
+    # fits a 16 GB standard runner. Re-measure that figure before assuming
+    # headroom if this job grows a fourth library.
+    #
+    # (Measured on a 224-core host, so the wall times are a lower bound for a
+    # GitHub-hosted runner; the RSS peaks are the numbers that have to fit.)
+    #
+    # Do not read anything into a *rerun* being much faster: abicheck caches
+    # the candidate snapshot, so only the first run on a fresh runner is
+    # representative, and that is the one this timeout has to cover.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      # The baseline release tag lives here once: the fetch step and all three
+      # scans have to name the same snapshots. Rotating to a newer baseline
+      # means dispatching "Publish Abicheck Baseline" for that tag and editing
+      # this line -- see .github/abicheck/README.md ("Rotation").
+      ABICHECK_BASELINE_TAG: 2026.0.0
+      ABICHECK_BASELINE_DIR: __abi_baselines
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      # abicheck parses the public headers with icpx itself (--ast-frontend
+      # clang / gcc-path: icpx) because cpp/oneapi/dal pulls in sycl/sycl.hpp,
+      # which castxml/GCC cannot parse at all. setvars.sh has to be sourced and
+      # PATH persisted so `icpx` resolves. Rationale and the L4/plugin
+      # limitation: .github/abicheck/README.md.
+      - name: Put icpx on PATH
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+      # The baselines are release assets, published by
+      # .github/workflows/abicheck-baseline.yml. The committed digest file is
+      # the trust anchor: the assets are downloaded from the release and then
+      # checked against sha256sums pinned by a reviewed commit, so a replaced
+      # or corrupted asset fails this job instead of silently changing every
+      # PR's verdict.
+      #
+      # Before that digest file exists on main this gate cannot compare
+      # anything -- the publishing workflow can only be dispatched once it is
+      # *on* the default branch. That state is reported as a skip with a
+      # warning annotation and a job-summary note, i.e. inert and visibly
+      # inert, rather than red (which would block the PR that delivers the
+      # workflow) or quietly green.
+      - name: Fetch and verify ABI baselines
+        id: baselines
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
+          if [ ! -f "$sums" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            note="ABI scan skipped: no baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
+            echo "::warning title=ABI baseline missing::${note}"
+            {
+              echo "### Abicheck"
+              echo ""
+              echo "${note}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mkdir -p "${ABICHECK_BASELINE_DIR}"
+          # Download exactly the assets the digest file names, one --pattern
+          # per line: an extra asset appearing on the release cannot be pulled
+          # in, and a missing one fails here rather than later as a confusing
+          # "no baseline" error. gh's --pattern is a glob, so names containing
+          # a metacharacter would over-match; the names this workflow publishes
+          # are <tag>-<library>.abicheck.json.zst, which contain none.
+          while read -r _digest name; do
+            [ -n "${name:-}" ] || continue
+            gh release download "${ABICHECK_BASELINE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern "${name}" \
+              --dir "${ABICHECK_BASELINE_DIR}" \
+              --clobber
+          done < "$sums"
+          # Verify before use. --check fails on a digest mismatch or a missing
+          # file, --strict on a malformed line, so a truncated or hand-edited
+          # digest file cannot degrade into "nothing to check, all good".
+          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${GITHUB_WORKSPACE}/${sums}" )
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      # Three scans, not one: `scan` analyses exactly one artifact, and
+      # oneDAL's classic DAAL API, oneapi::dal host API and oneapi::dal SYCL
+      # API are exported from three different libraries. Scanning one library
+      # against another's headers would report every declaration as missing.
+      #
+      # depth: headers is L2 -- public-header AST plus the binary's exported
+      # symbols. It needs no debug info, which is what makes the
+      # libonedal_dpc.so scan below practical: LinuxMakeDPCPP builds every
+      # library without --debug symbols (device DWARF alone would blow up the
+      # runner), so no ABI evidence here depends on DWARF being present.
+      #
+      # No public-header-dir, deliberately, and it costs something -- measured,
+      # not assumed. abicheck fingerprints the declared surface of both sides
+      # (scope_fingerprint over SCOPE_FIELD_KEYS = headers, public_header_dirs)
+      # and refuses to compare when they differ. `scan --public-header-dir X`
+      # sets public_header_dirs; `dump` has no such flag any more (the Action
+      # forwards the input as one more -H root, which for a *directory* parses
+      # the whole tree in one TU and fails outright here), and neither
+      # --config .abicheck.yml's sources.public_headers nor the -H file list
+      # populates that field on a dump. So a scan that sets it against a dump
+      # that cannot is NOT_COMPARABLE -- verified on both libraries: exit 6,
+      # "old and new snapshots do not cover the same declared surface
+      # (scope_fingerprint mismatch)", i.e. no gate at all.
+      #
+      # Dropping it makes the two sides symmetric and the comparison real
+      # (verdicts below). The price is that the four provenance-dependent
+      # cross-checks -- exported_not_public, public_not_exported,
+      # private_header_leak, rtti_for_internal_type -- report "skipped: no
+      # public-header provenance". Those are advisory cross-source warnings,
+      # not part of the baseline verdict, so the gate itself is unaffected;
+      # restoring them needs an upstream provenance-only input on dump (filed,
+      # see .github/abicheck/README.md).
+      #
+      # extra-args carries one thing only: --max-findings. It defaults to 20
+      # and the text renderer stops there, so without it a reviewer sees 20 of
+      # daal's findings and no more. Raising the cap cannot change the verdict
+      # or the exit code, only how much of the list is printed.
+      #
+      # The abicheck commit pinned by all three steps below must stay equal to
+      # the one pinned by abicheck-baseline.yml -- a baseline dumped by an
+      # older abicheck silently under-reports rather than failing. See
+      # .github/abicheck/README.md ("The abicheck pin ... must move together").
+      - name: Run abicheck (daal)
+        if: steps.baselines.outputs.available == 'true'
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
+        with:
+          mode: scan
+          new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          new-header: >-
+            cpp/daal/include/daal.h
+            cpp/daal/include/algorithms/tsne/tsne_gradient_descent.h
+            cpp/daal/include/data_management/data/internal/finiteness_checker.h
+            cpp/daal/include/data_management/data/internal/roc_auc_score.h
+            cpp/daal/include/data_management/data/internal/train_test_split.h
+            cpp/daal/include/services/internal/hash_table.h
+            cpp/daal/include/data_management/data/internal/base_arrow_numeric_table.h
+          include: cpp/daal/include
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-std=c++17"
+          against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-daal.abicheck.json.zst
+          policy-file: .github/abicheck/policy.yaml
+          extra-args: --max-findings 200
+          build-config: .github/abicheck/.abicheck.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run abicheck (oneapi::dal)
+        if: steps.baselines.outputs.available == 'true'
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
+        with:
+          mode: scan
+          new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
+          new-header: >-
+            cpp/oneapi/dal.hpp
+            cpp/oneapi/dal/algo/correlation_distance.hpp
+            cpp/oneapi/dal/algo/cosine_distance.hpp
+            cpp/oneapi/dal/algo/dbscan.hpp
+            cpp/oneapi/dal/algo/linear_regression.hpp
+            cpp/oneapi/dal/algo/logistic_regression.hpp
+            cpp/oneapi/dal/table/csr_accessor.hpp
+          include: cpp
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-fsycl -std=c++17"
+          against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-oneapi-dal.abicheck.json.zst
+          policy-file: .github/abicheck/policy.yaml
+          extra-args: --max-findings 200
+          build-config: .github/abicheck/.abicheck.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Same headers as the host scan above, plus -DONEDAL_DATA_PARALLEL: that
+      # macro is what makes the sycl::queue overloads in cpp/oneapi/dal visible
+      # to the parser, and they are exactly the part of the public API that
+      # only libonedal_dpc.so exports. Without it this scan would report the
+      # whole SYCL surface as exported-but-not-declared.
+      - name: Run abicheck (oneapi::dal dpc)
+        if: steps.baselines.outputs.available == 'true'
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
+        with:
+          mode: scan
+          new-library: __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
+          new-header: >-
+            cpp/oneapi/dal.hpp
+            cpp/oneapi/dal/algo/correlation_distance.hpp
+            cpp/oneapi/dal/algo/cosine_distance.hpp
+            cpp/oneapi/dal/algo/dbscan.hpp
+            cpp/oneapi/dal/algo/linear_regression.hpp
+            cpp/oneapi/dal/algo/logistic_regression.hpp
+            cpp/oneapi/dal/table/csr_accessor.hpp
+          include: cpp
+          depth: headers
+          ast-frontend: clang
+          gcc-path: icpx
+          gcc-options: "-fsycl -DONEDAL_DATA_PARALLEL -std=c++17"
+          against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-oneapi-dal-dpc.abicheck.json.zst
+          policy-file: .github/abicheck/policy.yaml
+          extra-args: --max-findings 200
+          build-config: .github/abicheck/.abicheck.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
