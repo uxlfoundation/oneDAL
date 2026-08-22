@@ -77,105 +77,33 @@ if not exist "%DST%\win\bin" (
     echo Building oneTBB for ARM64 ...
     
     rem Auto-detect Visual Studio installation
-    set "VS_FOUND=0"
     set "VCVARS_PATH="
-    
-    rem Check Visual Studio 2022 (version 17)
-    if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
-        set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-        set "VS_FOUND=1"
-        echo Found Visual Studio 2022 Build Tools
-    )
-    
-    rem Check Visual Studio 2019 (version 16)
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2019 Build Tools
-        )
-    )
-    
-    rem Check Visual Studio 2017 (version 15)
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2017 Build Tools
-        )
-    )
-    
-    rem Check with Enterprise/Professional/Community editions
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2022 Enterprise
-        )
-    )
-    
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2019 Enterprise
-        )
-    )
-    
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2022 Professional
-        )
-    )
-    
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2019 Professional
-        )
-    )
-    
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2022 Community
-        )
-    )
-    
-    if "!VS_FOUND!"=="0" (
-        if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VCVARS_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
-            set "VS_FOUND=1"
-            echo Found Visual Studio 2019 Community
-        )
-    )
-    
-    rem If still not found, check environment variable override
-    if "!VS_FOUND!"=="0" (
-        if not "!VSINSTALLDIR!"=="" (
-            set "VCVARS_PATH=!VSINSTALLDIR!\VC\Auxiliary\Build\vcvarsall.bat"
-            if exist "!VCVARS_PATH!" (
-                set "VS_FOUND=1"
-                echo Found Visual Studio via VSINSTALLDIR environment variable
-            )
-        )
-    )
-    
-    rem If still not found, error out
-    if "!VS_FOUND!"=="0" (
-        echo Error: No Visual Studio Build Tools or IDE installation found
-        echo Supported versions: 2017, 2019, 2022
-        echo Please install Visual Studio Build Tools or set VSINSTALLDIR environment variable
+
+    set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+
+    if not exist "%VSWHERE%" (
+        echo Error: vswhere.exe not found
+        echo Please install Visual Studio or Visual Studio Build Tools.
         exit /B 1
     )
-    
+
+    for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath`) do (
+        set "VSINSTALL=%%i"
+    )
+
+    if not defined VSINSTALL (
+        echo Error: Visual Studio ARM64 C++ tools not found
+        exit /B 1
+    )
+
+    set "VCVARS_PATH=%VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat"
+
+    echo Found Visual Studio: %VSINSTALL%
+    echo Using: %VCVARS_PATH%
+
     rem Setup Visual Studio environment
-    @call "!VCVARS_PATH!" %PROCESSOR_ARCHITECTURE%
-    if !errorlevel! neq 0 (
+    call "%VCVARS_PATH%" %PROCESSOR_ARCHITECTURE%
+    if errorlevel 1 (
         echo Error: Failed to setup Visual Studio environment
         exit /B 1
     )

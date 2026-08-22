@@ -78,28 +78,28 @@ IF "%VS_VER%"=="2026_build_tools" (
 echo call %release_dir%\daal\latest\env\vars.bat
 call %release_dir%\daal\latest\env\vars.bat || set errorcode=1
 
-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%
+echo set "LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%"
 
-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%
+echo set "LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%"
 
-echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%
+echo set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%"
 
-echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%
+echo set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%"
 
-echo set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
-set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
+echo set "TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb"
+set "TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb"
 
 echo %release_dir%\daal\latest\examples\%examples%
 cd %release_dir%\daal\latest\examples\%examples%
