@@ -159,10 +159,14 @@ def _generate_pkgconfig_impl(ctx):
         # to follow. See `_msvc_runtime_suffix` in dev/bazel/cc.bzl.
         is_rt_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
         d = "d" if is_rt_debug else ""
-        # Keep this list in sync with the `_WIN32` branch of
-        # `deploy/pkg-config/pkg-config.cpp`: the dynamic package exposes only
-        # onedal and onedal_core, and Windows has no parameters library at all
-        # (`makefile` errors out on `BUILD_PARAMETERS_LIB=yes` there).
+        # What has to stay in sync with the `_WIN32` branch of
+        # `deploy/pkg-config/pkg-config.cpp` is *which* libraries appear: the
+        # dynamic package exposes only onedal and onedal_core, and Windows has no
+        # parameters library at all (`makefile` errors out on
+        # `BUILD_PARAMETERS_LIB=yes` there). The names themselves are not a 1:1
+        # match and are not meant to be -- the deploy-side generator knows nothing
+        # about the MSVC runtime, while this one carries the `d` suffix, `/MDd`
+        # and the debug TBB variant. Only the set of entries is common.
         #
         # The braces around `libdir` are doubled because this string is formatted
         # here, for `{d}`; it then goes into the template below as an argument,

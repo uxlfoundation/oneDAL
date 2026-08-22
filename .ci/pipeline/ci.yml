@@ -719,13 +719,20 @@ jobs:
       $libDir = Join-Path $root "lib\intel64"
       $redistDir = Join-Path $root "redist\intel64"
       if (-not (Test-Path $libDir)) { throw "Missing directory: $libDir" }
+      # Read the ABI major from the same constant the build uses, so an ABI bump
+      # does not have to be repeated here to keep this check honest.
+      $configBzl = "dev\bazel\config\config.bzl"
+      $majorMatch = Select-String -Path $configBzl -Pattern '^_BINARY_MAJOR\s*=\s*"(\d+)"'
+      if (-not $majorMatch) { throw "Could not read _BINARY_MAJOR from $configBzl" }
+      $major = $majorMatch.Matches[0].Groups[1].Value
+      Write-Host "ABI major from ${configBzl}: $major"
       # The full set of debug-runtime artifacts, matching what the Make build
       # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
       $expectedLib = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
-                       "onedal_cored_dll.lib", "onedal_cored_dll.4.lib",
-                       "onedald_dll.lib", "onedald_dll.4.lib")
-      $expectedRedist = @("onedal_cored.4.dll", "onedal_threadd.4.dll",
-                          "onedald.4.dll")
+                       "onedal_cored_dll.lib", "onedal_cored_dll.$major.lib",
+                       "onedald_dll.lib", "onedald_dll.$major.lib")
+      $expectedRedist = @("onedal_cored.$major.dll", "onedal_threadd.$major.dll",
+                          "onedald.$major.dll")
       $missing = @()
       $missing += $expectedLib | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
       $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
