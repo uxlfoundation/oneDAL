@@ -28,13 +28,16 @@
         #error Unknown CPU architecture
     #endif
 
-    #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
     #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
 
+    // The static libraries are built against the ILP64 oneMKL interface, the
+    // dynamic ones against LP64 (see `dev/make/deps.mkl.mk`).
     #ifdef STATIC
         #define SUFFIX a
+        #define OTHER_LIBS -lmkl_core -lmkl_intel_ilp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
     #else
         #define SUFFIX so
+        #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
     #endif
 
     #define PATH(inp) ${libdir}/lib##inp.SUFFIX

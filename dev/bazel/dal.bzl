@@ -144,7 +144,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                    dpc_deps=[], dpc_host_deps=[], extra_deps=[], lib_tags=["dal"],
                     dpc_lib_tags=None, features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
@@ -158,9 +158,10 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = dpc_lib_tags if dpc_lib_tags != None else lib_tags,
-        # Some dynamic DPC libraries also need host-only objects, e.g. the
-        # Windows delay-load shim for DAAL threading symbols.
-        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + host_deps,
+        # dpc_host_deps is reserved for platform glue compiled as host code
+        # into a DPC library. Never forward ordinary host_deps here: doing so
+        # folds host parameter objects into the DPC library as duplicates.
+        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + dpc_host_deps,
         **kwargs
     )
 
