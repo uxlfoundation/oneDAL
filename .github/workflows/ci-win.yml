@@ -1,0 +1,120 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: "Windows CI"
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  
+env:
+  DEP_DIR: ${{ github.workspace }}/__deps
+  TBB_VERSION: v2023.1.0
+  OPENBLAS_VERSION: v0.3.33
+  LLVM_VERSION: 22.1.8
+  CMAKE_VERSION: 4.4.0
+  NINJA_VERSION: 1.13.2
+  VS_VER: 2026_build_tools
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [
+          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve, llvm_arch: woa64 }
+        ]
+    name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
+    runs-on: ${{ matrix.os.label }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup MSYS2
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
+          .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
+
+      - name: Install LLVM for Win-${{ matrix.os.arch }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
+          Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
+          echo "%ProgramFiles%\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+      - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
+          Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
+          echo "%ProgramFiles%\CMake\bin" >> $env:GITHUB_PATH
+          
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
+          Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
+          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
+          
+      - name: Build OpenBLAS
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
+          .ci\env\openblas.bat
+
+      - name: Build oneTBB
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
+          .ci\env\tbb.bat
+
+      - name: Build daal
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
+          .ci\scripts\build.bat daal ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
+
+      - name: Build onedal_c
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
+          .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
+
+      - name: Test daal
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
+          set "CMAKE_GENERATOR=Visual Studio 18 2026"
+          .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
+
+      - name: Test oneapi
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          set PATH=%ProgramFiles%\LLVM\bin;%PATH%
+          set "CMAKE_GENERATOR=Visual Studio 18 2026"
+          .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
+
+

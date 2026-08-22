@@ -1,6 +1,7 @@
 @echo off
 rem ============================================================================
 rem Copyright 2022 Intel Corporation
+rem Copyright contributors to the oneDAL project
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
@@ -22,28 +23,41 @@ rem %3 - Instruction set
 set errorcode=0
 echo CPUCOUNT=%NUMBER_OF_PROCESSORS%
 
-echo PATH=C:\msys64\usr\bin;%PATH%
-set PATH=C:\msys64\usr\bin;%PATH%
+echo "PATH=%ProgramFiles%\LLVM\bin;C:\msys64\usr\bin;%PATH%"
+set "PATH=%ProgramFiles%\LLVM\bin;C:\msys64\usr\bin;%PATH%"
 
 echo pacman -S --noconfirm msys/make
 pacman -S --noconfirm msys/make
 
 IF "%VS_VER%"=="2017_build_tools" (
-    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+) ELSE IF "%VS_VER%"=="2019_build_tools" (
+    @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
 ) ELSE (
-    IF "%VS_VER%"=="2019_build_tools" (
-        @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-        echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-    ) ELSE (
-          @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-    )
+    @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+    echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
 )
 
-echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3
-make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3 || set errorcode=1
+set "ARCH=%PROCESSOR_ARCHITECTURE%"
+if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
 
+if /I "%ARCH%"=="AMD64" (
+    set "PLAT=win32e"
+    set "ARCH_DIR=intel64"
+) else if /I "%ARCH%"=="ARM64" (
+    set "PLAT=winarm"
+    set "ARCH_DIR=ARM64"
+) else (
+    echo Unknown architecture: %ARCH%
+    exit /b 1
+)
+
+echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3
+make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3 || set errorcode=1
+
+cmake -DINSTALL_DIR=__release_win_%2\daal\latest\lib\cmake\oneDAL -DARCH_DIR="%ARCH_DIR%" -P cmake\scripts\generate_config.cmake || set errorcode=1
 rem No cmake config generation here. This script used to call
 rem cmake/scripts/generate_config.cmake itself, added by PR #2222 (merged
 rem 2023-01-04). Two weeks later PR #2243 (merged 2023-01-20) taught the makefile

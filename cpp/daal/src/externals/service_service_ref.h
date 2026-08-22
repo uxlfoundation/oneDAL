@@ -44,9 +44,21 @@ namespace ref
 {
 struct RefService
 {
-    static void * serv_malloc(size_t size, size_t alignment) { return aligned_alloc(alignment, size); }
+    static void * serv_malloc(size_t size, size_t alignment) { 
+        #if defined(_MSC_VER)
+            return _aligned_malloc(size, alignment);
+        #else
+            return aligned_alloc(alignment, size);
+        #endif
+    }
 
-    static void serv_free(void * ptr) { free(ptr); }
+    static void serv_free(void * ptr) { 
+        #if defined(_MSC_VER)
+            return _aligned_free(ptr);
+        #else
+            free(ptr); 
+        #endif
+    }
 
     // TODO: Call of the function below in env_detect.cpp should be removed for alternative arch
     // Remove the method after that or replace with proper call from new backend library

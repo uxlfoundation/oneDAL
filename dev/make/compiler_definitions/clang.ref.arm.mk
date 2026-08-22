@@ -21,8 +21,7 @@
 
 include dev/make/compiler_definitions/clang.mk
 
-PLATs.clang = lnxarm
-
+PLATs.clang = lnxarm winarm
 
 LINKERS_SUPPORTED := bfd gold lld
 
@@ -33,13 +32,18 @@ ifneq ($(LINKER),)
 endif
 
 COMPILER.lnx.clang.target = $(if $(filter yes,$(COMPILER_is_cross)),--target=aarch64-linux-gnu)
+COMPILER.win.clang.target = --target=aarch64-pc-windows-msvc
 
 COMPILER.sysroot = $(if $(SYSROOT),--sysroot $(SYSROOT))
 
-COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
-                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve $(warn.opts.clang) \
+COMPILER.lnx.clang= clang++ -march=armv8-a$(if $(filter 1,$(SVE_SUPPORTED)),+sve,) \
+                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type \
                      $(COMPILER.lnx.clang.target) \
                      $(COMPILER.sysroot)
+COMPILER.win.clang= clang-cl -march=armv8-a$(if $(filter 1,$(SVE_SUPPORTED)),+sve,) \
+                     -fms-runtime-lib=$(if $(MSVC_RT_is_release),dll,dll_dbg) \
+                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type -Wno-deprecated-declarations \
+                     $(COMPILER.win.clang.target)
 
 # Linker flags
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
@@ -47,6 +51,8 @@ link.dynamic.lnx.clang = clang++ -march=armv8-a+sve \
                          $(linker.ld.flag) \
                          $(COMPILER.lnx.clang.target) \
                          $(COMPILER.sysroot)
+link.dynamic.win.clang = lld-link
+link.static.win.clang = llvm-lib
 
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)
 
