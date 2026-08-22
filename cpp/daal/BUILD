@@ -172,6 +172,8 @@ daal_module(
     # Match Make STDALLOC=yes: separately built threading objects keep TBB
     # scalable allocation while core objects switch away from MKL allocation.
     stdalloc = False,
+    # Make builds these as THR_TBB.objs, outside GCOV_BUILD-scoped CORE.objs_a/y.
+    define_gcov_build = False,
     visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
