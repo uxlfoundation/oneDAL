@@ -21,7 +21,7 @@
 #
 # The full picture -- why the snapshots are not committed themselves, why the
 # digest file is, why the tag has to be rebuilt rather than downloaded, and how
-# to rotate to a newer baseline -- is in .github/abi-checks.md.
+# to rotate to a newer baseline -- is in .github/abicheck/README.md.
 name: Publish Abicheck Baseline
 
 on:
@@ -119,7 +119,7 @@ jobs:
           rm -rf __work
 
       - name: Ensure output directories exist
-        run: mkdir -p "${ABICHECK_BASELINE_DIR}" .github/abicheck-baselines
+        run: mkdir -p "${ABICHECK_BASELINE_DIR}" .github/abicheck/baselines
 
       - name: Put icpx on PATH
         run: |
@@ -140,7 +140,7 @@ jobs:
       # for a *directory* parses every header in the tree in one aggregate TU
       # and fails outright on both of oneDAL's header trees. What that costs on
       # the scan side, and why the comparison is worth more than the four
-      # provenance cross-checks it gives up, is in .github/abi-checks.md
+      # provenance cross-checks it gives up, is in .github/abicheck/README.md
       # ("Known gap").
       #
       # The .json.zst suffix is load-bearing: abicheck infers the compression
@@ -150,9 +150,9 @@ jobs:
       #
       # Keep this pin equal to the three in ci.yml's LinuxAbicheckScan job. A
       # baseline dumped by an older abicheck than the scanner does not fail --
-      # it silently under-reports. See .github/abi-checks.md.
+      # it silently under-reports. See .github/abicheck/README.md.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@dec737231f7b0b2cb92a2033734bb8c5aa167bf1 # main
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -172,7 +172,7 @@ jobs:
           gcc-options: "-std=c++17"
           output-file: "${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@dec737231f7b0b2cb92a2033734bb8c5aa167bf1 # main
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -192,7 +192,7 @@ jobs:
           gcc-options: "-fsycl -std=c++17"
           output-file: "${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal dpc)
-        uses: abicheck/abicheck@dec737231f7b0b2cb92a2033734bb8c5aa167bf1 # main
+        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
@@ -242,8 +242,8 @@ jobs:
         run: |
           set -euo pipefail
           sha256sum *.abicheck.json.zst \
-            > "${GITHUB_WORKSPACE}/.github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
-          cat "${GITHUB_WORKSPACE}/.github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+            > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
 
       # Upload before committing the digest file, so main never references an
       # asset that does not exist yet.
@@ -289,7 +289,7 @@ jobs:
       - name: Commit baseline digests
         run: |
           set -euo pipefail
-          sums=".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          sums=".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$sums"
@@ -308,7 +308,7 @@ jobs:
             echo "Release: \`${{ steps.baseline.outputs.tag }}\`"
             echo ""
             echo '```'
-            cat ".github/abicheck-baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+            cat ".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
             echo '```'
             echo ""
             echo "Set \`ABICHECK_BASELINE_TAG\` in \`.github/workflows/ci.yml\` to this tag to gate PRs against it."
