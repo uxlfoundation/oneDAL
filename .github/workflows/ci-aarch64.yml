@@ -46,7 +46,8 @@ jobs:
       matrix:
         os: [
           { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu },
-          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang }
+          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang },
+          { name: Arm hosted (SVE), label: ah-ubuntu_24_04-c7g_2x-50, cxx: gnu }
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
