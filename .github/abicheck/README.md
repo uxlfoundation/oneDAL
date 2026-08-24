@@ -260,9 +260,21 @@ abicheck warns on stderr naming each degraded fact, but a warning is not a
 gate. The reverse direction (a snapshot newer than the reader) is a hard
 reject.
 
-So bumping the pin obliges re-dispatching the baseline workflow for the tags
-already published — **unless** `schema_version` is unchanged across the bump,
-in which case existing baselines stay valid and only the pin moves.
+Under-reporting is the *quiet* failure mode. The loud one is worse, and
+`schema_version` does not protect against it: a fix in the **dumper** changes the
+recorded facts without changing the schema, so the two sides disagree about a
+value neither side changed. Measured while validating the current pin — an
+enumerator-value fix made baselines dumped by the previous pin report **280**
+breaking `enum_member_value_changed` findings across `libonedal_core.so` and
+`libonedal_dpc.so` on an *unchanged* source tree, with `schema_version` 25 on
+both sides; re-dumping took all 280 to zero. `abicheck-baseline.yml` records the
+details at the pin itself.
+
+So bumping the pin obliges re-dispatching the baseline workflow for every tag
+already published. There is no `schema_version` shortcut: treat the pin and the
+baselines as one unit that moves together, and if a pin bump ever produces a wave
+of findings in a single kind across an unchanged tree, suspect this before
+suspecting oneDAL.
 
 ## Gating
 
@@ -344,46 +356,100 @@ as something to read, not as a regression by itself.
   [abicheck#829](https://github.com/abicheck/abicheck/pull/829) added a
   whole-product baseline format (`pack_product_baseline`/
   `unpack_product_baseline`, plus `compare_product_directories`) for storing the
-  old side.
+  old side. `--bundle-facts-out` then landed as the *producer* half of a
+  stored-baseline bundle comparison; the consumer half (feeding a stored facts
+  file back in as the old operand) is deliberately deferred upstream, so the
+  snapshot-first pattern this workflow uses everywhere else is not yet reachable
+  for bundles from the CLI.
 
   It was tried end to end against this repository — 2026.0.0 versus `main`, both
-  no-debug builds, all six libraries — and it is **not adoptable yet**. Three
-  blockers, each measured rather than assumed:
+  no-debug builds, all six libraries — and it is **still not adoptable**, though
+  for a different reason than when this file was first written. Two of the three
+  original blockers have since been fixed upstream; a fourth was found in their
+  place. Each state below is measured, not assumed:
 
-  1. **Header analysis is refused outright in directory mode.** `compare`
-     rejects `--ast-frontend`/`--compiler`/`--compiler-option` for
-     directory/package operands: *"the per-library fan-out does not thread the
-     L2 compile context to each pair's header dump. Compare the libraries
-     individually to use them."* oneDAL cannot do without them —
-     `cpp/oneapi/dal` includes `sycl/sycl.hpp`, which castxml/GCC cannot parse
-     at all — so directory mode can only run headerless here.
-  2. **Headerless means no public-surface scoping**, and the numbers show what
-     that costs: `libonedal_core.so` reports 1414 breaking, `libonedal.so` 237,
-     `libonedal_dpc.so` 272. Those are unscoped internal symbols, not a public
-     ABI break. Not gateable.
-  3. **The cross-library findings are dominated by externals.** All 379
-     `bundle_intra_dep_removed` findings name symbols provided by libraries
-     *outside* the compared directory — `_ZdlPvm`, libstdc++ vtables,
-     `tbb::detail::r1::spawn`, MKL and SYCL entry points. Neither
-     `--bundle-system-providers` (with all 24 sonames listed) nor
-     `--search-path` (pointing at the real system and oneAPI library
-     directories) changed the count: 379 before, 379 after, both times.
+  1. ~~**Header analysis is refused outright in directory mode.**~~ **Fixed**
+     ([abicheck#831](https://github.com/abicheck/abicheck/pull/831)).
+     `--ast-frontend`/`--compiler`/`--compiler-option` are now accepted for
+     directory/package operands; previously they were rejected in 0.4s with a
+     `UsageError`. oneDAL needs them — `cpp/oneapi/dal` includes
+     `sycl/sycl.hpp`, which castxml/GCC cannot parse at all.
+  2. **Headerless means no public-surface scoping.** Still open, and the numbers
+     show what it costs: `libonedal_core.so` reports 1414 breaking,
+     `libonedal.so` 237, `libonedal_dpc.so` 272. Those are unscoped internal
+     symbols, not a public ABI break. Not gateable. (Upstream tried deriving the
+     surface from ELF visibility instead, found it non-functional, and reverted
+     it — so this is a known-open gap, not an oversight.)
+  3. ~~**The cross-library findings are dominated by externals.**~~ **Fixed.**
+     `--bundle-system-providers` was inert: the soname matcher compared
+     `libmkl_core` against the real `DT_NEEDED` string `libmkl_core.so.3` and
+     never matched, so all 24 listed sonames changed nothing (379 findings
+     before, 379 after). It now stem-matches, and the same command reports **0**
+     `bundle_intra_dep_removed`.
+  4. **Header-scoped directory compare costs more than a runner has.** New, and
+     now the binding constraint. `scan --against <snapshot>` parses one side,
+     because the baseline is already a snapshot — measured
+     `candidate_snapshot=401.07s` against `baseline_compare=32.44s`. Directory
+     mode has no snapshot on either side, so it parses **both**: six library
+     pairs × 2 sides = 12 full parses of the *union* header set, against 3 in
+     total for the design this workflow ships. Library size is irrelevant — a
+     directory holding only `libonedal_thread.so` (290 symbols) compared with
+     **one** header takes 6m41s and 4.13 GB, worse than the real `libonedal.so`
+     scan; at 14 headers that trivial library ran past 25 minutes. All six pairs
+     with the real header list ran past 2.5 hours and peaked at **38.3 GB**
+     before being killed — a 16 GB runner cannot host it. Three causes compound:
+     no snapshot input, so 2 parses per pair; the shared header list applies to
+     every pair, because per-library header roots live only in #829's library API
+     and not on the CLI; and no cross-pair AST cache, so the identical union AST
+     is rebuilt 12 times. Bundle analysis is cross-library and ELF/Linux-only, so
+     all 12 snapshots stay resident at once — that is the 38.3 GB. The last two
+     causes are #829's own deferred follow-ups; the opt-in streaming pruner
+     (`ABICHECK_CLANG_PRUNE_DEPENDENCY_DECLS=1`) is upstream-documented as a
+     negative result — ~1% less peak RSS for 13–40% *more* wall time.
+
+  Blockers 2 and 4 form a pincer — 2 says headers are needed for scoping, 4 says
+  headers in directory mode cost 12 parses — so header-scoped whole-product
+  compare is out for now. What blocker 3's fix *did* unlock is the **headerless**
+  path, which is cheap and no longer noise: 34s and 240 MB for all six
+  libraries, and `bundle_verdict` is reported separately from the per-library
+  aggregate `verdict`, so a step could consume only the former and ignore the
+  unscoped per-library diffs entirely. On the pin this file documents that yields
+  `bundle_verdict: COMPATIBLE_WITH_RISK` with 156 advisory
+  `bundle_intra_dep_signature_unverified` findings — a new C-boundary
+  signature-evidence gate, which fires by construction in headerless mode
+  because neither side has type evidence. It is classified
+  `COMPATIBLE_WITH_RISK`, not breaking, so a gate on `bundle_verdict == BREAKING`
+  is unaffected. (The previous pin reported `NO_CHANGE` and 0 findings for the
+  identical command and inputs.)
+
+  Also new and aimed squarely at this repository: `scan --artifact-set DIR`
+  (ADR-056, whose motivating example is oneDAL by name) audits a set of
+  libraries as one artifact with **no old side**, so it needs no baseline and no
+  header parse. All six libraries in **10.8s / 383 MB**. It is not adoptable
+  as-is either: it reports 862 `bundle_unresolved_intra_dependency` findings, of
+  which 804 disappear once `--bundle-system-providers` names the sonames
+  `DEFAULT_SYSTEM_PROVIDERS` omits (`libtbbmalloc.so.2`, the MKL libraries, and
+  the Intel runtime — `libimf`/`libsvml`/`libirng`/`libintlc`); one unmatched
+  `DT_NEEDED` edge disables the system-edge exemption for that whole library. The
+  remaining 58 are all libstdc++/libgcc runtime symbols on the two `parameters`
+  libraries, and they survive because the audit-mode detector does not apply the
+  `DEFAULT_SYSTEM_SYMBOLS`/`_looks_system_symbol` filter that the compare-mode
+  detector applies — an asymmetry upstream, not a property of oneDAL.
 
   Worth knowing for whoever picks this up: oneDAL's *actual* intra-bundle
   coupling is narrow. `DT_NEEDED` shows only two sibling edges —
   `libonedal_parameters.so → libonedal.so` and
-  `libonedal_parameters_dpc.so → libonedal_dpc.so`. Everything else each library
+  `libonedal_parameters_dpc.so → libonedal_dpc.so`; everything else each library
   needs is external. `libonedal_core.so` does **not** link `libonedal_thread.so`
-  at all. So the upside of bundle analysis here is real but smaller than the
-  six-library count suggests, and it is gated on blocker 3 being fixed first.
-
-  The storage side is the easy part and already measured: the six libraries are
-  145.4 MB raw and **28.1 MB as a single `tar.zst`**, comfortably inside the
-  2 GiB release-asset limit — one asset instead of three. Note also that
-  `pack_product_baseline` is a library function with no CLI command, so a
-  workflow would need a small Python step (or plain `tar --zstd`, giving up the
-  manifest and per-library digests). Bundle analysis is ELF/Linux-only, which is
-  fine for this gate.
+  at all, and `libonedal_dpc.so` does not link `libonedal_core.so` either even
+  though it imports ~800 symbols from it — applications link both. So the upside
+  here is real but smaller than the six-library count suggests, and any
+  cross-DSO gate has to treat "consumer under-links its provider" as oneDAL's
+  normal, not as a finding. Storage is the easy part: the six libraries are
+  145.4 MB raw and **28.1 MB as a single `tar.zst`**, well inside the 2 GiB
+  asset limit — one asset instead of three — though `pack_product_baseline` is a
+  library function with no CLI command, so a workflow would need a small Python
+  step (or plain `tar --zstd`, giving up the manifest and per-library digests).
 * **`public-header-dir` cannot be passed.** `scan` has a provenance-only
   `--public-header-dir`; `dump` does not — its provenance comes from `-H`,
   where a *directory* entry is also a parse root, and for oneDAL that parse
