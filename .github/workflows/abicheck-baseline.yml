@@ -43,14 +43,15 @@ jobs:
     runs-on: ubuntu-24.04
     # Measured end to end against the abicheck commit pinned below, on the
     # no-debug-info build this workflow produces: the daal snapshot takes
-    # 7m40s / 3.31 GB peak RSS, oneapi::dal 4m23s / 1.79 GB and
-    # oneapi::dal-dpc 12m06s / 4.81 GB -- ~24 min of dumping, all three well
+    # 7m42s / 3.32 GiB peak RSS, oneapi::dal 4m23s / 1.79 GiB and
+    # oneapi::dal-dpc 11m45s / 4.81 GiB -- ~24 min of dumping, all three well
     # inside a 16 GB standard runner. (An earlier revision of this workflow had
     # to fallocate a 16 G swapfile for a debug-info daal dump; abicheck's
     # bounded DWARF DIE cache and the no-debug-info build together removed
-    # that need.) These are within noise of the previous pin's own figures
-    # (7m38s / 4m24s / 11m43s), so bumping the pin is a correctness change
-    # here, not a cost one.
+    # that need.) Every pin bump so far has landed within noise of these
+    # figures (the two previous pins measured 7m38s / 4m24s / 11m43s and
+    # 7m40s / 4m23s / 12m06s), so re-pinning has been a correctness change
+    # here, never a cost one.
     #
     # The three builds took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so
     # those are a lower bound: on a standard runner the builds, not the dumps,
@@ -59,6 +60,11 @@ jobs:
     timeout-minutes: 180
     env:
       ABICHECK_BASELINE_DIR: __abi_baselines
+      # The bytes actually on the release after the publish step: this run's
+      # freshly dumped snapshot for a new asset, the already-published asset for
+      # one that exists. The digest file is computed from here, never from
+      # ABICHECK_BASELINE_DIR, because those two differ on a re-run.
+      ABICHECK_PUBLISHED_DIR: __abi_published
     steps:
       - name: Resolve baseline tag
         id: baseline
@@ -156,7 +162,7 @@ jobs:
       # they either under-report silently, or fail *loudly for the wrong
       # reason*. Both halves of that are measured, not hypothetical.
       #
-      # The loud half, seen while validating this pin bump: abicheck fixed a
+      # The loud half, seen while validating an earlier bump: abicheck fixed a
       # dumper bug where an enumerator whose initializer's folded value sits on
       # an intermediate clang AST wrapper node (`csrArray = 1 << 4`) fell back
       # to positional auto-increment, so `NumericTableIface::StorageLayout` was
@@ -166,9 +172,18 @@ jobs:
       # findings for libonedal_core.so and 125 for libonedal_dpc.so -- exit 4,
       # a red X, and nothing in the report naming the baseline as the cause.
       # Re-dumping the same tag with the same pin as the scanner took all 280 to
-      # zero with no other change. See .github/abicheck/README.md.
+      # zero with no other change.
+      #
+      # What that obliges is re-*verifying* on every bump, not blindly
+      # re-dumping. Bumping to the pin below needed no new baselines: scanning
+      # the unchanged tree with it against the previous pin's snapshots produced
+      # reports identical line-for-line apart from timings, and re-dumping all
+      # three anyway differed only in created_at and in L5 source_graph edge
+      # order. Do that check before landing a bump; if the reports differ,
+      # re-dispatch this workflow for every published tag first. See
+      # .github/abicheck/README.md.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
+        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -188,7 +203,7 @@ jobs:
           gcc-options: "-std=c++17"
           output-file: "${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
+        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -208,7 +223,7 @@ jobs:
           gcc-options: "-fsycl -std=c++17"
           output-file: "${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal dpc)
-        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
+        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
@@ -250,28 +265,27 @@ jobs:
           done
           exit "$rc"
 
-      # The digest file, not the snapshots, is what enters version control: a
-      # few hundred bytes, reviewable, and the anchor that lets the PR-side job
-      # prove the asset it downloaded is the one this run produced.
-      - name: Compute baseline digests
-        working-directory: ${{ env.ABICHECK_BASELINE_DIR }}
-        run: |
-          set -euo pipefail
-          sha256sum *.abicheck.json.zst \
-            > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
-          cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
-
-      # Upload before committing the digest file, so main never references an
-      # asset that does not exist yet.
+      # Upload before computing digests, so the digest file always describes the
+      # bytes that are actually published rather than the bytes this run
+      # happened to dump.
       #
       # Fails closed on an immutability violation rather than passing
       # --clobber: a published baseline is what every already-merged PR's
       # "compatible with <tag>" verdict was computed against, and silently
-      # replacing it would make those verdicts stop meaning what they said. A
-      # re-run that produces byte-identical assets (after a transient failure,
-      # say) is a safe retry and is skipped; differing bytes stop the job with
-      # the remediation spelled out.
-      - name: Upload baseline snapshots to the release
+      # replacing it would make those verdicts stop meaning what they said.
+      #
+      # It does not try to recognise a re-run as a harmless retry by comparing
+      # bytes, because a snapshot is not byte-reproducible: measured, dumping
+      # the same tag twice with the same pin and the same build differs in
+      # created_at and in the edge order of the L5 source_graph (same
+      # serialized length, same content, different order). A byte compare would
+      # therefore fail on every legitimate retry and never on anything else. So
+      # the rule is by asset *existence*: an already-published snapshot is left
+      # exactly as it is and its published bytes -- not this run's -- are what
+      # the digest step below hashes. That makes a re-run after a transient
+      # failure (upload succeeded, digest commit did not) converge instead of
+      # deadlocking, and still makes replacing a baseline an explicit act.
+      - name: Publish baseline snapshots to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.baseline.outputs.tag }}
@@ -281,26 +295,31 @@ jobs:
             echo "::error::No release found for tag '${TAG}'. This workflow attaches baseline assets to an existing release; publish the release first, or dispatch with a tag that has one."
             exit 1
           fi
-          existing_dir="$(mktemp -d)"
-          rc=0
+          mkdir -p "${ABICHECK_PUBLISHED_DIR}"
           for path in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
             name="$(basename "$path")"
             if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" \
                  --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
-              rm -f "${existing_dir}/${name}"
+              echo "::warning::'${name}' is already published on release '${TAG}'; keeping the published asset and ignoring this run's freshly dumped one. A release-tag baseline is immutable: every merged PR's verdict was computed against the published bytes. To replace it deliberately, run 'gh release delete-asset ${TAG} ${name}' and re-run this workflow, or publish under a new tag."
+              rm -f "${ABICHECK_PUBLISHED_DIR}/${name}"
               gh release download "$TAG" --repo "${GITHUB_REPOSITORY}" \
-                --pattern "$name" --dir "$existing_dir"
-              if cmp -s "$path" "${existing_dir}/${name}"; then
-                echo "'${name}' is already published with identical bytes; treating this as a retry and not re-uploading."
-                continue
-              fi
-              echo "::error::'${name}' is already published on release '${TAG}' with different bytes. A release-tag baseline is immutable: every merged PR's verdict was computed against the published asset. To replace it deliberately, run 'gh release delete-asset ${TAG} ${name}' and re-run this workflow, or publish under a new tag."
-              rc=1
+                --pattern "$name" --dir "${ABICHECK_PUBLISHED_DIR}"
               continue
             fi
             gh release upload "$TAG" "$path" --repo "${GITHUB_REPOSITORY}"
+            cp "$path" "${ABICHECK_PUBLISHED_DIR}/${name}"
           done
-          exit "$rc"
+
+      # The digest file, not the snapshots, is what enters version control: a
+      # few hundred bytes, reviewable, and the anchor that lets the PR-side job
+      # prove the asset it downloaded is the one on the release.
+      - name: Compute baseline digests
+        working-directory: ${{ env.ABICHECK_PUBLISHED_DIR }}
+        run: |
+          set -euo pipefail
+          sha256sum *.abicheck.json.zst \
+            > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
 
       - name: Commit baseline digests
         run: |
