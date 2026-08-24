@@ -94,18 +94,20 @@ which is **L2**. Observed layer status from a real run of this configuration:
 | layer | status here | why |
 |---|---|---|
 | `L0_binary` | **present** | ELF exported symbols, read from the artifact |
-| `L1_debug` | *not collected* | `LinuxMakeDPCPP` builds without `--debug symbols`, so there is no DWARF to read |
+| `L1_debug` | **present** for `libonedal_core.so`, *not collected* for the other two | `LinuxMakeDPCPP` builds without `--debug symbols`, but `icx` emits DWARF for the `daal` target anyway |
 | `L2_header` | **present** | public-header AST, parsed with `icpx` |
 | `L3_build` | *not collected* | needs real compile flags (`--sources`/`--build-info`) |
 | `L4_source_abi` | *not collected* | needs a Clang plugin or a compiler wrapper |
 | `L5_source_graph` | **present** | reachability over the declared surface |
 | `pattern_scan` | **present** | lexical pre-scan of the changed headers |
 
-That `L1_debug` is absent is a deliberate consequence, not an oversight: L2
-needs no DWARF at all, which is exactly what makes scanning
-`libonedal_dpc.so` affordable. A DPC++ library built with device debug info is
-far too large to dump on a standard runner; without it, the same header-AST
-evidence applies unchanged.
+Not requiring `L1_debug` is deliberate: L2 needs no DWARF, which is what makes
+scanning `libonedal_dpc.so` affordable — a DPC++ library built with device debug
+info is far too large to dump on a standard runner, and without it the same
+header-AST evidence applies unchanged. Where DWARF happens to be there, as in
+`libonedal_core.so`, abicheck uses it; nothing in the gate depends on that. One
+consequence to remember: any command reading the *binary* without a snapshot
+pays for that DWARF (see `scan --artifact-set` under [Known gaps](#known-gaps)).
 
 L3 and L4 are measured and deferred — see [Known gaps](#known-gaps).
 
@@ -124,9 +126,8 @@ fan-out), and oneDAL exports three independent public surfaces:
 `cpp/oneapi/dal` visible to the parser, and those overloads are precisely the
 part of the public API only `libonedal_dpc.so` exports. Without the macro this
 scan would report the entire SYCL surface as exported-but-not-declared.
-
-Scanning any one of these against another's headers would report every
-declaration as missing, which is why the roots are not shared.
+Equally, scanning one of these against another's headers would report every
+declaration as missing — which is why the roots are not shared.
 
 **Not covered by the scan**, and covered by `abidiff` instead — but for two
 different reasons, only one of which is a real design boundary:
@@ -140,9 +141,9 @@ different reasons, only one of which is a real design boundary:
 So `libonedal_thread.so` genuinely has no public header surface — it is the
 internal C ABI between `libonedal_core.so` and its threading backend, and a
 header-versus-exports comparison has nothing to compare. The two
-`libonedal_parameters*` libraries are a different story: their exports *are*
-header-declared, they are simply not scanned yet. That is a gap, not a
-boundary. See [Known gaps](#known-gaps).
+`libonedal_parameters*` libraries are different: their exports *are*
+header-declared, just not scanned yet — a gap, not a boundary. See
+[Known gaps](#known-gaps).
 
 This matters more than the export counts suggest, because oneDAL is one header
 tree implemented across six `.so` files that call into each other. Scanning
@@ -156,9 +157,8 @@ each library in isolation against the shared header tree has two consequences:
   `_daal_parallel_sort_int32`, `libonedal_core.so` would fail to load — and no
   per-library scan of either one reports it.
 
-abicheck has a layer built for exactly this (ADR-023 bundle analysis, which
-names oneDAL as its motivating case), and it is not what this integration
-currently uses. See [Known gaps](#known-gaps).
+abicheck's ADR-023 bundle layer is built for exactly this and is not used here
+yet; see [Known gaps](#known-gaps).
 
 No rebuild happens on the PR side: this job downloads the `__release_lnx`
 artifact `LinuxMakeDPCPP` already uploaded (which contains the `daal`,
@@ -229,10 +229,15 @@ the digest file lists and then runs `sha256sum --check --strict`, so a
 replaced, truncated or corrupted asset fails the job instead of silently
 changing every PR's verdict.
 
-Published assets are treated as **immutable**. A re-run that produces
-byte-identical assets is a safe retry and is skipped; differing bytes stop the
-job, because every already-merged PR's "compatible with `<tag>`" verdict was
-computed against the published bytes.
+Published assets are treated as **immutable**: a run that would overwrite one
+stops the job, because every already-merged PR's "compatible with `<tag>`"
+verdict was computed against the published bytes. The guard deliberately does
+not try to recognise a "harmless re-upload of the same snapshot", because there
+is no such thing to recognise — a snapshot is **not byte-reproducible**. Dumping
+the same tag twice with the same pin and the same build differs in `created_at`
+and in the edge order of the L5 `source_graph` (measured: same serialized
+length, same content, different order). Recovering from a partially-published
+run therefore means deleting the asset deliberately, which is the point.
 
 ### Bootstrap
 
@@ -263,18 +268,21 @@ reject.
 Under-reporting is the *quiet* failure mode. The loud one is worse, and
 `schema_version` does not protect against it: a fix in the **dumper** changes the
 recorded facts without changing the schema, so the two sides disagree about a
-value neither side changed. Measured while validating the current pin — an
+value neither side changed. Measured while validating an earlier bump — an
 enumerator-value fix made baselines dumped by the previous pin report **280**
 breaking `enum_member_value_changed` findings across `libonedal_core.so` and
-`libonedal_dpc.so` on an *unchanged* source tree, with `schema_version` 25 on
-both sides; re-dumping took all 280 to zero. `abicheck-baseline.yml` records the
+`libonedal_dpc.so` on an *unchanged* source tree, `schema_version` 25 on both
+sides; re-dumping took all 280 to zero. `abicheck-baseline.yml` records the
 details at the pin itself.
 
-So bumping the pin obliges re-dispatching the baseline workflow for every tag
-already published. There is no `schema_version` shortcut: treat the pin and the
-baselines as one unit that moves together, and if a pin bump ever produces a wave
-of findings in a single kind across an unchanged tree, suspect this before
-suspecting oneDAL.
+So bumping the pin obliges re-*verifying* the published baselines, with no
+`schema_version` shortcut. Scan the unchanged tree with the new pin against the
+current baselines and diff the report against the old pin's; identical means the
+baselines still hold. The last two bumps both came out that way, and re-dumping
+all three anyway differed only in `created_at` and L5 edge order. Any difference
+means re-dispatching the baseline workflow for every published tag first. If a
+bump ever produces a wave of findings in a single kind across an unchanged tree,
+suspect this before suspecting oneDAL.
 
 ## Gating
 
@@ -345,111 +353,105 @@ as something to read, not as a regression by itself.
   would be the fifth and sixth per-library scan of the *same* header tree, and
   the per-library model is the thing worth revisiting (next item).
 * **Bundle analysis is not used.** oneDAL is one header tree implemented across
-  six interdependent `.so` files, which is precisely the shape abicheck's
-  ADR-023 bundle layer exists for — it names oneDAL as its motivating case. It
-  catches what no per-library scan can: a sibling dropping a symbol another
-  sibling imports (`bundle_intra_dep_removed`), `extern "C"` signature drift
-  across a DSO boundary, cross-DSO type drift through template-instantiated
-  symbols, and provider migration between libraries. It runs by default on
-  `abicheck compare <old_dir> <new_dir> -H <headers>` and covers every library
-  in one invocation, and
-  [abicheck#829](https://github.com/abicheck/abicheck/pull/829) added a
+  six interdependent `.so` files, precisely the shape abicheck's ADR-023 bundle
+  layer exists for — it names oneDAL as its motivating case. It catches what no
+  per-library scan can: a sibling dropping a symbol another sibling imports
+  (`bundle_intra_dep_removed`), `extern "C"` signature drift across a DSO
+  boundary, cross-DSO type drift through template-instantiated symbols, and
+  provider migration between libraries. It runs by default on `abicheck compare
+  <old_dir> <new_dir> -H <headers>`, covering every library in one invocation,
+  and [abicheck#829](https://github.com/abicheck/abicheck/pull/829) added a
   whole-product baseline format (`pack_product_baseline`/
-  `unpack_product_baseline`, plus `compare_product_directories`) for storing the
-  old side. `--bundle-facts-out` then landed as the *producer* half of a
-  stored-baseline bundle comparison; the consumer half (feeding a stored facts
-  file back in as the old operand) is deliberately deferred upstream, so the
-  snapshot-first pattern this workflow uses everywhere else is not yet reachable
-  for bundles from the CLI.
+  `unpack_product_baseline`, `compare_product_directories`) for the old side.
+  `--bundle-facts-out` landed as the *producer* half of a stored-baseline bundle
+  comparison; the consumer half (feeding a facts file back in as the old
+  operand) is deliberately deferred upstream, so the snapshot-first pattern used
+  everywhere else here is not yet reachable for bundles from the CLI.
 
   It was tried end to end against this repository — 2026.0.0 versus `main`, both
-  no-debug builds, all six libraries — and it is **still not adoptable**, though
-  for a different reason than when this file was first written. Two of the three
-  original blockers have since been fixed upstream; a fourth was found in their
-  place. Each state below is measured, not assumed:
+  no-debug builds, all six libraries — re-run on every pin bump since, and it is
+  **still not adoptable**, though not for the reasons this file first gave. Two
+  of the three original blockers were fixed upstream (`--ast-frontend`/
+  `--compiler`/`--compiler-option` are accepted for directory and package
+  operands as of [abicheck#831](https://github.com/abicheck/abicheck/pull/831),
+  and `--bundle-system-providers` — inert while its matcher compared
+  `libmkl_core` against the real `DT_NEEDED` string `libmkl_core.so.3` — now
+  stem-matches, taking 379 `bundle_intra_dep_removed` findings to **0**). Two
+  remain, and together they are a pincer:
 
-  1. ~~**Header analysis is refused outright in directory mode.**~~ **Fixed**
-     ([abicheck#831](https://github.com/abicheck/abicheck/pull/831)).
-     `--ast-frontend`/`--compiler`/`--compiler-option` are now accepted for
-     directory/package operands; previously they were rejected in 0.4s with a
-     `UsageError`. oneDAL needs them — `cpp/oneapi/dal` includes
-     `sycl/sycl.hpp`, which castxml/GCC cannot parse at all.
-  2. **Headerless means no public-surface scoping.** Still open, and the numbers
-     show what it costs: `libonedal_core.so` reports 1414 breaking,
-     `libonedal.so` 237, `libonedal_dpc.so` 272. Those are unscoped internal
-     symbols, not a public ABI break. Not gateable. (Upstream tried deriving the
-     surface from ELF visibility instead, found it non-functional, and reverted
-     it — so this is a known-open gap, not an oversight.)
-  3. ~~**The cross-library findings are dominated by externals.**~~ **Fixed.**
-     `--bundle-system-providers` was inert: the soname matcher compared
-     `libmkl_core` against the real `DT_NEEDED` string `libmkl_core.so.3` and
-     never matched, so all 24 listed sonames changed nothing (379 findings
-     before, 379 after). It now stem-matches, and the same command reports **0**
-     `bundle_intra_dep_removed`.
-  4. **Header-scoped directory compare costs more than a runner has.** New, and
-     now the binding constraint. `scan --against <snapshot>` parses one side,
-     because the baseline is already a snapshot — measured
-     `candidate_snapshot=401.07s` against `baseline_compare=32.44s`. Directory
-     mode has no snapshot on either side, so it parses **both**: six library
-     pairs × 2 sides = 12 full parses of the *union* header set, against 3 in
-     total for the design this workflow ships. Library size is irrelevant — a
-     directory holding only `libonedal_thread.so` (290 symbols) compared with
-     **one** header takes 6m41s and 4.13 GB, worse than the real `libonedal.so`
-     scan; at 14 headers that trivial library ran past 25 minutes. All six pairs
-     with the real header list ran past 2.5 hours and peaked at **38.3 GB**
-     before being killed — a 16 GB runner cannot host it. Three causes compound:
-     no snapshot input, so 2 parses per pair; the shared header list applies to
-     every pair, because per-library header roots live only in #829's library API
-     and not on the CLI; and no cross-pair AST cache, so the identical union AST
-     is rebuilt 12 times. Bundle analysis is cross-library and ELF/Linux-only, so
-     all 12 snapshots stay resident at once — that is the 38.3 GB. The last two
-     causes are #829's own deferred follow-ups; the opt-in streaming pruner
-     (`ABICHECK_CLANG_PRUNE_DEPENDENCY_DECLS=1`) is upstream-documented as a
-     negative result — ~1% less peak RSS for 13–40% *more* wall time.
+  1. **Headerless means no public-surface scoping.** `libonedal_core.so` reports
+     1414 breaking, `libonedal.so` 237, `libonedal_dpc.so` 272 — unscoped
+     internal symbols, not a public ABI break. Not gateable. (Upstream tried
+     deriving the surface from ELF visibility, found it non-functional and
+     reverted it, so this is known-open rather than an oversight.)
+  2. **Header-scoped directory compare costs more than a runner has.** `scan
+     --against <snapshot>` parses one side only, since the baseline is already a
+     snapshot — measured `candidate_snapshot=401.07s` against
+     `baseline_compare=32.44s`. Directory mode has a snapshot on neither side, so
+     it parses **both**: six library pairs × 2 = 12 full parses of the *union*
+     header set, against 3 here. Library size is irrelevant — a directory holding
+     only `libonedal_thread.so` (290 symbols) with **one** header takes 6m41s and
+     4.13 GB, worse than the real `libonedal.so` scan; at 14 headers it ran past
+     25 minutes. All six pairs with the real header list plateau at **~38 GB** and
+     run for hours; a 16 GB runner cannot host it. Three causes compound: no
+     snapshot input, so 2 parses per pair; one shared header list for every pair,
+     because per-library header roots live only in #829's library API, not the
+     CLI; and no cross-pair AST cache, so the identical union AST is rebuilt 12
+     times and — bundle analysis being cross-library and ELF/Linux-only — all 12
+     stay resident at once. The last two are #829's own deferred follow-ups; the
+     opt-in streaming pruner (`ABICHECK_CLANG_PRUNE_DEPENDENCY_DECLS=1`) is
+     upstream-documented as a negative result (~1% less peak RSS for 13–40%
+     *more* wall time), and a later upstream fix that stopped retaining full
+     snapshots for the whole release moved the ceiling ~4% on the ELF-only path
+     and not at all here.
 
-  Blockers 2 and 4 form a pincer — 2 says headers are needed for scoping, 4 says
-  headers in directory mode cost 12 parses — so header-scoped whole-product
-  compare is out for now. What blocker 3's fix *did* unlock is the **headerless**
-  path, which is cheap and no longer noise: 34s and 240 MB for all six
-  libraries, and `bundle_verdict` is reported separately from the per-library
-  aggregate `verdict`, so a step could consume only the former and ignore the
-  unscoped per-library diffs entirely. On the pin this file documents that yields
-  `bundle_verdict: COMPATIBLE_WITH_RISK` with 156 advisory
-  `bundle_intra_dep_signature_unverified` findings — a new C-boundary
+  So header-scoped whole-product compare is out: 1 says headers are needed for
+  scoping, 2 says headers in directory mode cost 12 parses. What the
+  soname-matching fix *did* unlock is the **headerless** path, which is cheap and
+  no longer noise: 34s and 240 MB for all six libraries, and `bundle_verdict` is
+  reported separately from the per-library aggregate `verdict`, so a step could
+  consume only the former and ignore the unscoped per-library diffs entirely.
+  That yields `bundle_verdict: COMPATIBLE_WITH_RISK` with 156 advisory
+  `bundle_intra_dep_signature_unverified` findings — a C-boundary
   signature-evidence gate, which fires by construction in headerless mode
   because neither side has type evidence. It is classified
   `COMPATIBLE_WITH_RISK`, not breaking, so a gate on `bundle_verdict == BREAKING`
-  is unaffected. (The previous pin reported `NO_CHANGE` and 0 findings for the
-  identical command and inputs.)
+  is unaffected. Passing `--bundle-system-providers` is not optional on this
+  path: without it the same run reports 255 extra `bundle_intra_dep_removed`
+  against external providers and `bundle_verdict` becomes `BREAKING`.
 
-  Also new and aimed squarely at this repository: `scan --artifact-set DIR`
-  (ADR-056, whose motivating example is oneDAL by name) audits a set of
-  libraries as one artifact with **no old side**, so it needs no baseline and no
-  header parse. All six libraries in **10.8s / 383 MB**. It is not adoptable
-  as-is either: it reports 862 `bundle_unresolved_intra_dependency` findings, of
-  which 804 disappear once `--bundle-system-providers` names the sonames
-  `DEFAULT_SYSTEM_PROVIDERS` omits (`libtbbmalloc.so.2`, the MKL libraries, and
-  the Intel runtime — `libimf`/`libsvml`/`libirng`/`libintlc`); one unmatched
-  `DT_NEEDED` edge disables the system-edge exemption for that whole library. The
-  remaining 58 are all libstdc++/libgcc runtime symbols on the two `parameters`
-  libraries, and they survive because the audit-mode detector does not apply the
-  `DEFAULT_SYSTEM_SYMBOLS`/`_looks_system_symbol` filter that the compare-mode
-  detector applies — an asymmetry upstream, not a property of oneDAL.
+  Also aimed squarely at this repository: `scan --artifact-set DIR` (ADR-056,
+  whose motivating example is oneDAL by name) audits a set of libraries as one
+  artifact with **no old side**, so it needs no baseline. All six libraries in
+  **10.8s / 383 MB** — but only with `--depth binary`. Without it the default
+  depth reads `libonedal_core.so`'s DWARF (that library does carry
+  `.debug_info`) and the same audit takes **8m15s / 1.12 GB** for identical
+  findings. It is not adoptable as-is either: it reports 862
+  `bundle_unresolved_intra_dependency` findings, of which 804 disappear once
+  `--bundle-system-providers` names the sonames `DEFAULT_SYSTEM_PROVIDERS` omits
+  (`libtbbmalloc.so.2`, the MKL libraries, and the Intel runtime —
+  `libimf`/`libsvml`/`libirng`/`libintlc`), because one unmatched `DT_NEEDED`
+  edge disables the system-edge exemption for that whole library. Upstream has
+  since recorded that gap as an open action item, unfixed. The remaining 58 are
+  libstdc++/libgcc symbols on the two `parameters` libraries and are *by design*:
+  audit mode deliberately has no symbol-name-shape fallback, and its suppression
+  path requires the consumer to have zero intra-bundle `DT_NEEDED` edges — which
+  both `parameters` libraries fail, since each links its sibling. Adopting this
+  means either naming those symbols or gating on kinds rather than counts.
 
   Worth knowing for whoever picks this up: oneDAL's *actual* intra-bundle
   coupling is narrow. `DT_NEEDED` shows only two sibling edges —
   `libonedal_parameters.so → libonedal.so` and
-  `libonedal_parameters_dpc.so → libonedal_dpc.so`; everything else each library
-  needs is external. `libonedal_core.so` does **not** link `libonedal_thread.so`
-  at all, and `libonedal_dpc.so` does not link `libonedal_core.so` either even
-  though it imports ~800 symbols from it — applications link both. So the upside
-  here is real but smaller than the six-library count suggests, and any
-  cross-DSO gate has to treat "consumer under-links its provider" as oneDAL's
-  normal, not as a finding. Storage is the easy part: the six libraries are
-  145.4 MB raw and **28.1 MB as a single `tar.zst`**, well inside the 2 GiB
-  asset limit — one asset instead of three — though `pack_product_baseline` is a
-  library function with no CLI command, so a workflow would need a small Python
-  step (or plain `tar --zstd`, giving up the manifest and per-library digests).
+  `libonedal_parameters_dpc.so → libonedal_dpc.so`; everything else is external.
+  `libonedal_core.so` does **not** link `libonedal_thread.so`, and
+  `libonedal_dpc.so` does not link `libonedal_core.so` either despite importing
+  ~800 symbols from it — applications link both. So the upside is real but
+  smaller than six libraries suggests, and any cross-DSO gate has to treat
+  "consumer under-links its provider" as oneDAL's normal, not a finding. Storage
+  is the easy part: the six libraries are 145.4 MB raw and **28.1 MB as a single
+  `tar.zst`**, one asset instead of three — though `pack_product_baseline` is a
+  library function with no CLI command, so a workflow needs a small Python step
+  (or plain `tar --zstd`, giving up the manifest and per-library digests).
 * **`public-header-dir` cannot be passed.** `scan` has a provenance-only
   `--public-header-dir`; `dump` does not — its provenance comes from `-H`,
   where a *directory* entry is also a parse root, and for oneDAL that parse
@@ -465,11 +467,10 @@ as something to read, not as a regression by itself.
   Re-checked against the pinned commit: `SCOPE_FIELD_KEYS` still contains
   `public_header_dirs`, `dump` still has no such flag, and a scan that passes
   the input still returns `NOT_COMPARABLE` (exit 6). The "dump/scan
-  comparability" fixes that landed recently (abicheck#812, #821, #824, #825)
-  address a *different* mismatch — Bazel include-dir/`header_roots` parity — and
-  do not affect this one. Re-test by adding the input back to one scan step; if
-  it produces a verdict instead of `NOT_COMPARABLE`, this gap is closed and the
-  input should go back into all three.
+  comparability" fixes (abicheck#812, #821, #824, #825) address a *different*
+  mismatch — Bazel include-dir/`header_roots` parity. Re-test by adding the input
+  back to one scan step; a verdict instead of `NOT_COMPARABLE` means the gap
+  closed and it should go back into all three.
 * **`symbol_binding` is not stamped on the visibility branch.** The
   `binding:` selector reads `Change.symbol_binding`, which is stamped only on
   the removal kinds and not on the visibility-changed branch; the matcher fails
@@ -483,14 +484,13 @@ as something to read, not as a regression by itself.
   flags. Measured: roughly 20 minutes added to the `oneapi::dal` scan, in the
   preprocessor stage.
 * **L4 source facts** (macro / `constexpr` / inline-body diffing) stay out of
-  the PR path. The Clang plugin is 2.39× compile time; the `abicheck-cc`
-  wrapper is a second full frontend per translation unit. Fact volume is the
-  open risk — one daal TU emitted 33 MB of facts, so ~2200 TUs is tens of GB
-  unless the public-root scoping and cross-TU dedup land first. Intel's oneAPI
-  apt package ships no `LLVMConfig.cmake`/`ClangConfig.cmake`, so building the
-  plugin against `icpx` is not possible with that package; a nightly job over
-  the daal half using apt `clang`/`libclang-dev` is the sane way to get real
-  numbers.
+  the PR path. The Clang plugin is 2.39× compile time; the `abicheck-cc` wrapper
+  is a second full frontend per TU. Fact volume is the open risk — one daal TU
+  emitted 33 MB, so ~2200 TUs is tens of GB unless public-root scoping and
+  cross-TU dedup land first. Intel's oneAPI apt package ships no
+  `LLVMConfig.cmake`/`ClangConfig.cmake`, so the plugin cannot be built against
+  `icpx` from it; a nightly job over the daal half using apt
+  `clang`/`libclang-dev` is the sane way to get real numbers.
 
 ## Keeping this document honest
 

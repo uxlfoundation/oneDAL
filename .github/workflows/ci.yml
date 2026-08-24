@@ -331,7 +331,7 @@ jobs:
       # .github/abicheck/README.md ("The abicheck pin ... must move together").
       - name: Run abicheck (daal)
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
+        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -355,7 +355,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run abicheck (oneapi::dal)
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
+        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -384,7 +384,7 @@ jobs:
       # whole SYCL surface as exported-but-not-declared.
       - name: Run abicheck (oneapi::dal dpc)
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
+        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
         with:
           mode: scan
           new-library: __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
