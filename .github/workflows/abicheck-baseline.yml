@@ -43,12 +43,14 @@ jobs:
     runs-on: ubuntu-24.04
     # Measured end to end against the abicheck commit pinned below, on the
     # no-debug-info build this workflow produces: the daal snapshot takes
-    # 7m38s / 3.31 GB peak RSS, oneapi::dal 4m24s / 1.79 GB and
-    # oneapi::dal-dpc 11m43s / 4.80 GB -- ~24 min of dumping, all three well
+    # 7m40s / 3.31 GB peak RSS, oneapi::dal 4m23s / 1.79 GB and
+    # oneapi::dal-dpc 12m06s / 4.81 GB -- ~24 min of dumping, all three well
     # inside a 16 GB standard runner. (An earlier revision of this workflow had
     # to fallocate a 16 G swapfile for a debug-info daal dump; abicheck's
     # bounded DWARF DIE cache and the no-debug-info build together removed
-    # that need.)
+    # that need.) These are within noise of the previous pin's own figures
+    # (7m38s / 4m24s / 11m43s), so bumping the pin is a correctness change
+    # here, not a cost one.
     #
     # The three builds took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so
     # those are a lower bound: on a standard runner the builds, not the dumps,
@@ -148,11 +150,25 @@ jobs:
       # side, and an uncompressed snapshot is 115-152 MiB against ~2 MiB
       # compressed, with identical findings.
       #
-      # Keep this pin equal to the three in ci.yml's LinuxAbicheckScan job. A
-      # baseline dumped by an older abicheck than the scanner does not fail --
-      # it silently under-reports. See .github/abicheck/README.md.
+      # Keep this pin equal to the three in ci.yml's LinuxAbicheckScan job, and
+      # re-dispatch this workflow for every published tag whenever that pin
+      # moves. Mismatched pins do not fail in any way that points at the cause:
+      # they either under-report silently, or fail *loudly for the wrong
+      # reason*. Both halves of that are measured, not hypothetical.
+      #
+      # The loud half, seen while validating this pin bump: abicheck fixed a
+      # dumper bug where an enumerator whose initializer's folded value sits on
+      # an intermediate clang AST wrapper node (`csrArray = 1 << 4`) fell back
+      # to positional auto-increment, so `NumericTableIface::StorageLayout` was
+      # recorded as csrArray=3, arrow=4 instead of 16 and 2048. Scanning an
+      # unchanged source tree with the new pin against baselines dumped by the
+      # old one therefore reported 155 breaking `enum_member_value_changed`
+      # findings for libonedal_core.so and 125 for libonedal_dpc.so -- exit 4,
+      # a red X, and nothing in the report naming the baseline as the cause.
+      # Re-dumping the same tag with the same pin as the scanner took all 280 to
+      # zero with no other change. See .github/abicheck/README.md.
       - name: Dump baseline snapshot (daal)
-        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
+        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -172,7 +188,7 @@ jobs:
           gcc-options: "-std=c++17"
           output-file: "${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-daal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal)
-        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
+        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -192,7 +208,7 @@ jobs:
           gcc-options: "-fsycl -std=c++17"
           output-file: "${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-oneapi-dal.abicheck.json.zst"
       - name: Dump baseline snapshot (oneapi::dal dpc)
-        uses: abicheck/abicheck@7cf8adf835b8b59bb8b0f7b4030206f5cf7de7de # main
+        uses: abicheck/abicheck@c370aed07a5dea18000f3cc4d5bef8b1ef3ef48c # main
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
