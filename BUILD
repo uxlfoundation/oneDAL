@@ -91,11 +91,14 @@ filegroup(
     srcs = ["samples/daal/cpp/mpi/makefile_lnx"],
 )
 
-# The makefile stages a documentation tree into `daal/latest/documentation`
-# (makefile:442-444, :1051-1058). Its source, `$(DIR)/../documentation`, lives
-# *outside* the repository and the recipe is guarded by `if [ -d ... ]`, so the
-# Make package ships those files only in build trees that have them -- that is
-# where `documentation/en/common/license.txt` and the
+# The makefile stages a documentation tree into `daal/latest/documentation`. Its
+# source lives *outside* the repository and the recipe skips it when absent:
+#
+#     DOC.srcdir:= $(DIR)/../documentation
+#     release.DOC := $(shell if [ -d $(DOC.srcdir) ]; then find $(DOC.srcdir) ... ;fi)
+#
+# so the Make package ships those files only in build trees that have them --
+# that is where `documentation/en/common/license.txt` and the
 # `third-party-programs*.txt` files the release BOM lists come from.
 #
 # Bazel cannot glob above the workspace, so the equivalent tree has to be

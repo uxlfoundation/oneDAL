@@ -325,7 +325,7 @@ bazel build //:release
 The `release_documentation` filegroup in the root `BUILD` file globs it with
 `allow_empty = True`, so an absent tree is not an error, and the release rule
 copies it to `daal/latest/documentation` with its structure preserved.
-`/documentation/` is listed in `.gitignore`, so a staged tree is never
+`documentation/` is listed in `.gitignore`, so a staged tree is never
 committed.
 
 No CI job stages the tree, so releases built in CI ship without documentation on

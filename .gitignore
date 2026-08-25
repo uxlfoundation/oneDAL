@@ -30,6 +30,5 @@ MODULE.bazel.lock
 .directory
 .DS_Store
 
-# Documentation tree staged by the build (see the `release_documentation`
-# filegroup in the root BUILD file); generated outside the repository.
-/documentation/
+# Documentation tree staged for the release build
+documentation/
