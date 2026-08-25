@@ -27,6 +27,16 @@ name: Nightly-test
 # Post the dispatch run URL as a comment on the PR for reviewers.
 # The CVE scan is intentionally skipped on dispatch — it uploads SARIF to
 # the Security tab and must only run on genuine Nightly-build completions.
+#
+# SECURITY: `workflow_run` is privileged — it runs in the base repository context
+# with base-repo secrets, a base-repo GITHUB_TOKEN, and write access to the
+# default-branch Actions cache that other workflows read. The Bazel jobs check
+# out `workflow_run.head_sha` and then execute it (`.ci/env/*.sh`, `BUILD`,
+# `dev/bazel/**`, `dev/release_tests/*.py`). Nightly-build runs on
+# `pull_request`, so head_sha may be a fork commit. The Bazel jobs are therefore
+# gated on `head_repository == github.repository`: reaching a branch here needs
+# write access, so that commit is trusted. To Bazel-test a fork PR, push its
+# branch to this repository or use the workflow_dispatch procedure above.
 
 on:
   workflow_run:
@@ -90,7 +100,8 @@ jobs:
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
-              || github.event.workflow_run.conclusion == 'success') }}
+              || (github.event.workflow_run.conclusion == 'success'
+                  && github.event.workflow_run.head_repository.full_name == github.repository)) }}
     timeout-minutes: 120
     permissions:
       contents: read
@@ -125,6 +136,9 @@ jobs:
           # workflow_run: pin to the commit that produced the artifacts.
           # workflow_dispatch: default to the dispatched ref (github.ref).
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          # The build steps below execute this checkout; keep GITHUB_TOKEN out
+          # of .git/config so they cannot read it.
+          persist-credentials: false
       - name: Download oneDAL Linux build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -177,7 +191,8 @@ jobs:
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
-              || github.event.workflow_run.conclusion == 'success') }}
+              || (github.event.workflow_run.conclusion == 'success'
+                  && github.event.workflow_run.head_repository.full_name == github.repository)) }}
     timeout-minutes: 180
     permissions:
       contents: read
@@ -212,6 +227,9 @@ jobs:
           # workflow_run: pin to the commit that produced the artifacts.
           # workflow_dispatch: default to the dispatched ref (github.ref).
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          # The build steps below execute this checkout; keep GITHUB_TOKEN out
+          # of .git/config so they cannot read it.
+          persist-credentials: false
       - name: Download oneDAL Windows build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
