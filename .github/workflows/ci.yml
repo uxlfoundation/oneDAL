@@ -173,10 +173,11 @@ jobs:
 
   # Second, independent ABI gate, running in parallel with the libabigail
   # LinuxABICheck job above -- both depend only on LinuxMakeDPCPP, not on each
-  # other. abicheck's `scan` diffs this PR's public-header AST plus its
-  # exported symbols against a snapshot of the last release, so it catches
-  # header/binary mismatches and release-over-release drift that a
-  # binary-vs-last-main `abidiff` cannot see.
+  # other. abicheck diffs this PR's public-header AST plus its exported symbols,
+  # per library, against the last release's stored bundle facts, and then folds
+  # the six diffs into one whole-product comparison -- so it catches
+  # header/binary mismatches, cross-library breaks and release-over-release
+  # drift that a binary-vs-last-main `abidiff` cannot see.
   #
   # What each of the two checks sees and misses, why the header roots are an
   # explicit list rather than the directories, how the baselines are published
@@ -190,32 +191,51 @@ jobs:
       github.event_name == 'pull_request' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
-    # Measured with the abicheck commit pinned below, against baselines dumped
-    # by that same commit, on the same no-debug-info build LinuxMakeDPCPP
-    # produces: libonedal_core.so 7m21s / 3.32 GB peak RSS, libonedal.so 4m16s
-    # / 2.33 GB, libonedal_dpc.so 11m15s / 6.25 GB. ~23 min of scanning; 45
-    # leaves room for the DPC++ apt install and the artifact download. The
-    # DPC++ library is both the slowest and the largest -- its snapshot is
-    # ~5 MiB against ~2 MiB for the two host libraries -- but 6.25 GB still
-    # fits a 16 GB standard runner. Re-measure that figure before assuming
-    # headroom if this job grows a fourth library.
+    # Measured end to end with the abicheck commit pinned below, against a
+    # baseline captured by that same commit, on the same no-debug-info build
+    # LinuxMakeDPCPP produces: **31m28s wall, 8.03 GiB peak RSS**, exit 0.
+    # Per library, resolving the new side: libonedal_core.so 6m45s,
+    # libonedal.so 3m42s, libonedal_dpc.so 10m03s, libonedal_parameters.so
+    # 1m00s, libonedal_parameters_dpc.so 7m32s, libonedal_thread.so 0.1s
+    # (ELF-only) -- 29m02s of resolving, plus ~2.5 min to load the baseline,
+    # fold the six diffs and write the reports. All six are parsed serially,
+    # one process, one core, so the wall time is a sum and adding a library
+    # adds its full cost.
     #
-    # (Measured on a 224-core host, so the wall times are a lower bound for a
-    # GitHub-hosted runner; the RSS peaks are the numbers that have to fit.)
+    # The peak is the number to watch, and it is higher than the three
+    # per-library scans this replaced (6.25 GB) for a structural reason: the
+    # baseline is one BundleFacts document covering all six libraries, so it
+    # stays resident (~3-4 GB, 902 MiB of JSON inflated in memory) while each
+    # new side is resolved on top of it. That resident baseline plus the 5.4 GB
+    # libonedal_dpc.so parse is where 8.03 GiB comes from. It still fits a
+    # 16 GB standard runner, but the margin is now ~8 GB rather than ~10, so
+    # re-measure before adding a library or raising evidence depth.
+    #
+    # 75 minutes leaves room for the DPC++ apt install and the artifact
+    # download on top. (Measured on a 224-core host; since the work is
+    # single-threaded the wall time is still a lower bound for a
+    # GitHub-hosted runner, which has slower cores.)
     #
     # Do not read anything into a *rerun* being much faster: abicheck caches
-    # the candidate snapshot, so only the first run on a fresh runner is
+    # resolved snapshots, so only the first run on a fresh runner is
     # representative, and that is the one this timeout has to cover.
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       contents: read
+      # Only for upload-sarif at the end of the job. The gate itself needs
+      # nothing beyond contents: read.
+      security-events: write
     env:
-      # The baseline release tag lives here once: the fetch step and all three
-      # scans have to name the same snapshots. Rotating to a newer baseline
-      # means dispatching "Publish Abicheck Baseline" for that tag and editing
-      # this line -- see .github/abicheck/README.md ("Rotation").
+      # The baseline release tag lives here once: the fetch step and the gate
+      # have to name the same asset. Rotating to a newer baseline means
+      # dispatching "Publish Abicheck Baseline" for that tag and editing this
+      # line -- see .github/abicheck/README.md ("Rotation").
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_BASELINE_DIR: __abi_baselines
+      # The abicheck commit this gate runs. Not a `uses:` pin because the gate
+      # drives abicheck as a Python library, so it is installed with pip; it
+      # must still equal the pin in abicheck-baseline.yml.
+      ABICHECK_PIN: 793849f3cb7c3eb7c5add2b90ca31b6c5849834b
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -287,122 +307,75 @@ jobs:
           # digest file cannot degrade into "nothing to check, all good".
           ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${GITHUB_WORKSPACE}/${sums}" )
           echo "available=true" >> "$GITHUB_OUTPUT"
-      # Three scans, not one: `scan` analyses exactly one artifact, and
-      # oneDAL's classic DAAL API, oneapi::dal host API and oneapi::dal SYCL
-      # API are exported from three different libraries. Scanning one library
-      # against another's headers would report every declaration as missing.
+      # One whole-product gate, not three per-library scans. `scan` analyses
+      # exactly one artifact, so covering oneDAL's classic DAAL API,
+      # oneapi::dal host API and oneapi::dal SYCL API took three scans -- and
+      # three scans structurally cannot see a cross-library break, because each
+      # one is blind to the other five DSOs. oneDAL is one header tree
+      # implemented across six interdependent shared objects, so the breakage
+      # that matters most here (a symbol moving between libraries, an
+      # intra-bundle DT_NEEDED edge losing its provider) was invisible to the
+      # gate that shipped before this step.
       #
-      # depth: headers is L2 -- public-header AST plus the binary's exported
-      # symbols. It needs no debug info, which is what makes the
-      # libonedal_dpc.so scan below practical: LinuxMakeDPCPP builds every
-      # library without --debug symbols (device DWARF alone would blow up the
-      # runner), so no ABI evidence here depends on DWARF being present.
+      # abicheck's bundle layer (ADR-023) is built for exactly this shape and
+      # names oneDAL as its motivating case, but it is reachable only from
+      # Python -- upstream deliberately left
+      # `compare_release_against_bundle_facts` off `abicheck compare`, and it
+      # can express neither a per-library compile context nor per-library
+      # header roots, both of which oneDAL needs. So this step drives abicheck
+      # as a library instead of through the composite Action, via
+      # .github/abicheck/bundle_gate.py. Everything the three scans produced --
+      # report text, SARIF, the per-library verdicts -- is produced there too;
+      # see that file's docstring and .github/abicheck/README.md.
       #
-      # No public-header-dir, deliberately, and it costs something -- measured,
-      # not assumed. abicheck fingerprints the declared surface of both sides
-      # (scope_fingerprint over SCOPE_FIELD_KEYS = headers, public_header_dirs)
-      # and refuses to compare when they differ. `scan --public-header-dir X`
-      # sets public_header_dirs; `dump` has no such flag any more (the Action
-      # forwards the input as one more -H root, which for a *directory* parses
-      # the whole tree in one TU and fails outright here), and neither
-      # --config .abicheck.yml's sources.public_headers nor the -H file list
-      # populates that field on a dump. So a scan that sets it against a dump
-      # that cannot is NOT_COMPARABLE -- verified on both libraries: exit 6,
-      # "old and new snapshots do not cover the same declared surface
-      # (scope_fingerprint mismatch)", i.e. no gate at all.
-      #
-      # Dropping it makes the two sides symmetric and the comparison real
-      # (verdicts below). The price is that the four provenance-dependent
-      # cross-checks -- exported_not_public, public_not_exported,
-      # private_header_leak, rtti_for_internal_type -- report "skipped: no
-      # public-header provenance". Those are advisory cross-source warnings,
-      # not part of the baseline verdict, so the gate itself is unaffected;
-      # restoring them needs an upstream provenance-only input on dump (filed,
-      # see .github/abicheck/README.md).
-      #
-      # extra-args carries one thing only: --max-findings. It defaults to 20
-      # and the text renderer stops there, so without it a reviewer sees 20 of
-      # daal's findings and no more. Raising the cap cannot change the verdict
-      # or the exit code, only how much of the list is printed.
-      #
-      # The abicheck commit pinned by all three steps below must stay equal to
-      # the one pinned by abicheck-baseline.yml -- a baseline dumped by an
-      # older abicheck silently under-reports rather than failing. See
-      # .github/abicheck/README.md ("The abicheck pin ... must move together").
-      - name: Run abicheck (daal)
+      # The pin below must stay equal to the one in abicheck-baseline.yml: a
+      # baseline captured by an older abicheck silently under-reports rather
+      # than failing. Because this is a pip install rather than a `uses:`, the
+      # sha is in ABICHECK_PIN at the top of the job.
+      - name: Install abicheck
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
-        with:
-          mode: scan
-          new-library: __release_lnx/daal/latest/lib/intel64/libonedal_core.so
-          new-header: >-
-            cpp/daal/include/daal.h
-            cpp/daal/include/algorithms/tsne/tsne_gradient_descent.h
-            cpp/daal/include/data_management/data/internal/finiteness_checker.h
-            cpp/daal/include/data_management/data/internal/roc_auc_score.h
-            cpp/daal/include/data_management/data/internal/train_test_split.h
-            cpp/daal/include/services/internal/hash_table.h
-            cpp/daal/include/data_management/data/internal/base_arrow_numeric_table.h
-          include: cpp/daal/include
-          depth: headers
-          ast-frontend: clang
-          gcc-path: icpx
-          gcc-options: "-std=c++17"
-          against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-daal.abicheck.json.zst
-          policy-file: .github/abicheck/policy.yaml
-          extra-args: --max-findings 200
-          build-config: .github/abicheck/.abicheck.yml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run abicheck (oneapi::dal)
+        run: python3 -m pip install --disable-pip-version-check
+          "abicheck @ git+https://github.com/abicheck/abicheck@${{ env.ABICHECK_PIN }}"
+      # Header-scoped, per library: L2 evidence (public-header AST plus the
+      # binary's exported symbols) needs no debug info, which is what keeps
+      # this practical -- LinuxMakeDPCPP builds without --debug symbols, so no
+      # evidence here depends on DWARF being present.
+      #
+      # policy.yaml still applies: the driver loads it through the same
+      # service.load_suppression_and_policy/compare_snapshots chokepoints the
+      # CLI uses, so the re-classifications survive the switch off `scan`.
+      - name: Run whole-product ABI gate
+        id: gate
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
+        run: |
+          python3 .github/abicheck/bundle_gate.py gate \
+            --source . \
+            --lib-dir __release_lnx/daal/latest/lib/intel64 \
+            --facts "${ABICHECK_BASELINE_DIR}/${ABICHECK_BASELINE_TAG}-bundle.abicheck.json.zst" \
+            --policy .github/abicheck/policy.yaml \
+            --version "${GITHUB_SHA}" \
+            --output __abi_report/summary.json \
+            --report-md __abi_report/report.md \
+            --sarif __abi_report/abicheck.sarif
+      # always(): the report is most useful exactly when the gate failed. The
+      # gate writes both reports before returning a non-zero exit, so a missing
+      # file means it died earlier than that -- in which case its own stderr is
+      # the signal and a bare `cat` failure here would only bury it. Same reason
+      # for the hashFiles() guard on the upload below: upload-sarif fails hard on
+      # a missing file, which would turn one real failure into two red steps.
+      - name: Publish the ABI report
+        if: always() && steps.baselines.outputs.available == 'true'
+        run: |
+          if [ -f __abi_report/report.md ]; then
+            cat __abi_report/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "The ABI gate wrote no report; see its step log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload ABI findings to code scanning
+        if: |
+          always() && steps.baselines.outputs.available == 'true' &&
+          hashFiles('__abi_report/abicheck.sarif') != ''
+        uses: github/codeql-action/upload-sarif@37f2634a92ba38a0926ef79a0748ac8ae7d95ab2 # v4.37.8
         with:
-          mode: scan
-          new-library: __release_lnx/daal/latest/lib/intel64/libonedal.so
-          new-header: >-
-            cpp/oneapi/dal.hpp
-            cpp/oneapi/dal/algo/correlation_distance.hpp
-            cpp/oneapi/dal/algo/cosine_distance.hpp
-            cpp/oneapi/dal/algo/dbscan.hpp
-            cpp/oneapi/dal/algo/linear_regression.hpp
-            cpp/oneapi/dal/algo/logistic_regression.hpp
-            cpp/oneapi/dal/table/csr_accessor.hpp
-          include: cpp
-          depth: headers
-          ast-frontend: clang
-          gcc-path: icpx
-          gcc-options: "-fsycl -std=c++17"
-          against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-oneapi-dal.abicheck.json.zst
-          policy-file: .github/abicheck/policy.yaml
-          extra-args: --max-findings 200
-          build-config: .github/abicheck/.abicheck.yml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      # Same headers as the host scan above, plus -DONEDAL_DATA_PARALLEL: that
-      # macro is what makes the sycl::queue overloads in cpp/oneapi/dal visible
-      # to the parser, and they are exactly the part of the public API that
-      # only libonedal_dpc.so exports. Without it this scan would report the
-      # whole SYCL surface as exported-but-not-declared.
-      - name: Run abicheck (oneapi::dal dpc)
-        if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@b6ec8b493e84937856fc75afddf6e606477b24d3 # main
-        with:
-          mode: scan
-          new-library: __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
-          new-header: >-
-            cpp/oneapi/dal.hpp
-            cpp/oneapi/dal/algo/correlation_distance.hpp
-            cpp/oneapi/dal/algo/cosine_distance.hpp
-            cpp/oneapi/dal/algo/dbscan.hpp
-            cpp/oneapi/dal/algo/linear_regression.hpp
-            cpp/oneapi/dal/algo/logistic_regression.hpp
-            cpp/oneapi/dal/table/csr_accessor.hpp
-          include: cpp
-          depth: headers
-          ast-frontend: clang
-          gcc-path: icpx
-          gcc-options: "-fsycl -DONEDAL_DATA_PARALLEL -std=c++17"
-          against: ${{ env.ABICHECK_BASELINE_DIR }}/${{ env.ABICHECK_BASELINE_TAG }}-oneapi-dal-dpc.abicheck.json.zst
-          policy-file: .github/abicheck/policy.yaml
-          extra-args: --max-findings 200
-          build-config: .github/abicheck/.abicheck.yml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          sarif_file: __abi_report/abicheck.sarif
+          category: abicheck
