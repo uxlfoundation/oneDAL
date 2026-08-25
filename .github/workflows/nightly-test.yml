@@ -28,11 +28,19 @@ name: Nightly-test
 # The CVE scan is intentionally skipped on dispatch — it uploads SARIF to
 # the Security tab and must only run on genuine Nightly-build completions.
 #
-# The jobs that check out the tested commit hold read-only permissions, and the
-# check runs they report through are created and completed by separate jobs that
-# check out nothing. That split is deliberate: most pull requests here come from
-# forks, and a workflow_run job may only build a fork's commit when it carries
-# none of the write scopes, secrets or caches that make such a job a target.
+# The jobs that check out the tested commit hold read-only permissions, check out
+# with `persist-credentials: false`, and the check runs they report through are
+# created and completed by separate jobs that check out nothing. That split is
+# deliberate: most pull requests here come from forks, and a workflow_run job may
+# only build a fork's commit when it carries none of the write scopes, secrets,
+# caches or on-disk credentials that make such a job a target.
+#
+# CodeQL flags both checkouts under `actions/untrusted-checkout` (alerts 9 and
+# 10). The finding is accurate about the shape and does not change with any of
+# the mitigations above, because building a fork's commit is the point of these
+# jobs. Nothing beyond the mitigations should be added to appease the query; if
+# the risk is judged unacceptable instead, the fix is to stop testing fork pull
+# requests here, not to hide the checkout from the scanner.
 
 on:
   workflow_run:
@@ -160,12 +168,17 @@ jobs:
           # workflow_run: pin to the commit that produced the artifacts.
           # workflow_dispatch: default to the dispatched ref (github.ref).
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          # The build steps below execute this checkout, so do not leave
+          # GITHUB_TOKEN in `.git/config` for them to read. Nothing here needs
+          # to push or to fetch a second repository.
+          persist-credentials: false
           # checkout refuses fork code under workflow_run unless this is set,
           # because such a job normally carries the base repository's write
           # scopes, secrets and default-branch cache — the "pwn request" shape.
           # None of that is present here: the permissions block above grants
-          # read only, the job references no secrets, and it uses no cache
-          # action, so building a fork's commit is no more privileged than the
+          # read only, the job references no secrets, it uses no cache action,
+          # and `persist-credentials: false` above keeps the token off disk, so
+          # building a fork's commit is no more privileged than the
           # pull_request run that already builds it.
           allow-unsafe-pr-checkout: true
       - name: Download oneDAL Linux build artifact
@@ -216,8 +229,11 @@ jobs:
           # workflow_run: pin to the commit that produced the artifacts.
           # workflow_dispatch: default to the dispatched ref (github.ref).
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          # Keep GITHUB_TOKEN out of `.git/config`, as in `bazel_lnx`.
+          persist-credentials: false
           # See `bazel_lnx` for why opting out of checkout's fork guard is safe
-          # in a job that holds no write scope, no secrets and no cache.
+          # in a job that holds no write scope, no secrets, no cache and no
+          # persisted credentials.
           allow-unsafe-pr-checkout: true
       - name: Download oneDAL Windows build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
