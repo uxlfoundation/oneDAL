@@ -17,33 +17,29 @@
 
 """Whole-product (bundle) ABI gate for oneDAL — capture and gate halves.
 
-oneDAL is one header tree implemented across six interdependent shared
-objects. abicheck's ADR-023 bundle layer is built for exactly that shape and
-names oneDAL as its motivating case, but it is reachable only from Python:
-``compare_release_against_bundle_facts`` exists as of G38 Phase 13, and
-upstream deliberately did not put it on ``abicheck compare`` (every file that
-would host the Click dispatch is within two lines of a 2000-line cap). Two
-further limits make that function unusable here directly — it forwards no
-``CompileContext`` (so it defaults to castxml and dies on this clang/icpx-only
-toolchain) and it applies one ``headers``/``includes`` set uniformly to every
-library, which cannot express oneDAL's per-library header roots. So this module
-drives the same Tier-2 chokepoints (``service.resolve_input`` /
-``service.compare_snapshots`` / ``bundle_facts.compare_bundle_from_facts``)
-with per-library scoping instead.
+oneDAL is one header tree across six interdependent shared objects. abicheck's
+ADR-023 bundle layer is built for that shape and names oneDAL as its motivating
+case, but its stored-baseline consumer is reachable only from Python and, as
+written, forwards no ``CompileContext`` (defaulting to castxml, which cannot
+parse this clang/icpx-only toolchain) and applies one ``headers``/``includes``
+set uniformly to every library. So this module drives the same Tier-2
+chokepoints (``service.resolve_input`` / ``service.compare_snapshots`` /
+``bundle_facts.compare_bundle_from_facts``) with per-library scoping instead.
+Full rationale, and what would make this file deletable:
+``.github/abicheck/README.md``.
 
-Two subcommands, deliberately sharing the one ``LIBRARIES`` table in
+Two subcommands, sharing the one ``LIBRARIES`` table in
 ``onedal_libraries.py`` so the two sides cannot drift — a baseline captured from
 a different header set than the gate uses reports every header-only difference
 as a spurious add/remove:
 
-``capture``  dump one header-scoped snapshot per library from a release tag and
-             pack them into a single ``BundleFacts`` document (one release
-             asset: measured 13.2 MiB compressed, 902 MiB of raw JSON, so the
-             ``.json.zst`` suffix that selects compression is load-bearing).
+``capture``  dump one header-scoped snapshot per library and pack them into a
+             single ``BundleFacts`` document (one release asset: 13.2 MiB
+             compressed against 902 MiB of raw JSON, so the ``.json.zst``
+             suffix that selects compression is load-bearing).
 ``gate``     resolve each library's new side with its own header roots, diff it
-             against the stored snapshot under ``.github/abicheck/policy.yaml``,
-             fold the six diffs into one bundle comparison, and exit on the
-             bundle verdict.
+             against the stored snapshot under ``policy.yaml``, fold the six
+             diffs into one bundle comparison, exit on the bundle verdict.
 """
 
 from __future__ import annotations
@@ -217,12 +213,10 @@ def _verdict(value) -> str:
 def _canonical(name: str) -> str:
     """``libonedal.so.4.0`` -> ``libonedal.so``.
 
-    ``DiffResult.library`` carries the real filename off disk, which for oneDAL
-    is always the fully versioned link in the ``.so``/``.so.4``/``.so.4.0``
-    chain, while ``LIBRARIES`` and ``BundleFacts.per_library_snapshots`` are
-    keyed by the soname stem. Reporting the raw filename made every row look
-    like a table miss -- i.e. header-less, i.e. "ELF-only" -- so the two names
-    have to be reconciled rather than used interchangeably.
+    ``DiffResult.library`` carries the versioned filename off disk while
+    ``LIBRARIES`` and ``BundleFacts.per_library_snapshots`` are keyed by the
+    soname stem, so reporting the raw name makes every row look like a table
+    miss -- i.e. header-less, i.e. "ELF-only".
     """
     base = name
     while True:
@@ -322,16 +316,12 @@ def _markdown(result, summary) -> str:
 def _repo_relative(uri: str, source: Path, cache: dict[str, str]) -> str:
     """Map one absolute header path onto the file it is in *this* checkout.
 
-    Not a prefix strip, because the two sides of the comparison recorded their
-    paths under different roots: the new side under the workspace, the old side
-    under whatever directory the baseline was captured from (``__baseline_src``).
-    Both have to end up as the same repo-relative path or code scanning treats
-    one finding's two locations as two different files.
-
-    So: try the longest suffix of the path first and take the first one that
-    exists under ``source``. A path that matches nothing -- a header this branch
-    deleted -- is left exactly as it was, since inventing a repo-relative path
-    for a file that is not there would be worse than an unresolvable one.
+    Longest-suffix match, not a prefix strip: the two sides recorded their paths
+    under different roots (the workspace, and whatever the baseline was captured
+    from), and both have to land on the same repo-relative path or code scanning
+    treats one finding's two locations as two files. A path matching nothing --
+    a header this branch deleted -- is left as it was, since inventing a path
+    for a file that is not there is worse than an unresolvable one.
     """
     if uri in cache:
         return cache[uri]
@@ -369,18 +359,13 @@ def _finalize_sarif_run(
     """Fix the two things ``to_sarif`` cannot know about code scanning.
 
     The automation id abicheck writes embeds both version strings, and CI passes
-    ``--version $GITHUB_SHA``, so it would change on every commit. GitHub keys an
-    analysis on that id -- everything before its last ``/`` is the category -- so
-    a per-commit id makes every run a brand new category, whose predecessor's
-    alerts are then never correlated with it nor marked fixed. One category per
-    library, invariant across commits, is what lets an alert persist while the
-    finding does and close when it goes away. ``upload-sarif``'s ``category:``
-    input cannot fix this for us: it only fills in a *missing* id.
-
-    The header paths are absolute because that is what the snapshot recorded.
-    ``upload-sarif`` would relativize them against ``checkout_path``, but only
-    for as long as this gate happens to run from the workspace root; emitting
-    repo-relative paths makes an alert land on the right line either way.
+    ``--version $GITHUB_SHA``, so it would change every commit. GitHub keys an
+    analysis on that id (everything before its last ``/`` is the category), so a
+    per-commit id makes every run a new category whose predecessor's alerts are
+    never correlated nor marked fixed; ``upload-sarif``'s ``category:`` input
+    cannot fix it, since it only fills a *missing* id. Paths are absolute because
+    that is what the snapshot recorded, and ``upload-sarif`` relativizes them
+    only while this gate runs from the workspace root.
     """
     run.setdefault("automationDetails", {})["id"] = f"abicheck/{label}/"
     _relativize_uris(run, source, cache)

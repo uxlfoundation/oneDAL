@@ -17,15 +17,12 @@
 
 """oneDAL's per-library ABI scoping table — the one source of truth for it.
 
-Imported by both halves of ``bundle_gate.py``: the baseline ``capture`` and the
-PR-side ``gate`` read this same table, so the two sides cannot disagree about
-which headers define a library's public surface. A baseline captured from a
-different header set than the gate uses reports every header-only difference as
-a spurious add/remove, which is why this lives in one place rather than being
-passed in per workflow step.
-
-Split out from ``bundle_gate.py`` only to keep that file under this
-repository's 500-line limit; it has no other consumer.
+Both halves of ``bundle_gate.py`` read this table, so the baseline ``capture``
+and the PR-side ``gate`` cannot disagree about which headers define a library's
+public surface; a baseline captured from a different header set reports every
+header-only difference as a spurious add/remove. Split out from
+``bundle_gate.py`` only to keep that file under this repository's 500-line
+limit; it has no other consumer.
 """
 
 from __future__ import annotations
@@ -56,19 +53,14 @@ _ONEAPI_HEADERS = [
     "cpp/oneapi/dal/table/csr_accessor.hpp",
 ]
 
-# The parameters libraries' only *consumable* public header. oneDAL installs 14
-# parameters headers, but the 12 algo ones
-# (oneapi/dal/algo/*/parameters/{cpu,gpu}/*.hpp) all include
-# "oneapi/dal/backend/dispatcher.hpp", and oneapi/dal/backend/ is not installed
-# at all -- verified 2026-08-24 by compiling each installed header against the
-# release include tree alone: 12 of 14 fail with `'oneapi/dal/backend/
-# dispatcher.hpp' file not found`, and from the *source* tree they instead fail
-# on backend/dispatcher_cpu.hpp's build-generated
-# $(WORKDIR)/oneapi/dal/_dal_cpu_dispatcher_gen.hpp. So no consumer can include
-# them as shipped, and header-scoping to them would scope against a surface
-# nobody can reach. Left out deliberately, not overlooked; the packaging gap is
-# an oneDAL bug independent of abicheck. system_parameters.hpp needs only
-# detail/ headers, all of which are installed, so it stays in.
+# The parameters libraries' only *consumable* public header, deliberately: of
+# the 14 installed parameters headers, the 12 algo ones include
+# "oneapi/dal/backend/dispatcher.hpp" and oneapi/dal/backend/ is not installed,
+# so no consumer can include them as shipped (verified by compiling each against
+# the release include tree alone -- 12 of 14 fail "file not found"). Scoping to
+# them would scope against a surface nobody can reach. The packaging gap is an
+# oneDAL bug independent of abicheck. system_parameters.hpp needs only installed
+# detail/ headers, so it stays in.
 _PARAM_HEADERS = ["cpp/oneapi/dal/detail/parameters/system_parameters.hpp"]
 
 _STD = "-std=c++17"
