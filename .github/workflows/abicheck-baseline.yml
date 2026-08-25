@@ -42,27 +42,15 @@ jobs:
   PublishBaseline:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
-    # Measured end to end against the abicheck commit pinned below, on the
-    # no-debug-info build this workflow produces. Per library, header-scoped:
-    # libonedal_core.so 6m35s, libonedal.so 3m35s, libonedal_dpc.so 10m01s,
-    # libonedal_parameters.so 59s, libonedal_parameters_dpc.so 7m29s,
-    # libonedal_thread.so 0.1s (ELF-only) -- 28m40s of resolving, plus ~2.5 min
-    # to build and serialize the BundleFacts document, so ~31 min wall for the
-    # whole capture.
-    #
-    # Peak RSS does *not* accumulate across the six: it is the max of the
-    # libraries, 5.4 GiB, reached on libonedal_dpc.so and held. That fits a
-    # 16 GB standard runner with room to spare. (An earlier revision of this
-    # workflow had to fallocate a 16 G swapfile for a debug-info daal dump;
-    # abicheck's bounded DWARF DIE cache and the no-debug-info build together
-    # removed that need.) The SYCL headers, not oneDAL's, dominate: one header
-    # under `-fsycl -DONEDAL_DATA_PARALLEL` costs 7m29s / 4.0 GiB against
-    # 59s / 0.6 GiB for the same header without.
-    #
-    # The three builds took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so
-    # those are a lower bound: on a standard runner the builds, not the
-    # capture, dominate this job, which is why the timeout stays at 180 rather
-    # than tracking the measured ~39 min of capturing.
+    # Measured against the pin below, on the no-debug-info build this workflow
+    # produces: ~31 min wall for the capture, 28m40s of it resolving the six
+    # libraries serially, peak RSS 5.4 GiB -- the max of the six, not their sum,
+    # reached on libonedal_dpc.so. Fits a 16 GB runner with room to spare. The
+    # SYCL headers dominate: one header under `-fsycl -DONEDAL_DATA_PARALLEL`
+    # costs 7m29s / 4.0 GiB against 59s / 0.6 GiB without. The three builds took
+    # 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard runner
+    # the builds, not the capture, dominate this job -- which is why the timeout
+    # stays at 180. Per-library numbers: .github/abicheck/README.md.
     timeout-minutes: 180
     env:
       ABICHECK_BASELINE_DIR: __abi_baselines
@@ -144,45 +132,27 @@ jobs:
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
-      # One capture, six libraries, one asset. The scan-side gate in ci.yml is
-      # a whole-product (bundle) comparison, so the baseline it needs is one
-      # BundleFacts document holding a header-scoped snapshot per library --
-      # not three independent per-library snapshots. Both halves read the same
-      # LIBRARIES table in .github/abicheck/onedal_libraries.py, which is the
-      # point: a baseline captured from a different header set than the gate
-      # uses reports every header-only difference as a spurious add/remove, and
-      # keeping the two sides in one table makes that drift impossible rather
-      # than merely documented.
+      # One capture, six libraries, one asset: ci.yml's gate is a whole-product
+      # comparison, so the baseline it needs is one BundleFacts document holding
+      # a header-scoped snapshot per library. Both halves read the same LIBRARIES
+      # table in .github/abicheck/onedal_libraries.py, which is the point -- a
+      # baseline captured from a different header set than the gate uses reports
+      # every header-only difference as a spurious add/remove, and one shared
+      # table makes that drift impossible rather than merely documented.
       #
       # The .json.zst suffix is load-bearing: abicheck infers the compression
-      # envelope from it on both sides, and this document is enormous
-      # uncompressed -- measured 902 MiB of JSON against 13.2 MiB compressed,
-      # a 65x ratio, because it embeds a full header-scoped snapshot per
-      # library rather than only the dependency graph.
+      # envelope from it on both sides, and this document is 902 MiB of JSON
+      # against 13.2 MiB compressed.
       #
-      # Keep ABICHECK_PIN equal to ci.yml's, and re-dispatch this workflow for
-      # every published tag whenever it moves. Mismatched pins do not fail in
-      # any way that points at the cause: they either under-report silently, or
-      # fail *loudly for the wrong reason*. Both halves are measured.
-      #
-      # The loud half, seen while validating an earlier bump: abicheck fixed a
-      # dumper bug where an enumerator whose initializer's folded value sits on
-      # an intermediate clang AST wrapper node (`csrArray = 1 << 4`) fell back
-      # to positional auto-increment, so `NumericTableIface::StorageLayout` was
-      # recorded as csrArray=3, arrow=4 instead of 16 and 2048. Scanning an
-      # unchanged source tree with the new pin against baselines dumped by the
-      # old one therefore reported 155 breaking `enum_member_value_changed`
-      # findings for libonedal_core.so and 125 for libonedal_dpc.so -- exit 4,
-      # a red X, and nothing in the report naming the baseline as the cause.
-      # Re-dumping the same tag with the same pin as the scanner took all 280
-      # to zero with no other change.
-      #
-      # What that obliges is re-*verifying* on every bump, not blindly re-
-      # capturing. Bumping to the pin below needed no new baselines: scanning
-      # the unchanged tree with it against the previous pin's snapshots
-      # produced reports identical line-for-line apart from timings. Do that
-      # check before landing a bump; if the reports differ, re-dispatch this
-      # workflow for every published tag first. See .github/abicheck/README.md.
+      # Keep ABICHECK_PIN equal to ci.yml's. A mismatch does not fail in any way
+      # that points at the cause -- it either under-reports silently or fails
+      # loudly for the wrong reason (measured: an enum-value dumper fix turned
+      # an unchanged tree into 280 breaking `enum_member_value_changed` findings
+      # against baselines dumped by the older pin, exit 4, with nothing naming
+      # the baseline as the cause). So every bump obliges re-*verifying* against
+      # the existing baselines, and re-dispatching this workflow for every
+      # published tag only if the reports differ; the pin below needed no new
+      # baselines on that test. See .github/abicheck/README.md.
       - name: Install abicheck
         run: python3 -m pip install --disable-pip-version-check
           "abicheck @ git+https://github.com/abicheck/abicheck@${{ env.ABICHECK_PIN }}"
@@ -194,18 +164,12 @@ jobs:
             --version "${{ steps.baseline.outputs.tag }}" \
             --output "${ABICHECK_BASELINE_DIR}/${{ steps.baseline.outputs.tag }}-bundle.abicheck.json.zst"
 
-      # Release assets have a 2 GiB per-file limit, so size is no longer a hard
-      # blocker the way it was when these snapshots were committed to git. This
-      # guard stays as a tripwire for the case it actually catches: compression
-      # silently not applying. The bundle facts asset is 13.2 MiB compressed
-      # (measured: six header-scoped snapshots) against 902 MiB of raw JSON, so
-      # the 100 MiB limit sits between the two and catches exactly that failure.
-      #
-      # The glob is *.abicheck.json.zst and the asset is named
-      # <tag>-bundle.abicheck.json.zst deliberately: this loop, the publish
-      # loop and the PR-side digest check all key on that one suffix, so an
-      # asset named outside it would make all three silently no-op rather than
-      # fail.
+      # A tripwire for one failure: compression silently not applying. Release
+      # assets allow 2 GiB, and the asset is 13.2 MiB compressed against 902 MiB
+      # raw, so a 100 MiB limit sits between the two. The glob and the asset name
+      # share the .abicheck.json.zst suffix deliberately -- this loop, the publish
+      # loop and the PR-side digest check all key on it, so an asset named outside
+      # it would make all three silently no-op rather than fail.
       - name: Report snapshot sizes and check the compression tripwire
         run: |
           set -euo pipefail
@@ -222,32 +186,21 @@ jobs:
           done
           exit "$rc"
 
-      # Upload before computing digests, so the digest file always describes the
-      # bytes that are actually published rather than the bytes this run
-      # happened to dump.
+      # Upload before computing digests, so the digest file describes the bytes
+      # actually published rather than the bytes this run happened to dump.
       #
-      # Fails closed on an immutability violation rather than passing
-      # --clobber: a published baseline is what every already-merged PR's
-      # "compatible with <tag>" verdict was computed against, and silently
-      # replacing it would make those verdicts stop meaning what they said.
-      #
-      # The rule is asset *existence*, not a byte compare, and it has to be:
-      # this document is not byte-reproducible. Two captures of the same tree by
-      # the same pin measured 13,800,260 and 13,799,608 bytes with different
-      # sha256s, while decompressing to the same 902,160,393 bytes and to
-      # identical line multisets -- the L5 source-graph decl nodes come out in a
-      # different order. So the content is reproducible and the bytes are not,
-      # which rules out "re-capture and compare digests" as a check and leaves
-      # existence as the only workable one.
-      #
-      # That is the weaker mechanism but the right rule anyway: every
-      # already-merged PR's "compatible with <tag>" verdict was computed against
-      # the published bytes, so replacing them has to be an explicit act even
-      # when the content behind them is the same. An already-published asset is
-      # therefore left exactly as it is, and its published bytes -- not this
-      # run's -- are what the digest step below hashes. That makes a re-run
-      # after a transient failure (upload succeeded, digest commit did not)
-      # converge instead of deadlocking.
+      # Fails closed on an immutability violation rather than passing --clobber:
+      # a published baseline is what every already-merged PR's "compatible with
+      # <tag>" verdict was computed against, so replacing it has to be an
+      # explicit act. The test is asset *existence*, not a byte compare, and it
+      # has to be -- this document is content-reproducible but not
+      # byte-reproducible (two captures of the same tree by the same pin measured
+      # 13,800,260 and 13,799,608 bytes with different sha256s, decompressing to
+      # the same 902,160,393 bytes and identical line multisets; the L5
+      # source-graph decl nodes come out in a different order). An
+      # already-published asset is therefore left as it is and its published
+      # bytes are what the digest step hashes, which makes a re-run after a
+      # transient failure converge instead of deadlocking.
       - name: Publish baseline snapshots to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
