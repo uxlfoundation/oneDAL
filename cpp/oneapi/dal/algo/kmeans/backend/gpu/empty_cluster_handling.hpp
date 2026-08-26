@@ -50,25 +50,18 @@ public:
     /// @param[in] source_clusters       An array of size [c]. Value at i-th position indicates the cluster
     ///                                  from which the i-th candidate row was stolen (i.e. the cluster
     ///                                  the candidate row was assigned to before it became a centroid).
-    ///                                  Empty on the receiving side of the distributed allgather until
-    ///                                  the source ids are shuffled by `reduce_candidates` to align with
-    ///                                  the winning rows.
-    /// @param[in] owning_ranks          An array of size [c]. Value at i-th position indicates the rank
-    ///                                  that owns the i-th winning candidate; used to gate the local
-    ///                                  source-cluster correction so only the owning rank subtracts the
-    ///                                  stolen row from its own centroid / counter. In the single-rank
-    ///                                  path this array can be omitted (all owned by rank 0).
+    ///                                  Filled locally by `find_candidates`; in the distributed path
+    ///                                  `reduce_candidates` shuffles it in place so that slot i holds the
+    ///                                  source cluster of the globally winning candidate for slot i.
     explicit centroid_candidates(const pr::ndarray<std::int32_t, 1>& indices,
                                  const pr::ndarray<Float, 1>& distances,
                                  const pr::ndarray<std::int32_t, 1>& empty_cluster_indices,
-                                 const pr::ndarray<std::int32_t, 1>& source_clusters = {},
-                                 const pr::ndarray<std::int32_t, 1>& owning_ranks = {})
+                                 const pr::ndarray<std::int32_t, 1>& source_clusters = {})
             : candidate_count_(indices.get_dimension(0)),
               indices_(indices),
               distances_(distances),
               empty_cluster_indices_(empty_cluster_indices),
-              source_clusters_(source_clusters),
-              owning_ranks_(owning_ranks) {
+              source_clusters_(source_clusters) {
         ONEDAL_ASSERT(candidate_count_ > 0);
         ONEDAL_ASSERT(empty_cluster_indices.get_dimension(0) == candidate_count_);
         ONEDAL_ASSERT(distances.get_dimension(0) == candidate_count_);
@@ -94,16 +87,8 @@ public:
         return source_clusters_;
     }
 
-    const pr::ndarray<std::int32_t, 1>& get_owning_ranks() const {
-        return owning_ranks_;
-    }
-
     void set_source_clusters(const pr::ndarray<std::int32_t, 1>& source_clusters) {
         source_clusters_ = source_clusters;
-    }
-
-    void set_owning_ranks(const pr::ndarray<std::int32_t, 1>& owning_ranks) {
-        owning_ranks_ = owning_ranks;
     }
 
 private:
@@ -112,7 +97,6 @@ private:
     pr::ndarray<Float, 1> distances_;
     pr::ndarray<std::int32_t, 1> empty_cluster_indices_;
     pr::ndarray<std::int32_t, 1> source_clusters_;
-    pr::ndarray<std::int32_t, 1> owning_ranks_;
 };
 
 template <typename Float>
@@ -169,23 +153,31 @@ auto fill_empty_clusters(sycl::queue& queue,
 /// it to `(sum_all - stolen) / (count_all - 1)`, which is what the *next* Lloyd iteration would
 /// otherwise take an extra iteration to converge to.
 ///
-/// Distributed handling: `candidates.get_source_clusters()[i] == -1` is a per-rank mask emitted
-/// by `reduce_candidates` for entries whose winning row is not owned by the current rank. Those
-/// slots are skipped here because their source cluster lives on another rank; that rank applies
-/// the correction locally for its own winners. The final `centroids` array is allreduced by the
-/// caller after this helper runs.
+/// Distributed handling: no extra communication is needed. `cluster_updater` allreduces both
+/// `counters` and `centroids` *before* calling into empty-cluster handling, and
+/// `reduce_candidates` leaves every rank with the same globally-agreed
+/// (distance, row, source_cluster) tuples. Every rank therefore applies the identical correction
+/// to identical inputs and stays in sync; the result must not be allreduced again, since that
+/// would multiply the correction by the rank count.
 ///
-/// Degenerate `count == 1` is left alone: subtracting the only assigned point would leave the
-/// centroid undefined, and the source cluster becomes empty after the count is decremented, which
-/// the next Lloyd iteration handles via its own empty-cluster path.
+/// Degenerate `count == 1` is skipped entirely -- neither the centroid nor the counter is touched.
+/// `(sum - stolen) / (count - 1)` is undefined there, and unlike the CPU kernel this helper has no
+/// access to the previous iteration's centroids to fall back on (`centroids` has already been
+/// overwritten with the newly computed values by the time it runs). The source cluster therefore
+/// keeps `count == 1` and a centroid equal to the stolen row, which is a valid data point and
+/// converges normally; the CPU kernel instead drains the counter to zero and falls back to the
+/// previous centroid. This is the one corner where the CPU and GPU kernels can disagree, and it
+/// requires a singleton cluster whose only point is also the globally farthest-from-its-centroid
+/// row.
 ///
 /// @tparam Float   The type of centroid elements.
 ///
 /// @param[in]     queue        The DPC++ queue.
 /// @param[in]     candidates   Structure describing candidate rows and their target empty-cluster
-///                             slots. Must have `get_source_clusters()` populated. In the
-///                             distributed path this happens inside `reduce_candidates`; in the
-///                             single-rank path `find_candidates` populates it directly.
+///                             slots. Must have `get_source_clusters()` populated -- filled by
+///                             `find_candidates` and, in the distributed path, shuffled to match
+///                             the global winners by `reduce_candidates`. If it is empty this
+///                             helper is a no-op.
 /// @param[in,out] centroids    The `[k x p]` centroids array; the stolen row is read from
 ///                             `centroids[empty_cluster_indices[i]]` and the source-cluster row
 ///                             is rewritten in place.
@@ -214,12 +206,15 @@ inline auto correct_source_clusters(sycl::queue& queue,
     Float* centroids_ptr = centroids.get_mutable_data();
     std::int32_t* counters_ptr = counters.get_mutable_data();
 
+    // Deliberately a serial `single_task`: several candidates can be stolen from the same source
+    // cluster, and the running `(sum - stolen) / (count - 1)` rewrite has to compose in order.
+    // `candidate_count` is the number of empty clusters, so this loop is short by construction.
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.single_task([=]() {
             for (std::int64_t i = 0; i < candidate_count; ++i) {
                 const std::int32_t src = source_clusters_ptr[i];
-                // src == -1 means this rank does not own the winning candidate at slot i.
+                // Defensive: responses always hold a valid cluster id, so this should not trigger.
                 if (src < 0) {
                     continue;
                 }
@@ -298,9 +293,8 @@ inline auto handle_empty_clusters(sycl::queue& queue,
         find_candidates(queue, candidate_count, closest_distances, counters, responses, deps);
 
     // `fill_empty_clusters` writes the winning candidate row into `centroids[dst_i]`. In the
-    // distributed path it also shuffles `candidates.source_clusters_` and masks non-owned entries
-    // to -1 inside `reduce_candidates`, so the correction below runs only for candidates whose
-    // source cluster lives on this rank.
+    // distributed path it also shuffles `candidates.source_clusters_` inside `reduce_candidates`
+    // so slot i names the source cluster of the globally winning candidate for slot i.
     auto fill_event =
         fill_empty_clusters(queue, comm, data, candidates, centroids, { find_candidates_event });
 

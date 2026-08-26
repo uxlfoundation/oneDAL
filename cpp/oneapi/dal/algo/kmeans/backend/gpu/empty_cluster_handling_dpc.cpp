@@ -87,7 +87,10 @@ static auto fill_empty_cluster_indices(sycl::queue& queue,
     ONEDAL_ASSERT(candidate_count <= cluster_count);
     ONEDAL_ASSERT(empty_cluster_indices.get_dimension(0) >= candidate_count);
 
-    const auto host_counters = counters.to_host(queue);
+    // `deps` has to be honoured here: this function returns an empty event, so anything the
+    // caller passes in has to be drained before returning or the caller has no way left to
+    // order against it. `to_host` waits on `deps` before copying.
+    const auto host_counters = counters.to_host(queue, deps);
     const auto host_empty_cluster_indices = bk::make_unique_host<std::int32_t>(candidate_count);
 
     const std::int32_t* host_counters_ptr = host_counters.get_data();
@@ -256,10 +259,11 @@ static auto scatter_candidates(sycl::queue& queue,
 
 /// Performs the cross-rank allgather + partial-sort of local candidate lists to pick the globally
 /// best `candidate_count` rows to fill empty clusters. Extended to also carry the source-cluster
-/// id and the owner's per-rank row index per candidate through the reduction and to emit the
-/// owning rank of each winning candidate so callers can gate the local source-cluster correction
-/// (subtracting the stolen row from the source cluster's centroid / counter) to the rank that
-/// actually owns the winning row.
+/// id and the owner's per-rank row index for each candidate through the reduction, so that the
+/// source-cluster correction (subtracting the stolen row from the source cluster's centroid and
+/// counter) can be applied downstream. Every rank ends up with the same globally-agreed tuples,
+/// except for `row_indices`, which is rank-local and therefore masked to -1 for candidates this
+/// rank does not own.
 template <typename Float>
 static auto reduce_candidates(sycl::queue& queue,
                               const bk::communicator<spmd::device_memory_access::usm>& comm,
@@ -268,7 +272,6 @@ static auto reduce_candidates(sycl::queue& queue,
                               pr::ndarray<Float, 2>& candidates,
                               pr::ndarray<std::int32_t, 1>& row_indices,
                               pr::ndarray<std::int32_t, 1>& source_clusters,
-                              pr::ndarray<std::int32_t, 1>& owning_ranks,
                               const bk::event_vector& deps = {}) -> sycl::event {
     ONEDAL_PROFILER_TASK(reduce_candidates, queue);
     const std::int64_t column_count = candidates.get_dimension(1);
@@ -281,7 +284,6 @@ static auto reduce_candidates(sycl::queue& queue,
     ONEDAL_ASSERT(distances.get_dimension(0) == candidate_count);
     ONEDAL_ASSERT(row_indices.get_dimension(0) == candidate_count);
     ONEDAL_ASSERT(source_clusters.get_dimension(0) == candidate_count);
-    ONEDAL_ASSERT(owning_ranks.get_dimension(0) == candidate_count);
 
     const std::int64_t all_candidate_count =
         dal::detail::check_mul_overflow(rank_count, candidate_count);
@@ -368,8 +370,7 @@ static auto reduce_candidates(sycl::queue& queue,
     }
 
     // Shuffle winners back into the per-rank layout. Each rank ends up with the same globally
-    // agreed [candidate_count] tuples of (distance, row, source_cluster, row_index, owning_rank).
-    auto host_owning_ranks = bk::make_unique_host<std::int32_t>(candidate_count);
+    // agreed [candidate_count] tuples of (distance, row, source_cluster).
     {
         const Float* host_all_candidates_ptr = host_all_candidates.get_data();
         const Float* host_all_distances_ptr = host_all_distances.get_data();
@@ -380,8 +381,16 @@ static auto reduce_candidates(sycl::queue& queue,
         Float* host_candidates_ptr = host_candidates.get_mutable_data();
         std::int32_t* host_sources_ptr = host_sources.get_mutable_data();
         std::int32_t* host_row_indices_ptr = host_row_indices.get_mutable_data();
-        std::int32_t* host_owning_ranks_ptr = host_owning_ranks.get();
 
+        // Every rank ends up with the same globally-agreed (distance, row, source_cluster) tuples
+        // in slots [0, candidate_count) and applies the source-cluster correction (subtract the
+        // stolen row, decrement the counter) identically to its post-allreduce copy of centroids /
+        // counters, so no additional allreduce is needed after the correction.
+        //
+        // `row_indices` is the exception: it is a rank-local row index, so it is masked to -1 for
+        // candidates this rank does not own, which would otherwise be a hazard for any consumer
+        // reading `data[row_indices[i]]`. The correction itself reads the stolen row back from
+        // `centroids[dst_i]` after `fill_empty_clusters` has written it, so it needs no row index.
         for (std::int64_t i = 0; i < candidate_count; i++) {
             const std::int64_t src_i = host_all_indices_ptr[i];
             host_distances_ptr[i] = host_all_distances_ptr[src_i];
@@ -389,25 +398,11 @@ static auto reduce_candidates(sycl::queue& queue,
                      host_all_candidates_ptr + src_i * column_count,
                      column_count);
             host_sources_ptr[i] = host_all_sources_ptr[src_i];
-            host_row_indices_ptr[i] = host_all_row_indices_ptr[src_i];
-            // src_i is a flat index into a [rank_count, candidate_count] array so the owning rank
-            // is the integer part of src_i / candidate_count.
-            host_owning_ranks_ptr[i] = static_cast<std::int32_t>(src_i / candidate_count);
-        }
-
-        // Every rank ends up with the same globally-agreed (distance, row, source_cluster,
-        // owning_rank) tuples in slots [0, candidate_count) and applies the source-cluster
-        // correction (subtract stolen row, decrement counter) identically to its post-allreduce
-        // copy of centroids / counters, so no additional allreduce is needed after the
-        // correction. The `row_indices` field is masked to -1 for entries not owned by this rank
-        // because it is a per-rank-local index and would be a hazard for downstream consumers
-        // that read `data[row_indices[i]]`; the correction itself reads the stolen row from
-        // `centroids[dst_i]` after `fill_empty_clusters` has written it, so it doesn't need
-        // row_indices.
-        for (std::int64_t i = 0; i < candidate_count; i++) {
-            if (host_owning_ranks_ptr[i] != static_cast<std::int32_t>(my_rank)) {
-                host_row_indices_ptr[i] = -1;
-            }
+            // src_i is a flat index into a [rank_count, candidate_count] array, so the rank that
+            // owns this winner is the integer part of src_i / candidate_count.
+            const std::int64_t owning_rank = src_i / candidate_count;
+            host_row_indices_ptr[i] =
+                (owning_rank == my_rank) ? host_all_row_indices_ptr[src_i] : -1;
         }
     }
 
@@ -436,17 +431,10 @@ static auto reduce_candidates(sycl::queue& queue,
             host_row_indices.get_data(),
             candidate_count);
 
-        auto ranks_copy_event = dal::backend::copy_host2usm( //
-            queue,
-            owning_ranks.get_mutable_data(),
-            host_owning_ranks.get(),
-            candidate_count);
-
         sycl::event::wait({ distances_copy_event,
                             candidates_copy_event,
                             sources_copy_event,
-                            row_indices_copy_event,
-                            ranks_copy_event });
+                            row_indices_copy_event });
     }
 
     return sycl::event{};
@@ -474,9 +462,6 @@ static auto gather_scatter_candidates(sycl::queue& queue,
     auto candidate_distances = candidates.get_distances();
     auto source_clusters = candidates.get_source_clusters();
     auto candidate_row_indices = candidates.get_indices();
-    auto owning_ranks = pr::ndarray<std::int32_t, 1>::empty(queue,
-                                                            { candidate_count },
-                                                            sycl::usm::alloc::device);
     auto reduce_event = reduce_candidates(queue,
                                           comm,
                                           candidate_count,
@@ -484,14 +469,11 @@ static auto gather_scatter_candidates(sycl::queue& queue,
                                           gathered_candidates,
                                           candidate_row_indices,
                                           source_clusters,
-                                          owning_ranks,
                                           { gather_event });
     // Post-reduce, `source_clusters` and the local `indices_` have been shuffled to match the
-    // winning candidates and masked to `-1` for entries not owned by this rank. Stash the
-    // freshly-populated owning_ranks into the candidates struct so callers can apply the local
-    // correction.
+    // globally winning candidates (`indices_` additionally masked to -1 where this rank is not the
+    // owner). Publish the shuffled source ids so the correction downstream sees them.
     candidates.set_source_clusters(source_clusters);
-    candidates.set_owning_ranks(owning_ranks);
 
     auto scatter_event = scatter_candidates(queue,
                                             candidates.get_empty_cluster_indices(),
@@ -518,7 +500,9 @@ auto find_candidates(sycl::queue& queue,
     ONEDAL_ASSERT(closest_distances.get_dimension(0) >= candidate_count);
     ONEDAL_ASSERT(closest_distances.get_dimension(1) == 1);
     ONEDAL_ASSERT(counters.get_dimension(0) >= candidate_count);
-    ONEDAL_ASSERT(responses.get_dimension(0) >= candidate_count);
+    // Candidate indices are row indices, so `responses` must cover every row.
+    ONEDAL_ASSERT(responses.get_dimension(0) == closest_distances.get_dimension(0));
+    ONEDAL_ASSERT(responses.get_dimension(1) == 1);
 
     constexpr auto alloc = sycl::usm::alloc::device;
     const auto shape = pr::ndshape<1>{ candidate_count };
@@ -547,20 +531,21 @@ auto find_candidates(sycl::queue& queue,
         });
     });
 
+    // `fill_sources_event` is folded into `fill_empty_cluster_indices`' dependency list rather
+    // than waited on separately: that function already drains its deps on the host (it has to,
+    // since it returns an empty event), so `source_clusters` is guaranteed to be readable by the
+    // time `find_candidates` returns without adding a second synchronization point.
     auto fill_empty_cluster_indices_event =
         fill_empty_cluster_indices(queue,
                                    candidate_count,
                                    counters,
                                    empty_cluster_indices,
-                                   { fill_indices_and_distances_event });
+                                   { fill_indices_and_distances_event, fill_sources_event });
 
     centroid_candidates<Float> candidates{ candidate_indices,
                                            candidate_distances,
                                            empty_cluster_indices,
                                            source_clusters };
-
-    // Wait for source-cluster fill too before returning so downstream can consume it.
-    fill_sources_event.wait_and_throw();
 
     return { candidates, fill_empty_cluster_indices_event };
 }

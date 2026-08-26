@@ -21,14 +21,13 @@
 //--
 */
 
-#include <cstdint>
-
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "src/threading/threading.h"
 #include "services/daal_defines.h"
 #include "src/externals/service_memory.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/services/service_data_utils.h"
 
 #include "src/algorithms/kmeans/kmeans_lloyd_impl.i"
 
@@ -58,13 +57,11 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     int result             = 0;
 
     // Cluster indices are narrowed to `int` when they are written into
-    // `ntAssignments` (WriteOnlyRows<int, cpu>). Refuse inputs whose
-    // cluster count exceeds the maximum positive value representable by
-    // `int32_t` so the cast never silently overflows.
-    if (nClusters > static_cast<size_t>(INT32_MAX))
-    {
-        return services::Status(services::ErrorKMeansNumberOfClustersIsTooLarge);
-    }
+    // `ntAssignments` (`WriteOnlyRows<int, cpu>`) and into the per-candidate
+    // `cSources` buffer. The bound is derived from `int` itself via
+    // `MaxVal<int>`, not from a fixed-width `INT32_MAX`, so the check stays
+    // correct on any data model where `int` is not 32 bits wide.
+    DAAL_CHECK(nClusters <= static_cast<size_t>(services::internal::MaxVal<int>::get()), services::ErrorKMeansNumberOfClustersIsTooLarge);
 
     size_t blockSize = 0;
     DAAL_SAFE_CPU_CALL((blockSize = BSHelper<method, algorithmFPType, cpu>::kmeansGetBlockSize(n, p, nClusters)), (blockSize = 512))

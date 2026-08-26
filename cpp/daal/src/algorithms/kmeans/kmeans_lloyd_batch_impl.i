@@ -21,14 +21,13 @@
 //--
 */
 
-#include <cstdint>
-
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "src/threading/threading.h"
 #include "services/daal_defines.h"
 #include "src/externals/service_memory.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 
 #include "src/algorithms/kmeans/kmeans_lloyd_impl.i"
@@ -58,17 +57,15 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
     const size_t nClusters = par->nClusters;
     int result             = 0;
 
-    // Cluster indices are written into `int`-typed assignment tables
-    // (WriteOnlyRows<int, cpu>) and into the internal `pointAssignments`
-    // buffer. Refuse inputs whose cluster count exceeds the maximum
-    // positive value representable by `int32_t` so the downstream
-    // narrowing cast never silently overflows.
-    if (nClusters > static_cast<size_t>(INT32_MAX))
-    {
-        return services::Status(services::ErrorKMeansNumberOfClustersIsTooLarge);
-    }
+    // Cluster indices are narrowed to `int` when they are written into the
+    // assignment table (`WriteOnlyRows<int, cpu>`) and into the internal
+    // `pointAssignments` buffer. The bound is derived from `int` itself via
+    // `MaxVal<int>`, not from a fixed-width `INT32_MAX`, so the check stays
+    // correct on any data model where `int` is not 32 bits wide.
+    DAAL_CHECK(nClusters <= static_cast<size_t>(services::internal::MaxVal<int>::get()), services::ErrorKMeansNumberOfClustersIsTooLarge);
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(int));
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, n, sizeof(int));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, p);
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters * p, sizeof(algorithmFPType));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, p, sizeof(algorithmFPType));
@@ -251,7 +248,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                         clusters[i * p + j] = newCluster;
                     }
                 }
-                else if (clusters + i * p != inClusters + i * p)
+                else if (clusters != inClusters)
                 {
                     // Cluster was non-empty at the start of the iteration but
                     // pass 1 drained all its points as candidates. Fall back
