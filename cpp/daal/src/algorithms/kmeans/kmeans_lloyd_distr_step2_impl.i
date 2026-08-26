@@ -255,49 +255,117 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
 
     // Two-pass merge (mirror of kmeans_lloyd_batch_impl.i):
-    //   Pass 1: for every empty cluster i, promote the next unused candidate
-    //           row (cCentroids[cPos]) to its centroid. The candidate was
+    //   Pass 1: for every empty cluster i, promote one of the candidate rows
+    //           (a row of cCentroids) to its centroid. The candidate was
     //           originally assigned to some source cluster srcCluster on its
     //           emitting rank; that cluster's clusterS0/clusterS1 already
     //           carries the row's contribution after step2::compute()
     //           aggregation. Undo it now so pass 2 computes the source
     //           cluster's centroid without the stolen row.
+    //
+    //           Candidates whose source cluster holds a single point are
+    //           passed over while a better candidate is available: taking the
+    //           only point of a cluster would not reduce the number of empty
+    //           clusters, it would just move the emptiness elsewhere and leave
+    //           two centroids sitting on the same point. Unlike the batch
+    //           kernel, finalizeCompute cannot answer "leave this cluster
+    //           empty and keep its previous centroid" -- it has no visibility
+    //           into the previous-iteration centroids (the master broadcasts
+    //           them back only at the start of the next iteration) -- so a
+    //           cluster that finds no such candidate falls back to the best
+    //           leftover one, which is what the pre-fix loop did for every
+    //           empty cluster.
     //   Pass 2: normalize the remaining non-empty, non-replaced clusters.
-    //           Corner case: a source cluster drained completely by pass 1
-    //           has clusterS0[src]==0 in pass 2. finalizeCompute has no
-    //           visibility into the previous-iteration centroids (the master
-    //           broadcasts them back only at the start of the next iteration),
-    //           so seed the drained cluster from the next unused candidate row
-    //           instead -- exactly what the pre-fix single-pass loop did for
-    //           every empty cluster.
-    size_t cPos = 0;
+    //           Corner case: a source cluster drained by a fallback theft in
+    //           pass 1 has clusterS0[src]==0 in pass 2, and is seeded from a
+    //           leftover candidate row for the same reason.
+    //
+    // Candidates are ordered by decreasing distance and occupy slots
+    // [0, cAvail) of cValuesTbl / cCentroids; slots with a negative distance
+    // are empty. `cUsed` marks the slots already consumed.
+    size_t cAvail = 0;
+    while (cAvail < nClusters && !(cValuesTbl[cAvail * 2 + 0] < (algorithmFPType)0.0))
+    {
+        cAvail++;
+    }
 
-    // Pass 1: replace empties.
+    TArray<bool, cpu> cUsed(nClusters);
+    DAAL_CHECK_MALLOC(cUsed.get());
+    service_memset_seq<bool, cpu>(cUsed.get(), false, nClusters);
+
+    // Seeds cluster `i` from candidate slot `c`: promotes the candidate row to
+    // the cluster's centroid and, when `adjustSource` is set, undoes the row's
+    // contribution to the cluster it was assigned to. Pass 2 clears
+    // `adjustSource`: by then some clusters have already been normalized, so a
+    // late aggregate update would not be reflected in their centroids.
+    auto seedFromCandidate = [&](size_t i, size_t c, bool adjustSource) -> void {
+        outTarget[0] -= cValuesTbl[c * 2 + 0];
+
+        const int srcCluster            = static_cast<int>(cValuesTbl[c * 2 + 1]);
+        const algorithmFPType * candRow = &cCentroids[c * p];
+        result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), candRow, p * sizeof(algorithmFPType));
+
+        if (adjustSource && srcCluster >= 0 && static_cast<size_t>(srcCluster) < nClusters && clusterS0[srcCluster] > 0)
+        {
+            clusterS0[srcCluster]--;
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t j = 0; j < p; j++)
+            {
+                clusterS1[srcCluster * p + j] -= candRow[j];
+            }
+        }
+
+        cUsed[c]           = true;
+        clusterReplaced[i] = true;
+    };
+
+    // Returns the first unused candidate slot, or `nClusters` if there is none.
+    auto firstUnusedCandidate = [&]() -> size_t {
+        for (size_t c = 0; c < cAvail; c++)
+        {
+            if (!cUsed[c])
+            {
+                return c;
+            }
+        }
+        return nClusters;
+    };
+
+    // Pass 1, sweep 1: every empty cluster takes the best candidate whose
+    // source cluster can spare the row.
     for (size_t i = 0; i < nClusters; i++)
     {
-        if (clusterS0[i] == 0)
+        if (clusterS0[i] != 0)
         {
-            DAAL_CHECK(!(cValuesTbl[cPos * 2 + 0] < (algorithmFPType)0.0), services::ErrorKMeansNumberOfClustersIsTooLarge);
-            outTarget[0] -= cValuesTbl[cPos * 2 + 0];
-
-            const int srcCluster            = static_cast<int>(cValuesTbl[cPos * 2 + 1]);
-            const algorithmFPType * candRow = &cCentroids[cPos * p];
-            result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), candRow, p * sizeof(algorithmFPType));
-
-            if (srcCluster >= 0 && static_cast<size_t>(srcCluster) < nClusters && clusterS0[srcCluster] > 0)
-            {
-                clusterS0[srcCluster]--;
-                PRAGMA_OMP_SIMD
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j < p; j++)
-                {
-                    clusterS1[srcCluster * p + j] -= candRow[j];
-                }
-            }
-
-            clusterReplaced[i] = true;
-            cPos++;
+            continue;
         }
+        for (size_t c = 0; c < cAvail; c++)
+        {
+            if (cUsed[c])
+            {
+                continue;
+            }
+            const int srcCluster = static_cast<int>(cValuesTbl[c * 2 + 1]);
+            if (srcCluster >= 0 && static_cast<size_t>(srcCluster) < nClusters && clusterS0[srcCluster] > 1)
+            {
+                seedFromCandidate(i, c, true);
+                break;
+            }
+        }
+    }
+
+    // Pass 1, sweep 2: clusters still empty had no such candidate; seed them
+    // from the leftovers.
+    for (size_t i = 0; i < nClusters; i++)
+    {
+        if (clusterS0[i] != 0 || clusterReplaced[i])
+        {
+            continue;
+        }
+        const size_t c = firstUnusedCandidate();
+        DAAL_CHECK(c < nClusters, services::ErrorKMeansNumberOfClustersIsTooLarge);
+        seedFromCandidate(i, c, true);
     }
 
     // Pass 2: normalize the non-empty, non-replaced clusters.
@@ -319,13 +387,11 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
         else
         {
             // Cluster was non-empty on entry but pass 1 drained all of its
-            // points as candidates. Seed it from the next unused candidate row
-            // and apply the same objective-function correction pass 1 applies.
-            DAAL_CHECK(!(cValuesTbl[cPos * 2 + 0] < (algorithmFPType)0.0), services::ErrorKMeansNumberOfClustersIsTooLarge);
-            outTarget[0] -= cValuesTbl[cPos * 2 + 0];
-            result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &cCentroids[cPos * p],
-                                                              p * sizeof(algorithmFPType));
-            cPos++;
+            // points as candidates. Seed it from a leftover candidate row and
+            // apply the same objective-function correction pass 1 applies.
+            const size_t c = firstUnusedCandidate();
+            DAAL_CHECK(c < nClusters, services::ErrorKMeansNumberOfClustersIsTooLarge);
+            seedFromCandidate(i, c, false);
         }
     }
 

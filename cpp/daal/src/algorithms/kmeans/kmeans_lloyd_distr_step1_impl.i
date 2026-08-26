@@ -58,9 +58,7 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
 
     // Cluster indices are narrowed to `int` when they are written into
     // `ntAssignments` (`WriteOnlyRows<int, cpu>`) and into the per-candidate
-    // `cSources` buffer. The bound is derived from `int` itself via
-    // `MaxVal<int>`, not from a fixed-width `INT32_MAX`, so the check stays
-    // correct on any data model where `int` is not 32 bits wide.
+    // `cSources` buffer, so they have to fit into `int`.
     DAAL_CHECK(nClusters <= static_cast<size_t>(services::internal::MaxVal<int>::get()), services::ErrorKMeansNumberOfClustersIsTooLarge);
 
     size_t blockSize = 0;

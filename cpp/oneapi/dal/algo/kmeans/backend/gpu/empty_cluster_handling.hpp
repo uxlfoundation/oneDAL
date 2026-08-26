@@ -133,11 +133,15 @@ auto copy_candidates_from_data(sycl::queue& queue,
                                pr::ndview<Float, 2>& centroids,
                                const bk::event_vector& deps) -> sycl::event;
 
+/// Writes the winning candidate row into the centroid of each empty cluster. In the distributed
+/// path the winners are agreed across ranks first; `counters` is needed there because the global
+/// selection prefers candidates whose source cluster can spare a row (see `reduce_candidates`).
 template <typename Float>
 auto fill_empty_clusters(sycl::queue& queue,
                          bk::communicator<spmd::device_memory_access::usm>& comm,
                          const pr::ndview<Float, 2>& data,
                          centroid_candidates<Float>& candidates,
+                         const pr::ndarray<std::int32_t, 1>& counters,
                          pr::ndview<Float, 2>& centroids,
                          const bk::event_vector& deps = {}) -> sycl::event;
 
@@ -160,15 +164,19 @@ auto fill_empty_clusters(sycl::queue& queue,
 /// to identical inputs and stays in sync; the result must not be allreduced again, since that
 /// would multiply the correction by the rank count.
 ///
-/// Degenerate `count == 1` is skipped entirely -- neither the centroid nor the counter is touched.
-/// `(sum - stolen) / (count - 1)` is undefined there, and unlike the CPU kernel this helper has no
-/// access to the previous iteration's centroids to fall back on (`centroids` has already been
-/// overwritten with the newly computed values by the time it runs). The source cluster therefore
-/// keeps `count == 1` and a centroid equal to the stolen row, which is a valid data point and
-/// converges normally; the CPU kernel instead drains the counter to zero and falls back to the
-/// previous centroid. This is the one corner where the CPU and GPU kernels can disagree, and it
-/// requires a singleton cluster whose only point is also the globally farthest-from-its-centroid
-/// row.
+/// Degenerate `count == 1` is skipped entirely -- neither the centroid nor the counter is touched,
+/// since `(sum - stolen) / (count - 1)` is undefined there. Candidate selection demotes rows whose
+/// cluster holds a single point (see `fill_candidate_indices_and_distances` and
+/// `reduce_candidates`), so this branch is only reached when
+///  * there are not enough other rows to fill every empty cluster, or
+///  * two candidates come from the same two-point cluster, in which case the second one finds
+///    `count == 1` after the first correction.
+/// The source cluster then keeps `count == 1` and a centroid equal to the stolen row, which is a
+/// valid data point; the empty cluster ends up with the same centroid, so the pair converges
+/// without moving. The CPU kernel resolves the first case slightly differently -- it leaves the
+/// empty cluster at its previous centroid rather than duplicating the source centroid -- because
+/// it still has the previous centroids on hand, while here `centroids` has already been
+/// overwritten with the newly computed values.
 ///
 /// @tparam Float   The type of centroid elements.
 ///
@@ -295,8 +303,13 @@ inline auto handle_empty_clusters(sycl::queue& queue,
     // `fill_empty_clusters` writes the winning candidate row into `centroids[dst_i]`. In the
     // distributed path it also shuffles `candidates.source_clusters_` inside `reduce_candidates`
     // so slot i names the source cluster of the globally winning candidate for slot i.
-    auto fill_event =
-        fill_empty_clusters(queue, comm, data, candidates, centroids, { find_candidates_event });
+    auto fill_event = fill_empty_clusters(queue,
+                                          comm,
+                                          data,
+                                          candidates,
+                                          counters,
+                                          centroids,
+                                          { find_candidates_event });
 
     auto correct_event =
         correct_source_clusters(queue, candidates, centroids, counters, { fill_event });

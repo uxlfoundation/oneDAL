@@ -59,9 +59,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     // Cluster indices are narrowed to `int` when they are written into the
     // assignment table (`WriteOnlyRows<int, cpu>`) and into the internal
-    // `pointAssignments` buffer. The bound is derived from `int` itself via
-    // `MaxVal<int>`, not from a fixed-width `INT32_MAX`, so the check stays
-    // correct on any data model where `int` is not 32 bits wide.
+    // `pointAssignments` buffer, so they have to fit into `int`.
     DAAL_CHECK(nClusters <= static_cast<size_t>(services::internal::MaxVal<int>::get()), services::ErrorKMeansNumberOfClustersIsTooLarge);
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(int));
@@ -178,13 +176,15 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
             //           to on this iteration, so decrement that source
             //           cluster's counters (clusterS0, clusterS1) here so the
             //           subsequent centroid computation in pass 2 reflects
-            //           the theft.
+            //           the theft. Candidates whose source cluster holds a
+            //           single point are passed over -- see the skip loop
+            //           below.
             //   Pass 2: compute centroids for the originally-non-empty
             //           clusters from the (now theft-adjusted) aggregates and
-            //           accumulate the L2 shift. If a source cluster ended up
-            //           fully drained, fall back to its previous centroid
-            //           (inClusters) so `clusters[i * p + j]` is always
-            //           defined on iter 0.
+            //           accumulate the L2 shift. A cluster that pass 1 left
+            //           empty (no usable candidate) falls back to its previous
+            //           centroid (inClusters) so `clusters[i * p + j]` is
+            //           always defined on iter 0.
             //
             // Reading previous centroids from `inClusters`, not from the
             // write-only `clusters` buffer: on the very first iteration
@@ -197,6 +197,25 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 if (clusterS0[i] == 0)
                 {
                     DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
+
+                    // Pass over candidates whose source cluster holds a single
+                    // point: taking it would empty the source cluster, so the
+                    // number of empty clusters would not go down, and the two
+                    // centroids would end up on the same point. A skipped
+                    // candidate is gone for good -- cluster sizes only shrink
+                    // within this pass, so it cannot become usable later.
+                    while (cPos < cNum && clusterS0[pointAssignments[cIndices[cPos]]] <= 1)
+                    {
+                        cPos++;
+                    }
+                    if (cPos == cNum)
+                    {
+                        // Every remaining candidate is the only point of its
+                        // cluster. Leave cluster i empty for this iteration;
+                        // pass 2 keeps its previous centroid.
+                        continue;
+                    }
+
                     newCentersGoalFunc += cValues[cPos];
                     const size_t candidateRowIdx = cIndices[cPos];
                     ReadRows<algorithmFPType, cpu> mtRow(ntData, candidateRowIdx, 1);
@@ -206,7 +225,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     // so pass 2 computes that cluster's centroid without it.
                     const int srcCluster = pointAssignments[candidateRowIdx];
                     DAAL_ASSERT(srcCluster >= 0 && (size_t)srcCluster < nClusters);
-                    DAAL_ASSERT(clusterS0[srcCluster] > 0);
+                    DAAL_ASSERT(clusterS0[srcCluster] > 1);
                     clusterS0[srcCluster]--;
                     PRAGMA_OMP_SIMD
                     PRAGMA_VECTOR_ALWAYS
@@ -250,10 +269,13 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 }
                 else if (clusters != inClusters)
                 {
-                    // Cluster was non-empty at the start of the iteration but
-                    // pass 1 drained all its points as candidates. Fall back
-                    // to the previous centroid so we never leave
-                    // `clusters[i]` uninitialized on iter 0. Skipped when
+                    // Cluster is empty and pass 1 found no usable candidate for
+                    // it (every remaining candidate was the only point of its
+                    // own cluster). Fall back to the previous centroid so we
+                    // never leave `clusters[i]` uninitialized on iter 0. Note
+                    // that pass 1 can no longer drain an originally non-empty
+                    // cluster: it never takes the last point of a cluster.
+                    // Skipped when
                     // `clusters` and `inClusters` alias (iter >= 1 with
                     // tClusters unused), in which case the value is already
                     // there.
