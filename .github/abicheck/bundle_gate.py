@@ -19,12 +19,13 @@
 
 oneDAL is one header tree across six interdependent shared objects. abicheck's
 ADR-023 bundle layer is built for that shape and names oneDAL as its motivating
-case, but its stored-baseline consumer is reachable only from Python and, as
-written, forwards no ``CompileContext`` (defaulting to castxml, which cannot
-parse this clang/icpx-only toolchain) and applies one ``headers``/``includes``
-set uniformly to every library. So this module drives the same Tier-2
-chokepoints (``service.resolve_input`` / ``service.compare_snapshots`` /
-``bundle_facts.compare_bundle_from_facts``) with per-library scoping instead.
+case, but its stored-baseline consumer is reachable only from Python and diffs
+each library with a policy *object* alone: it accepts no ``policy_file``, so
+routing this gate through it would silently drop every ``policy.yaml``
+reclassification. So this module drives the same Tier-2 chokepoints
+(``service.resolve_input`` / ``service.compare_snapshots`` /
+``bundle_facts.compare_bundle_from_facts``) itself, with per-library header
+roots, a per-library compile context and the policy file applied.
 Full rationale, and what would make this file deletable:
 ``.github/abicheck/README.md``.
 
