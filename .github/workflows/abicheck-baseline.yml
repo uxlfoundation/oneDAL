@@ -43,11 +43,11 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     # Measured against the pin below, on the no-debug-info build this workflow
-    # produces: ~31 min wall for the capture, 28m40s of it resolving the six
-    # libraries serially, peak RSS 5.4 GiB -- the max of the six, not their sum,
+    # produces: 31m19s wall for the capture, 28m33s of it resolving the six
+    # libraries serially, peak RSS 5.2 GiB -- the max of the six, not their sum,
     # reached on libonedal_dpc.so. Fits a 16 GB runner with room to spare. The
     # SYCL headers dominate: one header under `-fsycl -DONEDAL_DATA_PARALLEL`
-    # costs 7m29s / 4.0 GiB against 59s / 0.6 GiB without. The three builds took
+    # costs 7m30s / 4.0 GiB against 59s / 0.6 GiB without. The three builds took
     # 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard runner
     # the builds, not the capture, dominate this job -- which is why the timeout
     # stays at 180. Per-library numbers: .github/abicheck/README.md.
@@ -56,7 +56,7 @@ jobs:
       ABICHECK_BASELINE_DIR: __abi_baselines
       # Must equal ci.yml's ABICHECK_PIN. Not a `uses:` pin because the capture
       # drives abicheck as a Python library -- see the capture step's comment.
-      ABICHECK_PIN: 793849f3cb7c3eb7c5add2b90ca31b6c5849834b
+      ABICHECK_PIN: c599daf737b673531a6611a7005e0efde18345b5
       # The bytes actually on the release after the publish step: this run's
       # freshly dumped snapshot for a new asset, the already-published asset for
       # one that exists. The digest file is computed from here, never from

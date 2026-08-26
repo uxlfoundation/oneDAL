@@ -30,9 +30,10 @@
 # then `overrides:`, then the base policy.
 #
 # Verified with this file by the abicheck commit both workflows pin
-# (793849f3), against that same commit's baseline facts, on the no-debug-info
-# build LinuxMakeDPCPP produces: bundle verdict NO_CHANGE, exit 0, 0
-# cross-library findings, every library COMPATIBLE_WITH_RISK with
+# (c599daf7), against the published baseline facts and against facts freshly
+# captured by that commit -- both give the identical report -- on the
+# no-debug-info build LinuxMakeDPCPP produces: bundle verdict NO_CHANGE, exit
+# 0, 0 cross-library findings, every library COMPATIBLE_WITH_RISK with
 # libonedal_core.so 79 findings, libonedal.so 59, libonedal_dpc.so 80,
 # libonedal_parameters.so 2, libonedal_parameters_dpc.so 2,
 # libonedal_thread.so 1 (COMPATIBLE). abi_breaking count 0, nothing removed

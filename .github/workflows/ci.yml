@@ -189,7 +189,7 @@ jobs:
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
     # Measured with the pin below, against a baseline captured by that same
-    # commit, on the no-debug-info build LinuxMakeDPCPP produces: 31m28s wall,
+    # commit, on the no-debug-info build LinuxMakeDPCPP produces: 31m27s wall,
     # 8.03 GiB peak RSS, exit 0. The six libraries are parsed serially in one
     # process on one core, so the wall time is a sum and adding a library adds
     # its full cost; the peak is the number to watch, since the whole-product
@@ -216,7 +216,7 @@ jobs:
       # The abicheck commit this gate runs. Not a `uses:` pin because the gate
       # drives abicheck as a Python library, so it is installed with pip; it
       # must still equal the pin in abicheck-baseline.yml.
-      ABICHECK_PIN: 793849f3cb7c3eb7c5add2b90ca31b6c5849834b
+      ABICHECK_PIN: c599daf737b673531a6611a7005e0efde18345b5
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -293,8 +293,9 @@ jobs:
       #
       # abicheck's bundle layer (ADR-023) is built for this shape and names
       # oneDAL as its motivating case, but it is reachable only from Python and
-      # expresses neither a per-library compile context nor per-library header
-      # roots, both of which oneDAL needs. Hence a committed driver,
+      # its stored-baseline consumer takes a policy object, not a policy file,
+      # so routing this gate through it would drop every policy.yaml
+      # reclassification silently. Hence a committed driver,
       # .github/abicheck/bundle_gate.py, rather than the composite Action; it
       # produces everything the three scans did. Why, and what would make it
       # deletable: .github/abicheck/README.md.

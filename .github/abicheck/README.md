@@ -236,11 +236,14 @@ across `libonedal_core.so` and `libonedal_dpc.so` on an *unchanged* tree,
 
 So bumping the pin obliges re-*verifying* the published baselines, with no
 `schema_version` shortcut: scan the unchanged tree with the new pin against the
-current baselines and diff the report against the old pin's. The bump to the pin
-now in use came out identical line-for-line apart from timings, so it needed no
-re-capture. Any difference means re-dispatching the baseline workflow for every
-published tag first. If a bump ever produces a wave of findings in one kind
-across an unchanged tree, suspect this before suspecting oneDAL.
+current baselines and diff the report against the old pin's. Both bumps done so
+far came out identical line-for-line apart from timings, so neither needed a
+re-capture — most recently the bump to the pin now in use (`c599daf7`, 428
+commits past its predecessor), where the gate was additionally re-run against
+facts freshly captured by the new pin and produced the same report again, from
+both baselines. Any difference means re-dispatching the baseline workflow for
+every published tag first. If a bump ever produces a wave of findings in one
+kind across an unchanged tree, suspect this before suspecting oneDAL.
 
 ## Gating
 
@@ -287,11 +290,11 @@ cannot yet narrow it (below).
 
 Measured against the `2026.0.0` baseline, on a no-debug-info build of both
 sides, with `policy.yaml` in effect: **bundle verdict `NO_CHANGE`, zero
-cross-library findings, no `analysis_errors`, exit 0**, in 31m28s / 8.03 GiB
-peak for the whole product. Resolving the new side is 29m02s of that, serially:
-`libonedal_dpc.so` 10m03s, `libonedal_parameters_dpc.so` 7m32s,
-`libonedal_core.so` 6m45s, `libonedal.so` 3m42s, `libonedal_parameters.so`
-1m00s, `libonedal_thread.so` 0.1s (ELF-only). The peak is the number to watch:
+cross-library findings, no `analysis_errors`, exit 0**, in 31m27s / 8.03 GiB
+peak for the whole product. Resolving the new side is 28m57s of that, serially:
+`libonedal_dpc.so` 10m01s, `libonedal_parameters_dpc.so` 7m33s,
+`libonedal_core.so` 6m42s, `libonedal.so` 3m40s, `libonedal_parameters.so`
+1m01s, `libonedal_thread.so` 0.1s (ELF-only). The peak is the number to watch:
 the whole-product baseline stays resident (~3–4 GiB) while each new side is
 resolved on top of it, so it is higher than the 6.25 GiB the three per-library
 scans needed, and the margin on a 16 GB runner is now ~8 GiB.
@@ -337,14 +340,14 @@ abicheck's paved road for a multi-library project (G30/ADR-047) is a
 `targets:`/`bundles:`/`profiles:`/`baseline:` block in `.abicheck.yml`, validated
 by `abicheck project validate`, expanded by `abicheck project plan`, and consumed
 by the reusable `check-project.yml` and `publish-baseline.yml` workflows — no
-project-owned Python at all. oneDAL cannot use it yet, for four reasons that are
-all in abicheck's own code at the pinned commit:
+project-owned Python at all. oneDAL cannot use it yet, for four reasons upstream
+now records in its own README ("Migrating a multi-library project onto the
+declarative topology"), each verified against abicheck's code at the pinned
+commit rather than tracked as scheduled work:
 
 * a `bundles:` check is restricted to `depth: binary`, and `headers` is rejected
   at validation time (`BUNDLE_CHECK_DEPTHS`, `buildsource/project_targets.py`) —
-  because the declarative path assumes a bundle baseline is raw binaries with no
-  historical header snapshot. This gate's whole value is the header-scoped
-  comparison, against a baseline that *does* carry one per library;
+  and the header-scoped comparison is this gate's whole value;
 * a target's `public_headers:` is validated but never projected into a run-plan
   cell (`buildsource/run_plan.py` never reads it), so per-library header roots
   reach no invocation;
@@ -353,29 +356,31 @@ all in abicheck's own code at the pinned commit:
 * `publish-baseline.yml` consumes one `build-output.json` artifact per contract
   profile (G30 P1.1), which oneDAL's makefile build does not emit.
 
-Per-library compile contexts are the same story from the other side: a
-`profiles:` overlay describes a build *lane*, not a library, so "these two of six
-libraries need `-fsycl -DONEDAL_DATA_PARALLEL`" is not expressible without one
-profile per library. Adding the declarative block today would therefore be
-configuration nothing reads, so this PR does not ship one. What it does keep is
-everything the paved road expects to be portable: the release-asset baseline with
-a committed digest anchor, a release-triggered (never `pull_request`) publishing
-workflow, SHA-pinned Actions, and policy over suppression.
+Per-library compile flags are *not* one of the reasons: a `profiles:` overlay
+describes a build *lane*, and oneDAL has three of them (plain C++, `-fsycl`,
+`-fsycl -DONEDAL_DATA_PARALLEL`) covering five libraries, plus an ELF-only sixth
+that parses no header at all — three profiles, not one per library. Adding the
+declarative block today would still be configuration nothing reads, so this PR
+does not ship one. What it does keep is everything the paved road expects to be
+portable: the release-asset baseline with a committed digest anchor, a
+release-triggered (never `pull_request`) publishing workflow, SHA-pinned Actions,
+and policy over suppression.
 
 ## Known gaps
 
 * **The bundle layer has no CLI, so this gate is a committed Python script.**
   `compare_release_against_bundle_facts` is implemented and parity-tested but
-  deliberately not on `abicheck compare` (every file that would host the
-  dispatch is within two lines of an upstream 2000-line cap), it forwards no
-  `CompileContext` (defaulting to castxml, which cannot parse this
-  clang/`icpx`-only toolchain), and it applies one `headers`/`includes` set to
-  every library. `bundle_gate.py` drives the same Tier-2 chokepoints
-  (`service.resolve_input`, `service.compare_snapshots`,
-  `bundle_facts.compare_bundle_from_facts`) itself. The cost is a `pip install`
-  pin and a script to review; the upside is that per-library scoping and
-  `policy.yaml` both survive. A CLI consumer carrying both would make most of
-  that file deletable.
+  deliberately not on `abicheck compare` (every file that would host the dispatch
+  is within two lines of an upstream 2000-line cap). At the pinned commit it does
+  take a `CompileContext` and per-library `headers`/`includes`/`compile` maps —
+  the shape this gate needs, and its docstring names oneDAL's mixed toolchain as
+  the case they exist for — but it diffs each pair with `policy=` alone and
+  accepts no `policy_file`, so routing this gate through it would silently drop
+  every `policy.yaml` reclassification. `bundle_gate.py` therefore still drives
+  the same Tier-2 chokepoints (`service.resolve_input`,
+  `service.compare_snapshots`, `bundle_facts.compare_bundle_from_facts`) itself.
+  The cost is a `pip install` pin and a script to review; one `policy_file`
+  keyword upstream would make most of `cmd_gate` deletable.
 * **The system-provider list is load-bearing, not belt-and-braces.** abicheck's
   `DEFAULT_SYSTEM_PROVIDERS` omits `libtbbmalloc`, the MKL libraries and the
   Intel runtime, and **one** unmatched `DT_NEEDED` edge disables the system-edge
