@@ -238,15 +238,23 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 ])
 
 
-# Inheriting constructors of the exported oneAPI exception classes. Every entry
-# is a `??0` constructor of a class that declares `using Base::Base;` and nothing
-# else -- `oneapi::dal::invalid_argument`, `system_error`, ... in
-# cpp/oneapi/dal/exceptions.hpp and `coworker_error`, `communication_error` in
-# cpp/oneapi/dal/spmd/exceptions.hpp. cl materialises and exports the inherited
-# constructors of a `__declspec(dllexport)` class whether or not the DLL uses
-# them; icx and clang-cl emit them only where they are odr-used. The classes that
-# declare their own constructor out of line (`spmd::error_holder`) are emitted by
-# both, so they are absent here.
+# The exported oneAPI exception classes that inherit their constructors, that is,
+# whose body is nothing but `using std::<base>::<base>;`. The headers are the
+# source of truth; this reproduces the set below, and reports the difference if
+# one is ever added or removed:
+#
+#     awk '/class ONEDAL_EXPORT/ {
+#              match($0, /class ONEDAL_EXPORT [a-z_]+/)
+#              c = substr($0, RSTART + 20, RLENGTH - 20)
+#          }
+#          /using std::[a-z_]+::[a-z_]+;/ { if (c) print c }' \
+#         cpp/oneapi/dal/exceptions.hpp cpp/oneapi/dal/spmd/exceptions.hpp | sort
+#
+# cl materialises and exports the inherited constructors of a
+# `__declspec(dllexport)` class whether or not the DLL uses them; icx and
+# clang-cl emit them only where they are odr-used. Classes that declare a
+# constructor of their own instead (`spmd::error_holder`) are emitted by both,
+# and are correctly absent from this set because they have no `using`.
 #
 # The nightly is the only comparison that sees these: it builds the Make release
 # with `vc` (cl), while Azure's `WindowsReleaseCompare` builds it with icx and
@@ -258,45 +266,40 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 # macro expands to nothing, so `throw oneapi::dal::invalid_argument{ msg }`
 # instantiates the constructor in the consumer's own object file and never emits
 # a reference the DLL has to satisfy.
-#
-# Listed one by one, like WINDOWS_IGNORED_EXPORTS above, so that a constructor of
-# a *different* class disappearing from a released library still fails.
-WINDOWS_IGNORED_INHERITED_CTORS = frozenset([
-    # oneapi::dal::v1, cpp/oneapi/dal/exceptions.hpp
-    "??0domain_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0domain_error@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0internal_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0internal_error@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0invalid_argument@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0invalid_argument@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0out_of_range@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0out_of_range@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0range_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0range_error@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
-    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@PEBD@Z",
-    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@@Z",
-    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
-    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@PEBD@Z",
-    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@@Z",
-    "??0unimplemented@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0unimplemented@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0uninitialized_optional_result@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0uninitialized_optional_result@v1@dal@oneapi@@QEAA@PEBD@Z",
-    "??0unsupported_device@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0unsupported_device@v1@dal@oneapi@@QEAA@PEBD@Z",
-    # oneapi::dal::preview::spmd::v1, cpp/oneapi/dal/spmd/exceptions.hpp
-    "??0communication_error@v1@spmd@preview@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0communication_error@v1@spmd@preview@dal@oneapi@@QEAA@PEBD@Z",
-    "??0coworker_error@v1@spmd@preview@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
-    "??0coworker_error@v1@spmd@preview@dal@oneapi@@QEAA@PEBD@Z",
-])
+WINDOWS_INHERITED_CTOR_CLASSES = (
+    # cpp/oneapi/dal/exceptions.hpp -- oneapi::dal::v1
+    "domain_error",
+    "internal_error",
+    "invalid_argument",
+    "out_of_range",
+    "range_error",
+    "system_error",
+    "unimplemented",
+    "uninitialized_optional_result",
+    "unsupported_device",
+    # cpp/oneapi/dal/spmd/exceptions.hpp -- oneapi::dal::preview::spmd::v1
+    "communication_error",
+    "coworker_error",
+)
+
+# Keyed on the class, not on each mangled overload. The class list is the durable
+# fact; which overloads exist is whatever the standard library's base class
+# declares, so `std::system_error` gaining or losing a constructor would
+# otherwise turn this list stale and the nightly red. Constraining the match to
+# `??0` and to oneDAL's own namespace keeps the guarantee that mattered: a
+# constructor of any *other* class disappearing from a released library still
+# fails, and so does anything about these classes that is not a constructor.
+WINDOWS_INHERITED_CTOR_PATTERN = re.compile(
+    r"^\?\?0(?:"
+    + "|".join(re.escape(name) for name in WINDOWS_INHERITED_CTOR_CLASSES)
+    + r")@v1@(?:spmd@preview@)?dal@oneapi@@"
+)
 
 
 def is_ignored_windows_export(symbol):
     if symbol in WINDOWS_IGNORED_EXPORTS:
         return True
-    if symbol in WINDOWS_IGNORED_INHERITED_CTORS:
+    if WINDOWS_INHERITED_CTOR_PATTERN.match(symbol):
         return True
     return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
