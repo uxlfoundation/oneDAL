@@ -700,7 +700,8 @@ configured release outputs, host/DPC dependency separation, folded-target
 rejection, and Windows value validation. It does not build DPC binaries.
 `dev/release_tests/parameters_layout_consumer_test.sh` separately builds and
 runs host static and dynamic consumers through packaged CMake, pkg-config, and
-Bazel metadata for the folded layout.
+Bazel metadata for the folded layout. Both take `bazel` from `PATH`; set `BAZEL`
+to run them against a specific binary, such as a downloaded `bazelisk`.
 
 ## Make → Bazel Flag Reference
 

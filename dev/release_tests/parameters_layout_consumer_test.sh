@@ -60,6 +60,23 @@ if ! grep -Fq 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' "${config}"; then
     exit 1
 fi
 
+# Report, rather than assert, the oneMKL references left undefined in the folded
+# host library. The generated CMake config sets MKL_DEPENDENCY for this layout on
+# non-Windows, and this is the evidence for whether that is necessary: these are
+# the symbols a consumer of the folded package has to resolve itself and a
+# consumer of the separate package resolves through libonedal_parameters. Not an
+# assertion, because the correct count is whatever the layout implies, not a
+# number this test should pin.
+if command -v nm >/dev/null 2>&1; then
+    host_lib="${DALROOT}/lib/intel64/libonedal.so"
+    if [[ -e "${host_lib}" ]]; then
+        echo "Undefined oneMKL references in $(basename "${host_lib}"):"
+        # `grep -c` exits 1 on a count of zero, which is a valid answer here.
+        nm -D --undefined-only "${host_lib}" 2>/dev/null \
+            | grep -ciE 'mkl|_dgemm|_sgemm' || true
+    fi
+fi
+
 pc_files=("${DALROOT}/lib/pkgconfig/"*.pc)
 if [[ ! -e "${pc_files[0]}" ]]; then
     echo "no pkg-config files staged under ${DALROOT}/lib/pkgconfig" >&2

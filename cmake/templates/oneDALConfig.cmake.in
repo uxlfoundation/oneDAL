@@ -78,9 +78,16 @@ elseif (NOT "${ONEDAL_USE_DPCPP}" STREQUAL "yes" AND NOT "${ONEDAL_USE_DPCPP}" S
 endif()
 if ("${ONEDAL_LINK}" STREQUAL "" OR "${ONEDAL_LINK}" STREQUAL "dynamic")
     set(ONEDAL_LINK "dynamic")
-    if ("${ONEDAL_USE_DPCPP}" STREQUAL "yes" OR
-        "${ONEDAL_USE_PARAMETERS_LIBRARY}" STREQUAL "no")
-        # Folded parameter objects reference MKL from the main host library.
+    if ("${ONEDAL_USE_DPCPP}" STREQUAL "yes")
+        set(MKL_DEPENDENCY "yes")
+    elseif (NOT WIN32 AND "${ONEDAL_USE_PARAMETERS_LIBRARY}" STREQUAL "no")
+        # A folded package has no libonedal_parameters, so the parameter objects
+        # are linked into libonedal.so, and a consumer of that layout needs
+        # oneMKL on its own link line where a consumer of the separate layout
+        # does not. Windows is excluded deliberately: `no` is the only value a
+        # Windows package ever carries, a DLL is fully resolved at link time
+        # anyway, and including it here would newly require oneMKL of every
+        # Windows dynamic consumer.
         set(MKL_DEPENDENCY "yes")
     endif()
 elseif ("${ONEDAL_LINK}" STREQUAL "static")

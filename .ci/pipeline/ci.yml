@@ -446,7 +446,7 @@ jobs:
 
       # Analysis-only: validates configured release outputs, host/DPC dependency
       # separation, folded-target rejection, and the Windows unsupported value.
-      BAZEL=bazel dev/bazel/tests/parameters_layout_test.sh
+      dev/bazel/tests/parameters_layout_test.sh
 
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
@@ -495,7 +495,7 @@ jobs:
       source /opt/intel/oneapi/setvars.sh
       set -u
       DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
-        BAZEL=bazel dev/release_tests/parameters_layout_consumer_test.sh \
+        dev/release_tests/parameters_layout_consumer_test.sh \
         "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
       report_disk after
     displayName: 'Folded parameter-layout packaged consumer smoke'
@@ -684,17 +684,21 @@ jobs:
     displayName: 'cpp-tests-thread-dev'
 
   - script: |
-      # Only reached when a step above failed. Two concurrent link actions of
-      # debug-mode test binaries on an 8Gb agent is the current hypothesis for
-      # the failure described in the previous step, and an OOM-killed `ld` exits
-      # without printing anything itself -- the evidence is in the kernel log.
+      # Only reached when a step above failed, so it costs nothing on a green
+      # run. It stays in because the failure mode it reports on is silent: the
+      # step above exhausted `/` six times, and neither `ld` nor a sandbox copy
+      # says so -- the log showed only `collect2: error: ld returned 1 exit
+      # status` against a different target each run. `df` is the line that
+      # names it. `free -m` and the kernel OOM grep are kept because they are
+      # what ruled out memory pressure, which the same symptom also fits.
+      echo '=== disk ==='
+      df -h /
+      du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       echo '=== memory ==='
       free -m
       echo '=== kernel OOM records ==='
       sudo dmesg 2>/dev/null | grep -iE 'killed process|out of memory|oom-kill' | tail -20 \
         || echo '(none, or dmesg not readable)'
-      echo '=== disk ==='
-      df -h /
     displayName: 'Diagnose test link failure'
     condition: failed()
 

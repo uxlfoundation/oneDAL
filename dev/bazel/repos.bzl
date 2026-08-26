@@ -198,12 +198,13 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         # Legacy packages predate explicit layout metadata and always used the
         # separate non-Windows layout consumed by this template.
         parameters_lib = "yes"
-    substitutions["%{parameters_static_src}"] = ("        \"lib/intel64/libonedal_parameters.a\"," if parameters_lib == "yes" else "")
-    substitutions["%{parameters_dynamic_src}"] = ("        \"lib/intel64/libonedal_parameters.so.{}\",".format(_BINARY_MAJOR) if parameters_lib == "yes" else "")
-    substitutions["%{parameters_dpc_dynamic_src}"] = ("        \"lib/intel64/libonedal_parameters_dpc.so.{}\",".format(_BINARY_MAJOR) if parameters_lib == "yes" else "")
 
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
+    # `optional_libs` is the only thing the layout decides. The BUILD template
+    # picks these up with `glob(..., allow_empty = True)`, so not symlinking
+    # them is what makes a folded package resolve to a template without
+    # parameter libraries -- no template substitution is involved.
     if parameters_lib == "yes":
         _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping)
