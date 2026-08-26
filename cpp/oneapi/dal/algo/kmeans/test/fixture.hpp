@@ -267,6 +267,48 @@ public:
         this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
     }
 
+    void check_empty_clusters_all_duplicates() {
+        // Degenerate input: every point is a duplicate, so the data holds
+        // fewer distinct values than there are clusters and no partition
+        // with k non-empty clusters exists. Relocation cannot invent one --
+        // the point it moves into the empty cluster is identical to the
+        // point it left behind, so the two centroids coincide and the next
+        // iteration empties the same cluster again. What the kernel must do
+        // is terminate with a defined result: both centroids on the single
+        // distinct value, a zero objective function and every point
+        // assigned to one of the two coincident clusters.
+        const std::int64_t cluster_count = 2;
+        const std::int64_t row_count = 4;
+
+        float_t data[] = { 5, 5, 5, 5 };
+        const auto x = homogen_table::wrap(data, row_count, 1);
+
+        float_t initial_centroids[] = { 5, 100 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, 10, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(centroids.get_count() == cluster_count);
+        for (std::int64_t i = 0; i < cluster_count; i++) {
+            CAPTURE(i, centroids[i]);
+            REQUIRE(centroids[i] == float_t(5));
+        }
+
+        REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+        REQUIRE(responses.get_count() == row_count);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i, responses[i]);
+            REQUIRE(responses[i] >= 0);
+            REQUIRE(responses[i] < cluster_count);
+        }
+    }
+
     void check_on_smoke_data() {
         const float_t data[] = { 1.0,  1.0, //
                                  2.0,  2.0, //
