@@ -258,21 +258,9 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     //           (when the source can still spare the row) and pass 2 computes
     //           the source cluster's centroid without the stolen row.
     //   Pass 2: normalize the remaining non-empty, non-replaced clusters.
-    //           Corner case: a source cluster drained by a theft in pass 1 has
-    //           clusterS0[src]==0 in pass 2. Unlike the batch kernel,
-    //           finalizeCompute has no visibility into the previous-iteration
-    //           centroids (the master broadcasts them back only at the start of
-    //           the next iteration), so it seeds such a cluster from the next
-    //           leftover candidate row rather than keeping a previous centroid.
-    //
-    // For the same reason there is no equivalent of the batch kernel's "stop
-    // relocating once the farthest candidate is already on its own centroid"
-    // rule: with no previous centroid to keep, every empty cluster has to be
-    // given a row. A zero-distance candidate equals its own source cluster's
-    // centroid, so the outcome is a duplicated centroid -- the degenerate state
-    // scikit-learn reports as "Number of distinct clusters found smaller than
-    // n_clusters", and the input has no solution with nClusters non-empty
-    // clusters anyway.
+    //   Pass 3: fill the clusters that are still empty (pass 1 stopped before
+    //           them, or pass 1 stole all of their rows) with a duplicate of the
+    //           centroid of the cluster holding the most observations.
     //
     // Candidates occupy slots [0, cAvail) of cValuesTbl / cCentroids ordered by
     // decreasing distance; slots with a negative distance are empty. `cNext` is
@@ -284,18 +272,16 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     }
 
     // Seeds cluster `i` from candidate slot `c`: promotes the candidate row to
-    // the cluster's centroid and, when `adjustSource` is set, undoes the row's
-    // contribution to the cluster it was assigned to. Pass 2 clears
-    // `adjustSource`: by then some clusters have already been normalized, so a
-    // late aggregate update would not be reflected in their centroids.
-    auto seedFromCandidate = [&](size_t i, size_t c, bool adjustSource) -> void {
+    // the cluster's centroid and undoes the row's contribution to the cluster it
+    // was assigned to, so pass 2 computes that cluster's centroid without it.
+    auto seedFromCandidate = [&](size_t i, size_t c) -> void {
         outTarget[0] -= cValuesTbl[c * 2 + 0];
 
         const int srcCluster            = static_cast<int>(cValuesTbl[c * 2 + 1]);
         const algorithmFPType * candRow = &cCentroids[c * p];
         result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), candRow, p * sizeof(algorithmFPType));
 
-        if (adjustSource && srcCluster >= 0 && static_cast<size_t>(srcCluster) < nClusters && clusterS0[srcCluster] > 0)
+        if (srcCluster >= 0 && static_cast<size_t>(srcCluster) < nClusters && clusterS0[srcCluster] > 0)
         {
             clusterS0[srcCluster]--;
             PRAGMA_OMP_SIMD
@@ -328,48 +314,74 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
         }
     }
 
-    // Pass 1: seed every empty cluster from the next farthest candidate.
+    // Pass 1: seed the empty clusters from the candidates, farthest first.
     for (size_t e = 0; e < nEmpty; e++)
     {
-        DAAL_CHECK(cNext < cAvail, services::ErrorKMeansNumberOfClustersIsTooLarge);
-        seedFromCandidate(emptyClusters[e], cNext, true);
+        // Stop relocating once the farthest remaining candidate already sits on
+        // the centroid it is assigned to: moving it leaves its source cluster's
+        // mean unchanged and only plants a second centroid on top of an existing
+        // one, which lets the assignment step flip labels between two identical
+        // centroids forever. Candidates are sorted by decreasing distance, so all
+        // later ones are at distance zero too. Running out of candidates means
+        // the data holds fewer distinct rows than clusters and is handled the
+        // same way: pass 3 fills whatever is left.
+        if (cNext == cAvail || !(cValuesTbl[cNext * 2 + 0] > (algorithmFPType)0.0))
+        {
+            break;
+        }
+        seedFromCandidate(emptyClusters[e], cNext);
         cNext++;
     }
 
-    // Pass 2: normalize the non-empty, non-replaced clusters.
+    // Pass 2: normalize the non-empty, non-replaced clusters. `largestCluster` is
+    // the index of the one holding the most observations after pass 1's thefts,
+    // or nClusters while no cluster holds any.
+    size_t largestCluster = nClusters;
     for (size_t i = 0; i < nClusters; i++)
     {
-        if (clusterReplaced[i])
+        if (clusterReplaced[i] || clusterS0[i] <= 0)
         {
             continue;
         }
-        if (clusterS0[i] > 0)
+        if (largestCluster == nClusters || clusterS0[i] > clusterS0[largestCluster])
         {
-            const algorithmFPType coeff = (algorithmFPType)1.0 / clusterS0[i];
-
-            for (size_t j = 0; j < p; j++)
-            {
-                clusters[i * p + j] = clusterS1[i * p + j] * coeff;
-            }
+            largestCluster = i;
         }
-        else if (cNext < cAvail)
+
+        const algorithmFPType coeff = (algorithmFPType)1.0 / clusterS0[i];
+
+        for (size_t j = 0; j < p; j++)
         {
-            // Cluster was non-empty on entry but pass 1 drained all of its
-            // points as candidates. Seed it from a leftover candidate row and
-            // apply the same objective-function correction pass 1 applies.
-            seedFromCandidate(i, cNext, false);
-            cNext++;
+            clusters[i * p + j] = clusterS1[i * p + j] * coeff;
+        }
+    }
+
+    // Pass 3. A cluster reaching this point holds no points and was not seeded by
+    // pass 1: it was either empty on entry with no candidate left to relocate, or
+    // pass 1 stole all of its rows. Fill it with a duplicate of the centroid of
+    // the cluster holding the most observations, as the batch kernel does. The
+    // data then holds fewer distinct rows than there are clusters, which is not an
+    // error condition: scikit-learn reports it as a ConvergenceWarning ("Number of
+    // distinct clusters found smaller than n_clusters") and returns a degenerate
+    // centroid rather than failing. daal kernels have no warning channel, so the
+    // closest available behaviour is to return the degenerate result too.
+    for (size_t i = 0; i < nClusters; i++)
+    {
+        if (clusterReplaced[i] || clusterS0[i] > 0)
+        {
+            continue;
+        }
+        if (largestCluster < nClusters)
+        {
+            result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &clusters[largestCluster * p],
+                                                              p * sizeof(algorithmFPType));
         }
         else
         {
-            // No candidate row is left for it. The data holds fewer distinct
-            // rows than there are clusters, which is not an error condition:
-            // scikit-learn reports it as a ConvergenceWarning ("Number of
-            // distinct clusters found smaller than n_clusters") and keeps the
-            // degenerate center rather than failing. daal kernels have no
-            // warning channel, so mirror scikit-learn's `_average_centers`,
-            // which leaves a zero-weight cluster at its accumulated sum
-            // instead of dividing by zero.
+            // Not a single cluster holds an observation, so there is no centroid
+            // to duplicate. Mirror scikit-learn's `_average_centers`, which leaves
+            // a zero-weight cluster at its accumulated sum instead of dividing by
+            // zero. `clusters` is write-only here, so it has to be written.
             result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &clusterS1[i * p],
                                                               p * sizeof(algorithmFPType));
         }

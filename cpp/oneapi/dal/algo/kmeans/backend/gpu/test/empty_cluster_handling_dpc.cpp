@@ -524,7 +524,8 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
         { 0, 1 });
 
     // The second candidate already sits on the centroid it is assigned to, so relocating it could
-    // only duplicate an existing centroid. Its empty cluster keeps whatever it had before.
+    // only duplicate an existing centroid. The fill leaves its empty cluster untouched;
+    // `duplicate_largest_centroid` is what writes into it afterwards.
     const auto candidate_distances = make_device_ndarray<float_t, 1>( //
         this->get_queue(),
         { 7.0, 0.0 });
@@ -559,6 +560,55 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
     const auto expected_centroids = make_device_ndarray<float_t, 2>( //
         this->get_queue(),
         { { 0.0, 0.0 }, { 1.0, 2.0 }, { 0.0, 0.0 } });
+
+    this->check_if_centroids_expected(expected_centroids, centroids);
+}
+
+TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
+                     "declined empty clusters duplicate the largest cluster centroid",
+                     "[fill]",
+                     kmeans_types) {
+    using float_t = TestType;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+
+    // Slot 0 was relocated (distance 7) and must be left with the row the fill wrote into it;
+    // slot 1 was declined (distance 0) and has to end up on the centroid of cluster 2, the one
+    // holding the most observations.
+    const auto candidate_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 1 });
+
+    const auto candidate_distances = make_device_ndarray<float_t, 1>( //
+        this->get_queue(),
+        { 7.0, 0.0 });
+
+    const auto empty_cluster_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 1, 3 });
+
+    const auto source_clusters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 2 });
+
+    centroid_candidates<float_t> candidates{ candidate_indices,
+                                             candidate_distances,
+                                             empty_cluster_indices,
+                                             source_clusters };
+
+    const auto counters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 3, 0, 5, 0 });
+
+    auto centroids = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 1.0, 1.0 }, { 7.0, 7.0 }, { 2.0, 3.0 }, { 9.0, 9.0 } });
+
+    duplicate_largest_centroid(this->get_queue(), candidates, counters, centroids).wait_and_throw();
+
+    const auto expected_centroids = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 1.0, 1.0 }, { 7.0, 7.0 }, { 2.0, 3.0 }, { 2.0, 3.0 } });
 
     this->check_if_centroids_expected(expected_centroids, centroids);
 }

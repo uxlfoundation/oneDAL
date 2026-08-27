@@ -56,10 +56,13 @@ static auto fill_candidate_indices_and_distances(sycl::queue& queue,
         cgh.depends_on(deps);
         cgh.parallel_for(bk::make_range_1d(elem_count), [=](sycl::id<1> idx) {
             indices_ptr[idx] = idx;
-            // `radix_sort_indices_inplace` sorts ascending and exposes no direction flag, so the
-            // keys are negated to get a descending order by distance. Negating here is free: this
-            // kernel has to write `values_ptr` anyway. Teaching the primitive a descending mode
-            // would change a building block shared with other algorithms for no gain here.
+            // Keys are negated to get a descending order by distance out of an ascending sort.
+            // The underlying oneDPL `radix_sort_by_key` does take an `is_ascending` flag, but
+            // oneDAL's `radix_sort_indices_inplace` hardcodes ascending and its in-house
+            // fallback (used when the device work-group size is below 1024) has no direction
+            // support at all, so exposing the flag means changing a primitive shared with other
+            // algorithms. Negating here costs nothing in return: this kernel has to write
+            // `values_ptr` anyway, so it is one sign flip inside a store that already happens.
             values_ptr[idx] = -closest_distances_ptr[idx];
         });
     });
@@ -156,7 +159,8 @@ static auto copy_candidates_from_data(sycl::queue& queue,
             // A candidate already sitting on the centroid it is assigned to cannot improve the
             // objective function: moving it out leaves its source cluster's mean unchanged and
             // only plants a duplicate of an existing centroid, whose ties can flip labels
-            // forever. Leave the empty cluster at its previous centroid instead (see the header).
+            // forever. Leave the row where it is; `duplicate_largest_centroid` fills the empty
+            // cluster afterwards (see the header).
             if (!(candidate_distances_ptr[i] > Float(0))) {
                 return;
             }
@@ -195,8 +199,8 @@ auto copy_candidates_from_data(sycl::queue& queue,
     auto event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(sycl::range(candidate_count), [=](sycl::id<1> id) {
-            // See the dense overload: a candidate at distance zero is left where it is and its
-            // empty cluster keeps the previous centroid.
+            // See the dense overload: a candidate at distance zero is left where it is, and
+            // `duplicate_largest_centroid` fills its empty cluster.
             if (!(candidate_distances_ptr[id] > Float(0))) {
                 return;
             }

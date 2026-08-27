@@ -249,14 +249,14 @@ public:
         // the only point it could move into the empty cluster already sits
         // exactly on the centroid it is assigned to, so moving it would
         // leave the source cluster's mean where it is and merely plant a
-        // second centroid on top of the first. The kernel declines to
-        // relocate in that case and leaves the empty cluster at its
-        // previous (here: initial) centroid, which keeps the result well
-        // defined and lets the run converge: cluster 0 on the single
-        // distinct value, cluster 1 still at 100 with no points, a zero
-        // objective function and every point assigned to cluster 0.
+        // second centroid on top of the first. The kernel declines to move
+        // the row and instead duplicates the centroid of the cluster that
+        // holds the most observations, which is what scikit-learn returns
+        // for the same input: both centroids on the single distinct value,
+        // a zero objective function and every point assigned to cluster 0.
         const std::int64_t cluster_count = 2;
         const std::int64_t row_count = 4;
+        const std::int64_t max_iteration_count = 10;
 
         float_t data[] = { 5, 5, 5, 5 };
         const auto x = homogen_table::wrap(data, row_count, 1);
@@ -264,7 +264,7 @@ public:
         float_t initial_centroids[] = { 5, 100 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
 
-        const auto desc = get_descriptor(cluster_count, 10, 0.0);
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.001);
         const auto train_result = this->train(desc, x, c_init);
 
         const auto centroids =
@@ -272,9 +272,14 @@ public:
         REQUIRE(centroids.get_count() == cluster_count);
         CAPTURE(centroids[0], centroids[1]);
         REQUIRE(centroids[0] == float_t(5));
-        REQUIRE(centroids[1] == float_t(100));
+        REQUIRE(centroids[1] == float_t(5));
 
         REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        // A duplicated centroid is a fixed point, so the run converges instead
+        // of spending every allowed iteration on it.
+        CAPTURE(train_result.get_iteration_count());
+        REQUIRE(train_result.get_iteration_count() < max_iteration_count);
 
         const auto responses =
             row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
@@ -283,6 +288,65 @@ public:
             CAPTURE(i, responses[i]);
             REQUIRE(responses[i] == 0);
         }
+    }
+
+    void check_empty_clusters_drained_source() {
+        // The globally farthest-from-its-centroid row is the only row of its
+        // cluster: 100 is alone in the cluster it is assigned to, and it wins
+        // the candidate selection (which goes purely by distance, as in
+        // scikit-learn's `_relocate_empty_clusters`) for the one empty
+        // cluster. Whether the source cluster keeps the row or is drained by
+        // the theft differs between the CPU and the GPU kernels, so the run
+        // reaches the same fixed point after a different number of
+        // iterations; either way the surviving empty cluster gets a duplicate
+        // of the biggest cluster's centroid, and the final state has both
+        // distinct values represented and every point exactly on its centroid.
+        const std::int64_t cluster_count = 3;
+        const std::int64_t row_count = 3;
+        const std::int64_t max_iteration_count = 10;
+
+        float_t data[] = { 0, 0, 100 };
+        const auto x = homogen_table::wrap(data, row_count, 1);
+
+        float_t initial_centroids[] = { 1, 2, 3 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.001);
+        const auto train_result = this->train(desc, x, c_init);
+
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(centroids.get_count() == cluster_count);
+
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+        REQUIRE(responses.get_count() == row_count);
+
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const int response = responses[i];
+            CAPTURE(i, response, data[i]);
+            REQUIRE(response >= 0);
+            REQUIRE(response < cluster_count);
+            REQUIRE(centroids[response] == data[i]);
+        }
+
+        // Every centroid is one of the two distinct data values, and both of
+        // them are used: nothing was left behind on an initial position.
+        bool zero_found = false;
+        bool hundred_found = false;
+        for (std::int64_t i = 0; i < cluster_count; i++) {
+            CAPTURE(i, centroids[i]);
+            REQUIRE((centroids[i] == float_t(0) || centroids[i] == float_t(100)));
+            zero_found = zero_found || (centroids[i] == float_t(0));
+            hundred_found = hundred_found || (centroids[i] == float_t(100));
+        }
+        REQUIRE(zero_found);
+        REQUIRE(hundred_found);
+
+        REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        CAPTURE(train_result.get_iteration_count());
+        REQUIRE(train_result.get_iteration_count() < max_iteration_count);
     }
 
     void check_empty_clusters_duplicate_groups() {
@@ -298,6 +362,7 @@ public:
         // exactly on its centroid and all four distinct values represented.
         const std::int64_t cluster_count = 6;
         const std::int64_t row_count = 12;
+        const std::int64_t max_iteration_count = 100;
 
         float_t data[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4 };
         const auto x = homogen_table::wrap(data, row_count, 1);
@@ -305,7 +370,7 @@ public:
         float_t initial_centroids[] = { 0, 2, 3, 4, 5, 7 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
 
-        const auto desc = get_descriptor(cluster_count, 100, 0.0);
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.001);
         const auto train_result = this->train(desc, x, c_init);
 
         const auto centroids =
@@ -325,12 +390,14 @@ public:
             REQUIRE(centroids[response] == data[i]);
         }
 
-        // No centroid was left behind on its initial position: the clusters
-        // that hold no points duplicate one of the four group centroids.
+        // No centroid was left behind on its initial position: every one of
+        // them is one of the four group values, the clusters that hold no
+        // points duplicating one of the group centroids.
         for (std::int64_t i = 0; i < cluster_count; i++) {
             CAPTURE(i, centroids[i]);
             REQUIRE(centroids[i] >= float_t(1));
             REQUIRE(centroids[i] <= float_t(4));
+            REQUIRE(centroids[i] == std::floor(centroids[i]));
         }
 
         // All four groups are represented, so no group shares a centroid.
@@ -344,6 +411,11 @@ public:
         }
 
         REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        // The state reached above is a fixed point, so the run converges well
+        // before the iteration limit.
+        CAPTURE(train_result.get_iteration_count());
+        REQUIRE(train_result.get_iteration_count() < max_iteration_count);
     }
 
     void check_on_smoke_data() {

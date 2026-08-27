@@ -184,6 +184,10 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
             //   Pass 2: compute centroids for the non-replaced clusters from the
             //           (now theft-adjusted) aggregates and accumulate the L2
             //           shift.
+            //   Pass 3: fill the clusters that are still empty (pass 1 stopped
+            //           before them, or pass 1 stole all of their rows) with a
+            //           duplicate of the centroid of the cluster that holds the
+            //           most observations.
             //
             // Candidates are sorted by decreasing squared distance, so cPos
             // walks them farthest-first. Reading previous centroids from
@@ -210,20 +214,17 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
             for (size_t e = 0; e < nEmpty; e++)
             {
-                DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
                 // Stop relocating once the farthest remaining candidate already
-                // sits on the centroid it is assigned to. Such a row cannot
-                // improve the objective function: moving it out of its cluster
-                // leaves that cluster's mean unchanged ((mean * n - mean) /
-                // (n - 1) == mean) and only plants a second centroid on top of
-                // an existing one. The duplicate then makes the assignment step
-                // tie-break between two identical centroids, which can flip
-                // labels from iteration to iteration without ever reducing the
-                // objective function. Leaving the cluster at its previous
-                // centroid keeps the result well defined and lets the L2-norm
-                // check below terminate. All later candidates are at distance
-                // zero too (the list is sorted), so the whole pass is done.
-                if (!(cValues[cPos] > (algorithmFPType)0.0))
+                // sits on the centroid it is assigned to. Moving such a row
+                // leaves its source cluster's mean unchanged and only plants a
+                // second centroid on top of an existing one; the assignment step
+                // then tie-breaks between two identical centroids, which can flip
+                // labels forever without reducing the objective function. All
+                // later candidates are at distance zero too (the list is sorted),
+                // so pass 1 is done; pass 3 fills what is left. Running out of
+                // candidates (`cPos == cNum`) means there are fewer distinct rows
+                // than clusters and is handled the same way.
+                if (cPos == cNum || !(cValues[cPos] > (algorithmFPType)0.0))
                 {
                     break;
                 }
@@ -254,9 +255,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     }
                 }
 
-                // Accumulated into a per-cluster partial first: adding the terms
-                // straight into `l2Norm`, which already carries the shift of every
-                // cluster processed so far, loses the low-order bits of each term.
+                // Accumulated per cluster first: adding straight into `l2Norm`
+                // loses the low-order bits of each term.
                 algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
                 PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
                 PRAGMA_VECTOR_ALWAYS
@@ -271,6 +271,9 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 clusterReplaced[i] = true;
                 cPos++;
             }
+            // Index of the cluster holding the most observations after pass 1's
+            // thefts, or nClusters while no cluster holds any.
+            size_t largestCluster = nClusters;
             for (size_t i = 0; i < nClusters; i++)
             {
                 if (clusterReplaced[i])
@@ -279,6 +282,11 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 }
                 if (clusterS0[i] > 0)
                 {
+                    if (largestCluster == nClusters || clusterS0[i] > clusterS0[largestCluster])
+                    {
+                        largestCluster = i;
+                    }
+
                     const algorithmFPType coeff = 1.0 / clusterS0[i];
 
                     algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
@@ -293,17 +301,45 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     }
                     l2Norm += clusterL2Norm;
                 }
+            }
+
+            // Pass 3. A cluster reaching this point holds no points and was not
+            // seeded by pass 1: it was either empty on entry with no candidate
+            // left to relocate, or pass 1 stole all of its rows. Fill it with a
+            // duplicate of the centroid of the cluster holding the most
+            // observations. Which centroid it lands on does not affect the
+            // objective function - it owns no points - but it has to be a point of
+            // the data space rather than a leftover initial centroid, matching
+            // what scikit-learn produces for the same inputs. A duplicate is also
+            // stable: the assignment step gives every tied point to the lowest
+            // cluster index, so one of the two stays empty and is refreshed to the
+            // same value next iteration, driving the L2 shift to zero.
+            for (size_t i = 0; i < nClusters; i++)
+            {
+                if (clusterReplaced[i] || clusterS0[i] > 0)
+                {
+                    continue;
+                }
+                if (largestCluster < nClusters)
+                {
+                    algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
+                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j < p; j++)
+                    {
+                        const algorithmFPType newCluster = clusters[largestCluster * p + j];
+                        const algorithmFPType dist       = inClusters[i * p + j] - newCluster;
+                        clusterL2Norm += dist * dist;
+                        clusters[i * p + j] = newCluster;
+                    }
+                    l2Norm += clusterL2Norm;
+                }
                 else if (clusters != inClusters)
                 {
-                    // Cluster holds no points and pass 1 did not seed it. Either
-                    // it was empty on entry and pass 1 stopped before reaching it
-                    // (no candidate left that is not already on its own
-                    // centroid), or it was non-empty on entry and pass 1 stole
-                    // all of its rows. Both cases keep the previous centroid, so
-                    // `clusters[i]` is never left uninitialized on iter 0 and the
-                    // cluster contributes nothing to the L2 shift. Skipped when
-                    // `clusters` and `inClusters` alias (iter >= 1 with tClusters
-                    // unused), in which case the value is already there.
+                    // Not a single cluster holds an observation, so there is no
+                    // centroid to duplicate. Keep the previous one so `clusters[i]`
+                    // is never left uninitialized on iteration 0. Skipped when the
+                    // buffers alias, in which case the value is already there.
                     result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &inClusters[i * p],
                                                                       p * sizeof(algorithmFPType));
                 }
