@@ -135,7 +135,12 @@ struct train_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
 
         Float prev_objective_function = de::limits<Float>::max();
         std::int64_t iter;
-        sycl::event centroids_event;
+        // Seed `arr_centroids` with the initial centroids. Every centroid an iteration recomputes
+        // is overwritten, but a cluster can keep its previous centroid instead: an empty cluster
+        // whose only available candidate row already sits on its assigned centroid is left alone
+        // (see `fill_empty_clusters`). On iteration 0 "previous" means the initial centroids, so
+        // without this copy such a cluster would read back uninitialized device memory.
+        sycl::event centroids_event = arr_centroids.assign(queue, arr_initial);
 
         auto updater = cluster_updater<Float>{ queue, comm }
                            .set_cluster_count(cluster_count)

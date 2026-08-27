@@ -101,6 +101,15 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test on duplicated groups",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_empty_clusters_duplicate_groups();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "kmeans smoke train/infer test",
                      "[kmeans][batch]",
                      kmeans_types) {

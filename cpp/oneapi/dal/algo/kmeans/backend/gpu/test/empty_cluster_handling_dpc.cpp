@@ -508,6 +508,62 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
 }
 
 TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
+                     "fill empty clusters skips candidates at distance zero",
+                     "[fill]",
+                     kmeans_types) {
+    using float_t = TestType;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+
+    const auto data = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 1.0, 2.0 }, { 3.0, 4.0 } });
+
+    const auto candidate_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 1 });
+
+    // The second candidate already sits on the centroid it is assigned to, so relocating it could
+    // only duplicate an existing centroid. Its empty cluster keeps whatever it had before.
+    const auto candidate_distances = make_device_ndarray<float_t, 1>( //
+        this->get_queue(),
+        { 7.0, 0.0 });
+
+    const auto empty_cluster_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 1, 2 });
+
+    const auto source_clusters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 0 });
+
+    centroid_candidates<float_t> candidates{ candidate_indices,
+                                             candidate_distances,
+                                             empty_cluster_indices,
+                                             source_clusters };
+
+    auto [centroids, centroids_event] = pr::ndarray<float_t, 2>::zeros( //
+        this->get_queue(),
+        { 3, 2 },
+        sycl::usm::alloc::device);
+
+    bk::communicator<spmd::device_memory_access::usm> fake_comm;
+    fill_empty_clusters(this->get_queue(),
+                        fake_comm,
+                        data,
+                        candidates,
+                        centroids,
+                        { centroids_event })
+        .wait_and_throw();
+
+    const auto expected_centroids = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 0.0, 0.0 }, { 1.0, 2.0 }, { 0.0, 0.0 } });
+
+    this->check_if_centroids_expected(expected_centroids, centroids);
+}
+
+TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
                      "find candidates picks the farthest row regardless of source cluster size",
                      "[candidates]",
                      kmeans_types) {

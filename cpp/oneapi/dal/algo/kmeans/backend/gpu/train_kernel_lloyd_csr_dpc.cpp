@@ -137,6 +137,13 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
 
         Float prev_objective_function = de::limits<Float>::max();
         std::int64_t iter;
+        // Seed `arr_centroids` with the initial centroids: `update_centroids` leaves the rows of
+        // empty clusters as it found them, and the empty-cluster handling can decline to relocate
+        // a cluster (see `fill_empty_clusters`), in which case the row it keeps must be the
+        // previous centroid - the initial one on iteration 0 - rather than uninitialized memory.
+        // `update_centroids` below is submitted without an explicit dependency on this copy, so
+        // drain it here; it is a one-off [k x p] copy outside the iteration loop.
+        arr_centroids.assign(queue, arr_initial).wait_and_throw();
         sycl::event last_event = data_squares_event;
 
         for (iter = 0; iter < max_iteration_count; iter++) {

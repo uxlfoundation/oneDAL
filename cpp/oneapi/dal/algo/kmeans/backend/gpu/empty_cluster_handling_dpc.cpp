@@ -56,7 +56,10 @@ static auto fill_candidate_indices_and_distances(sycl::queue& queue,
         cgh.depends_on(deps);
         cgh.parallel_for(bk::make_range_1d(elem_count), [=](sycl::id<1> idx) {
             indices_ptr[idx] = idx;
-            // The sort is ascending over the negated distance, so the largest distance sorts first.
+            // `radix_sort_indices_inplace` sorts ascending and exposes no direction flag, so the
+            // keys are negated to get a descending order by distance. Negating here is free: this
+            // kernel has to write `values_ptr` anyway. Teaching the primitive a descending mode
+            // would change a building block shared with other algorithms for no gain here.
             values_ptr[idx] = -closest_distances_ptr[idx];
         });
     });
@@ -141,6 +144,7 @@ static auto copy_candidates_from_data(sycl::queue& queue,
     const std::int32_t* candidate_indices_ptr = candidates.get_indices().get_data();
     const std::int32_t* empty_cluster_indices_ptr =
         candidates.get_empty_cluster_indices().get_data();
+    const Float* candidate_distances_ptr = candidates.get_distances().get_data();
 
     auto event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
@@ -149,6 +153,13 @@ static auto copy_candidates_from_data(sycl::queue& queue,
         cgh.parallel_for(range, [=](sycl::id<2> id) {
             const std::int64_t i = id[0];
             const std::int64_t j = id[1];
+            // A candidate already sitting on the centroid it is assigned to cannot improve the
+            // objective function: moving it out leaves its source cluster's mean unchanged and
+            // only plants a duplicate of an existing centroid, whose ties can flip labels
+            // forever. Leave the empty cluster at its previous centroid instead (see the header).
+            if (!(candidate_distances_ptr[i] > Float(0))) {
+                return;
+            }
             const std::int64_t dst_i = empty_cluster_indices_ptr[i];
             const std::int64_t src_i = candidate_indices_ptr[i];
             centroids_ptr[dst_i * column_count + j] = data_ptr[src_i * column_count + j];
@@ -179,10 +190,16 @@ auto copy_candidates_from_data(sycl::queue& queue,
     const std::int32_t* candidate_indices_ptr = candidates.get_indices().get_data();
     const std::int32_t* empty_cluster_indices_ptr =
         candidates.get_empty_cluster_indices().get_data();
+    const Float* candidate_distances_ptr = candidates.get_distances().get_data();
 
     auto event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(sycl::range(candidate_count), [=](sycl::id<1> id) {
+            // See the dense overload: a candidate at distance zero is left where it is and its
+            // empty cluster keeps the previous centroid.
+            if (!(candidate_distances_ptr[id] > Float(0))) {
+                return;
+            }
             const std::int64_t dst_i = empty_cluster_indices_ptr[id];
             const std::int64_t src_i = candidate_indices_ptr[id];
             const std::int64_t begin_idx = row_offsets_ptr[src_i];
@@ -234,17 +251,20 @@ static auto gather_candidates(sycl::queue& queue,
 template <typename Float>
 static auto scatter_candidates(sycl::queue& queue,
                                const pr::ndview<std::int32_t, 1>& empty_cluster_indices,
+                               const pr::ndview<Float, 1>& candidate_distances,
                                const pr::ndview<Float, 2>& candidates,
                                pr::ndview<Float, 2>& centroids,
                                const bk::event_vector& deps) -> sycl::event {
     ONEDAL_PROFILER_TASK(scatter_candidates, queue);
     ONEDAL_ASSERT(empty_cluster_indices.get_dimension(0) == candidates.get_dimension(0));
+    ONEDAL_ASSERT(candidate_distances.get_dimension(0) == candidates.get_dimension(0));
     ONEDAL_ASSERT(candidates.get_dimension(1) == centroids.get_dimension(1));
 
     const std::int64_t candidate_count = candidates.get_dimension(0);
     const std::int64_t column_count = candidates.get_dimension(1);
 
     const std::int32_t* empty_cluster_indices_ptr = empty_cluster_indices.get_data();
+    const Float* candidate_distances_ptr = candidate_distances.get_data();
     const Float* candidates_ptr = candidates.get_data();
     Float* centroids_ptr = centroids.get_mutable_data();
 
@@ -255,6 +275,13 @@ static auto scatter_candidates(sycl::queue& queue,
         cgh.parallel_for(range, [=](sycl::id<2> id) {
             const std::int64_t i = id[0];
             const std::int64_t j = id[1];
+            // Same zero-distance rule as the single-rank path. The candidate list is masked
+            // rather than truncated: `reduce_candidates` allgathers fixed-size per-rank buffers,
+            // so shortening it on one rank would desynchronize the collective. Every rank holds
+            // the same globally-agreed distances, so every rank masks the same slots.
+            if (!(candidate_distances_ptr[i] > Float(0))) {
+                return;
+            }
             const std::int64_t dst_i = empty_cluster_indices_ptr[i];
             centroids_ptr[dst_i * column_count + j] = candidates_ptr[i * column_count + j];
         });
@@ -336,7 +363,7 @@ static auto reduce_candidates(sycl::queue& queue,
                                               host_all_sources.flatten());
     }
 
-    // Allgather per-rank-local row indices — after the shuffle each rank's slot i holds the local
+    // Allgather per-rank-local row indices - after the shuffle each rank's slot i holds the local
     // row index only if the current rank ends up owning that winner (checked via owning_ranks).
     const auto host_row_indices = row_indices.to_host(queue);
     auto host_all_row_indices = pr::ndarray<std::int32_t, 2>::empty({ rank_count, //
@@ -489,6 +516,7 @@ static auto gather_scatter_candidates(sycl::queue& queue,
 
     auto scatter_event = scatter_candidates(queue,
                                             candidates.get_empty_cluster_indices(),
+                                            candidate_distances,
                                             gathered_candidates,
                                             centroids,
                                             { reduce_event });

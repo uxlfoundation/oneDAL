@@ -166,11 +166,9 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
             cValuesTbl[i * 2 + 0] = cValues[i];
             cValuesTbl[i * 2 + 1] = static_cast<algorithmFPType>(cSources[i]);
         }
-        for (size_t i = cNum; i < nClusters; i++)
-        {
-            cValuesTbl[i * 2 + 0] = (algorithmFPType)-1.0;
-            cValuesTbl[i * 2 + 1] = (algorithmFPType)-1.0;
-        }
+        // Mark the unused slots as empty: a negative distance in column 0 is what
+        // step2 treats as "no candidate in this slot".
+        service_memset_seq<algorithmFPType, cpu>(cValuesTbl + cNum * 2, -1.0, (nClusters - cNum) * 2);
 
         task->kmeansClearClusters(goalFunc);
     }

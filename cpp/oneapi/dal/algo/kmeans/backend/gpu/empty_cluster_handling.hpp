@@ -147,13 +147,14 @@ auto fill_empty_clusters(sycl::queue& queue,
 /// the source cluster's counter. Called *after* `fill_empty_clusters` has written the winning
 /// candidate row into `centroids[dst_i]` for each empty slot i, so this helper reads the stolen
 /// row from `centroids[dst_i]` directly. This works uniformly for the single-rank dense,
-/// distributed dense, and CSR paths — the fill writes the row into the same location regardless
+/// distributed dense, and CSR paths - the fill writes the row into the same location regardless
 /// of the source layout, so downstream doesn't need to know how the row arrived.
 ///
 /// Without this correction, the source cluster's centroid stays at `sum_all / count_all` even
-/// though one of its assigned points has been reassigned to an empty slot; this helper rewrites
-/// it to `(sum_all - stolen) / (count_all - 1)`, which is what the *next* Lloyd iteration would
-/// otherwise take an extra iteration to converge to.
+/// though one of its assigned points has been reassigned to an empty slot. This helper rewrites
+/// it to `(sum_all - stolen) / (count_all - 1)`, the mean of the rows the cluster actually keeps.
+/// Skipping the rewrite would leave the stolen row pulling the source centroid for one more
+/// iteration, so the run would need an extra iteration to reach the same result.
 ///
 /// Distributed handling: no extra communication is needed. `cluster_updater` allreduces both
 /// `counters` and `centroids` *before* calling into empty-cluster handling, and
@@ -173,6 +174,10 @@ auto fill_empty_clusters(sycl::queue& queue,
 /// The source cluster then keeps its point(s) and its centroid, and the empty cluster is seeded
 /// with the stolen row (a valid data point). This matches how the CPU kernels handle a drained
 /// source cluster.
+///
+/// Candidates at distance zero are skipped as well: `fill_empty_clusters` leaves those empty
+/// clusters at their previous centroid instead of planting a duplicate of an existing one (see
+/// the comment there), so no row has been taken from their source cluster.
 ///
 /// @tparam Float   The type of centroid elements.
 ///
@@ -207,6 +212,7 @@ inline auto correct_source_clusters(sycl::queue& queue,
     const std::int32_t* empty_cluster_indices_ptr =
         candidates.get_empty_cluster_indices().get_data();
     const std::int32_t* source_clusters_ptr = source_clusters.get_data();
+    const Float* candidate_distances_ptr = candidates.get_distances().get_data();
     Float* centroids_ptr = centroids.get_mutable_data();
     std::int32_t* counters_ptr = counters.get_mutable_data();
 
@@ -222,17 +228,30 @@ inline auto correct_source_clusters(sycl::queue& queue,
                 if (src < 0) {
                     continue;
                 }
+                // The row was not moved, so there is nothing to take away from its cluster.
+                if (!(candidate_distances_ptr[i] > Float(0))) {
+                    continue;
+                }
                 const std::int32_t old_count = counters_ptr[src];
                 if (old_count <= 1) {
                     continue;
                 }
-                const Float old_count_f = static_cast<Float>(old_count);
-                const Float new_count_f = static_cast<Float>(old_count - 1);
+                // `(sum - stolen) / (count - 1)` is evaluated as
+                // `centroid + (centroid - stolen) / (count - 1)`, which is the same value
+                // without forming the `centroid * count` sum: no cancellation when the sum
+                // is large compared to the difference, and the count appears only as the
+                // divisor of the correction term. That last part matters for counts above
+                // the mantissa width of `Float` (2^24 for float32), where `count` and
+                // `count - 1` round to the same value: here that only perturbs a term of
+                // magnitude `|centroid - stolen| / count` by an ulp, whereas the direct
+                // form would drop the whole `centroid / count` part of the correction.
+                const Float inv_new_count = Float(1) / static_cast<Float>(old_count - 1);
                 const std::int64_t dst = empty_cluster_indices_ptr[i];
                 for (std::int64_t j = 0; j < column_count; ++j) {
                     const Float stolen = centroids_ptr[dst * column_count + j];
-                    const Float sum = centroids_ptr[src * column_count + j] * old_count_f;
-                    centroids_ptr[src * column_count + j] = (sum - stolen) / new_count_f;
+                    const Float centroid = centroids_ptr[src * column_count + j];
+                    centroids_ptr[src * column_count + j] =
+                        centroid + (centroid - stolen) * inv_new_count;
                 }
                 counters_ptr[src] = old_count - 1;
             }

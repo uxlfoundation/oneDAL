@@ -246,12 +246,15 @@ public:
         // Degenerate input: every point is a duplicate, so the data holds
         // fewer distinct values than there are clusters and no partition
         // with k non-empty clusters exists. Relocation cannot invent one --
-        // the point it moves into the empty cluster is identical to the
-        // point it left behind, so the two centroids coincide and the next
-        // iteration empties the same cluster again. What the kernel must do
-        // is terminate with a defined result: both centroids on the single
-        // distinct value, a zero objective function and every point
-        // assigned to one of the two coincident clusters.
+        // the only point it could move into the empty cluster already sits
+        // exactly on the centroid it is assigned to, so moving it would
+        // leave the source cluster's mean where it is and merely plant a
+        // second centroid on top of the first. The kernel declines to
+        // relocate in that case and leaves the empty cluster at its
+        // previous (here: initial) centroid, which keeps the result well
+        // defined and lets the run converge: cluster 0 on the single
+        // distinct value, cluster 1 still at 100 with no points, a zero
+        // objective function and every point assigned to cluster 0.
         const std::int64_t cluster_count = 2;
         const std::int64_t row_count = 4;
 
@@ -267,10 +270,9 @@ public:
         const auto centroids =
             row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
         REQUIRE(centroids.get_count() == cluster_count);
-        for (std::int64_t i = 0; i < cluster_count; i++) {
-            CAPTURE(i, centroids[i]);
-            REQUIRE(centroids[i] == float_t(5));
-        }
+        CAPTURE(centroids[0], centroids[1]);
+        REQUIRE(centroids[0] == float_t(5));
+        REQUIRE(centroids[1] == float_t(100));
 
         REQUIRE(train_result.get_objective_function_value() == float_t(0));
 
@@ -279,9 +281,69 @@ public:
         REQUIRE(responses.get_count() == row_count);
         for (std::int64_t i = 0; i < row_count; i++) {
             CAPTURE(i, responses[i]);
-            REQUIRE(responses[i] >= 0);
-            REQUIRE(responses[i] < cluster_count);
+            REQUIRE(responses[i] == 0);
         }
+    }
+
+    void check_empty_clusters_duplicate_groups() {
+        // Four groups of three duplicated points and six clusters, so at
+        // most four clusters can be non-empty. Only the points of one group
+        // are farther than zero from the centroid they are assigned to on
+        // the first iteration, and there are exactly three of them -- enough
+        // to seed every empty cluster once. After that seeding the state is a
+        // fixed point: every group sits on a centroid of its own, the extra
+        // clusters duplicate one of those centroids and hold no points, and
+        // the objective function is zero. So regardless of how the backend
+        // breaks the distance ties, the run has to end with every point
+        // exactly on its centroid and all four distinct values represented.
+        const std::int64_t cluster_count = 6;
+        const std::int64_t row_count = 12;
+
+        float_t data[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4 };
+        const auto x = homogen_table::wrap(data, row_count, 1);
+
+        float_t initial_centroids[] = { 0, 2, 3, 4, 5, 7 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, 100, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(centroids.get_count() == cluster_count);
+
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+        REQUIRE(responses.get_count() == row_count);
+
+        // Every point ended up exactly on the centroid it is assigned to.
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const int response = responses[i];
+            CAPTURE(i, response, data[i]);
+            REQUIRE(response >= 0);
+            REQUIRE(response < cluster_count);
+            REQUIRE(centroids[response] == data[i]);
+        }
+
+        // No centroid was left behind on its initial position: the clusters
+        // that hold no points duplicate one of the four group centroids.
+        for (std::int64_t i = 0; i < cluster_count; i++) {
+            CAPTURE(i, centroids[i]);
+            REQUIRE(centroids[i] >= float_t(1));
+            REQUIRE(centroids[i] <= float_t(4));
+        }
+
+        // All four groups are represented, so no group shares a centroid.
+        for (std::int64_t value = 1; value <= 4; value++) {
+            bool found = false;
+            for (std::int64_t i = 0; i < cluster_count; i++) {
+                found = found || (centroids[i] == float_t(value));
+            }
+            CAPTURE(value);
+            REQUIRE(found);
+        }
+
+        REQUIRE(train_result.get_objective_function_value() == float_t(0));
     }
 
     void check_on_smoke_data() {

@@ -74,24 +74,15 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::compute(size_
 
     const size_t nBlocks = na / 5;
 
-    /* TODO: initialization  */
-    for (size_t j = 0; j < nClusters; j++)
-    {
-        clusterS0[j] = 0;
-    }
-
-    for (size_t j = 0; j < nClusters * p; j++)
-    {
-        clusterS1[j] = 0;
-    }
+    service_memset_seq<int, cpu>(clusterS0, 0, nClusters);
+    service_memset_seq<algorithmFPType, cpu>(clusterS1, 0.0, nClusters * p);
 
     goalFunc[0] = 0;
 
-    for (size_t j = 0; j < nClusters; j++)
-    {
-        cValuesTbl[j * 2 + 0] = (algorithmFPType)-1.0;
-        cValuesTbl[j * 2 + 1] = (algorithmFPType)-1.0;
-    }
+    // Both columns of every slot are marked empty with -1: a negative distance in
+    // column 0 is what the merge below and finalizeCompute treat as "no candidate
+    // in this slot".
+    service_memset_seq<algorithmFPType, cpu>(cValuesTbl, -1.0, nClusters * 2);
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(algorithmFPType));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(size_t));
@@ -274,6 +265,15 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     //           the next iteration), so it seeds such a cluster from the next
     //           leftover candidate row rather than keeping a previous centroid.
     //
+    // For the same reason there is no equivalent of the batch kernel's "stop
+    // relocating once the farthest candidate is already on its own centroid"
+    // rule: with no previous centroid to keep, every empty cluster has to be
+    // given a row. A zero-distance candidate equals its own source cluster's
+    // centroid, so the outcome is a duplicated centroid -- the degenerate state
+    // scikit-learn reports as "Number of distinct clusters found smaller than
+    // n_clusters", and the input has no solution with nClusters non-empty
+    // clusters anyway.
+    //
     // Candidates occupy slots [0, cAvail) of cValuesTbl / cCentroids ordered by
     // decreasing distance; slots with a negative distance are empty. `cNext` is
     // the cursor into that list.
@@ -311,15 +311,28 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
 
     size_t cNext = 0;
 
-    // Pass 1: seed every empty cluster from the next farthest candidate.
+    // Snapshot the empty clusters before pass 1 starts moving rows: pass 1
+    // decrements the counters of the clusters it steals from, and a cluster it
+    // drains that way must not be re-seeded from yet another candidate.
+    // scikit-learn snapshots it for the same reason (`empty_clusters =
+    // np.where(weight_in_clusters == 0)`).
+    TArray<size_t, cpu> emptyClusters(nClusters);
+    DAAL_CHECK_MALLOC(emptyClusters.get());
+    size_t nEmpty = 0;
     for (size_t i = 0; i < nClusters; i++)
     {
-        if (clusterS0[i] != 0)
+        if (clusterS0[i] == 0)
         {
-            continue;
+            emptyClusters[nEmpty] = i;
+            nEmpty++;
         }
+    }
+
+    // Pass 1: seed every empty cluster from the next farthest candidate.
+    for (size_t e = 0; e < nEmpty; e++)
+    {
         DAAL_CHECK(cNext < cAvail, services::ErrorKMeansNumberOfClustersIsTooLarge);
-        seedFromCandidate(i, cNext, true);
+        seedFromCandidate(emptyClusters[e], cNext, true);
         cNext++;
     }
 
@@ -339,14 +352,26 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
                 clusters[i * p + j] = clusterS1[i * p + j] * coeff;
             }
         }
-        else
+        else if (cNext < cAvail)
         {
             // Cluster was non-empty on entry but pass 1 drained all of its
             // points as candidates. Seed it from a leftover candidate row and
             // apply the same objective-function correction pass 1 applies.
-            DAAL_CHECK(cNext < cAvail, services::ErrorKMeansNumberOfClustersIsTooLarge);
             seedFromCandidate(i, cNext, false);
             cNext++;
+        }
+        else
+        {
+            // No candidate row is left for it. The data holds fewer distinct
+            // rows than there are clusters, which is not an error condition:
+            // scikit-learn reports it as a ConvergenceWarning ("Number of
+            // distinct clusters found smaller than n_clusters") and keeps the
+            // degenerate center rather than failing. daal kernels have no
+            // warning channel, so mirror scikit-learn's `_average_centers`,
+            // which leaves a zero-weight cluster at its accumulated sum
+            // instead of dividing by zero.
+            result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &clusterS1[i * p],
+                                                              p * sizeof(algorithmFPType));
         }
     }
 
