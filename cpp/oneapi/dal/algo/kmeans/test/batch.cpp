@@ -92,15 +92,6 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
-                     "kmeans empty clusters test with a singleton source cluster",
-                     "[kmeans][batch]",
-                     kmeans_types) {
-    SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
-    this->check_empty_clusters_singleton_source();
-}
-
-TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "kmeans empty clusters test on all-duplicate data",
                      "[kmeans][batch]",
                      kmeans_types) {

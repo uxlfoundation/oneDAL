@@ -134,14 +134,12 @@ auto copy_candidates_from_data(sycl::queue& queue,
                                const bk::event_vector& deps) -> sycl::event;
 
 /// Writes the winning candidate row into the centroid of each empty cluster. In the distributed
-/// path the winners are agreed across ranks first; `counters` is needed there because the global
-/// selection prefers candidates whose source cluster can spare a row (see `reduce_candidates`).
+/// path the winners are agreed across ranks first (see `reduce_candidates`), purely by distance.
 template <typename Float>
 auto fill_empty_clusters(sycl::queue& queue,
                          bk::communicator<spmd::device_memory_access::usm>& comm,
                          const pr::ndview<Float, 2>& data,
                          centroid_candidates<Float>& candidates,
-                         const pr::ndarray<std::int32_t, 1>& counters,
                          pr::ndview<Float, 2>& centroids,
                          const bk::event_vector& deps = {}) -> sycl::event;
 
@@ -164,19 +162,17 @@ auto fill_empty_clusters(sycl::queue& queue,
 /// to identical inputs and stays in sync; the result must not be allreduced again, since that
 /// would multiply the correction by the rank count.
 ///
-/// Degenerate `count == 1` is skipped entirely -- neither the centroid nor the counter is touched,
-/// since `(sum - stolen) / (count - 1)` is undefined there. Candidate selection demotes rows whose
-/// cluster holds a single point (see `fill_candidate_indices_and_distances` and
-/// `reduce_candidates`), so this branch is only reached when
-///  * there are not enough other rows to fill every empty cluster, or
+/// Degenerate `count <= 1` is skipped entirely -- neither the centroid nor the counter is touched,
+/// since `(sum - stolen) / (count - 1)` is undefined there. Candidates are selected purely by
+/// distance-to-assigned-centroid (farthest first), matching scikit-learn's
+/// `_relocate_empty_clusters`, so a single-point source cluster can be chosen; this branch is
+/// reached when
+///  * the chosen candidate is the only point of its source cluster, or
 ///  * two candidates come from the same two-point cluster, in which case the second one finds
 ///    `count == 1` after the first correction.
-/// The source cluster then keeps `count == 1` and a centroid equal to the stolen row, which is a
-/// valid data point; the empty cluster ends up with the same centroid, so the pair converges
-/// without moving. The CPU kernel resolves the first case slightly differently -- it leaves the
-/// empty cluster at its previous centroid rather than duplicating the source centroid -- because
-/// it still has the previous centroids on hand, while here `centroids` has already been
-/// overwritten with the newly computed values.
+/// The source cluster then keeps its point(s) and its centroid, and the empty cluster is seeded
+/// with the stolen row (a valid data point). This matches how the CPU kernels handle a drained
+/// source cluster.
 ///
 /// @tparam Float   The type of centroid elements.
 ///
@@ -303,13 +299,8 @@ inline auto handle_empty_clusters(sycl::queue& queue,
     // `fill_empty_clusters` writes the winning candidate row into `centroids[dst_i]`. In the
     // distributed path it also shuffles `candidates.source_clusters_` inside `reduce_candidates`
     // so slot i names the source cluster of the globally winning candidate for slot i.
-    auto fill_event = fill_empty_clusters(queue,
-                                          comm,
-                                          data,
-                                          candidates,
-                                          counters,
-                                          centroids,
-                                          { find_candidates_event });
+    auto fill_event =
+        fill_empty_clusters(queue, comm, data, candidates, centroids, { find_candidates_event });
 
     auto correct_event =
         correct_source_clusters(queue, candidates, centroids, counters, { fill_event });

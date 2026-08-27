@@ -170,51 +170,36 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
             // Two-pass merge:
             //   Pass 1: replace each empty cluster's centroid with a candidate
-            //           row (the farthest-from-nearest-centroid point that
-            //           kmeansComputeCentroidsCandidates produced). The
-            //           candidate is stolen from the cluster it was assigned
-            //           to on this iteration, so decrement that source
-            //           cluster's counters (clusterS0, clusterS1) here so the
-            //           subsequent centroid computation in pass 2 reflects
-            //           the theft. Candidates whose source cluster holds a
-            //           single point are passed over -- see the skip loop
-            //           below.
-            //   Pass 2: compute centroids for the originally-non-empty
-            //           clusters from the (now theft-adjusted) aggregates and
-            //           accumulate the L2 shift. A cluster that pass 1 left
-            //           empty (no usable candidate) falls back to its previous
-            //           centroid (inClusters) so `clusters[i * p + j]` is
-            //           always defined on iter 0.
+            //           row -- the point that is farthest from the centroid it
+            //           was assigned to on this iteration. This matches
+            //           scikit-learn's `_relocate_empty_clusters`: the empty
+            //           clusters take the globally farthest-from-their-centroid
+            //           points, selected purely by distance regardless of how
+            //           many points their source cluster holds. Each such point
+            //           is stolen from the cluster it was assigned to, so
+            //           decrement that source cluster's counters (clusterS0,
+            //           clusterS1) here; pass 2 then computes the source
+            //           cluster's centroid without the stolen row.
+            //   Pass 2: compute centroids for the non-replaced clusters from the
+            //           (now theft-adjusted) aggregates and accumulate the L2
+            //           shift. A source cluster that pass 1 drains to zero (its
+            //           only point, or both points of a two-point cluster, were
+            //           among the farthest) falls back to its previous centroid
+            //           (inClusters) so `clusters[i * p + j]` is always defined
+            //           on iter 0.
             //
-            // Reading previous centroids from `inClusters`, not from the
-            // write-only `clusters` buffer: on the very first iteration
-            // `clusters` is the user-supplied result table whose contents
-            // are uninitialized prior to being written. From iteration 1
-            // onward `inClusters == clusters` (set at the end of the loop),
-            // so the L2-norm of the centroid shift is unchanged.
+            // Candidates are sorted by decreasing squared distance, so cPos
+            // walks them farthest-first. Reading previous centroids from
+            // `inClusters`, not from the write-only `clusters` buffer: on the
+            // very first iteration `clusters` is the user-supplied result table
+            // whose contents are uninitialized prior to being written. From
+            // iteration 1 onward `inClusters == clusters` (set at the end of the
+            // loop), so the L2-norm of the centroid shift is unchanged.
             for (size_t i = 0; i < nClusters; i++)
             {
                 if (clusterS0[i] == 0)
                 {
                     DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
-
-                    // Pass over candidates whose source cluster holds a single
-                    // point: taking it would empty the source cluster, so the
-                    // number of empty clusters would not go down, and the two
-                    // centroids would end up on the same point. A skipped
-                    // candidate is gone for good -- cluster sizes only shrink
-                    // within this pass, so it cannot become usable later.
-                    while (cPos < cNum && clusterS0[pointAssignments[cIndices[cPos]]] <= 1)
-                    {
-                        cPos++;
-                    }
-                    if (cPos == cNum)
-                    {
-                        // Every remaining candidate is the only point of its
-                        // cluster. Leave cluster i empty for this iteration;
-                        // pass 2 keeps its previous centroid.
-                        continue;
-                    }
 
                     newCentersGoalFunc += cValues[cPos];
                     const size_t candidateRowIdx = cIndices[cPos];
@@ -222,16 +207,23 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     const algorithmFPType * row = mtRow.get();
 
                     // Take the candidate away from its currently-assigned cluster
-                    // so pass 2 computes that cluster's centroid without it.
+                    // so pass 2 computes that cluster's centroid without it. Two
+                    // candidates can come from the same source cluster (or a
+                    // candidate can be the only point of its cluster), which
+                    // drains the source to zero; the `> 0` guard keeps the
+                    // counters non-negative and pass 2 leaves a drained cluster
+                    // at its previous centroid.
                     const int srcCluster = pointAssignments[candidateRowIdx];
                     DAAL_ASSERT(srcCluster >= 0 && (size_t)srcCluster < nClusters);
-                    DAAL_ASSERT(clusterS0[srcCluster] > 1);
-                    clusterS0[srcCluster]--;
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < p; j++)
+                    if (clusterS0[srcCluster] > 0)
                     {
-                        clusterS1[srcCluster * p + j] -= row[j];
+                        clusterS0[srcCluster]--;
+                        PRAGMA_OMP_SIMD
+                        PRAGMA_VECTOR_ALWAYS
+                        for (size_t j = 0; j < p; j++)
+                        {
+                            clusterS1[srcCluster * p + j] -= row[j];
+                        }
                     }
 
                     PRAGMA_OMP_SIMD_ARGS(reduction(+ : l2Norm))
@@ -269,16 +261,13 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 }
                 else if (clusters != inClusters)
                 {
-                    // Cluster is empty and pass 1 found no usable candidate for
-                    // it (every remaining candidate was the only point of its
-                    // own cluster). Fall back to the previous centroid so we
-                    // never leave `clusters[i]` uninitialized on iter 0. Note
-                    // that pass 1 can no longer drain an originally non-empty
-                    // cluster: it never takes the last point of a cluster.
-                    // Skipped when
-                    // `clusters` and `inClusters` alias (iter >= 1 with
-                    // tClusters unused), in which case the value is already
-                    // there.
+                    // Cluster is empty: either it held no points this iteration
+                    // and was not chosen for replacement, or pass 1 drained its
+                    // last point(s) to seed other empty clusters. Fall back to
+                    // the previous centroid so we never leave `clusters[i]`
+                    // uninitialized on iter 0. Skipped when `clusters` and
+                    // `inClusters` alias (iter >= 1 with tClusters unused), in
+                    // which case the value is already there.
                     result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &inClusters[i * p],
                                                                       p * sizeof(algorithmFPType));
                 }

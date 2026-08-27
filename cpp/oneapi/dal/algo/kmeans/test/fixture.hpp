@@ -242,31 +242,6 @@ public:
         this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
     }
 
-    void check_empty_clusters_singleton_source() {
-        // On iteration 0 the points -10, -9, -7 all land in cluster 0
-        // (centroid -9), 50 lands in cluster 1 (centroid 0) and cluster
-        // 2 (centroid -100) stays empty. The farthest-from-own-centroid
-        // point is 50, but it is the only point of cluster 1: taking it
-        // would just move the emptiness from cluster 2 to cluster 1 and
-        // leave two centroids on the same point. So cluster 2 has to be
-        // seeded from the next candidate, -7, whose source cluster 0 can
-        // spare it: cluster 0 becomes (-10 - 9) / 2 = -9.5 and cluster 1
-        // keeps its single point.
-        float_t data[] = { -10, -9, -7, 50 };
-        const auto x = homogen_table::wrap(data, 4, 1);
-
-        float_t initial_centroids[] = { -9, 0, -100 };
-        const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
-
-        float_t final_centroids[] = { -9.5, 50, -7 };
-        const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
-
-        float_t responses[] = { 0, 0, 2, 1 };
-        const auto y = homogen_table::wrap(responses, 4, 1);
-
-        this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
-    }
-
     void check_empty_clusters_all_duplicates() {
         // Degenerate input: every point is a duplicate, so the data holds
         // fewer distinct values than there are clusters and no partition
