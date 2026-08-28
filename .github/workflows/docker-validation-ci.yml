@@ -17,13 +17,8 @@
 name: docker-validation CI
 
 on:
-  pull_request:
-    branches:
-      - main
-    # TEMPORARY (sklearnex segfault bisect branch, do not merge): see the note
-    # in .github/workflows/ci.yml.
-    paths-ignore:
-      - .ci/pipeline/ci.yml
+  # TEMPORARY (sklearnex segfault bisect branch, do not merge): `pull_request`
+  # dropped -- see the note in .github/workflows/ci.yml.
   push:
     branches:
       - main

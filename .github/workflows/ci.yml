@@ -17,14 +17,9 @@
 name: CI
 
 on:
-  pull_request:
-    branches:
-      - main
-    # TEMPORARY (sklearnex segfault bisect branch, do not merge): the debug
-    # pipeline touches only .ci/pipeline/ci.yml, so ignoring it keeps these
-    # builds from running on every bisect push.
-    paths-ignore:
-      - .ci/pipeline/ci.yml
+  # TEMPORARY (sklearnex segfault bisect branch, do not merge): the
+  # `pull_request` trigger is dropped so this branch only runs the Azure
+  # sklearnex bisect jobs. Restore it before this file goes anywhere near main.
   push:
     branches:
       - main
