@@ -56,8 +56,9 @@ env:
   # `main` HEAD. Its artifacts are the Make side of the comparison; override with
   # the `source_run_id` input once they expire.
   DEFAULT_SOURCE_RUN_ID: '33128609183'
-  # The Make release artifacts live in the upstream repository, and reading them
-  # needs a token scoped to it, so this workflow only works when run there.
+  # The Make release artifacts live in the upstream repository. Upstream is
+  # public, so `github.token` reaches them from a fork too, given the
+  # `actions: read` permission above; no extra secret is needed.
   ARTIFACT_REPOSITORY: 'uxlfoundation/oneDAL'
 
 jobs:
