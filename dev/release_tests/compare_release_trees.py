@@ -238,8 +238,64 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 ])
 
 
+# Constructors the oneDAL exception classes inherit with `using Base::Base;`
+# (cpp/oneapi/dal/exceptions.hpp, cpp/oneapi/dal/spmd/exceptions.hpp). cl emits
+# and exports every inheriting constructor of a `__declspec(dllexport)` class;
+# clang-cl -- and therefore the icx the Bazel Windows build uses -- only emits
+# the ones the DLL itself odr-uses. The Make release is built with `vc`, so all
+# 26 of them show up as Make-only exports of onedal.4.dll.
+#
+# The list is exactly the inheriting constructors and nothing else: two per
+# class (`const char*` and `const std::string&`) for the nine single-argument
+# exceptions, and six for `system_error`, whose base adds the `error_code` and
+# `int` + `error_category` overloads. `error_holder` in the same header declares
+# its constructor explicitly and is exported by both toolchains, which is the
+# control showing this is about inheriting constructors specifically.
+#
+# None of them is part of a consumer's link surface. `ONEDAL_EXPORT` expands to
+# `__declspec(dllexport)` only under `__ONEDAL_ENABLE_EXPORT__`, which is defined
+# solely while oneDAL itself is built (cpp/oneapi/dal/common.hpp:35-53); a
+# consumer sees a plain class, so `throw invalid_argument{...}` instantiates the
+# inheriting constructor in the consumer's own object file and never emits an
+# import the DLL would have to satisfy. The `what()` and `code()` overrides
+# *are* out-of-line in exceptions.cpp, are exported by both toolchains, and stay
+# compared -- which is what keeps this entry from hiding a real regression: if
+# exceptions.cpp ever stopped being linked into onedal.4.dll, those would go
+# missing too and the comparison would still fail.
+WINDOWS_IGNORED_INHERITED_EXCEPTION_CTORS = frozenset([
+    "??0communication_error@v1@spmd@preview@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0communication_error@v1@spmd@preview@dal@oneapi@@QEAA@PEBD@Z",
+    "??0coworker_error@v1@spmd@preview@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0coworker_error@v1@spmd@preview@dal@oneapi@@QEAA@PEBD@Z",
+    "??0domain_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0domain_error@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0internal_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0internal_error@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0invalid_argument@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0invalid_argument@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0out_of_range@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0out_of_range@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0range_error@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0range_error@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@PEBD@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@HAEBVerror_category@std@@@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@PEBD@Z",
+    "??0system_error@v1@dal@oneapi@@QEAA@Verror_code@std@@@Z",
+    "??0unimplemented@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0unimplemented@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0uninitialized_optional_result@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0uninitialized_optional_result@v1@dal@oneapi@@QEAA@PEBD@Z",
+    "??0unsupported_device@v1@dal@oneapi@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "??0unsupported_device@v1@dal@oneapi@@QEAA@PEBD@Z",
+])
+
+
 def is_ignored_windows_export(symbol):
     if symbol in WINDOWS_IGNORED_EXPORTS:
+        return True
+    if symbol in WINDOWS_IGNORED_INHERITED_EXCEPTION_CTORS:
         return True
     return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
@@ -330,6 +386,55 @@ def compare_sets(name, make_values, bazel_values, limit):
         for item in only_bazel[:limit]:
             print(f"  + {item}")
     return errors
+
+
+def reconcile_dereferenced_symlinks(make_root, bazel_root, make_files,
+                                    bazel_links, limit):
+    """Account for Make-side symlinks that artifact transport turned into copies.
+
+    `makefile:975` stages each Linux shared object as a real
+    `libonedal_core.so.<major>.<minor>` plus two `ln -sf` aliases, and
+    `dev/bazel/release.bzl:321-331` builds the same chain out of
+    `ctx.actions.declare_symlink`. The two trees therefore agree -- but the Make
+    one reaches this job through `actions/upload-artifact`, which follows
+    symlinks and uploads their contents, so all three names arrive as regular
+    files. Comparing entry kinds then reports every alias twice, once as a
+    Make-only file and once as a Bazel-only symlink.
+
+    Only the Make side is transported, so only that direction is reconciled: a
+    path that is a regular file for Make and a symlink for Bazel. Each one has to
+    be a genuine copy of what the Bazel symlink resolves to, otherwise it stays
+    an error. Reconciled aliases are dropped from both sides because the target
+    they resolve to is a regular file on both and is compared on its own.
+
+    Returns the reconciled paths. An alias whose contents do not match is only
+    explained here and left in place, so the entry-kind comparison below counts
+    it exactly as it did before this reconciliation existed.
+    """
+    reconciled = set()
+    mismatched = []
+    for path in sorted(set(bazel_links).intersection(make_files)):
+        resolved = (bazel_root / path).resolve()
+        try:
+            same = resolved.is_file() and filecmp.cmp(
+                make_root / path, resolved, shallow=False)
+        except OSError:
+            same = False
+        if same:
+            reconciled.add(path)
+        else:
+            mismatched.append(path)
+
+    if mismatched:
+        print(f"Dereferenced symlink content mismatches: {len(mismatched)}")
+        for path in mismatched[:limit]:
+            print(f"  ! {path}: Make file differs from Bazel symlink target "
+                  f"-> {os.readlink(bazel_root / path)}")
+    if reconciled:
+        print(f"Reconciled dereferenced symlinks: {len(reconciled)}")
+        for path in sorted(reconciled)[:limit]:
+            print(f"  = {path} -> {os.readlink(bazel_root / path)}")
+    return reconciled
 
 
 def compare_link_targets(make_links, bazel_links, limit):
@@ -599,6 +704,11 @@ def main():
     errors = 0
     print("")
     print("=== level 1: release tree entries ===")
+    reconciled = reconcile_dereferenced_symlinks(
+        make_root, bazel_root, make_files, bazel_links, args.summary_limit)
+    make_files -= reconciled
+    bazel_links = {path: target for path, target in bazel_links.items()
+                   if path not in reconciled}
     errors += compare_sets("directories", make_dirs, bazel_dirs, args.summary_limit)
     errors += compare_sets("files", make_files, bazel_files, args.summary_limit)
     errors += compare_sets("symlinks", set(make_links), set(bazel_links), args.summary_limit)
