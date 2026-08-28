@@ -20,6 +20,11 @@ on:
   pull_request:
     branches:
       - main
+    # TEMPORARY (sklearnex segfault bisect branch, do not merge): the debug
+    # pipeline touches only .ci/pipeline/ci.yml, so ignoring it keeps these
+    # builds from running on every bisect push.
+    paths-ignore:
+      - .ci/pipeline/ci.yml
   push:
     branches:
       - main

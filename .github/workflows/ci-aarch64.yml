@@ -20,6 +20,10 @@ on:
   pull_request:
     branches:
       - main
+    # TEMPORARY (sklearnex segfault bisect branch, do not merge): see the note
+    # in .github/workflows/ci.yml.
+    paths-ignore:
+      - .ci/pipeline/ci.yml
   push:
     branches:
       - main
