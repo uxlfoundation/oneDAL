@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/backend/common.hpp"
+#include "src/services/service_memory_tracker.h"
 
 namespace oneapi::dal::backend {
 
@@ -93,6 +94,15 @@ inline void* malloc(const sycl::queue& queue, std::size_t size, const sycl::usm:
             throw dal::invalid_argument{ detail::error_messages::unknown_usm_pointer_type() };
         }
     }
+    if (alloc == sycl::usm::alloc::device) {
+        ONEDAL_MEMORY_TRACKER_ALLOC("gpu/device", ptr, size);
+    }
+    else if (alloc == sycl::usm::alloc::shared) {
+        ONEDAL_MEMORY_TRACKER_ALLOC("gpu/shared", ptr, size);
+    }
+    else if (alloc == sycl::usm::alloc::host) {
+        ONEDAL_MEMORY_TRACKER_ALLOC("gpu/host", ptr, size);
+    }
     return ptr;
 }
 
@@ -110,6 +120,7 @@ inline void* malloc_host(const sycl::queue& queue, std::size_t size) {
 
 inline void free(const sycl::queue& queue, void* pointer) {
     ONEDAL_ASSERT(pointer == nullptr || is_known_usm(queue, pointer));
+    ONEDAL_MEMORY_TRACKER_FREE("gpu/free", pointer);
     sycl::free(pointer, queue);
 }
 

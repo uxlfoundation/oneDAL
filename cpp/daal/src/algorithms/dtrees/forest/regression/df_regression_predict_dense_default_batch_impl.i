@@ -69,6 +69,7 @@ public:
 template <typename algorithmFPType, prediction::Method method, CpuType cpu>
 services::Status PredictKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const regression::Model * m, NumericTable * r)
 {
+    DAAL_PROFILER_TASK(Regression : PredictKernel::compute);
     const daal::algorithms::decision_forest::regression::internal::ModelImpl * pModel =
         static_cast<const daal::algorithms::decision_forest::regression::internal::ModelImpl *>(m);
     PredictRegressionTask<algorithmFPType, cpu> task(x, r);
@@ -78,6 +79,7 @@ services::Status PredictKernel<algorithmFPType, method, cpu>::compute(const Nume
 template <typename algorithmFPType, CpuType cpu>
 services::Status PredictRegressionTask<algorithmFPType, cpu>::run(const decision_forest::regression::internal::ModelImpl * m)
 {
+    DAAL_PROFILER_TASK(Regression : PredictRegressionTask::run);
     DAAL_CHECK_MALLOC(this->_featHelper.init(*this->_data));
     const auto nTreesTotal = m->size();
     this->_aTree.reset(nTreesTotal);
