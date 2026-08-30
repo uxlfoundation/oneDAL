@@ -165,7 +165,10 @@ private:
     std::int64_t rank_count_ = 1;
 };
 
-using dbscan_types = COMBINE_TYPES((float, double), (dbscan::method::brute_force));
+using dbscan_types = COMBINE_TYPES((float, double),
+                                   (dbscan::method::brute_force,
+                                    dbscan::method::kd_tree,
+                                    dbscan::method::ball_tree));
 
 TEMPLATE_LIST_TEST_M(dbscan_spmd_test, "dbscan degenerated test", "[dbscan][spmd]", dbscan_types) {
     SKIP_IF(this->not_float64_friendly());

@@ -54,7 +54,9 @@ const int undefined = -2;
  */
 enum Method
 {
-    defaultDense = 0 /*!< Default: performance-oriented method */
+    defaultDense = 0, /*!< Default: brute-force performance-oriented method */
+    kdTree       = 1, /*!< K-d tree method: accelerated epsilon-neighborhood search */
+    ballTree     = 2  /*!< Ball tree method: hypersphere-based spatial partitioning */
 };
 
 /**
