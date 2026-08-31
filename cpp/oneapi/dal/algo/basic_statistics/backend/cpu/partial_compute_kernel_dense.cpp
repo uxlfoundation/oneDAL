@@ -26,6 +26,8 @@
 
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/table/csr.hpp"
+#include "oneapi/dal/table/csr_accessor.hpp"
 
 #include <daal/src/algorithms/low_order_moments/moments_online.h>
 #include <daal/src/algorithms/low_order_moments/low_order_moments_kernel.h>
@@ -57,11 +59,54 @@ template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using daal_lom_online_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, to_daal_method<Method>::value, Cpu>;
 
-/// The weighted path always densifies its input, so it is bound to `defaultDense`
-/// regardless of the descriptor method.
+/// The dense weighted path densifies its input before scaling it, so it is bound to
+/// `defaultDense`. The sparse weighted path does not go through here: it folds the
+/// weights into the CSR values and reuses the unweighted `fastCSR` kernel instead, see
+/// `scale_csr_by_weights`.
 template <typename Float, daal::internal::CpuType Cpu>
 using daal_lom_online_dense_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
+
+/// Apply per-row weights to a CSR table.
+///
+/// Weighted statistics in this algorithm are plain per-row scaling of the data:
+/// `apply_weights` multiplies every element of row `i` by `weights[i]` and the
+/// observation count stays the plain row count. For a CSR table that is exactly a
+/// scaling of the stored values by their row's weight, because a structural zero stays
+/// zero under scaling (`0 * w == 0`). So the weighted sparse case reduces to the
+/// unweighted one on a value-scaled copy of the table, with no change to the merge or
+/// finalize steps.
+template <typename Float>
+inline csr_table scale_csr_by_weights(const table& data, const table& weights) {
+    const auto& csr = static_cast<const csr_table&>(data);
+    const std::int64_t row_count = csr.get_row_count();
+    const std::int64_t column_count = csr.get_column_count();
+    const auto indexing = csr.get_indexing();
+    const std::int64_t shift = (indexing == sparse_indexing::one_based) ? 1 : 0;
+
+    ONEDAL_ASSERT(weights.get_row_count() == row_count);
+    ONEDAL_ASSERT(weights.get_column_count() == std::int64_t(1));
+
+    auto [values, column_indices, row_offsets] =
+        csr_accessor<const Float>(csr).pull({ 0, -1 }, indexing);
+    const auto weights_arr = row_accessor<const Float>(weights).pull();
+
+    auto scaled = dal::array<Float>::empty(values.get_count());
+    auto* const scaled_ptr = scaled.get_mutable_data();
+    const auto* const values_ptr = values.get_data();
+    const auto* const offsets_ptr = row_offsets.get_data();
+
+    for (std::int64_t row = 0; row < row_count; ++row) {
+        const Float weight = weights_arr[row];
+        const std::int64_t begin = offsets_ptr[row] - shift;
+        const std::int64_t end = offsets_ptr[row + 1] - shift;
+        for (std::int64_t i = begin; i < end; ++i) {
+            scaled_ptr[i] = values_ptr[i] * weight;
+        }
+    }
+
+    return csr_table::wrap(scaled, column_indices, row_offsets, column_count, indexing);
+}
 
 template <typename Float, typename Task>
 inline auto get_partial_result(daal_lom::PartialResult daal_partial_result,
@@ -269,11 +314,14 @@ static partial_compute_result<Task> partial_compute(const context_cpu& ctx,
                                                     const descriptor_t& desc,
                                                     const partial_compute_input<Task>& input) {
     if (input.get_weights().has_data()) {
-        // The DAAL fastCSR online kernel has no weighted variant, and the weighted
-        // path densifies its input through `row_accessor`, which a CSR table does
-        // not support. Reject explicitly rather than fail deep inside the accessor.
+        // The DAAL fastCSR online kernel has no weighted variant, and the dense weighted
+        // path densifies its input through `row_accessor`, which a CSR table does not
+        // support. Fold the weights into the CSR values instead and reuse the unweighted
+        // fastCSR kernel, which is exactly equivalent, see `scale_csr_by_weights`.
         if constexpr (std::is_same_v<Method, method::sparse>) {
-            throw unimplemented(dal::detail::error_messages::method_not_implemented());
+            const auto scaled = scale_csr_by_weights<Float>(input.get_data(), input.get_weights());
+            const partial_compute_input<Task> scaled_input{ input.get_prev(), scaled };
+            return call_daal_kernel_without_weights<Float, Method, Task>(ctx, desc, scaled_input);
         }
         else {
             return call_daal_kernel_with_weights<Float, Task>(ctx, desc, input);

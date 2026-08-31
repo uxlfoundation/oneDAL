@@ -29,6 +29,7 @@
 #include "oneapi/dal/util/common.hpp"
 
 #include "oneapi/dal/table/csr.hpp"
+#include "oneapi/dal/table/csr_accessor.hpp"
 
 namespace oneapi::dal::basic_statistics::backend {
 
@@ -71,6 +72,70 @@ inline auto get_csr_desc_to_compute(const descriptor_t& desc) {
     }
     local_desc.set_result_options(options);
     return local_desc;
+}
+
+/// A CSR table whose values have been scaled by the per-row weights, together with the
+/// arrays that own the device memory it points at. Keep the whole aggregate alive for
+/// as long as `table` is in use.
+template <typename Float>
+struct scaled_csr {
+    csr_table table;
+    dal::array<Float> values;
+    dal::array<std::int64_t> column_indices;
+    dal::array<std::int64_t> row_offsets;
+};
+
+/// Apply per-row weights to a CSR table.
+///
+/// Weighted statistics in this algorithm are plain per-row scaling of the data: the
+/// dense path multiplies every element of row `i` by `weights[i]` and keeps the plain
+/// row count as the observation count. For a CSR table that is exactly a scaling of the
+/// stored values by their row's weight, because a structural zero stays zero under
+/// scaling (`0 * w == 0`). So the weighted sparse case reduces to the unweighted one on
+/// a value-scaled copy of the table, with no change to the merge or finalize steps.
+template <typename Float>
+inline scaled_csr<Float> scale_csr_by_weights(sycl::queue& q,
+                                              const csr_table& csr,
+                                              const table& weights) {
+    const std::int64_t row_count = csr.get_row_count();
+    const std::int64_t column_count = csr.get_column_count();
+    const std::int64_t nonzero_count = csr.get_non_zero_count();
+
+    auto [values, column_indices, row_offsets] =
+        csr_accessor<const Float>(csr).pull(q,
+                                            { 0, -1 },
+                                            sparse_indexing::zero_based,
+                                            alloc::device);
+    const auto weights_nd = pr::table2ndarray_1d<Float>(q, weights, alloc::device);
+
+    auto scaled = dal::array<Float>::empty(q, nonzero_count, alloc::device);
+    auto* const scaled_ptr = scaled.get_mutable_data();
+    const auto* const values_ptr = values.get_data();
+    const auto* const offsets_ptr = row_offsets.get_data();
+    const auto* const weights_ptr = weights_nd.get_data();
+
+    auto ev = q.submit([&](sycl::handler& cgh) {
+        cgh.parallel_for(sycl::range<1>(row_count), [=](sycl::item<1> id) {
+            const std::int64_t row = id.get_id(0);
+            const Float weight = weights_ptr[row];
+            for (std::int64_t i = offsets_ptr[row]; i < offsets_ptr[row + 1]; ++i) {
+                scaled_ptr[i] = values_ptr[i] * weight;
+            }
+        });
+    });
+    ev.wait_and_throw();
+
+    auto scaled_table = csr_table::wrap(q,
+                                        scaled.get_data(),
+                                        column_indices.get_data(),
+                                        row_offsets.get_data(),
+                                        row_count,
+                                        column_count,
+                                        sparse_indexing::zero_based);
+    return { std::move(scaled_table),
+             std::move(scaled),
+             std::move(column_indices),
+             std::move(row_offsets) };
 }
 
 /// Bump nobs by `row_count` and return the updated total (1-element device array).
@@ -181,16 +246,23 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     const auto data = input.get_data();
     ONEDAL_ASSERT(data.get_kind() == csr_table::kind());
 
-    // The GPU CSR batch kernel does not accept per-row weights.
-    if (input.get_weights().has_data()) {
-        throw unimplemented(dal::detail::error_messages::method_not_implemented());
-    }
-
     const auto local_desc = get_csr_desc_to_compute<Float>(desc);
     const auto res_op = local_desc.get_result_options();
 
+    // The GPU CSR batch kernel takes no weights of its own, so fold them into the data
+    // by scaling the stored values per row. `weighted` must outlive the kernel call: it
+    // owns the device memory that the scaled table points at.
+    const auto weights = input.get_weights();
+    scaled_csr<Float> weighted;
+    if (weights.has_data()) {
+        ONEDAL_ASSERT(weights.get_row_count() == data.get_row_count());
+        ONEDAL_ASSERT(weights.get_column_count() == std::int64_t(1));
+        weighted = scale_csr_by_weights<Float>(q, static_cast<const csr_table&>(data), weights);
+    }
+    const table& batch_data = weights.has_data() ? static_cast<const table&>(weighted.table) : data;
+
     auto batch_kernel = compute_kernel_gpu<Float, method::sparse, task::compute>{};
-    auto batch_result = batch_kernel(ctx, local_desc, { data });
+    auto batch_result = batch_kernel(ctx, local_desc, { batch_data });
 
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t column_count = data.get_column_count();
@@ -262,9 +334,9 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             result.set_partial_sum(batch_result.get_sum());
             result.set_partial_sum_squares(batch_result.get_sum_squares());
             // Initial sum_squares_centered is the batch's own centered sum of squares
-            // for a single-batch case where n == row_count and mean == sum / n. That
-            // is exactly the identity `sum^2 - sum*sum/n`; compute it here so that
-            // downstream partial_compute merges have a consistent baseline.
+            // for a single-batch case where n == row_count and mean == sum / n, i.e.
+            // `sum_squares - sum^2 / n`. Compute it here so that downstream
+            // partial_compute merges have a consistent baseline.
             const auto sum_nd =
                 pr::table2ndarray_1d<Float>(q, batch_result.get_sum(), sycl::usm::alloc::device);
             const auto sum2_nd = pr::table2ndarray_1d<Float>(q,
