@@ -242,11 +242,17 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     const Float min_weight_fraction =
         static_cast<Float>(desc.get_min_weight_fraction_in_leaf_node());
     if (min_weight_fraction > Float(0)) {
-        const Float total_weight =
-            ctx.is_weighted_
-                ? pr::reduce_1d(queue_, weights_nd_, pr::sum<Float>{}, pr::identity<Float>{})
-                : Float(ctx.row_count_);
-        ctx.min_weight_leaf_ = min_weight_fraction * total_weight;
+        if (ctx.is_weighted_) {
+            const Float total_weight =
+                pr::reduce_1d(queue_, weights_nd_, pr::sum<Float>{}, pr::identity<Float>{});
+            ctx.min_weight_leaf_ = min_weight_fraction * total_weight;
+        }
+        else {
+            const Index min_obs_from_weight =
+                static_cast<Index>(std::ceil(min_weight_fraction * Float(ctx.row_count_)));
+            ctx.min_observations_in_leaf_node_ =
+                std::max(ctx.min_observations_in_leaf_node_, min_obs_from_weight);
+        }
     }
 
     response_host_ = response_nd_.to_host(queue_);

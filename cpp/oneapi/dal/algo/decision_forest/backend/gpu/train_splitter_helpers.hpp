@@ -358,18 +358,24 @@ struct split_smp {
         sub_stat<Float, Index, task_t>(&right_hist[0], &si.left_hist[0], &node_hist[0], buff_size);
 
         sc.right_count = node_row_count - sc.left_count;
-        // TODO: child sum2cent are unweighted; only the decrease is weighted (each
-        // child scaled by its mean sample weight). Weight the stats to match sklearn.
+
+        const Float left_imp =
+            (sc.left_count > 0) ? (si.left_hist[2] / Float(sc.left_count)) : Float(0);
+        const Float right_imp =
+            (sc.right_count > 0) ? (right_hist[2] / Float(sc.right_count)) : Float(0);
+        const Float node_imp = node_imp_ptr[1] / Float(node_row_count);
+
+        // TODO: child MSE are unweighted; only the decrease is weighted (children
+        // scaled by their summed weights). Weight the stats to fully match sklearn.
         if (is_weighted && sc.total_weight_sum > Float(0)) {
             const Float right_weight_sum = sc.total_weight_sum - sc.left_weight_sum;
-            const Float wL =
-                (sc.left_count > 0) ? (sc.left_weight_sum / Float(sc.left_count)) : Float(0);
-            const Float wR =
-                (sc.right_count > 0) ? (right_weight_sum / Float(sc.right_count)) : Float(0);
-            sc.imp_dec = node_imp_ptr[1] - (wL * si.left_hist[2] + wR * right_hist[2]);
+            sc.imp_dec = node_imp - (sc.left_weight_sum * left_imp + right_weight_sum * right_imp) /
+                                        sc.total_weight_sum;
         }
         else {
-            sc.imp_dec = node_imp_ptr[1] - (si.left_hist[2] + right_hist[2]);
+            sc.imp_dec =
+                node_imp - (Float(sc.left_count) * left_imp + Float(sc.right_count) * right_imp) /
+                               Float(node_row_count);
         }
     }
 
@@ -468,12 +474,7 @@ struct split_smp {
         node_ptr[impl_const_t::ind_lch_grc] = bs_sc.left_count;
 
         if (update_imp_dec_required) {
-            if constexpr (std::is_same_v<task_t, task::classification>) {
-                node_imp_decr_ptr[node_id] = bs_sc.imp_dec;
-            }
-            else {
-                node_imp_decr_ptr[node_id] = bs_sc.imp_dec / node_ptr[impl_const_t::ind_grc];
-            }
+            node_imp_decr_ptr[node_id] = bs_sc.imp_dec;
         }
     }
 };
