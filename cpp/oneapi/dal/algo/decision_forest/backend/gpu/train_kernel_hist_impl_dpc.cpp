@@ -731,10 +731,6 @@ inline void compute_hist_for_node(
 
     node_ptr[5] = win_cls;
     node_imp_ptr[0] = sycl::max(imp, Float(0));
-
-    if (!ctx.is_weighted_) {
-        imp_list_ptr.node_weight_list_ptr_[node_id] = Float(row_count);
-    }
 }
 
 // regression compute_hist_for_node
