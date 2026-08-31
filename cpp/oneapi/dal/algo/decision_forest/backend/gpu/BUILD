@@ -11,7 +11,8 @@ dal_module(
         "@onedal//cpp/oneapi/dal/algo/decision_forest:core",
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
         "@onedal//cpp/oneapi/dal/backend/primitives:sort",
-        "@onedal//cpp/oneapi/dal/backend/primitives:rng",
+        "@onedal//cpp/oneapi/dal/backend/primitives:reduction",
+        "@onedal//cpp/oneapi/dal/backend/primitives:rng"
     ],
     extra_deps = [
         "@onedal//cpp/daal:core",
