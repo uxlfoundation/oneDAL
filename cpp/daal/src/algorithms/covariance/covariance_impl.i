@@ -84,6 +84,7 @@ services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossPr
     return services::Status();
 }
 
+/// Error codes for the reducer classes used in the covariance algorithm.
 enum class ReducerErrorCode
 {
     ok                  = 0, /// No error
