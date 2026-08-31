@@ -293,6 +293,8 @@ struct split_smp {
         sc.left_imp = Float(1);
         sc.right_imp = Float(1);
 
+        // TODO: child impurities are unweighted Gini from class counts; only the
+        // decrease is weighted. Weight the class histograms to fully match sklearn.
         for (Index class_id = 0; class_id < class_count; ++class_id) {
             sc.left_imp -= Float(si.left_hist[class_id]) * Float(si.left_hist[class_id]) * divL;
             sc.right_imp -= Float(node_class_hist_ptr[class_id] - si.left_hist[class_id]) *
@@ -302,8 +304,6 @@ struct split_smp {
         sc.left_imp = sycl::max(sc.left_imp, Float(0));
         sc.right_imp = sycl::max(sc.right_imp, Float(0));
 
-        // TODO: child impurities are unweighted Gini from class counts; only the
-        // decrease is weighted. Weight the class histograms to fully match sklearn.
         if (is_weighted && sc.total_weight_sum > Float(0)) {
             const Float right_weight_sum = sc.total_weight_sum - sc.left_weight_sum;
             sc.imp_dec =
