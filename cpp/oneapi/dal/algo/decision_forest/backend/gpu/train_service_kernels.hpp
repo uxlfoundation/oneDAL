@@ -37,7 +37,7 @@ class train_service_kernels {
     using context_t = train_context<Float, Index, Task>;
 
 public:
-    train_service_kernels(sycl::queue& q) : queue_(q){};
+    train_service_kernels(sycl::queue& q) : queue_(q) {};
     ~train_service_kernels() = default;
 
     std::uint64_t get_oob_rows_required_mem_size(Index row_count,

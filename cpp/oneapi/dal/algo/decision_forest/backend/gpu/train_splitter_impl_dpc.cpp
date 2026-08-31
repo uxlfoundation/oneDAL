@@ -209,6 +209,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
                 const Index count = Index(bin <= ts_scal.ftr_bin);
 
+                ts_scal.left_weight_sum = Float(0);
+                ts_scal.total_weight_sum = Float(0);
                 if (is_weighted) {
                     const Float row_weight = (local_id < row_count && bin <= ts_scal.ftr_bin)
                                                  ? weight_ptr[id]
