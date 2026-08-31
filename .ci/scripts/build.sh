@@ -286,5 +286,5 @@ fi
 echo "Calling make"
 echo "CXX=$CXX"
 echo "CC=$CC"
-echo make "${make_options[@]}"
+echo make "${make_options[@]}" REQDBG=yes OPTFLAG=O0 REQSAN=address
 make "${make_options[@]}"

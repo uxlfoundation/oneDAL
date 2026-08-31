@@ -141,8 +141,7 @@ jobs:
   - checkout: none
   - script: |
       set -e
-      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
-      git checkout --detach $(sklearnex.commit)
+      git clone https://github.com/david-cortes-intel/scikit-learn-intelex.git . -b asan_test
       git log -1 --format='sklearnex at %H%n%s%n%ci'
     displayName: 'Clone sklearnex @ $(sklearnex.commit)'
   - task: DownloadPipelineArtifact@2
