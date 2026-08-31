@@ -166,6 +166,7 @@ struct split_scalar {
     Float right_imp;
     Float imp_dec;
     Float left_weight_sum;
+    Float total_weight_sum;
 
     void clear() {
         ftr_id = impl_const_t::leaf_mark_;
@@ -176,6 +177,7 @@ struct split_scalar {
         right_imp = Float(0);
         imp_dec = -de::limits<Float>::max();
         left_weight_sum = Float(0);
+        total_weight_sum = Float(0);
     }
 
     void copy(const split_scalar& other) {
@@ -187,6 +189,7 @@ struct split_scalar {
         right_imp = other.right_imp;
         imp_dec = other.imp_dec;
         left_weight_sum = other.left_weight_sum;
+        total_weight_sum = other.total_weight_sum;
     }
 };
 
@@ -299,11 +302,18 @@ struct split_smp {
         sc.left_imp = sycl::max(sc.left_imp, Float(0));
         sc.right_imp = sycl::max(sc.right_imp, Float(0));
 
-        sc.imp_dec =
-            node_imp - (Float(sc.left_count) * sc.left_imp + Float(sc.right_count) * sc.right_imp) /
-                           Float(node_row_count);
-        if (sc.left_count > 0 && is_weighted) {
-            sc.imp_dec /= (sc.left_weight_sum / sc.left_count);
+        // TODO: child impurities are unweighted Gini from class counts; only the
+        // decrease is weighted. Weight the class histograms to fully match sklearn.
+        if (is_weighted && sc.total_weight_sum > Float(0)) {
+            const Float right_weight_sum = sc.total_weight_sum - sc.left_weight_sum;
+            sc.imp_dec =
+                node_imp - (sc.left_weight_sum * sc.left_imp + right_weight_sum * sc.right_imp) /
+                               sc.total_weight_sum;
+        }
+        else {
+            sc.imp_dec = node_imp - (Float(sc.left_count) * sc.left_imp +
+                                     Float(sc.right_count) * sc.right_imp) /
+                                        Float(node_row_count);
         }
     }
 
@@ -348,26 +358,40 @@ struct split_smp {
         sub_stat<Float, Index, task_t>(&right_hist[0], &si.left_hist[0], &node_hist[0], buff_size);
 
         sc.right_count = node_row_count - sc.left_count;
-        sc.imp_dec = node_imp_ptr[1] - (si.left_hist[2] + right_hist[2]);
-        if (sc.left_count > 0 && is_weighted) {
-            sc.imp_dec *= (sc.left_weight_sum / sc.left_count);
+        // TODO: child sum2cent are unweighted; only the decrease is weighted (each
+        // child scaled by its mean sample weight). Weight the stats to match sklearn.
+        if (is_weighted && sc.total_weight_sum > Float(0)) {
+            const Float right_weight_sum = sc.total_weight_sum - sc.left_weight_sum;
+            const Float wL =
+                (sc.left_count > 0) ? (sc.left_weight_sum / Float(sc.left_count)) : Float(0);
+            const Float wR =
+                (sc.right_count > 0) ? (right_weight_sum / Float(sc.right_count)) : Float(0);
+            sc.imp_dec = node_imp_ptr[1] - (wL * si.left_hist[2] + wR * right_hist[2]);
+        }
+        else {
+            sc.imp_dec = node_imp_ptr[1] - (si.left_hist[2] + right_hist[2]);
         }
     }
 
     inline bool test_split_is_best(const split_info_t& bs,
                                    const split_info_t& ts,
-                                   Index min_observations_in_leaf_node) {
+                                   Index min_observations_in_leaf_node,
+                                   Float min_weight_leaf) {
         const split_scalar_t& ts_sc = ts.scalars;
         const split_scalar_t& bs_sc = bs.scalars;
-        return test_split_is_best(bs_sc, ts_sc, min_observations_in_leaf_node);
+        return test_split_is_best(bs_sc, ts_sc, min_observations_in_leaf_node, min_weight_leaf);
     }
 
     inline bool test_split_is_best(const split_scalar_t& bs_sc,
                                    const split_scalar_t& ts_sc,
-                                   Index min_observations_in_leaf_node) {
+                                   Index min_observations_in_leaf_node,
+                                   Float min_weight_leaf) {
         bool valid_imp_dec = Float(0) < ts_sc.imp_dec;
         bool valid_rcount = ts_sc.right_count >= min_observations_in_leaf_node;
         bool valid_lcount = ts_sc.left_count >= min_observations_in_leaf_node;
+        const Float ts_right_weight = ts_sc.total_weight_sum - ts_sc.left_weight_sum;
+        bool valid_lweight = ts_sc.left_weight_sum >= min_weight_leaf;
+        bool valid_rweight = ts_right_weight >= min_weight_leaf;
         bool bs_unassigned = bs_sc.ftr_bin == impl_const_t::leaf_mark_;
         bool bs_less_imp = float_gt(ts_sc.imp_dec, bs_sc.imp_dec);
         bool bs_eq_imp = float_eq(ts_sc.imp_dec, bs_sc.imp_dec);
@@ -376,15 +400,17 @@ struct split_smp {
         bool bs_greater_bin = ts_sc.ftr_bin < bs_sc.ftr_bin;
         bool is_best = bs_unassigned || bs_less_imp;
         is_best = is_best || (bs_eq_imp && (bs_greater_ftr || (bs_eq_ftr && bs_greater_bin)));
-        return is_best && valid_imp_dec && valid_lcount && valid_rcount;
+        return is_best && valid_imp_dec && valid_lcount && valid_rcount && valid_lweight &&
+               valid_rweight;
     }
 
     // universal
     inline void choose_best_split(split_info_t& bs,
                                   const split_info_t& ts,
                                   Index hist_elem_count,
-                                  Index min_obs_in_leaf_node) {
-        if (test_split_is_best(bs, ts, min_obs_in_leaf_node)) {
+                                  Index min_obs_in_leaf_node,
+                                  Float min_weight_leaf) {
+        if (test_split_is_best(bs, ts, min_obs_in_leaf_node, min_weight_leaf)) {
             bs.scalars.copy(ts.scalars);
 
             for (Index i = 0; i < hist_elem_count; ++i) {
@@ -399,7 +425,9 @@ struct split_smp {
                                       Float bs_left_imp_,
                                       const hist_type_t* bs_left_class_hist_,
                                       Index node_id,
-                                      Index class_count) {
+                                      Index class_count,
+                                      Float* left_weight_list_ptr,
+                                      Float bs_left_weight_sum) {
         Float* left_node_imp_ptr = left_imp_list_ptr + node_id * impl_const_t::node_imp_prop_count_;
 
         left_node_imp_ptr[0] = bs_left_imp_;
@@ -408,16 +436,22 @@ struct split_smp {
         for (Index class_id = 0; class_id < class_count; ++class_id) {
             left_node_class_hist_ptr[class_id] = bs_left_class_hist_[class_id];
         }
+
+        left_weight_list_ptr[node_id] = bs_left_weight_sum;
     }
 
     // regression version
     inline void update_left_child_imp(Float* left_imp_list_ptr,
                                       const hist_type_t* bs_left_hist,
-                                      Index node_id) {
+                                      Index node_id,
+                                      Float* left_weight_list_ptr,
+                                      Float bs_left_weight_sum) {
         Float* left_node_imp_ptr = left_imp_list_ptr + node_id * impl_const_t::node_imp_prop_count_;
 
         left_node_imp_ptr[0] = bs_left_hist[1];
         left_node_imp_ptr[1] = bs_left_hist[2];
+
+        left_weight_list_ptr[node_id] = bs_left_weight_sum;
     }
 
     inline void update_node_bs_info(const split_info_t& bs,

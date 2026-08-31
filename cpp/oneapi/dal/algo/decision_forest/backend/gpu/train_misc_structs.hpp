@@ -123,6 +123,8 @@ struct train_context {
     Index min_observations_in_leaf_node_ = 0;
     Index max_tree_depth_ = 0;
 
+    Float min_weight_leaf_ = Float(0);
+
     Float impurity_threshold_;
     Float float_min_;
     Index index_max_;

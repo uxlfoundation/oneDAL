@@ -18,6 +18,7 @@
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/backend/primitives/reduction.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -236,6 +237,16 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
     if (ctx.is_weighted_) {
         weights_nd_ = pr::table2ndarray_1d<Float>(queue_, weights, alloc::device);
+    }
+
+    const Float min_weight_fraction =
+        static_cast<Float>(desc.get_min_weight_fraction_in_leaf_node());
+    if (min_weight_fraction > Float(0)) {
+        const Float total_weight =
+            ctx.is_weighted_
+                ? pr::reduce_1d(queue_, weights_nd_, pr::sum<Float>{}, pr::identity<Float>{})
+                : Float(ctx.row_count_);
+        ctx.min_weight_leaf_ = min_weight_fraction * total_weight;
     }
 
     response_host_ = response_nd_.to_host(queue_);
@@ -560,13 +571,15 @@ struct kernel_context {
               index_max_(ctx.index_max_),
               min_observations_in_leaf_node_(ctx.min_observations_in_leaf_node_),
               class_count_(ctx.class_count_),
-              impurity_threshold_(ctx.impurity_threshold_) {}
+              impurity_threshold_(ctx.impurity_threshold_),
+              is_weighted_(ctx.is_weighted_) {}
 
     Float float_min_;
     Index index_max_;
     Index min_observations_in_leaf_node_;
     Index class_count_;
     Float impurity_threshold_;
+    bool is_weighted_;
 };
 
 template <typename T, typename Index = std::size_t>
@@ -649,6 +662,7 @@ inline void compute_hist_for_node(
     Index ind_start,
     Index ind_end,
     const Float* response_ptr,
+    const Float* weight_ptr,
     Index* node_ptr,
     const Index* node_tree_order_ptr,
     typename task_types<Float, Index, task::classification>::hist_type_t* local_buf_ptr,
@@ -675,13 +689,20 @@ inline void compute_hist_for_node(
     Float* node_imp_ptr = imp_list_ptr.imp_list_ptr_ + node_id * impl_const_t::node_imp_prop_count_;
     const Index row_count = node_ptr[impl_const_t::ind_lrc];
 
+    Float prv_weight = Float(0);
     for (Index i = ind_start; i < ind_end; ++i) {
         Index id = node_tree_order_ptr[i];
         add_val_to_hist<Float, Index>(prv_hist_ptr, response_ptr[id]);
+        if (ctx.is_weighted_) {
+            prv_weight += weight_ptr[id];
+        }
     }
 
     for (Index cls_idx = 0; cls_idx < ctx.class_count_; ++cls_idx) {
         bk::atomic_global_add(node_histogram_ptr + cls_idx, prv_hist_ptr[cls_idx]);
+    }
+    if (ctx.is_weighted_) {
+        bk::atomic_global_add(imp_list_ptr.node_weight_list_ptr_ + node_id, prv_weight);
     }
 
     sycl::group_barrier(item.get_group());
@@ -704,6 +725,10 @@ inline void compute_hist_for_node(
 
     node_ptr[5] = win_cls;
     node_imp_ptr[0] = sycl::max(imp, Float(0));
+
+    if (!ctx.is_weighted_) {
+        imp_list_ptr.node_weight_list_ptr_[node_id] = Float(row_count);
+    }
 }
 
 // regression compute_hist_for_node
@@ -713,6 +738,7 @@ inline void compute_hist_for_node(
     Index ind_start,
     Index ind_end,
     const Float* response_ptr,
+    const Float* weight_ptr,
     Index* node_ptr,
     const Index* node_tree_order_ptr,
     typename task_types<Float, Index, task::regression>::hist_type_t* local_buf_ptr,
@@ -727,12 +753,17 @@ inline void compute_hist_for_node(
     const Index local_size = item.get_local_range()[0];
 
     Float* node_imp_ptr = imp_list_ptr.imp_list_ptr_ + node_id * impl_const_t::node_imp_prop_count_;
+    const Index row_count = node_ptr[impl_const_t::ind_lrc];
     constexpr Index hist_prop_count = impl_const_t::hist_prop_count_;
     hist_type_t prv_hist[hist_prop_count] = { 0 };
 
+    Float prv_weight = Float(0);
     for (Index i = ind_start; i < ind_end; ++i) {
         Index id = node_tree_order_ptr[i];
         add_val_to_hist<Float, Index>(prv_hist, response_ptr[id]);
+        if (ctx.is_weighted_) {
+            prv_weight += weight_ptr[id];
+        }
     }
 
     hist_type_t* local_h_ptr = local_buf_ptr + local_id * hist_prop_count;
@@ -749,9 +780,15 @@ inline void compute_hist_for_node(
         }
     }
 
+    const Float node_weight =
+        ctx.is_weighted_
+            ? sycl::reduce_over_group(item.get_group(), prv_weight, sycl::plus<Float>())
+            : Float(row_count);
+
     if (local_id == 0) {
         node_imp_ptr[0] = local_h_ptr[1]; // store mean
         node_imp_ptr[1] = local_h_ptr[2]; // store sum2cent
+        imp_list_ptr.node_weight_list_ptr_[node_id] = node_weight;
     }
 }
 
@@ -816,6 +853,7 @@ template <typename Float, typename Bin, typename Index, typename Task>
 sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_histogram_local(
     const train_context_t& ctx,
     const pr::ndarray<Float, 1>& response,
+    const pr::ndarray<Float, 1>& weights,
     const pr::ndarray<Index, 1>& tree_order,
     pr::ndarray<Index, 1>& node_list,
     imp_data_t& imp_data_list,
@@ -831,6 +869,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
     }
 
     const Float* response_ptr = response.get_data();
+    const Float* weight_ptr = weights.get_data();
     const Index* tree_order_ptr = tree_order.get_data();
     Index* node_list_ptr = node_list.get_mutable_data();
 
@@ -841,6 +880,10 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
     sycl::event fill_event = {};
     if constexpr (std::is_same_v<Task, task::classification>) {
         fill_event = imp_data_list.class_hist_list_.fill(queue_, 0, deps);
+    }
+    sycl::event weight_fill_event = {};
+    if (ctx.is_weighted_) {
+        weight_fill_event = imp_data_list.node_weight_list_.fill(queue_, 0, deps);
     }
 
     imp_data_list_ptr_mutable<Float, Index, Task> imp_list_ptr(imp_data_list);
@@ -867,6 +910,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.depends_on(fill_event);
+        cgh.depends_on(weight_fill_event);
         // local_buf is used for regression only, but need to be present for classification also
         local_accessor_rw_t<hist_type_t> local_buf(local_buf_size, cgh);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<2> item) {
@@ -895,6 +939,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
                                                           ind_start,
                                                           ind_end,
                                                           response_ptr,
+                                                          weight_ptr,
                                                           node_ptr,
                                                           node_tree_order_ptr,
                                                           local_buf_ptr,
@@ -907,6 +952,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
                                                            ind_start,
                                                            ind_end,
                                                            response_ptr,
+                                                           weight_ptr,
                                                            node_ptr,
                                                            node_tree_order_ptr,
                                                            local_buf_ptr,
@@ -1109,6 +1155,7 @@ template <typename Float, typename Bin, typename Index, typename Task>
 sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_histogram(
     const train_context_t& ctx,
     const pr::ndarray<Float, 1>& response,
+    const pr::ndarray<Float, 1>& weights,
     const pr::ndarray<Index, 1>& tree_order,
     pr::ndarray<Index, 1>& node_list,
     imp_data_t& imp_data_list,
@@ -1131,6 +1178,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
         if constexpr (std::is_same_v<Task, task::classification>) {
             last_event = compute_initial_histogram_local(ctx,
                                                          response,
+                                                         weights,
                                                          tree_order,
                                                          node_list,
                                                          imp_data_list,
@@ -1186,6 +1234,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
     else {
         last_event = compute_initial_histogram_local(ctx,
                                                      response,
+                                                     weights,
                                                      tree_order,
                                                      node_list,
                                                      imp_data_list,
@@ -1239,6 +1288,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_best_split(
                                                     ctx,
                                                     data,
                                                     response,
+                                                    weights,
                                                     tree_order,
                                                     selected_ftr_list,
                                                     random_bins_com,
@@ -1277,6 +1327,11 @@ static void do_node_imp_split(const imp_data_list_ptr<Float, Index, Task>& imp_l
                               Index node_id,
                               Index new_left_node_pos) {
     using impl_const_t = impl_const<Index, Task>;
+
+    const Float parent_weight = imp_list_ptr.node_weight_list_ptr_[node_id];
+    const Float left_weight = left_imp_list_ptr.node_weight_list_ptr_[node_id];
+    imp_list_ptr_new.node_weight_list_ptr_[new_left_node_pos] = left_weight;
+    imp_list_ptr_new.node_weight_list_ptr_[new_left_node_pos + 1] = parent_weight - left_weight;
 
     if constexpr (std::is_same_v<Task, task::classification>) {
         // assign class hist and compute winner for new nodes
@@ -1906,6 +1961,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
         last_event = compute_initial_histogram(ctx,
                                                response_nd_,
+                                               weights_nd_,
                                                tree_order_lev_,
                                                level_node_lists[0],
                                                imp_data_holder.get_mutable_data(0),
