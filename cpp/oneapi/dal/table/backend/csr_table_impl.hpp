@@ -65,7 +65,7 @@ public:
 #ifdef ONEDAL_DATA_PARALLEL
         if (data.get_queue() != column_indices.get_queue() ||
             data.get_queue() != row_offsets.get_queue()) {
-            throw dal::domain_error(error_msg::alloc_kinds_of_arrays_do_not_match());
+            throw dal::invalid_argument(error_msg::queues_of_arrays_do_not_match());
         }
 #endif // ONEDAL_DATA_PARALLEL
 
