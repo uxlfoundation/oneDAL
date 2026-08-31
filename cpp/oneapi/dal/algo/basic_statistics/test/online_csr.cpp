@@ -51,9 +51,10 @@ inline std::vector<csr_table> split_csr_by_rows(const csr_table& source, std::in
         // A block whose rows happen to be all implicit zeros still contributes
         // `block_rows` rows to the online statistics, so it must be forwarded to
         // partial_compute rather than dropped. It cannot be encoded as a
-        // structurally empty table (`dal::array<T>` of count 0 throws), so store a
-        // single explicit zero in the block's first row instead. Explicit zeros are
-        // a valid CSR encoding and leave every statistic unchanged.
+        // structurally empty table, because a CSR table's values and column indices
+        // are `dal::array`s and `dal::array<T>::empty(0)` throws. Store a single
+        // explicit zero in the block's first row instead: explicit zeros are a valid
+        // CSR encoding and leave every statistic unchanged.
         const bool pad_empty = (nnz == 0);
         const std::int64_t sub_nnz = pad_empty ? 1 : nnz;
 
@@ -97,8 +98,8 @@ inline std::vector<csr_table> split_csr_by_rows(const csr_table& source, std::in
 /// of `row_count` x `column_count`) explicitly, zeros included. Explicit zeros are
 /// a valid CSR encoding and are the only way to express a batch whose values are
 /// all zero: a sparsity-driven builder cannot reliably emit one, and a structurally
-/// empty (nnz == 0) block is not representable because `dal::array<T>` of count 0
-/// throws.
+/// empty (nnz == 0) block is not representable, because `csr_table::wrap` takes its
+/// values and column indices as `dal::array`s and `dal::array<T>::empty(0)` throws.
 template <typename Float>
 inline csr_table dense_to_explicit_csr(const Float* dense,
                                        std::int64_t row_count,

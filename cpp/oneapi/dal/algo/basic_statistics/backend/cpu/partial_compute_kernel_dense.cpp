@@ -69,15 +69,28 @@ using daal_lom_online_dense_kernel_t =
 
 /// Apply per-row weights to a CSR table.
 ///
-/// Weighted statistics in this algorithm are plain per-row scaling of the data:
+/// Weighting in this algorithm is defined as plain per-row scaling of the data:
 /// `apply_weights` multiplies every element of row `i` by `weights[i]` and the
-/// observation count stays the plain row count. For a CSR table that is exactly a
+/// observation count stays the plain row count. On a CSR table that is exactly a
 /// scaling of the stored values by their row's weight, because a structural zero stays
-/// zero under scaling (`0 * w == 0`). So the weighted sparse case reduces to the
-/// unweighted one on a value-scaled copy of the table, with no change to the merge or
+/// zero under scaling (`0 * w == 0`), so the sparsity pattern is unchanged and the
+/// index arrays are shared with the input rather than copied. This holds for every
+/// statistic including `min` and `max`: the weighted dense matrix and the value-scaled
+/// CSR matrix are the same matrix, implicit zeros included, so the extrema agree by
+/// construction (a negative weight flips a row's sign in both alike). The weighted
+/// sparse case therefore reduces to the unweighted one, with no change to the merge or
 /// finalize steps.
+///
+/// Cost is one streaming pass over the stored values, independent of how many
+/// statistics were requested. The DAAL kernel behind it makes at least one pass over
+/// the same values for any non-empty `result_options` and computes a whole estimate
+/// group at a time, so this never changes the asymptotic cost of a `partial_compute`
+/// call, not even when a single statistic is asked for. The scaling itself is threaded
+/// and dispatched per CPU ISA, see `apply_weights_csr`.
 template <typename Float>
-inline csr_table scale_csr_by_weights(const table& data, const table& weights) {
+inline csr_table scale_csr_by_weights(const context_cpu& ctx,
+                                      const table& data,
+                                      const table& weights) {
     const auto& csr = static_cast<const csr_table&>(data);
     const std::int64_t row_count = csr.get_row_count();
     const std::int64_t column_count = csr.get_column_count();
@@ -92,18 +105,14 @@ inline csr_table scale_csr_by_weights(const table& data, const table& weights) {
     const auto weights_arr = row_accessor<const Float>(weights).pull();
 
     auto scaled = dal::array<Float>::empty(values.get_count());
-    auto* const scaled_ptr = scaled.get_mutable_data();
-    const auto* const values_ptr = values.get_data();
-    const auto* const offsets_ptr = row_offsets.get_data();
+    auto scaled_nd = pr::ndview<Float, 1>::wrap_mutable(scaled);
 
-    for (std::int64_t row = 0; row < row_count; ++row) {
-        const Float weight = weights_arr[row];
-        const std::int64_t begin = offsets_ptr[row] - shift;
-        const std::int64_t end = offsets_ptr[row + 1] - shift;
-        for (std::int64_t i = begin; i < end; ++i) {
-            scaled_ptr[i] = values_ptr[i] * weight;
-        }
-    }
+    apply_weights_csr<Float>(ctx,
+                             pr::ndview<Float, 1>::wrap(weights_arr),
+                             pr::ndview<std::int64_t, 1>::wrap(row_offsets),
+                             shift,
+                             pr::ndview<Float, 1>::wrap(values),
+                             scaled_nd);
 
     return csr_table::wrap(scaled, column_indices, row_offsets, column_count, indexing);
 }
@@ -319,7 +328,8 @@ static partial_compute_result<Task> partial_compute(const context_cpu& ctx,
         // support. Fold the weights into the CSR values instead and reuse the unweighted
         // fastCSR kernel, which is exactly equivalent, see `scale_csr_by_weights`.
         if constexpr (std::is_same_v<Method, method::sparse>) {
-            const auto scaled = scale_csr_by_weights<Float>(input.get_data(), input.get_weights());
+            const auto scaled =
+                scale_csr_by_weights<Float>(ctx, input.get_data(), input.get_weights());
             const partial_compute_input<Task> scaled_input{ input.get_prev(), scaled };
             return call_daal_kernel_without_weights<Float, Method, Task>(ctx, desc, scaled_input);
         }
