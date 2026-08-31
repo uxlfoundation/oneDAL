@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <cmath>
+
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/finalize_compute_kernel.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/finalize_compute_kernel_dense_impl.hpp"
 
@@ -152,7 +154,19 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
 
     const auto nobs_nd = pr::table2ndarray_1d<Float>(q, input.get_partial_n_rows());
 
-    auto rows_count_global = nobs_nd.get_data()[0];
+    // `nobs_nd` is dereferenced on the host below. When the partial result's row count
+    // already lives in memory the host can read, `table2ndarray_1d` hands it back as a
+    // zero-copy wrap and performs no synchronization of its own, so a kernel from the
+    // preceding `partial_compute` may still be writing it. Every statistic is divided by
+    // this value, so reading it early skews the whole result by a wide margin rather than
+    // by rounding. Synchronize before touching it from the host.
+    q.wait_and_throw();
+
+    // The row count is accumulated in `Float`, and the conversion to the integer `nobs`
+    // below truncates. Round instead: a count that is not exactly representable (above
+    // 2^24 rows for float32) would otherwise be rounded down by a whole observation.
+    std::int64_t rows_count_global =
+        static_cast<std::int64_t>(std::llround(double(nobs_nd.get_data()[0])));
     auto is_distributed = (comm_.get_rank_count() > 1);
     {
         ONEDAL_PROFILER_TASK(allreduce_rows_count_global);
