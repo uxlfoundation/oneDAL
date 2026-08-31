@@ -293,8 +293,6 @@ struct split_smp {
         sc.left_imp = Float(1);
         sc.right_imp = Float(1);
 
-        // TODO: child impurities are unweighted Gini from class counts; only the
-        // decrease is weighted. Weight the class histograms to fully match sklearn.
         for (Index class_id = 0; class_id < class_count; ++class_id) {
             sc.left_imp -= Float(si.left_hist[class_id]) * Float(si.left_hist[class_id]) * divL;
             sc.right_imp -= Float(node_class_hist_ptr[class_id] - si.left_hist[class_id]) *
@@ -304,16 +302,11 @@ struct split_smp {
         sc.left_imp = sycl::max(sc.left_imp, Float(0));
         sc.right_imp = sycl::max(sc.right_imp, Float(0));
 
-        if (is_weighted && sc.total_weight_sum > Float(0)) {
-            const Float right_weight_sum = sc.total_weight_sum - sc.left_weight_sum;
-            sc.imp_dec =
-                node_imp - (sc.left_weight_sum * sc.left_imp + right_weight_sum * sc.right_imp) /
-                               sc.total_weight_sum;
-        }
-        else {
-            sc.imp_dec = node_imp - (Float(sc.left_count) * sc.left_imp +
-                                     Float(sc.right_count) * sc.right_imp) /
-                                        Float(node_row_count);
+        sc.imp_dec =
+            node_imp - (Float(sc.left_count) * sc.left_imp + Float(sc.right_count) * sc.right_imp) /
+                           Float(node_row_count);
+        if (sc.left_count > 0 && is_weighted) {
+            sc.imp_dec /= (sc.left_weight_sum / sc.left_count);
         }
     }
 
@@ -358,24 +351,9 @@ struct split_smp {
         sub_stat<Float, Index, task_t>(&right_hist[0], &si.left_hist[0], &node_hist[0], buff_size);
 
         sc.right_count = node_row_count - sc.left_count;
-
-        const Float left_imp =
-            (sc.left_count > 0) ? (si.left_hist[2] / Float(sc.left_count)) : Float(0);
-        const Float right_imp =
-            (sc.right_count > 0) ? (right_hist[2] / Float(sc.right_count)) : Float(0);
-        const Float node_imp = node_imp_ptr[1] / Float(node_row_count);
-
-        // TODO: child MSE are unweighted; only the decrease is weighted (children
-        // scaled by their summed weights). Weight the stats to fully match sklearn.
-        if (is_weighted && sc.total_weight_sum > Float(0)) {
-            const Float right_weight_sum = sc.total_weight_sum - sc.left_weight_sum;
-            sc.imp_dec = node_imp - (sc.left_weight_sum * left_imp + right_weight_sum * right_imp) /
-                                        sc.total_weight_sum;
-        }
-        else {
-            sc.imp_dec =
-                node_imp - (Float(sc.left_count) * left_imp + Float(sc.right_count) * right_imp) /
-                               Float(node_row_count);
+        sc.imp_dec = node_imp_ptr[1] - (si.left_hist[2] + right_hist[2]);
+        if (sc.left_count > 0 && is_weighted) {
+            sc.imp_dec *= (sc.left_weight_sum / sc.left_count);
         }
     }
 
@@ -474,7 +452,12 @@ struct split_smp {
         node_ptr[impl_const_t::ind_lch_grc] = bs_sc.left_count;
 
         if (update_imp_dec_required) {
-            node_imp_decr_ptr[node_id] = bs_sc.imp_dec;
+            if constexpr (std::is_same_v<task_t, task::classification>) {
+                node_imp_decr_ptr[node_id] = bs_sc.imp_dec;
+            }
+            else {
+                node_imp_decr_ptr[node_id] = bs_sc.imp_dec / node_ptr[impl_const_t::ind_grc];
+            }
         }
     }
 };

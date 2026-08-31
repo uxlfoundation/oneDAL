@@ -266,7 +266,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                             class_hist_list_ptr,
                                             class_count,
                                             node_id,
-                                            is_weighted);
+                                            false);
                         sp_hlp.choose_best_split(bs,
                                                  ts,
                                                  class_count,
@@ -274,7 +274,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                                  min_weight_leaf);
                     }
                     else {
-                        sp_hlp.calc_imp_dec(ts, node_ptr, node_imp_list_ptr, node_id, is_weighted);
+                        sp_hlp.calc_imp_dec(ts, node_ptr, node_imp_list_ptr, node_id, false);
                         sp_hlp.choose_best_split(bs,
                                                  ts,
                                                  impl_const_t::hist_prop_count_,
