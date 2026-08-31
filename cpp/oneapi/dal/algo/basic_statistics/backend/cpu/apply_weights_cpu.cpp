@@ -126,7 +126,7 @@ void apply_weights_csr(const pr::ndview<Float, 1>& weights,
             const std::int64_t first = offsets_ptr[r] - offset_shift;
             const std::int64_t last = offsets_ptr[r + 1] - offset_shift;
 
-            PRAGMA_IVDEP
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (std::int64_t i = first; i < last; ++i) {
                 scaled_ptr[i] = values_ptr[i] * weight;
