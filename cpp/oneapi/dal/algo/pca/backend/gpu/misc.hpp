@@ -250,8 +250,6 @@ auto sign_flip(sycl::queue& queue,
     return flip_event;
 }
 
-<<<<<<< HEAD
-=======
 ///  Computes noise variance as the average of the discarded eigenvalues.
 ///
 ///  This matches the CPU DAAL formula:
@@ -291,7 +289,6 @@ double compute_noise_variance(sycl::queue& queue,
     return static_cast<double>(sum) / static_cast<double>(noise_count);
 }
 
->>>>>>> 3547b791b78de43c41116335e821935d28a82c24
 ///  A wrapper that computes 1d array of explained variances ratio from the eigenvalues
 ///
 /// @tparam Float Floating-point type used to perform computations
