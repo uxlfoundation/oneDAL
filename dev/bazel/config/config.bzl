@@ -70,6 +70,16 @@ config_bool_flag = rule(
     build_setting = config.bool(flag = True),
 )
 
+def _unsupported_config_impl(ctx):
+    fail(ctx.attr.message)
+
+unsupported_config = rule(
+    implementation = _unsupported_config_impl,
+    attrs = {
+        "message": attr.string(mandatory = True),
+    },
+)
+
 CpuInfo = provider(
     fields = [
         "enabled",
@@ -195,12 +205,20 @@ dump_config_info = rule(
 
 def _detect_cpu_extension(repo_ctx):
     cpudetect_src = repo_ctx.path(repo_ctx.attr._cpudetect_src)
-    cpudetect_exe = repo_ctx.path("cpudetect")
+    is_windows = "windows" in repo_ctx.os.name
+    cpudetect_exe = repo_ctx.path("cpudetect.exe" if is_windows else "cpudetect")
     repo_ctx.report_progress("Compile cpu-detector")
-    compile_result = repo_ctx.execute([
-        "g++", "-pedantic", "-Wall", "-std=c++11",
-        cpudetect_src, "-o{}".format(cpudetect_exe),
-    ])
+    if is_windows:
+        compile_command = [
+            "cl", "/nologo", "/EHsc", "/std:c++17",
+            cpudetect_src, "/Fe:{}".format(cpudetect_exe),
+        ]
+    else:
+        compile_command = [
+            "g++", "-pedantic", "-Wall", "-std=c++17",
+            cpudetect_src, "-o{}".format(cpudetect_exe),
+        ]
+    compile_result = repo_ctx.execute(compile_command)
     if compile_result.return_code != 0:
         utils.warn("Cannot compile cpu-detector:\n" +
                    compile_result.stderr + "\n" +

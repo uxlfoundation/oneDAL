@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 # cc_common.link() cannot expose as a tracked output for us to forward
 # into the staged release tree.
 exports_files([
+    "copy_crlf.bat",
     "dll_to_implib.bat",
     "dpc_link_win.ps1",
     "dpc_link_win.tpl.bat",

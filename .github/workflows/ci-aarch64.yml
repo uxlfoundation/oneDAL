@@ -46,7 +46,8 @@ jobs:
       matrix:
         os: [
           { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu },
-          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang }
+          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang },
+          { name: Arm hosted (SVE), label: ah-ubuntu_24_04-c7g_2x-50, cxx: gnu }
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
@@ -57,7 +58,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@e6906078ebd1ccb8ce51ab4626ac46a1b5a517e3 # v4.4.0
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -134,7 +135,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@e6906078ebd1ccb8ce51ab4626ac46a1b5a517e3 # v4.4.0
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
