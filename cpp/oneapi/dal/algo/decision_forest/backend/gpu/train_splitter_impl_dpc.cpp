@@ -44,6 +44,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
     const context_t& ctx,
     const pr::ndview<Bin, 2>& data,
     const pr::ndview<Float, 1>& response,
+    const pr::ndview<Float, 1>& weights,
     const pr::ndview<Index, 1>& tree_order,
     const pr::ndview<Index, 1>& selected_ftr_list,
     const pr::ndview<Float, 1>& random_bins_com,
@@ -92,6 +93,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
     const Bin* const data_ptr = data.get_data();
     const Float* const response_ptr = response.get_data();
+    const Float* const weight_ptr = weights.get_data();
     const Index* const tree_order_ptr = tree_order.get_data();
 
     const Index* const selected_ftr_list_ptr = selected_ftr_list.get_data();
@@ -118,10 +120,15 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
     const Index class_count = ctx.class_count_;
     const Float imp_threshold = ctx.impurity_threshold_;
     const Index min_obs_leaf = ctx.min_observations_in_leaf_node_;
+    const Float min_weight_leaf = ctx.min_weight_leaf_;
+    const bool is_weighted = ctx.is_weighted_;
     const Index max_bin_count_among_ftrs = ctx.max_bin_count_among_ftrs_;
 
     const Float* node_imp_list_ptr = imp_list_ptr.imp_list_ptr_;
     Float* left_child_imp_list_ptr = left_imp_list_ptr.imp_list_ptr_;
+
+    const Float* const node_weight_list_ptr = imp_list_ptr.node_weight_list_ptr_;
+    Float* const left_child_weight_list_ptr = left_imp_list_ptr.node_weight_list_ptr_;
 
     // following vars are not used for regression, but should present to compile kernel
     const Index* class_hist_list_ptr = imp_list_ptr.get_class_hist_list_ptr_or_null();
@@ -202,6 +209,15 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
                 const Index count = Index(bin <= ts_scal.ftr_bin);
 
+                if (is_weighted) {
+                    const Float row_weight = (local_id < row_count && bin <= ts_scal.ftr_bin)
+                                                 ? weight_ptr[id]
+                                                 : Float(0);
+                    ts_scal.left_weight_sum =
+                        sycl::reduce_over_group(item.get_group(), row_weight, plus<Float>());
+                    ts_scal.total_weight_sum = node_weight_list_ptr[node_id];
+                }
+
                 if constexpr (std::is_same_v<Task, task::classification>) {
                     const Index left_count =
                         sycl::reduce_over_group(item.get_group(), count, plus<Index>());
@@ -250,15 +266,20 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                             class_hist_list_ptr,
                                             class_count,
                                             node_id,
-                                            false);
-                        sp_hlp.choose_best_split(bs, ts, class_count, min_obs_leaf);
+                                            is_weighted);
+                        sp_hlp.choose_best_split(bs,
+                                                 ts,
+                                                 class_count,
+                                                 min_obs_leaf,
+                                                 min_weight_leaf);
                     }
                     else {
-                        sp_hlp.calc_imp_dec(ts, node_ptr, node_imp_list_ptr, node_id, false);
+                        sp_hlp.calc_imp_dec(ts, node_ptr, node_imp_list_ptr, node_id, is_weighted);
                         sp_hlp.choose_best_split(bs,
                                                  ts,
                                                  impl_const_t::hist_prop_count_,
-                                                 min_obs_leaf);
+                                                 min_obs_leaf,
+                                                 min_weight_leaf);
                     }
                 }
             }
@@ -276,10 +297,16 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                                  bs_scal.left_imp,
                                                  bs.left_hist,
                                                  node_id,
-                                                 class_count);
+                                                 class_count,
+                                                 left_child_weight_list_ptr,
+                                                 bs_scal.left_weight_sum);
                 }
                 else {
-                    sp_hlp.update_left_child_imp(left_child_imp_list_ptr, bs.left_hist, node_id);
+                    sp_hlp.update_left_child_imp(left_child_imp_list_ptr,
+                                                 bs.left_hist,
+                                                 node_id,
+                                                 left_child_weight_list_ptr,
+                                                 bs_scal.left_weight_sum);
                 }
             }
         });
@@ -521,8 +548,12 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
 
     const Float imp_threshold = ctx.impurity_threshold_;
     const Index min_obs_leaf = ctx.min_observations_in_leaf_node_;
+    const Float min_weight_leaf = ctx.min_weight_leaf_;
     const Index index_max = ctx.index_max_;
     const bool is_weighted = ctx.is_weighted_;
+
+    const Float* const node_weight_list_ptr = imp_list_ptr.node_weight_list_ptr_;
+    Float* const left_child_weight_list_ptr = left_imp_list_ptr.node_weight_list_ptr_;
 
     // following vars are not used for regression, but should present to compile kernel
     const Index* class_hist_list_ptr = imp_list_ptr.get_class_hist_list_ptr_or_null();
@@ -664,6 +695,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                         ts.scalars.ftr_bin = local_id + bin_ofs;
                         if (is_weighted) {
                             ts.scalars.left_weight_sum = local_weight[local_id];
+                            ts.scalars.total_weight_sum = node_weight_list_ptr[node_id];
                         }
                         ts.init(cur_hist, hist_prop_count);
                         if constexpr (std::is_same_v<Task, task::classification>) {
@@ -691,7 +723,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                         }
                         split_scalar_t& scal = local_scalars[local_id];
                         scal.clear();
-                        if (sp_hlp.test_split_is_best(scal, ts.scalars, min_obs_leaf)) {
+                        if (sp_hlp.test_split_is_best(scal,
+                                                      ts.scalars,
+                                                      min_obs_leaf,
+                                                      min_weight_leaf)) {
                             scal.copy(ts.scalars);
                         }
                     }
@@ -703,7 +738,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                             (local_id + offset < act_bin_block)) {
                             split_scalar_t& s1 = local_scalars[local_id];
                             split_scalar_t& s2 = local_scalars[local_id + offset];
-                            if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
+                            if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf, min_weight_leaf)) {
                                 s1.copy(s2);
                             }
                         }
@@ -713,7 +748,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                     if (local_id == 0) {
                         split_scalar_t& best_split = splits_ptr[ftr_position];
                         split_scalar_t& block_split = local_scalars[0];
-                        if (sp_hlp.test_split_is_best(best_split, block_split, min_obs_leaf)) {
+                        if (sp_hlp.test_split_is_best(best_split,
+                                                      block_split,
+                                                      min_obs_leaf,
+                                                      min_weight_leaf)) {
                             best_split.copy(block_split);
                             const Index best_hist_pos = block_split.ftr_bin - bin_ofs;
                             auto cur_hist = local_hist + best_hist_pos * hist_prop_count;
@@ -755,7 +793,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
             for (Index ftr_id = local_id; ftr_id < ftr_count; ftr_id += local_size) {
                 split_scalar_t& s1 = node_splits[local_id];
                 split_scalar_t& s2 = node_splits[ftr_id];
-                if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
+                if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf, min_weight_leaf)) {
                     s1.copy(s2);
                     ftr_indices[local_id] = ftr_id;
                 }
@@ -769,7 +807,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                 if (((local_id & reduce_mask) == 0) && (local_id + offset < reduce_count)) {
                     split_scalar_t& s1 = node_splits[local_id];
                     split_scalar_t& s2 = node_splits[local_id + offset];
-                    if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf)) {
+                    if (sp_hlp.test_split_is_best(s1, s2, min_obs_leaf, min_weight_leaf)) {
                         s1.copy(s2);
                         ftr_indices[local_id] = ftr_indices[local_id + offset];
                     }
@@ -795,10 +833,16 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                                                  bs.scalars.left_imp,
                                                  bs.left_hist,
                                                  node_id,
-                                                 hist_prop_count);
+                                                 hist_prop_count,
+                                                 left_child_weight_list_ptr,
+                                                 bs.scalars.left_weight_sum);
                 }
                 else {
-                    sp_hlp.update_left_child_imp(left_child_imp_list_ptr, bs.left_hist, node_id);
+                    sp_hlp.update_left_child_imp(left_child_imp_list_ptr,
+                                                 bs.left_hist,
+                                                 node_id,
+                                                 left_child_weight_list_ptr,
+                                                 bs.scalars.left_weight_sum);
                 }
             }
         });

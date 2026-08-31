@@ -162,6 +162,7 @@ private:
     /// @param[in] deps             a set of SYCL events this kernel depends on
     sycl::event compute_initial_histogram_local(const train_context_t& ctx,
                                                 const pr::ndarray<Float, 1>& response,
+                                                const pr::ndarray<Float, 1>& weights,
                                                 const pr::ndarray<Index, 1>& tree_order,
                                                 pr::ndarray<Index, 1>& node_list,
                                                 imp_data_t& imp_data_list,
@@ -235,6 +236,7 @@ private:
     /// @param[in] deps             a set of SYCL events this kernel depends on
     sycl::event compute_initial_histogram(const train_context_t& ctx,
                                           const pr::ndarray<Float, 1>& response,
+                                          const pr::ndarray<Float, 1>& weights,
                                           const pr::ndarray<Index, 1>& tree_order,
                                           pr::ndarray<Index, 1>& node_list,
                                           imp_data_t& imp_data_list,
