@@ -122,7 +122,7 @@ jobs:
   variables:
     # 7b4847a3 = "Update dependency numpy to v2.5.2 (#3365)", 2026-08-10.
     # Contains none of the four suspect PRs.
-    sklearnex.commit: '7b4847a3e938cc941b72633fe2602f00ac9b2b51'
+    sklearnex.commit: '07369bd6eab12061f62091c1da3b1ad58f9e5413'
     release.dir: '__release_lnx_gnu'
     platform.type: 'lnx32e'
     DALROOT: '$(Pipeline.Workspace)/daal/latest'
@@ -165,7 +165,7 @@ jobs:
   variables:
     # 7f38919e = "Update dependency pre-commit to v4.6.2 (#3367)", 2026-08-11.
     # Contains #3363; does not contain #3361, #3368, #3360.
-    sklearnex.commit: '7f38919e10c2864a97129a4ea9ff7d32038117d3'
+    sklearnex.commit: '07369bd6eab12061f62091c1da3b1ad58f9e5413'
     release.dir: '__release_lnx_gnu'
     platform.type: 'lnx32e'
     DALROOT: '$(Pipeline.Workspace)/daal/latest'
@@ -184,96 +184,7 @@ jobs:
   - checkout: none
   - script: |
       set -e
-      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
-      git checkout --detach $(sklearnex.commit)
-      git log -1 --format='sklearnex at %H%n%s%n%ci'
-    displayName: 'Clone sklearnex @ $(sklearnex.commit)'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: 'oneDAL environment'
-      path: '$(Build.Repository.LocalPath)/.ci/env'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: '$(platform.type) build'
-      path: $(Pipeline.Workspace)
-  - script: |
-      chmod -R 755 .ci/env
-      .ci/env/apt.sh tbb
-    displayName: 'tbb installation'
-  - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-
-- job: Sklearnex_Before_PR3368_CsrBase1IndexArrays
-  displayName: 'before #3368 (base-1 CSR index arrays) @ 0447757'
-  dependsOn: LinuxMakeGNU_MKL
-  timeoutInMinutes: 0
-  variables:
-    # 04477579 = "reuse onedal utils (#3386)", 2026-08-26 06:27.
-    # Contains #3363, #3361; does not contain #3368, #3360.
-    sklearnex.commit: '04477579908aa6dde801b8986030766cecacd69f'
-    release.dir: '__release_lnx_gnu'
-    platform.type: 'lnx32e'
-    DALROOT: '$(Pipeline.Workspace)/daal/latest'
-    TBBROOT: '/opt/intel/oneapi/tbb/latest'
-    NO_DPC: 1
-    NO_DIST: 1
-  pool:
-    vmImage: '$(VM_IMAGE)'
-    maxParallel: 2
-  strategy:
-    matrix:
-      Python311:
-        PYTHON_VERSION: '$(PY_VERSION)'
-        SKLEARN_VERSION: '$(SKL_VERSION)'
-  steps:
-  - checkout: none
-  - script: |
-      set -e
-      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
-      git checkout --detach $(sklearnex.commit)
-      git log -1 --format='sklearnex at %H%n%s%n%ci'
-    displayName: 'Clone sklearnex @ $(sklearnex.commit)'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: 'oneDAL environment'
-      path: '$(Build.Repository.LocalPath)/.ci/env'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: '$(platform.type) build'
-      path: $(Pipeline.Workspace)
-  - script: |
-      chmod -R 755 .ci/env
-      .ci/env/apt.sh tbb
-    displayName: 'tbb installation'
-  - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-
-- job: Sklearnex_Before_PR3360_CMakeBackendReproducible
-  displayName: 'before #3360 (reproducible CMake backend build) @ 242d92c'
-  dependsOn: LinuxMakeGNU_MKL
-  timeoutInMinutes: 0
-  variables:
-    # 242d92c5 = "Update dependency polars to v1.44.1 (#3389)", 2026-08-26 17:45.
-    # Contains #3363, #3361, #3368; does not contain #3360.
-    sklearnex.commit: '242d92c5151561cb07c066f40e90e82cff738409'
-    release.dir: '__release_lnx_gnu'
-    platform.type: 'lnx32e'
-    DALROOT: '$(Pipeline.Workspace)/daal/latest'
-    TBBROOT: '/opt/intel/oneapi/tbb/latest'
-    NO_DPC: 1
-    NO_DIST: 1
-  pool:
-    vmImage: '$(VM_IMAGE)'
-    maxParallel: 2
-  strategy:
-    matrix:
-      Python311:
-        PYTHON_VERSION: '$(PY_VERSION)'
-        SKLEARN_VERSION: '$(SKL_VERSION)'
-  steps:
-  - checkout: none
-  - script: |
-      set -e
-      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
-      git checkout --detach $(sklearnex.commit)
+      git clone https://github.com/david-cortes-intel/scikit-learn-intelex.git . -b asan_test
       git log -1 --format='sklearnex at %H%n%s%n%ci'
     displayName: 'Clone sklearnex @ $(sklearnex.commit)'
   - task: DownloadPipelineArtifact@2
@@ -313,7 +224,7 @@ jobs:
   - checkout: none
   - script: |
       set -e
-      git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
+      git clone --depth 1 https://github.com/david-cortes-intel/scikit-learn-intelex.git . -b asan_test
       git log -1 --format='sklearnex at %H%n%s%n%ci'
     displayName: 'Clone sklearnex (main)'
   - task: DownloadPipelineArtifact@2
