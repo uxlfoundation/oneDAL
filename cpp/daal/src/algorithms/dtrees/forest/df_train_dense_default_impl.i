@@ -630,9 +630,14 @@ protected:
     typename DataHelper::NodeType::Base * buildBestFirst(services::Status & s, size_t iStart, size_t n, size_t level,
                                                          typename DataHelper::ImpurityData & curImpurity, bool & bUnorderedFeaturesUsed,
                                                          size_t nClasses, intermSummFPType totalWeights);
+    // Computes item's own best candidate split (if any) without regard to the
+    // remaining leaf budget, and without materializing it as an actual Split tree
+    // node -- that decision is deferred to whenever item is popped from
+    // buildBestFirst's priority queue, since only then is item's priority known
+    // relative to the rest of the frontier. A structural (data-driven) leaf is
+    // still materialized immediately, since its fate never depends on the budget.
     template <typename WorkItem>
-    typename DataHelper::NodeType::Base * buildNode(const size_t level, const size_t nClasses, size_t & remainingSplitNodes, WorkItem & item,
-                                                    typename DataHelper::ImpurityData & impurity);
+    void buildNode(const size_t level, const size_t nClasses, WorkItem & item, typename DataHelper::ImpurityData & impurity);
 
     intermSummFPType * featureBuf(size_t iBuf) const
     {
@@ -674,8 +679,7 @@ protected:
                                         IndexType & iBestFeature, typename DataHelper::TSplitData & split, intermSummFPType totalWeights);
     NodeSplitResult simpleSplit(size_t iStart, const typename DataHelper::ImpurityData & curImpurity, IndexType & iFeatureBest,
                                 typename DataHelper::TSplitData & split);
-    void addImpurityDecrease(IndexType iFeature, size_t n, const typename DataHelper::ImpurityData & curImpurity,
-                             const typename DataHelper::TSplitData & split);
+    void addImpurityDecrease(IndexType iFeature, intermSummFPType impurityDecrease);
 
     void featureValuesToBuf(size_t iFeature, algorithmFPType * featureVal, IndexType * aIdx, size_t n)
     {
@@ -868,7 +872,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
 
         // check impurity decrease
         if (split.totalWeights * split.impurityDecrease < _minImpurityDecrease) return makeLeaf(_aSample.get() + iStart, n, curImpurity, nClasses);
-        if (_par.varImportance == training::MDI) addImpurityDecrease(iFeature, n, curImpurity, split);
+        if (_par.varImportance == training::MDI) addImpurityDecrease(iFeature, split.impurityDecrease);
         typename DataHelper::NodeType::Base * left =
             buildDepthFirst(s, iStart, split.nLeft, level + 1, split.left, bUnorderedFeaturesUsed, nClasses, split.leftWeights);
 
@@ -930,17 +934,20 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
 
 template <typename algorithmFPType, typename BinIndexType, typename DataHelper, typename HyperparameterType, CpuType cpu>
 template <typename WorkItem>
-typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(
-    const size_t level, const size_t nClasses, size_t & remainingSplitNodes, WorkItem & item, typename DataHelper::ImpurityData & impurity)
+void TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(
+    const size_t level, const size_t nClasses, WorkItem & item, typename DataHelper::ImpurityData & impurity)
 {
-    typename DataHelper::TSplitData split;
-    IndexType iFeature;
+    item.impurity = impurity;
 
-    if (!remainingSplitNodes || terminateCriteria(item.n, item.level, impurity, item.totalWeights))
+    if (terminateCriteria(item.n, item.level, impurity, item.totalWeights))
     {
-        return makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
+        item.isLeaf   = true;
+        item.finalNode = makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
+        return;
     }
 
+    typename DataHelper::TSplitData split;
+    IndexType iFeature;
     NodeSplitResult split_result = findBestSplit(level, item.start, item.n, impurity, iFeature, split, item.totalWeights);
     DAAL_ASSERT(split_result.status.ok());
     if (split_result.bSplitSucceeded)
@@ -955,43 +962,33 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
         // Use the actual right-child impurity, not (imp - impLeft): that substitution
         // is only exact when imp equals the weighted average of the children's
         // impurities, which Gini/variance impurity does not satisfy in general, and
-        // was throwing off leaf-selection priority in best-first growth.
+        // was throwing off leaf-selection priority in best-first growth. Note
+        // convertLeftImpToRight mutates split.nLeft/leftWeights/left in place (into
+        // the right child's), so nLeft/leftWeights/impurityLeft above must be
+        // captured before this call, not read off split afterwards.
         _helper.convertLeftImpToRight(item.n, impurity, split);
         const intermSummFPType impRight = split.left.var;
 
         // check impurity decrease
-        intermSummFPType improve = imp * item.totalWeights - impLeft * leftWeights - impRight * rightWeights;
-        if (improve < _minImpurityDecrease)
+        const intermSummFPType improve = imp * item.totalWeights - impLeft * leftWeights - impRight * rightWeights;
+        if (improve >= _minImpurityDecrease)
         {
-            return makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
-        }
-        else
-        {
-            if (_par.varImportance == training::MDI)
-            {
-                addImpurityDecrease(iFeature, item.n, impurity, split);
-            }
-
-            item.nLeft         = nLeft;
-            item.leftWeights   = leftWeights;
-            item.improvement   = improve;
-            item.impurityLeft  = impurityLeft;
-            item.impurityRight = split.left;
-
-            if (!(item.node = makeSplit(iFeature, split.featureValue, split.featureUnordered, nullptr, nullptr, impurity.var)))
-            {
-                return nullptr;
-            }
-
-            item.isLeaf = false;
-            item.featureUnordered |= bool(split.featureUnordered);
-            item.node->count = item.n;
-            --remainingSplitNodes;
-            return item.node;
+            item.isLeaf                = false;
+            item.nLeft                 = nLeft;
+            item.leftWeights           = leftWeights;
+            item.improvement           = improve;
+            item.impurityLeft          = impurityLeft;
+            item.impurityRight         = split.left;
+            item.iFeature              = iFeature;
+            item.featureValue          = split.featureValue;
+            item.splitFeatureUnordered = split.featureUnordered;
+            item.impurityDecrease      = split.impurityDecrease;
+            return;
         }
     }
 
-    return makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
+    item.isLeaf   = true;
+    item.finalNode = makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
 }
 
 template <typename algorithmFPType, typename BinIndexType, typename DataHelper, typename HyperparameterType, CpuType cpu>
@@ -1010,9 +1007,16 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
         intermSummFPType improvement;
         intermSummFPType leftWeights;
         intermSummFPType totalWeights;
+        intermSummFPType impurityDecrease;
+        typename DataHelper::ImpurityData impurity {};
         typename DataHelper::ImpurityData impurityLeft {};
         typename DataHelper::ImpurityData impurityRight {};
-        typename DataHelper::NodeType::Split * node;
+        typename DataHelper::NodeType::Base * finalNode; // set once this item's fate (leaf or split) is committed
+        typename DataHelper::NodeType::Split * parentSplit; // nullptr for the tree root
+        size_t slotInParent; // which of parentSplit's kid[] slots this item fills in, once committed
+        IndexType iFeature;
+        algorithmFPType featureValue;
+        bool splitFeatureUnordered; // whether THIS item's own candidate split feature is unordered
 
         WorkItem()
             : isLeaf(true),
@@ -1024,7 +1028,13 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
               improvement(0.0),
               leftWeights(0.),
               totalWeights(0.),
-              node(nullptr)
+              impurityDecrease(0.),
+              finalNode(nullptr),
+              parentSplit(nullptr),
+              slotInParent(0),
+              iFeature(0),
+              featureValue(0),
+              splitFeatureUnordered(false)
         {}
 
         WorkItem(bool featureUnordered, size_t start, size_t n, size_t level, intermSummFPType totalWeights)
@@ -1037,30 +1047,51 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
               improvement(0.0),
               leftWeights(0.),
               totalWeights(totalWeights),
-              node(nullptr)
+              impurityDecrease(0.),
+              finalNode(nullptr),
+              parentSplit(nullptr),
+              slotInParent(0),
+              iFeature(0),
+              featureValue(0),
+              splitFeatureUnordered(false)
         {}
 
         WorkItem & operator=(const WorkItem & src)
         {
+            // finalNode/parentSplit/slotInParent must survive this copy in both
+            // branches: linking into the parent is deferred until this item is
+            // popped from buildBestFirst's priority queue (which always happens
+            // after at least one push/grow copy through this operator), unlike the
+            // pending-candidate fields below, which a genuine leaf never needs.
             if (src.isLeaf)
             {
-                improvement = 0.0;
-                isLeaf      = true;
+                improvement  = 0.0;
+                isLeaf       = true;
+                finalNode    = src.finalNode;
+                parentSplit  = src.parentSplit;
+                slotInParent = src.slotInParent;
                 return *this;
             }
 
-            isLeaf           = src.isLeaf;
-            featureUnordered = src.featureUnordered;
-            start            = src.start;
-            n                = src.n;
-            nLeft            = src.nLeft;
-            level            = src.level;
-            improvement      = src.improvement;
-            impurityLeft     = src.impurityLeft;
-            impurityRight    = src.impurityRight;
-            node             = src.node;
-            leftWeights      = src.leftWeights;
-            totalWeights     = src.totalWeights;
+            isLeaf                = src.isLeaf;
+            featureUnordered      = src.featureUnordered;
+            start                 = src.start;
+            n                     = src.n;
+            nLeft                 = src.nLeft;
+            level                 = src.level;
+            improvement           = src.improvement;
+            impurity              = src.impurity;
+            impurityLeft          = src.impurityLeft;
+            impurityRight         = src.impurityRight;
+            leftWeights           = src.leftWeights;
+            totalWeights          = src.totalWeights;
+            impurityDecrease      = src.impurityDecrease;
+            finalNode             = src.finalNode;
+            parentSplit           = src.parentSplit;
+            slotInParent          = src.slotInParent;
+            iFeature              = src.iFeature;
+            featureValue          = src.featureValue;
+            splitFeatureUnordered = src.splitFeatureUnordered;
 
             return *this;
         }
@@ -1073,50 +1104,123 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     }
     size_t remainingSplitNodes = _maxLeafNodes - 1;
 
-    // Create base
+    // Create base (the tree root: parentSplit stays nullptr, marking it as such)
     WorkItem base(bUnorderedFeaturesUsed, iStart, n, level, totalWeights);
-    typename DataHelper::NodeType::Base * baseNode =
-        TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(level, nClasses, remainingSplitNodes, base,
-                                                                                                          curImpurity);
+    TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(level, nClasses, base, curImpurity);
 
-    DAAL_ASSERT(baseNode);
     s = binaryHeap.push(base);
     if (!s.ok())
     {
         return nullptr;
     }
 
+    typename DataHelper::NodeType::Base * baseNode = nullptr;
+
     while (!binaryHeap.empty())
     {
         WorkItem & src = binaryHeap.pop();
+
         if (src.isLeaf)
         {
+            // Already decided and materialized when created (a structural leaf can
+            // never become a split, regardless of the remaining leaf budget).
+            if (src.parentSplit)
+                src.parentSplit->kid[src.slotInParent] = src.finalNode;
+            else
+                baseNode = src.finalNode;
             continue;
         }
 
-        // create leftChild
-        WorkItem leftChild(src.featureUnordered, src.start, src.nLeft, src.level + 1, src.leftWeights);
-        src.node->kid[0] = TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(
-            src.level + 1, nClasses, remainingSplitNodes, leftChild, src.impurityLeft);
+        // Capture everything still needed from src before any push() below, since
+        // push() can trigger BinaryHeap::grow() and reallocate the backing array,
+        // invalidating this reference.
+        typename DataHelper::NodeType::Split * const parentSplit = src.parentSplit;
+        const size_t slotInParent                                = src.slotInParent;
+        const size_t srcStart                                    = src.start;
+        const size_t srcN                                        = src.n;
+        const size_t srcNLeft                                    = src.nLeft;
+        const size_t srcLevel                                    = src.level;
+        const intermSummFPType srcLeftWeights                    = src.leftWeights;
+        const intermSummFPType srcTotalWeights                   = src.totalWeights;
+        const bool childFeatureUnordered                         = src.featureUnordered || bool(src.splitFeatureUnordered);
+        typename DataHelper::ImpurityData srcImpurity            = src.impurity;
+        typename DataHelper::ImpurityData srcImpurityLeft        = src.impurityLeft;
+        typename DataHelper::ImpurityData srcImpurityRight       = src.impurityRight;
 
-        // create rightChild
-        WorkItem rightChild(src.featureUnordered, src.start + src.nLeft, src.n - src.nLeft, src.level + 1, src.totalWeights - src.leftWeights);
-        src.node->kid[1] = TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(
-            src.level + 1, nClasses, remainingSplitNodes, rightChild, src.impurityRight);
+        typename DataHelper::NodeType::Base * committedNode = nullptr;
+        if (remainingSplitNodes)
+        {
+            // src is the highest-priority pending candidate across the WHOLE
+            // frontier right now, so this is the correct moment -- not when it was
+            // created -- to decide whether it consumes one of the remaining split
+            // slots. Deciding this eagerly at creation time instead (in birth
+            // order) let lower-priority nodes claim slots ahead of genuinely
+            // higher-priority ones that just hadn't had their turn yet.
+            --remainingSplitNodes;
 
-        DAAL_ASSERT(src.node->kid[0]);
-        DAAL_ASSERT(src.node->kid[1]);
-        s = binaryHeap.push(leftChild);
-        if (!s.ok())
-        {
-            return nullptr;
+            if (_par.varImportance == training::MDI)
+            {
+                addImpurityDecrease(src.iFeature, src.impurityDecrease);
+            }
+
+            typename DataHelper::NodeType::Split * splitNode =
+                makeSplit(src.iFeature, src.featureValue, src.splitFeatureUnordered, nullptr, nullptr, srcImpurity.var);
+            if (!splitNode)
+            {
+                return nullptr;
+            }
+            splitNode->count = srcN;
+
+            WorkItem leftChild(childFeatureUnordered, srcStart, srcNLeft, srcLevel + 1, srcLeftWeights);
+            TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(srcLevel + 1, nClasses, leftChild,
+                                                                                                               srcImpurityLeft);
+            // Set unconditionally (not just in the pending-candidate case): a
+            // structural leaf still needs a correct parentSplit/slotInParent so
+            // that when it is later popped off the heap, it is recognized as
+            // already-linked rather than mistaken for the (parentless) tree root.
+            leftChild.parentSplit  = splitNode;
+            leftChild.slotInParent = 0;
+            if (leftChild.isLeaf)
+            {
+                splitNode->kid[0] = leftChild.finalNode;
+            }
+
+            WorkItem rightChild(childFeatureUnordered, srcStart + srcNLeft, srcN - srcNLeft, srcLevel + 1, srcTotalWeights - srcLeftWeights);
+            TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(srcLevel + 1, nClasses, rightChild,
+                                                                                                               srcImpurityRight);
+            rightChild.parentSplit  = splitNode;
+            rightChild.slotInParent = 1;
+            if (rightChild.isLeaf)
+            {
+                splitNode->kid[1] = rightChild.finalNode;
+            }
+
+            committedNode = splitNode;
+
+            s = binaryHeap.push(leftChild);
+            if (!s.ok())
+            {
+                return nullptr;
+            }
+            s = binaryHeap.push(rightChild);
+            if (!s.ok())
+            {
+                return nullptr;
+            }
         }
-        s = binaryHeap.push(rightChild);
-        if (!s.ok())
+        else
         {
-            return nullptr;
+            // Leaf budget exhausted: fall back to a leaf using this node's own
+            // data, without ever creating (or consuming budget for) its children.
+            committedNode = makeLeaf(_aSample.get() + srcStart, srcN, srcImpurity, nClasses);
         }
+
+        if (parentSplit)
+            parentSplit->kid[slotInParent] = committedNode;
+        else
+            baseNode = committedNode;
     }
+    DAAL_ASSERT(baseNode);
     return baseNode;
 }
 
@@ -1337,11 +1441,11 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
 }
 
 template <typename algorithmFPType, typename BinIndexType, typename DataHelper, typename HyperparameterType, CpuType cpu>
-void TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::addImpurityDecrease(
-    IndexType iFeature, size_t n, const typename DataHelper::ImpurityData & curImpurity, const typename DataHelper::TSplitData & split)
+void TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::addImpurityDecrease(IndexType iFeature,
+                                                                                                                  intermSummFPType impurityDecrease)
 {
     DAAL_ASSERT(_threadCtx.varImp);
-    if (!isZero<intermSummFPType, cpu>(split.impurityDecrease)) _threadCtx.varImp[iFeature] += split.impurityDecrease;
+    if (!isZero<intermSummFPType, cpu>(impurityDecrease)) _threadCtx.varImp[iFeature] += impurityDecrease;
 }
 
 template <typename algorithmFPType, typename BinIndexType, typename DataHelper, typename HyperparameterType, CpuType cpu>
