@@ -535,6 +535,113 @@ public:
         }
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
+    void run_and_check_linear_online_mixed(std::int64_t nBlocks, alloc_kind first_block_alloc) {
+        INFO("first_block_alloc=" << te::get_alloc_kind_name(first_block_alloc));
+        std::int64_t seed = 888;
+        double tol = 1e-2;
+        table x_train, y_train, x_test, y_test;
+        std::tie(x_train, y_train, x_test, y_test) = prepare_inputs(seed, tol);
+
+        const auto desc = this->get_descriptor();
+        dal::linear_regression::partial_train_result<> partial_result;
+        auto input_table_x = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                    x_train,
+                                                                    nBlocks,
+                                                                    first_block_alloc);
+        auto input_table_y = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                    y_train,
+                                                                    nBlocks,
+                                                                    first_block_alloc);
+        for (std::int64_t i = 0; i < nBlocks; i++) {
+            partial_result =
+                this->partial_train(desc, partial_result, input_table_x[i], input_table_y[i]);
+        }
+        auto train_res = this->finalize_train(desc, partial_result);
+
+        {
+            const alloc_kind expected_alloc = first_block_alloc;
+            if (desc.get_result_options().test(result_options::coefficients)) {
+                REQUIRE(train_res.get_coefficients().get_metadata().get_alloc_kind() ==
+                        expected_alloc);
+            }
+            if (desc.get_result_options().test(result_options::intercept)) {
+                REQUIRE(train_res.get_intercept().get_metadata().get_alloc_kind() ==
+                        expected_alloc);
+            }
+        }
+
+        SECTION("Checking intercept values") {
+            if (desc.get_result_options().test(result_options::intercept))
+                check_if_close(train_res.get_intercept(), this->bias_, tol);
+        }
+
+        SECTION("Checking coefficient values") {
+            if (desc.get_result_options().test(result_options::coefficients))
+                check_if_close(train_res.get_coefficients(), this->beta_, tol);
+        }
+
+        const auto infer_res = this->infer(desc, x_test, train_res.get_model());
+
+        SECTION("Checking infer results") {
+            check_if_close(infer_res.get_responses(), y_test, tol);
+        }
+    }
+
+    void run_and_check_ridge_online_mixed(std::int64_t nBlocks, alloc_kind first_block_alloc) {
+        INFO("first_block_alloc=" << te::get_alloc_kind_name(first_block_alloc));
+        std::int64_t seed = 888;
+        double tol = 1e-2;
+        table x_train, y_train, x_test, y_test;
+        std::tie(x_train, y_train, x_test, y_test) = prepare_inputs(seed, tol);
+
+        auto input_table_x = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                    x_train,
+                                                                    nBlocks,
+                                                                    first_block_alloc);
+        auto input_table_y = te::split_table_by_rows_mixed<float_t>(this->get_policy(),
+                                                                    y_train,
+                                                                    nBlocks,
+                                                                    first_block_alloc);
+
+        const auto linear_desc = this->get_descriptor();
+        dal::linear_regression::partial_train_result<> linear_partial_result;
+        for (std::int64_t i = 0; i < nBlocks; i++) {
+            linear_partial_result = this->partial_train(linear_desc,
+                                                        linear_partial_result,
+                                                        input_table_x[i],
+                                                        input_table_y[i]);
+        }
+        auto linear_train_res = this->finalize_train(linear_desc, linear_partial_result);
+
+        {
+            REQUIRE(linear_train_res.get_coefficients().get_metadata().get_alloc_kind() ==
+                    first_block_alloc);
+        }
+
+        const auto ridge_desc = this->get_descriptor(this->alpha_);
+        dal::linear_regression::partial_train_result<> ridge_partial_result;
+        for (std::int64_t i = 0; i < nBlocks; i++) {
+            ridge_partial_result = this->partial_train(ridge_desc,
+                                                       ridge_partial_result,
+                                                       input_table_x[i],
+                                                       input_table_y[i]);
+        }
+        auto ridge_train_res = this->finalize_train(ridge_desc, ridge_partial_result);
+
+        {
+            REQUIRE(ridge_train_res.get_coefficients().get_metadata().get_alloc_kind() ==
+                    first_block_alloc);
+        }
+
+        SECTION("Checking coefficient shrinkage") {
+            this->check_coefficient_shrinkage(linear_train_res.get_coefficients(),
+                                              ridge_train_res.get_coefficients(),
+                                              tol);
+        }
+    }
+#endif
+
 protected:
     bool intercept_ = true;
     float_t alpha_;
