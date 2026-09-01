@@ -445,7 +445,7 @@ public:
         DAAL_DEFAULT_CREATE_IMPL_EX(CSRNumericTable, ptr, colIndices, rowOffsets, nColumns, nRows, indexing);
     }
 
-    virtual ~CSRNumericTable() { freeDataMemoryImpl(); }
+    virtual ~CSRNumericTable() { CSRNumericTable::freeDataMemoryImpl(); }
 
     services::Status resize(size_t nrows) override { return setNumberOfRowsImpl(nrows); }
 
@@ -508,7 +508,13 @@ public:
     template <typename DataType>
     services::Status setArrays(DataType * const ptr, size_t * colIndices, size_t * rowOffsets, CSRIndexing indexing = oneBased)
     {
-        freeDataMemoryImpl();
+        // Qualified on purpose. Both setArrays overloads are reached from constructor
+        // bodies, and GCC 13 mis-analyzes a virtual call made there: walking back from the
+        // call it records the dynamic type from the inlined NumericTable base constructor,
+        // finds no CSRNumericTable target, and replaces the call with __builtin_unreachable,
+        // deleting the rest of this function. A qualified call is equivalent here (nothing
+        // derives from CSRNumericTable) and is not subject to that analysis.
+        CSRNumericTable::freeDataMemoryImpl();
 
         //if( ptr == 0 || colIndices == 0 || rowOffsets == 0 ) return services::Status(services::ErrorEmptyCSRNumericTable);
 
@@ -535,7 +541,8 @@ public:
     services::Status setArrays(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                                const services::SharedPtr<size_t> & rowOffsets, CSRIndexing indexing = oneBased)
     {
-        freeDataMemoryImpl();
+        // Qualified on purpose: see the overload above.
+        CSRNumericTable::freeDataMemoryImpl();
 
         //if( ptr == 0 || colIndices == 0 || rowOffsets == 0 ) return services::Status(services::ErrorEmptyCSRNumericTable);
 
