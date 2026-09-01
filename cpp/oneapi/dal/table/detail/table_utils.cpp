@@ -31,6 +31,12 @@ ONEDAL_EXPORT csr_table_iface* get_csr_table_iface_impl(table_iface* table) {
     return dynamic_cast<csr_table_iface*>(table);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+ONEDAL_EXPORT queue_provider_iface* get_queue_provider_iface_impl(table_iface* table) {
+    return dynamic_cast<queue_provider_iface*>(table);
+}
+#endif // ONEDAL_DATA_PARALLEL
+
 ONEDAL_EXPORT pull_rows_iface* get_pull_rows_iface_impl(table_iface* table) {
     ONEDAL_ASSERT(table);
     return table->get_pull_rows_iface();
