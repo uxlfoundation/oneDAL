@@ -5,7 +5,7 @@ certifi==2026.7.22
 chardet==7.6.0
 click==8.5.0
 colorama==0.4.6
-docutils~=0.23.0
+docutils~=0.21.2
 defusedxml==0.7.1
 idna==3.19
 imagesize==2.0.1
