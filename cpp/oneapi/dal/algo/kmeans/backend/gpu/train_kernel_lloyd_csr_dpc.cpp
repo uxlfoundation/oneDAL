@@ -207,8 +207,11 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
 
             objective_function += correction;
 
-            if (accuracy_threshold > 0 &&
-                objective_function + accuracy_threshold > prev_objective_function) {
+            // Both comparisons are inclusive: see the same check in
+            // train_kernel_lloyd_dense_dpc.cpp - a zero threshold means "stop when the
+            // objective function stops improving", matching the CPU kernel.
+            if (accuracy_threshold >= 0 &&
+                objective_function + accuracy_threshold >= prev_objective_function) {
                 iter++;
                 break;
             }

@@ -164,12 +164,23 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         size_t cPos = 0;
 
         algorithmFPType newCentersGoalFunc = (algorithmFPType)0.0;
-        algorithmFPType l2Norm             = (algorithmFPType)0.0;
+        // Squared L2 norm of the centroid shift over this iteration, summed over
+        // every cluster: `sum_i ||inClusters[i] - clusters[i]||^2`. It is the
+        // convergence criterion compared against `par->accuracyThreshold` below,
+        // so every cluster has to contribute exactly once no matter which of the
+        // three passes below ends up writing its centroid. Each pass therefore
+        // adds its own clusters' terms:
+        //   pass 1 - clusters reseeded from a candidate row,
+        //   pass 2 - clusters recomputed from the theft-adjusted aggregates,
+        //   pass 3 - clusters filled with a duplicate of the largest centroid.
+        // The remaining case, a cluster left at its previous centroid, shifts by
+        // zero and so adds nothing.
+        algorithmFPType l2Norm = (algorithmFPType)0.0;
         service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
         {
             DAAL_PROFILER_TASK(kmeansMergeReduceCentroids);
 
-            // Two-pass merge:
+            // Three-pass merge:
             //   Pass 1: replace each empty cluster's centroid with a candidate
             //           row -- the point that is farthest from the centroid it
             //           was assigned to on this iteration. This matches
@@ -230,6 +241,19 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 }
 
                 const size_t i = emptyClusters[e];
+                // `cValues[cPos]` is this row's squared distance to the centroid it
+                // was assigned to, measured against the centroids this iteration
+                // started from. It is not re-measured after the relocation, and it
+                // does not need to be: the objective function reported for the
+                // iteration is the one accumulated by the assignment step, against
+                // those same start-of-iteration centroids
+                // (`kmeansClearClusters` sums the per-thread `goalFunc`). Removing
+                // this term drops the contribution of a row that no longer belongs
+                // to that cluster, which keeps both sides on the same centroids.
+                // The objective at the *new* centroids is a different quantity and
+                // is computed separately by
+                // `PostProcessing::computeExactObjectiveFunction` when the caller
+                // asks for `computeExactObjectiveFunction`.
                 newCentersGoalFunc += cValues[cPos];
                 const size_t candidateRowIdx = cIndices[cPos];
                 ReadRows<algorithmFPType, cpu> mtRow(ntData, candidateRowIdx, 1);
@@ -255,8 +279,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     }
                 }
 
-                // Accumulated per cluster first: adding straight into `l2Norm`
-                // loses the low-order bits of each term.
+                // Reduced into a per-cluster local so the inner loop can carry a
+                // `reduction` clause; the partial is added to `l2Norm` once.
                 algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
                 PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
                 PRAGMA_VECTOR_ALWAYS

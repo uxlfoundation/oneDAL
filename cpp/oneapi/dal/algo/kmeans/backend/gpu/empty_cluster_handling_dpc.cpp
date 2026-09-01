@@ -56,18 +56,15 @@ static auto fill_candidate_indices_and_distances(sycl::queue& queue,
         cgh.depends_on(deps);
         cgh.parallel_for(bk::make_range_1d(elem_count), [=](sycl::id<1> idx) {
             indices_ptr[idx] = idx;
-            // Keys are negated to get a descending order by distance out of an ascending sort.
-            // The underlying oneDPL `radix_sort_by_key` does take an `is_ascending` flag, but
-            // oneDAL's `radix_sort_indices_inplace` hardcodes ascending and its in-house
-            // fallback (used when the device work-group size is below 1024) has no direction
-            // support at all, so exposing the flag means changing a primitive shared with other
-            // algorithms. Negating here costs nothing in return: this kernel has to write
-            // `values_ptr` anyway, so it is one sign flip inside a store that already happens.
-            values_ptr[idx] = -closest_distances_ptr[idx];
+            values_ptr[idx] = closest_distances_ptr[idx];
         });
     });
 
-    pr::radix_sort_indices_inplace<Float, std::int32_t> radix_sort{ queue };
+    // Farthest-first: the sorter is instantiated descending rather than being fed
+    // negated keys, so the values stay the distances they are named after.
+    pr::radix_sort_indices_inplace<Float, std::int32_t, /* Ascending = */ false> radix_sort{
+        queue
+    };
     auto sort_event = radix_sort(values, indices, { fill_event });
 
     auto copy_event = queue.submit([&](sycl::handler& cgh) {

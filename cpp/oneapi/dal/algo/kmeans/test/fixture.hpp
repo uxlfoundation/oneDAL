@@ -264,7 +264,10 @@ public:
         float_t initial_centroids[] = { 5, 100 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
 
-        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.001);
+        // A zero threshold means "stop once the objective function stops
+        // decreasing", which both the CPU and the GPU kernels now honour, so
+        // these cases converge well inside `max_iteration_count`.
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.0);
         const auto train_result = this->train(desc, x, c_init);
 
         const auto centroids =
@@ -311,7 +314,10 @@ public:
         float_t initial_centroids[] = { 1, 2, 3 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
 
-        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.001);
+        // A zero threshold means "stop once the objective function stops
+        // decreasing", which both the CPU and the GPU kernels now honour, so
+        // these cases converge well inside `max_iteration_count`.
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.0);
         const auto train_result = this->train(desc, x, c_init);
 
         const auto centroids =
@@ -370,7 +376,10 @@ public:
         float_t initial_centroids[] = { 0, 2, 3, 4, 5, 7 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
 
-        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.001);
+        // A zero threshold means "stop once the objective function stops
+        // decreasing", which both the CPU and the GPU kernels now honour, so
+        // these cases converge well inside `max_iteration_count`.
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.0);
         const auto train_result = this->train(desc, x, c_init);
 
         const auto centroids =
