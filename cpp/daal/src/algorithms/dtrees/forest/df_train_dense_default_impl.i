@@ -966,7 +966,18 @@ void TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hyperparamete
         // convertLeftImpToRight mutates split.nLeft/leftWeights/left in place (into
         // the right child's), so nLeft/leftWeights/impurityLeft above must be
         // captured before this call, not read off split afterwards.
-        _helper.convertLeftImpToRight(item.n, impurity, split);
+        //
+        // As in buildDepthFirst, compute a singleton right child directly from raw
+        // data instead of deriving it by subtraction, to avoid floating-point error
+        // that would otherwise propagate into this node's descendants' priorities.
+        if (item.n - nLeft != 1)
+        {
+            _helper.convertLeftImpToRight(item.n, impurity, split);
+        }
+        else
+        {
+            _helper.singleSwap(_aSample.get()[item.start + nLeft], split);
+        }
         const intermSummFPType impRight = split.left.var;
 
         // check impurity decrease
