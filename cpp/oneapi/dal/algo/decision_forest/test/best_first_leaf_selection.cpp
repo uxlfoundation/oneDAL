@@ -115,7 +115,7 @@ DF_BEST_FIRST_TEST(
                                                          /*min_impurity_decrease*/ 260.0);
 
     for (double p : predictions) {
-        REQUIRE(p == Approx(3.6).epsilon(1e-6));
+        REQUIRE(p == Catch::Approx(3.6).epsilon(1e-6));
     }
 }
 
@@ -152,13 +152,13 @@ DF_BEST_FIRST_TEST(
     // The left group was correctly left unsplit: all four points fall in one
     // leaf and get its mean.
     for (std::int64_t i = 0; i < 4; i++) {
-        REQUIRE(predictions[i] == Approx(5.0).epsilon(1e-6));
+        REQUIRE(predictions[i] == Catch::Approx(5.0).epsilon(1e-6));
     }
     // The right group was correctly split into its two natural sub-clusters.
-    REQUIRE(predictions[4] == Approx(100.0).epsilon(1e-6));
-    REQUIRE(predictions[5] == Approx(100.0).epsilon(1e-6));
-    REQUIRE(predictions[6] == Approx(200.0).epsilon(1e-6));
-    REQUIRE(predictions[7] == Approx(200.0).epsilon(1e-6));
+    REQUIRE(predictions[4] == Catch::Approx(100.0).epsilon(1e-6));
+    REQUIRE(predictions[5] == Catch::Approx(100.0).epsilon(1e-6));
+    REQUIRE(predictions[6] == Catch::Approx(200.0).epsilon(1e-6));
+    REQUIRE(predictions[7] == Catch::Approx(200.0).epsilon(1e-6));
 }
 
 } // namespace oneapi::dal::decision_forest::test
