@@ -24,29 +24,32 @@
 # `type_vtable_changed` among them.
 #
 # `reclassify:` takes a suppression rule's selector grammar and keeps the
-# finding, so four of the five tolerated things are scoped to the specific
-# entities below; only `func_visibility_changed` is kind-global, for the reason
-# recorded with it. Resolution order: `reclassify:` (first match in file order),
-# then `overrides:`, then the base policy.
+# finding, so every tolerated thing below is scoped -- to specific entities, or
+# to the ELF linkage that is the evidence for tolerating it. Nothing here is
+# kind-global: there is no `overrides:` block, so no whole change kind is
+# demoted for every symbol it could ever fire on. Resolution order:
+# `reclassify:` (first match in file order), then the base policy.
 #
-# Verified with this file by the abicheck commit both workflows pin
-# (c599daf7), against the published baseline facts and against facts freshly
-# captured by that commit -- both give the identical report -- on the
-# no-debug-info build LinuxMakeDPCPP produces: bundle verdict NO_CHANGE, exit
-# 0, 0 cross-library findings, every library COMPATIBLE_WITH_RISK with
-# libonedal_core.so 79 findings, libonedal.so 59, libonedal_dpc.so 80,
-# libonedal_parameters.so 2, libonedal_parameters_dpc.so 2,
-# libonedal_thread.so 1 (COMPATIBLE). abi_breaking count 0, nothing removed
-# from the report. Negative controls, measured on the per-library `scan` path
-# this job replaced: with no policy file libonedal_core.so exits 4 (BREAKING,
-# breaking=77); with every selector deliberately suffixed so each rule parses
-# but matches nothing, libonedal.so moves COMPATIBLE_WITH_RISK -> API_BREAK,
-# which is the proof the scoped rules and not the kind-global override
-# reclassify those findings; and scanning 2026.0.0 against a main-side baseline,
-# where symbols really are gone, still reports BREAKING with abi_breaking 28.
+# Verified with this file by the abicheck commit both workflows pin (c599daf7),
+# driven through the same root Action ci.yml uses, against `2026.0.0` snapshots
+# dumped by that commit, on the no-debug-info build LinuxMakeDPCPP produces:
+# every library exits 0 with nothing removed from the report --
+# libonedal_core.so COMPATIBLE_WITH_RISK 79 findings (77 of them
+# func_visibility_changed), libonedal.so 68, libonedal_dpc.so 86,
+# libonedal_parameters.so 2, libonedal_parameters_dpc.so 2, libonedal_thread.so
+# COMPATIBLE 1, suppressed_count 0 on all six.
 #
-# Only `func_visibility_changed` and the `oneapi::dal::preview` rule match
-# anything in this build configuration: without `--debug symbols` there are no
+# Negative control for the two `binding: weak` rules, which is the load-bearing
+# one: on a copy of the real libonedal.so baseline snapshot with a single
+# symbol's ELF linkage flipped WEAK -> GLOBAL
+# (oneapi::dal::detail::v1::homogen_table_builder::build(), a genuine
+# non-inline, non-template export), the same compare reports exactly one
+# error-level finding -- that symbol, `func_visibility_changed`, binding
+# `global` -- and moves COMPATIBLE_WITH_RISK -> BREAKING, exit 4. The linkage
+# selector, not the change kind, is what these two rules tolerate.
+#
+# Only the two demotion rules and the `oneapi::dal::preview` rule match anything
+# in this build configuration: without `--debug symbols` there are no
 # vtable/layout facts and no public-constant values, so the three
 # `type_vtable_changed` rules and the `constant_changed` rule are inert. They
 # are kept because they were measured against a debug-info build of the same
@@ -63,48 +66,87 @@
 
 base_policy: strict_abi
 
-overrides:
-  # 2026.0.0 -> main lost 2318 exported symbols from libonedal_core.so and
-  # libonedal.so. Every one is a WEAK FUNC -- a COMDAT inline or template
-  # instantiation that -fvisibility-inlines-hidden (added at makefile:134 after
-  # the 2026.0.0 tag) stopped exporting. Verified: zero STRONG symbols and zero
-  # data objects lost; zero _ZTV/_ZTI/_ZTS and zero _ZGV guard variables lost;
-  # and cross-linking every lost export against the 1556 undefined symbols
-  # required by all 183 built client objects gives an empty intersection. The
-  # strongest evidence is the new binaries' own .symtab: all 2318 are still
-  # present and defined there as LOCAL FUNC (1966/1966 and 352/352). The code
-  # was not removed; only its export visibility was demoted.
-  #
-  # This accounts for 77 of the 79 findings on libonedal_core.so and 6 of the 7
-  # on libonedal.so, and it goes away once a post-inlines-hidden release is
-  # published as the baseline -- at which point this override should be deleted
-  # rather than left to rot.
-  #
-  # Gives up: gating on a genuine visibility regression -- a STRONG exported
-  # function that a future change stops exporting. It is the most dangerous
-  # entry here and the one that cannot currently be narrowed. abicheck's
-  # `binding:` selector is exactly the narrowing this wants, but binding
-  # evidence is stamped onto the change record only on the removal path
-  # (`Change.symbol_binding`, from the old side's `Function.elf_binding`);
-  # oneDAL's findings take the other branch of diff_symbols.py's
-  # _check_removed_function -- the symbol is still present and merely HIDDEN --
-  # so `binding: weak` matches none of them, and `is_inline` is no proxy (an
-  # in-class-defined, implicitly inline WEAK COMDAT member is recorded
-  # is_inline false). Stamping `symbol_binding` on the visibility-changed
-  # branch is a one-field upstream change; the day it lands this becomes a
-  # `reclassify:` rule with `binding: weak` and STRONG demotions gate again.
-  #
-  # What this still buys over the suppression file it replaces was measured by
-  # synthesizing that exact regression on a copy of the real snapshot
-  # (oneapi::dal::v1::homogen_table::kind(), a non-inline non-template GLOBAL
-  # symbol, set hidden and dropped from elf.symbols): under the suppression
-  # file the visible finding set was byte-identical to the clean run's, exit 0,
-  # the only trace being suppressed_count 16 -> 17, which nothing gates on.
-  # Under this file the same regression appears as an additional
-  # `[risk] func_visibility_changed` line naming the symbol and its header.
-  func_visibility_changed: risk
-
 reclassify:
+  # ── The -fvisibility-inlines-hidden demotion, under its two kinds ───────────
+  #
+  # 2026.0.0 -> main stopped exporting a large set of symbols from five of the
+  # six libraries. Every one is a WEAK FUNC -- a COMDAT inline or template
+  # instantiation that -fvisibility-inlines-hidden (added at makefile:134 after
+  # the 2026.0.0 tag) demoted. Verified: zero STRONG symbols and zero data
+  # objects lost; zero _ZTV/_ZTI/_ZTS and zero _ZGV guard variables lost;
+  # cross-linking every lost export against the 1556 undefined symbols required
+  # by all 183 built client objects gives an empty intersection; and the new
+  # binaries' own .symtab still defines every one of them as LOCAL FUNC. The
+  # code was not removed, only its export visibility was demoted, and no
+  # consumer can hold an undefined reference to a definition its own headers
+  # force it to emit -- there is no `extern template` anywhere in the installed
+  # headers (grep of cpp/daal/include + cpp/oneapi: zero hits), so a consumer
+  # TU always has its own copy.
+  #
+  # The same cause reaches the report under two kinds. Symbols whose
+  # declaration is in a scoped public header are reported as
+  # `func_visibility_changed` (still present, now HIDDEN); the rest can be folded
+  # in by abicheck's L0 export delta, which re-diffs the two ELF export tables
+  # symbols-only and reports `func_removed_elf_only`. Both carry the old side's
+  # ELF linkage on the change record, so both rules can be scoped by it rather
+  # than applied kind-globally: a STRONG export that stops being exported, or is
+  # removed outright, still gates.
+  #
+  # The second rule is a no-op in CI and deliberately kept anyway. That fold
+  # re-resolves the *binary* each snapshot was dumped from, found via the
+  # snapshot's recorded `source_path` and identity-checked against its recorded
+  # mtime and size; on a PR runner the baseline binary only ever existed on the
+  # publish runner, so the fold declines and no `func_removed_elf_only` finding
+  # is produced (measured: 1948 such findings across five libraries with the
+  # baseline tree present, 0 with it absent, same snapshots and same command).
+  # It fires when someone reproduces a comparison locally with both trees on
+  # disk -- exactly when a maintainer is least served by an unexplained
+  # BREAKING that CI never showed.
+  #
+  # Both go away once a post-inlines-hidden release is published as the
+  # baseline -- at which point these two rules should be deleted rather than
+  # left to rot.
+  #
+  # Gives up: gating on the removal or hiding of a symbol the library itself
+  # built with vague (WEAK/COMDAT) linkage. That is provider-side evidence, not
+  # proof of consumer safety, which is why these stay visible as risk findings
+  # instead of being suppressed: the `extern template` check above is the
+  # premise that makes them safe here, and it has to be re-checked if oneDAL
+  # ever starts shipping explicit-instantiation surface.
+  #
+  # `symbol_pattern: ".*"` carries no meaning of its own: abicheck requires a
+  # rule to name at least one identity selector (symbol, symbol_pattern,
+  # type_pattern, member_name, source_location, namespace or finding_id), and
+  # `binding:` is not one of them, so the scope these two rules actually want --
+  # this kind, with this linkage, wherever it occurs -- has to be spelled with a
+  # match-anything symbol. Narrowing it to one namespace would be worse than
+  # honest: the demoted symbols span both daal:: and oneapi::dal::.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: ".*"
+    to: risk
+    label: inlines-hidden-demotion
+    reason: >-
+      WEAK COMDAT inline/template export demoted to hidden by
+      -fvisibility-inlines-hidden (makefile:134, added after the 2026.0.0
+      baseline tag). Still defined as LOCAL FUNC in the new binary's .symtab,
+      and no installed header declares `extern template`, so every consumer TU
+      emits its own copy. A STRONG symbol losing visibility is not matched by
+      this rule and still gates.
+  - kind: func_removed_elf_only
+    binding: weak
+    symbol_pattern: ".*"
+    to: risk
+    label: inlines-hidden-demotion
+    reason: >-
+      Same -fvisibility-inlines-hidden demotion as the rule above, reached
+      through the L0 export-table delta instead of the header-scoped diff:
+      these symbols have no declaration in the scoped public headers, so they
+      are reported as an export removal rather than a visibility change. All of
+      them are WEAK in the baseline's .dynsym and all are still defined as
+      LOCAL FUNC in the new binary's .symtab. A STRONG export disappearing is
+      not matched by this rule and still gates.
+
   # ── Three named types: an evidence gap in abicheck's capture path, not a
   #    change in oneDAL ────────────────────────────────────────────────────────
   #
