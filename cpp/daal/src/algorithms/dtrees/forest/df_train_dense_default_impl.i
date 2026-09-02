@@ -954,8 +954,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
 
         // Use the actual right-child impurity, not (imp - impLeft): that substitution
         // is only exact when imp equals the weighted average of the children's
-        // impurities, which Gini/variance impurity does not satisfy in general, and
-        // was throwing off leaf-selection priority in best-first growth.
+        // impurities, which Gini/variance impurity does not satisfy in general.
         _helper.convertLeftImpToRight(item.n, impurity, split);
         const intermSummFPType impRight = split.left.var;
 

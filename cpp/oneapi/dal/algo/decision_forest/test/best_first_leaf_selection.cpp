@@ -30,10 +30,10 @@ public:
     // on inline x/y arrays and returns the predicted response for every training
     // point, in order.
     std::vector<double> train_and_predict_all(const float* x,
-                                               const float* y,
-                                               std::int64_t n,
-                                               std::int64_t max_leaf_nodes,
-                                               double min_impurity_decrease = 0.0) {
+                                              const float* y,
+                                              std::int64_t n,
+                                              std::int64_t max_leaf_nodes,
+                                              double min_impurity_decrease = 0.0) {
         const te::dataframe x_df{ array<float>::wrap(x, n), n, 1 };
         const te::dataframe y_df{ array<float>::wrap(y, n), n, 1 };
 
@@ -54,7 +54,8 @@ public:
         const auto train_result = this->train(desc, x_table, y_table);
         const auto infer_result = this->infer(desc, train_result.get_model(), x_table);
 
-        const auto responses = dal::row_accessor<const float_t>(infer_result.get_responses()).pull();
+        const auto responses =
+            dal::row_accessor<const float_t>(infer_result.get_responses()).pull();
         std::vector<double> result(n);
         for (std::int64_t i = 0; i < n; i++) {
             result[i] = static_cast<double>(responses[i]);
@@ -67,8 +68,11 @@ using df_best_first_types = _TE_COMBINE_TYPES_3((float, double),
                                                 (df::method::dense, df::method::hist),
                                                 (df::task::regression));
 
-#define DF_BEST_FIRST_TEST(name) \
-    TEMPLATE_LIST_TEST_M(df_best_first_test, name, "[df][integration][best-first]", df_best_first_types)
+#define DF_BEST_FIRST_TEST(name)                          \
+    TEMPLATE_LIST_TEST_M(df_best_first_test,              \
+                         name,                            \
+                         "[df][integration][best-first]", \
+                         df_best_first_types)
 
 // Regression test for https://github.com/uxlfoundation/oneDAL/issues/3771 /
 // https://github.com/uxlfoundation/oneDAL/pull/3772.
@@ -104,11 +108,14 @@ DF_BEST_FIRST_TEST(
     static const float x[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
     static const float y[] = { 1, 2, 3, 4, 5, 6, 7, 8, -50, 50 };
 
-    const auto predictions =
-        this->train_and_predict_all(x, y, 10, /*max_leaf_nodes*/ 2, /*min_impurity_decrease*/ 260.0);
+    const auto predictions = this->train_and_predict_all(x,
+                                                         y,
+                                                         10,
+                                                         /*max_leaf_nodes*/ 2,
+                                                         /*min_impurity_decrease*/ 260.0);
 
     for (double p : predictions) {
-        REQUIRE(p == Approx(3.6).epsilon(1e-6));
+        REQUIRE(p == Catch::Approx(3.6).epsilon(1e-6));
     }
 }
 
