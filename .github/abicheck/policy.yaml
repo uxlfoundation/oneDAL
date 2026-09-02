@@ -16,53 +16,45 @@
 #
 # A policy file, not a suppression file, deliberately: a suppression rule
 # *removes* a matching change before the verdict and the counts are computed, so
-# the finding leaves no trace in the report. A policy rule changes only the
-# classification, so every difference stays in the report -- with its symbol and
-# location -- while the verdict still answers "did oneDAL break its ABI".
-# Measured on the real artifact: the six-rule suppression file this replaced
-# dropped 17 findings while showing 3, six `func_visibility_changed` and one
-# `type_vtable_changed` among them.
+# the finding leaves no trace in the report -- not the finding, not a count, not
+# a note that a suppression file was in effect. A policy rule changes only the
+# classification, so every difference stays in the report while the verdict still
+# answers "did oneDAL break its ABI".
 #
-# `reclassify:` takes a suppression rule's selector grammar and keeps the
-# finding, so every tolerated thing below is scoped -- to specific entities, or
-# to the ELF linkage that is the evidence for tolerating it. Nothing here is
-# kind-global: there is no `overrides:` block, so no whole change kind is
-# demoted for every symbol it could ever fire on. Resolution order:
-# `reclassify:` (first match in file order), then the base policy.
+# This file is load-bearing, measured: the same comparison with no `--policy` at
+# all is BREAKING on five of the six libraries, 1952 breaking findings, exit 4.
+# With this file: 0 breaking, exit 0, COMPATIBLE_WITH_RISK, and all 1952 still
+# printed as risk. It is two rules, both scoped to the ELF linkage that is the
+# evidence for tolerating them, because that is what the whole 1952 turns out to
+# be. There is no `overrides:` block: no change kind is demoted for every symbol
+# it could ever fire on.
 #
-# Verified with this file by the abicheck commit both workflows pin (c599daf7),
-# driven through the same root Action ci.yml uses, against `2026.0.0` snapshots
-# dumped by that commit, on the no-debug-info build LinuxMakeDPCPP produces:
-# every library exits 0 with nothing removed from the report --
-# libonedal_core.so COMPATIBLE_WITH_RISK 79 findings (77 of them
-# func_visibility_changed), libonedal.so 68, libonedal_dpc.so 86,
-# libonedal_parameters.so 2, libonedal_parameters_dpc.so 2, libonedal_thread.so
-# COMPATIBLE 1, suppressed_count 0 on all six.
+# Negative control for that scoping, on the shape ci.yml actually runs: take one
+# of those tolerated symbols in the 2026.0.0 baseline snapshot --
+# `oneapi::dal::v1::exception::~exception()`, WEAK, no longer exported by main --
+# and flip only its recorded linkage to `global`. Same comparison, same command:
+# libonedal_parameters.so moves COMPATIBLE_WITH_RISK -> BREAKING with exactly one
+# breaking finding (its risk count drops 13 -> 12, i.e. that one finding changed
+# bucket and nothing else did) and the run exits 4. A STRONG export disappearing
+# gates; a WEAK one is reported and does not.
 #
-# Negative control for the two `binding: weak` rules, which is the load-bearing
-# one: on a copy of the real libonedal.so baseline snapshot with a single
-# symbol's ELF linkage flipped WEAK -> GLOBAL
-# (oneapi::dal::detail::v1::homogen_table_builder::build(), a genuine
-# non-inline, non-template export), the same compare reports exactly one
-# error-level finding -- that symbol, `func_visibility_changed`, binding
-# `global` -- and moves COMPATIBLE_WITH_RISK -> BREAKING, exit 4. The linkage
-# selector, not the change kind, is what these two rules tolerate.
+# Both rules exist for one cause and should be deleted, not left to rot, once a
+# post-`-fvisibility-inlines-hidden` release is published as the baseline.
 #
-# Only the two demotion rules and the `oneapi::dal::preview` rule match anything
-# in this build configuration: without `--debug symbols` there are no
-# vtable/layout facts and no public-constant values, so the three
-# `type_vtable_changed` rules and the `constant_changed` rule are inert. They
-# are kept because they were measured against a debug-info build of the same
-# libraries, which is the configuration uxlfoundation/oneDAL#3725 would move
-# this repository to.
+# Scope note: this gate compares directories, which is abicheck's release
+# fan-out, and that path is binary-depth by contract -- no header AST, and this
+# build carries no DWARF. So no type, layout, enum or constant facts reach the
+# comparison at all, and a rule about them would be config that can never fire.
+# Earlier revisions of this file carried five such rules (three named types'
+# `type_vtable_changed`, `oneapi::dal::preview`'s
+# `experimental_removed_without_replacement`, one internal `constant_changed`);
+# they are gone with the header-scoped shape they were measured against. If this
+# gate ever regains header depth they have to be re-measured, not restored from
+# git history.
 #
-# Each entry states the class of real break it would fail to *gate* on -- the
-# honest cost of keeping these findings visible. In every case the finding is
-# still reported, and the gate's SARIF carries a `policyReclassify` record
-# naming the rule that fired, so the residual exposure is "a reviewer must
-# look", not "a reviewer cannot know". The baseline and the scanner must be the
-# same abicheck build or findings change for tooling reasons alone; that rule,
-# and the measurements behind it, are in .github/abicheck/README.md.
+# The abicheck build that dumps a baseline and the one that reads it must be the
+# same, or findings change for tooling reasons alone. That rule, its measurements
+# and the rest of this gate's design are in .github/abicheck/README.md.
 
 base_policy: strict_abi
 
@@ -83,29 +75,16 @@ reclassify:
   # headers (grep of cpp/daal/include + cpp/oneapi: zero hits), so a consumer
   # TU always has its own copy.
   #
-  # The same cause reaches the report under two kinds. Symbols whose
-  # declaration is in a scoped public header are reported as
-  # `func_visibility_changed` (still present, now HIDDEN); the rest can be folded
-  # in by abicheck's L0 export delta, which re-diffs the two ELF export tables
-  # symbols-only and reports `func_removed_elf_only`. Both carry the old side's
-  # ELF linkage on the change record, so both rules can be scoped by it rather
-  # than applied kind-globally: a STRONG export that stops being exported, or is
-  # removed outright, still gates.
-  #
-  # The second rule is a no-op in CI and deliberately kept anyway. That fold
-  # re-resolves the *binary* each snapshot was dumped from, found via the
-  # snapshot's recorded `source_path` and identity-checked against its recorded
-  # mtime and size; on a PR runner the baseline binary only ever existed on the
-  # publish runner, so the fold declines and no `func_removed_elf_only` finding
-  # is produced (measured: 1948 such findings across five libraries with the
-  # baseline tree present, 0 with it absent, same snapshots and same command).
-  # It fires when someone reproduces a comparison locally with both trees on
-  # disk -- exactly when a maintainer is least served by an unexplained
-  # BREAKING that CI never showed.
-  #
-  # Both go away once a post-inlines-hidden release is published as the
-  # baseline -- at which point these two rules should be deleted rather than
-  # left to rot.
+  # Which kind a given symbol arrives under depends on the evidence available.
+  # On the release fan-out this job runs there is no header AST, so all of them
+  # come through the ELF export-table delta as `func_removed_elf_only` --
+  # measured, 1952 across the five libraries (1414 + 237 + 272 + 17 + 12) and
+  # zero `func_visibility_changed`. The visibility rule is kept because the same
+  # cause is reported under that kind wherever a declaration *is* available (a
+  # local reproduction with headers, or this gate at header depth), and because
+  # ELF visibility is exactly the fact both rules are scoped by. Both carry the
+  # old side's linkage on the change record, which is what lets them be scoped
+  # by it rather than applied kind-globally.
   #
   # Gives up: gating on the removal or hiding of a symbol the library itself
   # built with vague (WEAK/COMDAT) linkage. That is provider-side evidence, not
@@ -140,120 +119,9 @@ reclassify:
     label: inlines-hidden-demotion
     reason: >-
       Same -fvisibility-inlines-hidden demotion as the rule above, reached
-      through the L0 export-table delta instead of the header-scoped diff:
-      these symbols have no declaration in the scoped public headers, so they
-      are reported as an export removal rather than a visibility change. All of
-      them are WEAK in the baseline's .dynsym and all are still defined as
-      LOCAL FUNC in the new binary's .symtab. A STRONG export disappearing is
-      not matched by this rule and still gates.
-
-  # ── Three named types: an evidence gap in abicheck's capture path, not a
-  #    change in oneDAL ────────────────────────────────────────────────────────
-  #
-  # Three types report type_vtable_changed = BREAKING. Exactly four recorded
-  # fields differ on each, all in the same direction -- the new side has no
-  # layout facts at all: `vtable` loses its single slot (the implicit virtual
-  # destructor, which all three types still have), `size_bits` and
-  # `vptr_offset_bits` go to null and `base_offsets` to {}. Everything else on
-  # the records is equal, including kind, virtual_bases, source_location,
-  # data_size_bits, is_standard_layout and is_trivially_copyable.
-  #
-  # That asymmetry is abicheck's, not oneDAL's, and not baseline staleness: a
-  # `dump` of the *current* tree under identical flags records
-  # system_parameters with vtable = 1 slot, size_bits = 192 and base_offsets =
-  # {base: 0}, byte-identical to the 2026.0.0 baseline's own record, while the
-  # capture path records none of them. BREAKING is then reached through
-  # `if t_old.size_bits is None or t_new.size_bits is None: return True` in
-  # _vtable_transition_is_evidenced (diff_types.py:1227) -- an unknown size
-  # refutes nothing. The same missing size_bits raises a paired,
-  # non-escalating `layout_unverifiable` risk finding on the same type, and
-  # that pairing is the reviewer's discriminator: a genuinely evidenced vtable
-  # change has size_bits on both sides and so arrives *without* it. Reported
-  # upstream and answered deliberately -- demoting an unevidenced vtable
-  # transition could hide a real break -- so these are oneDAL's risk call, not
-  # a wait on a fix.
-  #
-  # Gives up: gating on a real vtable change to one of these three types, which
-  # these rules cannot tell from the capture gap. A vtable change on any other
-  # type, including a same-named type elsewhere, still gates -- each rule is
-  # scoped by the header the type is declared in. Delete them, do not let them
-  # rot, when the capture gap is fixed upstream.
-  - kind: type_vtable_changed
-    symbol_pattern: "SerializableArgument"
-    source_location: "cpp/daal/include/algorithms/algorithm_types.h"
-    to: risk
-    label: scan-layout-capture-gap
-    reason: >-
-      Scan-path capture gap, not an oneDAL change: the new side records no
-      layout facts for this type (size_bits/base_offsets/vptr_offset_bits all
-      absent), which abicheck counts as an evidenced vtable transition. Paired
-      layout_unverifiable finding on the same type is the marker; `dump` of the
-      same tree records the same vtable, size_bits and base_offsets as the
-      baseline.
-  - kind: type_vtable_changed
-    symbol_pattern: "AlgorithmContainerIfaceImpl"
-    source_location: "cpp/daal/include/algorithms/algorithm_container_base.h"
-    to: risk
-    label: scan-layout-capture-gap
-    reason: >-
-      Same scan-path capture gap as SerializableArgument, same paired
-      layout_unverifiable marker.
-  - kind: type_vtable_changed
-    symbol_pattern: "system_parameters"
-    source_location: "cpp/oneapi/dal/detail/parameters/system_parameters.hpp"
-    to: risk
-    label: scan-layout-capture-gap
-    reason: >-
-      Same scan-path capture gap as SerializableArgument, same paired
-      layout_unverifiable marker.
-
-  # ── oneapi::dal::preview: the same lost WEAK symbols under a second kind ────
-  #
-  # oneapi::dal::preview::spmd::communicator<...>'s bcast, allgatherv,
-  # allreduce and sendrecv_replace also report as
-  # experimental_removed_without_replacement. Verified: all four are in the
-  # lost-WEAK set the override above accounts for, and
-  # cpp/oneapi/dal/spmd/communicator.hpp still declares every one on both
-  # sides -- one cause under two kinds, not a second removal. The namespace
-  # selector matches the change's own identity, not its cause, so it cannot
-  # reach a stable-namespace symbol whose cause happens to sit in preview::.
-  #
-  # Gives up: gating on a real removal from oneapi::dal::preview. An
-  # experimental removal outside preview::, which the kind-global override this
-  # replaces also covered, now gates.
-  - kind: experimental_removed_without_replacement
-    namespace: "oneapi::dal::preview"
-    to: risk
-    label: preview-experimental
-    reason: >-
-      oneapi::dal::preview is oneDAL's documented experimental namespace with
-      no ABI promise. Today's four findings are the same lost WEAK COMDAT
-      spmd::communicator symbols already reported as func_visibility_changed;
-      the headers still declare all four on both sides.
-
-  # ── One internal constant table ────────────────────────────────────────────
-  #
-  # A true positive worth printing and not failing on: main added
-  # `{ uint64_t(cpu_feature::amx_bf16), "Intel(R) AMX bfloat16" }` to
-  # cpu_feature_map in cpp/oneapi/dal/detail/cpu.hpp, an internal namespace.
-  #
-  # It arrives as two findings for one entity, under both
-  # oneapi::dal::detail::v1::cpu_feature_map and
-  # oneapi::dal::detail::cpu_feature_map with identical value hashes on both
-  # spellings and both sides -- `v1` is a plain namespace re-exported by
-  # `using v1::cpu_feature_map;` at cpu.hpp:103, which the snapshot records as
-  # a second declaration. abicheck collapses the type and variable cases (the
-  # "Duplicate type names skipped" warnings in this job's log); the constant
-  # path has no equivalent, hence the pattern matching both spellings.
-  #
-  # Gives up: gating on a changed value of this one table. Every other constant
-  # gates, including the daal:: root ones no namespace-scoped rule would cover.
-  - kind: constant_changed
-    symbol_pattern: "oneapi::dal::detail::(v1::)?cpu_feature_map"
-    to: risk
-    label: internal-cpu-feature-table
-    reason: >-
-      Internal (oneapi::dal::detail) CPU-feature name table gained an amx_bf16
-      entry in main. Matched under both spellings because the
-      `using v1::cpu_feature_map;` re-export at cpp/oneapi/dal/detail/cpu.hpp
-      is recorded as a second declaration.
+      through the ELF export-table delta rather than a header-scoped diff --
+      which is how all of them arrive on the binary-depth release comparison
+      this gate runs, since no declaration is available to report a visibility
+      change against. All of them are WEAK in the baseline's .dynsym and all are
+      still defined as LOCAL FUNC in the new binary's .symtab. A STRONG export
+      disappearing is not matched by this rule and still gates.
