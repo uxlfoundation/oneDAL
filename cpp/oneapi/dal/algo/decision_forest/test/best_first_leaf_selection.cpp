@@ -48,8 +48,8 @@ public:
         desc.set_max_leaf_nodes(max_leaf_nodes);
         desc.set_min_impurity_decrease_in_split_node(min_impurity_decrease);
 
-        const auto x_table = x_df.get_table(this->get_homogen_table_id(), range(0, -1));
-        const auto y_table = y_df.get_table(this->get_homogen_table_id(), range(0, -1));
+        const auto x_table = x_df.get_table(this->get_homogen_table_id(), range(0, 1));
+        const auto y_table = y_df.get_table(this->get_homogen_table_id(), range(0, 1));
 
         const auto train_result = this->train(desc, x_table, y_table);
         const auto infer_result = this->infer(desc, train_result.get_model(), x_table);
