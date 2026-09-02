@@ -14,11 +14,11 @@
 # limitations under the License.
 #===============================================================================
 
-# Publishes the ABI baseline that ci.yml's LinuxAbicheckScan job compares
-# against: one abicheck BundleFacts document holding a header-scoped snapshot
-# for each of oneDAL's six libraries, captured from a release tag built the same
-# way the PR-side build is, uploaded as a release asset, with its sha256 digest
-# committed to the repository as the trust anchor.
+# Publishes the ABI baselines that ci.yml's LinuxAbicheckScan job compares
+# against: one header-scoped abicheck snapshot per oneDAL library, captured from
+# a release tag built the same way the PR-side build is, uploaded as release
+# assets, with their sha256 digests committed to the repository as the trust
+# anchor.
 #
 # The full picture -- why the facts are not committed themselves, why the digest
 # file is, why the tag has to be rebuilt rather than downloaded, and how to
@@ -43,20 +43,17 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     # Measured against the pin below, on the no-debug-info build this workflow
-    # produces: 31m19s wall for the capture, 28m33s of it resolving the six
-    # libraries serially, peak RSS 5.2 GiB -- the max of the six, not their sum,
-    # reached on libonedal_dpc.so. Fits a 16 GB runner with room to spare. The
-    # SYCL headers dominate: one header under `-fsycl -DONEDAL_DATA_PARALLEL`
-    # costs 7m30s / 4.0 GiB against 59s / 0.6 GiB without. The three builds took
+    # produces: 32m41s wall for the six dumps together, peak RSS 4.84 GiB -- the
+    # max of the six, reached on libonedal_dpc.so, not their sum, since each dump
+    # is its own process. Fits a 16 GB runner with room to spare. The SYCL
+    # headers dominate: one header under `-fsycl -DONEDAL_DATA_PARALLEL` costs
+    # 8m22s / 3.92 GiB against 1m08s / 0.58 GiB without. The three builds took
     # 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard runner
-    # the builds, not the capture, dominate this job -- which is why the timeout
+    # the builds, not the dumps, dominate this job -- which is why the timeout
     # stays at 180. Per-library numbers: .github/abicheck/README.md.
     timeout-minutes: 180
     env:
       ABICHECK_BASELINE_DIR: __abi_baselines
-      # Must equal ci.yml's ABICHECK_PIN. Not a `uses:` pin because the capture
-      # drives abicheck as a Python library -- see the capture step's comment.
-      ABICHECK_PIN: c599daf737b673531a6611a7005e0efde18345b5
       # The bytes actually on the release after the publish step: this run's
       # freshly dumped snapshot for a new asset, the already-published asset for
       # one that exists. The digest file is computed from here, never from
@@ -132,44 +129,148 @@ jobs:
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
-      # One capture, six libraries, one asset: ci.yml's gate is a whole-product
-      # comparison, so the baseline it needs is one BundleFacts document holding
-      # a header-scoped snapshot per library. Both halves read the same LIBRARIES
-      # table in .github/abicheck/onedal_libraries.py, which is the point -- a
-      # baseline captured from a different header set than the gate uses reports
-      # every header-only difference as a spurious add/remove, and one shared
-      # table makes that drift impossible rather than merely documented.
+      # One snapshot per library, one release asset each, dumped by the same
+      # Action ci.yml's job compares with -- so the two sides cannot disagree
+      # about how a snapshot is produced. What they *must* also agree on is the
+      # scoping below: a baseline captured from a different header set, include
+      # root or compiler option than the PR-side check uses reports every
+      # header-only difference as a spurious add/remove. The matrix in
+      # ci.yml's LinuxAbicheckScan job is the other copy of this table; if the
+      # two drift apart the profile fingerprint stops matching and the
+      # comparison fails as NOT_COMPARABLE rather than reporting a false break.
       #
       # The .json.zst suffix is load-bearing: abicheck infers the compression
-      # envelope from it on both sides, and this document is 902 MiB of JSON
-      # against 13.2 MiB compressed.
+      # envelope from it when writing here and from the bytes when reading on
+      # the PR side.
       #
-      # Keep ABICHECK_PIN equal to ci.yml's. A mismatch does not fail in any way
-      # that points at the cause -- it either under-reports silently or fails
-      # loudly for the wrong reason (measured: an enum-value dumper fix turned
-      # an unchanged tree into 280 breaking `enum_member_value_changed` findings
+      # Keep the pin equal to ci.yml's. A mismatch does not fail in any way that
+      # points at the cause -- it either under-reports silently or fails loudly
+      # for the wrong reason (measured: an enum-value dumper fix turned an
+      # unchanged tree into 280 breaking `enum_member_value_changed` findings
       # against baselines dumped by the older pin, exit 4, with nothing naming
       # the baseline as the cause). So every bump obliges re-*verifying* against
       # the existing baselines, and re-dispatching this workflow for every
       # published tag only if the reports differ; the pin below needed no new
       # baselines on that test. See .github/abicheck/README.md.
-      - name: Install abicheck
-        run: python3 -m pip install --disable-pip-version-check
-          "abicheck @ git+https://github.com/abicheck/abicheck@${{ env.ABICHECK_PIN }}"
-      - name: Capture baseline bundle facts
-        run: |
-          python3 .github/abicheck/bundle_gate.py capture \
-            --source __baseline_src \
-            --lib-dir __baseline_src/__release_lnx/daal/latest/lib/intel64 \
-            --version "${{ steps.baseline.outputs.tag }}" \
-            --output "${ABICHECK_BASELINE_DIR}/${{ steps.baseline.outputs.tag }}-bundle.abicheck.json.zst"
+
+      - name: Dump libonedal_core.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          header: >-
+            __baseline_src/cpp/daal/include/daal.h
+            __baseline_src/cpp/daal/include/algorithms/tsne/tsne_gradient_descent.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/finiteness_checker.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/roc_auc_score.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/train_test_split.h
+            __baseline_src/cpp/daal/include/services/internal/hash_table.h
+            __baseline_src/cpp/daal/include/data_management/data/internal/base_arrow_numeric_table.h
+          include: __baseline_src/cpp/daal/include
+          gcc-options: -std=c++17
+          ast-frontend: clang
+          gcc-path: icpx
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-libonedal_core.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
+          header: >-
+            __baseline_src/cpp/oneapi/dal.hpp
+            __baseline_src/cpp/oneapi/dal/algo/correlation_distance.hpp
+            __baseline_src/cpp/oneapi/dal/algo/cosine_distance.hpp
+            __baseline_src/cpp/oneapi/dal/algo/dbscan.hpp
+            __baseline_src/cpp/oneapi/dal/algo/linear_regression.hpp
+            __baseline_src/cpp/oneapi/dal/algo/logistic_regression.hpp
+            __baseline_src/cpp/oneapi/dal/table/csr_accessor.hpp
+          include: __baseline_src/cpp
+          gcc-options: -fsycl -std=c++17
+          ast-frontend: clang
+          gcc-path: icpx
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-libonedal.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal_dpc.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
+          header: >-
+            __baseline_src/cpp/oneapi/dal.hpp
+            __baseline_src/cpp/oneapi/dal/algo/correlation_distance.hpp
+            __baseline_src/cpp/oneapi/dal/algo/cosine_distance.hpp
+            __baseline_src/cpp/oneapi/dal/algo/dbscan.hpp
+            __baseline_src/cpp/oneapi/dal/algo/linear_regression.hpp
+            __baseline_src/cpp/oneapi/dal/algo/logistic_regression.hpp
+            __baseline_src/cpp/oneapi/dal/table/csr_accessor.hpp
+          include: __baseline_src/cpp
+          gcc-options: -fsycl -DONEDAL_DATA_PARALLEL -std=c++17
+          ast-frontend: clang
+          gcc-path: icpx
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-libonedal_dpc.so.abicheck.json.zst
+          dependency-source: none
+
+      # Of the 14 installed parameters headers only system_parameters.hpp is
+      # consumable as shipped: the other 12 include
+      # oneapi/dal/backend/dispatcher.hpp, and oneapi/dal/backend/ is not
+      # installed, so scoping to them would scope against a surface no consumer
+      # can reach. That packaging gap is an oneDAL issue of its own.
+      - name: Dump libonedal_parameters.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so
+          header: >-
+            __baseline_src/cpp/oneapi/dal/detail/parameters/system_parameters.hpp
+          include: __baseline_src/cpp
+          gcc-options: -fsycl -std=c++17
+          ast-frontend: clang
+          gcc-path: icpx
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-libonedal_parameters.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal_parameters_dpc.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so
+          header: >-
+            __baseline_src/cpp/oneapi/dal/detail/parameters/system_parameters.hpp
+          include: __baseline_src/cpp
+          gcc-options: -fsycl -DONEDAL_DATA_PARALLEL -std=c++17
+          ast-frontend: clang
+          gcc-path: icpx
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-libonedal_parameters_dpc.so.abicheck.json.zst
+          dependency-source: none
+
+      # No installed public header at all -- libonedal_thread.so's _daal_*
+      # threading entry points are declared only in cpp/daal/src/threading/,
+      # which is not shipped -- so it is carried ELF-only, by design rather than
+      # as a gap, and needs neither icpx nor an include root.
+      - name: Dump libonedal_thread.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_thread.so
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baseline.outputs.tag }}-libonedal_thread.so.abicheck.json.zst
+          dependency-source: none
 
       # A tripwire for one failure: compression silently not applying. Release
-      # assets allow 2 GiB, and the asset is 13.2 MiB compressed against 902 MiB
-      # raw, so a 100 MiB limit sits between the two. The glob and the asset name
-      # share the .abicheck.json.zst suffix deliberately -- this loop, the publish
-      # loop and the PR-side digest check all key on it, so an asset named outside
-      # it would make all three silently no-op rather than fail.
+      # assets allow 2 GiB, and the largest of the six is 4.9 MiB compressed
+      # (libonedal_dpc.so) against hundreds of MiB raw, so a 100 MiB limit sits
+      # well between the two. The glob and the asset names share the
+      # .abicheck.json.zst suffix deliberately -- this loop, the publish loop and
+      # the PR-side digest check all key on it, so an asset named outside it
+      # would make all three silently no-op rather than fail.
       - name: Report snapshot sizes and check the compression tripwire
         run: |
           set -euo pipefail
@@ -180,7 +281,7 @@ jobs:
           for f in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
             size=$(stat -c %s "$f")
             if [ "$size" -gt "$limit" ]; then
-              echo "::error file=${f}::$(( size / 1048576 )) MiB is far above the ~13 MiB compressed bundle facts take, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
+              echo "::error file=${f}::$(( size / 1048576 )) MiB is far above the ~5 MiB a compressed snapshot takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
               rc=1
             fi
           done
