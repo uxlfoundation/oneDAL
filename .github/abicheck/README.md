@@ -20,191 +20,181 @@
 oneDAL's `CI` workflow runs **two independent ABI gates**, in parallel, both
 depending only on `LinuxMakeDPCPP` and never on each other:
 
-| | `ABI Conformance(avx2)` | `Abicheck (<library>)` |
+| | `ABI Conformance(avx2)` | `Abicheck (multilib)` |
 |---|---|---|
-| job | `LinuxABICheck` | `LinuxAbicheckScan`, a six-way matrix (one job per library) |
+| job | `LinuxABICheck` | `LinuxAbicheckScan` — **one** job, one check step |
 | tool | libabigail `abidiff`, via `.ci/scripts/abi_check.sh` | [abicheck](https://github.com/abicheck/abicheck)'s own Action, `mode: compare` |
 | baseline | the last successful **`main`** build, restored from the Actions cache | the last **release tag**, as one abicheck snapshot asset per library, fetched from the release |
-| evidence | the two binaries only (ELF symbols + whatever DWARF they carry) | this PR's **public-header AST** plus the binary's exported symbols |
-| artifacts | every `lib*.so` in the release directory | all six product libraries, one job each |
+| operands | two directories, compared library by library by the script | two directories, compared library by library by abicheck's release fan-out |
+| evidence | ELF symbols and type info from the two binaries | ELF exported symbols and metadata from the snapshots and the new binaries |
 | what it measures | did this PR change the ABI relative to `main` | has the ABI drifted since the last release |
 | filtering | `.github/.abignore` (libabigail suppressions) | `.github/abicheck/policy.yaml` (re-classification, see [Gating](#gating)) |
-| timeout | 20 min | 45 min per library |
+| cost | 20 min timeout | 12 s, ~205 MiB |
 
-They are complementary, not redundant, and neither subsumes the other.
-`abidiff` never reads a header, so a declaration that ships in `include/` but is
-exported by nothing — or an export with no public declaration — is invisible to
-it, and because its baseline is `main`, drift that accumulates one merged PR at a
-time across a release cycle never appears. abicheck answers the question users
-ask instead ("can I drop this build in for the release I have installed?"), and
-it reads each library against the headers that actually declare its surface, so
-an export with no public declaration is a finding rather than a silent pass. Its
-own blind spots: it knows only what the baseline snapshot recorded, at the depth
-this repository runs it reasons about layout from header ASTs rather than DWARF,
-and it compares one library at a time (see
-[What one job per library does not see](#what-one-job-per-library-does-not-see)).
+They are complementary, not redundant. `abidiff`'s baseline is `main`, so drift
+that accumulates one merged PR at a time across a release cycle never appears in
+it; this gate answers the question users actually ask — "can I drop this build in
+for the release I have installed?" — and answers it per library, with a verdict
+that distinguishes *break* from *risk* under a policy whose every downgrade is
+evidence-backed. Its blind spots are equally concrete: it knows only what the
+baseline snapshot recorded, it reads no headers, and it needs a published release
+asset to compare against at all.
 
 ## Where everything lives
 
 | path | what it is |
 |---|---|
-| `.github/workflows/ci.yml`, job `LinuxAbicheckScan` | the PR-side check: one `mode: compare` Action step per library, driven by the job's matrix |
-| `.github/workflows/abicheck-baseline.yml` | the baseline publisher: one `mode: dump` Action step per library |
+| `.github/workflows/ci.yml`, job `LinuxAbicheckScan` | the PR-side check: a single `mode: compare` step with two directory operands |
+| `.github/workflows/abicheck-baseline.yml` | the baseline publisher: one `mode: dump` step per library |
 | `.github/abicheck/policy.yaml` | severity re-classification, passed as the Action's `policy-file` |
 | `.github/abicheck/baselines/<tag>.abicheck.sha256` | digests of the release assets for `<tag>` — the trust anchor, and the only baseline artifact in git |
 | `.github/.abignore` | libabigail suppressions, used by the *other* job |
 
-There is no oneDAL-owned Python and no oneDAL-owned abicheck config: both
-workflows call `abicheck/abicheck` at a pinned SHA and pass everything as Action
-inputs. The scoping table below therefore lives twice, once in each workflow —
-duplicated on purpose, because the alternative (a config file, or a script both
-read) is what the previous revision of this gate did and what reviewers asked to
-remove. The duplication cannot drift silently: the scoping enters the snapshot's
-profile fingerprint, so a baseline captured with a different header set, include
-root or compiler option makes the comparison fail as `NOT_COMPARABLE` rather
-than report a false break.
+There is no oneDAL-owned Python, no oneDAL-owned driver script and no
+oneDAL-owned abicheck config file: both workflows call `abicheck/abicheck` at a
+pinned SHA and pass everything as Action inputs.
 
-## Evidence depth — what is actually enabled
+## What one run compares
 
-abicheck stacks evidence in layers. This repository runs `depth: headers`,
-which is **L2**. Observed layer status from a real run of this configuration:
+Both operands are directories, which is abicheck's own multi-library ("release")
+comparison: one process fans out over every shared object in
+`__release_lnx/daal/latest/lib/intel64` and matches each to the baseline snapshot
+of the same name. Six libraries, one step, one verdict, plus a per-library verdict
+table:
 
-| layer | status here | why |
-|---|---|---|
-| `L0_binary` | **present** | ELF exported symbols, read from the artifact |
-| `L1_debug` | **present** for `libonedal_core.so`, *not collected* for the other five | `LinuxMakeDPCPP` builds without `--debug symbols`, but `icx` emits DWARF for the `daal` target anyway |
-| `L2_header` | **present** | public-header AST, parsed with `icpx` |
-| `L3_build` | *not collected* | needs real compile flags (`--sources`/`--build-info`) |
-| `L4_source_abi` | *not collected* | needs a Clang plugin or a compiler wrapper |
-| `L5_source_graph` | **present** | reachability over the declared surface |
-| `pattern_scan` | **present** | lexical pre-scan of the changed headers |
+| library | verdict | breaking | risk | additions | dominant kinds |
+|---|---|---|---|---|---|
+| `libonedal.so` | `COMPATIBLE_WITH_RISK` | 0 | 254 | 114 | 237 `func_removed_elf_only`, 102 `func_added`, 16 `imported_symbol_added` |
+| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 1415 | 62 | 1414 `func_removed_elf_only`, 36 `var_added`, 24 `func_added` |
+| `libonedal_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 305 | 128 | 272 `func_removed_elf_only`, 114 `func_added`, 27 `imported_symbol_added` |
+| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 13 | 2 | 12 `func_removed_elf_only` |
+| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 18 | 2 | 17 `func_removed_elf_only` |
+| `libonedal_thread.so` | `COMPATIBLE` | 0 | 0 | 1 | 1 `visibility_leak` |
 
-Not requiring `L1_debug` is deliberate: L2 needs no DWARF, which is what makes
-scanning `libonedal_dpc.so` affordable — a DPC++ library built with device debug
-info is far too large to dump on a standard runner, and without it the same
-header-AST evidence applies unchanged. Where DWARF happens to be there abicheck
-uses it; nothing in the gate depends on that. One consequence: any command
-reading the *binary* without a snapshot pays for that DWARF (see
-`scan --artifact-set` under [Known gaps](#known-gaps)). L3 and L4 are measured
-and deferred, also below.
+Measured on `main` against the `2026.0.0` baseline, through the same root Action
+the job invokes, with `policy.yaml` in effect: **exit 0**, folded verdict
+`COMPATIBLE_WITH_RISK`, 2314 findings in total, nothing removed from the report.
+Four runs of the same shape: 11.4–12.2 s, 203–206 MiB peak RSS.
 
-## Which artifacts are checked, and with which headers
+`jobs: 1` is not a tuning choice. The default (`0`) means one worker per CPU, and
+six libraries parsed concurrently is where this shape stops fitting a runner.
 
-All six product libraries, one CI job each, each with **its own** header roots
-and compile flags. The table is written out twice: as `LinuxAbicheckScan`'s
-`strategy.matrix.include` in `ci.yml` and as the six `Dump <library>` steps in
-`abicheck-baseline.yml`. Keep them equal — the PR-side check compares against the
-baseline the other one captured, and the scoping is part of what makes the two
-comparable at all.
+`extra-args: --no-bundle-analysis` is also load-bearing. The cross-library bundle
+graph is built from real ELF binaries; the old side here is six JSON snapshots, so
+abicheck has no old bundle to diff against and reports all six libraries as
+`bundle_library_added` plus (without an explicit `--bundle-system-providers` list)
+255 `bundle_intra_dep_removed`, i.e. `BREAKING`, on an unchanged tree. Two facts
+worth keeping for whoever revisits cross-library checking: `DT_NEEDED` shows only
+two sibling edges (`libonedal_parameters*.so → libonedal*.so`) — `libonedal_dpc.so`
+does not link `libonedal_core.so` despite importing ~800 symbols from it, because
+applications link both — and abicheck's `DEFAULT_SYSTEM_PROVIDERS` omits
+`libtbbmalloc`, the MKL libraries and the Intel runtime, while **one** unmatched
+`DT_NEEDED` edge disables the system-edge exemption for a whole library (measured:
+the difference between 862 and 58 `bundle_unresolved_intra_dependency` findings,
+and between `BREAKING` and `COMPATIBLE_WITH_RISK`).
 
-| library | headers | include roots | extra compile flags |
-|---|---|---|---|
-| `libonedal_core.so` | 7 `daal` roots | `cpp/daal/include` | `-std=c++17` |
-| `libonedal.so` | 7 `oneapi::dal` roots | `cpp` | `-fsycl -std=c++17` |
-| `libonedal_dpc.so` | same 7 | `cpp` | `-fsycl -DONEDAL_DATA_PARALLEL -std=c++17` |
-| `libonedal_parameters.so` | `detail/parameters/system_parameters.hpp` | `cpp` | `-fsycl -std=c++17` |
-| `libonedal_parameters_dpc.so` | same 1 | `cpp` | `-fsycl -DONEDAL_DATA_PARALLEL -std=c++17` |
-| `libonedal_thread.so` | none — ELF-only | — | — |
+## Binary depth
 
-`-DONEDAL_DATA_PARALLEL` makes the `sycl::queue` overloads visible, and those
-overloads are exactly the part of the public API only `libonedal_dpc.so`
-exports; without it this scan would report the whole SYCL surface as
-exported-but-not-declared. Equally, scanning one library against another's
-headers would report every declaration as missing — hence per-library roots
-rather than one shared list (against the shared tree, every declaration the
-*other* libraries implement counts as "declared here but not exported here":
-2787 such on `libonedal.so`, 4974 on `libonedal_core.so`, which is why those
-cross-checks stay advisory).
+The release fan-out is **binary depth by contract**. abicheck's own
+`check-target` reference says a bundle's baseline "is always raw binaries with no
+historical header/build/source evidence staged per member"; the CLI rejects
+`--depth` outright for a directory operand (exit 64, "the per-library fan-out does
+not collect inline build/source evidence"), and the Action drops a `depth:` input
+silently on that path rather than forwarding it — which is why `ci.yml` passes
+none. `LinuxMakeDPCPP` emits no DWARF at all (`readelf -SW` finds no
+`.debug_info` in `libonedal_core.so`), so the default resolves to the same thing
+today: a run with no depth pinned produced an identical library table in an
+identical 12 s.
 
-Two libraries get less than the others, and only one of those is a real design
-boundary. `libonedal_thread.so` (290 exports) has no public header surface at
-all — it is the internal C ABI between `libonedal_core.so` and its threading
-backend, declared only in the uninstalled `cpp/daal/src/threading/threading.h`
-— so it rides in the bundle ELF-only, for its dependency edges. The two
-`parameters` libraries (75 and 124 exports) are scoped to
-`system_parameters.hpp` only because of an **oneDAL packaging bug**: the other
-12 installed `parameters` headers include `oneapi/dal/backend/dispatcher.hpp`
-and `oneapi/dal/backend/` is not installed, so no consumer can include them as
-shipped (verified by compiling each against the release include tree alone: 12
-of 14 fail "file not found"). Fixing that packaging is worth doing on its own
-merits and is what would let the rest in.
+What that gives up, in the report's own words — one such line per library:
 
-No rebuild happens on the PR side: the job downloads the `__release_lnx`
-artifact `LinuxMakeDPCPP` already uploaded and installs DPC++ only so `icpx` can
-parse headers.
+> Binary-only analysis without debug info; many ABI changes cannot be detected
+> (struct layout, enum values, type changes)
 
-### Why the header roots are an explicit list, not the directories
+Concretely, versus the header-scoped per-library matrix this replaced:
 
-Handing abicheck a directory expands to every header in the tree, parsed as one
-aggregate translation unit, and both of oneDAL's trees fail that way outright:
-`cpp/daal/include` contains `arrow_numeric_table.h`, which includes
-`<arrow/table.h>` — Arrow dev headers are not in the `ubuntu-24.04` apt archive
-and oneDAL's own build never compiles that header either — and `cpp/oneapi/dal`
-contains headers resolving only relative to `cpp`, several additionally needing
-`-I cpp/daal/include`. abicheck's auto-exclusion cannot rescue either case: it
-drops only headers raising a `#error` direct-inclusion guard.
+* **no public-header AST.** No `exported_not_public`/`public_not_exported`
+  provenance, no declaration-vs-export mismatch, and struct layout, enum values
+  and type changes are not compared. The detectors that need those facts announce
+  themselves as disabled (`vtable_layout`, `dwarf_layout_coherence`, `sycl`,
+  plus the kABI/PE/Mach-O/Python ones that never applied) — nine coverage
+  warnings per library, which is most of the report's length.
+* **no SARIF, so no code scanning.** `--format sarif` and `html` are rejected for
+  a directory operand (exit 64: "sarif/html/review require a single-pair
+  comparison"); `json`, `junit` and `markdown` are what remain.
+* **no per-symbol detail in the markdown.** A release comparison's markdown is
+  per-library counts plus coverage warnings — 7.3 KB, no symbol names anywhere.
+  The gate therefore also writes the json report
+  (`extra-args: --write json=…`) and archives it: 717 KB, one annotation entry
+  per finding, all 2314 of them, naming every symbol. Note the json's own
+  `findings` array is capped at 10 per library (`findings_truncated: true`); the
+  `annotations` array is not.
 
-So `LIBRARIES` lists, per library, its umbrella header plus exactly those
-installed public headers the umbrella does not reach. That list is load-bearing:
-on the `oneapi::dal` side the six extra headers add 687 functions and 130 types
-(5289 → 5976 functions), because `dbscan`, `linear_regression`,
-`logistic_regression`, `correlation_distance`, `cosine_distance` and
-`csr_accessor` all ship in `include/` but are unreachable from `dal.hpp`.
-
-**When a public header is added** and the umbrella does not reach it, add it to
-that library's entry in *both* workflows, then re-capture the baselines (see
-[Rotation](#rotating-to-a-newer-baseline)): a baseline captured before the
-addition was fingerprinted against the old header sequence, and a check that
-parses more headers than the baseline did stops being comparable to it.
+The header-scoped alternative was measured, not assumed. A single multilib
+comparison at header depth needs the L2 compile context (`-fsycl`,
+`-DONEDAL_DATA_PARALLEL`, include roots), and the Action refuses those inputs on
+a release operand outright (`::error::` + exit 1, because "the per-library fan-out
+never threads the L2 compile context to each pair's header dump"), so it is
+reachable only by smuggling the flags through `extra-args` past that guard. Doing
+that works — exit 0, `COMPATIBLE_WITH_RISK` — and costs **50 min 54 s and
+10.7 GiB peak RSS**, against a 16 GB runner, per PR. Upstream documents multilib
+comparison as binary-depth; running it otherwise means depending on a shape
+upstream deliberately blocks. Hence this gate is binary depth, and the
+header-scoped surface stays the domain of a local run.
 
 ## Baselines
 
 The published release binaries are a multi-ISA (`sse2 sse42 avx2 avx512`)
 release-mode build while CI compiles a single-ISA `avx2` one, so comparing
 against them would compare build configurations rather than ABI changes. Hence
-`.github/workflows/abicheck-baseline.yml` ("Publish Abicheck Baseline") checks
-out the release **tag** and rebuilds it with the same three targets the PR-side
-build uses. It runs on `workflow_dispatch` (with a `baseline_tag` input) and on
-`release: published`, and it:
+`.github/workflows/abicheck-baseline.yml` ("Publish Abicheck Baseline") checks out
+the release **tag** and rebuilds it with the same three targets, ISA and debug
+setting the PR-side build uses. It runs on `workflow_dispatch` (with a
+`baseline_tag` input) and on `release: published`, and it:
 
-1. builds the tag, three targets, no debug info (those three produce all six
-   libraries);
-2. runs the abicheck Action in `mode: dump` once per library, with the same
-   header roots, include root and compiler options the PR-side matrix uses;
-3. checks a compression tripwire — a snapshot is a few MiB compressed against
-   hundreds of MiB of raw JSON, so anything near the 100 MiB limit means the
-   `.json.zst` envelope did not apply;
-4. uploads each `<tag>-<library>.abicheck.json.zst` as a **release asset** —
-   six per baseline tag;
+1. builds the tag — `daal`, `oneapi_c`, `oneapi_dpc`, which produce all six
+   libraries;
+2. runs the abicheck Action in `mode: dump` once per library (`dump` takes one
+   library at a time; only `compare` fans a directory out) — measured 0.69 s to
+   7.42 s each, 17.5 s together, peak 184 MiB on the largest;
+3. checks a compression tripwire: the six snapshots are 5.8 KiB to 148 KiB, 372 KB
+   together, so a 5 MiB ceiling catches a snapshot written uncompressed;
+4. uploads each `<library>.abicheck.json.zst` as a **release asset**;
 5. commits only its `sha256sum` output to
    `.github/abicheck/baselines/<tag>.abicheck.sha256`, one line per asset.
 
-The snapshots themselves are deliberately **not** in git: compressed binary per
-release is not something review can inspect, and uncompressed they are multiples
-of GitHub's 100 MiB per-file limit. The digest file is a few hundred bytes, is
-reviewable, and is the trust anchor — `LinuxAbicheckScan` downloads exactly the
-asset names it lists and then runs `sha256sum --check --strict`, so a replaced or
-corrupted asset fails the job instead of silently changing every PR's verdict.
-Each matrix job verifies all six digests and then uses its own library's asset.
+**The asset name is the matcher.** abicheck keys a snapshot to a shared object by
+the filename up to `.so`, so `libonedal_core.so.abicheck.json.zst` pairs with
+`libonedal_core.so.4.0` — and a decorated name (a `<tag>-` prefix, say) pairs with
+nothing, silently. The `.json.zst` suffix is load-bearing too: abicheck infers the
+compression envelope from it when writing and from the bytes when reading.
 
-Published assets are **immutable**: a run that would overwrite one stops,
-because every already-merged PR's "compatible with `<tag>`" verdict was computed
-against the published bytes. Existence, not a digest compare, is the rule — and
-has to be, since a snapshot is *not* byte-reproducible: two dumps of the same
-tree by the same pin differ in size and sha256 while decompressing to identical
-content (the L5 source-graph decl nodes reorder). Recovering from a
-partially-published run means deleting the asset on purpose; a re-run keeps every
-asset already on the release and re-hashes the published bytes, so it converges
-instead of deadlocking.
+The snapshots themselves are deliberately **not** in git. The digest file is a few
+hundred bytes, is reviewable, and is the trust anchor: `LinuxAbicheckScan`
+downloads exactly the asset names it lists and then runs
+`sha256sum --check --strict`, so a replaced or corrupted asset fails the job
+instead of silently changing every PR's verdict. Publishing the baseline
+*binaries* instead — abicheck's own bundle model — was rejected as a 144 MB
+per-release product decision, and the 2026.0.0 release carries no assets at all
+today.
+
+Published assets are **immutable**: a run that would overwrite one stops, because
+every already-merged PR's "compatible with `<tag>`" verdict was computed against
+the published bytes. Existence, not a digest compare, is the rule — and has to be,
+since a snapshot is content-reproducible but not byte-reproducible (two dumps of
+the same `libonedal.so` by the same pin: 87,584 bytes each, different sha256,
+differing only in the recorded `created_at`). A re-run keeps every asset already on
+the release and re-hashes the published bytes, so it converges instead of
+deadlocking.
 
 ### Bootstrap
 
 `workflow_dispatch` only becomes available once the workflow file is on the
-default branch, so the digest file cannot exist before this lands. Until it
-does, `LinuxAbicheckScan` **skips** the gate and says so in a warning annotation
-and the job summary — inert and visibly inert, rather than red (which would
-block the very PR that delivers the publishing workflow) or quietly green. Once
-the digest file is on `main`, the gate arms itself with no further edit.
+default branch, so the digest file cannot exist before this lands. Until it does,
+`LinuxAbicheckScan` **skips** the gate and says so in a warning annotation and the
+job summary — inert and visibly inert, rather than red (which would block the very
+PR that delivers the publishing workflow) or quietly green. Once the digest file is
+on `main`, the gate arms itself with no further edit.
 
 ### Rotating to a newer baseline
 
@@ -216,270 +206,152 @@ Dispatch **Publish Abicheck Baseline** for the new tag, then update
 The `uses: abicheck/abicheck@<sha>` pin in `ci.yml` and in
 `abicheck-baseline.yml` must name the **same** commit. `uses:` accepts no
 expression, so the SHA cannot be shared through an env var and is written out at
-each call site; a bump has to touch all of them. A snapshot
-records a `schema_version`, and detectors whose evidence postdates it decline to
-run rather than trust stale facts, so a baseline dumped by an *older* abicheck
-than the scanner does not fail — it silently **under-reports**. abicheck warns
-on stderr naming each degraded fact, but a warning is not a gate; the reverse
-direction, a snapshot newer than the reader, is a hard reject.
+each call site; a bump has to touch all of them. A snapshot records a
+`schema_version`, and detectors whose evidence postdates it decline to run rather
+than trust stale facts, so a baseline dumped by an *older* abicheck than the
+reader does not fail — it silently **under-reports**. The reverse direction, a
+snapshot newer than the reader, is a hard reject.
 
-The loud failure mode is worse and `schema_version` does not protect against it:
-a fix in the **dumper** changes recorded facts without changing the schema, so
-the two sides disagree about a value neither side changed. Measured while
-validating an earlier bump — an enumerator-value fix made baselines dumped by
-the previous pin report **280** breaking `enum_member_value_changed` findings
-across `libonedal_core.so` and `libonedal_dpc.so` on an *unchanged* tree,
-`schema_version` 25 on both sides; re-dumping took all 280 to zero.
+The loud failure mode is worse and `schema_version` does not protect against it: a
+fix in the **dumper** changes recorded facts without changing the schema, so the
+two sides disagree about a value neither side changed. Measured while validating an
+earlier bump — an enumerator-value fix made baselines dumped by the previous pin
+report **280** breaking `enum_member_value_changed` findings on an *unchanged*
+tree, `schema_version` 25 on both sides; re-dumping took all 280 to zero. (That
+particular kind cannot recur at binary depth, which collects no enum facts. The
+mechanism can, for any fact this depth does collect.)
 
-So bumping the pin obliges re-*verifying* the published baselines, with no
-`schema_version` shortcut: scan the unchanged tree with the new pin against the
-current baselines and diff the report against the old pin's. Both bumps done so
-far came out identical line-for-line apart from timings, so neither needed a
-re-capture — most recently the bump to the pin now in use (`c599daf7`, 428
-commits past its predecessor), where the gate was additionally re-run against
-facts freshly captured by the new pin and produced the same report again, from
-both baselines. Any difference means re-dispatching the baseline workflow for
-every published tag first. If a bump ever produces a wave of findings in one
-kind across an unchanged tree, suspect this before suspecting oneDAL.
+So bumping the pin obliges re-*verifying* the published baselines: compare the
+unchanged tree with the new pin against the current baselines and diff the report
+against the old pin's. Both bumps done so far came out identical line-for-line
+apart from timings, so neither needed a re-capture. Any difference means
+re-dispatching the baseline workflow for every published tag first. If a bump ever
+produces a wave of findings in one kind across an unchanged tree, suspect this
+before suspecting oneDAL.
 
 ## Gating
 
 Two separate questions, answered by two separate mechanisms:
 
-* *What changed* — every finding is printed with its symbol and source
-  location. Nothing is filtered out of the report.
-* *Did oneDAL break its ABI* — each library's verdict, computed after
-  `policy.yaml` re-classifies findings per kind.
+* *What changed* — every finding is in the report. Nothing is filtered out.
+* *Did oneDAL break its ABI* — the verdict, computed after `policy.yaml`
+  re-classifies findings by kind and ELF linkage.
 
-Each matrix job gates on its own library, with the Action's defaults: a binary
-ABI break (`BREAKING`, exit 4) fails that job; a source-level API break (exit 2)
-does not, since `fail-on-api-break` stays off and the header surface is
-deliberately wider than the ABI contract. `fail-fast: false` keeps the other five
-libraries running, so one PR run reports every affected library rather than the
-first one alphabetically.
+The job gates on the folded release verdict with the Action's defaults: a binary
+ABI break (`BREAKING`, exit 4) fails it; a source-level API break (exit 2) does
+not, since `fail-on-api-break` stays off. `fail-on-removed-library: true` is set —
+a library dropped from the release is a break, not a coverage gap.
 
-Each job uploads its own SARIF under `category: abicheck-<library>`. The explicit
-category is load-bearing: abicheck's own automation id embeds `--version`, i.e.
-the commit sha, so without it every run would open a fresh category whose
-predecessor's alerts are never closed — and six jobs uploading with the Action's
-own hardcoded `abicheck` category would collide into one result set, each
-overwriting the last. Header paths in the SARIF are repo-relative because the
-matrix passes repo-relative header roots.
+**`policy.yaml` is load-bearing, and measured to be.** The same comparison with no
+`--policy` at all is `BREAKING` on five of the six libraries — 1952 breaking
+findings, exit 4. With it: 0 breaking, exit 0, and all 1952 still printed as risk.
+Every one of them is `func_removed_elf_only` on a WEAK symbol: the `2026.0.0`
+baseline predates `makefile` gaining `-fvisibility-inlines-hidden`, so `main`
+stopped *exporting* a large set of COMDAT inline and template symbols that are
+still defined as LOCAL FUNC in the new binaries' `.symtab`. The evidence for
+tolerating that, and the exact scope of what the two rules give up, is in
+`policy.yaml` itself. Both rules should be **deleted** once a
+post-`-fvisibility-inlines-hidden` release becomes the baseline.
 
-A **suppression** file was tried first and rejected. A suppression rule removes
-the matching change *before* the verdict and the counts are computed, and a
-suppressed finding then leaves no trace in text output — not the finding, not a
-count, not even a note that a suppression file was in effect. The failure mode
-is silence, not noise: a synthesized STRONG-symbol visibility regression
-produced a run whose visible finding set was identical to a clean one's, exit 0.
-A policy re-classification changes only the severity, so the finding stays in
-the list, and the gate's SARIF carries a `policyReclassify` record naming the
-rule that fired.
+The policy is accountable rather than a blanket mute, and the linkage scoping is
+what makes it so. Negative control on the shipped shape: take one tolerated
+symbol in the baseline snapshot — `oneapi::dal::v1::exception::~exception()`, WEAK,
+no longer exported — and flip only its recorded linkage to `global`.
+`libonedal_parameters.so` moves to `BREAKING` with exactly one breaking finding
+(its risk count drops 13 → 12, so that one finding changed bucket and nothing else
+did) and the run exits 4. A STRONG export disappearing gates; a WEAK one is
+reported and does not.
 
-`policy.yaml` records each downgrade with its evidence and the class of break it
-gives up gating on, and every rule is **scoped**: four name the specific type,
-namespace or constant, so any other type's vtable change, any experimental
-removal outside `preview` and every other constant still gate. The two rules
-covering the `-fvisibility-inlines-hidden` fallout are scoped by ELF linkage
-instead (`binding: weak`), which is the evidence for tolerating them — a
-`GLOBAL`/STRONG export that is hidden or removed matches neither rule and still
-gates. There is no `overrides:` block: no change kind is demoted for every
-symbol it could ever fire on.
+A **suppression** file was tried first and rejected. A suppression rule removes the
+matching change *before* the verdict and the counts are computed, and leaves no
+trace in text output — not the finding, not a count, not even a note that a
+suppression file was in effect. The failure mode is silence, not noise: a
+synthesized STRONG-symbol visibility regression produced a run whose visible
+finding set was identical to a clean one's, exit 0.
 
-### Current state
+Five rules that earlier revisions carried are gone with the header-scoped shape
+they were measured against (three named types' `type_vtable_changed`,
+`oneapi::dal::preview`'s `experimental_removed_without_replacement`, one internal
+`constant_changed`): at binary depth no type, layout, enum or constant facts reach
+the comparison, so those rules were config that could never fire. Verified by
+running both shapes side by side — the two-rule policy produces a library table
+identical to the seven-rule one's, and an identical negative-control failure. If
+this gate ever regains header depth they have to be re-measured, not restored from
+git history.
 
-Measured `main` against the `2026.0.0` baseline through the same root Action
-this job invokes, on a no-debug-info build of both sides, with `policy.yaml` in
-effect: **all six jobs exit 0**, `suppressed_count` 0 on every one, nothing
-removed from any report.
+Two abicheck behaviours are worth knowing before reading a job summary. The
+Action's own summary block and its `verdict` output fold a release verdict down to
+the plain one — measured, `Verdict: COMPATIBLE` printed for a run whose real
+verdict is `COMPATIBLE_WITH_RISK`; the report the job pastes into the summary is
+where the real one is. And the per-library rows are keyed by the *snapshot*
+filename (`libonedal_core.so.abicheck.json.zst`), not the shared object's.
 
-| library | verdict | findings | dominant kinds | wall | peak RSS |
-|---|---|---|---|---|---|
-| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 79 | 77 `func_visibility_changed` | 7m46s | 3.66 GiB |
-| `libonedal.so` | `COMPATIBLE_WITH_RISK` | 68 | 22 `func_added`, 16 `imported_symbol_added`, 12 `type_added`, 6 `func_visibility_changed` | 4m17s | 2.60 GiB |
-| `libonedal_dpc.so` | `COMPATIBLE_WITH_RISK` | 86 | 22 `func_added`, 20 `imported_symbol_added`, 12 `type_added`, 10 `func_visibility_changed` | 11m43s | 6.86 GiB |
-| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 2 | 1 `enum_member_added`, 1 `imported_symbol_added` | 1m04s | 0.66 GiB |
-| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 2 | same two | 8m05s | 4.38 GiB |
-| `libonedal_thread.so` | `COMPATIBLE` | 1 | 1 `visibility_leak` (ELF-only) | 0.9s | 0.05 GiB |
+`require-complete-analysis` is deliberately **not** set: `libonedal_thread.so` has
+no installed public header, so its analysis can never be "complete", and the flag
+would fail `ANALYSIS_INCOMPLETE` (exit 1) on a library that has nothing wrong with
+it.
 
-Because the six run as matrix jobs, the wall-clock cost of the gate is the
-slowest single library (~12m), not the 33m their sum would be — but the runner
-minutes are the sum, roughly 3× what one sequential job would spend. The peak to
-plan for is per job, not aggregate: 6.86 GiB on `libonedal_dpc.so` against a
-16 GB runner. `-fsycl -DONEDAL_DATA_PARALLEL` is what costs this — the same
-single `system_parameters.hpp` is 1m04s / 0.66 GiB without it and 8m05s /
-4.38 GiB with it.
-
-`libonedal_core.so` being almost entirely `risk` is expected and temporary: the
-`2026.0.0` baseline predates `makefile` gaining `-fvisibility-inlines-hidden`,
-so `main` stopped exporting a large number of WEAK COMDAT inline/template
-symbols. The code was not removed — those symbols are still defined as LOCAL
-FUNC in the new binaries' `.symtab` — only their export visibility was demoted.
-This clears itself once a post-`-fvisibility-inlines-hidden` release becomes the
-baseline, at which point the two `inlines-hidden-demotion` rules in
-`policy.yaml` should be deleted.
-
-The policy's effect is accountable rather than a blanket mute, and the linkage
-scoping is what makes it so. Flipping a single symbol's ELF linkage from WEAK to
-GLOBAL on a copy of the real `libonedal.so` baseline snapshot —
-`oneapi::dal::detail::v1::homogen_table_builder::build()`, a genuine non-inline,
-non-template export — turns the same comparison into `BREAKING`, exit 4, with
-exactly one error-level finding naming that symbol. Nothing else about the run
-changes. Until the `risk` bucket has had a burn-in period, treat a change in
-these counts as something to read, not as a regression.
-
-`require-complete-analysis` is deliberately **not** set. `libonedal_thread.so`
-has no installed public header, so its analysis can never be "complete": with
-the flag on it fails `ANALYSIS_INCOMPLETE`, exit 1, on a library that has
-nothing wrong with it.
-
-One abicheck behaviour is worth knowing before reading a job summary: the
-Action's step summary prints `Verdict: COMPATIBLE — No binary ABI break
-detected` for a `COMPATIBLE_WITH_RISK` run. The distinction is in the SARIF
-(`abiVerdict`) and in the alerts, not in that line.
-
-Findings of kind `func_removed_elf_only` will show up in a **local**
-reproduction and not in CI, which is abicheck's design and not a
-misconfiguration. Its L0 export-delta fold re-resolves the *binary* each
-snapshot was dumped from, located through the snapshot's recorded `source_path`
-and identity-checked against the recorded mtime and size. On a PR runner the
-baseline binary never existed, so the fold declines silently; with both trees on
-disk it fires and reports every WEAK export the demotion above dropped —
-measured, 1948 findings across the five header-scoped libraries (1414 + 268 +
-237 + 17 + 12), all WEAK in the baseline's `.dynsym` and all still LOCAL FUNC in
-the new `.symtab`. `policy.yaml`'s second `inlines-hidden-demotion` rule is what
-keeps that local run green; it is the reason the rule exists despite matching
-nothing in CI.
-
-## What one job per library does not see
-
-Comparing each library on its own gives up the whole-product view an earlier
-revision of this gate had: if `libonedal_thread.so` dropped
-`_daal_parallel_sort_int32`, `libonedal_core.so` would fail to load at runtime,
-and all six per-library comparisons would still be clean. abicheck can report
-that (`bundle_intra_dep_removed`, ADR-023), but only at `depth: binary` and only
-from stored bundle facts — which means publishing the baseline **binaries**
-alongside the snapshots and a driver to feed them in, i.e. exactly the
-oneDAL-owned Python this revision removes. The trade was made deliberately: the
-header-scoped per-library comparison is where the findings are, and the ELF-level
-"provider disappeared" case is the one `abidiff` against `main` is best placed to
-catch anyway.
-
-Two things about oneDAL's DSO graph are worth writing down for whoever revisits
-this. `DT_NEEDED` shows only two sibling edges
-(`libonedal_parameters*.so → libonedal*.so`): `libonedal_core.so` does not link
-`libonedal_thread.so`, and `libonedal_dpc.so` does not link `libonedal_core.so`
-despite importing ~800 symbols from it — applications link both, so any
-cross-DSO rule has to treat under-linking as normal. And abicheck's
-`DEFAULT_SYSTEM_PROVIDERS` omits `libtbbmalloc`, the MKL libraries and the Intel
-runtime, while **one** unmatched `DT_NEEDED` edge disables the system-edge
-exemption for a whole library — measured, the difference between 862 and 58
-`bundle_unresolved_intra_dependency` findings, and between `BREAKING` and
-`COMPATIBLE_WITH_RISK`. Any bundle check added later needs that list supplied
-explicitly.
+Until the `risk` bucket has had a burn-in period, treat a change in these counts as
+something to read rather than as a regression in itself.
 
 ## Why not abicheck's declarative project configuration
 
 abicheck's paved road for a multi-library project (G30/ADR-047) is a
-`targets:`/`bundles:`/`profiles:`/`baseline:` block in `.abicheck.yml`, validated
-by `abicheck project validate`, expanded by `abicheck project plan`, and consumed
-by the reusable `check-project.yml` and `publish-baseline.yml` workflows. That is
-one step further than the two workflows here go: they call abicheck's root Action
-directly and pass the scoping as inputs. oneDAL cannot use the declarative
-topology yet, for four reasons upstream records in its own README ("Migrating a
-multi-library project onto the declarative topology"), each verified against
-abicheck's code at the pinned commit rather than tracked as scheduled work:
+`targets:`/`bundles:`/`profiles:`/`baseline:` block in `.abicheck.yml`, consumed by
+the reusable `check-project.yml` and `publish-baseline.yml` workflows. Three of the
+four obstacles an earlier, header-scoped revision of this gate documented no longer
+apply at binary depth: `public_headers:` never reaching a run-plan cell, `bundles:`
+being restricted to `depth: binary`, and `-fsycl` being inexpressible in the
+`compile:` block all stop mattering when nothing parses a header.
 
-* a target's `public_headers:` is validated but never projected into a run-plan
-  cell (`buildsource/run_plan.py` never reads it), so per-library header roots
-  reach no invocation — and header-scoped comparison is this gate's whole value;
-* a `bundles:` check is restricted to `depth: binary`, and `headers` is rejected
-  at validation time (`BUNDLE_CHECK_DEPTHS`, `buildsource/project_targets.py`);
-* the `compile:` block accepts only
-  `{frontend, std, sysroot, nostdinc, include_dirs, defines}`, so `-fsycl` — the
-  flag without which three of the six libraries' headers do not parse at all —
-  is inexpressible in the config, while the Action's `gcc-options` takes it
-  directly;
-* `publish-baseline.yml` consumes one `build-output.json` artifact per contract
-  profile (G30 P1.1), which oneDAL's makefile build does not emit, and
-  `actions/baseline` passes no per-library compiler options to its dump loop
-  (`actions/baseline/run.sh`), so it cannot capture the `-fsycl` lanes either.
-
-Having *three* build lanes (plain C++, `-fsycl`,
-`-fsycl -DONEDAL_DATA_PARALLEL`) across five libraries plus an ELF-only sixth is
-not itself the obstacle — that is three `profiles:`, which the schema handles.
-The obstacles are the four above, so a declarative block added today would be
-configuration nothing reads; this gate ships none. What it does keep is
-everything the paved road expects to be portable: the release-asset baseline with
-a committed digest anchor, a release-triggered (never `pull_request`) publishing
+What remains is the build contract. Both reusable workflows are "build once, scan
+many": each expects one `<prefix><profile-id>` artifact per contract profile
+containing a `build-output.json` plus the binaries it references (G30 P1.1), and
+oneDAL's makefile build emits no such manifest. Producing one means oneDAL-owned
+build glue — the class of thing this revision exists to remove — so the two
+workflows here keep calling the root Action directly. Everything the paved road
+expects to be portable is already in place: release-asset baselines with a
+committed digest anchor, a release-triggered (never `pull_request`) publishing
 workflow, SHA-pinned Actions, abicheck's own Action rather than a project driver,
-and policy over suppression. If `public_headers:` ever reaches the run-plan and
-`compile:` grows a pass-through for arbitrary flags, this collapses into one
-`check-project.yml` call and both matrices go away.
+and policy over suppression. If oneDAL's build ever emits `build-output.json`,
+this collapses into two `workflow_call` jobs.
 
 ## Known gaps
 
 * **The old side is never re-parsed, and that is what makes this affordable.** A
-  directory-vs-directory header-scoped compare has a snapshot on neither side,
-  so it parses both — 12 full parses of the union header set, which plateaued at
-  **~38 GB** and ran 2.5 hours without finishing. Comparing against a stored
-  snapshot parses the new side only. Do not "simplify" this into a directory
-  compare, and do not drop the published baselines in favour of building the tag
-  in the PR job.
-* **`scan --artifact-set DIR` remains the cheap fallback** if the baseline asset
-  is ever unavailable: all six libraries, no old side, in **10.8s / 383 MB** with
-  `--depth binary` (without it, 8m15s / 1.12 GB for identical findings, reading
-  `libonedal_core.so`'s DWARF). Its residual 58 findings are by design, so gate
-  on kinds rather than counts if it is ever adopted.
-* **The public-header provenance cross-checks are reachable now and still
-  deliberately off.** `service.resolve_input` takes `public_header_dirs` as
-  provenance only, and passing it moves `exported_not_public`,
-  `public_not_exported` and `rtti_for_internal_type` from skipped to present at
-  **no** parse cost (measured on `libonedal_parameters.so`: 58.8s against
-  59.3s). Volume, not capability, is what stops it: that one library — the
-  smallest, one header — yields **129** findings, 68 of 97 exports undocumented
-  (42 template instantiations, 25 external-dependency artifacts, 1 genuinely
-  undeclared) and 61 declarations whose export obligation the binary does not
-  satisfy. They are *intra-version* observations, not drift since the baseline,
-  so wiring them on means a policy pass over the reason buckets first, then
-  re-captured baselines, since `public_header_dirs` enters the scope
-  fingerprint. `header_build_context_mismatch`, `odr_type_variant`,
-  `identity_collision_detected` and `compile_context_conflict` stay skipped
-  regardless — they need L3/L4.
-* **A per-library compiler-options input on `actions/baseline` would collapse
-  the baseline workflow's six `mode: dump` steps into one composite call.** Its
-  dump loop passes no compiler options at all, and three of the six libraries do
-  not parse without `-fsycl`, so the six explicit steps are the whole reason that
-  composite is unusable here. Same for the pin: `uses:` takes no expression, so
-  the SHA is repeated per step.
-* **`binding:` is not accepted as a rule's only scope.** A `reclassify:` entry
-  must name at least one of `symbol`, `symbol_pattern`, `type_pattern`,
-  `member_name`, `source_location`, `namespace` or `finding_id`, and `binding:`
-  is not on that list — so the two linkage-scoped rules in `policy.yaml` carry a
-  `symbol_pattern: ".*"` that means nothing beyond satisfying the validator.
-  Verified at the pin: `Change.symbol_binding` *is* stamped on both the removal
-  and the visibility branch, so the selector itself works; only the
-  "at-least-one-identity-selector" check forces the noise.
-* **The L0 export-delta fold cannot run on a downloaded baseline.** It
-  re-resolves the binary a snapshot was dumped from, so it silently declines
-  whenever that binary is not on the local filesystem with matching mtime and
-  size — always, in this job. A local reproduction with both trees present
-  therefore reports 1948 `func_removed_elf_only` findings that CI does not; see
-  Current state. Folding the same fact out of the snapshot's own recorded
-  `.dynsym` (which both sides already carry) would close the divergence.
-* **L3 build context** (`--depth build --sources . --build-info`) would remove
-  the header/binary context-drift findings by feeding the scan the real compile
-  flags, and names `-fvisibility-inlines-hidden` directly as one
-  `abi_relevant_build_flag_changed`. Measured cost: roughly 20 minutes added to
-  the `oneapi::dal` scan, in the preprocessor stage.
-* **L4 source facts** (macro / `constexpr` / inline-body diffing) stay out of
-  the PR path: the Clang plugin is 2.39× compile time, the `abicheck-cc` wrapper
-  is a second frontend per TU, and fact volume is the open risk — one daal TU
-  emitted 33 MB, so ~2200 TUs is tens of GB without public-root scoping and
-  cross-TU dedup. Intel's oneAPI apt package also ships no `LLVMConfig.cmake`,
-  so the plugin cannot be built against `icpx` from it.
+  directory-vs-directory comparison with binaries on *both* sides re-derives every
+  fact for both; comparing against stored snapshots reads the new side only. Do not
+  "simplify" this into a binary-vs-binary directory compare, and do not drop the
+  published baselines in favour of building the tag in the PR job.
+* **Header-scoped evidence is gone from CI**, with everything that implies:
+  declaration-vs-export provenance, layout, enum values and constants are not
+  compared at all, and `abidiff` is the only gate reading type information. Getting
+  it back inside one multilib run costs 51 min / 10.7 GiB and requires bypassing an
+  upstream guard (see [Binary depth](#binary-depth)); a per-library matrix costs
+  ~12 min wall and ~33 min of runner time. Neither was judged worth it against a
+  12 s check plus `abidiff`.
+* **`scan --artifact-set DIR` remains the cheap fallback** if the baseline assets
+  are ever unavailable: all six libraries, no old side, in 10.8 s with
+  `--depth binary`. Its residual findings are by design, so gate on kinds rather
+  than counts if it is ever adopted.
+* **The public-header provenance cross-checks stay off** — they need header roots,
+  which this shape cannot pass. When they were reachable they were measured as
+  volume rather than capability: `libonedal_parameters.so` alone (the smallest, one
+  header) yielded 129 findings, 68 of 97 exports undocumented and 61 declarations
+  whose export obligation the binary does not satisfy. They are *intra-version*
+  observations, not drift since the baseline, so adopting them means a policy pass
+  over the reason buckets first.
+* **`binding:` is not accepted as a rule's only scope.** A `reclassify:` entry must
+  name at least one of `symbol`, `symbol_pattern`, `type_pattern`, `member_name`,
+  `source_location`, `namespace` or `finding_id`, so the two linkage-scoped rules
+  in `policy.yaml` carry a `symbol_pattern: ".*"` that means nothing beyond
+  satisfying the validator. `Change.symbol_binding` *is* stamped on both the removal
+  and the visibility branch, so the selector itself works.
+* **A per-library options input on `actions/baseline` would collapse the baseline
+  workflow's six `mode: dump` steps into one composite call.** It passes no
+  per-library configuration to its dump loop, so the six explicit steps stay. Same
+  for the pin: `uses:` takes no expression, so the SHA is repeated per step.
 
 `ci.yml` and `abicheck-baseline.yml` both point here rather than repeating the
-rationale. If you change the header lists, the pinned commit, the baseline
-storage or the policy, update this file — and the *other* workflow's copy of the
-scoping table — in the same PR.
+rationale. If you change the pinned commit, the baseline storage, the policy or the
+shape of the comparison, update this file in the same PR.
