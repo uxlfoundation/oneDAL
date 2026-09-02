@@ -945,11 +945,11 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     DAAL_ASSERT(split_result.status.ok());
     if (split_result.bSplitSucceeded)
     {
-        const intermSummFPType imp          = impurity.var;
-        const intermSummFPType impLeft      = split.left.var;
-        const size_t nLeft                  = split.nLeft;
-        const intermSummFPType leftWeights  = split.leftWeights;
-        const intermSummFPType rightWeights = item.totalWeights - leftWeights;
+        const intermSummFPType imp                     = impurity.var;
+        const intermSummFPType impLeft                 = split.left.var;
+        const size_t nLeft                             = split.nLeft;
+        const intermSummFPType leftWeights             = split.leftWeights;
+        const intermSummFPType rightWeights            = item.totalWeights - leftWeights;
         typename DataHelper::ImpurityData impurityLeft = split.left;
 
         // Use the actual right-child impurity, not (imp - impLeft): that substitution
