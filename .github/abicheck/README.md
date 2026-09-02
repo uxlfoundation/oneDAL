@@ -341,6 +341,18 @@ this collapses into two `workflow_call` jobs.
   whose export obligation the binary does not satisfy. They are *intra-version*
   observations, not drift since the baseline, so adopting them means a policy pass
   over the reason buckets first.
+* **The release path records no policy provenance.** A single-pair comparison
+  stamps each finding with `reclassified_by` (the rule's label), `severity`,
+  `symbol_binding` and a `finding_id`, and records the policy in
+  `effective_config_fields` as `policy.base: strict_abi@1:<digest>` plus the rule
+  list. The release fan-out's json carries `{bucket, kind, symbol, description,
+  source_location}` only — no `reclassified_by`, no linkage — and reports
+  `policy.base: ""` / `policy.reclassify: "[]"` even with `--policy` in force and
+  demonstrably applied. So the 1952 demoted findings are indistinguishable in the
+  report from findings the base policy calls risk on its own, and the
+  `effective_config_digest` does not describe the config that produced the
+  verdict. The policy's accountability rests on this document and on a local
+  single-library rerun until that is fixed upstream.
 * **`binding:` is not accepted as a rule's only scope.** A `reclassify:` entry must
   name at least one of `symbol`, `symbol_pattern`, `type_pattern`, `member_name`,
   `source_location`, `namespace` or `finding_id`, so the two linkage-scoped rules
