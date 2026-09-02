@@ -1158,6 +1158,12 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
             // higher-priority ones that just hadn't had their turn yet.
             --remainingSplitNodes;
 
+            // Report this split's own unordered-ness to the caller, same as
+            // buildDepthFirst does -- needed for correct handling of categorical
+            // features elsewhere, and previously never propagated out of
+            // buildBestFirst at all (only threaded through descendant WorkItems).
+            bUnorderedFeaturesUsed |= bool(src.splitFeatureUnordered);
+
             if (_par.varImportance == training::MDI)
             {
                 addImpurityDecrease(src.iFeature, src.impurityDecrease);
