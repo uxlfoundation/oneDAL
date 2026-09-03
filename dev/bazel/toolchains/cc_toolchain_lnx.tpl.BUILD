@@ -100,11 +100,11 @@ alias(
 toolchain(
     name = "cc_toolchain_lnx",
     exec_compatible_with = [
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:%{host_cpu_constraint}",
         "@platforms//os:linux",
     ],
     target_compatible_with = [
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:%{target_cpu_constraint}",
         "@platforms//os:linux",
     ],
     toolchain = ":%{cc_toolchain_identifier}",

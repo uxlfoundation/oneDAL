@@ -16,6 +16,23 @@
 #===============================================================================
 
 BAZELISK_VERSION=v1.29.0
+
+# Bazelisk itself always runs on the CI *exec* host (even when the build
+# cross-compiles to another target arch, e.g. the riscv64 job below), so pick
+# the asset matching the host running this script, not the oneDAL target arch.
+case "$(uname -m)" in
+  x86_64|amd64)
+    BAZELISK_ASSET=bazelisk-linux-amd64
+    ;;
+  aarch64|arm64)
+    BAZELISK_ASSET=bazelisk-linux-arm64
+    ;;
+  *)
+    echo ":error: Unsupported host architecture for Bazelisk: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
 # collect information about the bazelisk release
 BAZELISK_JSON=$(wget -qO- \
   --header="Accept: application/vnd.github+json" \
@@ -31,22 +48,22 @@ fi
 SHA256=""
 found=""
 while IFS= read -r line; do
-  if [[ $line == *'"name": "bazelisk-linux-amd64"'* ]]; then
+  if [[ $line == *"\"name\": \"${BAZELISK_ASSET}\""* ]]; then
     found=1
   elif [[ $found && $line == *'"digest":'* ]]; then
     SHA256=$(echo "$line" | sed -n 's/.*"sha256:\([^"]*\)".*/\1/p')
     break
   fi
 done < <(printf '%s\n' "$BAZELISK_JSON")
-SHA256+="  bazelisk-linux-amd64"
+SHA256+="  ${BAZELISK_ASSET}"
 
 # Download Bazelisk
-wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/bazelisk-linux-amd64
+wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/${BAZELISK_ASSET}
 echo $SHA256
 echo ${SHA256} | sha256sum --check
 # "Install" bazelisk
-chmod +x bazelisk-linux-amd64
+chmod +x ${BAZELISK_ASSET}
 mkdir -p bazel/bin
-mv bazelisk-linux-amd64 bazel/bin/bazel
+mv ${BAZELISK_ASSET} bazel/bin/bazel
 export BAZEL_VERSION=$(./bazel/bin/bazel --version | awk '{print $2}')
 export PATH=$PATH:$(pwd)/bazel/bin

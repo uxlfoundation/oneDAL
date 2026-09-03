@@ -11,6 +11,7 @@ load("@onedal//dev/bazel/config:config.bzl",
 cpu_info(
     name = "cpu",
     auto_cpu = "%{auto_cpu}",
+    arch = "%{arch}",
     build_setting_default = "auto",
 )
 
@@ -49,6 +50,56 @@ config_setting(
         ":backend_config": "mkl",
     },
     constraint_values = [
+        "@platforms//os:linux",
+    ],
+)
+
+# Make RNG_BACKEND parity (dev/make/deps.ref.mk RNG_OPENRNG). Only meaningful
+# together with backend_config=ref; selecting "openrng" under backend_config=mkl
+# has no effect since the ref RNG shim it swaps out is unused in that case.
+# `config_flag` above auto-generates the matching `:rng_backend_openrng` /
+# `:rng_backend_ref` config_setting targets.
+config_flag(
+    name = "rng_backend",
+    build_setting_default = "ref",
+    allowed_build_setting_values = [
+        "ref",
+        "openrng",
+    ],
+)
+
+# Use this, not the bare `:rng_backend_openrng`, to gate the OpenRNG define and
+# dependency: RNG_OPENRNG lives in dev/make/deps.ref.mk, so Make can only reach
+# it on the ref backend, and .ci/scripts/build.sh guards `--use-openrng yes`
+# behind `backend_config == ref` too. Without the backend_config term,
+# `--rng_backend=openrng --backend_config=mkl` would require OPENRNGROOT and
+# link libopenrng into an MKL build whose ref RNG shim is never compiled.
+config_setting(
+    name = "rng_backend_openrng_ref",
+    flag_values = {
+        ":rng_backend": "openrng",
+        ":backend_config": "ref",
+    },
+)
+
+# Target platforms for cross-compiling to non-x86 Linux. Pass e.g.
+# `--platforms=@config//:linux_aarch64` together with
+# `CC=aarch64-linux-gnu-gcc` (or riscv64-linux-gnu-gcc) so the exec platform
+# (the build machine) stays x86_64 while the target platform switches arch;
+# this is what selects the cross cc_toolchain registered in
+# cc_toolchain_lnx.tpl.BUILD.
+platform(
+    name = "linux_aarch64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "linux_riscv64",
+    constraint_values = [
+        "@platforms//cpu:riscv64",
         "@platforms//os:linux",
     ],
 )

@@ -521,6 +521,10 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
             "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
+            # Matches cpp/oneapi/dal/backend/dispatcher.hpp's TARGET_ARM /
+            # TARGET_RISCV64 branches.
+            "sve":    [ "__CPU_TAG__=__CPU_TAG_ARMV8SVE__"   ],
+            "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
         },
         copts = copts + select({
             "@platforms//os:windows": ["/utf-8"],
