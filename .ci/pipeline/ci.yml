@@ -685,6 +685,75 @@ jobs:
       xcopy /E /I /Y "bazel-bin\release" "$(release.dir)" >NUL
       echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
     displayName: 'Prepare standalone release directory'
+  # Debug MSVC runtime (Make MSVC_RUNTIME_VERSION=debug): checks that the
+  # `-MDd` build links and that its libraries land under the `d`-suffixed
+  # names, so an MD and an MDd release can share one tree. Built after the
+  # release tree above is copied out, since it reuses bazel-bin/release.
+  # Analysis-only check of both MSVC-runtime configurations, ahead of the MDd
+  # build below. The debug runtime is driven by two settings that have to
+  # agree — the `msvc_runtime_debug` toolchain feature and the
+  # `@config//:msvc_runtime` build setting — and a mismatch is reported during
+  # analysis (see `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
+  # surfaces that in seconds rather than after a full icx compile, and also
+  # proves the //:release_all transitions are well-formed.
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --nobuild --verbose_failures || exit /b 1
+    displayName: 'analyze-msvc-runtime-configs'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      rem Clear the staged tree the MD build left behind. Bazel only replaces
+      rem the files the current build declares, so onedal_core.lib and friends
+      rem would still sit next to onedal_cored.lib and the name check below
+      rem could not tell a leftover from a library that failed to pick up the
+      rem `d` suffix. The MD tree itself is already copied out to
+      rem $(release.dir), and the deleted outputs are re-staged on demand.
+      if exist "bazel-bin\release\daal" rmdir /S /Q "bazel-bin\release\daal"
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release-mdd'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $root = "bazel-bin\release\daal\latest"
+      $libDir = Join-Path $root "lib\intel64"
+      $redistDir = Join-Path $root "redist\intel64"
+      if (-not (Test-Path $libDir)) { throw "Missing directory: $libDir" }
+      # Read the ABI major from the same constant the build uses, so an ABI bump
+      # does not have to be repeated here to keep this check honest.
+      $configBzl = "dev\bazel\config\config.bzl"
+      $majorMatch = Select-String -Path $configBzl -Pattern '^_BINARY_MAJOR\s*=\s*"(\d+)"'
+      if (-not $majorMatch) { throw "Could not read _BINARY_MAJOR from $configBzl" }
+      $major = $majorMatch.Matches[0].Groups[1].Value
+      Write-Host "ABI major from ${configBzl}: $major"
+      # The full set of debug-runtime artifacts, matching what the Make build
+      # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
+      $expectedLib = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
+                       "onedal_cored_dll.lib", "onedal_cored_dll.$major.lib",
+                       "onedald_dll.lib", "onedald_dll.$major.lib")
+      $expectedRedist = @("onedal_cored.$major.dll", "onedal_threadd.$major.dll",
+                          "onedald.$major.dll")
+      $missing = @()
+      $missing += $expectedLib | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
+      # The import library for the threading DLL is deliberately not shipped,
+      # mirroring the Make package (release.bzl _THREAD_STEMS).
+      $unexpected = @("onedal_core.lib", "onedal_thread.lib", "onedal.lib",
+                      "onedal_threadd_dll.lib") |
+          Where-Object { Test-Path (Join-Path $libDir $_) }
+      if ($missing -or $unexpected) {
+          Write-Host "lib\intel64:"
+          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          if (Test-Path $redistDir) {
+              Write-Host "redist\intel64:"
+              Get-ChildItem $redistDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          }
+          if ($missing) { Write-Host "MISSING: $($missing -join ', ')" }
+          if ($unexpected) { Write-Host "UNEXPECTED: $($unexpected -join ', ')" }
+          throw "Debug-runtime release tree does not match the expected name set."
+      }
+      Write-Host "Debug-runtime library names OK."
+    displayName: 'Verify debug-runtime library names'
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel icx build'
@@ -752,6 +821,78 @@ jobs:
           Write-Host "No need for cleanup"
       }
     displayName: 'bazel-cache-limit'
+
+# Both MSVC runtimes merged into a single release tree by one command
+# (`//:release_all`), which exercises the transitions in release.bzl rather
+# than the plain single-flavour path.
+#
+# Deliberately NOT part of the pull-request run: it builds the whole Windows
+# release twice, and adding that to `WindowsBazel` — which already builds MD
+# and MDd — pushed that job past the six-hour hosted-agent limit and lost the
+# agent mid-compile. The PR run keeps the cheap
+# `bazel build //:release_all --nobuild` analysis check, which catches a
+# malformed transition in seconds; this job validates the staged output and
+# runs on manual or scheduled pipeline runs only.
+- job: 'WindowsBazelReleaseAll'
+  condition: in(variables['Build.Reason'], 'Manual', 'Schedule')
+  timeoutInMinutes: 0
+  variables:
+    platform.type : 'win32e'
+    BAZELISK_VERSION: 'v1.28.1'
+    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
+    BAZEL_OUTPUT_USER_ROOT: 'C:\b'
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+  steps:
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: 'Install oneAPI Base Toolkit'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
+      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
+      & "$(BAZELISK_EXE)" version
+    displayName: 'install-bazel'
+  - task: Cache@2
+    inputs:
+      key: '"$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      restoreKeys: |
+        "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
+      path: $(BAZEL_CACHE_DIR)
+    displayName: 'bazel-cache'
+  - script: |
+      if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
+      if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
+      set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
+      set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --cpu=avx2> "%USERPROFILE%\.bazelrc"
+      echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
+      echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
+    displayName: 'bazel-configure'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release-all'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $libDir = "bazel-bin\release_all\daal\latest\lib\intel64"
+      if (-not (Test-Path $libDir)) {
+          throw "Combined release tree is missing: $libDir"
+      }
+      # Both flavours must be present side by side, and the shared
+      # runtime-independent files must not have been duplicated away.
+      $expected = @("onedal_core.lib", "onedal_cored.lib",
+                    "onedal_thread.lib", "onedal_threadd.lib",
+                    "onedal.lib", "onedald.lib",
+                    "onedal_core_dll.lib", "onedal_cored_dll.lib")
+      $missing = $expected | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      if ($missing) {
+          Write-Host "Files present in ${libDir}:"
+          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          throw "Combined release tree is missing: $($missing -join ', ')"
+      }
+      Write-Host "Combined MD + MDd release tree OK."
+    displayName: 'Verify combined release tree'
 
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL

@@ -47,21 +47,19 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}",
         "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}.%{version_binary_minor}",
     ],
+    # Globbed rather than listed one by one so that a release tree built with
+    # the debug MSVC runtime — where every library carries a `d` suffix
+    # (`onedal_cored.lib`), see dev/bazel/cc.bzl `_msvc_runtime_suffix` — is
+    # picked up as well, including a combined //:release_all tree holding both.
+    # `onedal_win.tpl.BUILD` names the individual files in its `select()`, so
+    # a flavour missing from the tree still fails with a clear missing-input
+    # error rather than being silently skipped.
     win_libs = [
-        # Static libraries
-        "lib/intel64/onedal_core.lib",
-        "lib/intel64/onedal_thread.lib",
-        "lib/intel64/onedal.lib",
-
-        # Dynamic import libraries
-        "lib/intel64/onedal_core_dll.lib",
-        "lib/intel64/onedal_core_dll.%{version_binary_major}.lib",
-        "lib/intel64/onedal_dll.lib",
+        # Static libraries and dynamic import libraries.
+        "lib/intel64/onedal*.lib",
     ],
     win_bins = [
-        "redist/intel64/onedal.%{version_binary_major}.dll",
-        "redist/intel64/onedal_core.%{version_binary_major}.dll",
-        "redist/intel64/onedal_thread.%{version_binary_major}.dll",
+        "redist/intel64/onedal*.dll",
     ],
     build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
     win_build_template = "@onedal//dev/bazel/deps:onedal_win.tpl.BUILD",
