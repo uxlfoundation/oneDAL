@@ -1,6 +1,7 @@
 @echo off
 rem ============================================================================
 rem Copyright 2022 Intel Corporation
+rem Copyright contributors to the oneDAL project
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
@@ -44,34 +45,61 @@ set PATH=C:\msys64\usr\bin;%PATH%
 
 echo "%VISUALSTUDIOVERSION% HERE"
 
-IF "%VS_VER%"=="2017_build_tools" (
-    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+set "ARCH=%PROCESSOR_ARCHITECTURE%"
+if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
+
+if /I "%ARCH%"=="AMD64" (
+    set "ARCH_DIR=intel_intel64"
+) else if /I "%ARCH%"=="ARM64" (
+    set "ARCH_DIR=arm_aarch64"
+) else (
+    echo Unknown architecture: %ARCH%
+    exit /b 1
+)
+
+IF "%VS_VER%"=="2026_build_tools" (
+    @call "%ProgramFiles(x86)%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\q8\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    set "sln=slnx"
+) ELSE IF "%VS_VER%"=="2017_build_tools" (
+    @call "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    set "sln=sln"
+) ELSE IF "%VS_VER%"=="2019_build_tools" (
+    @call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    set "sln=sln"
 ) ELSE (
-    IF "%VS_VER%"=="2019_build_tools" (
-        @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-        echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-    ) ELSE (
-          @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-    )
+    @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+    echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+    set "sln=sln"
 )
 
 echo call %release_dir%\daal\latest\env\vars.bat
 call %release_dir%\daal\latest\env\vars.bat || set errorcode=1
 
-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%PATH%
+echo set "LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%"
 
-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%LIB%
-set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%PATH%
-set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%PATH%
+echo set "LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%"
 
-echo set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
-set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
+echo set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%"
+
+echo set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%"
+set "LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%"
+echo set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%"
+set "PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%"
+
+echo set "TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb"
+set "TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb"
 
 echo %release_dir%\daal\latest\examples\%examples%
 cd %release_dir%\daal\latest\examples\%examples%
@@ -87,11 +115,11 @@ if "%build_system%"=="cmake" (
     if exist Build rd /S /Q Build
     md Build
 
-    set results_dir=_cmake_results\intel_intel64_%cmake_link_mode_short%\Release
-    echo cmake -B Build -S . -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
-    cmake -B Build -S . -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
+    set "results_dir=_cmake_results\%ARCH_DIR%_%cmake_link_mode_short%\Release"
+    echo cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
+    cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
     set solution_name=%examples:\=_%
-    msbuild.exe "Build\!solution_name!_examples.sln" /p:Configuration=Release || set errorcode=1
+    msbuild.exe "Build\!solution_name!_examples.!sln!" /p:Configuration=Release || set errorcode=1
 
     for /f "delims=." %%F in ('dir /B !results_dir!\*.exe 2^> nul') do (
         set example=%%F

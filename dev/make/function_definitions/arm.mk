@@ -19,8 +19,6 @@ ifeq ($(filter ref,$(BACKEND_CONFIG)),)
           Supported config for '$(PLAT)' are ['ref'])
 endif
 
-COMPILERs = gnu clang
-COMPILER ?= gnu
 CPUs := sve
 CPUs.files := a8sve
 OPTFLAG ?= O2

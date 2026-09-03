@@ -16,28 +16,25 @@
 
 BACKEND_CONFIG ?= ref
 ARCH = arm
-ARCH_DIR_ONEDAL = arm
-_OS := lnx
-_IA := arm
+ARCH_DIR_ONEDAL = ARM64
+_OS := win
+_IA := ARM64
 
-COMPILERs = gnu clang
-COMPILER ?= gnu
+COMPILERs = clang
+COMPILER ?= clang
 
-SVE_SUPPORTED := $(shell grep -qm1 ' sve' /proc/cpuinfo 2>/dev/null && echo 1 || echo 0)
+SVE_SUPPORTED := $(shell powershell -NoProfile -Command "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class Native { [DllImport(\"kernel32.dll\")] public static extern bool IsProcessorFeaturePresent(uint f); }'; if ([Native]::IsProcessorFeaturePresent(46)) { '1' } else { '0' }")
 
 include dev/make/function_definitions/arm.mk
 
 # Used as $(eval $(call set_daal_rt_deps))
 define set_daal_rt_deps
-  $$(eval daaldep.lnxarm.rt.thr := -L$$(TBBDIR.soia.lnx) -ltbb -ltbbmalloc \
-          -lpthread $$(daaldep.lnxarm.rt.$$(COMPILER)) \
-          $$(if $$(COV.libia),$$(COV.libia)/libcov.a))
-  $$(eval daaldep.lnxarm.rt.seq := -lpthread $$(daaldep.lnxarm.rt.$$(COMPILER)) \
-	  	  $$(if $$(RNG_OPENRNG), $$(daaldep.rng_backend.lib)) \
-          $$(if $$(COV.libia),$$(COV.libia)/libcov.a))
-  $$(eval daaldep.lnxarm.rt.dpc := -lpthread \
-          $$(if $$(COV.libia),$$(COV.libia)/libcov.a))
-  $$(eval daaldep.lnxarm.threxport := export_lnxarm.$$(BACKEND_CONFIG).def)
-
-  $$(eval daaldep.lnx.threxport.create = grep -v -E '^(EXPORTS|;|$$$$$$$$)' $$$$< $$$$(USECPUS.out.grep.filter) | sed -e 's/^/-u /')
+  $$(eval daaldep.winarm.rt.thr  := -LIBPATH:$$(RELEASEDIR.tbb.libia) \
+          $$(dep_thr) $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
+  $$(eval daaldep.winarm.rt.seq  := $$(dep_seq) \
+          $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
+  $$(eval daaldep.winarm.rt.dpc  := $$(dep_dpc) \
+          $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
+  $$(eval daaldep.win.threxport.create = grep -v -E '^(;|$$$$$$$$)' $$$$< $$$$(USECPUS.out.grep.filter))
 endef
+

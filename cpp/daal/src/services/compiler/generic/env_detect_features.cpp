@@ -32,9 +32,19 @@
         #include <cpuid.h> // __cpuidex
     #endif
 
-#elif defined(TARGET_ARM)
+#elif defined(TARGET_ARM) && defined(__linux__)
     #include <sys/auxv.h>
     #include <asm/hwcap.h>
+#elif defined(TARGET_ARM) && defined(_MSC_VER)
+    #include <windows.h>
+
+    #ifdef min
+    #undef min
+    #endif
+
+    #ifdef max
+    #undef max
+    #endif
 #elif defined(TARGET_RISCV64)
 // TODO: Include vector if and when we need to use some vector intrinsics in
 // here
@@ -341,9 +351,12 @@ bool daal_has_amx_bf16()
 #elif defined(TARGET_ARM)
 static bool check_sve_features()
 {
-    unsigned long hwcap = getauxval(AT_HWCAP);
-
-    return (hwcap & HWCAP_SVE) != 0;
+    #if defined(__linux__)
+        unsigned long hwcap = getauxval(AT_HWCAP);
+        return (hwcap & HWCAP_SVE) != 0;
+    #else
+        return IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
+    #endif
 }
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)

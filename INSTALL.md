@@ -17,7 +17,7 @@
 
 # Installation from Sources
 
-## Installation with `conda-build` (`Linux-x86_64`-only)
+## Installation with `conda-build` (`Linux*-x86_64`-only)
 
 You can build and install oneDAL using few simple command with `conda` environment manager.
 It automatically creates temporal environments for building and testing of oneDAL and outputs
@@ -59,6 +59,9 @@ Required Software:
 * BLAS and LAPACK libraries - both provided by oneMKL
 * oneTBB library (repository contains script to download it)
 * oneDPL library
+* [LLVM 22.1.8](https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-woa64.exe) or later (Windows\*-arm64 only)
+* CMake 4.4.0+ (Windows\*-arm64 only)
+* Ninja 1.13.2+ (Windows\*-arm64 only)
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
 * `make`; which can be installed using MSYS2 on Windows\* as follows:
@@ -66,6 +69,8 @@ Required Software:
         pacman -S msys/make
 
 For details, see [System Requirements for oneDAL](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/system-requirements-for-oneapi-data-analytics-library.html).
+
+_Note: LLVM must be installed to build oneDAL in Windows\*-arm64._
 
 Note: the Intel(R) oneAPI components listed here can be installed together through the oneAPI Base Toolkit bundle:
 
@@ -85,21 +90,31 @@ is available as an alternative to the manual setup.
 
         git clone https://github.com/uxlfoundation/oneDAL.git
 
-2. Set the PATH environment variable to the MSYS2\* bin directory (Windows\* only). For example:
+2. Set the PATH environment variable to the MSYS2\* and LLVM\* bin directory (Windows\*-arm64 only). For example:
 
-        set PATH=C:\msys64\usr\bin;%PATH%
+    - **Windows\*-x86**:
+
+            set PATH=C:\msys64\usr\bin;%PATH%
+
+    - **Windows\*-arm64**:
+
+            set PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%
 
 3. Set the environment variables for one of the supported C/C++ compilers, such as [Intel(R)'s DPC++ compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html). For example:
 
-    - **Microsoft Visual Studio\* 2022**:
+    - **Microsoft Visual Studio\* 2022 (Windows\*-x86)**:
 
             call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x64
 
-    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Linux\*)**:
+    - **Microsoft Visual Studio\* 2022 (Windows\*-arm64)**:
+
+            call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" arm64
+
+    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Linux\*-x86)**:
 
             source /opt/intel/oneapi/compiler/latest/env/vars.sh
 
-    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Windows\*)**:
+    - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Windows\*-x86)**:
 
             call "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\env\vars.bat"
 
@@ -129,9 +144,13 @@ is available as an alternative to the manual setup.
     Download and install [oneTBB](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html).
     Set the environment variables for for oneTBB. For example:
 
-    - oneTBB (Windows\*):
+    - oneTBB (Windows\*-x86):
 
             call "C:\Program Files (x86)\Intel\oneAPI\tbb\latest\env\vars.bat" intel64
+
+    - oneTBB (Windows\*-arm64):
+
+            .ci\env\tbb.bat
 
     - oneTBB (Linux\*):
 
@@ -142,7 +161,8 @@ is available as an alternative to the manual setup.
             ./dev/download_tbb.sh
 
 6. Set up oneDPL
-  _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
+
+   _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
 
     Download and install [Intel(R) oneDPL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html).
     Set the environment variables for for Intel(R) oneDPL. For example:
@@ -155,8 +175,13 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
+7. Set up OpenBLAS (not needed in x86 when building with MKL)
 
-7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker, memory allocator, and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+    - OpenBLAS (Windows\*-arm64):
+
+          .ci\env\openblas.bat
+
+8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker, memory allocator, and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -173,6 +198,16 @@ is available as an alternative to the manual setup.
     - oneAPI C++/DPC++ interfaces on **Windows\*** using **Intel(R) DPC++ compiler**:
 
             make -f makefile oneapi PLAT=win32e LINKER=llvm-lib
+
+    - DAAL interfaces on **Windows\*-arm64** using **Clang\***:
+
+            make -f makefile daal COMPILER=clang PLAT=winarm REQCPU=sve
+
+    - oneAPI C++ interfaces on **Windows\*-arm64** using **Clang\***:
+
+            make -f makefile onedal_c COMPILER=clang PLAT=winarm REQCPU=sve
+      
+        _Note: You **must use clang-cl from LLVM** to build oneDAL on Windows\*-arm64. MSVC is not supported for this platform. Ensure clang-cl is installed and properly configured in your PATH before proceeding with the build.
 
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
 

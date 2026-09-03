@@ -67,7 +67,7 @@ md5sum.cmd.win = md5sum
 md5sum.cmd.mac = md5 -q
 
 # Enable compiler-provided defences as recommended by Intel Security Development Lifecycle document (SW.01)
-secure.opts.win = -GS
+secure.opts.win = $(if $(COMPILER_is_vc),-GS,)
 secure.opts.lnx = -Wformat -Wformat-security -fstack-protector-strong
 secure.opts.mac = -Wformat -Wformat-security -O2 -D_FORTIFY_SOURCE=2 -fstack-protector
 
@@ -76,7 +76,7 @@ secure.opts.link.win = -DYNAMICBASE -NXCOMPAT
 secure.opts.link.lnx = -z relro -z now -z noexecstack
 secure.opts.link.mac =
 
-RC.COMPILE = rc.exe $(RCOPT) -fo$@ $<
+RC.COMPILE = $(if $(COMPILER_is_clang),llvm-rc,rc.exe) $(RCOPT) -fo$@ $<
 
 # Used as $(eval $(call set_c_compile,$(COMPILER),$(_OS),$(gcc_toolchain))
 C.COMPILE = $(if $(COMPILER.$(_OS).$(COMPILER)),$(COMPILER.$(_OS).$(COMPILER)),$(error COMPILER.$(_OS).$(COMPILER) must be defined)) \
@@ -114,7 +114,7 @@ link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.
 .addmod = $(if $(filter %.o,$1),addmod $(filter %.o,$1))
 .addlink = $(if $(filter %_link.txt,$1),addmod $(shell tr '\n' ', ' < $(filter %_link.txt,$1)))
 link.static.lnx.script = printf "create $@\n$(call .addlib,$1)\n$(call .addmod,$1)\n$(call .addlink,$1)\nsave\n" | $(if $(AR_is_command_line),${AR},ar) -M
-link.static.win = lib $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
+link.static.win = $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
 link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
 
 # Link dynamic lib
@@ -122,7 +122,7 @@ LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(link.dynamic.cmd)
 link.dynamic.cmd = $(call link.dynamic.$(_OS),$(secure.opts.link.$(_OS)) $(or $1,$(^.no-mkdeps)) $(LOPT))
 link.dynamic.lnx = $(if $(link.dynamic.lnx.$(COMPILER)),$(link.dynamic.lnx.$(COMPILER)),$(error link.dynamic.lnx.$(COMPILER) must be defined)) \
                    $(EXCLUDE_LIBS) -Wl,-soname,$(@F).$(MAJORBINARY) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
-link.dynamic.win = link $(link.dynamic.win.$(COMPILER)) -WX -nologo -map -dll $(-DEBL) \
+link.dynamic.win = $(link.dynamic.win.$(COMPILER)) -WX -nologo -map -dll $(-DEBL) \
                    $(patsubst %_link.txt,@%_link.txt,$(patsubst %.def,-DEF:%.def,$1)) -out:$@
 link.dynamic.mac = $(if $(link.dynamic.mac.$(COMPILER)),$(link.dynamic.mac.$(COMPILER)),$(error link.dynamic.mac.$(COMPILER) must be defined)) \
                    -undefined dynamic_lookup -dynamiclib -Wl,-flat_namespace -Wl,-install_name,@rpath/$(subst .dylib,.$(MAJORBINARY).dylib,$(@F)) \
