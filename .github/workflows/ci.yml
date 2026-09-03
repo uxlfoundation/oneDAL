@@ -145,7 +145,17 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          # `gh cache list` reports every scope in the repository, not only the
+          # ones this run can restore from. Without `--ref` the newest matching
+          # key can belong to another pull request's scope, which `cache/restore`
+          # cannot read: the restore then misses silently and the check below
+          # compares against an empty directory. Only main-scoped entries are
+          # both restorable here and produced by a build of main.
+          CACHE_KEY=`gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key'`
+          if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
+            echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
+            exit 1
+          fi
           echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
           echo $CACHE_KEY
         env:
@@ -155,6 +165,9 @@ jobs:
         with:
           path: ./__release_lnx_main
           key: ${{ steps.get-cache-key.outputs.key }}
+          # A miss must stop the job. Continuing leaves `__release_lnx_main`
+          # empty, and an ABI comparison against nothing reports success.
+          fail-on-cache-miss: true
       - name: Download oneDAL build artifact
         uses: actions/download-artifact@v8
         with:
