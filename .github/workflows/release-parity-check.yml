@@ -1,0 +1,151 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: Bazel release parity check
+
+# [DO NOT MERGE] Temporary, minimal stand-in for the two `Nightly-test` jobs
+# that run `dev/release_tests/compare_release_trees.py`, kept on a branch to
+# iterate on that script without waiting for a full nightly.
+#
+# Nightly-test needs a Nightly-build to finish first (Linux ~1h, Windows ~3h)
+# and then reaches the comparison through `workflow_run`, which always uses the
+# copy of the workflow on `main`. This workflow instead reuses the
+# `__release_lnx` / `__release_win` artifacts an existing Nightly-build already
+# produced, so only the Bazel release and the comparison itself are paid for,
+# and it runs straight off a `push` to the branch.
+#
+# Everything not needed to reach the comparison is gone: the CVE scan job, the
+# Check Run bookkeeping, `describe_system`, and the CMake example smoke test.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Nightly-build run ID whose __release_* artifacts to compare against"
+        required: false
+        type: string
+  push:
+    branches:
+      - 'ci/release-parity**'
+
+permissions:
+  contents: read
+  # Reading artifacts from a different workflow run needs this; the nightly gets
+  # it implicitly from its `workflow_run` trigger, a `push` run does not.
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  # Nightly-build 33128609183 (schedule, 2026-08-28) built 3547b791b, which is
+  # `main` HEAD. Its artifacts are the Make side of the comparison; override with
+  # the `source_run_id` input once they expire.
+  DEFAULT_SOURCE_RUN_ID: '33128609183'
+  # The Make release artifacts live in the upstream repository. Upstream is
+  # public, so `github.token` reaches them from a fork too, given the
+  # `actions: read` permission above; no extra secret is needed.
+  ARTIFACT_REPOSITORY: 'uxlfoundation/oneDAL'
+
+jobs:
+  parity_lnx:
+    name: Bazel release parity (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download Make Linux release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: __release_lnx
+          github-token: ${{ github.token }}
+          repository: ${{ env.ARTIFACT_REPOSITORY }}
+          run-id: ${{ inputs.source_run_id || env.DEFAULT_SOURCE_RUN_ID }}
+          path: ./__release_lnx
+      - name: Install toolchain
+        run: |
+          .ci/env/apt.sh dpcpp
+          .ci/env/apt.sh mkl
+          .ci/env/bazelisk.sh
+      - name: Bazel release
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          python dev/release_tests/compare_release_trees.py \
+            --platform linux \
+            --make ./__release_lnx/daal/latest \
+            --bazel ./bazel-bin/release/daal/latest \
+            --check-level 4
+
+  parity_win:
+    name: Bazel release parity (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download Make Windows release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: __release_win
+          github-token: ${{ github.token }}
+          repository: ${{ env.ARTIFACT_REPOSITORY }}
+          run-id: ${{ inputs.source_run_id || env.DEFAULT_SOURCE_RUN_ID }}
+          path: ./__release_win_vc
+      - name: Download Intel BaseKit artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: intel_oneapi_basekit
+          github-token: ${{ github.token }}
+          repository: ${{ env.ARTIFACT_REPOSITORY }}
+          run-id: ${{ inputs.source_run_id || env.DEFAULT_SOURCE_RUN_ID }}
+      - name: Decompress Intel BaseKit
+        shell: cmd
+        run: |
+          tar -xvzf oneapi.tar.gz
+          echo "Unzip complete"
+      - name: Install Bazelisk
+        shell: pwsh
+        run: .\.ci\env\bazelisk.ps1
+      - name: Bazel release
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
+        run: |
+          if not exist "%BAZEL_SH%" (
+            echo ERROR: Required Bazel shell not found: %BAZEL_SH%
+            exit /b 1
+          )
+          set PATH=C:\msys64\usr\bin;%PATH%
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          bazel build //:release --config=release-dpc --cpu=avx2
+      - name: Compare make and Bazel releases
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\compare_windows_release.ps1 ^
+            -MakeReleaseDir .\__release_win_vc\daal\latest ^
+            -BazelReleaseDir .\bazel-bin\release\daal\latest ^
+            -CheckLevel 4
