@@ -705,7 +705,7 @@ protected:
     template <typename DataType>
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                     const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing, services::Status & st)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal, st), _indexing(indexing)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal, st)
     {
         _layout = csrArray;
         st |= setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
@@ -729,7 +729,7 @@ protected:
     template <typename DataType>
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                     const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal)
     {
         _layout = csrArray;
         this->_status |= setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
@@ -741,7 +741,7 @@ protected:
     /**
      *  Constructor for an empty CSR Numeric Table
      */
-    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
+    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal)
     {
         _layout = csrArray;
         this->_status |= setArraysImpl<double>(0, 0, 0, oneBased); //data type doesn't matter
@@ -762,7 +762,7 @@ protected:
     template <typename DataType>
     CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
                     CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal)
     {
         _layout = csrArray;
         this->_status |= setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
