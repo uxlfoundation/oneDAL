@@ -170,3 +170,178 @@ jobs:
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+
+  # Second, independent ABI gate, running in parallel with the libabigail
+  # LinuxABICheck job above -- both depend only on LinuxMakeDPCPP, not on each
+  # other. One abicheck run compares the whole shipped library set against the
+  # last release's stored snapshots, so it reports release-over-release drift
+  # that a binary-vs-last-main `abidiff` cannot see, classified by a policy whose
+  # every downgrade is evidence-backed. Design, measurements and that evidence:
+  # .github/abicheck/README.md. Keep that document in step with this job.
+  LinuxAbicheckScan:
+    name: Abicheck (multilib)
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: ubuntu-24.04
+    # Measured with the pin below, on the no-debug-info build LinuxMakeDPCPP
+    # produces: 12 s and just over 200 MiB peak RSS for all six libraries in one
+    # run (four runs: 11.4-12.2 s, 203-206 MiB). The rest of the job is the
+    # checkout, the build artifact and six snapshots totalling 372 KB, so this
+    # timeout is generous by design rather than tuned. Numbers and the trade-off
+    # behind them: .github/abicheck/README.md.
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      # The baseline release tag lives here once: the fetch step and the check
+      # have to name the same asset. Rotating to a newer baseline means
+      # dispatching "Publish Abicheck Baseline" for that tag and editing this
+      # line -- see .github/abicheck/README.md ("Rotation").
+      ABICHECK_BASELINE_TAG: 2026.0.0
+      ABICHECK_BASELINE_DIR: __abi_baselines
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      # The baselines are release assets published by
+      # .github/workflows/abicheck-baseline.yml; the committed digest file is
+      # the trust anchor, so a replaced or corrupted asset fails this job
+      # instead of silently changing every PR's verdict. Before that file
+      # exists on main the check cannot compare anything -- the publishing
+      # workflow can only be dispatched once it is *on* the default branch --
+      # so that state is a skip with a warning annotation, i.e. visibly inert
+      # rather than red (which would block the PR delivering it) or quietly
+      # green.
+      - name: Fetch and verify ABI baselines
+        id: baselines
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
+          if [ ! -f "$sums" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            note="ABI scan skipped: no baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
+            echo "::warning title=ABI baseline missing::${note}"
+            {
+              echo "### Abicheck"
+              echo ""
+              echo "${note}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # __abi_report is created here because the check step below writes its
+          # report into it and abicheck does not create the parent directory.
+          # ABICHECK_BASELINE_DIR holds nothing but the verified snapshots: it is
+          # handed to the check as a *directory* operand, so an unrelated file
+          # dropped in here would be read as another library to compare.
+          mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
+          # Download exactly the assets the digest file names, one --pattern per
+          # line: an extra asset on the release cannot be pulled in, and a
+          # missing one fails here rather than later as a confusing "no
+          # baseline" error. --pattern is a glob, and the published names
+          # (<library>.abicheck.json.zst) contain no metacharacter.
+          while read -r _digest name; do
+            [ -n "${name:-}" ] || continue
+            gh release download "${ABICHECK_BASELINE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern "${name}" \
+              --dir "${ABICHECK_BASELINE_DIR}" \
+              --clobber
+          done < "$sums"
+          # Verify before use. --check fails on a digest mismatch or a missing
+          # file, --strict on a malformed line, so a truncated or hand-edited
+          # digest file cannot degrade into "nothing to check, all good".
+          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${GITHUB_WORKSPACE}/${sums}" )
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      # The pin must stay equal to the one in abicheck-baseline.yml: a baseline
+      # captured by an older abicheck silently under-reports rather than
+      # failing. `uses:` takes no expression, so it cannot be shared through an
+      # env var -- the two workflows carry the same literal SHA.
+      #
+      # Both operands are directories, which is abicheck's own multi-library
+      # release comparison: one run fans out over every shared object in the
+      # release directory, matching each one to the baseline snapshot of the same
+      # name. That shape is binary-depth by contract -- `depth: headers` and up
+      # is rejected for a directory operand -- so this gate compares exported
+      # symbols and ELF metadata, not the public-header AST. What that costs, and
+      # why it is still worth running next to abidiff, is in
+      # .github/abicheck/README.md ("Binary depth").
+      - name: Check ABI against the released baseline
+        id: abicheck
+        if: steps.baselines.outputs.available == 'true'
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: compare
+          old-library: ${{ env.ABICHECK_BASELINE_DIR }}
+          new-library: __release_lnx/daal/latest/lib/intel64
+          # No depth input: the CLI rejects --depth outright for a directory
+          # operand ("the per-library fan-out does not collect inline
+          # build/source evidence", exit 64) and the Action drops the input
+          # silently rather than forwarding it, so there is nothing to pin here.
+          # The fan-out reads each binary's exported symbols, and its DWARF too
+          # if it has any -- LinuxMakeDPCPP emits none, which is why the baseline
+          # snapshots are dumped `depth: binary`. If that build ever starts
+          # shipping debug info, re-dispatch "Publish Abicheck Baseline" so the
+          # two sides keep describing the same evidence.
+          #
+          # 0 (the default) means one worker per CPU, i.e. six libraries parsed
+          # at once. Serial is what fits a runner: 205 MiB against tens of GiB.
+          jobs: 1
+          old-version: ${{ env.ABICHECK_BASELINE_TAG }}
+          new-version: ${{ github.sha }}
+          # A library dropped from the release is a break, not a coverage gap.
+          fail-on-removed-library: true
+          # Every downgrade in here is evidence-backed; .github/abicheck/README.md
+          # records the evidence per rule.
+          policy-file: .github/abicheck/policy.yaml
+          # The release artifact is already on the runner and nothing here parses
+          # a header, so the default (conda-forge) would install a toolchain this
+          # check never uses.
+          dependency-source: none
+          format: markdown
+          output-file: __abi_report/release.md
+          # --no-bundle-analysis: the cross-library bundle graph is built from
+          # ELF binaries; the old side here is six JSON snapshots, so it has no
+          # old bundle to diff against and reports all six libraries as newly
+          # added. Off, rather than on and explained away in every PR's report.
+          # Nothing is lost: the six per-library comparisons are the whole gate.
+          #
+          # --write json=: a release comparison's markdown is per-library counts
+          # only -- no symbol names anywhere -- so on a red run the report says
+          # which library broke and nothing about what in it. The json report
+          # names every symbol, one annotation entry per finding (measured:
+          # 717 KB, 2314 entries; its `findings` array is capped at 10 per
+          # library, the annotations are not), and the step below keeps it as an
+          # artifact for exactly that case.
+          extra-args: >-
+            --no-bundle-analysis
+            --write json=__abi_report/release.json
+          # The sticky comment reports a single verdict; a six-library comparison
+          # is only readable as the table the job summary carries.
+          pr-comment: false
+      # The Action's own summary block, and its `verdict` output, fold a release
+      # comparison's verdict down to the plain one (measured: "COMPATIBLE" for a
+      # run whose real verdict is COMPATIBLE_WITH_RISK). The report is the only
+      # place the per-library verdicts and the real folded one appear, so publish
+      # it. always(): it matters most when the check just failed, and abicheck
+      # writes it before exiting non-zero.
+      - name: Publish the comparison to the job summary
+        if: always() && steps.abicheck.outputs.report-path != ''
+        run: cat "${{ steps.abicheck.outputs.report-path }}" >> "$GITHUB_STEP_SUMMARY"
+      # The per-symbol detail the summary's counts do not carry. always(),
+      # because the run that needs it is the one that just failed.
+      - name: Archive the full ABI report
+        if: always() && steps.abicheck.outputs.report-path != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abicheck-release-report
+          path: __abi_report/
+          if-no-files-found: warn

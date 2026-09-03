@@ -1,0 +1,127 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Verdict policy for the LinuxAbicheckScan job in .github/workflows/ci.yml.
+#
+# A policy file, not a suppression file, deliberately: a suppression rule
+# *removes* a matching change before the verdict and the counts are computed, so
+# the finding leaves no trace in the report -- not the finding, not a count, not
+# a note that a suppression file was in effect. A policy rule changes only the
+# classification, so every difference stays in the report while the verdict still
+# answers "did oneDAL break its ABI".
+#
+# This file is load-bearing, measured: the same comparison with no `--policy` at
+# all is BREAKING on five of the six libraries, 1952 breaking findings, exit 4.
+# With this file: 0 breaking, exit 0, COMPATIBLE_WITH_RISK, and all 1952 still
+# printed as risk. It is two rules, both scoped to the ELF linkage that is the
+# evidence for tolerating them, because that is what the whole 1952 turns out to
+# be. There is no `overrides:` block: no change kind is demoted for every symbol
+# it could ever fire on.
+#
+# Negative control for that scoping, on the shape ci.yml actually runs: take one
+# of those tolerated symbols in the 2026.0.0 baseline snapshot --
+# `oneapi::dal::v1::exception::~exception()`, WEAK, no longer exported by main --
+# and flip only its recorded linkage to `global`. Same comparison, same command:
+# libonedal_parameters.so moves COMPATIBLE_WITH_RISK -> BREAKING with exactly one
+# breaking finding (its risk count drops 13 -> 12, i.e. that one finding changed
+# bucket and nothing else did) and the run exits 4. A STRONG export disappearing
+# gates; a WEAK one is reported and does not.
+#
+# Both rules exist for one cause and should be deleted, not left to rot, once a
+# post-`-fvisibility-inlines-hidden` release is published as the baseline.
+#
+# Scope note: this gate compares directories, which is abicheck's release
+# fan-out, and that path is binary-depth by contract -- no header AST, and this
+# build carries no DWARF. So no type, layout, enum or constant facts reach the
+# comparison at all, and a rule about them would be config that can never fire.
+# Earlier revisions of this file carried five such rules (three named types'
+# `type_vtable_changed`, `oneapi::dal::preview`'s
+# `experimental_removed_without_replacement`, one internal `constant_changed`);
+# they are gone with the header-scoped shape they were measured against. If this
+# gate ever regains header depth they have to be re-measured, not restored from
+# git history.
+#
+# The abicheck build that dumps a baseline and the one that reads it must be the
+# same, or findings change for tooling reasons alone. That rule, its measurements
+# and the rest of this gate's design are in .github/abicheck/README.md.
+
+base_policy: strict_abi
+
+reclassify:
+  # ── The -fvisibility-inlines-hidden demotion, under its two kinds ───────────
+  #
+  # 2026.0.0 -> main stopped exporting a large set of symbols from five of the
+  # six libraries. Every one is a WEAK FUNC -- a COMDAT inline or template
+  # instantiation that -fvisibility-inlines-hidden (added at makefile:134 after
+  # the 2026.0.0 tag) demoted. Verified: zero STRONG symbols and zero data
+  # objects lost; zero _ZTV/_ZTI/_ZTS and zero _ZGV guard variables lost;
+  # cross-linking every lost export against the 1556 undefined symbols required
+  # by all 183 built client objects gives an empty intersection; and the new
+  # binaries' own .symtab still defines every one of them as LOCAL FUNC. The
+  # code was not removed, only its export visibility was demoted, and no
+  # consumer can hold an undefined reference to a definition its own headers
+  # force it to emit -- there is no `extern template` anywhere in the installed
+  # headers (grep of cpp/daal/include + cpp/oneapi: zero hits), so a consumer
+  # TU always has its own copy.
+  #
+  # Which kind a given symbol arrives under depends on the evidence available.
+  # On the release fan-out this job runs there is no header AST, so all of them
+  # come through the ELF export-table delta as `func_removed_elf_only` --
+  # measured, 1952 across the five libraries (1414 + 237 + 272 + 17 + 12) and
+  # zero `func_visibility_changed`. The visibility rule is kept because the same
+  # cause is reported under that kind wherever a declaration *is* available (a
+  # local reproduction with headers, or this gate at header depth), and because
+  # ELF visibility is exactly the fact both rules are scoped by. Both carry the
+  # old side's linkage on the change record, which is what lets them be scoped
+  # by it rather than applied kind-globally.
+  #
+  # Gives up: gating on the removal or hiding of a symbol the library itself
+  # built with vague (WEAK/COMDAT) linkage. That is provider-side evidence, not
+  # proof of consumer safety, which is why these stay visible as risk findings
+  # instead of being suppressed: the `extern template` check above is the
+  # premise that makes them safe here, and it has to be re-checked if oneDAL
+  # ever starts shipping explicit-instantiation surface.
+  #
+  # `symbol_pattern: ".*"` carries no meaning of its own: abicheck requires a
+  # rule to name at least one identity selector (symbol, symbol_pattern,
+  # type_pattern, member_name, source_location, namespace or finding_id), and
+  # `binding:` is not one of them, so the scope these two rules actually want --
+  # this kind, with this linkage, wherever it occurs -- has to be spelled with a
+  # match-anything symbol. Narrowing it to one namespace would be worse than
+  # honest: the demoted symbols span both daal:: and oneapi::dal::.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: ".*"
+    to: risk
+    label: inlines-hidden-demotion
+    reason: >-
+      WEAK COMDAT inline/template export demoted to hidden by
+      -fvisibility-inlines-hidden (makefile:134, added after the 2026.0.0
+      baseline tag). Still defined as LOCAL FUNC in the new binary's .symtab,
+      and no installed header declares `extern template`, so every consumer TU
+      emits its own copy. A STRONG symbol losing visibility is not matched by
+      this rule and still gates.
+  - kind: func_removed_elf_only
+    binding: weak
+    symbol_pattern: ".*"
+    to: risk
+    label: inlines-hidden-demotion
+    reason: >-
+      Same -fvisibility-inlines-hidden demotion as the rule above, reached
+      through the ELF export-table delta rather than a header-scoped diff --
+      which is how all of them arrive on the binary-depth release comparison
+      this gate runs, since no declaration is available to report a visibility
+      change against. All of them are WEAK in the baseline's .dynsym and all are
+      still defined as LOCAL FUNC in the new binary's .symtab. A STRONG export
+      disappearing is not matched by this rule and still gates.

@@ -1,0 +1,315 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Publishes the ABI baselines that ci.yml's LinuxAbicheckScan job compares
+# against: one abicheck snapshot per oneDAL library, captured from a release tag
+# built the same way the PR-side build is, uploaded as release assets, with
+# their sha256 digests committed to the repository as the trust anchor.
+#
+# The full picture -- why the facts are not committed themselves, why the digest
+# file is, why the tag has to be rebuilt rather than downloaded, and how to
+# rotate to a newer baseline -- is in .github/abicheck/README.md.
+name: Publish Abicheck Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_tag:
+        description: "oneDAL release tag to publish as the abicheck baseline"
+        required: true
+        default: "2026.0.0"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  PublishBaseline:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    # Measured against the pin below, on the no-debug-info build this workflow
+    # produces: 17.5 s wall for the six dumps together, peak RSS 184 MiB (the max
+    # of the six, on libonedal_core.so, not their sum -- each dump is its own
+    # process). The three builds took 1m32s + 16s + 1m41s at -j64 on a 224-core
+    # host, so on a standard runner this job is its builds and nothing else,
+    # which is what the timeout covers. Per-library numbers:
+    # .github/abicheck/README.md.
+    timeout-minutes: 180
+    env:
+      ABICHECK_BASELINE_DIR: __abi_baselines
+      # The bytes actually on the release after the publish step: this run's
+      # freshly dumped snapshot for a new asset, the already-published asset for
+      # one that exists. The digest file is computed from here, never from
+      # ABICHECK_BASELINE_DIR, because those two differ on a re-run.
+      ABICHECK_PUBLISHED_DIR: __abi_published
+    steps:
+      - name: Resolve baseline tag
+        id: baseline
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.baseline_tag }}"
+          if [ -z "$tag" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$tag" ]; then
+            echo "::error::No baseline tag: neither the baseline_tag input nor a release tag_name is set."
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      # Explicitly on `main` (not whatever ref triggered this workflow -- for
+      # the `release: published` trigger that would be the release's tag), since
+      # the digest file gets committed back here.
+      - name: Checkout oneDAL main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+
+      - name: Checkout oneDAL sources at the baseline tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.baseline.outputs.tag }}
+          path: __baseline_src
+
+      # Needed to *build* the baseline tag, not to dump it: the snapshots below
+      # read the built binaries and parse no header.
+      - name: Install DPC++
+        working-directory: __baseline_src
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        working-directory: __baseline_src
+        run: .ci/env/apt.sh mkl
+
+      # The same three targets, the same ISA and the same debug setting as
+      # ci.yml's LinuxMakeDPCPP job, so the baseline binaries match what every
+      # PR is actually compared against: daal produces libonedal_core.so,
+      # oneapi_c produces libonedal.so, oneapi_dpc produces libonedal_dpc.so.
+      #
+      # No --debug symbols, because LinuxMakeDPCPP does not pass it either. The
+      # comparison reads exported symbols and ELF metadata and needs no DWARF,
+      # but the two sides do have to agree: if the PR-side build ever starts
+      # building with debug info, re-dispatch this workflow for the published
+      # tags -- the same rule that applies to bumping the abicheck pin.
+      #
+      # No --jobs either: .ci/scripts/build.sh already falls back to
+      # -j$(nproc --all) on Linux, so the build sizes itself to whatever runner
+      # it lands on instead of hard-coding a number.
+      - name: Build daal + oneapi_c + oneapi_dpc (avx2)
+        working-directory: __baseline_src
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
+          rm -rf __work
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_c
+          rm -rf __work
+          .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_dpc
+          rm -rf __work
+
+      - name: Ensure output directories exist
+        run: mkdir -p "${ABICHECK_BASELINE_DIR}" .github/abicheck/baselines
+
+      # One snapshot per library, one release asset each, dumped by the same
+      # Action ci.yml's job compares with -- so the two sides cannot disagree
+      # about how a snapshot is produced. `dump` takes one library at a time (it
+      # rejects a directory operand; only `compare` fans a directory out), which
+      # is why this is six steps for what the PR side does in one run.
+      #
+      # `depth: binary` and no compile context, to describe the same evidence
+      # the PR side can. That side cannot pin its depth at all -- a directory
+      # operand is binary-depth by contract there and abicheck rejects `--depth`
+      # on it -- so the agreement has to be kept here: no header set, no
+      # --sources, and a re-dispatch if LinuxMakeDPCPP ever starts emitting
+      # debug info (which would give the PR side DWARF facts these snapshots
+      # have no counterpart for).
+      #
+      # The asset name is the matcher: the PR-side comparison keys each snapshot
+      # to a shared object by the filename up to `.so`, so
+      # `libonedal_core.so.abicheck.json.zst` pairs with `libonedal_core.so.4.0`
+      # and a decorated name (a tag prefix, say) silently pairs with nothing. The
+      # .json.zst suffix is load-bearing too: abicheck infers the compression
+      # envelope from it when writing here and from the bytes when reading on the
+      # PR side.
+      #
+      # Keep the pin equal to ci.yml's. A mismatch does not fail in any way that
+      # points at the cause -- it either under-reports silently or fails loudly
+      # for the wrong reason (measured: an enum-value dumper fix turned an
+      # unchanged tree into 280 breaking `enum_member_value_changed` findings
+      # against baselines dumped by the older pin, exit 4, with nothing naming
+      # the baseline as the cause). So every bump obliges re-*verifying* against
+      # the existing baselines, and re-dispatching this workflow for every
+      # published tag only if the reports differ; the pin below needed no new
+      # baselines on that test. See .github/abicheck/README.md.
+
+      - name: Dump libonedal_core.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          depth: binary
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_core.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
+          depth: binary
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal_dpc.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
+          depth: binary
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_dpc.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal_parameters.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so
+          depth: binary
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal_parameters_dpc.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so
+          depth: binary
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters_dpc.so.abicheck.json.zst
+          dependency-source: none
+
+      - name: Dump libonedal_thread.so
+        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_thread.so
+          depth: binary
+          new-version: ${{ steps.baseline.outputs.tag }}
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_thread.so.abicheck.json.zst
+          dependency-source: none
+
+      # A tripwire for one failure: compression silently not applying. The six
+      # snapshots measure 5.8 KiB to 148 KiB compressed, 372 KB together, so a
+      # 5 MiB ceiling leaves an order of magnitude of headroom and still catches
+      # a snapshot written uncompressed. The glob and the asset names share the
+      # .abicheck.json.zst suffix deliberately -- this loop, the publish loop and
+      # the PR-side digest check all key on it, so an asset named outside it
+      # would make all three silently no-op rather than fail.
+      - name: Report snapshot sizes and check the compression tripwire
+        run: |
+          set -euo pipefail
+          ls -l "${ABICHECK_BASELINE_DIR}"
+          du -sh "${ABICHECK_BASELINE_DIR}"
+          limit=$((5 * 1024 * 1024))
+          rc=0
+          for f in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
+            size=$(stat -c %s "$f")
+            if [ "$size" -gt "$limit" ]; then
+              echo "::error file=${f}::$(( size / 1024 )) KiB is far above the 6-148 KiB a compressed snapshot takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
+              rc=1
+            fi
+          done
+          exit "$rc"
+
+      # Upload before computing digests, so the digest file describes the bytes
+      # actually published rather than the bytes this run happened to dump.
+      #
+      # Fails closed on an immutability violation rather than passing --clobber:
+      # a published baseline is what every already-merged PR's "compatible with
+      # <tag>" verdict was computed against, so replacing it has to be an
+      # explicit act. The test is asset *existence*, not a byte compare, and it
+      # has to be -- a snapshot is content-reproducible but not byte-reproducible
+      # (two dumps of the same libonedal.so by the same pin measured 87,584 bytes
+      # each with different sha256s, differing only in the recorded `created_at`).
+      # An already-published asset is therefore left as it is and its published
+      # bytes are what the digest step hashes, which makes a re-run after a
+      # transient failure converge instead of deadlocking.
+      - name: Publish baseline snapshots to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.baseline.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "::error::No release found for tag '${TAG}'. This workflow attaches baseline assets to an existing release; publish the release first, or dispatch with a tag that has one."
+            exit 1
+          fi
+          mkdir -p "${ABICHECK_PUBLISHED_DIR}"
+          for path in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
+            name="$(basename "$path")"
+            if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" \
+                 --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
+              echo "::warning::'${name}' is already published on release '${TAG}'; keeping the published asset and ignoring this run's freshly dumped one. A release-tag baseline is immutable: every merged PR's verdict was computed against the published bytes. To replace it deliberately, run 'gh release delete-asset ${TAG} ${name}' and re-run this workflow, or publish under a new tag."
+              rm -f "${ABICHECK_PUBLISHED_DIR}/${name}"
+              gh release download "$TAG" --repo "${GITHUB_REPOSITORY}" \
+                --pattern "$name" --dir "${ABICHECK_PUBLISHED_DIR}"
+              continue
+            fi
+            gh release upload "$TAG" "$path" --repo "${GITHUB_REPOSITORY}"
+            cp "$path" "${ABICHECK_PUBLISHED_DIR}/${name}"
+          done
+
+      # The digest file, not the snapshots, is what enters version control: a
+      # few hundred bytes, reviewable, and the anchor that lets the PR-side job
+      # prove the asset it downloaded is the one on the release.
+      - name: Compute baseline digests
+        working-directory: ${{ env.ABICHECK_PUBLISHED_DIR }}
+        run: |
+          set -euo pipefail
+          sha256sum *.abicheck.json.zst \
+            > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+
+      - name: Commit baseline digests
+        run: |
+          set -euo pipefail
+          sums=".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$sums"
+          if git diff --cached --quiet; then
+            echo "Baseline digests unchanged; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Publish abicheck baseline digests for ${{ steps.baseline.outputs.tag }}"
+          git push origin HEAD:main
+
+      - name: Summarize
+        run: |
+          {
+            echo "### Abicheck baseline published"
+            echo ""
+            echo "Release: \`${{ steps.baseline.outputs.tag }}\`"
+            echo ""
+            echo '```'
+            cat ".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+            echo '```'
+            echo ""
+            echo "Set \`ABICHECK_BASELINE_TAG\` in \`.github/workflows/ci.yml\` to this tag to gate PRs against it."
+          } >> "$GITHUB_STEP_SUMMARY"
