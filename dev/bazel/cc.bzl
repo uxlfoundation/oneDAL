@@ -255,21 +255,31 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 
 
 def _cc_dynamic_lib_impl(ctx):
-    toolchain, feature_config = _init_cc_rule(ctx, features=[
-        # Keep produced shared libraries free of dynamic Bazel deps on Linux.
-        # Release-dynamic tests provide standalone oneDAL libs through
-        # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
-        # live in test runfiles; DT_NEEDED entries on those deps are not
-        # resolved through the executable RUNPATH.
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    # On Linux, keep produced shared libraries free of dynamic Bazel deps.
+    # Release-dynamic tests provide standalone oneDAL libs through
+    # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
+    # live in test runfiles; DT_NEEDED entries on those deps are not
+    # resolved through the executable RUNPATH.
+    #
+    # Windows must not request the feature. MSVC resolves every external at
+    # link time, so a DLL that consumes another DLL needs the dependency's
+    # import library on the command line -- exactly the `interface_library`
+    # link inputs this feature suppresses. With it enabled, onedal.dll has
+    # nothing to resolve the DAAL symbols it imports from onedal_core.dll
+    # against and lld-link fails with undefined externals. Nothing is lost by
+    # skipping it here: the Windows toolchain registers an empty
+    # `dynamic_link_libs`, so the feature's other flag set expands to nothing.
+    dynamic_dep_features = [] if is_windows else [
         "do_not_link_dynamic_dependencies",
-    ])
+    ]
+    toolchain, feature_config = _init_cc_rule(ctx, features=dynamic_dep_features)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
 
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
     vi = ctx.attr._version_info[VersionInfo]
     link_name = "{}.{}".format(ctx.attr.lib_name, vi.binary_major) if is_windows else ctx.attr.lib_name
     linux_soname_flags = [] if is_windows else [
@@ -290,7 +300,7 @@ def _cc_dynamic_lib_impl(ctx):
         user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts,
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts,
-        is_dpc = ctx.attr.lib_name.endswith("_dpc") or ctx.label.name.endswith("_dpc"),
+        dll_to_implib_tool = ctx.file._dll_to_implib if is_windows else None,
     )
     default_files = dynamic_outputs.files
     if is_windows:
@@ -341,6 +351,10 @@ cc_dynamic_lib = rule(
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_dll_to_implib": attr.label(
+            default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
+            allow_single_file = True,
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],

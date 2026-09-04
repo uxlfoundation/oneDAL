@@ -24,7 +24,12 @@
 namespace oneapi::dal::backend {
 
 class homogen_table_impl : public detail::homogen_table_template<homogen_table_impl>,
-                           public ONEDAL_SERIALIZABLE(homogen_table_id) {
+                           public ONEDAL_SERIALIZABLE(homogen_table_id)
+#ifdef ONEDAL_DATA_PARALLEL
+        ,
+                           public detail::queue_provider_iface
+#endif
+{
 public:
     homogen_table_impl() : row_count_(0), col_count_(0), layout_(data_layout::unknown) {}
 
@@ -84,6 +89,12 @@ public:
     std::int64_t get_kind() const override {
         return 1;
     }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    std::optional<sycl::queue> get_queue() const override {
+        return data_.get_queue();
+    }
+#endif
 
     template <typename T>
     void pull_rows_template(const detail::default_host_policy& policy,

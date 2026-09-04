@@ -55,6 +55,7 @@ implicit_als += engines distributions
 engines += engines/mt19937 engines/mcg59 engines/mrg32k3a engines/philox4x32x10 engines/mt2203
 distributions += distributions/bernoulli distributions/normal distributions/uniform
 tsne +=
+hdbscan +=
 
 CORE.ALGORITHMS.FULL :=                                                       \
     cholesky                                                                  \
@@ -75,6 +76,7 @@ CORE.ALGORITHMS.FULL :=                                                       \
     dtrees/gbt/classification                                                 \
     dtrees/regression                                                         \
     dbscan                                                                    \
+    hdbscan                                                                   \
     elastic_net                                                               \
     engines                                                                   \
     engines/mcg59                                                             \
@@ -163,6 +165,7 @@ CORE.SERVICES       := data_management
 ONEAPI.ALGOS.basic_statistics := CORE.moments
 ONEAPI.ALGOS.covariance    := CORE.covariance
 ONEAPI.ALGOS.dbscan := CORE.dbscan
+ONEAPI.ALGOS.hdbscan := CORE.hdbscan
 ONEAPI.ALGOS.decision_forest := CORE.decision_forest
 ONEAPI.ALGOS.kmeans := CORE.kmeans
 ONEAPI.ALGOS.kmeans_init := CORE.kmeans
@@ -187,6 +190,7 @@ ONEAPI.ALGOS :=          \
     decision_forest      \
     decision_tree        \
     finiteness_checker   \
+    hdbscan              \
     kmeans               \
     kmeans_init          \
     knn                  \
