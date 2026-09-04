@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.11.2
+VERSION=v3.11.3
 UNPACKED=ec-linux-amd64
 ASSET=$UNPACKED.tar.gz
 CHECKSUMS=checksums.txt
