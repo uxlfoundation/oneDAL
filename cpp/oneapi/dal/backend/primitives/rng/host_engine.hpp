@@ -16,12 +16,6 @@
 
 #pragma once
 
-#include <daal/include/algorithms/engines/mt2203/mt2203.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
-#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
-#include <daal/include/algorithms/engines/mt19937/mt19937.h>
-
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
@@ -38,27 +32,10 @@ namespace oneapi::dal::backend::primitives {
 class host_engine {
 public:
     /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
-    /// @param[in] method  The engine method. Defaults to `engine_type_internal::mt2203`.
+    /// @param[in] method  The engine method. Defaults to `engine_type_internal::philox4x32x10`.
     host_engine(std::int64_t seed = 777,
-                engine_type_internal method = engine_type_internal::mt2203) {
-        switch (method) {
-            case engine_type_internal::mt2203:
-                host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
-                break;
-            case engine_type_internal::mcg59:
-                host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
-                break;
-            case engine_type_internal::mrg32k3a:
-                host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
-                break;
-            case engine_type_internal::philox4x32x10:
-                host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
-                break;
-            case engine_type_internal::mt19937:
-                host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
-                break;
-            default: throw std::invalid_argument("Unsupported engine type 1");
-        }
+                engine_type_internal method = default_engine_type_internal) {
+        host_engine_ = make_daal_engine(seed, method);
         impl_ =
             dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(host_engine_.get());
         if (!impl_) {
@@ -166,7 +143,7 @@ template <typename Type>
 void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                                   std::int64_t top,
                                   std::int64_t seed,
-                                  engine_type_internal method = engine_type_internal::mt19937) {
+                                  engine_type_internal method = default_engine_type_internal) {
     host_engine eng_ = host_engine(seed, method);
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();

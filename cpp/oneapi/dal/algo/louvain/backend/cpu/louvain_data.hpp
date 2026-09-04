@@ -123,7 +123,12 @@ struct louvain_data {
     // Total link weight in the network
     value_type m;
 
-    host_engine eng;
+    // Louvain is an order-sensitive heuristic: the random visit order of the
+    // vertices decides which local optimum the modularity optimization settles
+    // in. The engine is pinned explicitly so that the partition returned to the
+    // user stays stable when the library-wide default engine
+    // (`default_engine_type_internal`) changes.
+    host_engine eng{ default_seed, engine_type_internal::mt2203 };
 
     const std::int64_t vertex_count;
     const std::int64_t edge_count;

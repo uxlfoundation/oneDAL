@@ -21,12 +21,6 @@
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 
-#include <daal/include/algorithms/engines/mt2203/mt2203.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
-#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
-#include <daal/include/algorithms/engines/mt19937/mt19937.h>
-
 #include <oneapi/mkl.hpp>
 
 namespace mkl = oneapi::mkl;
@@ -236,34 +230,30 @@ class device_engine {
 public:
     /// @param[in] queue   The SYCL queue used to manage device operations.
     /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
-    /// @param[in] method  The engine method. Defaults to `engine_type_internal::mt2203`.
+    /// @param[in] method  The engine method. Defaults to `engine_type_internal::philox4x32x10`.
     device_engine(sycl::queue& queue,
                   std::int64_t seed = 777,
-                  engine_type_internal method = engine_type_internal::mt2203,
+                  engine_type_internal method = default_engine_type_internal,
                   std::int64_t idx = 0)
             : q(queue) {
+        host_engine_ = make_daal_engine(seed, method);
         switch (method) {
             case engine_type_internal::mt2203:
-                host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mt2203>(queue, seed, idx);
                 break;
             case engine_type_internal::mcg59:
-                host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mcg59>(queue, seed);
                 break;
             case engine_type_internal::mrg32k3a:
-                host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mrg32k>(queue, seed);
                 break;
             case engine_type_internal::philox4x32x10:
-                host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_philox>(queue, seed);
                 break;
             case engine_type_internal::mt19937:
-                host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mt19937>(queue, seed);
                 break;
-            default: throw std::invalid_argument("Unsupported engine type 1");
+            default: throw std::invalid_argument("Unsupported engine type");
         }
         impl_ =
             dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(host_engine_.get());
@@ -449,16 +439,15 @@ sycl::event shuffle(sycl::queue& queue,
 /// @param[in, out] result_array The array to be partially shuffled.
 /// @param[in] top The number of elements to shuffle.
 /// @param[in] seed The seed for the engine.
-/// @param[in] method The rng engine type. Defaults to `mt19937`.
+/// @param[in] method The rng engine type. Defaults to `philox4x32x10`.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-sycl::event partial_fisher_yates_shuffle(
-    sycl::queue& queue_,
-    ndview<Type, 1>& result_array,
-    std::int64_t top,
-    std::int64_t seed,
-    engine_type_internal method = engine_type_internal::mt19937,
-    const event_vector& deps = {});
+sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
+                                         ndview<Type, 1>& result_array,
+                                         std::int64_t top,
+                                         std::int64_t seed,
+                                         engine_type_internal method = default_engine_type_internal,
+                                         const event_vector& deps = {});
 #endif
 
 } // namespace oneapi::dal::backend::primitives
