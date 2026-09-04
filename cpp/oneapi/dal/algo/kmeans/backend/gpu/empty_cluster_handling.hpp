@@ -47,13 +47,21 @@ public:
     ///                                  and the cluster centroid it belonged
     /// @param[in] empty_cluster_indices An array of size [c] that stores the row indices of the empty
     ///                                  cluster centers in the array of centroids
+    /// @param[in] source_clusters       An array of size [c]. Value at i-th position indicates the cluster
+    ///                                  from which the i-th candidate row was stolen (i.e. the cluster
+    ///                                  the candidate row was assigned to before it became a centroid).
+    ///                                  Filled locally by `find_candidates`; in the distributed path
+    ///                                  `reduce_candidates` shuffles it in place so that slot i holds the
+    ///                                  source cluster of the globally winning candidate for slot i.
     explicit centroid_candidates(const pr::ndarray<std::int32_t, 1>& indices,
                                  const pr::ndarray<Float, 1>& distances,
-                                 const pr::ndarray<std::int32_t, 1>& empty_cluster_indices)
+                                 const pr::ndarray<std::int32_t, 1>& empty_cluster_indices,
+                                 const pr::ndarray<std::int32_t, 1>& source_clusters = {})
             : candidate_count_(indices.get_dimension(0)),
               indices_(indices),
               distances_(distances),
-              empty_cluster_indices_(empty_cluster_indices) {
+              empty_cluster_indices_(empty_cluster_indices),
+              source_clusters_(source_clusters) {
         ONEDAL_ASSERT(candidate_count_ > 0);
         ONEDAL_ASSERT(empty_cluster_indices.get_dimension(0) == candidate_count_);
         ONEDAL_ASSERT(distances.get_dimension(0) == candidate_count_);
@@ -75,11 +83,20 @@ public:
         return empty_cluster_indices_;
     }
 
+    const pr::ndarray<std::int32_t, 1>& get_source_clusters() const {
+        return source_clusters_;
+    }
+
+    void set_source_clusters(const pr::ndarray<std::int32_t, 1>& source_clusters) {
+        source_clusters_ = source_clusters;
+    }
+
 private:
     std::int64_t candidate_count_;
     pr::ndarray<std::int32_t, 1> indices_;
     pr::ndarray<Float, 1> distances_;
     pr::ndarray<std::int32_t, 1> empty_cluster_indices_;
+    pr::ndarray<std::int32_t, 1> source_clusters_;
 };
 
 template <typename Float>
@@ -87,6 +104,7 @@ auto find_candidates(sycl::queue& queue,
                      std::int64_t candidate_count,
                      const pr::ndarray<Float, 2>& closest_distances,
                      const pr::ndarray<std::int32_t, 1>& counters,
+                     const pr::ndview<std::int32_t, 2>& responses,
                      const bk::event_vector& deps = {})
     -> std::tuple<centroid_candidates<Float>, sycl::event>;
 
@@ -115,13 +133,226 @@ auto copy_candidates_from_data(sycl::queue& queue,
                                pr::ndview<Float, 2>& centroids,
                                const bk::event_vector& deps) -> sycl::event;
 
+/// Writes the winning candidate row into the centroid of each empty cluster. In the distributed
+/// path the winners are agreed across ranks first (see `reduce_candidates`), purely by distance.
 template <typename Float>
 auto fill_empty_clusters(sycl::queue& queue,
                          bk::communicator<spmd::device_memory_access::usm>& comm,
                          const pr::ndview<Float, 2>& data,
-                         const centroid_candidates<Float>& candidates,
+                         centroid_candidates<Float>& candidates,
                          pr::ndview<Float, 2>& centroids,
                          const bk::event_vector& deps = {}) -> sycl::event;
+
+/// Subtracts each newly-placed candidate row from its source cluster's centroid and decrements
+/// the source cluster's counter. Called *after* `fill_empty_clusters` has written the winning
+/// candidate row into `centroids[dst_i]` for each empty slot i, so this helper reads the stolen
+/// row from `centroids[dst_i]` directly. This works uniformly for the single-rank dense,
+/// distributed dense, and CSR paths - the fill writes the row into the same location regardless
+/// of the source layout, so downstream doesn't need to know how the row arrived.
+///
+/// Without this correction, the source cluster's centroid stays at `sum_all / count_all` even
+/// though one of its assigned points has been reassigned to an empty slot. This helper rewrites
+/// it to `(sum_all - stolen) / (count_all - 1)`, the mean of the rows the cluster actually keeps.
+/// Skipping the rewrite would leave the stolen row pulling the source centroid for one more
+/// iteration, so the run would need an extra iteration to reach the same result.
+///
+/// Distributed handling: no extra communication is needed. `cluster_updater` allreduces both
+/// `counters` and `centroids` *before* calling into empty-cluster handling, and
+/// `reduce_candidates` leaves every rank with the same globally-agreed
+/// (distance, row, source_cluster) tuples. Every rank therefore applies the identical correction
+/// to identical inputs and stays in sync; the result must not be allreduced again, since that
+/// would multiply the correction by the rank count.
+///
+/// Degenerate `count <= 1` is skipped entirely -- neither the centroid nor the counter is touched,
+/// since `(sum - stolen) / (count - 1)` is undefined there. Candidates are selected purely by
+/// distance-to-assigned-centroid (farthest first), matching scikit-learn's
+/// `_relocate_empty_clusters`, so a single-point source cluster can be chosen; this branch is
+/// reached when
+///  * the chosen candidate is the only point of its source cluster, or
+///  * two candidates come from the same two-point cluster, in which case the second one finds
+///    `count == 1` after the first correction.
+/// The source cluster then keeps its point(s) and its centroid, and the empty cluster is seeded
+/// with the stolen row (a valid data point). This matches how the CPU kernels handle a drained
+/// source cluster.
+///
+/// Candidates at distance zero are skipped as well: `fill_empty_clusters` does not move such a row
+/// (see the comment there), so nothing has been taken from its source cluster.
+/// `duplicate_largest_centroid` fills those empty clusters instead.
+///
+/// @tparam Float   The type of centroid elements.
+///
+/// @param[in]     queue        The DPC++ queue.
+/// @param[in]     candidates   Structure describing candidate rows and their target empty-cluster
+///                             slots. Must have `get_source_clusters()` populated -- filled by
+///                             `find_candidates` and, in the distributed path, shuffled to match
+///                             the global winners by `reduce_candidates`. If it is empty this
+///                             helper is a no-op.
+/// @param[in,out] centroids    The `[k x p]` centroids array; the stolen row is read from
+///                             `centroids[empty_cluster_indices[i]]` and the source-cluster row
+///                             is rewritten in place.
+/// @param[in,out] counters     The `[k]` cluster counters; source cluster counts are decremented.
+/// @param[in]     deps         Events that must complete before the correction runs.
+template <typename Float>
+inline auto correct_source_clusters(sycl::queue& queue,
+                                    const centroid_candidates<Float>& candidates,
+                                    pr::ndview<Float, 2>& centroids,
+                                    pr::ndview<std::int32_t, 1>& counters,
+                                    const bk::event_vector& deps = {}) -> sycl::event {
+    const std::int64_t candidate_count = candidates.get_candidate_count();
+    if (candidate_count == 0) {
+        return sycl::event{};
+    }
+    const auto& source_clusters = candidates.get_source_clusters();
+    if (!source_clusters.has_data()) {
+        return sycl::event{};
+    }
+
+    const std::int64_t column_count = centroids.get_dimension(1);
+
+    const std::int32_t* empty_cluster_indices_ptr =
+        candidates.get_empty_cluster_indices().get_data();
+    const std::int32_t* source_clusters_ptr = source_clusters.get_data();
+    const Float* candidate_distances_ptr = candidates.get_distances().get_data();
+    Float* centroids_ptr = centroids.get_mutable_data();
+    std::int32_t* counters_ptr = counters.get_mutable_data();
+
+    // Deliberately a serial `single_task`: several candidates can be stolen from the same source
+    // cluster, and the running `(sum - stolen) / (count - 1)` rewrite has to compose in order.
+    // `candidate_count` is the number of empty clusters, so this loop is short by construction.
+    return queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.single_task([=]() {
+            for (std::int64_t i = 0; i < candidate_count; ++i) {
+                const std::int32_t src = source_clusters_ptr[i];
+                // Defensive: responses always hold a valid cluster id, so this should not trigger.
+                if (src < 0) {
+                    continue;
+                }
+                // The row was not moved, so there is nothing to take away from its cluster.
+                if (!(candidate_distances_ptr[i] > Float(0))) {
+                    continue;
+                }
+                const std::int32_t old_count = counters_ptr[src];
+                if (old_count <= 1) {
+                    continue;
+                }
+                // `(sum - stolen) / (count - 1)` is evaluated as
+                // `centroid + (centroid - stolen) / (count - 1)`, which is the same value
+                // without forming the `centroid * count` sum: no cancellation when the sum
+                // is large compared to the difference, and the count appears only as the
+                // divisor of the correction term. That last part matters for counts above
+                // the mantissa width of `Float` (2^24 for float32), where `count` and
+                // `count - 1` round to the same value: here that only perturbs a term of
+                // magnitude `|centroid - stolen| / count` by an ulp, whereas the direct
+                // form would drop the whole `centroid / count` part of the correction.
+                const Float inv_new_count = Float(1) / static_cast<Float>(old_count - 1);
+                const std::int64_t dst = empty_cluster_indices_ptr[i];
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    const Float stolen = centroids_ptr[dst * column_count + j];
+                    const Float centroid = centroids_ptr[src * column_count + j];
+                    centroids_ptr[src * column_count + j] =
+                        centroid + (centroid - stolen) * inv_new_count;
+                }
+                counters_ptr[src] = old_count - 1;
+            }
+        });
+    });
+}
+
+/// Fills the empty clusters that `fill_empty_clusters` declined to relocate - the ones whose
+/// candidate row already sits on the centroid it is assigned to - with a duplicate of the centroid
+/// of the cluster holding the most observations.
+///
+/// Which centroid such a cluster lands on does not affect the objective function, since it owns no
+/// points, but it has to be a point of the data space rather than a leftover initial centroid: that
+/// is what scikit-learn produces for the same inputs (e.g. two clusters over four copies of the
+/// same row both end up on that row). A duplicate is also stable - the assignment step gives every
+/// tied point to the lowest cluster index, so one of the two stays empty and is refreshed to the
+/// same value on the next iteration, leaving the centroid shift at zero.
+///
+/// Runs after `correct_source_clusters`, so `counters` and the donor centroid are the final values
+/// of this iteration, matching the order the CPU kernels use. In the distributed path no extra
+/// communication is needed for the same reason it is not needed there: `counters` and `centroids`
+/// are allreduced before empty-cluster handling starts and the candidate distances are
+/// globally agreed, so every rank picks the same donor and writes the same rows.
+///
+/// @tparam Float   The type of centroid elements.
+///
+/// @param[in]     queue        The DPC++ queue.
+/// @param[in]     candidates   Structure describing candidate rows and their target empty-cluster
+///                             slots.
+/// @param[in]     counters     The `[k]` cluster counters, after the source-cluster correction.
+/// @param[in,out] centroids    The `[k x p]` centroids array.
+/// @param[in]     deps         Events that must complete before the fill runs.
+template <typename Float>
+inline auto duplicate_largest_centroid(sycl::queue& queue,
+                                       const centroid_candidates<Float>& candidates,
+                                       const pr::ndview<std::int32_t, 1>& counters,
+                                       pr::ndview<Float, 2>& centroids,
+                                       const bk::event_vector& deps = {}) -> sycl::event {
+    const std::int64_t candidate_count = candidates.get_candidate_count();
+    if (candidate_count == 0) {
+        return sycl::event{};
+    }
+
+    const std::int64_t cluster_count = counters.get_dimension(0);
+    const std::int64_t column_count = centroids.get_dimension(1);
+    ONEDAL_ASSERT(centroids.get_dimension(0) == cluster_count);
+
+    // The donor index is computed on the device to keep this off the host critical path; the
+    // scan is over `cluster_count` counters, so a serial `single_task` is enough.
+    auto donor = pr::ndarray<std::int32_t, 1>::empty(queue, { 1 }, sycl::usm::alloc::device);
+
+    const std::int32_t* counters_ptr = counters.get_data();
+    std::int32_t* donor_ptr = donor.get_mutable_data();
+
+    auto donor_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.single_task([=]() {
+            std::int32_t best_cluster = -1;
+            std::int32_t best_count = 0;
+            for (std::int64_t i = 0; i < cluster_count; ++i) {
+                // Strict `>`, so a tie goes to the lowest index - the same choice the CPU
+                // kernels make.
+                if (counters_ptr[i] > best_count) {
+                    best_count = counters_ptr[i];
+                    best_cluster = static_cast<std::int32_t>(i);
+                }
+            }
+            donor_ptr[0] = best_cluster;
+        });
+    });
+
+    const std::int32_t* empty_cluster_indices_ptr =
+        candidates.get_empty_cluster_indices().get_data();
+    const Float* candidate_distances_ptr = candidates.get_distances().get_data();
+    Float* centroids_ptr = centroids.get_mutable_data();
+
+    auto fill_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(donor_event);
+        cgh.parallel_for(bk::make_range_2d(candidate_count, column_count), [=](sycl::id<2> id) {
+            const std::int64_t i = id[0];
+            const std::int64_t j = id[1];
+            // A relocated cluster already holds its candidate row.
+            if (candidate_distances_ptr[i] > Float(0)) {
+                return;
+            }
+            const std::int32_t src = donor_ptr[0];
+            // Not a single cluster holds an observation, so there is no centroid to duplicate.
+            // Needs strictly fewer rows than clusters, which is rejected before training starts.
+            if (src < 0) {
+                return;
+            }
+            const std::int64_t dst = empty_cluster_indices_ptr[i];
+            centroids_ptr[dst * column_count + j] = centroids_ptr[src * column_count + j];
+        });
+    });
+
+    // `donor` is deallocated as this function returns, so the kernels reading it have to finish.
+    fill_event.wait_and_throw();
+
+    return fill_event;
+}
 
 template <typename Float>
 inline Float correct_objective_function(sycl::queue& queue,
@@ -163,8 +394,9 @@ inline auto handle_empty_clusters(sycl::queue& queue,
                                   bk::communicator<spmd::device_memory_access::usm>& comm,
                                   std::int64_t candidate_count,
                                   const pr::ndview<Float, 2>& data,
+                                  const pr::ndview<std::int32_t, 2>& responses,
                                   const pr::ndarray<Float, 2>& closest_distances,
-                                  const pr::ndarray<std::int32_t, 1>& counters,
+                                  pr::ndarray<std::int32_t, 1>& counters,
                                   pr::ndview<Float, 2>& centroids,
                                   const bk::event_vector& deps = {})
     -> std::tuple<Float, sycl::event> {
@@ -176,15 +408,26 @@ inline auto handle_empty_clusters(sycl::queue& queue,
     ONEDAL_ASSERT(centroids.get_dimension(1) == data.get_dimension(1));
 
     auto [candidates, find_candidates_event] =
-        find_candidates(queue, candidate_count, closest_distances, counters, deps);
+        find_candidates(queue, candidate_count, closest_distances, counters, responses, deps);
 
+    // `fill_empty_clusters` writes the winning candidate row into `centroids[dst_i]`. In the
+    // distributed path it also shuffles `candidates.source_clusters_` inside `reduce_candidates`
+    // so slot i names the source cluster of the globally winning candidate for slot i.
     auto fill_event =
         fill_empty_clusters(queue, comm, data, candidates, centroids, { find_candidates_event });
+
+    auto correct_event =
+        correct_source_clusters(queue, candidates, centroids, counters, { fill_event });
+
+    // Empty clusters whose candidate was already on its own centroid were left untouched by the
+    // fill; give them a duplicate of the biggest cluster's centroid.
+    auto duplicate_event =
+        duplicate_largest_centroid(queue, candidates, counters, centroids, { correct_event });
 
     const Float correction =
         correct_objective_function(queue, candidates, { find_candidates_event });
 
-    return { correction, fill_event };
+    return { correction, duplicate_event };
 }
 
 /// Fills centroids that correspond to the empty clusters using input data in CSR layout
@@ -219,10 +462,14 @@ inline std::tuple<Float, sycl::event> handle_empty_clusters(
     const std::int64_t candidate_count,
     pr::ndarray<std::int32_t, 1>& cluster_counts,
     pr::ndarray<Float, 2>& dists,
+    const pr::ndview<std::int32_t, 2>& responses,
     const bk::event_vector& deps = {}) {
     auto [candidates, find_candidates_event] =
-        find_candidates(queue, candidate_count, dists, cluster_counts, deps);
+        find_candidates(queue, candidate_count, dists, cluster_counts, responses, deps);
 
+    // The CSR copy writes the sparse row expanded into a dense `centroids[dst_i]` row; the
+    // correction below reads the row back from that location so it doesn't need a CSR-specific
+    // path.
     auto copy_event = copy_candidates_from_data(queue,
                                                 values,
                                                 column_indices,
@@ -231,10 +478,17 @@ inline std::tuple<Float, sycl::event> handle_empty_clusters(
                                                 centorids,
                                                 { find_candidates_event });
 
+    auto correct_event =
+        correct_source_clusters(queue, candidates, centorids, cluster_counts, { copy_event });
+
+    // See the dense overload: fill the clusters the copy declined to relocate.
+    auto duplicate_event =
+        duplicate_largest_centroid(queue, candidates, cluster_counts, centorids, { correct_event });
+
     const Float correction =
         correct_objective_function(queue, candidates, { find_candidates_event });
 
-    return { correction, copy_event };
+    return { correction, duplicate_event };
 }
 
 } // namespace oneapi::dal::kmeans::backend
