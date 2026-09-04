@@ -35,31 +35,6 @@ using result_t = infer_result<task::dim_reduction>;
 using descriptor_t = detail::descriptor_base<task::dim_reduction>;
 
 template <typename Float>
-auto get_centered(sycl::queue& q,
-                  pr::ndview<Float, 2>& data,
-                  const pr::ndview<Float, 1>& means,
-                  const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_centered_data, q);
-    const std::int64_t row_count = data.get_dimension(0);
-    const std::int64_t column_count = data.get_dimension(1);
-
-    auto centered_data_ptr = data.get_mutable_data();
-    auto means_ptr = means.get_data();
-
-    auto centered_event = q.submit([&](sycl::handler& h) {
-        const auto range = bk::make_range_2d(row_count, column_count);
-        h.depends_on(deps);
-        h.parallel_for(range, [=](sycl::id<2> id) {
-            const std::size_t i = id[0];
-            const std::size_t j = id[1];
-            centered_data_ptr[i * column_count + j] =
-                centered_data_ptr[i * column_count + j] - means_ptr[j];
-        });
-    });
-    return centered_event;
-}
-
-template <typename Float>
 auto get_scaled(sycl::queue& q,
                 pr::ndview<Float, 2>& data,
                 const pr::ndview<Float, 1>& variances,
@@ -138,7 +113,7 @@ static result_t infer(const context_gpu& ctx, const descriptor_t& desc, const in
     if (desc.get_normalization_mode() != normalization::none && model.get_means().has_data()) {
         const auto means = model.get_means();
         const auto means_nd = pr::table2ndarray_1d<Float>(queue, means, alloc::device);
-        auto mean_centered_event = get_centered(queue, data_to_xtx, means_nd, { copy_event });
+        auto mean_centered_event = pr::get_centered(queue, data_to_xtx, means_nd, { copy_event });
         mean_centered_event.wait_and_throw();
     }
 
