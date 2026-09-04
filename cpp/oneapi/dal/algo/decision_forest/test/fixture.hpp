@@ -20,6 +20,7 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
 
+#include <cmath>
 #include <list>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
@@ -269,6 +270,77 @@ public:
             CAPTURE(tree_idx);
             model.traverse_depth_first(tree_idx, std::forward<Checker>(check));
         }
+    }
+
+    std::int64_t count_model_nodes(const df::model<Task>& model) {
+        std::int64_t node_count = 0;
+        model_traverse_check(model, [&](const node_info<Task>& node) {
+            ++node_count;
+            return true;
+        });
+        return node_count;
+    }
+
+    // Trains a single fully-grown tree with and without a min_weight_fraction
+    // constraint and checks that the constrained model has significantly fewer
+    // nodes and that every leaf respects the effective minimum sample count.
+    // Unit weights are used so the weighted path is exercised while the effect
+    // mimics a plain sample-count limit.
+    void check_min_weight_fraction_reduces_node_count(splitter_mode splitter_mode_val) {
+        constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
+        constexpr std::int64_t row_count = 256;
+        constexpr std::int64_t class_count = 2;
+        constexpr double min_weight_fraction = 0.1;
+
+        static float x_arr[row_count];
+        static float y_arr[row_count];
+        static float w_arr[row_count];
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            x_arr[i] = static_cast<float>(i);
+            // Both patterns force many beneficial splits so a fully-grown tree
+            // is deep: staircase labels for classification, distinct monotonic
+            // responses for regression.
+            y_arr[i] = is_cls ? static_cast<float>((i / 8) % 2) : static_cast<float>(i);
+            w_arr[i] = 1.0f;
+        }
+        const auto x = dal::homogen_table::wrap(x_arr, row_count, 1);
+        const auto y = dal::homogen_table::wrap(y_arr, row_count, 1);
+        const auto w = dal::homogen_table::wrap(w_arr, row_count, 1);
+
+        INFO("splitter mode = " +
+             std::string(splitter_mode_val == splitter_mode::best ? "best" : "random"));
+
+        const auto make_desc = [&](double fraction) {
+            auto desc = this->get_default_descriptor();
+            if constexpr (is_cls) {
+                desc.set_class_count(class_count);
+            }
+            desc.set_tree_count(1);
+            desc.set_features_per_node(1);
+            desc.set_bootstrap(false);
+            desc.set_min_observations_in_leaf_node(1);
+            desc.set_max_bins(row_count);
+            desc.set_min_bin_size(1);
+            desc.set_splitter_mode(splitter_mode_val);
+            desc.set_min_weight_fraction_in_leaf_node(fraction);
+            return desc;
+        };
+
+        const auto baseline_model = this->train(make_desc(0.001), x, y, w).get_model();
+        const auto constrained_model =
+            this->train(make_desc(min_weight_fraction), x, y, w).get_model();
+
+        const std::int64_t baseline_nodes = count_model_nodes(baseline_model);
+        const std::int64_t constrained_nodes = count_model_nodes(constrained_model);
+
+        CAPTURE(baseline_nodes, constrained_nodes);
+        INFO("constrained tree must have fewer nodes than the unconstrained one");
+        REQUIRE(constrained_nodes < baseline_nodes);
+
+        INFO("every leaf must hold at least ceil(fraction * n_samples) samples");
+        const std::int64_t min_samples =
+            static_cast<std::int64_t>(std::ceil(min_weight_fraction * row_count));
+        check_trees_node_min_sample_count(constrained_model, min_samples);
     }
 
     void check_trees_node_min_sample_count(const df::model<Task>& model,
