@@ -80,6 +80,33 @@ unsupported_config = rule(
     },
 )
 
+
+def validate_build_parameters_lib(value, is_windows):
+    if is_windows and value == "yes":
+        fail("--build_parameters_lib=yes is not supported on Windows; use auto or no")
+
+
+def _build_parameters_lib_validation_impl(ctx):
+    value = ctx.attr.flag[ConfigFlagInfo].flag
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    validate_build_parameters_lib(value, is_windows)
+    return []
+
+build_parameters_lib_validation = rule(
+    implementation = _build_parameters_lib_validation_impl,
+    attrs = {
+        "flag": attr.label(
+            mandatory = True,
+            providers = [ConfigFlagInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
+    },
+)
+
 CpuInfo = provider(
     fields = [
         "enabled",

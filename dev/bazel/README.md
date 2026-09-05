@@ -676,10 +676,38 @@ build --linkopt=-your-link-flag
 
 ---
 
+## Parameter library layout
+
+Bazel mirrors Make's `BUILD_PARAMETERS_LIB` switch with the typed
+`--build_parameters_lib=auto|yes|no` setting:
+
+- `auto` (default) builds separate `libonedal_parameters` and
+  `libonedal_parameters_dpc` libraries on non-Windows targets, and folds those
+  objects into `onedal`/`onedal_dpc` on Windows.
+- `yes` selects the separate host and DPC parameter libraries on non-Windows
+  targets. It is unsupported on Windows and fails during analysis with a diagnostic.
+- `no` folds the host and DPC parameter modules into the corresponding main
+  libraries and omits separate parameter libraries from `//:release`.
+
+For example:
+
+```
+bazel build //:release --build_parameters_lib=no
+```
+
+CI uses `dev/bazel/tests/parameters_layout_test.sh` for analysis-only checks of
+configured release outputs, host/DPC dependency separation, folded-target
+rejection, and Windows value validation. It does not build DPC binaries.
+`dev/release_tests/parameters_layout_consumer_test.sh` separately builds and
+runs host static and dynamic consumers through packaged CMake, pkg-config, and
+Bazel metadata for the folded layout. Both take `bazel` from `PATH`; set `BAZEL`
+to run them against a specific binary, such as a downloaded `bazelisk`.
+
 ## Make → Bazel Flag Reference
 
 | Make option                    | Bazel equivalent                                             | Notes                                                                      |
 |--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
+| `BUILD_PARAMETERS_LIB=yes|no` | `--build_parameters_lib=yes|no`                              | `auto` preserves non-Windows `yes` / Windows `no` defaults; Windows `yes` is unsupported |
 | `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |

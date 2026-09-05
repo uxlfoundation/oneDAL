@@ -9,6 +9,24 @@ load("@onedal//dev/bazel:dal.bzl",
     "dal_collect_test_suites",
     "dal_generate_cpu_dispatcher",
 )
+load("@onedal//dev/bazel/config:selects.bzl",
+    "parameters_lib_disabled",
+    "parameters_lib_enabled",
+    "parameters_lib_target_compatible_with",
+)
+
+_PARAMETER_MODULES = [
+    "@onedal//cpp/oneapi/dal/algo:parameters",
+    "@onedal//cpp/oneapi/dal/detail/parameters",
+]
+
+_PARAMETER_MODULES_DPC = [
+    "@onedal//cpp/oneapi/dal/algo:parameters_dpc",
+    "@onedal//cpp/oneapi/dal/detail/parameters:parameters_dpc",
+]
+
+_DAL_LIB_TAGS = ["dal"] + parameters_lib_disabled(["parameters"])
+
 
 dal_generate_cpu_dispatcher(
     name = "cpu_dispatcher",
@@ -73,10 +91,13 @@ dal_public_includes(
 dal_static_lib(
     name = "static",
     lib_name = "onedal",
+    lib_tags = _DAL_LIB_TAGS,
     dal_deps = [
         ":core",
         ":optional",
     ],
+    host_deps = parameters_lib_disabled(_PARAMETER_MODULES),
+    dpc_deps = parameters_lib_disabled(_PARAMETER_MODULES_DPC),
 )
 
 dal_static_lib(
@@ -117,7 +138,7 @@ dal_dynamic_lib(
     lib_tags = select({
         "@platforms//os:windows": ["dal", "mkl_embed"],
         "//conditions:default": ["dal"],
-    }),
+    }) + parameters_lib_disabled(["parameters"]),
     # `BUILD_PARAMETERS_LIB` defaults to `no` on Windows, so Make folds the DPC
     # parameter objects straight into onedal_dpc.dll
     # (`ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)`). Those
@@ -137,28 +158,26 @@ dal_dynamic_lib(
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal", "parameters"],
         "//conditions:default": ["dal", "daal", "mkl_embed"],
-    }),
+    }) + parameters_lib_disabled(["parameters"]),
     dal_deps = [
         ":core",
         ":optional",
     ],
+    dpc_deps = parameters_lib_disabled(_PARAMETER_MODULES_DPC),
     # On Windows, link onedal_core's import library plus parameter objects and
     # delay-load threading shims. Keep DAAL/MKL implementation in onedal_core.
-    #   - core_dynamic: import library that resolves the DAAL algorithm and
-    #     MKL backend symbols the oneAPI objects reference. `host_deps` is
-    #     appended to both the host and the DPC link, so it must be listed
-    #     here only -- repeating it in `dpc_deps` makes the label duplicate in
-    #     `dynamic_dpc` and fails analysis.
-    #   - static_parameters: parameter symbols not part of any other dep tree.
-    #   - services_win_dll_shim: delay-load stubs for threading entry points
-    #     (e.g. `_threaded_scalable_*`, `_daal_static_threader_reduce`) that
-    #     the DAAL objects reference. The real TBB-backed symbols live in
-    #     onedal_thread.dll. Mirrors onedal_core.dll above and the original
-    #     Make build.
-    host_deps = select({
+    # `host_deps` is appended to both the host and the DPC link, so shared
+    # Windows dependencies belong here rather than being duplicated.
+    host_deps = parameters_lib_disabled(_PARAMETER_MODULES) + select({
         "@platforms//os:windows": [
             "@onedal//cpp/daal:core_dynamic",
-            ":static_parameters",
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
+        "//conditions:default": [],
+    }),
+    dpc_host_deps = select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
             "@onedal//cpp/daal:services_win_dll_shim",
         ],
         "//conditions:default": [],
@@ -197,6 +216,14 @@ dal_dynamic_lib(
         ],
         "//conditions:default": [],
     }),
+    dpc_host_deps = select({
+        "@platforms//os:windows": [
+            "@onedal//cpp/daal:core_dynamic",
+            "@onedal//cpp/daal:services_win_dll_shim",
+        ],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = parameters_lib_target_compatible_with(),
 )
 
 filegroup(
@@ -204,9 +231,10 @@ filegroup(
     srcs = [
         ":static",
         ":static_dpc",
+    ] + parameters_lib_enabled([
         ":static_parameters",
         ":static_parameters_dpc",
-    ],
+    ]),
 )
 
 filegroup(
@@ -214,9 +242,10 @@ filegroup(
     srcs = [
         ":dynamic",
         ":dynamic_dpc",
+    ] + parameters_lib_enabled([
         ":dynamic_parameters",
         ":dynamic_parameters_dpc",
-    ],
+    ]),
 )
 
 dal_test_suite(

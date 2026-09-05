@@ -389,6 +389,9 @@ jobs:
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
   - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -441,9 +444,61 @@ jobs:
       echo "Checking Bazel config: stdalloc"
       bazel build --nobuild :release --stdalloc=true --release_dpc=false
 
+      # Analysis-only: validates configured release outputs, host/DPC dependency
+      # separation, folded-target rejection, and the Windows unsupported value.
+      dev/bazel/tests/parameters_layout_test.sh
+
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
     displayName: 'Bazel config smoke checks'
+
+  - script: |
+      set -euo pipefail
+      # This step is the largest consumer of disk in the job -- a second full
+      # release under a different configuration, plus a packaged consumer that
+      # builds through CMake, pkg-config and Bazel. The agent starts at over 95%
+      # of / in use, and a link that runs out of space reports nothing but
+      # `collect2: error: ld returned 1 exit status`, so account for the space
+      # here rather than diagnosing it several steps later.
+      report_disk() {
+        echo "Disk ${1} the folded consumer smoke:"
+        df -h /
+        # Both of these matter and only one is reclaimed between steps. The
+        # output base under ~/.cache/bazel goes away at the next `Clean Bazel
+        # cache (expunge)`; the --disk_cache directory does not -- `clean` has
+        # no effect on it and `bazel-cache-limit` only trims it, at 4Gb, once
+        # the whole job is over.
+        du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
+        du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
+      }
+      report_disk before
+      # Build with the same environment as the other Bazel steps. `setvars.sh`
+      # exports `MKLROOT`, which `mkl_repo` declares in `environ`, so sourcing it
+      # before the build would repoint `@mkl` at the oneAPI installation and
+      # invalidate the dependency for this step only.
+      #
+      # `--disk_cache=` disables the shared cache that `~/.bazelrc` points at
+      # (written in the `bazel-configure` step above) for this build alone.
+      # Nothing will ever reuse these artifacts: this is a one-off validation
+      # under a configuration no other step builds, so the entries share nothing
+      # with the default configuration and only occupy the cache for the rest of
+      # the job -- `bazel clean --expunge` cannot reclaim them, since it clears
+      # the output base and not a disk cache. Worth keeping on its own terms; it
+      # is not, as first assumed, the cause of the `cpp-tests-thread-dev` link
+      # failures, which persist with 4.6Gb free.
+      bazel build :release --release_dpc=false --build_parameters_lib=no --disk_cache=
+      # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
+      # oneAPI environment as an installed package user. `setvars.sh` reads
+      # optional variables such as `OCL_ICD_FILENAMES` unguarded, so `nounset`
+      # has to be relaxed while it runs.
+      set +u
+      source /opt/intel/oneapi/setvars.sh
+      set -u
+      DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
+        dev/release_tests/parameters_layout_consumer_test.sh \
+        "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
+      report_disk after
+    displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
       bazel build :release --release_dpc=false
@@ -569,14 +624,83 @@ jobs:
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
+      # `clean --expunge` clears the output base and leaves the --disk_cache
+      # directory alone, so by itself it reclaims nothing of the ~4.5Gb sitting
+      # there, and the step below -- which links 112 debug-mode test binaries and
+      # is the largest consumer in the job -- gets only ~4.6Gb to work with.
+      # Reclaiming here takes that to ~9.1Gb.
+      #
+      # This is not on its own enough; see `--disk_cache=` on that step, without
+      # which it refills the cache as it builds and fills / anyway. Both are
+      # needed: this frees the space, that stops it being spent twice.
+      #
+      # Dropped here rather than at the first expunge of this sequence so the
+      # example suites above keep their cache hits -- without them they rebuild
+      # oneDAL from scratch six times over, which is a much larger cost than the
+      # one step below losing its own.
+      #
+      # And this costs nothing at all: at 4.5Gb the cache is already over the 4Gb
+      # BAZEL_CACHE_MAX_SIZE_KB ceiling, so `bazel-cache-limit` deletes it at the
+      # end of every run regardless. This only moves that deletion to the point
+      # where the space is needed instead of after the step that needed it.
+      if [ -d "${BAZEL_CACHE_DIR:-}" ]; then
+        echo "Reclaiming Bazel disk cache: $(du -sh "${BAZEL_CACHE_DIR}" | cut -f1)"
+        rm -rf "${BAZEL_CACHE_DIR}"
+        mkdir -p "${BAZEL_CACHE_DIR}"
+      fi
+      df -h /
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      # This step fills / and dies, on a target that moves between runs --
+      # correlation_distance, covariance, linear_regression, pca, louvain over
+      # five builds, always exactly one of 112, and for five of them with nothing
+      # from ld but `collect2: error: ld returned 1 exit status`, because that is
+      # all ld says when it cannot write. With enough headroom to get further,
+      # Bazel names it:
+      #
+      #   WARNING: Remote Cache: No space left on device
+      #   BulkTransferException: No space left on device
+      #
+      # "Remote Cache" there is the `--disk_cache` from `~/.bazelrc`. So this step
+      # needs room for two copies of everything it produces: the output base, and
+      # a cache entry for each action. Emptying the cache beforehand does not
+      # help, since the step immediately refills it -- with 9.1Gb free it still
+      # reached 100% and 16Mb.
+      #
+      # `--disk_cache=` drops the second copy. Nothing is lost: the step above
+      # empties the cache, so there are no entries left to hit either way, and
+      # these outputs are of no use to anything downstream -- this is the last
+      # build in the job.
+      free -m
+      df -h /
+      du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache= \
+                 --verbose_failures
     displayName: 'cpp-tests-thread-dev'
+
+  - script: |
+      # Only reached when a step above failed, so it costs nothing on a green
+      # run. It stays in because the failure mode it reports on is silent: the
+      # step above exhausted `/` six times, and neither `ld` nor a sandbox copy
+      # says so -- the log showed only `collect2: error: ld returned 1 exit
+      # status` against a different target each run. `df` is the line that
+      # names it. `free -m` and the kernel OOM grep are kept because they are
+      # what ruled out memory pressure, which the same symptom also fits.
+      echo '=== disk ==='
+      df -h /
+      du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
+      echo '=== memory ==='
+      free -m
+      echo '=== kernel OOM records ==='
+      sudo dmesg 2>/dev/null | grep -iE 'killed process|out of memory|oom-kill' | tail -20 \
+        || echo '(none, or dmesg not readable)'
+    displayName: 'Diagnose test link failure'
+    condition: failed()
 
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
@@ -674,6 +798,20 @@ jobs:
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build @config//:validate_build_parameters_lib --build_parameters_lib=yes > build_parameters_lib_yes.log 2>&1
+      if not errorlevel 1 (
+        type build_parameters_lib_yes.log
+        echo ERROR: Windows --build_parameters_lib=yes unexpectedly succeeded
+        exit /b 1
+      )
+      findstr /C:"--build_parameters_lib=yes is not supported on Windows" build_parameters_lib_yes.log >NUL || (
+        type build_parameters_lib_yes.log
+        echo ERROR: expected Windows parameter-library diagnostic was not found
+        exit /b 1
+      )
+    displayName: 'Reject separate parameter libraries on Windows'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown

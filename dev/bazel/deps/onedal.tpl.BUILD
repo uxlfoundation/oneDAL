@@ -39,24 +39,20 @@ cc_library(
     name = "onedal_static",
     srcs = [
         "lib/intel64/libonedal.a",
+    ] + glob([
+        # Present only when the package ships separate parameter libraries.
+        # `repos.bzl` symlinks these from `optional_libs` after reading the
+        # layout out of the package's own oneDALConfig.cmake, so an absent
+        # entry here means a folded package, not a broken one.
         "lib/intel64/libonedal_parameters.a",
-    ],
+    ], allow_empty = True),
     deps = [
         ":headers",
     ],
 )
 
-cc_library(
-    name = "onedal_static_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.a",
-        "lib/intel64/libonedal_parameters_dpc.a",
-    ],
-    deps = [
-        ":headers",
-        "@mkl//:mkl_dpc",
-    ],
-)
+# Packaged oneDAL releases expose DPC libraries only in dynamic form, so no
+# static-DPC consumer target is declared here.
 
 cc_library(
     name = "core_dynamic",
@@ -103,8 +99,10 @@ cc_library(
         # Link through the SONAME symlinks. Bazel's _solib runfiles then expose
         # names like libonedal.so.4, matching DT_NEEDED in test executables.
         "lib/intel64/libonedal.so.%{version_binary_major}",
+    ]) + glob([
+        # Separate-layout only; see `onedal_static` above.
         "lib/intel64/libonedal_parameters.so.%{version_binary_major}",
-    ]),
+    ], allow_empty = True),
     deps = [
         ":headers",
         "@mkl//:mkl_static",
@@ -123,9 +121,9 @@ cc_library(
     name = "onedal_dynamic_dpc",
     srcs = glob([
         "lib/intel64/libonedal_dpc.so.%{version_binary_major}",
-        # Link through the SONAME symlink for the same _solib/runfiles reason.
+        # Separate-layout only; see `onedal_static` above.
         "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}",
-    ], allow_empty=True),
+    ], allow_empty = True),
     deps = [
         ":headers",
         "@mkl//:mkl_dpc",
