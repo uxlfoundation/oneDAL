@@ -36,11 +36,11 @@ COMPILER.win.clang.target = --target=aarch64-pc-windows-msvc
 
 COMPILER.sysroot = $(if $(SYSROOT),--sysroot $(SYSROOT))
 
-COMPILER.lnx.clang= clang++ -march=armv8-a$(if $(filter 1,$(SVE_SUPPORTED)),+sve,) \
+COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
                      -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type \
                      $(COMPILER.lnx.clang.target) \
                      $(COMPILER.sysroot)
-COMPILER.win.clang= clang-cl -march=armv8-a$(if $(filter 1,$(SVE_SUPPORTED)),+sve,) \
+COMPILER.win.clang= clang-cl -march=armv8-a+sve \
                      -fms-runtime-lib=$(if $(MSVC_RT_is_release),dll,dll_dbg) \
                      -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type -Wno-deprecated-declarations \
                      $(COMPILER.win.clang.target)
