@@ -219,13 +219,19 @@ alloc_kind get_random_alloc(std::uniform_int_distribution<>& alloc_rng,
 
 /// Split a table into multiple smaller tables by rows, with the first block having a specified allocation kind.
 ///
+/// The blocks are either all allocated in non-USM memory, or all allocated in USM
+/// memory, with the kind of USM varying from block to block. This is what the online
+/// algorithms accept: all the blocks shall come from the same queue, or neither of
+/// them shall come with a queue.
+///
 /// @tparam Float       The data type of the table elements.
 /// @tparam TestPolicy  The type of the test policy (e.g., host_test_policy or device_test_policy).
 ///
 /// @param policy            The test policy instance.
 /// @param t                 The table to be split.
 /// @param split_count       The number of blocks to split the table into.
-/// @param first_block_alloc The allocation kind for the first block.
+/// @param first_block_alloc The allocation kind for the first block. If it is
+///                          `non_usm`, all the blocks are allocated in non-USM memory.
 ///
 /// @pre :expr:`split_count > 0`
 ///
@@ -246,7 +252,7 @@ inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
 
     std::int64_t row_offset = 0;
     std::mt19937 gen(7777);
-    std::uniform_int_distribution<> alloc_rng(0, 3);
+    std::uniform_int_distribution<> alloc_rng(1, 3);
     alloc_kind prev_alloc = first_block_alloc;
     for (std::int64_t i = 0; i < split_count; i++) {
         const std::int64_t tail = std::int64_t(i + 1 == split_count) * block_size_tail;
@@ -255,8 +261,11 @@ inline std::vector<table> split_table_by_rows_mixed(TestPolicy& policy,
         if (block_size > 0) {
             const auto row_range = range{ row_offset, row_offset + block_size };
 
-            const alloc_kind alloc =
-                (i == 0) ? first_block_alloc : get_random_alloc(alloc_rng, gen, prev_alloc);
+            const bool keep_first_block_alloc =
+                (i == 0) || (first_block_alloc == alloc_kind::non_usm);
+            const alloc_kind alloc = keep_first_block_alloc
+                                         ? first_block_alloc
+                                         : get_random_alloc(alloc_rng, gen, prev_alloc);
             prev_alloc = alloc;
             const array<Float> block = get_table_block<Float>(policy, t, row_range, alloc);
             result[i] = homogen_table::wrap(block, block_size, column_count);

@@ -28,6 +28,7 @@
 #include "oneapi/dal/backend/primitives/reduction.hpp"
 
 #include "oneapi/dal/algo/basic_statistics/backend/basic_statistics_interop.hpp"
+
 namespace oneapi::dal::basic_statistics::backend {
 
 namespace bk = dal::backend;
@@ -82,10 +83,15 @@ auto update_min_max_results(sycl::queue& q,
     auto result_min_ptr = result_min.get_mutable_data();
     auto result_max_ptr = result_max.get_mutable_data();
 
-    auto current_min_ptr =
-        pr::table2ndarray_1d<Float>(q, current_min, sycl::usm::alloc::device).get_data();
-    auto current_max_ptr =
-        pr::table2ndarray_1d<Float>(q, current_max, sycl::usm::alloc::device).get_data();
+    // The ndarrays are kept alive until the kernel is submitted: pulling a table that
+    // is not allocated in device or shared USM makes a copy owned by the ndarray.
+    const auto current_min_nd =
+        pr::table2ndarray_1d<Float>(q, current_min, sycl::usm::alloc::device);
+    const auto current_max_nd =
+        pr::table2ndarray_1d<Float>(q, current_max, sycl::usm::alloc::device);
+
+    auto current_min_ptr = current_min_nd.get_data();
+    auto current_max_ptr = current_max_nd.get_data();
 
     auto min_data = min.get_data();
     auto max_data = max.get_data();
@@ -122,10 +128,15 @@ auto update_partial_sums(sycl::queue& q,
     auto result_sums2_ptr = result_sums2.get_mutable_data();
     auto result_sums2cent_ptr = result_sums2cent.get_mutable_data();
 
-    auto current_sums_ptr =
-        pr::table2ndarray_1d<Float>(q, current_sums, sycl::usm::alloc::device).get_data();
-    auto current_sums2_ptr =
-        pr::table2ndarray_1d<Float>(q, current_sums2, sycl::usm::alloc::device).get_data();
+    // The ndarrays are kept alive until the kernel is submitted: pulling a table that
+    // is not allocated in device or shared USM makes a copy owned by the ndarray.
+    const auto current_sums_nd =
+        pr::table2ndarray_1d<Float>(q, current_sums, sycl::usm::alloc::device);
+    const auto current_sums2_nd =
+        pr::table2ndarray_1d<Float>(q, current_sums2, sycl::usm::alloc::device);
+
+    auto current_sums_ptr = current_sums_nd.get_data();
+    auto current_sums2_ptr = current_sums2_nd.get_data();
 
     auto nobs_ptr = nobs.get_data();
     auto sums_data = sums.get_data();
@@ -178,6 +189,16 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         // Here if it is not the first partial computation, we need to merge with previous partial results.
 
         alloc_kind result_alloc_kind = prev_partial_result.get_alloc_kind();
+
+        // Partial results allocated in non-USM memory are not associated with any queue,
+        // so they can be merged on any queue. The ones allocated in USM memory must come
+        // from the queue of the current context.
+        const auto prev_queue = prev_partial_result.get_queue();
+        if (prev_queue.has_value() && prev_queue.value() != q) {
+            throw invalid_argument(
+                dal::detail::error_messages::prev_partial_result_queue_mismatch());
+        }
+
         sycl::usm::alloc result_usm_alloc_kind = (result_alloc_kind == alloc_kind::non_usm)
                                                      ? sycl::usm::alloc::host
                                                      : be::alloc_kind_to_sycl(result_alloc_kind);
@@ -188,8 +209,9 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         else {
             compute_result_ = kernel(ctx, local_desc, { data });
         }
-        const auto nobs_nd =
-            pr::table2ndarray_1d<Float>(q, prev_partial_result.get_partial_n_rows());
+        const auto nobs_nd = pr::table2ndarray_1d<Float>(q,
+                                                         prev_partial_result.get_partial_n_rows(),
+                                                         sycl::usm::alloc::device);
         auto [result_nobs, nobs_update_event] =
             update_partial_n_rows_results(q, row_count, nobs_nd, result_usm_alloc_kind);
 
@@ -197,8 +219,9 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             const auto min_nd = pr::table2ndarray_1d<Float>(q,
                                                             prev_partial_result.get_partial_min(),
                                                             sycl::usm::alloc::device);
-            const auto max_nd =
-                pr::table2ndarray_1d<Float>(q, prev_partial_result.get_partial_max());
+            const auto max_nd = pr::table2ndarray_1d<Float>(q,
+                                                            prev_partial_result.get_partial_max(),
+                                                            sycl::usm::alloc::device);
             auto [result_min, result_max, update_min_max_event] =
                 update_min_max_results(q,
                                        min_nd,
@@ -263,12 +286,10 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         return result;
     }
     else {
-        // Here if it is not the first partial computation, we need to merge with previous partial results.
+        // Here if it is the first partial computation, the partial results are
+        // initialized with the results of the batch computation over the first block.
         alloc_kind result_alloc_kind = data.get_metadata().get_alloc_kind();
         auto result = partial_compute_result(result_alloc_kind);
-        auto [init_nobs, init_event] =
-            pr::ndarray<Float, 1>::full(q, { 1 }, row_count, sycl::usm::alloc::device);
-        init_event.wait_and_throw();
 
         if (weights_enabling) {
             compute_result_ = kernel(ctx, local_desc, { data, weights });
@@ -277,6 +298,9 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             compute_result_ = kernel(ctx, local_desc, { data });
         }
 
+        // The batch kernel allocates the result tables with the allocation kind of
+        // the input data and associates them with the queue of the current context,
+        // so the tables are adopted as is.
         if (res_op.test(result_options::min)) {
             result.set_partial_min(compute_result_.get_min());
         }
@@ -293,11 +317,16 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             result.set_partial_sum_squares(compute_result_.get_sum_squares());
         }
 
-        if (res_op.test(result_options::sum_squares_centered))
+        if (res_op.test(result_options::sum_squares_centered)) {
             result.set_partial_sum_squares_centered(compute_result_.get_sum_squares_centered());
+        }
 
-        result.set_partial_n_rows(
-            (homogen_table::wrap(flatten_result_array(q, init_nobs, result_alloc_kind, {}), 1, 1)));
+        auto [init_nobs, init_event] =
+            pr::ndarray<Float, 1>::full(q, { 1 }, row_count, sycl::usm::alloc::device);
+        result.set_partial_n_rows(homogen_table::wrap(
+            flatten_result_array(q, init_nobs, result_alloc_kind, { init_event }),
+            1,
+            1));
 
         return result;
     }

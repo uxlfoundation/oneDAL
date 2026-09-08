@@ -58,7 +58,21 @@ struct partial_compute_ops {
             const auto c_count = weights.get_column_count();
             if (c_count != std::int64_t(1))
                 throw domain_error(msg::weights_column_count_ne_1());
+
+#ifdef ONEDAL_DATA_PARALLEL
+            if (weights.get_queue() != data.get_queue())
+                throw domain_error(msg::weights_and_data_queues_mismatch());
+#endif
         }
+
+#ifdef ONEDAL_DATA_PARALLEL
+        // All the blocks of the online computation shall come from the same queue as
+        // the first one, or neither of them shall come with a queue. The tables, which
+        // are not allocated in USM memory, are not associated with any queue.
+        const auto& prev = input.get_prev();
+        if (prev.get_partial_n_rows().has_data() && prev.get_queue() != data.get_queue())
+            throw domain_error(msg::prev_partial_result_and_data_queues_mismatch());
+#endif
     }
 
     void check_postconditions(const Descriptor& params,

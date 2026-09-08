@@ -301,6 +301,12 @@ public:
     /// @remark default = alloc_kind::non_usm
     alloc_kind get_alloc_kind() const;
 
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Gets the SYCL queue associated with the partial compute result.
+    /// @remark only available when ONEDAL_DATA_PARALLEL is defined
+    std::optional<sycl::queue> get_queue() const;
+#endif
+
 protected:
     void set_partial_n_rows_impl(const table&);
     void set_partial_min_impl(const table&);

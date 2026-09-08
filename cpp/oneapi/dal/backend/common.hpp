@@ -483,6 +483,22 @@ inline bool is_same_device_impl(const sycl::queue& reference, QueueLike&& queue_
     return optional_queue && (optional_queue->get_device() == reference.get_device());
 }
 
+template <typename QueueLike>
+inline bool is_same_queue_impl(const std::optional<sycl::queue>& reference,
+                               QueueLike&& queue_like) {
+    return extract_queue(std::forward<QueueLike>(queue_like)) == reference;
+}
+
+template <typename QueueLike>
+inline bool is_same_queue_ignore_nullopt_impl(const std::optional<sycl::queue>& reference,
+                                              QueueLike&& queue_like) {
+    const auto optional_queue = extract_queue(std::forward<QueueLike>(queue_like));
+    if (optional_queue.has_value()) {
+        return reference.has_value() && optional_queue.value() == reference.value();
+    }
+    return true;
+}
+
 /// Checks whether all queue-like objects have the same context.
 template <typename... QueueLike>
 inline bool is_same_context(const sycl::queue& reference, QueueLike&&... queues_like) {
@@ -502,6 +518,23 @@ inline bool is_same_context_ignore_nullopt(const sycl::queue& reference,
 template <typename... QueueLike>
 inline bool is_same_device(const sycl::queue& reference, QueueLike&&... queues_like) {
     return (... && is_same_device_impl(reference, std::forward<QueueLike>(queues_like)));
+}
+
+/// Checks whether all queue-like objects are associated with the same queue as the
+/// reference one, or neither of them and the reference is associated with any queue.
+template <typename... QueueLike>
+inline bool is_same_queue(const std::optional<sycl::queue>& reference, QueueLike&&... queues_like) {
+    return (... && is_same_queue_impl(reference, std::forward<QueueLike>(queues_like)));
+}
+
+/// Checks whether all queue-like objects are associated with the same queue as the
+/// reference one. The queue-like objects, which are not associated with any queue,
+/// do not participate in comparison.
+template <typename... QueueLike>
+inline bool is_same_queue_ignore_nullopt(const std::optional<sycl::queue>& reference,
+                                         QueueLike&&... queues_like) {
+    return (... &&
+            is_same_queue_ignore_nullopt_impl(reference, std::forward<QueueLike>(queues_like)));
 }
 
 template <typename... QueueLike>

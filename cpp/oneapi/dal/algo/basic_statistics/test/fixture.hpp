@@ -172,36 +172,94 @@ public:
                                                        partial_result,
                                                        input_table[i],
                                                        weights_table[i]);
+                check_partial_result_alloc(partial_result, first_block_alloc);
             }
         }
         else {
             for (std::int64_t i = 0; i < nBlocks; ++i) {
                 partial_result = this->partial_compute(bs_desc, partial_result, input_table[i]);
+                check_partial_result_alloc(partial_result, first_block_alloc);
             }
         }
         auto compute_result = this->finalize_compute(bs_desc, partial_result);
-        // const alloc_kind expected_alloc = alloc_kind::usm_device;
         check_result_alloc(compute_mode, compute_result, first_block_alloc);
         check_compute_result(compute_mode, data, weights, compute_result);
         check_for_exception_for_non_requested_results(compute_mode, compute_result);
     }
 
+    /// Checks that the table is allocated in the memory of the expected kind, USM or
+    /// not, and that it is associated with the queue the computations are performed on.
+    /// Tables allocated in non-USM memory are not associated with any queue.
+    void check_table_alloc_and_queue(const table& t, bool expect_usm) {
+        const bool is_usm = t.get_metadata().get_alloc_kind() != alloc_kind::non_usm;
+        REQUIRE(is_usm == expect_usm);
+
+        const auto table_queue = t.get_queue();
+        REQUIRE(table_queue.has_value() == expect_usm);
+        if (expect_usm) {
+            REQUIRE(table_queue.value() == this->get_queue());
+        }
+    }
+
     void check_result_alloc(bs::result_option_id compute_mode,
                             const result_t& result,
                             alloc_kind expected_alloc) {
-        const auto ctx = this->get_queue().get_context();
-        // const alloc_kind expected_alloc = alloc_kind::usm_device;
+        const bool expect_usm = expected_alloc != alloc_kind::non_usm;
         if (compute_mode.test(result_options::min)) {
-            REQUIRE(result.get_min().get_metadata().get_alloc_kind() == expected_alloc);
+            check_table_alloc_and_queue(result.get_min(), expect_usm);
         }
         if (compute_mode.test(result_options::max)) {
-            REQUIRE(result.get_max().get_metadata().get_alloc_kind() == expected_alloc);
+            check_table_alloc_and_queue(result.get_max(), expect_usm);
+        }
+        if (compute_mode.test(result_options::sum)) {
+            check_table_alloc_and_queue(result.get_sum(), expect_usm);
+        }
+        if (compute_mode.test(result_options::sum_squares)) {
+            check_table_alloc_and_queue(result.get_sum_squares(), expect_usm);
+        }
+        if (compute_mode.test(result_options::sum_squares_centered)) {
+            check_table_alloc_and_queue(result.get_sum_squares_centered(), expect_usm);
         }
         if (compute_mode.test(result_options::mean)) {
-            REQUIRE(result.get_mean().get_metadata().get_alloc_kind() == expected_alloc);
+            check_table_alloc_and_queue(result.get_mean(), expect_usm);
+        }
+        if (compute_mode.test(result_options::second_order_raw_moment)) {
+            check_table_alloc_and_queue(result.get_second_order_raw_moment(), expect_usm);
         }
         if (compute_mode.test(result_options::variance)) {
-            REQUIRE(result.get_variance().get_metadata().get_alloc_kind() == expected_alloc);
+            check_table_alloc_and_queue(result.get_variance(), expect_usm);
+        }
+        if (compute_mode.test(result_options::standard_deviation)) {
+            check_table_alloc_and_queue(result.get_standard_deviation(), expect_usm);
+        }
+        if (compute_mode.test(result_options::variation)) {
+            check_table_alloc_and_queue(result.get_variation(), expect_usm);
+        }
+    }
+
+    /// Checks that all the non-empty tables of the partial result are allocated in the
+    /// memory of the expected kind and are associated with the same queue.
+    /// The set of the non-empty tables is defined by the backend and does not directly
+    /// follow from the result options, so only the tables that carry data are checked.
+    void check_partial_result_alloc(const partial_result_t& partial_result,
+                                    alloc_kind expected_alloc) {
+        const bool expect_usm = expected_alloc != alloc_kind::non_usm;
+        const table partial_tables[] = { partial_result.get_partial_n_rows(),
+                                         partial_result.get_partial_min(),
+                                         partial_result.get_partial_max(),
+                                         partial_result.get_partial_sum(),
+                                         partial_result.get_partial_sum_squares(),
+                                         partial_result.get_partial_sum_squares_centered() };
+        for (const auto& t : partial_tables) {
+            if (t.has_data()) {
+                check_table_alloc_and_queue(t, expect_usm);
+            }
+        }
+
+        const auto result_queue = partial_result.get_queue();
+        REQUIRE(result_queue.has_value() == expect_usm);
+        if (expect_usm) {
+            REQUIRE(result_queue.value() == this->get_queue());
         }
     }
 #endif
