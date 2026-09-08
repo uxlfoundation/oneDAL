@@ -300,7 +300,7 @@ public:
             // Both patterns force many beneficial splits so a fully-grown tree
             // is deep: staircase labels for classification, distinct monotonic
             // responses for regression.
-            y_arr[i] = is_cls ? static_cast<float>((i / 8) % 2) : static_cast<float>(i);
+            y_arr[i] = is_cls ? static_cast<float>((i / 8) % class_count) : static_cast<float>(i);
             w_arr[i] = 1.0f;
         }
         const auto x = dal::homogen_table::wrap(x_arr, row_count, 1);
@@ -312,7 +312,7 @@ public:
 
         const auto make_desc = [&](double fraction) {
             auto desc = this->get_default_descriptor();
-            if constexpr (is_cls) {
+            if (is_cls) {
                 desc.set_class_count(class_count);
             }
             desc.set_tree_count(1);
