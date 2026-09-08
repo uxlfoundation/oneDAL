@@ -39,11 +39,11 @@
     #include <windows.h>
 
     #ifdef min
-    #undef min
+        #undef min
     #endif
 
     #ifdef max
-    #undef max
+        #undef max
     #endif
 #elif defined(TARGET_RISCV64)
 // TODO: Include vector if and when we need to use some vector intrinsics in
@@ -352,10 +352,10 @@ bool daal_has_amx_bf16()
 static bool check_sve_features()
 {
     #if defined(__linux__)
-        unsigned long hwcap = getauxval(AT_HWCAP);
-        return (hwcap & HWCAP_SVE) != 0;
+    unsigned long hwcap = getauxval(AT_HWCAP);
+    return (hwcap & HWCAP_SVE) != 0;
     #else
-        return IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
+    return IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
     #endif
 }
 
