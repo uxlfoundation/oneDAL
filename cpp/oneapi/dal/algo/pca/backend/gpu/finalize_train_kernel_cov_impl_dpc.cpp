@@ -108,8 +108,7 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     sycl::event corr_event;
     if (desc.get_normalization_mode() == normalization::zscore) {
         auto corr = pr::ndarray<Float, 2>::empty(q, { column_count, column_count }, alloc::device);
-        corr_event =
-            pr::correlation_from_covariance(q, rows_count_global, cov, corr, bias, { cov_event });
+        corr_event = pr::correlation_from_covariance(q, cov, corr, bias, { cov_event });
         data_to_compute = corr;
     }
 

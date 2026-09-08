@@ -238,8 +238,68 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 ])
 
 
+# The exported oneAPI exception classes that inherit their constructors, that is,
+# whose body is nothing but `using std::<base>::<base>;`. The headers are the
+# source of truth; this reproduces the set below, and reports the difference if
+# one is ever added or removed:
+#
+#     awk '/class ONEDAL_EXPORT/ {
+#              match($0, /class ONEDAL_EXPORT [a-z_]+/)
+#              c = substr($0, RSTART + 20, RLENGTH - 20)
+#          }
+#          /using std::[a-z_]+::[a-z_]+;/ { if (c) print c }' \
+#         cpp/oneapi/dal/exceptions.hpp cpp/oneapi/dal/spmd/exceptions.hpp | sort
+#
+# cl materialises and exports the inherited constructors of a
+# `__declspec(dllexport)` class whether or not the DLL uses them; icx and
+# clang-cl emit them only where they are odr-used. Classes that declare a
+# constructor of their own instead (`spmd::error_holder`) are emitted by both,
+# and are correctly absent from this set because they have no `using`.
+#
+# The nightly is the only comparison that sees these: it builds the Make release
+# with `vc` (cl), while Azure's `WindowsReleaseCompare` builds it with icx and
+# reports no export differences at all.
+#
+# Not part of a consumer's link surface. `ONEDAL_EXPORT` is defined only under
+# `__ONEDAL_ENABLE_EXPORT__` (cpp/oneapi/dal/common.hpp:35), which only oneDAL's
+# own builds set (makefile:709,723 and dev/bazel/dal.bzl:532). For a consumer the
+# macro expands to nothing, so `throw oneapi::dal::invalid_argument{ msg }`
+# instantiates the constructor in the consumer's own object file and never emits
+# a reference the DLL has to satisfy.
+WINDOWS_INHERITED_CTOR_CLASSES = (
+    # cpp/oneapi/dal/exceptions.hpp -- oneapi::dal::v1
+    "domain_error",
+    "internal_error",
+    "invalid_argument",
+    "out_of_range",
+    "range_error",
+    "system_error",
+    "unimplemented",
+    "uninitialized_optional_result",
+    "unsupported_device",
+    # cpp/oneapi/dal/spmd/exceptions.hpp -- oneapi::dal::preview::spmd::v1
+    "communication_error",
+    "coworker_error",
+)
+
+# Keyed on the class, not on each mangled overload. The class list is the durable
+# fact; which overloads exist is whatever the standard library's base class
+# declares, so `std::system_error` gaining or losing a constructor would
+# otherwise turn this list stale and the nightly red. Constraining the match to
+# `??0` and to oneDAL's own namespace keeps the guarantee that mattered: a
+# constructor of any *other* class disappearing from a released library still
+# fails, and so does anything about these classes that is not a constructor.
+WINDOWS_INHERITED_CTOR_PATTERN = re.compile(
+    r"^\?\?0(?:"
+    + "|".join(re.escape(name) for name in WINDOWS_INHERITED_CTOR_CLASSES)
+    + r")@v1@(?:spmd@preview@)?dal@oneapi@@"
+)
+
+
 def is_ignored_windows_export(symbol):
     if symbol in WINDOWS_IGNORED_EXPORTS:
+        return True
+    if WINDOWS_INHERITED_CTOR_PATTERN.match(symbol):
         return True
     return any(pattern.match(symbol) for pattern in WINDOWS_IGNORED_EXPORT_PATTERNS)
 
@@ -271,6 +331,74 @@ def classify(root):
                 files.add(rel_path)
 
     return dirs, files, links
+
+
+def absorb_dereferenced_links(make_root, make_files, bazel_root, bazel_links, limit):
+    """Reconcile symlinks a transport turned into copies on the Make side.
+
+    `actions/upload-artifact` stores the *contents* a symlink points at, so a
+    Make release that travels through a GitHub artifact arrives with
+    `libonedal.so` and `libonedal.so.4` as ordinary files -- the tree the
+    makefile built (`makefile:975` does `cp` plus two `ln -sf`) has them as
+    symlinks, exactly as Bazel stages them. Comparing the two verbatim reports
+    every such entry twice, as a Make-only file and a Bazel-only symlink, and
+    hides whatever else level 1 would have found.
+
+    Where Bazel has a symlink and Make a plain file at the same path, the pair is
+    removed from level 1 and checked the only way the transport still permits:
+    the Make file must be byte-identical to the target the Bazel symlink resolves
+    to. Both collections are mutated in place; the number of reconciled entries
+    is printed, because a silently tolerated difference reads like a comparison
+    that covered everything.
+
+    What this cannot check, and no other comparison covers either: the *shape* of
+    the Bazel link chain. `resolve()` collapses every hop, so a Bazel tree that
+    staged `libonedal_core.so` pointing straight at `libonedal_core.so.4.0`,
+    skipping the `libonedal_core.so.4` hop that carries the ELF SONAME, still
+    passes here -- the bytes at the end of the chain are the same either way. The
+    Make side no longer holds the targets to compare against, and Azure's
+    `LinuxReleaseCompare` dereferences *both* trees, so it has no symlinks to
+    compare at all. A dedicated Bazel-side assertion on the chain would close
+    that, and is worth having, since a broken SONAME chain is what produced
+    `libonedal_core.so.3: cannot open shared object file` in #3513.
+    """
+    # Resolved so the containment test below cannot be defeated by a caller
+    # passing a relative root, or one whose prefix is itself a symlink -- which
+    # `bazel-bin/release/...` always is. `main()` already resolves both, so this
+    # is a no-op there; it keeps the guard meaningful for any other caller,
+    # instead of silently reconciling nothing.
+    make_root = Path(make_root).resolve()
+    bazel_root = Path(bazel_root).resolve()
+
+    errors = 0
+    absorbed = []
+    mismatches = []
+
+    for path in sorted(set(bazel_links).intersection(make_files)):
+        target = (bazel_root / path).resolve()
+        # A symlink escaping the release tree is a staging bug, not a transport
+        # artefact, so leave it in level 1 to be reported there.
+        if not target.is_relative_to(bazel_root) or not target.is_file():
+            continue
+        make_files.discard(path)
+        del bazel_links[path]
+        absorbed.append(path)
+        if not filecmp.cmp(make_root / path, target, shallow=False):
+            mismatches.append((path, rel(target, bazel_root)))
+
+    if mismatches:
+        errors += len(mismatches)
+        print(f"Dereferenced symlink content mismatches: {len(mismatches)}")
+        for path, target in mismatches[:limit]:
+            print(f"  ! {path}: Make file differs from Bazel {path} -> {target}")
+    if absorbed:
+        print(
+            f"Make files reconciled against Bazel symlinks: {len(absorbed)}"
+            " (--make-symlinks-dereferenced)"
+        )
+        for path in absorbed[:limit]:
+            print(f"  ~ {path}")
+    return errors
 
 
 def is_text_path(path):
@@ -565,6 +693,15 @@ def main():
     parser.add_argument("--platform", choices=("linux", "windows"), required=True)
     parser.add_argument("--check-level", type=int, choices=range(1, 5), default=4)
     parser.add_argument("--structure-only", action="store_true")
+    parser.add_argument(
+        "--make-symlinks-dereferenced",
+        action="store_true",
+        help=(
+            "the Make release travelled through a transport that replaces "
+            "symlinks with copies of their targets, such as a GitHub artifact; "
+            "compare those entries by content instead of by kind"
+        ),
+    )
     parser.add_argument("--summary-limit", type=int, default=50)
     args = parser.parse_args()
     if args.structure_only:
@@ -599,6 +736,14 @@ def main():
     errors = 0
     print("")
     print("=== level 1: release tree entries ===")
+    if args.make_symlinks_dereferenced:
+        errors += absorb_dereferenced_links(
+            make_root,
+            make_files,
+            bazel_root,
+            bazel_links,
+            args.summary_limit,
+        )
     errors += compare_sets("directories", make_dirs, bazel_dirs, args.summary_limit)
     errors += compare_sets("files", make_files, bazel_files, args.summary_limit)
     errors += compare_sets("symlinks", set(make_links), set(bazel_links), args.summary_limit)
