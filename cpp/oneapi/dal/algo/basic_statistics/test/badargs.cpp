@@ -105,7 +105,7 @@ BS_BADARG_TEST("throws if data is empty") {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-BS_BADARG_TEST("throws if the next block is not allocated in USM while the first one is") {
+BS_BADARG_TEST("throws if the first block is allocated in USM while the second one is in non-USM") {
     SKIP_IF(this->not_float64_friendly());
     const auto desc = this->get_descriptor();
 
@@ -118,7 +118,7 @@ BS_BADARG_TEST("throws if the next block is not allocated in USM while the first
         domain_error);
 }
 
-BS_BADARG_TEST("throws if the next block is allocated in USM while the first one is not") {
+BS_BADARG_TEST("throws if the first block is allocated in non-USM while the second one is in USM") {
     SKIP_IF(this->not_float64_friendly());
     const auto desc = this->get_descriptor();
 

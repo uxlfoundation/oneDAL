@@ -18,7 +18,6 @@
 #include "oneapi/dal/table/csr.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
-#include "oneapi/dal/backend/common.hpp"
 
 #include <optional>
 
@@ -76,21 +75,35 @@ public:
     alloc_kind alloc;
 #ifdef ONEDAL_DATA_PARALLEL
     std::optional<sycl::queue> queue;
+#endif
 
-    // The tables, which are not set yet, are not associated with any queue, so they
-    // do not participate in the comparison.
-    void check_queues_consistency() const {
-        if (!dal::backend::is_same_queue_ignore_nullopt(queue,
-                                                        nobs,
-                                                        partial_min,
-                                                        partial_max,
-                                                        partial_sum,
-                                                        partial_sum_squares,
-                                                        partial_sum_squares_centered)) {
+    /// Assigns the value to one of the tables of the partial result
+    ///
+    /// @param[in, out] destination The table of the partial result to assign the value to
+    /// @param[in]      value       The table to assign to the partial result
+    void set_table(table& destination, const table& value) {
+        // Check allocation kind between the value and the current partial result
+        const bool is_value_usm = value.get_metadata().get_alloc_kind() != alloc_kind::non_usm;
+        const bool is_result_usm = alloc != alloc_kind::non_usm;
+        if (is_value_usm != is_result_usm) {
+            throw domain_error(dal::detail::error_messages::partial_results_alloc_kind_mismatch());
+        }
+#ifdef ONEDAL_DATA_PARALLEL
+        // Check queue consistency between the value and the current partial result
+        const auto value_queue = value.get_queue();
+        if (queue.has_value() && value_queue.has_value() && queue.value() != value_queue.value()) {
             throw domain_error(dal::detail::error_messages::partial_results_queues_mismatch());
         }
-    }
 #endif
+
+        destination = value;
+
+#ifdef ONEDAL_DATA_PARALLEL
+        if (value_queue.has_value()) {
+            queue = value_queue;
+        }
+#endif
+    }
 };
 
 using detail::v1::compute_input_impl;
@@ -371,17 +384,7 @@ partial_compute_result<Task>::partial_compute_result(alloc_kind alloc)
 
 template <typename Task>
 void partial_compute_result<Task>::set_partial_n_rows_impl(const table& value) {
-    if ((value.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
-         impl_->alloc != alloc_kind::non_usm) ||
-        (value.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
-         impl_->alloc == alloc_kind::non_usm)) {
-        throw domain_error(msg::partial_results_alloc_kind_mismatch());
-    }
-    impl_->nobs = value;
-#ifdef ONEDAL_DATA_PARALLEL
-    impl_->queue = value.get_queue();
-    impl_->check_queues_consistency();
-#endif
+    impl_->set_table(impl_->nobs, value);
 }
 
 template <typename Task>
@@ -391,17 +394,7 @@ const table& partial_compute_result<Task>::get_partial_min() const {
 
 template <typename Task>
 void partial_compute_result<Task>::set_partial_min_impl(const table& value) {
-    if ((value.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
-         impl_->alloc != alloc_kind::non_usm) ||
-        (value.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
-         impl_->alloc == alloc_kind::non_usm)) {
-        throw domain_error(msg::partial_results_alloc_kind_mismatch());
-    }
-    impl_->partial_min = value;
-#ifdef ONEDAL_DATA_PARALLEL
-    impl_->queue = value.get_queue();
-    impl_->check_queues_consistency();
-#endif
+    impl_->set_table(impl_->partial_min, value);
 }
 template <typename Task>
 const table& partial_compute_result<Task>::get_partial_max() const {
@@ -410,17 +403,7 @@ const table& partial_compute_result<Task>::get_partial_max() const {
 
 template <typename Task>
 void partial_compute_result<Task>::set_partial_max_impl(const table& value) {
-    if ((value.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
-         impl_->alloc != alloc_kind::non_usm) ||
-        (value.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
-         impl_->alloc == alloc_kind::non_usm)) {
-        throw domain_error(msg::partial_results_alloc_kind_mismatch());
-    }
-    impl_->partial_max = value;
-#ifdef ONEDAL_DATA_PARALLEL
-    impl_->queue = value.get_queue();
-    impl_->check_queues_consistency();
-#endif
+    impl_->set_table(impl_->partial_max, value);
 }
 
 template <typename Task>
@@ -430,32 +413,12 @@ const table& partial_compute_result<Task>::get_partial_sum() const {
 
 template <typename Task>
 void partial_compute_result<Task>::set_partial_sum_impl(const table& value) {
-    if ((value.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
-         impl_->alloc != alloc_kind::non_usm) ||
-        (value.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
-         impl_->alloc == alloc_kind::non_usm)) {
-        throw domain_error(msg::partial_results_alloc_kind_mismatch());
-    }
-    impl_->partial_sum = value;
-#ifdef ONEDAL_DATA_PARALLEL
-    impl_->queue = value.get_queue();
-    impl_->check_queues_consistency();
-#endif
+    impl_->set_table(impl_->partial_sum, value);
 }
 
 template <typename Task>
 void partial_compute_result<Task>::set_partial_sum_squares_impl(const table& value) {
-    if ((value.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
-         impl_->alloc != alloc_kind::non_usm) ||
-        (value.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
-         impl_->alloc == alloc_kind::non_usm)) {
-        throw domain_error(msg::partial_results_alloc_kind_mismatch());
-    }
-    impl_->partial_sum_squares = value;
-#ifdef ONEDAL_DATA_PARALLEL
-    impl_->queue = value.get_queue();
-    impl_->check_queues_consistency();
-#endif
+    impl_->set_table(impl_->partial_sum_squares, value);
 }
 template <typename Task>
 const table& partial_compute_result<Task>::get_partial_sum_squares() const {
@@ -464,17 +427,7 @@ const table& partial_compute_result<Task>::get_partial_sum_squares() const {
 
 template <typename Task>
 void partial_compute_result<Task>::set_partial_sum_squares_centered_impl(const table& value) {
-    if ((value.get_metadata().get_alloc_kind() == alloc_kind::non_usm &&
-         impl_->alloc != alloc_kind::non_usm) ||
-        (value.get_metadata().get_alloc_kind() != alloc_kind::non_usm &&
-         impl_->alloc == alloc_kind::non_usm)) {
-        throw domain_error(msg::partial_results_alloc_kind_mismatch());
-    }
-    impl_->partial_sum_squares_centered = value;
-#ifdef ONEDAL_DATA_PARALLEL
-    impl_->queue = value.get_queue();
-    impl_->check_queues_consistency();
-#endif
+    impl_->set_table(impl_->partial_sum_squares_centered, value);
 }
 
 template <typename Task>

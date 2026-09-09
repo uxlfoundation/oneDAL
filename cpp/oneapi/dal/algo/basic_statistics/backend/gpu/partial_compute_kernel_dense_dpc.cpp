@@ -190,9 +190,6 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
 
         alloc_kind result_alloc_kind = prev_partial_result.get_alloc_kind();
 
-        // Partial results allocated in non-USM memory are not associated with any queue,
-        // so they can be merged on any queue. The ones allocated in USM memory must come
-        // from the queue of the current context.
         const auto prev_queue = prev_partial_result.get_queue();
         if (prev_queue.has_value() && prev_queue.value() != q) {
             throw invalid_argument(
@@ -298,9 +295,7 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             compute_result_ = kernel(ctx, local_desc, { data });
         }
 
-        // The batch kernel allocates the result tables with the allocation kind of
-        // the input data and associates them with the queue of the current context,
-        // so the tables are adopted as is.
+        // Allocate the result tables with the allocation kind of the input data.
         if (res_op.test(result_options::min)) {
             result.set_partial_min(compute_result_.get_min());
         }
