@@ -29,7 +29,7 @@ depending only on `LinuxMakeDPCPP` and never on each other:
 | evidence | ELF symbols and type info from the two binaries | ELF exported symbols and metadata from the snapshots and the new binaries |
 | what it measures | did this PR change the ABI relative to `main` | has the ABI drifted since the last release |
 | filtering | `.github/.abignore` (libabigail suppressions) | `.github/abicheck/policy.yaml` (re-classification, see [Gating](#gating)) |
-| cost | 20 min timeout | 12 s, ~205 MiB |
+| cost | 20 min timeout | 28 s, ~446 MiB |
 
 They are complementary, not redundant. `abidiff`'s baseline is `main`, so drift
 that accumulates one merged PR at a time across a release cycle never appears in
@@ -47,12 +47,14 @@ asset to compare against at all.
 | `.github/workflows/ci.yml`, job `LinuxAbicheckScan` | the PR-side check: a single `mode: compare` step with two directory operands |
 | `.github/workflows/abicheck-baseline.yml` | the baseline publisher: one `mode: dump` step per library |
 | `.github/abicheck/policy.yaml` | severity re-classification, passed as the Action's `policy-file` |
+| `.github/abicheck/abicheck.yml` | the two project settings that have no Action input — the bundle allow-list and the completeness gate — passed as the Action's `build-config` |
 | `.github/abicheck/baselines/<tag>.abicheck.sha256` | digests of the release assets for `<tag>` — the trust anchor, and the only baseline artifact in git |
 | `.github/.abignore` | libabigail suppressions, used by the *other* job |
 
-There is no oneDAL-owned Python, no oneDAL-owned driver script and no
-oneDAL-owned abicheck config file: both workflows call `abicheck/abicheck` at a
-pinned SHA and pass everything as Action inputs.
+There is no oneDAL-owned Python and no oneDAL-owned driver script: both workflows
+call `abicheck/abicheck` at a pinned SHA and pass everything as Action inputs —
+except two settings abicheck demoted off its CLI and its Action, which is the
+whole content of `abicheck.yml`. Nothing that *has* an input is repeated there.
 
 ## What one run compares
 
@@ -72,39 +74,58 @@ table:
 | `libonedal_thread.so` | `COMPATIBLE` | 0 | 0 | 1 | 1 `visibility_leak` |
 
 Measured on `main` against the `2026.0.0` baseline, through the same root Action
-the job invokes, with `policy.yaml` in effect: **exit 0**, folded verdict
-`COMPATIBLE_WITH_RISK`, 2314 findings in total, nothing removed from the report.
-Four runs of the same shape: 11.4–12.2 s, 203–206 MiB peak RSS.
+the job invokes, with `policy.yaml` and `abicheck.yml` in effect: **exit 0**,
+verdict `COMPATIBLE_WITH_RISK`, 2314 findings in total, nothing removed from the
+report. Three runs of the same shape: 28.2–29.1 s, 439–446 MiB peak RSS. The table
+above is byte-identical to the one the previous pin produced, which is how the
+pin bump was validated (see
+[The abicheck pin and the baseline must move together](#the-abicheck-pin-and-the-baseline-must-move-together)).
 
-`jobs: 1` is not a tuning choice. The default (`0`) means one worker per CPU, and
-six libraries parsed concurrently is where this shape stops fitting a runner.
+There is no `jobs:` input any more — abicheck removed both the input and the
+CLI's `--jobs`, and always auto-detects with a memory clamp. The earlier `jobs: 1`
+was not a tuning choice but a fit-the-runner one (205 MiB against tens of GiB),
+and giving it up is most of the cost above; the clamp is now what has to hold.
 
-`extra-args: --no-bundle-analysis` is also load-bearing. The cross-library bundle
-graph is built from real ELF binaries; the old side here is six JSON snapshots, so
-abicheck has no old bundle to diff against and reports all six libraries as
-`bundle_library_added` plus (without an explicit `--bundle-system-providers` list)
-255 `bundle_intra_dep_removed`, i.e. `BREAKING`, on an unchanged tree. Two facts
-worth keeping for whoever revisits cross-library checking: `DT_NEEDED` shows only
-two sibling edges (`libonedal_parameters*.so → libonedal*.so`) — `libonedal_dpc.so`
-does not link `libonedal_core.so` despite importing ~800 symbols from it, because
-applications link both — and abicheck's `DEFAULT_SYSTEM_PROVIDERS` omits
-`libtbbmalloc`, the MKL libraries and the Intel runtime, while **one** unmatched
-`DT_NEEDED` edge disables the system-edge exemption for a whole library (measured:
-the difference between 862 and 58 `bundle_unresolved_intra_dependency` findings,
-and between `BREAKING` and `COMPATIBLE_WITH_RISK`).
+**The bundle allow-list is load-bearing.** The cross-library bundle graph is built
+from real ELF binaries, the old side here is six JSON snapshots, and the analysis
+is unconditional since abicheck removed `--no-bundle-analysis` with no
+replacement. So abicheck has no old bundle to diff against and, without the
+`bundle.system_providers` list in `abicheck.yml`, reports 212
+`bundle_intra_dep_removed` (an unresolvable `DT_NEEDED` soname reads as an
+intra-bundle dependency removal) on top of six `bundle_library_added` — bundle
+verdict `BREAKING`, exit 4, on an unchanged tree. Naming MKL's four SYCL
+interface libraries as system-provided takes that to bundle verdict `COMPATIBLE`
+with the six `bundle_library_added` left, which are inherent to comparing
+snapshots against a real bundle and do not gate.
+
+Three facts worth keeping for whoever revisits cross-library checking. `DT_NEEDED`
+shows only two sibling edges (`libonedal_parameters*.so → libonedal*.so`) —
+`libonedal_dpc.so` does not link `libonedal_core.so` despite importing ~800
+symbols from it, because applications link both. **One** unmatched `DT_NEEDED`
+edge disables the system-edge exemption for a whole library, which is why four
+entries move the verdict at all (measured on an earlier pin: the difference
+between 862 and 58 `bundle_unresolved_intra_dependency` findings, and between
+`BREAKING` and `COMPATIBLE_WITH_RISK`). And the entries are soname *stems*:
+abicheck matches a `DT_NEEDED` soname against its provider list exactly first,
+then falls back to a stem match, and the fallback only applies against a
+version-generic entry — so `libmkl_sycl_blas` covers `libmkl_sycl_blas.so.2`
+while `libmkl_sycl_blas.so.2` would cover nothing else. abicheck's own 43-entry
+`DEFAULT_SYSTEM_PROVIDERS` covers everything else oneDAL links, including the
+DPC++ runtime and TBB; the four MKL SYCL interface libraries are the whole
+delta, computed with abicheck's own matcher rather than guessed.
 
 ## Binary depth
 
 The release fan-out is **binary depth by contract**. abicheck's own
 `check-target` reference says a bundle's baseline "is always raw binaries with no
-historical header/build/source evidence staged per member"; the CLI rejects
-`--depth` outright for a directory operand (exit 64, "the per-library fan-out does
-not collect inline build/source evidence"), and the Action drops a `depth:` input
-silently on that path rather than forwarding it — which is why `ci.yml` passes
-none. `LinuxMakeDPCPP` emits no DWARF at all (`readelf -SW` finds no
-`.debug_info` in `libonedal_core.so`), so the default resolves to the same thing
-today: a run with no depth pinned produced an identical library table in an
-identical 12 s.
+historical header/build/source evidence staged per member", and `--depth headers`
+and up is rejected for a directory operand (exit 64, "the per-library fan-out does
+not enforce a per-library evidence floor"). `depth: binary` *is* accepted and the
+Action forwards it, so `ci.yml` states it rather than inheriting it; it changes
+nothing today — `LinuxMakeDPCPP` emits no DWARF at all (`readelf -SW` finds no
+`.debug_info` in `libonedal_core.so`) and a run with no depth pinned produces an
+identical library table — but it pins the rung the baseline snapshots are dumped
+at instead of leaving both sides to a default.
 
 What that gives up, in the report's own words — one such line per library:
 
@@ -125,8 +146,9 @@ Concretely, versus the header-scoped per-library matrix this replaced:
 * **no per-symbol detail in the markdown.** A release comparison's markdown is
   per-library counts plus coverage warnings — 7.3 KB, no symbol names anywhere.
   The gate therefore also writes the json report
-  (`extra-args: --write json=…`) and archives it: 717 KB, one annotation entry
-  per finding, all 2314 of them, naming every symbol. Note the json's own
+  (`extra-args: --write json=…`) and archives it: 720 KB, one annotation entry
+  per finding, all 2314 of them, naming every symbol, plus the
+  `comparison_scope` record the completeness gate points at. Note the json's own
   `findings` array is capped at 10 per library (`findings_truncated: true`); the
   `annotations` array is not.
 
@@ -140,7 +162,9 @@ that works — exit 0, `COMPATIBLE_WITH_RISK` — and costs **50 min 54 s and
 10.7 GiB peak RSS**, against a 16 GB runner, per PR. Upstream documents multilib
 comparison as binary-depth; running it otherwise means depending on a shape
 upstream deliberately blocks. Hence this gate is binary depth, and the
-header-scoped surface stays the domain of a local run.
+header-scoped surface stays the domain of a local run. (Both figures were measured
+on the pin before this one; nothing since suggests the header-depth cost moved,
+and it was never close enough to matter.)
 
 ## Baselines
 
@@ -155,10 +179,13 @@ setting the PR-side build uses. It runs on `workflow_dispatch` (with a
 1. builds the tag — `daal`, `oneapi_c`, `oneapi_dpc`, which produce all six
    libraries;
 2. runs the abicheck Action in `mode: dump` once per library (`dump` takes one
-   library at a time; only `compare` fans a directory out) — measured 0.69 s to
-   7.42 s each, 17.5 s together, peak 184 MiB on the largest;
-3. checks a compression tripwire: the six snapshots are 5.8 KiB to 148 KiB, 372 KB
-   together, so a 5 MiB ceiling catches a snapshot written uncompressed;
+   library at a time; only `compare` fans a directory out) — measured 0.84 s to
+   15.5 s each, 35.4 s together, peak 327 MiB on the largest;
+3. checks a compression tripwire: a snapshot written by this pin is 6.7 KiB to
+   200 KiB, 477 KiB for the six (the already-published `2026.0.0` assets, written
+   by the previous pin, are 5.8 KiB to 148 KiB and 372 KB — the sectioned
+   snapshot envelope this pin writes carries more per library), so a 5 MiB ceiling
+   still catches a snapshot written uncompressed;
 4. uploads each `<library>.abicheck.json.zst` as a **release asset**;
 5. commits only its `sha256sum` output to
    `.github/abicheck/baselines/<tag>.abicheck.sha256`, one line per asset.
@@ -223,11 +250,24 @@ mechanism can, for any fact this depth does collect.)
 
 So bumping the pin obliges re-*verifying* the published baselines: compare the
 unchanged tree with the new pin against the current baselines and diff the report
-against the old pin's. Both bumps done so far came out identical line-for-line
-apart from timings, so neither needed a re-capture. Any difference means
-re-dispatching the baseline workflow for every published tag first. If a bump ever
-produces a wave of findings in one kind across an unchanged tree, suspect this
-before suspecting oneDAL.
+against the old pin's. All three bumps done so far came out identical
+line-for-line apart from timings, so none needed a re-capture — the current pin
+reads the `schema_version` 25 snapshots the previous one published and writes 44
+itself, and still reports the same per-library table, the same 2314 findings and
+the same verdict. Any difference means re-dispatching the baseline workflow for
+every published tag first. If a bump ever produces a wave of findings in one kind
+across an unchanged tree, suspect this before suspecting oneDAL.
+
+**Rolling a pin back is not symmetric with bumping it.** The previous pin cannot
+read a snapshot this one writes at all — measured, it fails per library with
+`Cannot detect format` (its own classifier gave up on a `.json.zst` whose first
+frame decodes short, fixed upstream since) and behind that fix it would still hit
+the hard `schema_version` rejection, since 44 is far past what it understands. A
+bump is therefore one-way for as long as the baselines it will read were written
+by the older pin: safe now, because the published `2026.0.0` assets predate this
+pin, but the moment the baseline workflow is re-dispatched at this pin, any
+rollback means re-dispatching for every published tag *first*, and the
+immutability rule makes that a deliberate `gh release delete-asset` per library.
 
 ## Gating
 
@@ -239,8 +279,27 @@ Two separate questions, answered by two separate mechanisms:
 
 The job gates on the folded release verdict with the Action's defaults: a binary
 ABI break (`BREAKING`, exit 4) fails it; a source-level API break (exit 2) does
-not, since `fail-on-api-break` stays off. `fail-on-removed-library: true` is set —
-a library dropped from the release is a break, not a coverage gap.
+not, since `fail-on-api-break` stays off.
+
+A library disappearing from the release also fails it, but **not** through
+`fail-on-removed-library: true`. With no proof that the new side's inventory is
+complete, abicheck classifies a baseline snapshot with no counterpart as
+`not_supplied` — "NEW's inventory is not proven complete, so this is unmatched,
+not removed" (ADR-065 D2) — which never reaches the removed-library gate.
+Measured by deleting `libonedal_thread.so` from the new side: exit 0 with that
+input set either way. `scope.on_incomplete: block` in `abicheck.yml` is what makes
+it red, on abicheck's separate *completeness* axis: the same run then exits 1 with
+`verdict=SCOPE_INCOMPLETE`, an `::error::` annotation, and the unchecked member
+named. A full six-library release is a complete scope, so this does not touch a
+normal run (measured: exit 0, unchanged verdict and table). The
+`fail-on-removed-library` input stays set for the case abicheck *can* prove the
+inventory complete.
+
+The bundle axis gates too, independently of the per-library verdicts: the run that
+made the allow-list necessary reported `BREAKING` with all six libraries
+individually `COMPATIBLE_WITH_RISK`. It does not mask a per-library break in the
+other direction either — the negative control below still exits 4 with the bundle
+verdict `COMPATIBLE`.
 
 **`policy.yaml` is load-bearing, and measured to be.** The same comparison with no
 `--policy` at all is `BREAKING` on five of the six libraries — 1952 breaking
@@ -280,11 +339,12 @@ this gate ever regains header depth they have to be re-measured, not restored fr
 git history.
 
 Two abicheck behaviours are worth knowing before reading a job summary. The
-Action's own summary block and its `verdict` output fold a release verdict down to
-the plain one — measured, `Verdict: COMPATIBLE` printed for a run whose real
-verdict is `COMPATIBLE_WITH_RISK`; the report the job pastes into the summary is
-where the real one is. And the per-library rows are keyed by the *snapshot*
-filename (`libonedal_core.so.abicheck.json.zst`), not the shared object's.
+Action's `verdict` output is one word for the whole run — at this pin it reports
+the real one (`COMPATIBLE_WITH_RISK`, and `SCOPE_INCOMPLETE` for the missing-library
+case; the pin before it folded both down to `COMPATIBLE`), but the per-library
+verdicts and the bundle row exist only in the report the job pastes into the
+summary. And the per-library rows are keyed by the *snapshot* filename
+(`libonedal_core.so.abicheck.json.zst`), not the shared object's.
 
 `require-complete-analysis` is deliberately **not** set: `libonedal_thread.so` has
 no installed public header, so its analysis can never be "complete", and the flag
@@ -295,6 +355,10 @@ Until the `risk` bucket has had a burn-in period, treat a change in these counts
 something to read rather than as a regression in itself.
 
 ## Why not abicheck's declarative project configuration
+
+`abicheck.yml` here is not that configuration: it carries two keys, both of them
+settings abicheck demoted off its CLI and its Action, and no description of
+oneDAL's libraries, baselines or profiles.
 
 abicheck's paved road for a multi-library project (G30/ADR-047) is a
 `targets:`/`bundles:`/`profiles:`/`baseline:` block in `.abicheck.yml`, consumed by
@@ -329,7 +393,7 @@ this collapses into two `workflow_call` jobs.
   it back inside one multilib run costs 51 min / 10.7 GiB and requires bypassing an
   upstream guard (see [Binary depth](#binary-depth)); a per-library matrix costs
   ~12 min wall and ~33 min of runner time. Neither was judged worth it against a
-  12 s check plus `abidiff`.
+  28 s check plus `abidiff`.
 * **`scan --artifact-set DIR` remains the cheap fallback** if the baseline assets
   are ever unavailable: all six libraries, no old side, in 10.8 s with
   `--depth binary`. Its residual findings are by design, so gate on kinds rather
@@ -341,18 +405,36 @@ this collapses into two `workflow_call` jobs.
   whose export obligation the binary does not satisfy. They are *intra-version*
   observations, not drift since the baseline, so adopting them means a policy pass
   over the reason buckets first.
-* **The release path records no policy provenance.** A single-pair comparison
-  stamps each finding with `reclassified_by` (the rule's label), `severity`,
-  `symbol_binding` and a `finding_id`, and records the policy in
-  `effective_config_fields` as `policy.base: strict_abi@1:<digest>` plus the rule
-  list. The release fan-out's json carries `{bucket, kind, symbol, description,
-  source_location}` only — no `reclassified_by`, no linkage — and reports
-  `policy.base: ""` / `policy.reclassify: "[]"` even with `--policy` in force and
-  demonstrably applied. So the 1952 demoted findings are indistinguishable in the
-  report from findings the base policy calls risk on its own, and the
-  `effective_config_digest` does not describe the config that produced the
-  verdict. The policy's accountability rests on this document and on a local
-  single-library rerun until that is fixed upstream.
+* **The release path's policy provenance is now recorded, but not per-symbol
+  linkage.** This was a full gap one pin ago: the fan-out's json carried
+  `{bucket, kind, symbol, description, source_location}` and reported
+  `policy.base: ""` / `policy.reclassify: "[]"` with `--policy` demonstrably
+  applied, so the 1952 demoted findings were indistinguishable from findings the
+  base policy calls risk on its own. At this pin the json stamps each finding with
+  `reclassified_by` (`inlines-hidden-demotion`), carries a `disposition_audit` per
+  library and for the run — `reclassified_total: 1952`,
+  `reclassifications: [{rule_id: inlines-hidden-demotion, matched_count: 1952}]`,
+  1414 of them on `libonedal_core.so` — and fills `effective_config_fields` with
+  `policy.base: strict_abi@1:<digest>` plus the serialized rule list, alongside an
+  `effective_config_digest` that now describes the config that produced the
+  verdict. What a single-pair comparison still has and this does not: per-finding
+  `severity`, `symbol_binding` and `finding_id`. Since the two policy rules are
+  linkage-scoped, checking *which* linkage a demoted finding had still needs a
+  local single-library rerun. The `findings` array is also still capped at 10 per
+  library (`findings_truncated: true`); the `annotations` array is not.
+* **The bundle axis cannot be silenced or re-classified, only satisfied.** Bundle
+  analysis is unconditional (no `--no-bundle-analysis` any more, and no config key
+  for it), `policy.yaml` cannot reach it — a `reclassify:` entry on
+  `bundle_intra_dep_removed` or `bundle_library_added` is accepted only with
+  `to:` in `break, warn, risk, ignore`, and `ignore` on the removal kind is a mute
+  rather than an answer — and the six `bundle_library_added` findings are
+  structural: the old side is snapshots, so every library reads as newly added to
+  the bundle, in every PR's report, permanently. They do not gate. The one
+  supported lever is `bundle.system_providers`, which is why the allow-list exists
+  rather than a policy rule. Keeping it current is real maintenance: a new
+  `DT_NEEDED` edge to a library outside both abicheck's 43-entry default list and
+  this one turns the whole job red, and the message will name a dependency
+  removal, not a missing provider.
 * **`binding:` is not accepted as a rule's only scope.** A `reclassify:` entry must
   name at least one of `symbol`, `symbol_pattern`, `type_pattern`, `member_name`,
   `source_location`, `namespace` or `finding_id`, so the two linkage-scoped rules

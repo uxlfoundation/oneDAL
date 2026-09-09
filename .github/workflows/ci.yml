@@ -200,11 +200,13 @@ jobs:
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
     # Measured with the pin below, on the no-debug-info build LinuxMakeDPCPP
-    # produces: 12 s and just over 200 MiB peak RSS for all six libraries in one
-    # run (four runs: 11.4-12.2 s, 203-206 MiB). The rest of the job is the
-    # checkout, the build artifact and six snapshots totalling 372 KB, so this
-    # timeout is generous by design rather than tuned. Numbers and the trade-off
-    # behind them: .github/abicheck/README.md.
+    # produces: 28 s and 446 MiB peak RSS for all six libraries in one run (three
+    # runs: 28.2-29.1 s, 439-446 MiB), of which the bundle analysis that is now
+    # unconditional is a part -- the previous pin measured 12 s and 205 MiB with
+    # it switched off. The rest of the job is the checkout, the build artifact
+    # and six snapshots totalling 372 KB, so this timeout is generous by design
+    # rather than tuned. Numbers and the trade-off behind them:
+    # .github/abicheck/README.md.
     timeout-minutes: 20
     permissions:
       contents: read
@@ -282,70 +284,75 @@ jobs:
       # Both operands are directories, which is abicheck's own multi-library
       # release comparison: one run fans out over every shared object in the
       # release directory, matching each one to the baseline snapshot of the same
-      # name. That shape is binary-depth by contract -- `depth: headers` and up
-      # is rejected for a directory operand -- so this gate compares exported
-      # symbols and ELF metadata, not the public-header AST. What that costs, and
-      # why it is still worth running next to abidiff, is in
-      # .github/abicheck/README.md ("Binary depth").
+      # name. `depth: headers` and up is still rejected for a directory operand
+      # ("the per-library fan-out does not enforce a per-library evidence
+      # floor", exit 64), so this gate compares exported symbols and ELF
+      # metadata, not the public-header AST. What that costs, and why it is
+      # still worth running next to abidiff, is in .github/abicheck/README.md
+      # ("Binary depth").
       - name: Check ABI against the released baseline
         id: abicheck
         if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: compare
           old-library: ${{ env.ABICHECK_BASELINE_DIR }}
           new-library: __release_lnx/daal/latest/lib/intel64
-          # No depth input: the CLI rejects --depth outright for a directory
-          # operand ("the per-library fan-out does not collect inline
-          # build/source evidence", exit 64) and the Action drops the input
-          # silently rather than forwarding it, so there is nothing to pin here.
-          # The fan-out reads each binary's exported symbols, and its DWARF too
-          # if it has any -- LinuxMakeDPCPP emits none, which is why the baseline
-          # snapshots are dumped `depth: binary`. If that build ever starts
-          # shipping debug info, re-dispatch "Publish Abicheck Baseline" so the
-          # two sides keep describing the same evidence.
-          #
-          # 0 (the default) means one worker per CPU, i.e. six libraries parsed
-          # at once. Serial is what fits a runner: 205 MiB against tens of GiB.
-          jobs: 1
+          # Stated rather than left implicit: the Action forwards it (measured:
+          # `--depth binary` on the built command line) and the fan-out is
+          # binary-depth anyway, so this pins the evidence rung the baseline
+          # snapshots are dumped at instead of inheriting it. The fan-out reads
+          # each binary's exported symbols, and its DWARF too if it has any --
+          # LinuxMakeDPCPP emits none. If that build ever starts shipping debug
+          # info, re-dispatch "Publish Abicheck Baseline" so the two sides keep
+          # describing the same evidence.
+          depth: binary
           old-version: ${{ env.ABICHECK_BASELINE_TAG }}
           new-version: ${{ github.sha }}
-          # A library dropped from the release is a break, not a coverage gap.
+          # A library dropped from the release is a break, not a coverage gap --
+          # but this input alone no longer says so: with an unproven NEW
+          # inventory abicheck classifies a baseline with no counterpart as
+          # `not_supplied` rather than removed (ADR-065 D2), which this gate
+          # never sees. `scope.on_incomplete: block` in the build-config below
+          # is what actually reddens that case (measured: exit 1). This input
+          # stays for the case abicheck can prove the inventory complete.
           fail-on-removed-library: true
           # Every downgrade in here is evidence-backed; .github/abicheck/README.md
           # records the evidence per rule.
           policy-file: .github/abicheck/policy.yaml
+          # The two settings that have no input: the bundle allow-list this
+          # snapshot-vs-bundle comparison needs, and the completeness gate.
+          # Both were CLI flags before abicheck demoted them to project config.
+          # The Action merges this file with the overlay it synthesizes from
+          # `fail-on-removed-library` above, so the two do not fight over
+          # `--config`. Without it the job is red: 218 cross-library findings,
+          # exit 4.
+          build-config: .github/abicheck/abicheck.yml
           # The release artifact is already on the runner and nothing here parses
           # a header, so the default (conda-forge) would install a toolchain this
           # check never uses.
           dependency-source: none
           format: markdown
           output-file: __abi_report/release.md
-          # --no-bundle-analysis: the cross-library bundle graph is built from
-          # ELF binaries; the old side here is six JSON snapshots, so it has no
-          # old bundle to diff against and reports all six libraries as newly
-          # added. Off, rather than on and explained away in every PR's report.
-          # Nothing is lost: the six per-library comparisons are the whole gate.
-          #
           # --write json=: a release comparison's markdown is per-library counts
           # only -- no symbol names anywhere -- so on a red run the report says
           # which library broke and nothing about what in it. The json report
           # names every symbol, one annotation entry per finding (measured:
-          # 717 KB, 2314 entries; its `findings` array is capped at 10 per
+          # 720 KB, 2314 entries; its `findings` array is capped at 10 per
           # library, the annotations are not), and the step below keeps it as an
-          # artifact for exactly that case.
+          # artifact for exactly that case. It also carries the
+          # `comparison_scope` record the completeness gate points at.
           extra-args: >-
-            --no-bundle-analysis
             --write json=__abi_report/release.json
           # The sticky comment reports a single verdict; a six-library comparison
           # is only readable as the table the job summary carries.
           pr-comment: false
-      # The Action's own summary block, and its `verdict` output, fold a release
-      # comparison's verdict down to the plain one (measured: "COMPATIBLE" for a
-      # run whose real verdict is COMPATIBLE_WITH_RISK). The report is the only
-      # place the per-library verdicts and the real folded one appear, so publish
-      # it. always(): it matters most when the check just failed, and abicheck
-      # writes it before exiting non-zero.
+      # The Action's `verdict` output is one word for the whole run (measured at
+      # this pin: COMPATIBLE_WITH_RISK, and SCOPE_INCOMPLETE when a library goes
+      # missing -- the earlier pin folded both down to "COMPATIBLE"). The report
+      # is still the only place the per-library verdicts and the bundle row
+      # appear, so publish it. always(): it matters most when the check just
+      # failed, and abicheck writes it before exiting non-zero.
       - name: Publish the comparison to the job summary
         if: always() && steps.abicheck.outputs.report-path != ''
         run: cat "${{ steps.abicheck.outputs.report-path }}" >> "$GITHUB_STEP_SUMMARY"

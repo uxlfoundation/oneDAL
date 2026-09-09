@@ -42,12 +42,12 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     # Measured against the pin below, on the no-debug-info build this workflow
-    # produces: 17.5 s wall for the six dumps together, peak RSS 184 MiB (the max
+    # produces: 35.4 s wall for the six dumps together, peak RSS 327 MiB (the max
     # of the six, on libonedal_core.so, not their sum -- each dump is its own
-    # process). The three builds took 1m32s + 16s + 1m41s at -j64 on a 224-core
-    # host, so on a standard runner this job is its builds and nothing else,
-    # which is what the timeout covers. Per-library numbers:
-    # .github/abicheck/README.md.
+    # process; the previous pin measured 17.5 s and 184 MiB). The three builds
+    # took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard
+    # runner this job is its builds and nothing else, which is what the timeout
+    # covers. Per-library numbers: .github/abicheck/README.md.
     timeout-minutes: 180
     env:
       ABICHECK_BASELINE_DIR: __abi_baselines
@@ -151,11 +151,19 @@ jobs:
       # against baselines dumped by the older pin, exit 4, with nothing naming
       # the baseline as the cause). So every bump obliges re-*verifying* against
       # the existing baselines, and re-dispatching this workflow for every
-      # published tag only if the reports differ; the pin below needed no new
-      # baselines on that test. See .github/abicheck/README.md.
+      # published tag only if the reports differ; neither this pin nor the one
+      # before it needed new baselines on that test -- the pin here reads the
+      # snapshots the previous pin published (schema 25 against its own 44) and
+      # reports the identical per-library table.
+      #
+      # That compatibility runs one way only. A snapshot dumped here now cannot
+      # be read by the previous pin at all ("Cannot detect format", and behind
+      # that a hard schema rejection), so rolling the pin back means
+      # re-dispatching this workflow for every published tag first. See
+      # .github/abicheck/README.md.
 
       - name: Dump libonedal_core.so
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
@@ -165,7 +173,7 @@ jobs:
           dependency-source: none
 
       - name: Dump libonedal.so
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
@@ -175,7 +183,7 @@ jobs:
           dependency-source: none
 
       - name: Dump libonedal_dpc.so
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
@@ -185,7 +193,7 @@ jobs:
           dependency-source: none
 
       - name: Dump libonedal_parameters.so
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so
@@ -195,7 +203,7 @@ jobs:
           dependency-source: none
 
       - name: Dump libonedal_parameters_dpc.so
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so
@@ -205,7 +213,7 @@ jobs:
           dependency-source: none
 
       - name: Dump libonedal_thread.so
-        uses: abicheck/abicheck@c599daf737b673531a6611a7005e0efde18345b5
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
         with:
           mode: dump
           new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_thread.so
@@ -215,8 +223,10 @@ jobs:
           dependency-source: none
 
       # A tripwire for one failure: compression silently not applying. The six
-      # snapshots measure 5.8 KiB to 148 KiB compressed, 372 KB together, so a
-      # 5 MiB ceiling leaves an order of magnitude of headroom and still catches
+      # snapshots measure 6.7 KiB to 200 KiB compressed at this pin, 477 KiB
+      # together (the previous pin: 5.8 KiB to 148 KiB, 372 KB -- the sectioned
+      # snapshot envelope this pin writes carries more per library), so a 5 MiB
+      # ceiling still leaves an order of magnitude of headroom and still catches
       # a snapshot written uncompressed. The glob and the asset names share the
       # .abicheck.json.zst suffix deliberately -- this loop, the publish loop and
       # the PR-side digest check all key on it, so an asset named outside it
@@ -231,7 +241,7 @@ jobs:
           for f in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
             size=$(stat -c %s "$f")
             if [ "$size" -gt "$limit" ]; then
-              echo "::error file=${f}::$(( size / 1024 )) KiB is far above the 6-148 KiB a compressed snapshot takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
+              echo "::error file=${f}::$(( size / 1024 )) KiB is far above the 7-200 KiB a compressed snapshot takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
               rc=1
             fi
           done

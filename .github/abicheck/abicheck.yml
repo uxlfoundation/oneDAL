@@ -1,0 +1,65 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# abicheck project configuration for ci.yml's LinuxAbicheckScan job, passed
+# explicitly as that step's `build-config` input (it is not auto-discovered
+# from here -- abicheck looks for `.abicheck.yml` at the repository root).
+#
+# Deliberately only what has no other expression: every setting the Action
+# still takes as an input stays an input in ci.yml, so the two never disagree
+# about the same knob. That leaves the two keys below, both of which the
+# abicheck CLI used to accept as flags and no longer does.
+#
+# Measured with the pin both workflows carry, against the published 2026.0.0
+# baselines: without this file the job is red (BREAKING, 218 cross-library
+# findings, exit 4); with it, COMPATIBLE_WITH_RISK, exit 0, and a per-library
+# table identical to the one the previous pin produced.
+
+# oneDAL's SYCL libraries link MKL's SYCL interface libraries and the DPC++
+# runtime, which the baseline snapshots have no counterpart for: the old side
+# of this comparison is six per-library snapshots, not a bundle, so every
+# dependency edge reads as newly appeared. abicheck's bundle analysis is
+# unconditional since the `--no-bundle-analysis` flag was removed, and its
+# resolver treats an unresolvable NEEDED soname as an intra-bundle dependency
+# removal (212 `bundle_intra_dep_removed` findings, enough to fail the job on
+# its own). Naming the providers as system-provided is the supported way to
+# say "this library comes from outside the bundle" -- abicheck ships a
+# 43-entry default list, and these four are the ones oneDAL needs on top of
+# it.
+#
+# Entries are soname *stems* (no `.so.N`): abicheck matches a NEEDED soname
+# exactly first, then falls back to a stem match, and the fallback only
+# applies against a version-generic entry like these. Six
+# `bundle_library_added` findings remain after this -- one per oneDAL library,
+# inherent to comparing snapshots against a real bundle -- and they are
+# reported, not gating (bundle verdict COMPATIBLE).
+bundle:
+  system_providers:
+    - libmkl_sycl_blas
+    - libmkl_sycl_lapack
+    - libmkl_sycl_rng
+    - libmkl_sycl_sparse
+
+# What makes a library disappearing from the release red. `on_incomplete`
+# governs abicheck's completeness axis, which is separate from the
+# compatibility axis: a baseline snapshot with no counterpart in the new
+# release directory is classified `not_supplied` ("NEW's inventory is not
+# proven complete, so this is unmatched, not removed", ADR-065 D2), so it does
+# not become a `removed library` finding and the step's
+# `fail-on-removed-library: true` input never sees it. Measured by deleting
+# libonedal_thread.so from the new side: exit 0 under the default `warn`,
+# exit 1 under `block`. A full six-library release is a complete scope, so
+# `block` does not touch a normal run (measured: exit 0, same verdict).
+scope:
+  on_incomplete: block
