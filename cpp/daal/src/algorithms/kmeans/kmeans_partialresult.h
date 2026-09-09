@@ -57,7 +57,15 @@ DAAL_EXPORT services::Status PartialResult::allocate(const daal::algorithms::Inp
     DAAL_CHECK_STATUS_VAR(status);
     set(partialObjectiveFunction, HomogenNumericTable<algorithmFPType>::create(1, 1, NumericTable::doAllocate, &status));
     DAAL_CHECK_STATUS_VAR(status);
-    set(partialCandidatesDistances, HomogenNumericTable<algorithmFPType>::create(1, nClusters, NumericTable::doAllocate, &status));
+    // partialCandidatesDistances layout is 2 columns per row:
+    //   col 0 = squared distance from the candidate row to its nearest centroid
+    //   col 1 = source cluster ID (encoded in algorithmFPType) the row was
+    //           assigned to on the local node, needed by step2 finalizeCompute
+    //           to correct clusterS0/clusterS1 when the row is used to seed an
+    //           empty cluster elsewhere. Column count is an internal detail --
+    //           get(partialCandidatesDistances) still returns the same
+    //           NumericTablePtr type; callers must not assume 1 column.
+    set(partialCandidatesDistances, HomogenNumericTable<algorithmFPType>::create(2, nClusters, NumericTable::doAllocate, &status));
     DAAL_CHECK_STATUS_VAR(status);
     set(partialCandidatesCentroids, HomogenNumericTable<algorithmFPType>::create(nFeatures, nClusters, NumericTable::doAllocate, &status));
     DAAL_CHECK_STATUS_VAR(status);

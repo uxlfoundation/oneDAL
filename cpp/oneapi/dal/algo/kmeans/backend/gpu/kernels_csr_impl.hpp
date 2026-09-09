@@ -240,11 +240,20 @@ sycl::event update_centroids(sycl::queue& q,
     const auto num_clusters = centroids.get_dimension(0);
 
     ONEDAL_ASSERT_MUL_OVERFLOW(std::int64_t, num_clusters, column_count);
-    const auto centroids_elem_count = num_clusters * column_count;
-    ONEDAL_ASSERT_MUL_OVERFLOW(std::int64_t, centroids_elem_count, sizeof(Float));
-    const auto centroids_num_bytes = centroids_elem_count * sizeof(Float);
 
-    auto clean_event = q.memset(centroids_ptr, 0, centroids_num_bytes, deps);
+    // Only the rows that are recomputed below are zeroed: an empty cluster keeps the centroid it
+    // had on entry, which is what the empty-cluster handling downstream falls back to when it
+    // declines to relocate the cluster (see `fill_empty_clusters`). A blanket memset of the whole
+    // buffer would leave such a cluster sitting at the origin instead.
+    auto clean_event = q.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.parallel_for(bk::make_range_2d(num_clusters, column_count), [=](sycl::id<2> id) {
+            if (counts_ptr[id[0]] == 0) {
+                return;
+            }
+            centroids_ptr[id[0] * column_count + id[1]] = Float(0);
+        });
+    });
 
     const auto row_block =
         std::min<std::int32_t>(bk::device_max_wg_size(q) * 8, bk::down_pow2(row_count));

@@ -60,6 +60,12 @@ struct TlsTask
         cS0      = service_scalable_calloc<int, cpu>(clNum);
         cValues  = service_scalable_calloc<algorithmFPType, cpu>(clNum);
         cIndices = service_scalable_calloc<size_t, cpu>(clNum);
+        // cSources[i] tracks the local cluster the candidate row at cIndices[i]
+        // was assigned to on this iteration. Needed so that when the row is
+        // used to seed an empty cluster (batch or step2 finalizeCompute), its
+        // contribution can be subtracted from the source cluster's aggregates
+        // before centroid normalization.
+        cSources = service_scalable_calloc<int, cpu>(clNum);
     }
 
     ~TlsTask()
@@ -84,6 +90,10 @@ struct TlsTask
         {
             service_scalable_free<size_t, cpu>(cIndices);
         }
+        if (cSources)
+        {
+            service_scalable_free<int, cpu>(cSources);
+        }
     }
 
     static TlsTask<algorithmFPType, cpu> * create(const size_t dim, const size_t clNum, const size_t maxBlockSize)
@@ -93,7 +103,7 @@ struct TlsTask
         {
             return nullptr;
         }
-        if (!result->mklBuff || !result->cS1 || !result->cS0)
+        if (!result->mklBuff || !result->cS1 || !result->cS0 || !result->cSources)
         {
             delete result;
             return nullptr;
@@ -108,6 +118,7 @@ struct TlsTask
     size_t cNum               = 0;
     algorithmFPType * cValues = nullptr;
     size_t * cIndices         = nullptr;
+    int * cSources            = nullptr;
 };
 
 template <Method method, typename algorithmFPType, CpuType cpu>

@@ -166,6 +166,7 @@ public:
                 comm_,
                 empty_cluster_count,
                 data_,
+                responses,
                 closest_distances,
                 counters_,
                 centroids,
