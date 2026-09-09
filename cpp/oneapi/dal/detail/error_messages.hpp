@@ -180,6 +180,12 @@ public:
     MSG(iteration_count_lt_zero);
     MSG(max_iteration_count_leq_zero);
     MSG(max_iteration_count_lt_zero);
+    MSG(partial_results_alloc_kind_mismatch);
+    MSG(weights_and_data_alloc_kind_mismatch);
+    MSG(partial_results_queues_mismatch);
+    MSG(prev_partial_result_queue_mismatch);
+    MSG(prev_partial_result_and_data_queues_mismatch);
+    MSG(weights_and_data_queues_mismatch);
 
     /* Decision Forest */
     MSG(bootstrap_is_incompatible_with_error_metric);
