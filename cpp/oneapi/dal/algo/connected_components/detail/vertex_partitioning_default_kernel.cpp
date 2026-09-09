@@ -32,7 +32,18 @@ operator()(const dal::detail::host_policy& policy,
     });
 }
 
-template struct ONEDAL_EXPORT
-    afforest<float, task::vertex_partitioning, dal::preview::detail::topology<std::int32_t>>;
+template struct afforest<float,
+                         task::vertex_partitioning,
+                         dal::preview::detail::topology<std::int32_t>>;
+
+vertex_partitioning_result<task::vertex_partitioning> run_afforest(
+    const dal::detail::host_policy& ctx,
+    const detail::descriptor_base<task::vertex_partitioning>& desc,
+    const dal::preview::detail::topology<std::int32_t>& t,
+    byte_alloc_iface* alloc) {
+    return afforest<float,
+                    task::vertex_partitioning,
+                    dal::preview::detail::topology<std::int32_t>>{}(ctx, desc, t, alloc);
+}
 
 } // namespace oneapi::dal::preview::connected_components::detail
