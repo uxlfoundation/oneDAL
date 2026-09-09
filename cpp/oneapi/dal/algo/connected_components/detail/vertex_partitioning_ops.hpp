@@ -22,6 +22,7 @@
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/graph/detail/undirected_adjacency_vector_graph_impl.hpp"
+#include "oneapi/dal/graph/detail/undirected_adjacency_vector_graph_topology_builder.hpp"
 
 namespace oneapi::dal::preview::connected_components::detail {
 
@@ -32,8 +33,13 @@ struct vertex_partitioning_ops_dispatcher {
         const Policy &policy,
         const Descriptor &descriptor,
         vertex_partitioning_input<Graph, task_t> &input) const {
-        static auto impl = get_backend<Policy, Descriptor>(descriptor, input.get_graph());
-        return (*impl)(policy, descriptor, input.get_graph());
+        auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
+
+        const auto &t = topology_builder(input.get_graph());
+
+        auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+
+        return (*impl)(policy, descriptor, t);
     }
 };
 
