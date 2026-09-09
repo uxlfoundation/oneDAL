@@ -151,7 +151,7 @@ jobs:
           # cannot read: the restore then misses silently and the check below
           # compares against an empty directory. Only main-scoped entries are
           # both restorable here and produced by a build of main.
-          CACHE_KEY=`gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key'`
+          CACHE_KEY=$(gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key')
           if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
             echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
             exit 1
