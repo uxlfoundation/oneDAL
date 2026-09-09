@@ -52,6 +52,9 @@ jobs:
       - name: Setup MSYS2
         shell: pwsh
         run: |
+          if (Test-Path 'C:\msys64') {
+            Remove-Item 'C:\msys64' -Recurse -Force
+          }
           Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
           .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
 
