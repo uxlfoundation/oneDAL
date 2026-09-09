@@ -312,7 +312,7 @@ public:
 
         const auto make_desc = [&](double fraction) {
             auto desc = this->get_default_descriptor();
-            if (is_cls) {
+            if constexpr (is_cls) {
                 desc.set_class_count(class_count);
             }
             desc.set_tree_count(1);
