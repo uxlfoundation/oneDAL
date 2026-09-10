@@ -12,23 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# abicheck project configuration for ci.yml's LinuxAbicheckScan job, passed
-# explicitly as that step's `build-config` input (it is not auto-discovered
-# from here -- abicheck looks for `.abicheck.yml` at the repository root).
+# abicheck project configuration for both abicheck jobs in ci.yml, passed
+# explicitly as their `build-config` input (it is not auto-discovered from here
+# -- abicheck looks for `.abicheck.yml` at the repository root).
 #
-# Deliberately small: every setting the Action still takes as an input stays an
-# input in ci.yml, so the two never disagree about the same knob. That leaves
-# `bundle:` and `scope:` -- which the abicheck CLI used to accept as flags and
-# no longer does, and which have no Action input -- plus the L2 header-AST
-# compile context, which is a different case. The Action *does* accept a
-# compile context as inputs on the shapes used here (`ast-frontend`, and
-# `-std=c++17` through `gcc-options`, are supported for `dump` and for a
-# single-pair `compare`; only a release/directory operand refuses them). It
-# lives here anyway because capture and comparison must agree on it exactly:
-# this file is passed as `build-config` by both workflows, so one edit moves
-# both sides, whereas the same two settings as inputs would be repeated at
-# eleven call sites -- six dump steps and five compare legs -- with nothing but
-# review keeping them equal.
+# Deliberately small, and now deliberately *consumer-only*: every setting the
+# Action still takes as an input stays an input in ci.yml, so the two never
+# disagree about the same knob. That leaves `bundle:` and `scope:` -- which the
+# abicheck CLI used to accept as flags and no longer does, and which have no
+# Action input.
+#
+# What is no longer here is the L2 header-AST `compile:` block, and its absence
+# is load-bearing rather than an omission; see the end of this file.
 #
 # Measured with the pin both workflows carry, against the published 2026.0.0
 # baselines: without this file the job is red (BREAKING, 218 cross-library
@@ -36,23 +31,31 @@
 # table identical to the one the previous pin produced.
 
 # oneDAL's SYCL libraries link MKL's SYCL interface libraries and the DPC++
-# runtime, which the baseline snapshots have no counterpart for: the old side
-# of this comparison is six per-library snapshots, not a bundle, so every
-# dependency edge reads as newly appeared. abicheck's bundle analysis is
-# unconditional since the `--no-bundle-analysis` flag was removed, and its
-# resolver treats an unresolvable NEEDED soname as an intra-bundle dependency
-# removal (212 `bundle_intra_dep_removed` findings, enough to fail the job on
-# its own). Naming the providers as system-provided is the supported way to
-# say "this library comes from outside the bundle" -- abicheck ships a
-# 43-entry default list, and these four are the ones oneDAL needs on top of
-# it.
+# runtime, and nothing in the release directory provides them. abicheck's
+# bundle analysis is unconditional since the `--no-bundle-analysis` flag was
+# removed, and its resolver treats an unresolvable NEEDED soname as an
+# intra-bundle dependency removal. Naming the providers as system-provided is
+# the supported way to say "this library comes from outside the bundle" --
+# abicheck ships a 43-entry default list, and these four are the ones oneDAL
+# needs on top of it.
+#
+# Still load-bearing, and re-measured on the shape the gate now runs (a real
+# ELF bundle on *both* sides -- the baseline-set's staged member binaries, not
+# snapshots): dropping these four entries gives 212 `bundle_intra_dep_removed`
+# findings, bundle verdict BREAKING, release verdict BREAKING, exit 4. With
+# them: bundle COMPATIBLE_WITH_RISK, exit 0. The reviewer expectation that
+# moving off raw-ELF construction onto stored-facts operands would make this
+# list redundant does not hold -- an unresolvable NEEDED edge is unresolvable
+# whichever way the operand was built.
 #
 # Entries are soname *stems* (no `.so.N`): abicheck matches a NEEDED soname
 # exactly first, then falls back to a stem match, and the fallback only
-# applies against a version-generic entry like these. Six
-# `bundle_library_added` findings remain after this -- one per oneDAL library,
-# inherent to comparing snapshots against a real bundle -- and they are
-# reported, not gating (bundle verdict COMPATIBLE).
+# applies against a version-generic entry like these. What remains after this
+# is 156 `bundle_intra_dep_signature_unverified` findings, reported and not
+# gating (bundle verdict COMPATIBLE_WITH_RISK). The six `bundle_library_added`
+# findings an earlier revision of this comment recorded are gone: they were an
+# artifact of a snapshot-only old side, which made the whole bundle read as
+# newly appeared. See "Staged member binaries" in .github/abicheck/README.md.
 bundle:
   system_providers:
     - libmkl_sycl_blas
@@ -73,44 +76,57 @@ bundle:
 scope:
   on_incomplete: block
 
-# The L2 header-AST compile context. Only the toolchain-stable half lives here:
-# the header set and the include root are per-workflow paths (the PR side reads
-# the build artifact, the baseline side reads the tag's own source tree), so
-# they stay `new-header:`/`new-include:` inputs in the two workflows.
+# ── No `compile:` block here, on purpose ────────────────────────────────────
 #
-# `frontend: castxml` is abicheck's own default, pinned rather than inherited
-# because a frontend default that moved on its own would invalidate every
-# published `.l2` baseline (see below), and because it is the frontend that can
-# carry layout at all: the clang JSON-AST backend "does not carry record
-# size/alignment/offset layout", so it cannot see a struct-layout break -- and
-# this build ships no DWARF for L1 to see it instead. It buys nothing today:
-# measured, both frontends report `layout_unverified_detectors: ['dwarf',
-# 'advanced_dwarf', 'layout_descriptor']` on every leg, and the two agree on all
-# five verdicts. abicheck requires castxml >=0.6.11,<0.8.0 and never falls back
-# to clang silently, which is also why `dependency-source: conda-forge` is not
-# optional on the steps that parse headers: Ubuntu 24.04's own castxml is 0.6.3
-# (too old, refused), and the PyPI `castxml` distribution is 0.4.5 and
-# explicitly "not a supported default scanner setup". conda-forge's is 0.7.0.
+# This file used to pin the L2 header-AST compile context (`frontend: castxml`,
+# `std: c++17`). It cannot, now that the baselines are published as a
+# baseline-set by `abicheck/abicheck/actions/baseline`: that action runs
+# `abicheck dump` with only `-H`/`-I`/`--build-info`/`--depth`/`--version`/
+# `--compression`/`-o`, and forwards neither `--config` nor `--sources`. A
+# `compile:` block reaches a dump one of exactly two ways -- an explicit
+# `--config`, or a `.abicheck.yml` auto-discovered *at the `--sources` tree
+# root* -- and a baseline-set dump passes neither, so there is no route by which
+# a pinned block could reach the baseline side at all. Copying this file to the
+# workspace root does not help; discovery is anchored to `--sources`, not to the
+# working directory.
 #
-# `std: c++17` is what oneAPI's public headers require; it is passed as
-# `-std=c++17` and stated rather than inherited so a frontend default cannot
-# move the parse out from under the baselines.
+# Pinning it on the candidate side alone is worse than not pinning it, and
+# measurably so. A header-depth snapshot records its compile context as a
+# profile fingerprint and abicheck refuses to compare across a mismatch, so a
+# candidate that sets `std: c++17` against a baseline-set snapshot that could
+# not becomes: "not comparable: old and new snapshots were extracted under
+# different compile contexts (profile_fingerprint mismatch; differing fields:
+# language_standard)", exit 16, no verdict. Measured on libonedal_parameters.so.
 #
-# Editing either key invalidates every published `.l2` baseline asset, and does
-# so loudly rather than silently: a header-depth snapshot records the compile
-# context it was extracted under as a profile fingerprint, and abicheck refuses
-# to compare across a mismatch. Measured, by dumping baselines without `std:`
-# and comparing them against a run that sets it: "not comparable: old and new
-# snapshots were extracted under different compile contexts
-# (profile_fingerprint mismatch; differing fields: language_standard)", exit 16,
-# no verdict. That is why these two keys live here, in the one file both
-# workflows pass as `build-config`, instead of as per-workflow inputs that could
-# drift apart -- and why changing them obliges re-capturing the `.l2` baseline
-# for every published tag in the same change. Re-dispatching "Publish Abicheck
-# Baseline" is not enough on its own: that workflow treats a published asset as
-# immutable, keeps it, and re-hashes the bytes already on the release, so a
-# refresh means deleting the `.l2` assets for the tag first (`gh release
-# delete-asset`) and dispatching after.
-compile:
-  frontend: castxml
-  std: c++17
+# With the block removed from both sides the two agree and the comparison is
+# real. Measured, same pair: exit 0, `requested_depth`/`effective_depth`
+# `headers`, `analysis_assurance.status: complete`, `depth_satisfied: true`,
+# COMPATIBLE_WITH_RISK -- 0 breaking, 146 risk, 16 compatible additions, 3
+# quality issues.
+#
+# Nothing is actually given up, which is why this is a fix and not a
+# concession. The two keys were restating what abicheck resolves on its own:
+# the config-less dump records `frontend: castxml` (`--ast-frontend auto`
+# selects it when a supported castxml is on PATH, and abicheck requires
+# >=0.6.11,<0.8.0 and never falls back to clang silently) and
+# `language_standard: "probed:__cplusplus=201703L"` with
+# `language_standard_explicit: "0"` -- C++17, probed from the frontend rather
+# than asserted. Both sides now install the same checksum-pinned CastXML
+# Superbuild (`dependency-source: system`, `install-deps: true`), so they
+# resolve to the same fingerprint by construction, and any future divergence
+# between publisher and consumer toolchains fails loudly at exit 16 instead of
+# silently comparing across contexts -- which is the property the pinned block
+# was there to provide.
+#
+# castxml is still what carries layout, and still buys nothing on this build:
+# the clang JSON-AST backend "does not carry record size/alignment/offset
+# layout", but measured, both frontends report `layout_unverified_detectors:
+# ['dwarf', 'advanced_dwarf', 'layout_descriptor']` on every leg and agree on
+# all five verdicts, because `LinuxMakeDPCPP` ships no DWARF for L1 to read
+# either.
+#
+# The upstream ask that would let this block come back: a `build-config` input
+# on `actions/baseline`, forwarded as `--config` to its `abicheck dump`. Until
+# then a project that genuinely needs a non-default compile context -- one that
+# `--ast-frontend auto` plus frontend probing does not already produce -- cannot
+# publish a header-depth baseline-set at all.

@@ -14,15 +14,31 @@
 # limitations under the License.
 #===============================================================================
 
-# Publishes the ABI baselines ci.yml's two abicheck jobs compare against: per
-# oneDAL library, one snapshot at binary depth for LinuxAbicheckScan and one at
-# header depth for LinuxAbicheckL2Scan, captured from a release tag built the
-# same way the PR-side build is, uploaded as release assets, with their sha256
-# digests committed to the repository as the trust anchor.
+# Publishes the ABI baselines ci.yml's two abicheck jobs compare against, as two
+# release-contract *baseline-sets* built by abicheck's own
+# `actions/baseline` + `actions/stage-baseline`:
 #
-# The full picture -- why the facts are not committed themselves, why the digest
-# file is, why the tag has to be rebuilt rather than downloaded, and how to
-# rotate to a newer baseline -- is in .github/abicheck/README.md.
+#   * profile `linux-x86_64-icx-avx2-nodbg-binary` -- six libraries at binary
+#     depth, each with its real ELF staged into the set (`stage_binary: true`),
+#     for LinuxAbicheckScan's release-shaped comparison.
+#   * profile `linux-x86_64-icx-avx2-nodbg-headers` -- the five libraries
+#     LinuxAbicheckL2Scan compares, at header depth.
+#
+# Both are captured from a release tag built the same way the PR-side build is.
+# Each set is one archive asset carrying a manifest.json with per-artifact
+# sha256 digests, a profile, a fact-set identity and a scanner-compatibility
+# generation; the binary set's archive digest is additionally committed to this
+# repository as a cross-repository trust anchor (see the commit step).
+#
+# This workflow no longer hand-writes eleven `mode: dump` steps, and no longer
+# implements its own asset-per-library naming convention: both were a local
+# re-implementation of what `actions/baseline` now does, and the naming
+# convention in particular was load-bearing in a way nothing checked.
+#
+# The full picture -- why the snapshots are not committed themselves, why the
+# digest is, why the tag has to be rebuilt rather than downloaded, and how to
+# rotate to a newer baseline or a newer generation -- is in
+# .github/abicheck/README.md.
 name: Publish Abicheck Baseline
 
 on:
@@ -38,31 +54,61 @@ on:
 permissions:
   contents: write
 
+env:
+  # Bump this when an abicheck upgrade invalidates already-published baselines
+  # (a fixed or newly-extracted fact, a changed normalization or hash recipe, a
+  # schema bump) -- NOT for every pin bump: report-format, policy and
+  # detector-only changes read an existing baseline fine. Both the archive asset
+  # names below and ci.yml's `baseline-generation` inputs carry this number, so a
+  # bump publishes new assets side by side with the old ones instead of
+  # colliding with immutable ones, and a consumer still asking for the previous
+  # generation fails as `stale_generation` rather than comparing against facts
+  # the new scanner cannot read. Keep it equal to ci.yml's
+  # ABICHECK_BASELINE_GENERATION.
+  ABICHECK_BASELINE_GENERATION: "1"
+  # Profile identifiers, recorded in each set's manifest.json and substituted
+  # into its asset name. `profile` is what makes a baseline identity safe for a
+  # project with more than one build shape: a version number alone would let an
+  # avx2/no-debug-info set be compared against an avx512/debug build. The
+  # `-binary` / `-headers` suffix is what keeps the two families apart -- they
+  # are not interchangeable, and feeding the binary-depth job a header-depth
+  # snapshot is not merely wasteful but wrong (measured: the projection down to
+  # binary drops the header-derived types and reports them as removed, up to
+  # 1455 breaking `typedef_removed` on libonedal_core.so, BREAKING on every
+  # leg). resolve-baseline rejects a profile mismatch outright
+  # (outcome `wrong_profile`), so this is enforced rather than documented.
+  ABICHECK_PROFILE_BINARY: linux-x86_64-icx-avx2-nodbg-binary
+  ABICHECK_PROFILE_HEADERS: linux-x86_64-icx-avx2-nodbg-headers
+  # `{profile}` and `{generation}` are substituted by actions/stage-baseline on
+  # this side and by the abicheck Action's `baseline-asset-name-template` on the
+  # consumer side; the two templates have to be spelled identically or the
+  # consumer looks for an asset that is not there. The `.tar.zst` suffix is
+  # load-bearing: consumers pick their extractor from this exact suffix.
+  ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
+
 jobs:
   PublishBaseline:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     # Measured against the pin below, on the no-debug-info build this workflow
-    # produces: 35.4 s wall for the six binary-depth dumps together, peak RSS
-    # 327 MiB (the max of the six, on libonedal_core.so, not their sum -- each
-    # dump is its own process; the previous pin measured 17.5 s and 184 MiB), plus
-    # 23 min and 2.9 GiB for the five header-depth ones, which parse both umbrella
-    # headers once per library. The three builds took 1m32s + 16s + 1m41s at -j64
-    # on a 224-core host, so on a standard runner this job is its builds plus the
-    # header parses, which is what the timeout covers. Per-library numbers:
-    # .github/abicheck/README.md.
+    # produces: 35.4 s wall and 327 MiB peak RSS for the six binary-depth dumps
+    # (the max of the six, on libonedal_core.so, not their sum -- each dump is
+    # its own subprocess), plus 23 min and 2.9 GiB for the five header-depth
+    # ones, which parse both umbrella headers once per library. The three builds
+    # took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard
+    # runner this job is its builds plus the header parses, which is what the
+    # timeout covers. Per-library numbers: .github/abicheck/README.md.
     timeout-minutes: 180
     env:
-      ABICHECK_BASELINE_DIR: __abi_baselines
-      # The baseline tag's own include root, for the header-depth dumps below.
-      # It is this checkout's, not the PR side's: a baseline has to describe the
-      # tag's public headers, which is exactly why the tag is rebuilt from source
-      # here rather than downloaded as a binary release.
+      # The baseline tag's own release tree. It is this checkout's, not the PR
+      # side's: a baseline has to describe the tag's public surface, which is
+      # exactly why the tag is rebuilt from source here rather than downloaded.
+      ABICHECK_BASELINE_LIB_DIR: __baseline_src/__release_lnx/daal/latest/lib/intel64
       ABICHECK_BASELINE_INCLUDE_DIR: __baseline_src/__release_lnx/daal/latest/include
       # The bytes actually on the release after the publish step: this run's
-      # freshly dumped snapshot for a new asset, the already-published asset for
-      # one that exists. The digest file is computed from here, never from
-      # ABICHECK_BASELINE_DIR, because those two differ on a re-run.
+      # freshly packaged archive for a new asset, the already-published asset for
+      # one that exists. The digest file is computed from here, never from the
+      # archive this run happened to build, because those two differ on a re-run.
       ABICHECK_PUBLISHED_DIR: __abi_published
     steps:
       - name: Resolve baseline tag
@@ -93,9 +139,9 @@ jobs:
           ref: ${{ steps.baseline.outputs.tag }}
           path: __baseline_src
 
-      # Needed to *build* the baseline tag. The binary-depth snapshots below read
-      # only the built binaries; the header-depth ones also parse the tag's
-      # public headers, with the castxml each of those steps installs itself.
+      # Needed to *build* the baseline tag. The binary-depth set below reads only
+      # the built binaries; the header-depth one also parses the tag's public
+      # headers, with the castxml `actions/baseline` installs itself.
       - name: Install DPC++
         working-directory: __baseline_src
         run: .ci/env/apt.sh dpcpp
@@ -114,8 +160,9 @@ jobs:
       # building with debug info, the published baselines have to be re-captured
       # -- the same rule that applies to bumping the abicheck pin. Re-capturing
       # is not a plain re-dispatch: the publish step treats an existing asset as
-      # immutable and keeps it, so the assets for that tag have to be deleted
-      # (`gh release delete-asset`) before this workflow is dispatched again.
+      # immutable and keeps it, so either the asset has to be deleted
+      # (`gh release delete-asset`) or ABICHECK_BASELINE_GENERATION bumped so the
+      # new set publishes under its own name.
       #
       # No --jobs either: .ci/scripts/build.sh already falls back to
       # -j$(nproc --all) on Linux, so the build sizes itself to whatever runner
@@ -131,310 +178,184 @@ jobs:
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_dpc
           rm -rf __work
 
-      - name: Ensure output directories exist
-        run: mkdir -p "${ABICHECK_BASELINE_DIR}" .github/abicheck/baselines
-
-      # One snapshot per library per depth, one release asset each, dumped by the
-      # same Action ci.yml's jobs compare with -- so the two sides cannot
-      # disagree about how a snapshot is produced. `dump` takes one library at a
-      # time (it rejects a directory operand; only `compare` fans a directory
-      # out), which is why this is six steps for what ci.yml's release-shaped job
-      # does in one run.
+      # ── Family 1: binary depth, six libraries, real ELF staged ──────────────
       #
-      # Eleven dumps, not six, because the PR side has two jobs that need
-      # different evidence and neither can read the other's snapshots usefully:
+      # `stage_binary: true` on every member is what makes this set usable at
+      # all, and it is not an optimization. LinuxAbicheckScan compares the whole
+      # release, which includes abicheck's bundle analysis -- and bundle analysis
+      # reads real ELF binaries, skipping any non-ELF input, including this
+      # Action's own snapshots. Measured on this exact set: with the extracted
+      # snapshot directory as the old operand the bundle half is vacuous and
+      # reports six spurious `bundle_library_added` findings (bundle verdict
+      # COMPATIBLE -- "new library libonedal.so appears in the bundle", for
+      # libraries that have existed all along); with `binaries/` as the old
+      # operand it is real, bundle verdict COMPATIBLE_WITH_RISK over 156
+      # `bundle_intra_dep_signature_unverified` findings, and dropping oneDAL's
+      # four MKL `system_providers` entries turns it BREAKING with 212
+      # `bundle_intra_dep_removed`. So ci.yml's old operand is this set's
+      # `binaries/` directory, and the archive pays for it: 29,489,837 bytes with
+      # the staged binaries against 491,816 without them.
       #
-      #   * `<library>.abicheck.json.zst` at `depth: binary`, for
-      #     LinuxAbicheckScan's one-run directory compare. That job cannot pin
-      #     its own depth to anything higher -- abicheck rejects `--depth
-      #     headers` for a directory operand -- so the agreement has to be kept
-      #     here: no header set and no --sources on these six.
-      #   * `<library>.abicheck.l2.json.zst` at `depth: headers`, for
-      #     LinuxAbicheckL2Scan's per-library compares.
+      # `install-deps: false` because a binary-depth dump needs neither castxml
+      # nor gcc -- it reads ELF. The header-depth family below does need them and
+      # leaves the input at its default.
       #
-      # Feeding the binary-depth job a header-depth snapshot is not merely
-      # wasteful, it is wrong: the projection down to binary drops the snapshot's
-      # header-derived types and reports them as removed. Measured on an
-      # unchanged tree, with this repo's abicheck.yml and policy.yaml applied:
-      # 903 breaking `typedef_removed` on every library, up to 1455 breaking on
-      # libonedal_core.so, verdict BREAKING on every leg -- and 14.6 GiB peak RSS
-      # for the whole-release shape. Hence two families, separated by asset name.
-      #
-      # A re-capture is due if LinuxMakeDPCPP ever starts emitting debug info,
-      # which would give the PR side DWARF facts these snapshots have no
-      # counterpart for -- delete-then-dispatch, per the debug-info note on the
-      # build step above.
-      #
-      # The asset name is the matcher: the PR-side comparison keys each snapshot
-      # to a shared object by the filename up to `.so`, so
-      # `libonedal_core.so.abicheck.json.zst` pairs with `libonedal_core.so.4.0`
-      # and a decorated name (a tag prefix, say) silently pairs with nothing. The
-      # .json.zst suffix is load-bearing too: abicheck infers the compression
-      # envelope from it when writing here and from the bytes when reading on the
-      # PR side. The `.l2` infix is what keeps the header-depth family out of that
-      # matching: LinuxAbicheckScan's operand is a directory, so two snapshots
-      # claiming the name `libonedal_core.so.abicheck.json.zst` would be
-      # ambiguous. LinuxAbicheckL2Scan downloads its one snapshot by explicit
-      # name, so the infix costs it nothing.
-      #
-      # Keep the pin equal to ci.yml's. A mismatch does not fail in any way that
-      # points at the cause -- it either under-reports silently or fails loudly
-      # for the wrong reason (measured: an enum-value dumper fix turned an
-      # unchanged tree into 280 breaking `enum_member_value_changed` findings
-      # against baselines dumped by the older pin, exit 4, with nothing naming
-      # the baseline as the cause). So every bump obliges re-*verifying* against
-      # the existing baselines, and re-capturing for every published tag only if
-      # the reports differ (delete the assets, then dispatch -- a bare
-      # re-dispatch keeps whatever is already on the release); neither this pin
-      # nor the one before it needed new baselines on that test -- the pin here reads the
-      # snapshots the previous pin published (schema 25 against its own 44) and
-      # reports the identical per-library table.
-      #
-      # That compatibility runs one way only. A snapshot dumped here now cannot
-      # be read by the previous pin at all ("Cannot detect format", and behind
-      # that a hard schema rejection), so rolling the pin back means deleting
-      # every published tag's assets and re-capturing them at the older pin
-      # first. See .github/abicheck/README.md.
-
-      - name: Dump libonedal_core.so
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+      # `validation: strict` round-trips every freshly-dumped snapshot through a
+      # self-compare before it is packaged, which is the cheap version of the
+      # tripwire the previous revision of this workflow spelled as a hand-written
+      # per-family size ceiling.
+      - name: Build the binary-depth baseline-set
+        id: bset-binary
+        uses: abicheck/abicheck/actions/baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
         with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          output-dir: __abi_baseline_binary
+          project-ref: ${{ steps.baseline.outputs.tag }}
+          profile: ${{ env.ABICHECK_PROFILE_BINARY }}
           depth: binary
-          new-version: ${{ steps.baseline.outputs.tag }}
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_core.so.abicheck.json.zst
-          dependency-source: none
+          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          generator-git-sha: 555905fbea3ab5b099848ab32a57883ebacb96e5
+          validation: strict
+          snapshot-compression: zstd
+          install-deps: false
+          # `name` is the identity ci.yml resolves against, so it is the plain
+          # soname stem with no tag or profile decoration.
+          libraries: |
+            [
+              {"name": "libonedal.so",                 "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal.so",                 "stage_binary": true},
+              {"name": "libonedal_core.so",            "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_core.so",            "stage_binary": true},
+              {"name": "libonedal_dpc.so",             "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_dpc.so",             "stage_binary": true},
+              {"name": "libonedal_parameters.so",      "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_parameters.so",      "stage_binary": true},
+              {"name": "libonedal_parameters_dpc.so",  "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_parameters_dpc.so",  "stage_binary": true},
+              {"name": "libonedal_thread.so",          "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_thread.so",          "stage_binary": true}
+            ]
 
-      - name: Dump libonedal.so
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
-          depth: binary
-          new-version: ${{ steps.baseline.outputs.tag }}
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal.so.abicheck.json.zst
-          dependency-source: none
-
-      - name: Dump libonedal_dpc.so
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
-          depth: binary
-          new-version: ${{ steps.baseline.outputs.tag }}
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_dpc.so.abicheck.json.zst
-          dependency-source: none
-
-      - name: Dump libonedal_parameters.so
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so
-          depth: binary
-          new-version: ${{ steps.baseline.outputs.tag }}
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters.so.abicheck.json.zst
-          dependency-source: none
-
-      - name: Dump libonedal_parameters_dpc.so
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so
-          depth: binary
-          new-version: ${{ steps.baseline.outputs.tag }}
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters_dpc.so.abicheck.json.zst
-          dependency-source: none
-
-      - name: Dump libonedal_thread.so
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_thread.so
-          depth: binary
-          new-version: ${{ steps.baseline.outputs.tag }}
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_thread.so.abicheck.json.zst
-          dependency-source: none
-
-      # The header-depth family, for ci.yml's LinuxAbicheckL2Scan -- the five
-      # libraries that job compares, same tag, same pin. What is added is
-      # `depth: headers` plus the two
-      # umbrella headers and the include root they resolve against, which makes
-      # each dump carry the parsed public declarations and not just the export
-      # table.
+      # ── Family 2: header depth, the five libraries L2 compares ──────────────
       #
-      # Both umbrellas go to every library, matching what the PR side passes --
-      # abicheck matches declarations to exported symbols itself, so a header
-      # declaring nothing a given library exports costs parse time and changes no
-      # finding, whereas the two sides disagreeing about the header set would show
-      # up as spurious added/removed declarations.
+      # What is added over family 1 is `depth: headers` plus the two umbrella
+      # headers and the include root they resolve against, which makes each
+      # snapshot carry the parsed public declarations and not just the export
+      # table. Both umbrellas go to every library, matching what the PR side
+      # passes -- abicheck matches declarations to exported symbols itself, so a
+      # header declaring nothing a given library exports costs parse time and
+      # changes no finding, whereas the two sides disagreeing about the header
+      # set would show up as spurious added/removed declarations.
       #
-      # `build-config` is not optional on these steps, and not for the bundle or
-      # scope keys: it carries the `compile:` block, and a header-depth snapshot
-      # records its compile context as a profile fingerprint that abicheck
-      # refuses to compare across. Measured by omitting it here and setting it on
-      # the compare side: "not comparable: old and new snapshots were extracted
-      # under different compile contexts (profile_fingerprint mismatch;
-      # differing fields: language_standard)", exit 16, no verdict. Both
-      # workflows therefore read the same file, and editing its `compile:` block
-      # obliges re-dispatching this workflow for every published tag.
+      # No libonedal_thread.so here: LinuxAbicheckL2Scan does not compare it (it
+      # installs no public header of its own), and it keeps its binary-depth
+      # snapshot in family 1, which is what the release-shaped gate compares.
       #
-      # `dependency-source: conda-forge` on each of the five, because these dumps
-      # do parse headers and abicheck accepts only castxml >=0.6.11,<0.8.0 --
-      # Ubuntu 24.04's is 0.6.3 and the PyPI distribution's is 0.4.5, both
-      # refused outright rather than silently downgraded. The install repeats per
-      # step because each `uses:` provisions its own environment; measured, the
-      # parse dominates it anyway at 263-289 s per library (~2.9 GiB peak RSS,
-      # 4.45-4.53 MB per snapshot, 22 MB for the five).
-      - name: Dump libonedal_core.so at header depth
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+      # No `build-config` -- and that is the one real capability this migration
+      # gives up. `actions/baseline` runs `abicheck dump` with only
+      # -H/-I/--build-info/--depth/--version/--compression/-o: it forwards
+      # neither `--config` nor `--sources`, and a `compile:` block reaches a dump
+      # only through one of those two. (The Action declares a `build-config`
+      # input; its run.sh never reads it.) oneDAL's .github/abicheck/abicheck.yml
+      # therefore no longer carries a `compile:` block on *either* side, because
+      # pinning it on the candidate side alone is worse than not pinning it:
+      # measured, a candidate asserting `std: c++17` against a set that could not
+      # gives "profile_fingerprint mismatch; differing fields:
+      # language_standard", exit 16, no verdict. With it gone from both, the
+      # comparison is real -- exit 0, effective_depth `headers`,
+      # analysis_assurance `complete`. Nothing is actually lost, because the two
+      # keys restated what abicheck resolves anyway (`--ast-frontend auto` picks
+      # the pinned castxml, and the recorded language standard is
+      # `probed:__cplusplus=201703L`); the upstream ask is a `build-config` input
+      # on actions/baseline that is actually forwarded as `--config`. See the
+      # end of .github/abicheck/abicheck.yml.
+      #
+      # `install-deps` is left at its default `true`, which installs the
+      # checksum-pinned CastXML Superbuild. That is a real toolchain change from
+      # the conda-forge castxml the previous revision's L2 dumps used, and it is
+      # the reason the PR side has to move to `dependency-source: system` too: a
+      # header-depth snapshot records its compile context as a fingerprint
+      # abicheck refuses to compare across, so publisher and consumer have to
+      # resolve the same one.
+      - name: Build the header-depth baseline-set
+        id: bset-headers
+        uses: abicheck/abicheck/actions/baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
         with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          output-dir: __abi_baseline_headers
+          project-ref: ${{ steps.baseline.outputs.tag }}
+          profile: ${{ env.ABICHECK_PROFILE_HEADERS }}
           depth: headers
-          new-header: |
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
-          new-version: ${{ steps.baseline.outputs.tag }}
-          build-config: .github/abicheck/abicheck.yml
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_core.so.abicheck.l2.json.zst
-          dependency-source: conda-forge
+          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          generator-git-sha: 555905fbea3ab5b099848ab32a57883ebacb96e5
+          validation: strict
+          snapshot-compression: zstd
+          libraries: |
+            [
+              {"name": "libonedal.so",                "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal.so",                "header": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp", "include": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}"},
+              {"name": "libonedal_core.so",           "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_core.so",           "header": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp", "include": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}"},
+              {"name": "libonedal_dpc.so",            "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_dpc.so",            "header": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp", "include": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}"},
+              {"name": "libonedal_parameters.so",     "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_parameters.so",     "header": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp", "include": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}"},
+              {"name": "libonedal_parameters_dpc.so", "artifact": "${{ env.ABICHECK_BASELINE_LIB_DIR }}/libonedal_parameters_dpc.so", "header": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp", "include": "${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}"}
+            ]
 
-      - name: Dump libonedal.so at header depth
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+      # One archive per family, named by the shared template. The Action picks
+      # its compression from the template's own suffix and rejects a suffix no
+      # consumer could extract, which is the check the previous revision's
+      # hand-written per-family size ceiling was approximating.
+      - name: Package the binary-depth baseline-set
+        id: archive-binary
+        uses: abicheck/abicheck/actions/stage-baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
         with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
-          depth: headers
-          new-header: |
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
-          new-version: ${{ steps.baseline.outputs.tag }}
-          build-config: .github/abicheck/abicheck.yml
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal.so.abicheck.l2.json.zst
-          dependency-source: conda-forge
+          baseline-path: ${{ steps.bset-binary.outputs.baseline-path }}
+          asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
+          profile: ${{ env.ABICHECK_PROFILE_BINARY }}
+          generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
 
-      - name: Dump libonedal_dpc.so at header depth
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+      - name: Package the header-depth baseline-set
+        id: archive-headers
+        uses: abicheck/abicheck/actions/stage-baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
         with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
-          depth: headers
-          new-header: |
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
-          new-version: ${{ steps.baseline.outputs.tag }}
-          build-config: .github/abicheck/abicheck.yml
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_dpc.so.abicheck.l2.json.zst
-          dependency-source: conda-forge
+          baseline-path: ${{ steps.bset-headers.outputs.baseline-path }}
+          asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
+          profile: ${{ env.ABICHECK_PROFILE_HEADERS }}
+          generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
 
-      - name: Dump libonedal_parameters.so at header depth
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so
-          depth: headers
-          new-header: |
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
-          new-version: ${{ steps.baseline.outputs.tag }}
-          build-config: .github/abicheck/abicheck.yml
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters.so.abicheck.l2.json.zst
-          dependency-source: conda-forge
-
-      - name: Dump libonedal_parameters_dpc.so at header depth
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
-        with:
-          mode: dump
-          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so
-          depth: headers
-          new-header: |
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
-            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
-          new-version: ${{ steps.baseline.outputs.tag }}
-          build-config: .github/abicheck/abicheck.yml
-          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters_dpc.so.abicheck.l2.json.zst
-          dependency-source: conda-forge
-
-      # No header-depth dump for libonedal_thread.so: `LinuxAbicheckL2Scan` does
-      # not compare it (it installs no public header of its own, so header
-      # evidence about it is only "does not export what other libraries' headers
-      # declare"), and an asset nothing reads is still an immutable release asset
-      # under a committed digest. It keeps its binary-depth snapshot above, which
-      # is what the release-shaped gate compares.
-
-      # A tripwire for one failure: compression silently not applying. Measured at
-      # this pin, the binary-depth six are 6.7 KiB to 200 KiB compressed (477 KiB
-      # together; the previous pin: 5.8 KiB to 148 KiB, 372 KB -- the sectioned
-      # snapshot envelope this pin writes carries more per library), and the
-      # header-depth five are 4.45-4.53 MB each, 22.4 MB together, since each one
-      # carries the parsed declarations of both umbrella headers. Hence a ceiling
-      # per family rather than one number: 5 MiB would fail every L2 snapshot, and
-      # 32 MiB applied to a binary-depth one would not catch it written
-      # uncompressed. Both leave better than an order of magnitude of headroom.
-      #
-      # The globs and the asset names share their suffixes deliberately -- this
-      # loop, the publish loop, the digest step and both PR-side jobs all key on
-      # them, so an asset named outside both families would make every one of them
-      # silently no-op rather than fail. That is what the count check below is
-      # for: eleven snapshots are expected -- six plus five -- and a dump step
-      # that wrote its output somewhere unexpected is otherwise invisible here.
-      - name: Report snapshot sizes and check the compression tripwire
+      # Both sets' own content digests, in the log and the job summary. These are
+      # the Action's `content-digest` output (SHA-256 over the manifest's
+      # artifact list, including each staged binary's digest), not the archive
+      # digest committed below: it is stable across repackaging, which makes it
+      # the right thing to compare between two runs to answer "did the baseline's
+      # content change" -- an archive digest cannot answer that, since a snapshot
+      # is content-reproducible but not byte-reproducible (two dumps of the same
+      # libonedal.so measured 87,584 bytes each with different sha256s, differing
+      # only in the recorded `created_at`).
+      - name: Report baseline-set identity
         run: |
           set -euo pipefail
-          ls -l "${ABICHECK_BASELINE_DIR}"
-          du -sh "${ABICHECK_BASELINE_DIR}"
-          rc=0
-          check_family() {
-            local glob="$1" limit_mib="$2" expected_range="$3" expected_count="$4" found=0
-            local limit=$(( limit_mib * 1024 * 1024 ))
-            for f in "${ABICHECK_BASELINE_DIR}"/$glob; do
-              [ -e "$f" ] || continue
-              found=$(( found + 1 ))
-              local size
-              size=$(stat -c %s "$f")
-              if [ "$size" -gt "$limit" ]; then
-                echo "::error file=${f}::$(( size / 1024 )) KiB is far above the ${expected_range} a compressed snapshot of this family takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
-                rc=1
-              fi
-            done
-            if [ "$found" -ne "$expected_count" ]; then
-              echo "::error::Expected ${expected_count} snapshots matching '${glob}', found ${found}. A dump step above wrote its output-file somewhere the publish and digest steps do not look."
-              rc=1
-            fi
-          }
-          check_family '*.abicheck.json.zst' 5 '7-200 KiB' 6
-          check_family '*.abicheck.l2.json.zst' 32 '4-5 MiB' 5
-          exit "$rc"
+          printf 'binary  : %s libraries, content-digest %s\n' \
+            "${{ steps.bset-binary.outputs.library-count }}" "${{ steps.bset-binary.outputs.content-digest }}"
+          printf 'headers : %s libraries, content-digest %s\n' \
+            "${{ steps.bset-headers.outputs.library-count }}" "${{ steps.bset-headers.outputs.content-digest }}"
+          ls -l "${{ steps.archive-binary.outputs.archive-path }}" "${{ steps.archive-headers.outputs.archive-path }}"
 
       # Upload before computing digests, so the digest file describes the bytes
-      # actually published rather than the bytes this run happened to dump.
+      # actually published rather than the bytes this run happened to build.
       #
       # Fails closed on an immutability violation rather than passing --clobber:
       # a published baseline is what every already-merged PR's "compatible with
       # <tag>" verdict was computed against, so replacing it has to be an
       # explicit act. The test is asset *existence*, not a byte compare, and it
-      # has to be -- a snapshot is content-reproducible but not byte-reproducible
-      # (two dumps of the same libonedal.so by the same pin measured 87,584 bytes
-      # each with different sha256s, differing only in the recorded `created_at`).
-      # An already-published asset is therefore left as it is and its published
-      # bytes are what the digest step hashes, which makes a re-run after a
-      # transient failure converge instead of deadlocking.
+      # has to be -- see the byte-reproducibility note above. An already-published
+      # asset is therefore left as it is and its published bytes are what the
+      # digest step hashes, which makes a re-run after a transient failure
+      # converge instead of deadlocking.
       #
-      # It is also what arms the header-depth family on a tag that predates it: a
-      # re-dispatch keeps the six published binary-depth assets untouched, uploads
-      # the five new `.l2` ones, and commits a digest file covering all eleven. No
-      # already-merged PR's verdict changes, and LinuxAbicheckL2Scan stops
-      # skipping.
-      - name: Publish baseline snapshots to the release
+      # To replace a published baseline deliberately, prefer bumping
+      # ABICHECK_BASELINE_GENERATION (new asset name, old asset untouched, and
+      # consumers still pinned to the old generation fail loudly as
+      # `stale_generation`) over `gh release delete-asset`, which silently
+      # invalidates the committed digest of an asset that may still be fetched
+      # from a stale branch.
+      - name: Publish baseline-set archives to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.baseline.outputs.tag }}
+          ARCHIVES: |
+            ${{ steps.archive-binary.outputs.archive-path }}
+            ${{ steps.archive-headers.outputs.archive-path }}
         run: |
           set -euo pipefail
           if ! gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
@@ -442,12 +363,12 @@ jobs:
             exit 1
           fi
           mkdir -p "${ABICHECK_PUBLISHED_DIR}"
-          for path in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst \
-                      "${ABICHECK_BASELINE_DIR}"/*.abicheck.l2.json.zst; do
+          published_names="$(gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" --json assets --jq '.assets[].name')"
+          while read -r path; do
+            [ -n "$path" ] || continue
             name="$(basename "$path")"
-            if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" \
-                 --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
-              echo "::warning::'${name}' is already published on release '${TAG}'; keeping the published asset and ignoring this run's freshly dumped one. A release-tag baseline is immutable: every merged PR's verdict was computed against the published bytes. To replace it deliberately, run 'gh release delete-asset ${TAG} ${name}' and re-run this workflow, or publish under a new tag."
+            if printf '%s\n' "$published_names" | grep -Fxq "$name"; then
+              echo "::warning::'${name}' is already published on release '${TAG}'; keeping the published asset and ignoring this run's freshly built one. A release-tag baseline is immutable: every merged PR's verdict was computed against the published bytes. To replace it, bump ABICHECK_BASELINE_GENERATION (preferred) or run 'gh release delete-asset ${TAG} ${name}' and re-run this workflow."
               rm -f "${ABICHECK_PUBLISHED_DIR}/${name}"
               gh release download "$TAG" --repo "${GITHUB_REPOSITORY}" \
                 --pattern "$name" --dir "${ABICHECK_PUBLISHED_DIR}"
@@ -455,27 +376,37 @@ jobs:
             fi
             gh release upload "$TAG" "$path" --repo "${GITHUB_REPOSITORY}"
             cp "$path" "${ABICHECK_PUBLISHED_DIR}/${name}"
-          done
+          done <<< "$ARCHIVES"
+          ls -l "${ABICHECK_PUBLISHED_DIR}"
 
       # The digest file, not the snapshots, is what enters version control: a
-      # few hundred bytes, reviewable, and the anchor that lets the PR-side jobs
-      # prove the asset they downloaded is the one on the release.
+      # couple of lines, reviewable, and the anchor that lets LinuxAbicheckScan
+      # prove the archive it downloaded is the one this workflow published. The
+      # manifest inside the archive digests every artifact, but it travels inside
+      # the very bytes an attacker with release-write access would replace, so it
+      # cannot anchor itself -- that is what a digest under code review, on a
+      # protected branch, is for.
       #
-      # One file covering both families, because it is the anchor for the tag and
-      # not for a job: the PR side filters it by name (LinuxAbicheckScan drops the
-      # `.l2` lines it must not put in its directory operand, LinuxAbicheckL2Scan
-      # keeps just its own library's) and verifies what it filtered to. Both
-      # globs are named explicitly rather than collapsed to `*.zst` so an
-      # unrelated file appearing in this directory cannot enter the trust anchor.
-      - name: Compute baseline digests
+      # Only the binary family's archive is covered, and that is a real gap
+      # rather than an oversight. LinuxAbicheckScan fetches its archive itself,
+      # so there is a place to check a digest before using it.
+      # LinuxAbicheckL2Scan fetches through the abicheck Action's own
+      # `abi-baseline` input, which offers no interposition point for a
+      # repo-committed digest -- and that job is advisory
+      # (`continue-on-error: true`), so it trades the anchor for not
+      # re-implementing the fetch. Committing a digest nothing verifies would
+      # read as protection that is not there. Upstream ask: an expected-archive-
+      # digest input on `abi-baseline`.
+      - name: Compute the binary baseline-set archive digest
         working-directory: ${{ env.ABICHECK_PUBLISHED_DIR }}
         run: |
           set -euo pipefail
-          sha256sum *.abicheck.json.zst *.abicheck.l2.json.zst \
+          mkdir -p "${GITHUB_WORKSPACE}/.github/abicheck/baselines"
+          sha256sum "$(basename '${{ steps.archive-binary.outputs.archive-path }}')" \
             > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
           cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
 
-      - name: Commit baseline digests
+      - name: Commit the baseline-set archive digest
         run: |
           set -euo pipefail
           sums=".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
@@ -483,19 +414,25 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$sums"
           if git diff --cached --quiet; then
-            echo "Baseline digests unchanged; nothing to commit."
+            echo "Baseline digest unchanged; nothing to commit."
             exit 0
           fi
-          git commit -m "Publish abicheck baseline digests for ${{ steps.baseline.outputs.tag }}"
+          git commit -m "Publish abicheck baseline digest for ${{ steps.baseline.outputs.tag }}"
           git push origin HEAD:main
 
       - name: Summarize
         run: |
           {
-            echo "### Abicheck baseline published"
+            echo "### Abicheck baseline-sets published"
             echo ""
-            echo "Release: \`${{ steps.baseline.outputs.tag }}\`"
+            echo "Release: \`${{ steps.baseline.outputs.tag }}\`  |  generation: \`${{ env.ABICHECK_BASELINE_GENERATION }}\`"
             echo ""
+            echo "| profile | libraries | content digest | asset |"
+            echo "| --- | --- | --- | --- |"
+            echo "| \`${{ env.ABICHECK_PROFILE_BINARY }}\` | ${{ steps.bset-binary.outputs.library-count }} | \`${{ steps.bset-binary.outputs.content-digest }}\` | \`${{ steps.archive-binary.outputs.asset-name }}\` |"
+            echo "| \`${{ env.ABICHECK_PROFILE_HEADERS }}\` | ${{ steps.bset-headers.outputs.library-count }} | \`${{ steps.bset-headers.outputs.content-digest }}\` | \`${{ steps.archive-headers.outputs.asset-name }}\` |"
+            echo ""
+            echo "Committed archive digest (binary family only -- see the workflow's digest step):"
             echo '```'
             cat ".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
             echo '```'

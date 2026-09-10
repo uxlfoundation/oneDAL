@@ -194,19 +194,27 @@ jobs:
   LinuxAbicheckScan:
     name: Abicheck (multilib)
     needs: LinuxMakeDPCPP
+    # No `API/ABI breaking change` predicate here. A label is an author's
+    # assertion about intent; skipping the job on it deletes the evidence for
+    # that assertion, and the one PR where the report matters most is the one
+    # that says it breaks ABI on purpose. The label instead relaxes *gating*, on
+    # the `fail-on-breaking`/`fail-on-removed-library` inputs of the check step
+    # below -- so a labelled PR still produces the full per-library report, the
+    # job summary and the JSON artifact, and merges anyway.
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
-      github.event_name == 'pull_request' &&
-      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+      github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     # Measured with the pin below, on the no-debug-info build LinuxMakeDPCPP
     # produces: 28 s and 446 MiB peak RSS for all six libraries in one run (three
     # runs: 28.2-29.1 s, 439-446 MiB), of which the bundle analysis that is now
     # unconditional is a part -- the previous pin measured 12 s and 205 MiB with
     # it switched off. The rest of the job is the checkout, the build artifact
-    # and six snapshots totalling 372 KB, so this timeout is generous by design
-    # rather than tuned. Numbers and the trade-off behind them:
-    # .github/abicheck/README.md.
+    # and one 29,489,837-byte baseline-set archive -- the staged member binaries
+    # are what makes it that size rather than the 491,816 bytes the snapshots
+    # alone take, and the bundle analysis above is what needs them. So this
+    # timeout is generous by design rather than tuned. Numbers and the trade-off
+    # behind them: .github/abicheck/README.md.
     timeout-minutes: 20
     permissions:
       contents: read
@@ -216,7 +224,22 @@ jobs:
       # dispatching "Publish Abicheck Baseline" for that tag and editing this
       # line -- see .github/abicheck/README.md ("Rotation").
       ABICHECK_BASELINE_TAG: 2026.0.0
+      # Profile and generation, which together with the tag identify exactly one
+      # published baseline-set archive. Both have to equal what
+      # abicheck-baseline.yml recorded (ABICHECK_PROFILE_BINARY and
+      # ABICHECK_BASELINE_GENERATION there) -- resolve-baseline rejects a
+      # mismatch on either as `wrong_profile` / `stale_generation` rather than
+      # comparing anyway, so this is enforced rather than documented.
+      ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-binary
+      ABICHECK_BASELINE_GENERATION: "1"
       ABICHECK_BASELINE_DIR: __abi_baselines
+      # The one deliberate way this gate becomes non-blocking. `false` means a
+      # missing baseline is a failure; flipping it to `true` is a one-line,
+      # reviewable commit that says "there is no published baseline yet, run
+      # inert". It exists because this gate's very first PR is the one that adds
+      # the digest file, and that PR cannot verify an asset against a file it is
+      # itself delivering -- see the fetch step.
+      ABICHECK_BOOTSTRAP: "false"
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -225,70 +248,123 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      # The baselines are release assets published by
-      # .github/workflows/abicheck-baseline.yml; the committed digest file is
-      # the trust anchor, so a replaced or corrupted asset fails this job
-      # instead of silently changing every PR's verdict. Before that file
-      # exists on main the check cannot compare anything -- the publishing
-      # workflow can only be dispatched once it is *on* the default branch --
-      # so that state is a skip with a warning annotation, i.e. visibly inert
-      # rather than red (which would block the PR delivering it) or quietly
-      # green.
-      - name: Fetch and verify ABI baselines
+      # The baseline is one release asset published by
+      # .github/workflows/abicheck-baseline.yml -- a release-contract
+      # baseline-set archive for this profile and generation. The committed
+      # digest file is the trust anchor, so a replaced or corrupted asset fails
+      # this job instead of silently changing every PR's verdict.
+      #
+      # A missing baseline is a failure, not a skip, and that is the point of
+      # this step's shape. The previous revision skipped whenever the digest file
+      # was absent, which meant the gate could not prove it had ever run: six
+      # green jobs with all six comparison steps `skipped` looks identical to six
+      # green comparisons. The one state that genuinely cannot verify anything --
+      # the very first PR, which is itself delivering the digest file -- is now an
+      # explicit opt-in (ABICHECK_BOOTSTRAP above) rather than an implicit
+      # property of an absent file.
+      - name: Fetch and verify the baseline-set archive
         id: baselines
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Spelled here rather than in `env:` so profile and generation are each
+          # declared once. Must match abicheck-baseline.yml's
+          # ABICHECK_ASSET_TEMPLATE after its own substitution.
+          asset="abicheck-baseline-${ABICHECK_PROFILE}-gen${ABICHECK_BASELINE_GENERATION}.tar.zst"
+          echo "asset=${asset}" >> "$GITHUB_OUTPUT"
           sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
           if [ ! -f "$sums" ]; then
+            note="No baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
+            if [ "${ABICHECK_BOOTSTRAP}" != "true" ]; then
+              echo "::error title=ABI baseline missing::${note} This gate fails rather than skipping: a required baseline that is absent must be visible. If no baseline exists yet, set ABICHECK_BOOTSTRAP to 'true' in this job as a deliberate, reviewable commit."
+              exit 1
+            fi
             echo "available=false" >> "$GITHUB_OUTPUT"
-            note="ABI scan skipped: no baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
-            echo "::warning title=ABI baseline missing::${note}"
+            echo "::notice title=ABI gate bootstrapping::${note} ABICHECK_BOOTSTRAP is 'true', so this run is inert by explicit opt-in."
             {
               echo "### Abicheck"
               echo ""
-              echo "${note}"
+              echo "**Gate not armed (explicit bootstrap opt-in).** ${note}"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          # A digest file that does not name this asset is a mismatch between
+          # this job's profile/generation and what was published, not a
+          # not-armed-yet state -- most likely ABICHECK_BASELINE_GENERATION was
+          # bumped here without re-dispatching the publisher. Failing names the
+          # cause; skipping would hide it behind a green check.
+          if ! grep -q "  ${asset}\$" "$sums"; then
+            echo "::error title=ABI baseline mismatch::'${asset}' is not listed in ${sums}. Tag ${ABICHECK_BASELINE_TAG} has no published baseline-set for profile '${ABICHECK_PROFILE}' at generation ${ABICHECK_BASELINE_GENERATION}. Re-dispatch 'Publish Abicheck Baseline' on main for that tag with a matching ABICHECK_BASELINE_GENERATION, or correct this job's profile/generation."
+            echo "--- digest file contents:"
+            cat "$sums"
+            exit 1
+          fi
           # __abi_report is created here because the check step below writes its
           # report into it and abicheck does not create the parent directory.
-          # ABICHECK_BASELINE_DIR holds nothing but the verified snapshots: it is
-          # handed to the check as a *directory* operand, so an unrelated file
-          # dropped in here would be read as another library to compare.
           mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
-          # Download exactly the assets the digest file names, one --pattern per
-          # line: an extra asset on the release cannot be pulled in, and a
-          # missing one fails here rather than later as a confusing "no
-          # baseline" error. --pattern is a glob, and the published names
-          # (<library>.abicheck.json.zst) contain no metacharacter.
-          #
-          # The `.abicheck.l2.json.zst` family is skipped here on purpose: the
-          # digest file covers both families, but those snapshots belong to
-          # LinuxAbicheckL2Scan. This directory is a *directory operand*, so an
-          # L2 snapshot landing in it would be compared as a seventh library --
-          # and a header-depth snapshot read at `depth: binary` reports its
-          # entire header-derived type surface as removed (measured on an
-          # unchanged tree, with this repo's abicheck.yml and policy.yaml: 903
-          # breaking `typedef_removed` on every library, up to 1455 breaking on
-          # libonedal_core.so, verdict BREAKING). The filtered digest list is
-          # written out so the verify step
-          # below still checks every file this step actually downloaded.
-          grep -v '\.abicheck\.l2\.json\.zst$' "$sums" > "${RUNNER_TEMP}/baseline-binary.sha256"
-          while read -r _digest name; do
-            [ -n "${name:-}" ] || continue
-            gh release download "${ABICHECK_BASELINE_TAG}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --pattern "${name}" \
-              --dir "${ABICHECK_BASELINE_DIR}" \
-              --clobber
-          done < "${RUNNER_TEMP}/baseline-binary.sha256"
+          gh release download "${ABICHECK_BASELINE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${asset}" \
+            --dir "${ABICHECK_BASELINE_DIR}" \
+            --clobber
           # Verify before use. --check fails on a digest mismatch or a missing
           # file, --strict on a malformed line, so a truncated or hand-edited
           # digest file cannot degrade into "nothing to check, all good".
-          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline-binary.sha256" )
+          #
+          # This is the check `abi-baseline` cannot do for us, and the reason
+          # this job fetches its own asset rather than handing the tag to the
+          # abicheck Action: the manifest inside the archive digests every
+          # artifact, but it travels inside the very bytes a release-write
+          # compromise would replace.
+          grep "  ${asset}\$" "$sums" > "${RUNNER_TEMP}/baseline.sha256"
+          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline.sha256" )
           echo "available=true" >> "$GITHUB_OUTPUT"
+      # Resolution is abicheck's own, not this workflow's: the archive is handed
+      # to resolve-baseline, which extracts it, checks the manifest's schema,
+      # profile, project_ref, generation and every artifact's recorded digest,
+      # and returns one typed outcome. Measured against a real oneDAL
+      # baseline-set: `resolved` on a good set, and exit 1 with `wrong_profile`,
+      # `stale_generation`, `not_found` (required), a missing bundle member, and
+      # `ambiguous` on both a tampered staged binary and a tampered snapshot --
+      # so every one of those fails closed instead of comparing against
+      # something.
+      #
+      # `kind: bundle`, because this job's comparison is release-shaped: the
+      # bundle half of it reads real ELF binaries and skips non-ELF inputs, so
+      # what it needs from the baseline-set is the staged member binaries
+      # (`binaries-dir`), not the snapshots. Measured on this exact set: the
+      # snapshot directory as the old operand makes the bundle half vacuous (six
+      # spurious `bundle_library_added` findings, bundle verdict COMPATIBLE);
+      # `binaries-dir` makes it real (bundle COMPATIBLE_WITH_RISK over 156
+      # `bundle_intra_dep_signature_unverified`, and BREAKING with 212
+      # `bundle_intra_dep_removed` if abicheck.yml's MKL `system_providers`
+      # entries are dropped).
+      #
+      # `required: true` is the item the previous revision could not express:
+      # a baseline-set that is absent, stale or wrong-profile now fails here
+      # rather than leaving the comparison step `skipped` under a green job.
+      - name: Resolve the release-contract baseline
+        id: resolve
+        if: steps.baselines.outputs.available == 'true'
+        uses: abicheck/abicheck/actions/resolve-baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
+        with:
+          baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
+          channel: release-contract
+          kind: bundle
+          bundle: onedal-release
+          # Every member must have a staged binary in the set, or the bundle does
+          # not resolve -- which is what makes "the publisher forgot
+          # stage_binary on one library" a failure here instead of a quietly
+          # incomplete bundle analysis later.
+          bundle-members: >-
+            ["libonedal.so", "libonedal_core.so", "libonedal_dpc.so",
+             "libonedal_parameters.so", "libonedal_parameters_dpc.so",
+             "libonedal_thread.so"]
+          profile: ${{ env.ABICHECK_PROFILE }}
+          required: true
+          expected-project-ref: ${{ env.ABICHECK_BASELINE_TAG }}
+          expected-baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
       # The pin must stay equal to the one in abicheck-baseline.yml: a baseline
       # captured by an older abicheck silently under-reports rather than
       # failing. `uses:` takes no expression, so it cannot be shared through an
@@ -296,40 +372,65 @@ jobs:
       #
       # Both operands are directories, which is abicheck's own multi-library
       # release comparison: one run fans out over every shared object in the
-      # release directory, matching each one to the baseline snapshot of the same
-      # name. `depth: headers` and up is still rejected for a directory operand
-      # ("the per-library fan-out does not enforce a per-library evidence
-      # floor", exit 64), so this gate compares exported symbols and ELF
-      # metadata, not the public-header AST. What that costs, and why it is
-      # still worth running next to abidiff, is in .github/abicheck/README.md
-      # ("Binary depth").
+      # directory, matching each one to its counterpart of the same name.
+      # `depth: headers` and up is still rejected for a directory operand ("the
+      # per-library fan-out does not enforce a per-library evidence floor", exit
+      # 64), so this gate compares exported symbols and ELF metadata, not the
+      # public-header AST. What that costs, and why it is still worth running
+      # next to abidiff, is in .github/abicheck/README.md ("Binary depth").
       - name: Check ABI against the released baseline
         id: abicheck
-        if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        if: steps.resolve.outputs.outcome == 'resolved'
+        uses: abicheck/abicheck@555905fbea3ab5b099848ab32a57883ebacb96e5
         with:
           mode: compare
-          old-library: ${{ env.ABICHECK_BASELINE_DIR }}
+          # The baseline-set's staged member binaries, resolved and digest-checked
+          # by the step above -- real ELF on both sides. See that step's note for
+          # why the snapshots are not the operand here.
+          old-library: ${{ steps.resolve.outputs.binaries-dir }}
           new-library: __release_lnx/daal/latest/lib/intel64
           # Stated rather than left implicit: the Action forwards it (measured:
           # `--depth binary` on the built command line) and the fan-out is
-          # binary-depth anyway, so this pins the evidence rung the baseline
-          # snapshots are dumped at instead of inheriting it. The fan-out reads
-          # each binary's exported symbols, and its DWARF too if it has any --
-          # LinuxMakeDPCPP emits none. If that build ever starts shipping debug
-          # info, re-dispatch "Publish Abicheck Baseline" so the two sides keep
+          # binary-depth anyway, so this pins the evidence rung the baseline is
+          # captured at instead of inheriting it. The fan-out reads each binary's
+          # exported symbols, and its DWARF too if it has any -- LinuxMakeDPCPP
+          # emits none. If that build ever starts shipping debug info,
+          # re-dispatch "Publish Abicheck Baseline" so the two sides keep
           # describing the same evidence.
           #
-          # This is also why this job reads the `*.abicheck.json.zst` baseline
-          # family and not the `*.abicheck.l2.json.zst` one LinuxAbicheckL2Scan
-          # below uses: a directory compare pinned to `binary` against
-          # header-depth snapshots still has to load and project each one down,
-          # which measured 10.9 GiB peak RSS and minutes instead of 446 MiB and
-          # 28 s. The header-AST evidence is worth having, but not on this job's
-          # bill; hence two baseline families.
+          # This is also why the publisher builds two profiles rather than one,
+          # and why this job asks for the `-binary` one: a directory compare
+          # pinned to `binary` against header-depth snapshots still has to load
+          # and project each one down, which measured 10.9 GiB peak RSS and
+          # minutes instead of 446 MiB and 28 s -- and the projection reports the
+          # dropped header-derived types as removed (up to 1455 breaking
+          # `typedef_removed` on libonedal_core.so). resolve-baseline's
+          # `wrong_profile` outcome is what stops the two being confused.
           depth: binary
           old-version: ${{ env.ABICHECK_BASELINE_TAG }}
           new-version: ${{ github.sha }}
+          # ── What the `API/ABI breaking change` label relaxes ───────────────
+          #
+          # The label no longer skips the job (see the `if:` at the top); it
+          # turns the two compatibility gates off while leaving the comparison,
+          # the report, the job summary and the JSON artifact exactly as they
+          # are. So a labelled PR still has to produce a readable ABI report --
+          # which is the evidence a reviewer needs in order to agree the break is
+          # the intended one -- and merges regardless of the verdict.
+          #
+          # Deliberately *not* relaxed: `scope.on_incomplete: block` in the
+          # build-config below, which is abicheck's completeness axis (exit 1)
+          # rather than a compatibility opinion (exit 4). "I am breaking ABI on
+          # purpose" is not an assertion that the comparison covered everything,
+          # so a labelled PR that also drops a library from the release stays
+          # red -- and the fix for that case is to re-publish the baseline for a
+          # release that no longer ships it, not to relax the axis. There is no
+          # input for `on_incomplete`, so this is also the only shape available
+          # without templating the config file.
+          #
+          # `fail-on-breaking` defaults to true and `fail-on-api-break` to false,
+          # both of which stay as they are for an unlabelled PR.
+          fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           # A library dropped from the release is a break, not a coverage gap --
           # but this input alone no longer says so: with an unproven NEW
           # inventory abicheck classifies a baseline with no counterpart as
@@ -337,17 +438,25 @@ jobs:
           # never sees. `scope.on_incomplete: block` in the build-config below
           # is what actually reddens that case (measured: exit 1). This input
           # stays for the case abicheck can prove the inventory complete.
-          fail-on-removed-library: true
+          fail-on-removed-library: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           # Every downgrade in here is evidence-backed; .github/abicheck/README.md
           # records the evidence per rule.
           policy-file: .github/abicheck/policy.yaml
           # The two settings that have no input: the bundle allow-list this
-          # snapshot-vs-bundle comparison needs, and the completeness gate.
-          # Both were CLI flags before abicheck demoted them to project config.
-          # The Action merges this file with the overlay it synthesizes from
+          # real-ELF bundle comparison needs, and the completeness gate. Both
+          # were CLI flags before abicheck demoted them to project config. The
+          # Action merges this file with the overlay it synthesizes from
           # `fail-on-removed-library` above, so the two do not fight over
-          # `--config`. Without it the job is red: 218 cross-library findings,
-          # exit 4.
+          # `--config`.
+          #
+          # Still load-bearing on the operand shape this job now uses -- staged
+          # real ELF on both sides, which is where an "the stored-facts operand
+          # makes the provider list redundant" expectation would have to hold.
+          # Re-measured, it does not: dropping abicheck.yml's four MKL
+          # `system_providers` entries gives 212 `bundle_intra_dep_removed`
+          # findings, bundle verdict BREAKING, release verdict BREAKING, exit 4.
+          # An unresolvable NEEDED soname is unresolvable whichever way the
+          # operand was built.
           build-config: .github/abicheck/abicheck.yml
           # The release artifact is already on the runner and nothing here parses
           # a header, so the default (conda-forge) would install a toolchain this
@@ -427,10 +536,13 @@ jobs:
   LinuxAbicheckL2Scan:
     name: Abicheck L2 (${{ matrix.library }})
     needs: LinuxMakeDPCPP
+    # Same reasoning as LinuxAbicheckScan: no label predicate, because a label
+    # must not delete the report. This job is advisory anyway
+    # (`continue-on-error: true` below), so there is nothing here for a label to
+    # relax -- it never blocks a merge to begin with.
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
-      github.event_name == 'pull_request' &&
-      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+      github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     continue-on-error: true
     strategy:
@@ -471,7 +583,15 @@ jobs:
       # with 2026.0.0" from one and a different tag from the other has no way to
       # reconcile them. Rotate both lines together.
       ABICHECK_BASELINE_TAG: 2026.0.0
-      ABICHECK_BASELINE_DIR: __abi_baselines_l2
+      # The header-depth profile and the generation, both of which have to equal
+      # what abicheck-baseline.yml published (ABICHECK_PROFILE_HEADERS and
+      # ABICHECK_BASELINE_GENERATION there). The generation does double duty on
+      # this side: it is substituted into the asset name *and* checked against
+      # the resolved baseline-set's manifest, so asking for a generation the
+      # published set does not carry is `stale_generation`, not a silent
+      # comparison across scanner epochs.
+      ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
+      ABICHECK_BASELINE_GENERATION: "1"
       ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
       - name: Checkout oneDAL
@@ -481,61 +601,32 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      # Same trust anchor and same skip-when-unarmed behaviour as
-      # LinuxAbicheckScan's fetch step, over the other baseline family: the
-      # digest file covers both, and this job wants exactly one line of it.
-      # Fetching by explicit name rather than by glob is what keeps the two
-      # families from leaking into each other.
-      - name: Fetch and verify the L2 ABI baseline
-        id: baselines
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET: ${{ matrix.library }}.abicheck.l2.json.zst
-        run: |
-          set -euo pipefail
-          sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
-          if [ ! -f "$sums" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            note="ABI header-depth scan skipped: no baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
-            echo "::warning title=ABI baseline missing::${note}"
-            {
-              echo "### Abicheck L2 — ${{ matrix.library }}"
-              echo ""
-              echo "${note}"
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          # A digest file predating the L2 baselines names only the binary
-          # family. That is the same "gate not armed yet" state as the file being
-          # absent -- inert with a warning, not red -- because the fix is a
-          # dispatch of the publishing workflow, not a change to the PR.
-          if ! grep -q "  ${ASSET}\$" "$sums"; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            note="ABI header-depth scan skipped: '${ASSET}' is not listed in ${sums}, so tag ${ABICHECK_BASELINE_TAG} was published before this workflow dumped header-depth baselines. Re-dispatch 'Publish Abicheck Baseline' on main for that tag to arm this gate."
-            echo "::warning title=L2 ABI baseline missing::${note}"
-            {
-              echo "### Abicheck L2 — ${{ matrix.library }}"
-              echo ""
-              echo "${note}"
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
-          gh release download "${ABICHECK_BASELINE_TAG}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --pattern "${ASSET}" \
-            --dir "${ABICHECK_BASELINE_DIR}" \
-            --clobber
-          # Verify just this library's line. --check --strict over a one-line
-          # digest list still fails closed on a mismatch, a missing file or a
-          # malformed line; it simply does not demand the other five assets this
-          # job never downloaded.
-          grep "  ${ASSET}\$" "$sums" > "${RUNNER_TEMP}/baseline-l2.sha256"
-          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline-l2.sha256" )
-          echo "available=true" >> "$GITHUB_OUTPUT"
+      # abicheck does not create its report's parent directory.
+      - name: Prepare the report directory
+        run: mkdir -p __abi_report
       # The pin must stay equal to the one in LinuxAbicheckScan and in
       # abicheck-baseline.yml; `uses:` takes no expression, hence the third copy
       # of the same literal SHA.
+      #
+      # There is no fetch step above this one any more. The whole download-and-
+      # verify block this job used to carry -- including its two "not armed yet"
+      # skips -- is now the Action's own `abi-baseline` + `baseline-profile` +
+      # `baseline-target` + `baseline-generation` inputs, which find the
+      # release-contract baseline-set archive for this profile and generation,
+      # extract it, and resolve this matrix leg's one library out of it. That is
+      # also what makes the baseline *required* here: the Action calls
+      # `resolve_target(..., required=True)` and turns anything other than
+      # `resolved` into `::error::` plus exit 1, so an absent, stale-generation
+      # or wrong-profile baseline can no longer leave this step `skipped` under a
+      # green job. Nothing in the workflow has to spell that policy.
+      #
+      # What it gives up, relative to LinuxAbicheckScan, is the committed digest
+      # as a trust anchor: `abi-baseline` fetches the asset itself, so there is
+      # no point at which this workflow could compare it against
+      # .github/abicheck/baselines/<tag>.abicheck.sha256. The archive's manifest
+      # still verifies every artifact's own digest, and this job is advisory, so
+      # it trades the anchor for not re-implementing the fetch. Upstream ask: an
+      # expected-archive-digest input on `abi-baseline`.
       #
       # Both operands are single libraries, which is the only operand shape
       # abicheck will hold to header depth. `new-library` is the unversioned
@@ -544,11 +635,22 @@ jobs:
       # future SONAME bump does not need this list edited.
       - name: Check the public header surface against the released baseline
         id: abicheck
-        if: steps.baselines.outputs.available == 'true'
-        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        uses: abicheck/abicheck@555905fbea3ab5b099848ab32a57883ebacb96e5
         with:
           mode: compare
-          old-library: ${{ env.ABICHECK_BASELINE_DIR }}/${{ matrix.library }}.abicheck.l2.json.zst
+          # Overrides old-library; there is no old-library input here at all.
+          abi-baseline: ${{ env.ABICHECK_BASELINE_TAG }}
+          baseline-profile: ${{ env.ABICHECK_PROFILE }}
+          # The manifest identity of the library to pull out of the set -- the
+          # `name` abicheck-baseline.yml passed to actions/baseline, which is why
+          # that side uses undecorated soname stems.
+          baseline-target: ${{ matrix.library }}
+          # Must be spelled exactly as abicheck-baseline.yml's
+          # ABICHECK_ASSET_TEMPLATE, after each side substitutes its own
+          # {profile}/{generation}. The default template carries no
+          # {generation} placeholder, so it has to be stated here.
+          baseline-asset-name-template: abicheck-baseline-{profile}-gen{generation}.tar.zst
+          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
           new-library: __release_lnx/daal/latest/lib/intel64/${{ matrix.library }}
           # The rung this whole job exists for. Accepted here because the
           # operands are single libraries; the release-shaped compare above
@@ -591,24 +693,29 @@ jobs:
           # release tag's sources here.
           fail-on-removed-library: true
           policy-file: .github/abicheck/policy.yaml
-          # Also supplies the `compile:` block -- frontend and language standard
-          # for the header parse. Those are not Action inputs: it refuses a
-          # compile context as inputs on a release operand and there is no
-          # separate spelling for a single-pair one, so the config file is where
-          # they live for both jobs. Which is load-bearing rather than tidy: a
-          # header-depth snapshot records its compile context as a profile
-          # fingerprint and abicheck refuses to compare across a mismatch
-          # (measured: "profile_fingerprint mismatch; differing fields:
-          # language_standard", exit 16, no verdict), so this file and the
-          # baseline dumps' copy of it have to be the same file.
+          # No longer supplies a `compile:` block, and must not: `actions/baseline`
+          # forwards no `--config` to its dumps, so the published header-depth
+          # snapshots record whatever compile context abicheck resolved on its
+          # own. Asserting one only here would make the two fingerprints
+          # disagree, which abicheck refuses to compare across -- measured on
+          # libonedal_parameters.so: "profile_fingerprint mismatch; differing
+          # fields: language_standard", exit 16, no verdict. With the block gone
+          # from both sides the comparison is real: exit 0, effective_depth
+          # `headers`, analysis_assurance `complete`. What remains in the file is
+          # `bundle:` and `scope:`, which this job inherits from
+          # LinuxAbicheckScan's copy rather than needing its own.
           build-config: .github/abicheck/abicheck.yml
-          # Unlike LinuxAbicheckScan, this job does parse headers, so it needs a
-          # castxml abicheck will accept: >=0.6.11,<0.8.0, which rules out
-          # Ubuntu 24.04's 0.6.3 and the PyPI distribution's 0.4.5.
-          # conda-forge's is 0.7.0. abicheck never falls back to another frontend
-          # silently, so getting this wrong is a failed step, not a quiet
-          # downgrade.
-          dependency-source: conda-forge
+          # `system`, not `conda-forge`, and this is what keeps the two
+          # fingerprints equal: `actions/baseline` provisions dependencies through
+          # this repo's own install-deps.sh, i.e. the checksum-pinned CastXML
+          # Superbuild (0.6.20260105-g9864b1e + clang 21.1.8), and offers no way
+          # to ask for the conda-forge castxml 0.7.0 this job used to install. A
+          # header-depth snapshot's compile context is a fingerprint abicheck
+          # refuses to compare across, so the consumer has to resolve the same
+          # toolchain the publisher did. abicheck accepts castxml
+          # >=0.6.11,<0.8.0 and never falls back to another frontend silently, so
+          # getting this wrong is a failed step, not a quiet downgrade.
+          dependency-source: system
           format: markdown
           output-file: __abi_report/${{ matrix.library }}.l2.md
           # The markdown is per-library prose and capped finding lists; the json
