@@ -66,7 +66,10 @@ private:
     static constexpr std::array<float, bad_weight_element_count> bad_weights_ = { 1.0, 1.0 };
 };
 
-using dbscan_types = COMBINE_TYPES((float, double), (dbscan::method::brute_force));
+using dbscan_types = COMBINE_TYPES((float, double),
+                                   (dbscan::method::brute_force,
+                                    dbscan::method::kd_tree,
+                                    dbscan::method::ball_tree));
 
 #define DBSCAN_BADARG_TEST(name) \
     TEMPLATE_LIST_TEST_M(dbscan_badarg_test, name, "[dbscan][badarg]", dbscan_types)
