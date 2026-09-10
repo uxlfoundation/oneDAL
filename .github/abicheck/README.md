@@ -24,12 +24,12 @@ on `LinuxMakeDPCPP` and never on each other:
 |---|---|---|---|
 | job | `LinuxABICheck` | `LinuxAbicheckScan` — **one** job, one check step | `LinuxAbicheckL2Scan` — a **five-leg matrix**, one library each |
 | tool | libabigail `abidiff`, via `.ci/scripts/abi_check.sh` | [abicheck](https://github.com/abicheck/abicheck)'s own Action, `mode: compare` | the same Action, `mode: compare` |
-| baseline | the last successful **`main`** build, restored from the Actions cache | the last **release tag**, as one binary-depth snapshot asset per library | the same tag, as one **header-depth** snapshot asset per library |
-| operands | two directories, compared library by library by the script | two directories, compared library by library by abicheck's release fan-out | one snapshot against one shared object, per leg |
-| evidence | ELF exported symbols from the two binaries — `LinuxMakeDPCPP` ships no debug info, so `abidiff` has no type info to read either | ELF exported symbols and metadata from the snapshots and the new binaries | the same, **plus** the public-header AST (`evidence_tier: ['elf', 'header']`) |
+| baseline | the last successful **`main`** build, restored from the Actions cache | the last **release tag**, as one binary-depth **baseline-set** archive: six snapshots, six staged ELFs and a manifest ([Baselines](#baselines)) | the same tag, as a separate **header-depth** baseline-set archive: five snapshots, no staged ELFs |
+| operands | two directories, compared library by library by the script | two directories — the baseline-set's `binaries/` and the PR build's `lib/intel64` — compared library by library by abicheck's release fan-out | one snapshot against one shared object, per leg |
+| evidence | ELF exported symbols from the two binaries — `LinuxMakeDPCPP` ships no debug info, so `abidiff` has no type info to read either | ELF exported symbols and metadata, re-derived from both sides' real binaries | the same, **plus** the public-header AST (`evidence_tier: ['elf', 'header']`) |
 | what it measures | did this PR change the ABI relative to `main` | has the ABI drifted since the last release | the same, over the declared surface as well as the exported one |
 | filtering | `.github/.abignore` (libabigail suppressions) | `.github/abicheck/policy.yaml` (re-classification, see [Gating](#gating)) | the same `policy.yaml` |
-| cost | 20 min timeout | 28 s, ~446 MiB | 7–10 min and ~4.7 GiB **per leg** |
+| cost | 20 min timeout | 42 s, ~442 MiB | 7–10 min and ~4.7 GiB **per leg** |
 | blocks a PR | yes | yes | no — `continue-on-error`, see [Header depth](#header-depth) |
 
 They are complementary, not redundant. `abidiff`'s baseline is `main`, so drift
@@ -54,10 +54,10 @@ through two separate baseline asset families ([Baselines](#baselines)).
 |---|---|
 | `.github/workflows/ci.yml`, job `LinuxAbicheckScan` | the blocking check: a single `mode: compare` step with two directory operands, binary depth |
 | `.github/workflows/ci.yml`, job `LinuxAbicheckL2Scan` | the advisory check: one `mode: compare` step per library, header depth |
-| `.github/workflows/abicheck-baseline.yml` | the baseline publisher: one `mode: dump` step per library **per depth**, eleven in all |
+| `.github/workflows/abicheck-baseline.yml` | the baseline publisher: two `actions/baseline` calls (one per depth) plus two `actions/stage-baseline` calls that package them |
 | `.github/abicheck/policy.yaml` | severity re-classification, passed as both check jobs' `policy-file` |
-| `.github/abicheck/abicheck.yml` | the project settings that have no usable Action input — the bundle allow-list, the completeness gate, and the L2 compile context — passed as `build-config` |
-| `.github/abicheck/baselines/<tag>.abicheck.sha256` | digests of the release assets for `<tag>`, both families — the trust anchor, and the only baseline artifact in git |
+| `.github/abicheck/abicheck.yml` | the project settings that have no usable Action input — the bundle allow-list and the completeness gate — passed as `build-config` |
+| `.github/abicheck/baselines/<tag>.abicheck.sha256` | the digest of `<tag>`'s **binary-depth** baseline-set archive — the trust anchor, and the only baseline artifact in git ([Baselines](#baselines) for why the header family has none) |
 | `.github/.abignore` | libabigail suppressions, used by the *other* tool |
 
 There is no oneDAL-owned Python and no oneDAL-owned driver script: all three
@@ -69,28 +69,42 @@ Action, or refuses as inputs on a release operand, which is the whole content of
 ## What the multilib run compares
 
 In `LinuxAbicheckScan`, both operands are directories, which is abicheck's own
-multi-library ("release") comparison: one process fans out over every shared
-object in
-`__release_lnx/daal/latest/lib/intel64` and matches each to the baseline snapshot
-of the same name. Six libraries, one step, one verdict, plus a per-library verdict
-table:
+multi-library ("release") comparison: one process fans out over every shared object
+in `__release_lnx/daal/latest/lib/intel64` and matches each to the baseline library
+of the same name. The old side is the `binaries/` directory `actions/resolve-baseline`
+extracts out of the baseline-set archive — the tag's **real shared objects**, staged
+into the set and digest-verified against its manifest, not the set's snapshots
+([why the binaries and not the snapshots](#baselines)). Six libraries, one step, one
+verdict, plus a per-library verdict table:
 
 | library | verdict | breaking | risk | additions | dominant kinds |
 |---|---|---|---|---|---|
-| `libonedal.so` | `COMPATIBLE_WITH_RISK` | 0 | 254 | 114 | 237 `func_removed_elf_only`, 102 `func_added`, 16 `imported_symbol_added` |
-| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 1415 | 62 | 1414 `func_removed_elf_only`, 36 `var_added`, 24 `func_added` |
-| `libonedal_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 305 | 128 | 272 `func_removed_elf_only`, 114 `func_added`, 27 `imported_symbol_added` |
-| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 13 | 2 | 12 `func_removed_elf_only` |
-| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 18 | 2 | 17 `func_removed_elf_only` |
-| `libonedal_thread.so` | `COMPATIBLE` | 0 | 0 | 1 | 1 `visibility_leak` |
+| `libonedal.so` | `COMPATIBLE_WITH_RISK` | 0 | 305 | 108 | 237 `func_removed_elf_only`, 102 `func_added`, 51 `symbol_leaked_from_dependency_changed`, 16 `imported_symbol_added` |
+| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 1417 | 60 | 1414 `func_removed_elf_only`, 36 `var_added`, 24 `func_added`, 2 `symbol_leaked_from_dependency_changed` |
+| `libonedal_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 420 | 120 | 272 `func_removed_elf_only`, 115 `symbol_leaked_from_dependency_changed`, 114 `func_added`, 27 `imported_symbol_added` |
+| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 23 | 0 | 12 `func_removed_elf_only`, 10 `symbol_leaked_from_dependency_changed` |
+| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 28 | 0 | 17 `func_removed_elf_only`, 10 `symbol_leaked_from_dependency_changed` |
+| `libonedal_thread.so` | `COMPATIBLE` | 0 | 0 | 0 | 1 `visibility_leak` |
 
-Measured on `main` against the `2026.0.0` baseline, through the same root Action
-the job invokes, with `policy.yaml` and `abicheck.yml` in effect: **exit 0**,
-verdict `COMPATIBLE_WITH_RISK`, 2314 findings in total, nothing removed from the
-report. Three runs of the same shape: 28.2–29.1 s, 439–446 MiB peak RSS. The table
-above is byte-identical to the one the previous pin produced, which is how the
-pin bump was validated (see [The abicheck pin and the baseline must move
-together](#the-abicheck-pin-and-the-baseline-must-move-together)).
+Measured on `main` against the `2026.0.0` baseline-set, through the same root Action
+the job invokes, off a `resolve-baseline`-staged `binaries/` directory, with
+`policy.yaml` and `abicheck.yml` in effect: **exit 0**, verdict
+`COMPATIBLE_WITH_RISK`, `scope: complete`, 2502 per-library findings plus 156 bundle
+ones (2658 detected, 0 effective, 1952 reclassified), nothing removed from the
+report; 41.6 s and 442 MiB peak RSS.
+
+**Comparing against staged binaries reports strictly more than comparing against
+snapshots did, and the delta is exactly two kinds.** Every risk count above is
+higher than the snapshot-operand shape's (254/1415/305/13/18) by precisely its
+`symbol_leaked_from_dependency_changed` count — 51, 2, 115, 10, 10 — and
+`exported_object_alignment_reduced` appears for the first time (1 on
+`libonedal_core.so`, 6 on `libonedal_dpc.so`, both quality issues). Both kinds need
+the *old* side's real ELF: which of a library's exports were leaked in from a
+dependency, and what alignment its exported objects had, are facts a binary-depth
+snapshot does not carry forward. So the migration to baseline-sets is not
+cost-neutral in either direction — it costs 41.6 s against 28 s and 29.5 MB of
+release asset against 0.49 MB, and it buys 188 findings the previous shape could
+not see, plus the six phantom `bundle_library_added` disappearing (below).
 
 There is no `jobs:` input any more — abicheck removed both the input and the
 CLI's `--jobs`, and always auto-detects with a memory clamp. The earlier `jobs: 1`
@@ -112,10 +126,18 @@ under any old-side representation; it is not an artefact of comparing against
 snapshots. Naming MKL's four SYCL interface libraries as system-provided takes the
 bundle verdict to `COMPATIBLE`.
 
-The six `bundle_library_added` are the separate reason: the old side is six JSON
-snapshots rather than a bundle, so every library reads as newly added. They do not
-gate, and they disappear entirely once the old side is a stored bundle-facts
-document (measured — see [Known gaps](#known-gaps)).
+The second reason was the six phantom `bundle_library_added` findings, and **they
+are gone**: they came from an old side made of six JSON snapshots, which bundle
+analysis skips as non-ELF, so every library read as newly added to the bundle. The
+old side is now the baseline-set's staged binaries, and the bundle half is real —
+`COMPATIBLE_WITH_RISK` over 156 `bundle_intra_dep_signature_unverified`, reported,
+not gating. Measured both ways against this exact set: pointing the old operand at
+the set's extracted *snapshot* directory reproduces the old behaviour exactly
+(bundle verdict `COMPATIBLE`, six `bundle_library_added` for libraries that have
+existed all along), which is why `ci.yml` uses `binaries-dir` and not
+`snapshot-path`. The 156 unverified-signature findings are the price: a staged ELF
+carries no record of the signatures its intra-bundle dependencies were built
+against, so abicheck says so rather than assuming.
 
 Three facts worth keeping for whoever revisits cross-library checking. `DT_NEEDED`
 shows only two sibling edges (`libonedal_parameters*.so → libonedal*.so`) —
@@ -307,54 +329,96 @@ against a 16 GB runner. So `continue-on-error: true` for a burn-in period, with 
 verdict visible in the job summary and the full json archived per leg. Drop the
 line once the job has been green across a release cycle.
 
-### The compile context, and why it lives in `abicheck.yml`
+### Rebuilding an old tag on a runner: pin the oneAPI components
 
-The Action refuses a compile context as *inputs* alongside a release operand
-(`::error::` + exit 1), but it does accept one on the two shapes used here:
-`ast-frontend`, and `-std=c++17` through `gcc-options`, are supported for `dump`
-and for a single-pair `compare`. `compile:` in `.github/abicheck/abicheck.yml` is
-where the frontend and the language standard live anyway, because capture and
-comparison have to agree on them exactly and this file is the one thing both
-workflows pass as `build-config`: one edit moves both sides, where the same two
-settings as inputs would be repeated at eleven call sites — six `dump` steps and
-five compare legs — with nothing but review keeping them equal.
-`frontend: castxml` is abicheck's own default,
-pinned rather than inherited because a frontend default that moved would invalidate
-every published baseline (below), and because it is the frontend with layout
-evidence in principle: the clang JSON-AST backend carries no record
-size/alignment/offset layout, so it cannot see a struct-layout break, and this build
-ships no DWARF for L1 to see it instead. It buys nothing *today* — measured, both
-frontends report `layout_unverified_detectors: ['dwarf', 'advanced_dwarf',
-'layout_descriptor']` on every leg, so this gate's layout detectors have no evidence
-either way and a struct-layout break would go unseen ([Known
-gaps](#known-gaps)). `std: c++17` is what oneAPI's public headers require.
+Two separate failures, both found by actually running the publisher on a GitHub
+runner rather than locally, both the same shape: **the baseline tag pins oneAPI
+component versions, `setvars.sh` prefers the newest installed, and the newest
+installed is a runtime-only dependency of something else.** The tag's own
+`.ci/env/apt.sh` is what installs them, so the versions are a property of the tag
+being rebuilt and are read out of that file rather than written into the workflow.
 
-castxml is also why `dependency-source: conda-forge` is not optional on any step
-that parses a header. abicheck accepts **castxml >=0.6.11,<0.8.0** and never falls
-back to another frontend silently: Ubuntu 24.04's apt castxml is 0.6.3 (refused as
-too old) and the PyPI `castxml` distribution is 0.4.5 and explicitly "not a
-supported default scanner setup". conda-forge's is 0.7.0.
+* `apt.sh dpcpp` installs `intel-oneapi-compiler-dpcpp-cpp=2025.3.3-30` **and**
+  unpinned `intel-oneapi-runtime-libs`, which pulls a newer compiler's runtime in.
+  `compiler/latest` then points at that runtime-only tree, whose `bin/` has no
+  compiler driver: `/bin/sh: 1: icx: not found`, make Error 127, on a tree that
+  builds fine locally.
+* `apt.sh dpcpp` also drags in `intel-oneapi-mkl-core/-sycl 2026.1.0-236`
+  (runtime only) while `apt.sh mkl` pins `intel-oneapi-mkl-devel=2025.3.1-8`.
+  `MKLROOT` resolves to the newer one, which ships no static libraries, and the
+  tag's static MKL link fails on a file that install never wrote:
+  `No rule to make target '/opt/intel/oneapi/mkl/2026.1/lib/libmkl_intel_ilp64.a'`.
 
-**Editing `compile:` invalidates every published `.l2` baseline, loudly.** A
-header-depth snapshot records the compile context it was extracted under as a
-profile fingerprint, and abicheck refuses to compare across a mismatch. Measured by
-dumping baselines without `std:` and comparing them against a run that sets it:
+The publisher therefore sources the two pinned components' own
+`env/vars.sh` after `setvars.sh`, and asserts what it needs before starting a
+40-minute build: a resolvable `icx` under the pinned compiler prefix, and
+`libmkl_intel_ilp64.a` under the pinned `MKLROOT`. Both assertions print the
+versions actually installed, because that is the information the next person needs.
+`ci.yml`'s `LinuxMakeDPCPP` has the same latent skew and does not hit it only
+because on `main` the pinned versions *are* the newest ones installed — which is
+exactly why a publisher that rebuilds an older tag has to be explicit.
 
-> Error: 'libonedal.so' old='2026.0.0' new='probe' are not comparable: old and new
-> snapshots were extracted under different compile contexts (profile_fingerprint
-> mismatch; differing fields: language_standard) — the comparison is not
-> comparable.
+### The compile context, and why there is no `compile:` block
 
-Exit 16, no verdict, on an otherwise identical tree. That is the *good* failure
-mode — the alternative is two sides silently describing different surfaces — and it
-is the reason `compile:` lives in one file both workflows read rather than as
-per-workflow inputs. Changing `frontend`, `std` or anything else under `compile:`
-means re-capturing the `.l2` baseline for every published tag in the same change,
-exactly like bumping the abicheck pin
-([below](#the-abicheck-pin-and-the-baseline-must-move-together)). Re-capturing is
-delete-then-dispatch, not a bare re-dispatch: **Publish Abicheck Baseline** treats
-a published asset as immutable and keeps it, so the tag's `.l2` assets have to be
-removed (`gh release delete-asset`) before it will write new ones.
+A header-depth snapshot records the compile context it was extracted under as a
+**profile fingerprint**, and abicheck refuses to compare across a mismatch. So the
+publisher and the L2 job have to agree on the frontend, the language standard and
+everything else in that fingerprint — and the way they agree is by *neither* of
+them asserting it.
+
+`actions/baseline/run.sh` forwards only `-H`/`-I`/`--build-info`/`--depth`/
+`--version`/`--compression`/`-o` to its dumps. It declares a `build-config` input
+and never reads it, so **a `compile:` block cannot reach a baseline-set dump at
+all**: whatever compile context abicheck resolves on its own is what the published
+snapshots record. Asserting one on the consumer side only is therefore not
+harmless, it is a guaranteed mismatch — measured on `libonedal_parameters.so` with
+`compile: {frontend: castxml, std: c++17}` still in `abicheck.yml`:
+
+> Error: 'libonedal_parameters.so' old='2026.0.0' new='probe' are not comparable:
+> old and new snapshots were extracted under different compile contexts
+> (profile_fingerprint mismatch; differing fields: language_standard) — the
+> comparison is not comparable.
+
+Exit 16, no verdict, on an otherwise identical tree. With the block removed from
+both sides the same leg is exit 0, `effective_depth: headers`,
+`analysis_assurance: complete`. That is why `abicheck.yml` now carries only
+`bundle:` and `scope:`, and why the L2 job passes no `ast-frontend` and no
+`gcc-options`.
+
+The toolchain is still pinned; it is just pinned by the *installer* rather than by
+a config key. `dependency-source: system` on the L2 job makes it provision
+dependencies through abicheck's own `install-deps.sh` — the checksum-pinned CastXML
+Superbuild, **castxml 0.6.20260105-g9864b1e with clang 21.1.8** — which is the only
+castxml `actions/baseline` can provision, and therefore the only one both sides can
+share. That is a change from the previous revision's `dependency-source:
+conda-forge` (castxml 0.7.0), and the reason the header-depth numbers below were
+re-measured rather than carried over. abicheck accepts castxml
+**>=0.6.11,<0.8.0** and never falls back to another frontend silently, so the
+alternatives remain unavailable rather than merely unchosen: Ubuntu 24.04's apt
+castxml is 0.6.3 (refused as too old) and the PyPI `castxml` distribution is 0.4.5
+and explicitly "not a supported default scanner setup".
+
+castxml is also the frontend with layout evidence *in principle*: the clang
+JSON-AST backend carries no record size/alignment/offset layout, so it cannot see a
+struct-layout break, and this build ships no DWARF for L1 to see it instead. It
+buys nothing today — measured, both frontends report
+`layout_unverified_detectors: ['dwarf', 'advanced_dwarf', 'layout_descriptor']` on
+every leg ([Known gaps](#known-gaps)).
+
+**Anything that moves the fingerprint invalidates every published header-depth
+set, loudly.** That now includes bumping the abicheck pin far enough to change the
+installed CastXML Superbuild, since nothing in this repository states the frontend
+any more. The failure mode is exit 16 and no verdict rather than a wrong answer,
+which is the right way round; the fix is re-capturing, which means bumping
+`ABICHECK_BASELINE_GENERATION` (preferred) or deleting the tag's asset
+(`gh release delete-asset`) before re-dispatching, because a published asset is
+immutable and the publisher keeps it.
+
+The upstream ask that would give this back as configuration rather than
+coincidence: **have `actions/baseline` forward its declared `build-config` input to
+the dump as `--config`.** Then both sides could state the compile context in one
+file again, and a mismatch would be a config error rather than an install-path
+difference.
 
 ## Baselines
 
@@ -368,56 +432,94 @@ setting the PR-side build uses. It runs on `workflow_dispatch` (with a
 
 1. builds the tag — `daal`, `oneapi_c`, `oneapi_dpc`, which produce all six
    libraries;
-2. runs the abicheck Action in `mode: dump` once per library **per depth** (`dump`
-   takes one library at a time; only `compare` fans a directory out) — eleven
-   steps, measured 0.84 s to 15.5 s each at binary depth (35.4 s together, peak
-   327 MiB on the largest) and 262.6–288.7 s each at header depth (~23 min for the
-   five run in sequence, ~2.9 GiB peak RSS each);
-3. checks a compression tripwire and an asset count, per family: a binary-depth
-   snapshot written by this pin is 6.7 KiB to 200 KiB, 477 KiB for the six (the
-   already-published `2026.0.0` assets, written by the previous pin, are 5.8 KiB
-   to 148 KiB and 372 KB — the sectioned snapshot envelope this pin writes carries
-   more per library), and a header-depth one is 4.45–4.53 MB, 22.4 MB for the five
-   (a 1.3% zstd ratio against a ~340 MB uncompressed AST snapshot). Hence a 5 MiB
-   ceiling on the first family and 32 MiB on the second: one number for both would
-   either fail every L2 snapshot or stop catching a binary-depth one written
-   uncompressed. The per-family count is asserted too — six and five — so a dump
-   step that wrote its `output-file` somewhere unexpected fails here rather than
-   going unnoticed;
-4. uploads each `<library>.abicheck.json.zst` and each
-   `<library>.abicheck.l2.json.zst` as a **release asset**;
-5. commits only its `sha256sum` output to
-   `.github/abicheck/baselines/<tag>.abicheck.sha256`, one line per asset, both
-   families in one file.
+2. calls **`actions/baseline`** twice, once per depth, and lets it dump, validate
+   and manifest each family: six libraries at `depth: binary` with
+   `stage_binary: true` (35.4 s, 327 MiB peak on the largest, `content-digest`
+   `97dab5f9…`), and five at `depth: headers` with no staged binaries
+   (~23 min, ~2.9 GiB peak). `validation: strict` round-trips every freshly
+   dumped snapshot through a self-compare before it is packaged, which replaces
+   the hand-written per-family size ceiling and asset count an earlier revision
+   of this workflow carried;
+3. calls **`actions/stage-baseline`** twice to package each set as one
+   `abicheck-baseline-{profile}-gen{generation}.tar.zst`;
+4. uploads the **two archives** as release assets;
+5. commits the `sha256sum` of the *binary* archive to
+   `.github/abicheck/baselines/<tag>.abicheck.sha256`.
 
-**Two families, because neither job can use the other's snapshots.** The
-header-depth ones cost 55× the bytes and ~44× the wall time, so putting them on
-the blocking job's bill is not free; and a header-depth snapshot read at `depth:
-binary` is projected down, which reports its header-derived types as removed (903
-breaking `typedef_removed` per library on an unchanged tree, measured single-pair
-with this directory's config and policy; see "Header depth inside this job was
-measured and rejected" above).
-The `.l2` infix is what separates them: `LinuxAbicheckScan` hands its baseline
-directory to abicheck as a *directory operand*, so anything extra in there is read
-as another library to compare, and its fetch step filters those lines out of the
-digest list before downloading. `LinuxAbicheckL2Scan` downloads its one snapshot
-by explicit name, so the infix costs it nothing.
+**A baseline-set is not a bag of snapshots.** Each archive carries a
+`manifest.json` recording `manifest_version`, `project_ref` (the tag),
+`profile`, `snapshot_schema`, `fact_set`, `baseline_generation`, a `generator`
+block, and per artifact a `sha256` plus — for the binary family — the staged
+`binary` and its `binary_sha256`; the binary family also carries a `binaries/`
+directory holding the tag's real shared objects. That is what makes a baseline
+*checkable* rather than merely present, and `actions/resolve-baseline` on the
+consumer side is what checks it, with a typed outcome per failure mode rather
+than a silent wrong comparison. All of these were exercised against this exact
+archive:
 
-**The asset name is the matcher, for the binary family.** abicheck keys a snapshot
-to a shared object by the filename up to `.so`, so
-`libonedal_core.so.abicheck.json.zst` pairs with `libonedal_core.so.4.0` — and a
-decorated name (a `<tag>-` prefix, say) pairs with nothing, silently. The
-`.json.zst` suffix is load-bearing too: abicheck infers the compression envelope
-from it when writing and from the bytes when reading.
+| case | outcome | exit |
+|---|---|---|
+| the archive as published | `resolved` | 0 |
+| asking for `project_ref` 2025.9.0 | `wrong_project_ref` | 1 |
+| asking for generation 2 | `stale_generation` | 1 |
+| asking for the `-headers` profile | `wrong_profile` | 1 |
+| a path that does not exist, `required: true` | `not_found` | 1 |
+| the same path, `required: false` | `not_found`, `bootstrap=true` | 0 |
+| one staged ELF altered inside the archive | `ambiguous` | 1 |
 
-The snapshots themselves are deliberately **not** in git. The digest file is under
-a kilobyte, is reviewable, and is the trust anchor: both check jobs download
-exactly the asset names it lists — all of one family, or one line of the other —
-and then run `sha256sum --check --strict`, so a replaced or corrupted asset fails
-the job instead of silently changing every PR's verdict. Publishing the baseline
-*binaries* instead — abicheck's own bundle model — was rejected as a 144 MB
-per-release product decision, and the 2026.0.0 release carries no assets at all
-today.
+The last one is the interesting one: the manifest's `binary_sha256` is verified per
+member before the comparison starts, and a one-byte edit to
+`binaries/libonedal_parameters.so` fails the job with the expected and actual
+digests named — "the baseline-set is corrupt, was tampered with, or was
+truncated/replaced after the manifest was written". `wrong_project_ref` is not
+hypothetical hardening either: it is what catches a cache or asset-name mix-up
+landing on a set built from a different commit than the check requires.
+
+**Two families, because neither job can use the other's set.** The header-depth
+one costs ~44× the wall time to capture, so putting it on the blocking job's bill
+is not free; and a header-depth snapshot read at `depth: binary` is projected
+down, which reports its header-derived types as removed (903 breaking
+`typedef_removed` per library on an unchanged tree, up to 1455 on
+`libonedal_core.so`, measured single-pair with this directory's config and policy;
+see "Header depth inside this job was measured and rejected" above). The
+**`profile`** is what keeps them apart, and it is enforced rather than documented:
+`resolve-baseline` refuses a profile mismatch outright (`wrong_profile`, exit 1),
+where the previous revision's `.l2` filename infix was a convention nothing
+checked. It is also why the profile names carry the build shape they were captured
+from (`linux-x86_64-icx-avx2-nodbg-…`): a version number alone would let an
+avx2/no-debug-info baseline be compared against an avx512 or debug build.
+
+**Generations are the second half of that identity.** `baseline_generation` is
+bumped when an abicheck upgrade invalidates already-published sets — a fixed or
+newly-extracted fact, a changed normalization or hash recipe — and *not* for
+report-format, policy or detector-only changes. It appears in the manifest and in
+both archive names, so a bump publishes side by side with the old assets instead of
+colliding with immutable ones, and a consumer still pinned to the previous
+generation fails as `stale_generation` rather than comparing against facts the new
+scanner cannot read. Both jobs' `ABICHECK_BASELINE_GENERATION` must equal the
+publisher's.
+
+The archives themselves are deliberately **not** in git; the binary family's digest
+is. It is one line, reviewable, and it is the cross-repository trust anchor:
+`LinuxAbicheckScan` downloads the asset the digest file names, runs `sha256sum
+--check --strict`, and only then hands the archive to `resolve-baseline`. The
+manifest inside the archive digests every artifact, but it travels inside the very
+bytes an attacker with release-write access would replace, so it cannot anchor
+itself. `LinuxAbicheckL2Scan` has no such anchor — it fetches through the Action's
+own `abi-baseline`/`baseline-asset-name-template` inputs, which offer no
+interposition point for a repo-committed digest — and that is recorded as a gap
+rather than papered over with a digest nothing checks (upstream ask: an
+expected-archive-digest input). It is the advisory job.
+
+Publishing the baseline **binaries** was rejected in an earlier revision as a
+144 MB per-release product decision; that decision is now reversed, for a measured
+reason. Bundle analysis skips non-ELF inputs, so without staged binaries the bundle
+half of the blocking job is vacuous (six phantom `bundle_library_added`, above),
+and the two kinds in the per-library table that need the old side's real ELF —
+`symbol_leaked_from_dependency_changed` and `exported_object_alignment_reduced` —
+are invisible. The cost is what the archive weighs: **~29.5 MB with the staged
+binaries against 491,816 bytes without them**, one asset per release, zstd-compressed
+against the 144 MB the raw binaries take.
 
 Published assets are **immutable**: a run that would overwrite one stops, because
 every already-merged PR's "compatible with `<tag>`" verdict was computed against
@@ -428,21 +530,33 @@ differing only in the recorded `created_at`). A re-run keeps every asset already
 the release and re-hashes the published bytes, so it converges instead of
 deadlocking.
 
-### Bootstrap
+### Bootstrap is explicit, and absence fails
 
-`workflow_dispatch` only becomes available once the workflow file is on the
-default branch, so the digest file cannot exist before this lands. Until it does,
-both check jobs **skip** and say so in a warning annotation and the job summary —
-inert and visibly inert, rather than red (which would block the very PR that
-delivers the publishing workflow) or quietly green. Once the digest file is on
-`main`, they arm themselves with no further edit.
+**A required baseline that is missing fails the job.** An earlier revision of these
+jobs skipped every comparison step when the digest file was absent, which produced
+six `skipped` steps under six green jobs: a gate that cannot prove it ran is not a
+gate, and "green because nothing was compared" is indistinguishable from "green
+because nothing broke". Both jobs now fail closed:
 
-`LinuxAbicheckL2Scan` treats one more state the same way: a digest file that exists
-but lists no `<library>.abicheck.l2.json.zst` line, which is what a tag published
-before the header-depth family looks like. Re-dispatching **Publish Abicheck
-Baseline** for that tag adds the five `.l2` assets, leaves the six already-published
-binary-depth ones untouched (assets are immutable, and existence is the test), and
-commits a digest file covering all eleven. No merged PR's verdict changes.
+* `LinuxAbicheckScan` errors and exits 1 if the digest file for
+  `ABICHECK_BASELINE_TAG` is absent, and errors separately if the file exists but
+  lists no line for the profile/generation asset it is about to fetch — naming both
+  and printing the file, since that is what a generation bump without a re-publish
+  looks like. `resolve-baseline` then runs with `required: true`, so an archive that
+  downloads but does not resolve is also exit 1.
+* `LinuxAbicheckL2Scan` gets the same guarantee from inside the Action: the
+  `abi-baseline` path resolves with `required=True`, so a missing or
+  wrong-generation asset is `::error::` + exit 1 rather than a skip. (The job is
+  `continue-on-error`, so that failure is visible without blocking.)
+
+The one legitimate exception is the bootstrap window — the PR that *delivers* this
+workflow cannot have a published baseline, because `workflow_dispatch` only becomes
+available once the workflow file is on the default branch. That window is an
+explicit opt-in, not an inferred state: set `ABICHECK_BOOTSTRAP: "true"` in
+`LinuxAbicheckScan`'s `env:` and the missing digest file downgrades to a
+`::notice::` and a skipped comparison. It ships as `"false"`. Flipping it is a
+one-line, reviewable change with a name that says what it does, and the review
+question it raises — "why is this gate allowed not to run?" — is the right one.
 
 ### Rotating to a newer baseline
 
@@ -450,7 +564,12 @@ Dispatch **Publish Abicheck Baseline** for the new tag, then update
 `ABICHECK_BASELINE_TAG` in `.github/workflows/ci.yml` — in **both**
 `LinuxAbicheckScan` and `LinuxAbicheckL2Scan`. The two must name the same tag: a
 reviewer reading "compatible with 2026.0.0" from one gate and a different tag from
-the other has no way to reconcile them.
+the other has no way to reconcile them. Rotating the *generation* is the same edit
+in three places instead of two: `ABICHECK_BASELINE_GENERATION` in the publisher and
+in both jobs. Nothing enforces that they agree — what enforces it is that a
+disagreement fails loudly and specifically, as `stale_generation` or as the
+"asset not listed in the digest file" error above, rather than comparing against
+the wrong facts.
 
 ### The abicheck pin and the baseline must move together
 
