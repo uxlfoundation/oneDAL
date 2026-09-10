@@ -167,10 +167,42 @@ jobs:
       # No --jobs either: .ci/scripts/build.sh already falls back to
       # -j$(nproc --all) on Linux, so the build sizes itself to whatever runner
       # it lands on instead of hard-coding a number.
+      #
+      # MKLROOT is pinned to the version the *tag* pins, not to whatever
+      # setvars.sh prefers, and that is not a detail. `Install DPC++` above runs
+      # the tag's own `apt.sh dpcpp`, which pulls a newer MKL in as a compiler
+      # dependency -- measured on 2026.0.0 on a fresh ubuntu-24.04 runner: the
+      # dpcpp install brought in intel-oneapi-mkl-core/-sycl 2026.1.0-236
+      # (runtime only, no static libraries), while the tag's `apt.sh mkl` pins
+      # intel-oneapi-mkl-devel=2025.3.1-8. setvars.sh then picks the newest, and
+      # the tag's static MKL link fails on a library that install never shipped:
+      #
+      #   make: *** No rule to make target
+      #   '/opt/intel/oneapi/mkl/2026.1/lib/libmkl_intel_ilp64.a',
+      #   needed by '__work/md/lnx32e/daal/lib/libonedal_core.so'.  Stop.
+      #
+      # `dev/make/deps.mkl.mk` derives every MKL path from MKLROOT alone, so
+      # re-pointing that one variable is the whole fix. The version is read out
+      # of the tag's apt.sh rather than written here, because it is a property of
+      # the tag being rebuilt and every rotation would otherwise need an edit
+      # here too. ci.yml's LinuxMakeDPCPP has the same latent skew and does not
+      # hit it only because on main the pin *is* the newest MKL installed.
       - name: Build daal + oneapi_c + oneapi_dpc (avx2)
         working-directory: __baseline_src
         run: |
+          set -eo pipefail
+          mkl_pin="$(sed -n 's/.*intel-oneapi-mkl-devel=\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p' .ci/env/apt.sh | head -1)"
+          if [ -z "$mkl_pin" ]; then
+            echo "::error::Could not read an intel-oneapi-mkl-devel version pin out of the baseline tag's .ci/env/apt.sh. The build would silently use whichever MKL setvars.sh prefers, which may be a runtime-only install with no static libraries."
+            exit 1
+          fi
           source /opt/intel/oneapi/setvars.sh
+          export MKLROOT="/opt/intel/oneapi/mkl/${mkl_pin}"
+          if [ ! -e "${MKLROOT}/lib/libmkl_intel_ilp64.a" ]; then
+            echo "::error::${MKLROOT}/lib/libmkl_intel_ilp64.a is missing, so the baseline tag's static MKL link cannot succeed. Installed MKL versions: $(ls -1 /opt/intel/oneapi/mkl 2>/dev/null | tr '\n' ' ')."
+            exit 1
+          fi
+          echo "MKLROOT=${MKLROOT}"
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
           rm -rf __work
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target oneapi_c
