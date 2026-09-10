@@ -17,6 +17,7 @@
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel_hist_impl.hpp"
 
@@ -35,6 +36,7 @@ static result_t call_train_kernel(const context_gpu& ctx,
                                   const table& data,
                                   const table& responses,
                                   const table& weights) {
+    ONEDAL_PROFILER_TASK(df_reg_train_hist);
     train_kernel_hist_impl<Float, std::uint32_t, std::int32_t, task::regression> train_hist_impl(
         ctx);
     return train_hist_impl(desc, data, responses, weights);
