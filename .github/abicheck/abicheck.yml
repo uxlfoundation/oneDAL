@@ -81,10 +81,10 @@ scope:
 # this build ships no DWARF for L1 to see it instead. It buys nothing today:
 # measured, both frontends report `layout_unverified_detectors: ['dwarf',
 # 'advanced_dwarf', 'layout_descriptor']` on every leg, and the two agree on all
-# five verdicts. abicheck requires castxml >=0.6.11,<0.8.0 and never falls back to
-# clang silently, which is also why `dependency-source: conda-forge` is not
-# optional on the steps that parse headers: Ubuntu 24.04's own castxml is
-# 0.6.3 (too old, refused), and the PyPI `castxml` distribution is 0.4.5 and
+# five verdicts. abicheck requires castxml >=0.6.11,<0.8.0 and never falls back
+# to clang silently, which is also why `dependency-source: conda-forge` is not
+# optional on the steps that parse headers: Ubuntu 24.04's own castxml is 0.6.3
+# (too old, refused), and the PyPI `castxml` distribution is 0.4.5 and
 # explicitly "not a supported default scanner setup". conda-forge's is 0.7.0.
 #
 # `std: c++17` is what oneAPI's public headers require; it is passed as

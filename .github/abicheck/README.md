@@ -44,8 +44,9 @@ to use, and therefore the operand shape they can use it with. abicheck refuses
 `--depth headers` for a *directory* operand, so the one-run release comparison is
 binary depth by contract; a *single-pair* comparison accepts it and can be held to
 it. Hence one cheap blocking job over all six libraries at binary depth, and five
-expensive advisory legs at header depth ([why five](#why-five-libraries-and-not-six)). Both read the same released tag, through
-two separate baseline asset families ([Baselines](#baselines)).
+expensive advisory legs at header depth
+([why five](#why-five-libraries-and-not-six)). Both read the same released tag,
+through two separate baseline asset families ([Baselines](#baselines)).
 
 ## Where everything lives
 
@@ -67,8 +68,9 @@ Action, or refuses as inputs on a release operand, which is the whole content of
 
 ## What the multilib run compares
 
-In `LinuxAbicheckScan`, both operands are directories, which is abicheck's own multi-library ("release")
-comparison: one process fans out over every shared object in
+In `LinuxAbicheckScan`, both operands are directories, which is abicheck's own
+multi-library ("release") comparison: one process fans out over every shared
+object in
 `__release_lnx/daal/latest/lib/intel64` and matches each to the baseline snapshot
 of the same name. Six libraries, one step, one verdict, plus a per-library verdict
 table:
@@ -87,8 +89,8 @@ the job invokes, with `policy.yaml` and `abicheck.yml` in effect: **exit 0**,
 verdict `COMPATIBLE_WITH_RISK`, 2314 findings in total, nothing removed from the
 report. Three runs of the same shape: 28.2–29.1 s, 439–446 MiB peak RSS. The table
 above is byte-identical to the one the previous pin produced, which is how the
-pin bump was validated (see
-[The abicheck pin and the baseline must move together](#the-abicheck-pin-and-the-baseline-must-move-together)).
+pin bump was validated (see [The abicheck pin and the baseline must move
+together](#the-abicheck-pin-and-the-baseline-must-move-together)).
 
 There is no `jobs:` input any more — abicheck removed both the input and the
 CLI's `--jobs`, and always auto-detects with a memory clamp. The earlier `jobs: 1`
@@ -262,10 +264,10 @@ Header depth also confirms the `-fvisibility-inlines-hidden` demotion arrives un
 `libonedal_core.so`, 1201 `func_removed_elf_only` **and** 230
 `func_visibility_changed`, all `symbol_binding: weak`, 1857 findings in total
 stamped `reclassified_by: inlines-hidden-demotion` (243 and 278 on `libonedal.so`
-and `libonedal_dpc.so`, 12 and 17 on the two `parameters` libraries). Unlike the release fan-out's json, a
-single-pair json carries per-finding `severity`, `symbol_binding` and `finding_id`,
-so *which* linkage a demoted finding had is now answerable from CI output instead
-of a local rerun.
+and `libonedal_dpc.so`, 12 and 17 on the two `parameters` libraries). Unlike the
+release fan-out's json, a single-pair json carries per-finding `severity`,
+`symbol_binding` and `finding_id`, so *which* linkage a demoted finding had is now
+answerable from CI output instead of a local rerun.
 
 ### Why five libraries and not six
 
@@ -429,12 +431,12 @@ The `uses: abicheck/abicheck@<sha>` pin in `ci.yml` (twice) and in
 accepts no expression, so the SHA cannot be shared through an env var and is
 written out at each call site; a bump has to touch all of them. The `compile:`
 block in `abicheck.yml` carries the same obligation for the `.l2` family, and
-enforces it itself — see
-[The compile context](#the-compile-context-and-why-it-lives-in-abicheckyml). A snapshot records a
-`schema_version`, and detectors whose evidence postdates it decline to run rather
-than trust stale facts, so a baseline dumped by an *older* abicheck than the
-reader does not fail — it silently **under-reports**. The reverse direction, a
-snapshot newer than the reader, is a hard reject.
+enforces it itself — see [The compile
+context](#the-compile-context-and-why-it-lives-in-abicheckyml). A snapshot
+records a `schema_version`, and detectors whose evidence postdates it decline to
+run rather than trust stale facts, so a baseline dumped by an *older* abicheck
+than the reader does not fail — it silently **under-reports**. The reverse
+direction, a snapshot newer than the reader, is a hard reject.
 
 The loud failure mode is worse and `schema_version` does not protect against it: a
 fix in the **dumper** changes recorded facts without changing the schema, so the
