@@ -269,9 +269,11 @@ jobs:
           # LinuxAbicheckL2Scan. This directory is a *directory operand*, so an
           # L2 snapshot landing in it would be compared as a seventh library --
           # and a header-depth snapshot read at `depth: binary` reports its
-          # entire header-derived type surface as removed (measured: 1959
-          # breaking `typedef_removed` findings on libonedal_parameters.so
-          # alone). The filtered digest list is written out so the verify step
+          # entire header-derived type surface as removed (measured on an
+          # unchanged tree, with this repo's abicheck.yml and policy.yaml: 903
+          # breaking `typedef_removed` on every library, up to 1455 breaking on
+          # libonedal_core.so, verdict BREAKING). The filtered digest list is
+          # written out so the verify step
           # below still checks every file this step actually downloaded.
           grep -v '\.abicheck\.l2\.json\.zst$' "$sums" > "${RUNNER_TEMP}/baseline-binary.sha256"
           while read -r _digest name; do

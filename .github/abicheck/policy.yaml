@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Verdict policy for the LinuxAbicheckScan job in .github/workflows/ci.yml.
+# Verdict policy for both abicheck jobs in .github/workflows/ci.yml:
+# LinuxAbicheckScan (blocking, binary depth) and LinuxAbicheckL2Scan (advisory,
+# header depth) pass this same file as `policy-file`. Every measurement below is
+# from the blocking job unless it says otherwise.
 #
 # A policy file, not a suppression file, deliberately: a suppression rule
 # *removes* a matching change before the verdict and the counts are computed, so
@@ -41,16 +44,26 @@
 # Both rules exist for one cause and should be deleted, not left to rot, once a
 # post-`-fvisibility-inlines-hidden` release is published as the baseline.
 #
-# Scope note: this gate compares directories, which is abicheck's release
+# Scope note: the blocking gate compares directories, which is abicheck's release
 # fan-out, and that path is binary-depth by contract -- no header AST, and this
-# build carries no DWARF. So no type, layout, enum or constant facts reach the
-# comparison at all, and a rule about them would be config that can never fire.
-# Earlier revisions of this file carried five such rules (three named types'
-# `type_vtable_changed`, `oneapi::dal::preview`'s
-# `experimental_removed_without_replacement`, one internal `constant_changed`);
-# they are gone with the header-scoped shape they were measured against. If this
-# gate ever regains header depth they have to be re-measured, not restored from
-# git history.
+# build carries no DWARF. So no type, layout, enum or constant facts reach *that*
+# comparison at all, and a rule about them can never fire there. Earlier revisions
+# of this file carried five such rules (three named types' `type_vtable_changed`,
+# `oneapi::dal::preview`'s `experimental_removed_without_replacement`, one
+# internal `constant_changed`), deleted for that reason.
+#
+# LinuxAbicheckL2Scan does reach header depth with this file in effect, so one of
+# the five -- `experimental_removed_without_replacement` -- is fireable again
+# there: it is exactly the kind behind the four `oneapi::dal::preview` SPMD
+# findings that job reports. Leaving it out is deliberate, not an oversight: four
+# named removals reported once in an advisory job beat the same four silently
+# reclassified. The other four are not restored either: no L2 leg reports a
+# `type_vtable_changed` or `constant_changed` finding, and every leg reports
+# `layout_unverified_detectors: ['dwarf', 'advanced_dwarf', 'layout_descriptor']`
+# because this build ships no DWARF. Any restoration has to
+# be re-measured against the L2 shape, not lifted from git history; the reasoning
+# is under "What it finds that binary depth cannot" in
+# .github/abicheck/README.md.
 #
 # The abicheck build that dumps a baseline and the one that reads it must be the
 # same, or findings change for tooling reasons alone. That rule, its measurements

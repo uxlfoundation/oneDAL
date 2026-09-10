@@ -16,14 +16,19 @@
 # explicitly as that step's `build-config` input (it is not auto-discovered
 # from here -- abicheck looks for `.abicheck.yml` at the repository root).
 #
-# Deliberately only what has no other expression: every setting the Action
-# still takes as an input stays an input in ci.yml, so the two never disagree
-# about the same knob. That leaves the keys below -- the two the abicheck CLI
-# used to accept as flags and no longer does, plus the L2 header-AST compile
-# context, which the Action refuses as inputs on a release operand
-# (`::error::` + exit 1, "the per-library fan-out never threads the L2 compile
-# context to each pair's header dump") but reads from here without complaint,
-# because the CLI *does* thread a config-supplied context per pair.
+# Deliberately small: every setting the Action still takes as an input stays an
+# input in ci.yml, so the two never disagree about the same knob. That leaves
+# `bundle:` and `scope:` -- which the abicheck CLI used to accept as flags and
+# no longer does, and which have no Action input -- plus the L2 header-AST
+# compile context, which is a different case. The Action *does* accept a
+# compile context as inputs on the shapes used here (`ast-frontend`, and
+# `-std=c++17` through `gcc-options`, are supported for `dump` and for a
+# single-pair `compare`; only a release/directory operand refuses them). It
+# lives here anyway because capture and comparison must agree on it exactly:
+# this file is passed as `build-config` by both workflows, so one edit moves
+# both sides, whereas the same two settings as inputs would be repeated at
+# eleven call sites -- six dump steps and five compare legs -- with nothing but
+# review keeping them equal.
 #
 # Measured with the pin both workflows carry, against the published 2026.0.0
 # baselines: without this file the job is red (BREAKING, 218 cross-library
@@ -100,8 +105,12 @@ scope:
 # (profile_fingerprint mismatch; differing fields: language_standard)", exit 16,
 # no verdict. That is why these two keys live here, in the one file both
 # workflows pass as `build-config`, instead of as per-workflow inputs that could
-# drift apart -- and why changing them obliges re-dispatching "Publish Abicheck
-# Baseline" for every published tag in the same change.
+# drift apart -- and why changing them obliges re-capturing the `.l2` baseline
+# for every published tag in the same change. Re-dispatching "Publish Abicheck
+# Baseline" is not enough on its own: that workflow treats a published asset as
+# immutable, keeps it, and re-hashes the bytes already on the release, so a
+# refresh means deleting the `.l2` assets for the tag first (`gh release
+# delete-asset`) and dispatching after.
 compile:
   frontend: castxml
   std: c++17

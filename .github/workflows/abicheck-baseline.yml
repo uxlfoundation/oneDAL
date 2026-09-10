@@ -111,8 +111,11 @@ jobs:
       # No --debug symbols, because LinuxMakeDPCPP does not pass it either. The
       # comparison reads exported symbols and ELF metadata and needs no DWARF,
       # but the two sides do have to agree: if the PR-side build ever starts
-      # building with debug info, re-dispatch this workflow for the published
-      # tags -- the same rule that applies to bumping the abicheck pin.
+      # building with debug info, the published baselines have to be re-captured
+      # -- the same rule that applies to bumping the abicheck pin. Re-capturing
+      # is not a plain re-dispatch: the publish step treats an existing asset as
+      # immutable and keeps it, so the assets for that tag have to be deleted
+      # (`gh release delete-asset`) before this workflow is dispatched again.
       #
       # No --jobs either: .ci/scripts/build.sh already falls back to
       # -j$(nproc --all) on Linux, so the build sizes itself to whatever runner
@@ -151,13 +154,16 @@ jobs:
       #
       # Feeding the binary-depth job a header-depth snapshot is not merely
       # wasteful, it is wrong: the projection down to binary drops the snapshot's
-      # header-derived types and reports them as removed (measured: 1959 breaking
-      # `typedef_removed` findings on libonedal_parameters.so, and 14.6 GiB peak
-      # RSS to produce them). Hence two families, separated by asset name.
+      # header-derived types and reports them as removed. Measured on an
+      # unchanged tree, with this repo's abicheck.yml and policy.yaml applied:
+      # 903 breaking `typedef_removed` on every library, up to 1455 breaking on
+      # libonedal_core.so, verdict BREAKING on every leg -- and 14.6 GiB peak RSS
+      # for the whole-release shape. Hence two families, separated by asset name.
       #
-      # A re-dispatch is due if LinuxMakeDPCPP ever starts emitting debug info,
+      # A re-capture is due if LinuxMakeDPCPP ever starts emitting debug info,
       # which would give the PR side DWARF facts these snapshots have no
-      # counterpart for.
+      # counterpart for -- delete-then-dispatch, per the debug-info note on the
+      # build step above.
       #
       # The asset name is the matcher: the PR-side comparison keys each snapshot
       # to a shared object by the filename up to `.so`, so
@@ -177,17 +183,18 @@ jobs:
       # unchanged tree into 280 breaking `enum_member_value_changed` findings
       # against baselines dumped by the older pin, exit 4, with nothing naming
       # the baseline as the cause). So every bump obliges re-*verifying* against
-      # the existing baselines, and re-dispatching this workflow for every
-      # published tag only if the reports differ; neither this pin nor the one
-      # before it needed new baselines on that test -- the pin here reads the
+      # the existing baselines, and re-capturing for every published tag only if
+      # the reports differ (delete the assets, then dispatch -- a bare
+      # re-dispatch keeps whatever is already on the release); neither this pin
+      # nor the one before it needed new baselines on that test -- the pin here reads the
       # snapshots the previous pin published (schema 25 against its own 44) and
       # reports the identical per-library table.
       #
       # That compatibility runs one way only. A snapshot dumped here now cannot
       # be read by the previous pin at all ("Cannot detect format", and behind
-      # that a hard schema rejection), so rolling the pin back means
-      # re-dispatching this workflow for every published tag first. See
-      # .github/abicheck/README.md.
+      # that a hard schema rejection), so rolling the pin back means deleting
+      # every published tag's assets and re-capturing them at the older pin
+      # first. See .github/abicheck/README.md.
 
       - name: Dump libonedal_core.so
         uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
