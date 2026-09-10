@@ -45,6 +45,10 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+- checkout: self
+  fetchTags: false
+  persistCredentials: true
+
 - script: |
     set -euo pipefail
     cd docs
