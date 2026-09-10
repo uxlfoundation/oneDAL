@@ -122,20 +122,28 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/setvars.sh
 
-4. Set up MKL:
+4. Set up a BLAS/LAPACK backend. oneDAL supports Intel(R) oneMKL and OpenBLAS\* as alternative backends; set up one of them:
 
-    _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneMKL will already have been set up._
+    - **Intel(R) oneMKL**:
 
-    Download and install [Intel(R) oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html).
-    Set the environment variables for for Intel(R) oneMKL. For example:
+        _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneMKL will already have been set up._
 
-    - **Windows\***:
+        Download and install [Intel(R) oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html).
+        Set the environment variables for for Intel(R) oneMKL. For example:
 
-            call "C:\Program Files (x86)\Intel\oneAPI\mkl\latest\env\vars.bat" intel64
+        - **Windows\***:
 
-    - **Linux\***:
+                call "C:\Program Files (x86)\Intel\oneAPI\mkl\latest\env\vars.bat" intel64
 
-            source /opt/intel/oneapi/mkl/latest/env/vars.sh
+        - **Linux\***:
+
+                source /opt/intel/oneapi/mkl/latest/env/vars.sh
+
+    - **OpenBLAS** (required on Windows\*-arm64, where oneMKL is not available):
+
+        - OpenBLAS (Windows\*-arm64):
+
+                .ci\env\openblas.bat
 
 5. Set up oneAPI Threading Building Blocks (oneTBB):
 
@@ -175,13 +183,7 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
-7. Set up OpenBLAS (not needed in x86 when building with MKL)
-
-    - OpenBLAS (Windows\*-arm64):
-
-          .ci\env\openblas.bat
-
-8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker, memory allocator, and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker, memory allocator, and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -203,10 +205,6 @@ is available as an alternative to the manual setup.
 
             make -f makefile daal COMPILER=clang PLAT=winarm REQCPU=sve
 
-    - oneAPI C++ interfaces on **Windows\*-arm64** using **Clang\***:
-
-            make -f makefile onedal_c COMPILER=clang PLAT=winarm REQCPU=sve
-      
         _Note: You **must use clang-cl from LLVM** to build oneDAL on Windows\*-arm64. MSVC is not supported for this platform. Ensure clang-cl is installed and properly configured in your PATH before proceeding with the build.
 
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
