@@ -14,10 +14,11 @@
 # limitations under the License.
 #===============================================================================
 
-# Publishes the ABI baselines that ci.yml's LinuxAbicheckScan job compares
-# against: one abicheck snapshot per oneDAL library, captured from a release tag
-# built the same way the PR-side build is, uploaded as release assets, with
-# their sha256 digests committed to the repository as the trust anchor.
+# Publishes the ABI baselines ci.yml's two abicheck jobs compare against: per
+# oneDAL library, one snapshot at binary depth for LinuxAbicheckScan and one at
+# header depth for LinuxAbicheckL2Scan, captured from a release tag built the
+# same way the PR-side build is, uploaded as release assets, with their sha256
+# digests committed to the repository as the trust anchor.
 #
 # The full picture -- why the facts are not committed themselves, why the digest
 # file is, why the tag has to be rebuilt rather than downloaded, and how to
@@ -42,15 +43,22 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     # Measured against the pin below, on the no-debug-info build this workflow
-    # produces: 35.4 s wall for the six dumps together, peak RSS 327 MiB (the max
-    # of the six, on libonedal_core.so, not their sum -- each dump is its own
-    # process; the previous pin measured 17.5 s and 184 MiB). The three builds
-    # took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard
-    # runner this job is its builds and nothing else, which is what the timeout
-    # covers. Per-library numbers: .github/abicheck/README.md.
+    # produces: 35.4 s wall for the six binary-depth dumps together, peak RSS
+    # 327 MiB (the max of the six, on libonedal_core.so, not their sum -- each
+    # dump is its own process; the previous pin measured 17.5 s and 184 MiB), plus
+    # 23 min and 2.9 GiB for the five header-depth ones, which parse both umbrella
+    # headers once per library. The three builds took 1m32s + 16s + 1m41s at -j64
+    # on a 224-core host, so on a standard runner this job is its builds plus the
+    # header parses, which is what the timeout covers. Per-library numbers:
+    # .github/abicheck/README.md.
     timeout-minutes: 180
     env:
       ABICHECK_BASELINE_DIR: __abi_baselines
+      # The baseline tag's own include root, for the header-depth dumps below.
+      # It is this checkout's, not the PR side's: a baseline has to describe the
+      # tag's public headers, which is exactly why the tag is rebuilt from source
+      # here rather than downloaded as a binary release.
+      ABICHECK_BASELINE_INCLUDE_DIR: __baseline_src/__release_lnx/daal/latest/include
       # The bytes actually on the release after the publish step: this run's
       # freshly dumped snapshot for a new asset, the already-published asset for
       # one that exists. The digest file is computed from here, never from
@@ -85,8 +93,9 @@ jobs:
           ref: ${{ steps.baseline.outputs.tag }}
           path: __baseline_src
 
-      # Needed to *build* the baseline tag, not to dump it: the snapshots below
-      # read the built binaries and parse no header.
+      # Needed to *build* the baseline tag. The binary-depth snapshots below read
+      # only the built binaries; the header-depth ones also parse the tag's
+      # public headers, with the castxml each of those steps installs itself.
       - name: Install DPC++
         working-directory: __baseline_src
         run: .ci/env/apt.sh dpcpp
@@ -122,19 +131,33 @@ jobs:
       - name: Ensure output directories exist
         run: mkdir -p "${ABICHECK_BASELINE_DIR}" .github/abicheck/baselines
 
-      # One snapshot per library, one release asset each, dumped by the same
-      # Action ci.yml's job compares with -- so the two sides cannot disagree
-      # about how a snapshot is produced. `dump` takes one library at a time (it
-      # rejects a directory operand; only `compare` fans a directory out), which
-      # is why this is six steps for what the PR side does in one run.
+      # One snapshot per library per depth, one release asset each, dumped by the
+      # same Action ci.yml's jobs compare with -- so the two sides cannot
+      # disagree about how a snapshot is produced. `dump` takes one library at a
+      # time (it rejects a directory operand; only `compare` fans a directory
+      # out), which is why this is six steps for what ci.yml's release-shaped job
+      # does in one run.
       #
-      # `depth: binary` and no compile context, to describe the same evidence
-      # the PR side can. That side cannot pin its depth at all -- a directory
-      # operand is binary-depth by contract there and abicheck rejects `--depth`
-      # on it -- so the agreement has to be kept here: no header set, no
-      # --sources, and a re-dispatch if LinuxMakeDPCPP ever starts emitting
-      # debug info (which would give the PR side DWARF facts these snapshots
-      # have no counterpart for).
+      # Eleven dumps, not six, because the PR side has two jobs that need
+      # different evidence and neither can read the other's snapshots usefully:
+      #
+      #   * `<library>.abicheck.json.zst` at `depth: binary`, for
+      #     LinuxAbicheckScan's one-run directory compare. That job cannot pin
+      #     its own depth to anything higher -- abicheck rejects `--depth
+      #     headers` for a directory operand -- so the agreement has to be kept
+      #     here: no header set and no --sources on these six.
+      #   * `<library>.abicheck.l2.json.zst` at `depth: headers`, for
+      #     LinuxAbicheckL2Scan's per-library compares.
+      #
+      # Feeding the binary-depth job a header-depth snapshot is not merely
+      # wasteful, it is wrong: the projection down to binary drops the snapshot's
+      # header-derived types and reports them as removed (measured: 1959 breaking
+      # `typedef_removed` findings on libonedal_parameters.so, and 14.6 GiB peak
+      # RSS to produce them). Hence two families, separated by asset name.
+      #
+      # A re-dispatch is due if LinuxMakeDPCPP ever starts emitting debug info,
+      # which would give the PR side DWARF facts these snapshots have no
+      # counterpart for.
       #
       # The asset name is the matcher: the PR-side comparison keys each snapshot
       # to a shared object by the filename up to `.so`, so
@@ -142,7 +165,11 @@ jobs:
       # and a decorated name (a tag prefix, say) silently pairs with nothing. The
       # .json.zst suffix is load-bearing too: abicheck infers the compression
       # envelope from it when writing here and from the bytes when reading on the
-      # PR side.
+      # PR side. The `.l2` infix is what keeps the header-depth family out of that
+      # matching: LinuxAbicheckScan's operand is a directory, so two snapshots
+      # claiming the name `libonedal_core.so.abicheck.json.zst` would be
+      # ambiguous. LinuxAbicheckL2Scan downloads its one snapshot by explicit
+      # name, so the infix costs it nothing.
       #
       # Keep the pin equal to ci.yml's. A mismatch does not fail in any way that
       # points at the cause -- it either under-reports silently or fails loudly
@@ -222,29 +249,160 @@ jobs:
           output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_thread.so.abicheck.json.zst
           dependency-source: none
 
-      # A tripwire for one failure: compression silently not applying. The six
-      # snapshots measure 6.7 KiB to 200 KiB compressed at this pin, 477 KiB
-      # together (the previous pin: 5.8 KiB to 148 KiB, 372 KB -- the sectioned
-      # snapshot envelope this pin writes carries more per library), so a 5 MiB
-      # ceiling still leaves an order of magnitude of headroom and still catches
-      # a snapshot written uncompressed. The glob and the asset names share the
-      # .abicheck.json.zst suffix deliberately -- this loop, the publish loop and
-      # the PR-side digest check all key on it, so an asset named outside it
-      # would make all three silently no-op rather than fail.
+      # The header-depth family, for ci.yml's LinuxAbicheckL2Scan -- the five
+      # libraries that job compares, same tag, same pin. What is added is
+      # `depth: headers` plus the two
+      # umbrella headers and the include root they resolve against, which makes
+      # each dump carry the parsed public declarations and not just the export
+      # table.
+      #
+      # Both umbrellas go to every library, matching what the PR side passes --
+      # abicheck matches declarations to exported symbols itself, so a header
+      # declaring nothing a given library exports costs parse time and changes no
+      # finding, whereas the two sides disagreeing about the header set would show
+      # up as spurious added/removed declarations.
+      #
+      # `build-config` is not optional on these steps, and not for the bundle or
+      # scope keys: it carries the `compile:` block, and a header-depth snapshot
+      # records its compile context as a profile fingerprint that abicheck
+      # refuses to compare across. Measured by omitting it here and setting it on
+      # the compare side: "not comparable: old and new snapshots were extracted
+      # under different compile contexts (profile_fingerprint mismatch;
+      # differing fields: language_standard)", exit 16, no verdict. Both
+      # workflows therefore read the same file, and editing its `compile:` block
+      # obliges re-dispatching this workflow for every published tag.
+      #
+      # `dependency-source: conda-forge` on each of the five, because these dumps
+      # do parse headers and abicheck accepts only castxml >=0.6.11,<0.8.0 --
+      # Ubuntu 24.04's is 0.6.3 and the PyPI distribution's is 0.4.5, both
+      # refused outright rather than silently downgraded. The install repeats per
+      # step because each `uses:` provisions its own environment; measured, the
+      # parse dominates it anyway at 263-289 s per library (~2.9 GiB peak RSS,
+      # 4.45-4.53 MB per snapshot, 22 MB for the five).
+      - name: Dump libonedal_core.so at header depth
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_core.so
+          depth: headers
+          new-header: |
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
+          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
+          new-version: ${{ steps.baseline.outputs.tag }}
+          build-config: .github/abicheck/abicheck.yml
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_core.so.abicheck.l2.json.zst
+          dependency-source: conda-forge
+
+      - name: Dump libonedal.so at header depth
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal.so
+          depth: headers
+          new-header: |
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
+          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
+          new-version: ${{ steps.baseline.outputs.tag }}
+          build-config: .github/abicheck/abicheck.yml
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal.so.abicheck.l2.json.zst
+          dependency-source: conda-forge
+
+      - name: Dump libonedal_dpc.so at header depth
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so
+          depth: headers
+          new-header: |
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
+          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
+          new-version: ${{ steps.baseline.outputs.tag }}
+          build-config: .github/abicheck/abicheck.yml
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_dpc.so.abicheck.l2.json.zst
+          dependency-source: conda-forge
+
+      - name: Dump libonedal_parameters.so at header depth
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so
+          depth: headers
+          new-header: |
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
+          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
+          new-version: ${{ steps.baseline.outputs.tag }}
+          build-config: .github/abicheck/abicheck.yml
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters.so.abicheck.l2.json.zst
+          dependency-source: conda-forge
+
+      - name: Dump libonedal_parameters_dpc.so at header depth
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        with:
+          mode: dump
+          new-library: __baseline_src/__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so
+          depth: headers
+          new-header: |
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/daal.h
+            ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}/oneapi/dal.hpp
+          new-include: ${{ env.ABICHECK_BASELINE_INCLUDE_DIR }}
+          new-version: ${{ steps.baseline.outputs.tag }}
+          build-config: .github/abicheck/abicheck.yml
+          output-file: ${{ env.ABICHECK_BASELINE_DIR }}/libonedal_parameters_dpc.so.abicheck.l2.json.zst
+          dependency-source: conda-forge
+
+      # No header-depth dump for libonedal_thread.so: `LinuxAbicheckL2Scan` does
+      # not compare it (it installs no public header of its own, so header
+      # evidence about it is only "does not export what other libraries' headers
+      # declare"), and an asset nothing reads is still an immutable release asset
+      # under a committed digest. It keeps its binary-depth snapshot above, which
+      # is what the release-shaped gate compares.
+
+      # A tripwire for one failure: compression silently not applying. Measured at
+      # this pin, the binary-depth six are 6.7 KiB to 200 KiB compressed (477 KiB
+      # together; the previous pin: 5.8 KiB to 148 KiB, 372 KB -- the sectioned
+      # snapshot envelope this pin writes carries more per library), and the
+      # header-depth five are 4.45-4.53 MB each, 22.4 MB together, since each one
+      # carries the parsed declarations of both umbrella headers. Hence a ceiling
+      # per family rather than one number: 5 MiB would fail every L2 snapshot, and
+      # 32 MiB applied to a binary-depth one would not catch it written
+      # uncompressed. Both leave better than an order of magnitude of headroom.
+      #
+      # The globs and the asset names share their suffixes deliberately -- this
+      # loop, the publish loop, the digest step and both PR-side jobs all key on
+      # them, so an asset named outside both families would make every one of them
+      # silently no-op rather than fail. That is what the count check below is
+      # for: eleven snapshots are expected -- six plus five -- and a dump step
+      # that wrote its output somewhere unexpected is otherwise invisible here.
       - name: Report snapshot sizes and check the compression tripwire
         run: |
           set -euo pipefail
           ls -l "${ABICHECK_BASELINE_DIR}"
           du -sh "${ABICHECK_BASELINE_DIR}"
-          limit=$((5 * 1024 * 1024))
           rc=0
-          for f in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
-            size=$(stat -c %s "$f")
-            if [ "$size" -gt "$limit" ]; then
-              echo "::error file=${f}::$(( size / 1024 )) KiB is far above the 7-200 KiB a compressed snapshot takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
+          check_family() {
+            local glob="$1" limit_mib="$2" expected_range="$3" expected_count="$4" found=0
+            local limit=$(( limit_mib * 1024 * 1024 ))
+            for f in "${ABICHECK_BASELINE_DIR}"/$glob; do
+              [ -e "$f" ] || continue
+              found=$(( found + 1 ))
+              local size
+              size=$(stat -c %s "$f")
+              if [ "$size" -gt "$limit" ]; then
+                echo "::error file=${f}::$(( size / 1024 )) KiB is far above the ${expected_range} a compressed snapshot of this family takes, which means compression did not apply (the .json.zst suffix is what selects it) or the captured surface grew by an order of magnitude."
+                rc=1
+              fi
+            done
+            if [ "$found" -ne "$expected_count" ]; then
+              echo "::error::Expected ${expected_count} snapshots matching '${glob}', found ${found}. A dump step above wrote its output-file somewhere the publish and digest steps do not look."
               rc=1
             fi
-          done
+          }
+          check_family '*.abicheck.json.zst' 5 '7-200 KiB' 6
+          check_family '*.abicheck.l2.json.zst' 32 '4-5 MiB' 5
           exit "$rc"
 
       # Upload before computing digests, so the digest file describes the bytes
@@ -260,6 +418,12 @@ jobs:
       # An already-published asset is therefore left as it is and its published
       # bytes are what the digest step hashes, which makes a re-run after a
       # transient failure converge instead of deadlocking.
+      #
+      # It is also what arms the header-depth family on a tag that predates it: a
+      # re-dispatch keeps the six published binary-depth assets untouched, uploads
+      # the five new `.l2` ones, and commits a digest file covering all eleven. No
+      # already-merged PR's verdict changes, and LinuxAbicheckL2Scan stops
+      # skipping.
       - name: Publish baseline snapshots to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -271,7 +435,8 @@ jobs:
             exit 1
           fi
           mkdir -p "${ABICHECK_PUBLISHED_DIR}"
-          for path in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst; do
+          for path in "${ABICHECK_BASELINE_DIR}"/*.abicheck.json.zst \
+                      "${ABICHECK_BASELINE_DIR}"/*.abicheck.l2.json.zst; do
             name="$(basename "$path")"
             if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" \
                  --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
@@ -286,13 +451,20 @@ jobs:
           done
 
       # The digest file, not the snapshots, is what enters version control: a
-      # few hundred bytes, reviewable, and the anchor that lets the PR-side job
-      # prove the asset it downloaded is the one on the release.
+      # few hundred bytes, reviewable, and the anchor that lets the PR-side jobs
+      # prove the asset they downloaded is the one on the release.
+      #
+      # One file covering both families, because it is the anchor for the tag and
+      # not for a job: the PR side filters it by name (LinuxAbicheckScan drops the
+      # `.l2` lines it must not put in its directory operand, LinuxAbicheckL2Scan
+      # keeps just its own library's) and verifies what it filtered to. Both
+      # globs are named explicitly rather than collapsed to `*.zst` so an
+      # unrelated file appearing in this directory cannot enter the trust anchor.
       - name: Compute baseline digests
         working-directory: ${{ env.ABICHECK_PUBLISHED_DIR }}
         run: |
           set -euo pipefail
-          sha256sum *.abicheck.json.zst \
+          sha256sum *.abicheck.json.zst *.abicheck.l2.json.zst \
             > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
           cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
 
@@ -321,5 +493,5 @@ jobs:
             cat ".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
             echo '```'
             echo ""
-            echo "Set \`ABICHECK_BASELINE_TAG\` in \`.github/workflows/ci.yml\` to this tag to gate PRs against it."
+            echo "Set \`ABICHECK_BASELINE_TAG\` in \`.github/workflows/ci.yml\` to this tag -- in **both** the \`LinuxAbicheckScan\` and \`LinuxAbicheckL2Scan\` jobs -- to gate PRs against it."
           } >> "$GITHUB_STEP_SUMMARY"

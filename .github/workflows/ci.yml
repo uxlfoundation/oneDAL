@@ -263,6 +263,17 @@ jobs:
           # missing one fails here rather than later as a confusing "no
           # baseline" error. --pattern is a glob, and the published names
           # (<library>.abicheck.json.zst) contain no metacharacter.
+          #
+          # The `.abicheck.l2.json.zst` family is skipped here on purpose: the
+          # digest file covers both families, but those snapshots belong to
+          # LinuxAbicheckL2Scan. This directory is a *directory operand*, so an
+          # L2 snapshot landing in it would be compared as a seventh library --
+          # and a header-depth snapshot read at `depth: binary` reports its
+          # entire header-derived type surface as removed (measured: 1959
+          # breaking `typedef_removed` findings on libonedal_parameters.so
+          # alone). The filtered digest list is written out so the verify step
+          # below still checks every file this step actually downloaded.
+          grep -v '\.abicheck\.l2\.json\.zst$' "$sums" > "${RUNNER_TEMP}/baseline-binary.sha256"
           while read -r _digest name; do
             [ -n "${name:-}" ] || continue
             gh release download "${ABICHECK_BASELINE_TAG}" \
@@ -270,11 +281,11 @@ jobs:
               --pattern "${name}" \
               --dir "${ABICHECK_BASELINE_DIR}" \
               --clobber
-          done < "$sums"
+          done < "${RUNNER_TEMP}/baseline-binary.sha256"
           # Verify before use. --check fails on a digest mismatch or a missing
           # file, --strict on a malformed line, so a truncated or hand-edited
           # digest file cannot degrade into "nothing to check, all good".
-          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${GITHUB_WORKSPACE}/${sums}" )
+          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline-binary.sha256" )
           echo "available=true" >> "$GITHUB_OUTPUT"
       # The pin must stay equal to the one in abicheck-baseline.yml: a baseline
       # captured by an older abicheck silently under-reports rather than
@@ -306,6 +317,14 @@ jobs:
           # LinuxMakeDPCPP emits none. If that build ever starts shipping debug
           # info, re-dispatch "Publish Abicheck Baseline" so the two sides keep
           # describing the same evidence.
+          #
+          # This is also why this job reads the `*.abicheck.json.zst` baseline
+          # family and not the `*.abicheck.l2.json.zst` one LinuxAbicheckL2Scan
+          # below uses: a directory compare pinned to `binary` against
+          # header-depth snapshots still has to load and project each one down,
+          # which measured 10.9 GiB peak RSS and minutes instead of 446 MiB and
+          # 28 s. The header-AST evidence is worth having, but not on this job's
+          # bill; hence two baseline families.
           depth: binary
           old-version: ${{ env.ABICHECK_BASELINE_TAG }}
           new-version: ${{ github.sha }}
@@ -330,7 +349,8 @@ jobs:
           build-config: .github/abicheck/abicheck.yml
           # The release artifact is already on the runner and nothing here parses
           # a header, so the default (conda-forge) would install a toolchain this
-          # check never uses.
+          # check never uses. (LinuxAbicheckL2Scan below does parse headers, and
+          # does need it.)
           dependency-source: none
           format: markdown
           output-file: __abi_report/release.md
@@ -363,5 +383,251 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abicheck-release-report
+          path: __abi_report/
+          if-no-files-found: warn
+
+  # The header-AST (L2) half of the abicheck gate. LinuxAbicheckScan above reads
+  # exported symbols and ELF metadata; this job additionally parses oneDAL's
+  # public headers, which is what lets abicheck see a change that never shows up
+  # in the export table -- a struct gaining a field, a parameter type widening,
+  # an inline function's signature moving, a symbol exported but no longer
+  # declared in any public header. Both jobs run against the same released
+  # baseline tag and the same policy; they differ only in the evidence they have.
+  #
+  # It is a *matrix over libraries* rather than one directory compare, and that
+  # is forced twice over:
+  #
+  #   * Correctness. abicheck rejects `--depth headers` for a directory operand
+  #     outright (exit 64, "the per-library fan-out does not enforce a
+  #     per-library evidence floor"), so a release-shaped run cannot be *held*
+  #     to L2 -- a library whose headers failed to parse would silently
+  #     contribute symbols-only findings to a report that claims header depth.
+  #     A single-pair compare can, and `require-complete-analysis: true` below
+  #     is what holds it there.
+  #   * Cost. Parsing both umbrella headers once per library is the expensive
+  #     part, and a whole-release L2 run does it inside one process: measured
+  #     29 min and 20.1 GiB peak RSS, which does not fit a 16 GB runner at all.
+  #     Split per library it is one parse of both headers per leg, five legs
+  #     in parallel, each a fraction of that peak.
+  #
+  # Non-blocking on purpose (`continue-on-error`), for a burn-in period rather
+  # than because it is expected to be red. Measured on `main` against the
+  # 2026.0.0 header-depth baselines, with `policy.yaml` in effect: five of the
+  # five libraries below exit 0 -- three `COMPATIBLE_WITH_RISK`, and
+  # `libonedal.so`/`libonedal_dpc.so` `API_BREAK` (four `oneapi::dal::preview`
+  # SPMD communicator members removed without replacement), which the Action's
+  # default `fail-on-api-break: false` reports without failing the step. What is
+  # unproven is the environment, not the verdict: nothing here has ever run on a
+  # GitHub runner, the castxml parse is new to CI, and each leg holds ~4.7 GiB
+  # against a 16 GB runner. So it starts advisory and visible; drop this line
+  # once it has been green across a release cycle. .github/abicheck/README.md
+  # ("Header depth") carries the per-library numbers.
+  LinuxAbicheckL2Scan:
+    name: Abicheck L2 (${{ matrix.library }})
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    strategy:
+      # Every library's verdict is wanted on every run: one library's headers
+      # failing to parse says nothing about the other five, and cancelling them
+      # would hide five results to report one.
+      fail-fast: false
+      matrix:
+        # Five of the six shipped libraries. `libonedal_thread.so` is
+        # deliberately absent: it installs no public header of its own, so
+        # parsing oneDAL's umbrellas against it only reports that it does not
+        # export what *other* libraries' headers declare -- measured, 2692
+        # findings of which 2190 are `public_not_exported` and 334
+        # `private_header_leak`, and zero of them about drift since the baseline.
+        # Its analysis is `status: partial` for the same reason, which
+        # `require-complete-analysis` below turns into exit 1 on every run. A
+        # permanently red advisory leg teaches reviewers to ignore the job, so
+        # this library stays covered by the binary-depth gate (where it is
+        # `COMPATIBLE` with one finding) and out of this one.
+        library:
+          - libonedal_core.so
+          - libonedal.so
+          - libonedal_dpc.so
+          - libonedal_parameters.so
+          - libonedal_parameters_dpc.so
+    # Measured with the pin below, per library, on the no-debug-info build and
+    # with castxml (what this job uses -- see `compile.frontend` in
+    # .github/abicheck/abicheck.yml): 434-572 s and 4.70-4.71 GiB peak RSS, the
+    # five legs run concurrently. The clang frontend is 237-438 s for the same
+    # five verdicts. On top of the compare sits the conda-forge castxml install,
+    # the checkout and the build artifact download.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      # Same tag as LinuxAbicheckScan, and it has to be: the two jobs report on
+      # the same PR against the same release, and a reviewer reading "compatible
+      # with 2026.0.0" from one and a different tag from the other has no way to
+      # reconcile them. Rotate both lines together.
+      ABICHECK_BASELINE_TAG: 2026.0.0
+      ABICHECK_BASELINE_DIR: __abi_baselines_l2
+      ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      # Same trust anchor and same skip-when-unarmed behaviour as
+      # LinuxAbicheckScan's fetch step, over the other baseline family: the
+      # digest file covers both, and this job wants exactly one line of it.
+      # Fetching by explicit name rather than by glob is what keeps the two
+      # families from leaking into each other.
+      - name: Fetch and verify the L2 ABI baseline
+        id: baselines
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET: ${{ matrix.library }}.abicheck.l2.json.zst
+        run: |
+          set -euo pipefail
+          sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
+          if [ ! -f "$sums" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            note="ABI header-depth scan skipped: no baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
+            echo "::warning title=ABI baseline missing::${note}"
+            {
+              echo "### Abicheck L2 — ${{ matrix.library }}"
+              echo ""
+              echo "${note}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # A digest file predating the L2 baselines names only the binary
+          # family. That is the same "gate not armed yet" state as the file being
+          # absent -- inert with a warning, not red -- because the fix is a
+          # dispatch of the publishing workflow, not a change to the PR.
+          if ! grep -q "  ${ASSET}\$" "$sums"; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            note="ABI header-depth scan skipped: '${ASSET}' is not listed in ${sums}, so tag ${ABICHECK_BASELINE_TAG} was published before this workflow dumped header-depth baselines. Re-dispatch 'Publish Abicheck Baseline' on main for that tag to arm this gate."
+            echo "::warning title=L2 ABI baseline missing::${note}"
+            {
+              echo "### Abicheck L2 — ${{ matrix.library }}"
+              echo ""
+              echo "${note}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
+          gh release download "${ABICHECK_BASELINE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${ASSET}" \
+            --dir "${ABICHECK_BASELINE_DIR}" \
+            --clobber
+          # Verify just this library's line. --check --strict over a one-line
+          # digest list still fails closed on a mismatch, a missing file or a
+          # malformed line; it simply does not demand the other five assets this
+          # job never downloaded.
+          grep "  ${ASSET}\$" "$sums" > "${RUNNER_TEMP}/baseline-l2.sha256"
+          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline-l2.sha256" )
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      # The pin must stay equal to the one in LinuxAbicheckScan and in
+      # abicheck-baseline.yml; `uses:` takes no expression, hence the third copy
+      # of the same literal SHA.
+      #
+      # Both operands are single libraries, which is the only operand shape
+      # abicheck will hold to header depth. `new-library` is the unversioned
+      # symlink rather than `<library>.4.0`: abicheck follows it and reads
+      # DT_SONAME from the target (measured: `libonedal_parameters.so.4`), so a
+      # future SONAME bump does not need this list edited.
+      - name: Check the public header surface against the released baseline
+        id: abicheck
+        if: steps.baselines.outputs.available == 'true'
+        uses: abicheck/abicheck@fd6ba6816a6a675cbcb87903edbee052e087cba1
+        with:
+          mode: compare
+          old-library: ${{ env.ABICHECK_BASELINE_DIR }}/${{ matrix.library }}.abicheck.l2.json.zst
+          new-library: __release_lnx/daal/latest/lib/intel64/${{ matrix.library }}
+          # The rung this whole job exists for. Accepted here because the
+          # operands are single libraries; the release-shaped compare above
+          # cannot ask for it at all.
+          depth: headers
+          # And the assurance that it was actually reached. Without it a header
+          # set that failed to parse degrades to symbols-only and still exits 0
+          # under a report that says `headers`; with it, an effective depth below
+          # the requested one is exit 1 on its own axis (abicheck records
+          # `effective_depth`, `depth_satisfied` and `header_context_status` for
+          # exactly this). A green run here therefore means "compared at header
+          # depth", not "asked for header depth".
+          require-complete-analysis: true
+          old-version: ${{ env.ABICHECK_BASELINE_TAG }}
+          new-version: ${{ github.sha }}
+          # The two umbrella headers that between them declare oneDAL's public
+          # surface: `daal.h` for the DAAL interface, `oneapi/dal.hpp` for the
+          # oneAPI one. Every library gets both, because which of the two covers
+          # a given shared object is not something this workflow should be
+          # asserting -- abicheck matches declarations to exported symbols
+          # itself, and a header that declares nothing this library exports
+          # costs parse time and changes no finding.
+          #
+          # Not covered either way: the SYCL surface behind
+          # `ONEDAL_DATA_PARALLEL`. Parsing it needs the DPC++ frontend rather
+          # than castxml, so the `*_dpc` libraries are compared here on their
+          # non-SYCL declarations plus their full export table. See
+          # .github/abicheck/README.md ("Known gaps").
+          new-header: |
+            ${{ env.ABICHECK_INCLUDE_DIR }}/daal.h
+            ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
+          # The include root the umbrella headers resolve their own `#include`s
+          # against. Without it the parse fails on the first nested include
+          # rather than degrading, which `require-complete-analysis` above would
+          # then report as an unsatisfied depth.
+          new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
+          # The old side needs no header set or include root: a header-depth
+          # snapshot already carries the parsed declarations, which is the whole
+          # point of dumping the baselines at this depth instead of parsing the
+          # release tag's sources here.
+          fail-on-removed-library: true
+          policy-file: .github/abicheck/policy.yaml
+          # Also supplies the `compile:` block -- frontend and language standard
+          # for the header parse. Those are not Action inputs: it refuses a
+          # compile context as inputs on a release operand and there is no
+          # separate spelling for a single-pair one, so the config file is where
+          # they live for both jobs. Which is load-bearing rather than tidy: a
+          # header-depth snapshot records its compile context as a profile
+          # fingerprint and abicheck refuses to compare across a mismatch
+          # (measured: "profile_fingerprint mismatch; differing fields:
+          # language_standard", exit 16, no verdict), so this file and the
+          # baseline dumps' copy of it have to be the same file.
+          build-config: .github/abicheck/abicheck.yml
+          # Unlike LinuxAbicheckScan, this job does parse headers, so it needs a
+          # castxml abicheck will accept: >=0.6.11,<0.8.0, which rules out
+          # Ubuntu 24.04's 0.6.3 and the PyPI distribution's 0.4.5.
+          # conda-forge's is 0.7.0. abicheck never falls back to another frontend
+          # silently, so getting this wrong is a failed step, not a quiet
+          # downgrade.
+          dependency-source: conda-forge
+          format: markdown
+          output-file: __abi_report/${{ matrix.library }}.l2.md
+          # The markdown is per-library prose and capped finding lists; the json
+          # carries every finding with its symbol, its evidence tier and the
+          # `analysis_assurance` record that `require-complete-analysis` gates
+          # on. Archived below, because on a red run that record is the first
+          # thing to read.
+          extra-args: >-
+            --write json=__abi_report/${{ matrix.library }}.l2.json
+          # Five matrix legs would be five comments. The job summary is where a
+          # per-library verdict belongs.
+          pr-comment: false
+      - name: Publish the comparison to the job summary
+        if: always() && steps.abicheck.outputs.report-path != ''
+        run: cat "${{ steps.abicheck.outputs.report-path }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive the full ABI report
+        if: always() && steps.abicheck.outputs.report-path != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Per-library artifact names: several legs uploading one name is a
+          # conflict, not a merge.
+          name: abicheck-l2-report-${{ matrix.library }}
           path: __abi_report/
           if-no-files-found: warn
