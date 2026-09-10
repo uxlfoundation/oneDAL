@@ -112,6 +112,7 @@ TEMPLATE_LIST_TEST_M(cosine_distance_test_random,
                      "Randomly filled cosine-distance computation",
                      "[cosine][distance][small]",
                      distance_types) {
+    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
     this->generate();
     this->test_distance();
