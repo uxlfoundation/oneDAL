@@ -502,14 +502,44 @@ jobs:
       # re-implementing the fetch. Committing a digest nothing verifies would
       # read as protection that is not there. Upstream ask: an expected-archive-
       # digest input on `abi-baseline`.
+      # Append-only, and verified against what is already committed. Two
+      # properties this step has to hold, both of them attacks it would otherwise
+      # help rather than stop:
+      #
+      #  * A digest already committed for this asset name is never rewritten. The
+      #    publish step above deliberately keeps an already-published asset and
+      #    re-downloads it, so the bytes hashed here are the release's -- which
+      #    means a *replaced* release asset would otherwise be laundered into a
+      #    fresh, code-reviewed-looking digest commit that makes every future PR
+      #    verify happily against the replacement. A mismatch is therefore a hard
+      #    failure that names both digests, and the only sanctioned ways forward
+      #    are the ones the publish step's warning already lists (bump the
+      #    generation, or delete the asset deliberately).
+      #  * Lines for other assets are preserved. One tag's file accumulates one
+      #    line per generation, and `LinuxAbicheckScan` greps the file for the
+      #    single asset it is about to download, so a consumer still pinned to
+      #    generation N must keep finding its line after generation N+1 is
+      #    published. Truncating the file would strand it on a `not listed in`
+      #    failure instead.
       - name: Compute the binary baseline-set archive digest
-        working-directory: ${{ env.ABICHECK_PUBLISHED_DIR }}
         run: |
           set -euo pipefail
-          mkdir -p "${GITHUB_WORKSPACE}/.github/abicheck/baselines"
-          sha256sum "$(basename '${{ steps.archive-binary.outputs.archive-path }}')" \
-            > "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
-          cat "${GITHUB_WORKSPACE}/.github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          sums=".github/abicheck/baselines/${{ steps.baseline.outputs.tag }}.abicheck.sha256"
+          asset="$(basename '${{ steps.archive-binary.outputs.archive-path }}')"
+          mkdir -p "$(dirname "$sums")"
+          fresh="$( cd "${ABICHECK_PUBLISHED_DIR}" && sha256sum "$asset" )"
+          committed="$(grep "  ${asset}\$" "$sums" 2>/dev/null || true)"
+          if [ -n "$committed" ]; then
+            if [ "$committed" != "$fresh" ]; then
+              echo "::error title=Baseline digest mismatch::'${asset}' is already committed in ${sums} with a different digest. Committed: '${committed}'. Release asset now hashes to: '${fresh}'. A published release-tag baseline is immutable -- every merged PR's verdict was computed against the committed bytes -- so this workflow will not rewrite the anchor. Either the release asset was replaced, which is exactly what this check exists to surface, or a re-publish is intended: in that case bump ABICHECK_BASELINE_GENERATION, or delete the asset with 'gh release delete-asset' as a deliberate act and remove its line from ${sums} in a reviewed commit."
+              exit 1
+            fi
+            echo "Digest for '${asset}' already committed and matches the published asset; nothing to add."
+          else
+            printf '%s\n' "$fresh" >> "$sums"
+            LC_ALL=C sort -k2 -o "$sums" "$sums"
+          fi
+          cat "$sums"
 
       - name: Commit the baseline-set archive digest
         run: |

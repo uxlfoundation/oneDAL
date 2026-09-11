@@ -581,6 +581,18 @@ differing only in the recorded `created_at`). A re-run keeps every asset already
 the release and re-hashes the published bytes, so it converges instead of
 deadlocking.
 
+That last sentence is also where re-hashing the *published* bytes would turn into a
+laundering step if the digest file were simply rewritten, so it is not. The digest
+file is **append-only and self-verifying**: a line already committed for an asset
+name is compared against the freshly computed one and a difference fails the
+publisher, naming both digests. The benign case — a re-run over an unchanged asset —
+matches and commits nothing; the case worth catching is a release asset that was
+replaced after its digest was reviewed, which would otherwise arrive as a
+plausible-looking `Publish abicheck baseline digest` commit that re-anchors the gate
+onto the replacement. Lines for other assets are preserved rather than truncated,
+because one tag's file accumulates one line per generation and a consumer still
+pinned to the older generation greps for its own line ([Rotation](#rotation)).
+
 ### Bootstrap is explicit, and absence fails
 
 **A required baseline that is missing fails the job.** An earlier revision of these
