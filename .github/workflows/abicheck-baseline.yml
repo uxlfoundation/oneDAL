@@ -91,14 +91,24 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
     # Measured against the pin below, on the no-debug-info build this workflow
-    # produces: 35.4 s wall and 327 MiB peak RSS for the six binary-depth dumps
-    # (the max of the six, on libonedal_core.so, not their sum -- each dump is
-    # its own subprocess), plus 23 min and 2.9 GiB for the five header-depth
-    # ones, which parse both umbrella headers once per library. The three builds
-    # took 1m32s + 16s + 1m41s at -j64 on a 224-core host, so on a standard
-    # runner this job is its builds plus the header parses, which is what the
-    # timeout covers. Per-library numbers: .github/abicheck/README.md.
-    timeout-minutes: 180
+    # produces, and re-measured through `actions/baseline` itself rather than
+    # through bare `abicheck dump`, which is what changed the number: the
+    # binary-depth family is 108 s wall and 350 MiB peak RSS for all six
+    # libraries including `validation: strict`, but the header-depth family is
+    # **4576 s (76 min) and 3.6 GiB** for its five -- because `validation:
+    # strict` round-trips every snapshot through a header-depth self-compare, and
+    # a header-depth compare is ~570 s per library on its own. The dumps
+    # themselves are ~23 min of that; the self-compares are the rest.
+    #
+    # That is worth paying rather than dropping to `validation: none`: the
+    # publisher is the only place an unloadable snapshot can be caught before it
+    # is served to every PR, and the consumer side would report it as a red
+    # advisory leg weeks later. It does mean the timeout has to cover
+    # build + 76 min + slack, on a runner that is slower per-core than the host
+    # those numbers came from. The three builds took 1m32s + 16s + 1m41s at -j64
+    # on a 224-core host and are the dominant unknown here.
+    # Per-library numbers: .github/abicheck/README.md.
+    timeout-minutes: 360
     env:
       # The baseline tag's own release tree. It is this checkout's, not the PR
       # side's: a baseline has to describe the tag's public surface, which is

@@ -523,15 +523,23 @@ jobs:
   #
   # Non-blocking on purpose (`continue-on-error`), for a burn-in period rather
   # than because it is expected to be red. Measured on `main` against the
-  # 2026.0.0 header-depth baselines, with `policy.yaml` in effect: five of the
-  # five libraries below exit 0 -- three `COMPATIBLE_WITH_RISK`, and
-  # `libonedal.so`/`libonedal_dpc.so` `API_BREAK` (four `oneapi::dal::preview`
-  # SPMD communicator members removed without replacement), which the Action's
-  # default `fail-on-api-break: false` reports without failing the step. What is
-  # unproven is the environment, not the verdict: nothing here has ever run on a
-  # GitHub runner, the castxml parse is new to CI, and each leg holds ~4.7 GiB
-  # against a 16 GB runner. So it starts advisory and visible; drop this line
-  # once it has been green across a release cycle. .github/abicheck/README.md
+  # 2026.0.0 header-depth baseline-set, resolved through this Action's own
+  # `abi-baseline` path, with `policy.yaml` in effect: zero breaking findings on
+  # any leg. Three are `COMPATIBLE_WITH_RISK` and exit 0; `libonedal.so` and
+  # `libonedal_dpc.so` are `API_BREAK` and exit 2 -- four `oneapi::dal::preview`
+  # SPMD communicator members removed without replacement -- which the Action's
+  # default `fail-on-api-break: false` reports without failing the step.
+  #
+  # `policy.yaml` is load-bearing *here* and not only on the blocking job: its
+  # `func_visibility_changed` rules exist for this depth (measured firing zero
+  # times at binary depth), and without them three of these five legs are
+  # BREAKING/exit 4 -- 230 findings on libonedal_core.so, 6 each on the two
+  # `oneapi` libraries.
+  #
+  # What is unproven is the environment, not the verdict: nothing here has ever
+  # run on a GitHub runner, the castxml parse is new to CI, and each leg holds
+  # ~4.7 GiB against a 16 GB runner. So it starts advisory and visible; drop this
+  # line once it has been green across a release cycle. .github/abicheck/README.md
   # ("Header depth") carries the per-library numbers.
   LinuxAbicheckL2Scan:
     name: Abicheck L2 (${{ matrix.library }})

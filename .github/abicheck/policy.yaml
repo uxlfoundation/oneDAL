@@ -253,11 +253,20 @@ reclassify:
       same case as above.
   # ── The same demotion as `func_visibility_changed`, which is the kind it
   # arrives under once a declaration exists (header depth only; measured firing
-  # zero times on the binary-depth gate). Scoped from the measurement rather
-  # than mirrored from the removal rules above: all 230 findings on
-  # `libonedal_core.so` are WEAK and 229 are under `daal::`, so there is no
-  # `oneapi`/`sycl` rule here -- if a header-depth leg ever reports one outside
-  # `daal::`, it should be added with its own count, not pre-emptively.
+  # zero times on the binary-depth gate). Scoped from the measurement, on all
+  # five header-depth legs rather than on one: 230 findings on
+  # `libonedal_core.so` (229 under `daal::`, one leading-return-type template),
+  # 6 on `libonedal.so` and 6 on `libonedal_dpc.so` (all under `oneapi::`), and
+  # zero on the two `parameters` libraries. Every one WEAK. No `sycl` rule,
+  # because no leg reports one -- the `sycl::` re-exports show up only as
+  # removals at binary depth.
+  #
+  # Four of the six on each `oneapi` library are the `oneapi::dal::preview::spmd`
+  # communicator members that header depth also reports as
+  # `experimental_removed_without_replacement`. Demoting the *linkage* finding
+  # does not hide the *source* one: those four stay API_BREAK (exit 2) and stay
+  # in the report, which is the split this file is for -- the WEAK-linkage
+  # demotion is what oneDAL is asserting is safe, not the removal.
   - kind: func_visibility_changed
     binding: weak
     namespace: 'daal'
@@ -272,6 +281,21 @@ reclassify:
       new binary's .symtab, with no `extern template` in any installed header. A
       STRONG export losing visibility is not matched by this rule and still
       gates.
+  - kind: func_visibility_changed
+    binding: weak
+    namespace: 'oneapi'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same -fvisibility-inlines-hidden demotion in the `oneapi::dal::` surface,
+      reported as a visibility change because header depth has the declaration:
+      6 findings on libonedal.so and 6 on libonedal_dpc.so, all WEAK COMDAT
+      inline/template members (`chunked_array_base::reset`,
+      `homogen_table_builder::build`, `table::init_impl` and the four
+      `preview::spmd` communicator members). The four `preview::spmd` members are
+      separately reported as `experimental_removed_without_replacement` and stay
+      an API break; this rule reclassifies only the linkage finding.
   - kind: func_visibility_changed
     binding: weak
     symbol: '_ZNK4daal15data_management10interface112NumericTable8getValueIiEET_mm'

@@ -249,18 +249,32 @@ block on either side, deliberately (see "The compile context") — so these numb
 are whatever castxml the environment resolved: conda-forge castxml 0.7.0 for the
 rows below, against the pinned CastXML Superbuild the job now provisions:
 
-| library | verdict | exit | breaking | API break | risk | additions | wall | peak RSS |
-|---|---|---|---|---|---|---|---|---|
-| `libonedal.so` | `API_BREAK` | 2 | 0 | 4 | 2407 | 45 | 471 s | 4.70 GiB |
-| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 3007 | 19 | 572 s | 4.71 GiB |
-| `libonedal_dpc.so` | `API_BREAK` | 2 | 0 | 4 | 3271 | 47 | 473 s | 4.71 GiB |
-| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 146 | 19 | 434 s | 4.71 GiB |
-| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 195 | 19 | 440 s | 4.71 GiB |
+| library | verdict | exit | breaking | API break | risk | detected | reclassified | wall | peak RSS |
+|---|---|---|---|---|---|---|---|---|---|
+| `libonedal.so` | `API_BREAK` | 2 | 0 | 4 | 2392 | 3535 | 243 | 459 s | 4.67 GiB |
+| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 2980 | 4933 | 1857 | 572 s | 4.68 GiB |
+| `libonedal_dpc.so` | `API_BREAK` | 2 | 0 | 4 | 3244 | 4401 | 278 | 489 s | 4.68 GiB |
+| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 146 | 1420 | 12 | 435 s | 4.67 GiB |
+| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 195 | 1469 | 17 | 432 s | 4.67 GiB |
 
-The same five legs under the clang JSON-AST frontend give the same five verdicts,
+These are re-measurements, not the numbers an earlier revision of this file carried,
+and the reason is the migration to `actions/baseline`: it provisions castxml through
+abicheck's own pinned CastXML Superbuild (0.6.20260105-g9864b1e + clang 21.1.8)
+rather than the conda-forge castxml 0.7.0 this job used to install, and a
+header-depth snapshot's compile context is a fingerprint abicheck refuses to compare
+across — so the publisher's toolchain is now the consumer's, by construction. Both
+operands resolved out of one header-depth baseline-set (five snapshots, 21,885,624
+bytes as `.tar.zst`; the set itself takes 4576 s and 3.6 GiB to build, most of it
+`validation: strict`'s per-library self-compare). Old-toolchain numbers for
+comparison: 2407 / 3007 / 3271 / 146 / 195 risk at 434–572 s — same five verdicts,
+same four API breaks, counts within ~1%.
+
+The same five legs under the clang JSON-AST frontend gave the same five verdicts,
 the same five exit codes and the same four API breaks, with 3–66 fewer `risk`
 findings per library and 237–438 s wall — i.e. the frontend choice moves counts and
-runtime, not the gate's answer, on today's tree.
+runtime, not the gate's answer, on today's tree. That measurement predates the
+migration and is not reproducible through `actions/baseline`, which provisions
+castxml only.
 
 Exit 2 is an API break, and the Action's `fail-on-api-break` defaults to false —
 the same setting the binary gate runs with — so those two legs report it without
@@ -302,15 +316,34 @@ no public header declares — plus 66 `private_header_leak` on every leg, 140
 not this PR's change to it, so read them as a backlog and not as a per-PR signal
 ([Known gaps](#known-gaps)).
 
-Header depth also confirms the `-fvisibility-inlines-hidden` demotion arrives under
-*both* of `policy.yaml`'s kinds once a declaration is available: on
-`libonedal_core.so`, 1201 `func_removed_elf_only` **and** 230
-`func_visibility_changed`, all `symbol_binding: weak`, 1857 findings in total
-stamped `reclassified_by: inlines-hidden-demotion` (243 and 278 on `libonedal.so`
-and `libonedal_dpc.so`, 12 and 17 on the two `parameters` libraries). Unlike the
-release fan-out's json, a single-pair json carries per-finding `severity`,
-`symbol_binding` and `finding_id`, so *which* linkage a demoted finding had is now
-answerable from CI output instead of a local rerun.
+Header depth is also where the `-fvisibility-inlines-hidden` demotion arrives under
+a *second* kind, and this is the one place `policy.yaml` is load-bearing here rather
+than inherited: with a declaration in hand abicheck says `func_visibility_changed`
+where the binary-depth fan-out says `func_removed_elf_only`. On
+`libonedal_core.so`: 1174 `func_removed_elf_only` **and** 230
+`func_visibility_changed`, every one of the 230 `symbol_binding: weak`,
+`reclassified_total: 1857`. Remove the `func_visibility_changed` rules and this leg
+is **`BREAKING`, exit 4** with those 230 as `breaking` findings — measured, and the
+reason the rules exist despite firing zero times on the blocking gate. A rule's
+blast radius has to be measured at every depth the file is passed to.
+
+And on every leg, not one leg: scoping those rules from `libonedal_core.so` alone
+(229 of 230 under `daal::`) left `libonedal.so` and `libonedal_dpc.so` **`BREAKING`,
+exit 4** with 6 breaking findings each, all WEAK, all under `oneapi::` —
+`chunked_array_base::reset`, `homogen_table_builder::build`, `table::init_impl` and
+the four `preview::spmd` communicator members. With the `oneapi` rule added: both
+back to `API_BREAK`/exit 2, zero breaking, `reclassified_total` 237 → 243 and
+272 → 278, and the four `experimental_removed_without_replacement` findings still
+reported. That last part is the point of demoting the *linkage* finding and not the
+*source* one: the same four members are visible in both kinds, and only the linkage
+kind is what oneDAL is asserting is safe. No `sycl` rule for this kind, because no
+leg reports one.
+
+Unlike the release fan-out's json, a single-pair json carries per-finding `severity`,
+`symbol_binding` and `finding_id`, so *which* linkage a demoted finding had is
+answerable from CI output instead of a local rerun — which is how the 230 were
+scoped: 229 under `daal::`, one (`NumericTable::getValue<int>`) unreachable by
+`namespace:` because its demangled form starts with a return type.
 
 ### Why five libraries and not six
 
@@ -705,10 +738,11 @@ spelled the linkage rules as `symbol_pattern: ".*"` plus `binding: weak`, which
 bounds nothing: it demotes every weak function removal oneDAL will ever make,
 including ones nobody has looked at. (abicheck's selector grammar is
 conjunctive-only and refuses `binding:` as a rule's sole scope, which is why some
-identity selector is mandatory.) It is now eleven rules — for
+identity selector is mandatory.) It is now twelve rules — for
 `func_removed_elf_only`, three `namespace:` rules (`daal`, `oneapi`, `sycl`) plus six
-explicitly-named function templates; for `func_visibility_changed`, one `namespace:
-daal` rule plus one named template — and the bound is real rather than nominal:
+explicitly-named function templates; for `func_visibility_changed`, `namespace: daal`
+and `namespace: oneapi` plus one named template — and the bound is real rather than
+nominal:
 
 * the three namespace rules alone demote **1943 of the 1952** and leave 9 findings
   breaking, exit 4. Adding the six named symbols reaches 1952 demoted, exit 0, with
@@ -910,7 +944,7 @@ this collapses into two `workflow_call` jobs.
   `policy.base: strict_abi@1:<digest>` plus the serialized rule list, alongside an
   `effective_config_digest` that now describes the config that produced the
   verdict. What a single-pair comparison still has and this does not: per-finding
-  `severity`, `symbol_binding` and `finding_id`. Since the eleven policy rules are
+  `severity`, `symbol_binding` and `finding_id`. Since the twelve policy rules are
   linkage-scoped (`binding: weak` on every one), checking *which* linkage a demoted
   finding had still needs a local single-library rerun. It is also why the
   acknowledgment ask upstream needs `finding_id` to be present in this shape: the
