@@ -187,6 +187,16 @@ jobs:
       #     `make: *** No rule to make target
       #      '/opt/intel/oneapi/mkl/2026.1/lib/libmkl_intel_ilp64.a',
       #      needed by '__work/md/lnx32e/daal/lib/libonedal_core.so'.  Stop.`
+      #   * and then, 25 minutes in rather than 2, the same thing for TBB:
+      #     `cpp/daal/src/threading/threading.cpp:33:10: fatal error:
+      #      'tbb/tbb.h' file not found`, make Error 1. On 32e with the MKL
+      #     backend `.ci/scripts/build.sh` provisions no TBB at all (it only does
+      #     that for `ref`/arm/riscv64), so the build depends entirely on
+      #     TBBROOT from setvars.sh -- which again points at a runtime-only
+      #     `tbb/latest`. This one cannot be derived from the tag's pin, because
+      #     the apt version and the install prefix are different numbering
+      #     schemes (2023.1.0-151 -> /opt/intel/oneapi/tbb/2021.9.0), so it is
+      #     resolved by looking for the headers.
       #
       # Both versions are read out of the tag's own apt.sh, because they are a
       # property of the tag being rebuilt -- writing them here would make every
@@ -227,7 +237,34 @@ jobs:
             echo "::error::${MKLROOT}/lib/libmkl_intel_ilp64.a is missing, so the baseline tag's static MKL link cannot succeed. Installed MKL versions: $(ls -1 /opt/intel/oneapi/mkl 2>/dev/null | tr '\n' ' ')."
             exit 1
           fi
-          echo "compiler=${cmplr_pin} (icx=${icx_path}) MKLROOT=${MKLROOT}"
+          # TBB, same skew, resolved by capability rather than by version. The
+          # apt package version (intel-oneapi-tbb-devel=2023.1.0-151) is not the
+          # install prefix (/opt/intel/oneapi/tbb/2021.9.0), so there is nothing
+          # to derive it from the way MKL and the compiler are derived. Pick the
+          # newest prefix that actually carries the headers instead, keeping
+          # whatever setvars.sh chose if that one already has them.
+          if [ ! -r "${TBBROOT:-/nonexistent}/include/tbb/tbb.h" ]; then
+            for d in $(ls -1dr /opt/intel/oneapi/tbb/*/ 2>/dev/null); do
+              if [ -r "${d}include/tbb/tbb.h" ]; then
+                export TBBROOT="${d%/}"
+                break
+              fi
+            done
+          fi
+          if [ ! -r "${TBBROOT:-/nonexistent}/include/tbb/tbb.h" ]; then
+            echo "::error::No installed oneTBB carries include/tbb/tbb.h, so cpp/daal/src/threading/threading.cpp cannot compile. Installed TBB versions: $(ls -1 /opt/intel/oneapi/tbb 2>/dev/null | tr '\n' ' ')."
+            exit 1
+          fi
+          # The makefile locates the TBB *runtimes* by filtering LD_LIBRARY_PATH
+          # on the TBBROOT prefix (makefile:251), so re-pointing TBBROOT without
+          # re-pointing LD_LIBRARY_PATH fails at link time with
+          # "Can`t find TBB runtimes".
+          export LD_LIBRARY_PATH="${TBBROOT}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+          if [ -z "$(ls -1 "${TBBROOT}"/lib/libtbb.so* 2>/dev/null | head -1)" ]; then
+            echo "::error::${TBBROOT}/lib carries no libtbb.so*, so the link step will fail. Contents: $(ls -1 "${TBBROOT}/lib" 2>/dev/null | tr '\n' ' ')."
+            exit 1
+          fi
+          echo "compiler=${cmplr_pin} (icx=${icx_path}) MKLROOT=${MKLROOT} TBBROOT=${TBBROOT}"
           set -eo pipefail
           .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
           rm -rf __work
