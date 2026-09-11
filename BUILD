@@ -3,6 +3,11 @@ load("@onedal//dev/bazel:release.bzl",
     "release_include",
     "release_extra_file",
 )
+load("@onedal//dev/bazel/config:selects.bzl",
+    "parameters_lib_enabled",
+    "parameters_lib_separate_value",
+    "release_dpc_parameters_lib_enabled",
+)
 load("@onedal//dev/bazel:scripts.bzl",
     "generate_cmake_config",
     "generate_modulefile",
@@ -36,17 +41,20 @@ generate_modulefile(
 generate_pkgconfig(
     name = "release_pkgconfig",
     out = "lib/pkgconfig/onedal.pc",
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_pkgconfig(
     name = "release_pkgconfig_dynamic_threading_host",
     out = "lib/pkgconfig/dal-dynamic-threading-host.pc",
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_pkgconfig(
     name = "release_pkgconfig_static_threading_host",
     out = "lib/pkgconfig/dal-static-threading-host.pc",
     static = True,
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 filegroup(
@@ -58,6 +66,7 @@ generate_cmake_config(
     name = "release_cmake_config",
     template = "cmake/templates/oneDALConfig.cmake.in",
     out = "lib/cmake/oneDAL/oneDALConfig.cmake",
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_cmake_config(
@@ -157,23 +166,22 @@ release(
         "@onedal//cpp/daal:thread_dynamic",
         "@onedal//cpp/oneapi/dal:static",
         "@onedal//cpp/oneapi/dal:dynamic",
-    ] + select({
-        ":windows": [],
-        "//conditions:default": [
-            "@onedal//cpp/oneapi/dal:static_parameters",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters",
-        ],
-    }) + select({
+    ] + parameters_lib_enabled([
+        "@onedal//cpp/oneapi/dal:static_parameters",
+        "@onedal//cpp/oneapi/dal:dynamic_parameters",
+    ]) + select({
         ":release_dpc_windows": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
         ],
         "//conditions:default": [],
-    }),
+    }) + release_dpc_parameters_lib_enabled([
+        "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
+    ]),
     data = [
+        "@config//:validate_build_parameters_lib",
         "//data:datasets",
         ":release_package_files",
         "//examples/daal/cpp:release_files",

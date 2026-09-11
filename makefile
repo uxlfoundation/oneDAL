@@ -1100,7 +1100,7 @@ $(foreach t,$(releasetbb.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.li
 #----- cmake configs generation
 
 _release_cmake_configs:
-	$(if $(shell bash -c "command -v cmake"),cmake -DINSTALL_DIR=$(RELEASEDIR.lib)/cmake/oneDAL -DARCH_DIR_ONEDAL=$(ARCH_DIR_ONEDAL) -P cmake/scripts/generate_config.cmake,echo 'cmake configs generation skipped')
+	$(if $(shell bash -c "command -v cmake"),cmake -DINSTALL_DIR=$(RELEASEDIR.lib)/cmake/oneDAL -DARCH_DIR_ONEDAL=$(ARCH_DIR_ONEDAL) -DONEDAL_USE_PARAMETERS_LIBRARY=$(BUILD_PARAMETERS_LIB) -P cmake/scripts/generate_config.cmake,echo 'cmake configs generation skipped')
 
 #----- nuspecs generation
 _release_common: _release_nuspec

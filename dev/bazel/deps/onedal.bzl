@@ -25,7 +25,6 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_core.a",
         "lib/intel64/libonedal_thread.a",
         "lib/intel64/libonedal.a",
-        "lib/intel64/libonedal_parameters.a",
 
         # Dynamic
         "lib/intel64/libonedal_core.so",
@@ -40,6 +39,9 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_dpc.so",
         "lib/intel64/libonedal_dpc.so.%{version_binary_major}",
         "lib/intel64/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
+    ],
+    optional_libs = [
+        "lib/intel64/libonedal_parameters.a",
         "lib/intel64/libonedal_parameters.so",
         "lib/intel64/libonedal_parameters.so.%{version_binary_major}",
         "lib/intel64/libonedal_parameters.so.%{version_binary_major}.%{version_binary_minor}",
