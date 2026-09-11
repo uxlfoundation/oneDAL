@@ -56,11 +56,11 @@ fi
 # Static lib must NOT contain MKL archive object files
 # (libmkl_core.a, libmkl_intel_ilp64.a, libmkl_tbb_thread.a objects)
 AR_CONTENTS=$(ar t "$STATIC_LIB") || { echo "ERROR: ar failed on $STATIC_LIB"; exit 1; }
-MKL_ARCHIVE_OBJS=$(echo "$AR_CONTENTS" | grep -c '^_mkl_\|^mkl_blas\|^mkl_vml\|^libmkl' || true)
+MKL_ARCHIVE_OBJS=$(echo "$AR_CONTENTS" | grep -c '^_mkl_\|^mkl_blas\|^mkl_vml\|^libmkl)
 check "Static lib: no MKL archive objects merged in" "$MKL_ARCHIVE_OBJS"
 
 # Static lib must NOT have defined MKL symbols (only undefined refs are ok)
-MKL_DEFINED=$(nm "$STATIC_LIB" 2>/dev/null | grep -c ' [Tt] mkl_' || true)
+MKL_DEFINED=$(nm "$STATIC_LIB" 2>/dev/null | grep -c ' [Tt] mkl_')
 check "Static lib: no defined MKL symbols (U refs are ok)" "$MKL_DEFINED"
 
 echo ""
@@ -74,7 +74,7 @@ fi
 
 # Dynamic lib must NOT export MKL symbols (they must be hidden).
 # Use --defined-only to exclude undefined (U) imports — only defined exports matter.
-MKL_EXPORTED=$(nm -D --defined-only "$DYNAMIC_LIB" 2>/dev/null | grep -c ' mkl_' || true)
+MKL_EXPORTED=$(nm -D --defined-only "$DYNAMIC_LIB" 2>/dev/null | grep -c ' mkl_')
 check "Dynamic lib: no exported MKL symbols (symbols hidden via --exclude-libs)" "$MKL_EXPORTED"
 
 echo ""
