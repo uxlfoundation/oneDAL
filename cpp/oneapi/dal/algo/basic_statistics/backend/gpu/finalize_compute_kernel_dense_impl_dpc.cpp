@@ -152,7 +152,28 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
 
     const auto nobs_nd = pr::table2ndarray_1d<Float>(q, input.get_partial_n_rows());
 
-    auto rows_count_global = nobs_nd.get_data()[0];
+    // `nobs_nd` is dereferenced on the host below. When the partial result's row count
+    // already lives in memory the host can read, `table2ndarray_1d` hands it back as a
+    // zero-copy wrap and performs no synchronization of its own, so a kernel from the
+    // preceding `partial_compute` may still be writing it. Every statistic is divided by
+    // this value, so reading it early skews the whole result by a wide margin rather than
+    // by rounding. Synchronize before touching it from the host.
+    q.wait_and_throw();
+
+    // The observation count is held as `Float` because `partial_n_rows` is a `Float`
+    // table: that is a property of the `partial_compute_result` schema, which this
+    // backend shares with the CPU one, where the count comes straight out of DAAL's
+    // `nObservations` in the algorithm's floating-point type. Changing it to an integer
+    // table would change the partial result across both backends, SPMD and
+    // serialization, so it is out of scope here.
+    //
+    // What is fixed here is the conversion: a plain cast truncates towards zero, so a
+    // count whose `Float` representation lands just below the integer -- possible above
+    // 2^24 rows in float32 -- would lose a whole observation and bias every statistic.
+    // Round to nearest instead. Adding 0.5 in `double` and truncating is exact for the
+    // non-negative counts this can hold, and avoids pulling in a host math library.
+    std::int64_t rows_count_global =
+        static_cast<std::int64_t>(static_cast<double>(nobs_nd.get_data()[0]) + 0.5);
     auto is_distributed = (comm_.get_rank_count() > 1);
     {
         ONEDAL_PROFILER_TASK(allreduce_rows_count_global);
@@ -176,7 +197,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
         const auto max =
             pr::table2ndarray_1d<Float>(q, input.get_partial_max(), sycl::usm::alloc::device);
 
-        {
+        if (is_distributed) {
             comm_.allreduce(max.flatten(q, {}), spmd::reduce_op::max).wait();
         }
         res.set_max(homogen_table::wrap(max.flatten(q, {}), 1, column_count));
