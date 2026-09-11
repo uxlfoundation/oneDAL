@@ -233,13 +233,6 @@ jobs:
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-binary
       ABICHECK_BASELINE_GENERATION: "1"
       ABICHECK_BASELINE_DIR: __abi_baselines
-      # The one deliberate way this gate becomes non-blocking. `false` means a
-      # missing baseline is a failure; flipping it to `true` is a one-line,
-      # reviewable commit that says "there is no published baseline yet, run
-      # inert". It exists because this gate's very first PR is the one that adds
-      # the digest file, and that PR cannot verify an asset against a file it is
-      # itself delivering -- see the fetch step.
-      ABICHECK_BOOTSTRAP: "false"
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -250,18 +243,24 @@ jobs:
           path: ./__release_lnx
       # The baseline is one release asset published by
       # .github/workflows/abicheck-baseline.yml -- a release-contract
-      # baseline-set archive for this profile and generation. The committed
-      # digest file is the trust anchor, so a replaced or corrupted asset fails
-      # this job instead of silently changing every PR's verdict.
+      # baseline-set archive for this profile and generation. Nothing about it
+      # lives in version control: the release owns the generated artifact, and
+      # the release API's own recorded sha256 (`assets[].digest`, e.g.
+      # `sha256:6b59...`) is what the download is checked against, so
+      # *publication* is the trust boundary. Earlier revisions of this job
+      # anchored on a digest committed to `.github/abicheck/baselines/<tag>.
+      # abicheck.sha256` by the publisher, which bought a stronger property (a
+      # code-reviewed anchor a release-write compromise cannot rewrite) at the
+      # cost of a generated file, a commit-and-push back to `main`, and a
+      # bootstrap state that existed only to get that file there. Removed on
+      # review: a checksum that travels with the asset still detects a corrupted
+      # or truncated download, and for a stronger threat model the answer is
+      # GitHub's immutable releases plus artifact attestations, not a
+      # project-specific repository protocol.
       #
-      # A missing baseline is a failure, not a skip, and that is the point of
-      # this step's shape. The previous revision skipped whenever the digest file
-      # was absent, which meant the gate could not prove it had ever run: six
-      # green jobs with all six comparison steps `skipped` looks identical to six
-      # green comparisons. The one state that genuinely cannot verify anything --
-      # the very first PR, which is itself delivering the digest file -- is now an
-      # explicit opt-in (ABICHECK_BOOTSTRAP above) rather than an implicit
-      # property of an absent file.
+      # A missing asset is a failure, not a skip: a required baseline that is
+      # absent has to be visible. Six green jobs with all six comparison steps
+      # `skipped` looks exactly like six green comparisons.
       - name: Fetch and verify the baseline-set archive
         id: baselines
         env:
@@ -273,33 +272,28 @@ jobs:
           # ABICHECK_ASSET_TEMPLATE after its own substitution.
           asset="abicheck-baseline-${ABICHECK_PROFILE}-gen${ABICHECK_BASELINE_GENERATION}.tar.zst"
           echo "asset=${asset}" >> "$GITHUB_OUTPUT"
-          sums=".github/abicheck/baselines/${ABICHECK_BASELINE_TAG}.abicheck.sha256"
-          if [ ! -f "$sums" ]; then
-            note="No baseline digest file (${sums}) on this branch, so there is nothing to verify a release asset against. Dispatch the 'Publish Abicheck Baseline' workflow on main for tag ${ABICHECK_BASELINE_TAG} to arm this gate."
-            if [ "${ABICHECK_BOOTSTRAP}" != "true" ]; then
-              echo "::error title=ABI baseline missing::${note} This gate fails rather than skipping: a required baseline that is absent must be visible. If no baseline exists yet, set ABICHECK_BOOTSTRAP to 'true' in this job as a deliberate, reviewable commit."
-              exit 1
-            fi
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=ABI gate bootstrapping::${note} ABICHECK_BOOTSTRAP is 'true', so this run is inert by explicit opt-in."
-            {
-              echo "### Abicheck"
-              echo ""
-              echo "**Gate not armed (explicit bootstrap opt-in).** ${note}"
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          # A digest file that does not name this asset is a mismatch between
-          # this job's profile/generation and what was published, not a
-          # not-armed-yet state -- most likely ABICHECK_BASELINE_GENERATION was
-          # bumped here without re-dispatching the publisher. Failing names the
-          # cause; skipping would hide it behind a green check.
-          if ! grep -q "  ${asset}\$" "$sums"; then
-            echo "::error title=ABI baseline mismatch::'${asset}' is not listed in ${sums}. Tag ${ABICHECK_BASELINE_TAG} has no published baseline-set for profile '${ABICHECK_PROFILE}' at generation ${ABICHECK_BASELINE_GENERATION}. Re-dispatch 'Publish Abicheck Baseline' on main for that tag with a matching ABICHECK_BASELINE_GENERATION, or correct this job's profile/generation."
-            echo "--- digest file contents:"
-            cat "$sums"
+          # One API read answers both questions this step has: is the asset
+          # published at all, and what does GitHub say it hashes to. An asset
+          # this job's profile/generation does not name is indistinguishable
+          # from no asset at all, which is why the error below names both.
+          digest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${ABICHECK_BASELINE_TAG}" \
+            --jq ".assets[] | select(.name == \"${asset}\") | .digest")"
+          if [ -z "$digest" ]; then
+            echo "::error title=ABI baseline asset unavailable::Release ${ABICHECK_BASELINE_TAG} has no asset '${asset}', so this gate has nothing to compare against. Dispatch the 'Publish Abicheck Baseline' workflow on main for that tag with a matching ABICHECK_BASELINE_GENERATION and ABICHECK_PROFILE_BINARY, or correct this job's ABICHECK_BASELINE_TAG/ABICHECK_PROFILE/ABICHECK_BASELINE_GENERATION. Assets currently on that release:"
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${ABICHECK_BASELINE_TAG}" \
+              --jq '.assets[].name' || echo "(none)"
             exit 1
           fi
+          # `digest` is `<algorithm>:<hex>`. Only sha256 is verified here, and an
+          # algorithm this step does not know how to check is a failure rather
+          # than a skipped verification.
+          case "$digest" in
+            sha256:*) ;;
+            *)
+              echo "::error title=ABI baseline digest unusable::Release asset '${asset}' reports digest '${digest}', which is not a sha256 this step can verify."
+              exit 1
+              ;;
+          esac
           # __abi_report is created here because the check step below writes its
           # report into it and abicheck does not create the parent directory.
           mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
@@ -308,18 +302,14 @@ jobs:
             --pattern "${asset}" \
             --dir "${ABICHECK_BASELINE_DIR}" \
             --clobber
-          # Verify before use. --check fails on a digest mismatch or a missing
-          # file, --strict on a malformed line, so a truncated or hand-edited
-          # digest file cannot degrade into "nothing to check, all good".
-          #
-          # This is the check `abi-baseline` cannot do for us, and the reason
-          # this job fetches its own asset rather than handing the tag to the
-          # abicheck Action: the manifest inside the archive digests every
-          # artifact, but it travels inside the very bytes a release-write
-          # compromise would replace.
-          grep "  ${asset}\$" "$sums" > "${RUNNER_TEMP}/baseline.sha256"
+          # Verify before use: --check fails on a mismatch or a missing file,
+          # --strict on a malformed line, so a truncated download cannot degrade
+          # into "nothing to check, all good". The archive's manifest separately
+          # digests every artifact inside it, and resolve-baseline below checks
+          # those -- this step is about the bytes that arrived being the bytes
+          # the release records.
+          printf '%s  %s\n' "${digest#sha256:}" "${asset}" > "${RUNNER_TEMP}/baseline.sha256"
           ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline.sha256" )
-          echo "available=true" >> "$GITHUB_OUTPUT"
       # Resolution is abicheck's own, not this workflow's: the archive is handed
       # to resolve-baseline, which extracts it, checks the manifest's schema,
       # profile, project_ref, generation and every artifact's recorded digest,
@@ -346,7 +336,6 @@ jobs:
       # rather than leaving the comparison step `skipped` under a green job.
       - name: Resolve the release-contract baseline
         id: resolve
-        if: steps.baselines.outputs.available == 'true'
         uses: abicheck/abicheck/actions/resolve-baseline@0e9fdd008292ead47527cd5467ec48de934bc94a
         with:
           baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
@@ -631,13 +620,13 @@ jobs:
       # or wrong-profile baseline can no longer leave this step `skipped` under a
       # green job. Nothing in the workflow has to spell that policy.
       #
-      # What it gives up, relative to LinuxAbicheckScan, is the committed digest
-      # as a trust anchor: `abi-baseline` fetches the asset itself, so there is
-      # no point at which this workflow could compare it against
-      # .github/abicheck/baselines/<tag>.abicheck.sha256. The archive's manifest
-      # still verifies every artifact's own digest, and this job is advisory, so
-      # it trades the anchor for not re-implementing the fetch. Upstream ask: an
-      # expected-archive-digest input on `abi-baseline`.
+      # What it gives up, relative to LinuxAbicheckScan, is checking the archive
+      # against the digest the release itself records: `abi-baseline` fetches the
+      # asset internally, so this workflow never sees the bytes and has no
+      # interposition point. The archive's manifest still verifies every artifact
+      # inside it, and this job is advisory, so it trades that check for not
+      # re-implementing the fetch. Upstream ask: an expected-archive-digest input
+      # on `abi-baseline` (still absent at upstream `main`, checked).
       #
       # Both operands are single libraries, which is the only operand shape
       # abicheck will hold to header depth. `new-library` is the unversioned
