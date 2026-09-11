@@ -367,9 +367,9 @@ line once the job has been green across a release cycle.
 
 ### Rebuilding an old tag on a runner: pin the oneAPI components
 
-Two separate failures, both found by actually running the publisher on a GitHub
-runner rather than locally, both the same shape: **the baseline tag pins oneAPI
-component versions, `setvars.sh` prefers the newest installed, and the newest
+Three separate failures, all found by actually running the publisher on a GitHub
+runner rather than locally, the first two the same shape: **the baseline tag pins
+oneAPI component versions, `setvars.sh` prefers the newest installed, and the newest
 installed is a runtime-only dependency of something else.** The tag's own
 `.ci/env/apt.sh` is what installs them, so the versions are a property of the tag
 being rebuilt and are read out of that file rather than written into the workflow.
@@ -384,11 +384,26 @@ being rebuilt and are read out of that file rather than written into the workflo
   `MKLROOT` resolves to the newer one, which ships no static libraries, and the
   tag's static MKL link fails on a file that install never wrote:
   `No rule to make target '/opt/intel/oneapi/mkl/2026.1/lib/libmkl_intel_ilp64.a'`.
+* oneTBB is not a pin problem but a *provisioning* one, and it is not the
+  publisher's own omission: `.ci/scripts/build.sh` installs oneTBB only for the
+  `ref` compiler and for the arm/riscv64 cross targets, never for 32e with MKL,
+  because on `main`'s own CI the DPC++ install already carries a usable
+  `tbb/tbb.h`. Rebuilding the tag on a runner where it does not gives
+  `cpp/daal/src/threading/threading.cpp:33:10: fatal error: 'tbb/tbb.h' file not
+  found`, `make: *** [makefile:978: __work/md/lnx32e/threading_static/threading_tbb.o]
+  Error 1` — 25 minutes into the build. There is no pin to derive here: `apt.sh`
+  asks for `2023.1.0-151` while the install prefix is `/opt/intel/oneapi/tbb/2021.9.0`,
+  so the apt version cannot be mapped to a path at all.
 
 The publisher therefore sources the two pinned components' own
-`env/vars.sh` after `setvars.sh`, and asserts what it needs before starting a
-40-minute build: a resolvable `icx` under the pinned compiler prefix, and
-`libmkl_intel_ilp64.a` under the pinned `MKLROOT`. Both assertions print the
+`env/vars.sh` after `setvars.sh`, selects `TBBROOT` by *capability* — the
+newest installed prefix that actually carries `include/tbb/tbb.h` — and asserts
+what it needs before starting a 40-minute build: a resolvable `icx` under the
+pinned compiler prefix, `libmkl_intel_ilp64.a` under the pinned `MKLROOT`, and both
+`include/tbb/tbb.h` and a `lib/libtbb.so*` under the selected `TBBROOT` (that last
+one because `makefile:235/251` derive the TBB include path from `$TBBROOT` and then
+locate its runtimes by filtering `LD_LIBRARY_PATH` on that same prefix, so a
+header-only match still fails at link time). Every assertion prints the
 versions actually installed, because that is the information the next person needs.
 `ci.yml`'s `LinuxMakeDPCPP` has the same latent skew and does not hit it only
 because on `main` the pinned versions *are* the newest ones installed — which is
@@ -914,12 +929,15 @@ this collapses into two `workflow_call` jobs.
   build or L3 evidence (`--sources`/`--build-info`), which is also what the
   preprocessor axis wants: both sides report `ran: false`, `skipped_reason: "no L3
   build evidence"`.
-* **castxml on a real runner is unverified.** Every header-depth number here was
-  measured locally with conda-forge castxml 0.7.0 on a 224-core host, five legs
-  concurrently (434–572 s each). The install path
-  (`dependency-source: conda-forge`), the parse's behaviour under a runner's
-  narrower CPU and its 16 GB ceiling against a ~4.7 GiB working set, and the
-  per-step install cost are all first exercised by this PR's own CI.
+* **castxml on a real runner is verified on the publisher side only.** The
+  header-depth *numbers* here were measured locally on a 224-core host, five legs
+  concurrently (434–572 s each), so the timings do not transfer. What has been
+  proven on `ubuntu-24.04` is the publisher's five header-depth dumps: the pinned
+  castxml provisioning, the parse itself, and a ~3.6 GiB working set against the
+  runner's 16 GB, in a job that ran 2h24m end to end and published a 21,827,548-byte
+  header-depth set. The remaining unknown is the *consumer* side — five
+  `LinuxAbicheckL2Scan` legs on one runner each, comparing against that set — which
+  is why that job is `continue-on-error: true` rather than blocking.
 * **Duplicate type and mangled-symbol names are resolved first-wins.** Each L2
   parse emits `WARNING: Duplicate type names skipped (first-wins)` and a
   `Duplicate mangled symbols skipped` list running to hundreds of entries
