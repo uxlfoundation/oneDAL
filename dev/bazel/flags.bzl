@@ -135,6 +135,19 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             ]
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
+        if arch_id in ["arm", "riscv64"]:
+            # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),
+            # unlike x86's runtime-dispatched sse2/avx2/avx512 objects, so
+            # `-march` applies to every compile action, not only the
+            # `_cpu`-suffixed ones that go through get_cpu_flags(). Mirrors
+            # COMPILER.all.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk
+            # and COMPILER.lnx.clang in clang.ref.arm.mk. Make has no
+            # gnu.ref.riscv64.mk (RISC-V is clang-only there) and
+            # clang.ref.riscv64.mk carries `-march` only in rv64_OPT.clang, so
+            # for that combination this is Bazel-only coverage, not Make parity.
+            flags = flags + _get_single_variant_march_flags(arch_id)
+            if arch_id == "arm" and compiler_id == "gcc" and category == "common":
+                flags = flags + ["-ftree-vectorize"]
         return flags
     if os_id == "win":
         if compiler_id in ["icx", "icpx"]:
@@ -147,7 +160,33 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         return []
     fail("Unsupported OS")
 
+_SINGLE_VARIANT_MARCH_FLAGS = {
+    # Matches a8sve_OPT.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk and
+    # a8sve_OPT.clang in clang.ref.arm.mk.
+    "arm": ["-march=armv8-a+sve"],
+    # Matches rv64_OPT.clang in dev/make/compiler_definitions/clang.ref.riscv64.mk
+    # (Make has no gnu.ref.riscv64.mk; RISC-V is clang-only there).
+    "riscv64": ["-march=rv64gc_v1p0_zvl128b"],
+}
+
+_SINGLE_VARIANT_ISA_ID = {
+    "arm": "sve",
+    "riscv64": "rv64",
+}
+
+def _get_single_variant_march_flags(arch_id):
+    return _SINGLE_VARIANT_MARCH_FLAGS[arch_id]
+
 def get_cpu_flags(arch_id, os_id, compiler_id):
+    if arch_id in ["arm", "riscv64"]:
+        # ARM/RISC-V ship a single fixed ISA variant, no runtime dispatch.
+        # `-march` is already applied to every compile action via
+        # get_default_flags(); re-stating it here (idempotent) is only to
+        # give this feature's flag_group a non-empty flag list, which
+        # cc_toolchain_config_lnx.bzl's flag_group() requires.
+        return {
+            _SINGLE_VARIANT_ISA_ID[arch_id]: _get_single_variant_march_flags(arch_id),
+        }
     sse2 = []
     avx2 = []
     avx512 = []

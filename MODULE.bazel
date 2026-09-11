@@ -69,6 +69,9 @@ openmp_repo(
 openblas_repo = use_repo_rule("@onedal//dev/bazel/deps:openblas.bzl", "openblas_repo")
 openblas_repo(name = "openblas", root_env_var = "OPENBLASROOT",)
 
+openrng_repo = use_repo_rule("@onedal//dev/bazel/deps:openrng.bzl", "openrng_repo")
+openrng_repo(name = "openrng", root_env_var = "OPENRNGROOT",)
+
 tbb_repo = use_repo_rule("@onedal//dev/bazel/deps:tbb.bzl", "tbb_repo")
 tbb_repo(
     name = "tbb",

@@ -695,3 +695,31 @@ build --linkopt=-your-link-flag
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
+| `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
+| `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
+| `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
+
+## Cross-compiling to ARM/RISC-V
+
+AArch64 and RISC-V64 are only supported with the `ref` backend (`--backend_config=ref`),
+matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`. Both ship a single fixed
+ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
+
+```sh
+# AArch64
+CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ \
+  bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+  //cpp/daal:core_dynamic
+
+# RISC-V64
+CC=riscv64-linux-gnu-gcc CXX=riscv64-linux-gnu-g++ \
+  bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
+  //cpp/daal:core_dynamic
+```
+
+`OPENBLASROOT` must point at an OpenBLAS install built for the target arch (see
+`.ci/env/openblas.sh`). To use the OpenRNG backend instead of the ref RNG (currently
+validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at an
+OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
+effect together with `--backend_config=ref`; it is silently ignored on the MKL
+backend, whose build never compiles the ref RNG shim that OpenRNG replaces.
