@@ -90,15 +90,23 @@ reclassify:
   # headers (grep of cpp/daal/include + cpp/oneapi: zero hits), so a consumer
   # TU always has its own copy.
   #
-  # All of them arrive under one kind. On the release fan-out this job runs
-  # there is no header AST, so every one comes through the ELF export-table
-  # delta as `func_removed_elf_only` -- measured, 1952 across the five libraries
-  # (1414 + 237 + 272 + 17 + 12), and zero `func_visibility_changed`. There is
-  # no `func_visibility_changed` rule here for that reason: an earlier revision
-  # carried one and it was measured firing zero times, on this gate and on the
-  # header-depth job both. A rule that has never matched is not evidence of
-  # anything; if that kind ever does appear, it should be added back with its
-  # own measurement rather than pre-emptively.
+  # Which kind they arrive under depends on the depth, and both are needed.
+  # On the release fan-out the blocking job runs there is no header AST, so
+  # every one comes through the ELF export-table delta as
+  # `func_removed_elf_only` -- measured, 1952 across the five libraries
+  # (1414 + 237 + 272 + 17 + 12), and zero `func_visibility_changed`.
+  #
+  # Header depth is different, and a revision of this file that dropped the
+  # `func_visibility_changed` rules on the strength of the binary-depth
+  # measurement alone was wrong: with a declaration available, abicheck can say
+  # *visibility changed* instead of *export removed*, and it does. Measured on
+  # `libonedal_core.so` at header depth with those rules absent: 230
+  # `func_visibility_changed`, every one WEAK, all `breaking`, verdict BREAKING,
+  # exit 4 -- on a leg that is COMPATIBLE_WITH_RISK with them present. Same
+  # cause, same symbols, different kind name because the evidence is richer.
+  # 229 of the 230 sit under `daal::`; the one that does not is
+  # `NumericTable::getValue<int>`, the same leading-return-type template already
+  # named below for the removal kind.
   #
   # Gives up: gating on the removal of a symbol the library itself built with
   # vague (WEAK/COMDAT) linkage, inside the three namespaces named below. That
@@ -243,3 +251,36 @@ reclassify:
     reason: >-
       void sycl::_V1::handler::fill<float>(void*, float const&, unsigned long) --
       same case as above.
+  # ── The same demotion as `func_visibility_changed`, which is the kind it
+  # arrives under once a declaration exists (header depth only; measured firing
+  # zero times on the binary-depth gate). Scoped from the measurement rather
+  # than mirrored from the removal rules above: all 230 findings on
+  # `libonedal_core.so` are WEAK and 229 are under `daal::`, so there is no
+  # `oneapi`/`sycl` rule here -- if a header-depth leg ever reports one outside
+  # `daal::`, it should be added with its own count, not pre-emptively.
+  - kind: func_visibility_changed
+    binding: weak
+    namespace: 'daal'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same -fvisibility-inlines-hidden demotion as the `func_removed_elf_only`
+      rules above, reported as a visibility change because header depth has the
+      declaration the binary-depth fan-out lacks: WEAK COMDAT inline/template in
+      the legacy `daal::` interfaceN surface, still defined as LOCAL FUNC in the
+      new binary's .symtab, with no `extern template` in any installed header. A
+      STRONG export losing visibility is not matched by this rule and still
+      gates.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol: '_ZNK4daal15data_management10interface112NumericTable8getValueIiEET_mm'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      The one of the 230 header-depth visibility findings `namespace: daal`
+      cannot reach: int daal::data_management::interface1::NumericTable::getValue
+      <int>(unsigned long, unsigned long) const demangles with a leading return
+      type, so its first `::`-segment is `int daal`. Same symbol, same cause as
+      the `func_removed_elf_only` entry above.

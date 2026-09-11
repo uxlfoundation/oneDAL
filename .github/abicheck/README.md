@@ -243,8 +243,11 @@ requested one is exit 1 on abicheck's own assurance axis. Measured on every leg:
 header depth*, not *asked for header depth*.
 
 Measured on `main` against the `2026.0.0` header-depth baselines, with
-`policy.yaml` and `abicheck.yml` in effect (so `frontend: castxml`, the frontend
-this job actually ships), one library per process, the five run concurrently:
+`policy.yaml` and `abicheck.yml` in effect, one library per process, the five run
+concurrently. The frontend is not named in `abicheck.yml` — there is no `compile:`
+block on either side, deliberately (see "The compile context") — so these numbers
+are whatever castxml the environment resolved: conda-forge castxml 0.7.0 for the
+rows below, against the pinned CastXML Superbuild the job now provisions:
 
 | library | verdict | exit | breaking | API break | risk | additions | wall | peak RSS |
 |---|---|---|---|---|---|---|---|---|
@@ -573,13 +576,15 @@ the wrong facts.
 
 ### The abicheck pin and the baseline must move together
 
-The `uses: abicheck/abicheck@<sha>` pin in `ci.yml` (twice) and in
-`abicheck-baseline.yml` (eleven times) must name the **same** commit. `uses:`
-accepts no expression, so the SHA cannot be shared through an env var and is
-written out at each call site; a bump has to touch all of them. The `compile:`
-block in `abicheck.yml` carries the same obligation for the `.l2` family, and
-enforces it itself — see [The compile
-context](#the-compile-context-and-why-it-lives-in-abicheckyml). A snapshot
+The `abicheck` pins must all name the **same** commit: `ci.yml` uses the root
+Action twice and `actions/resolve-baseline` once, `abicheck-baseline.yml` uses
+`actions/baseline` twice and `actions/stage-baseline` twice. `uses:` accepts no
+expression, so the SHA cannot be shared through an env var and is written out at
+each call site; a bump has to touch all seven. The header-depth family carries the
+same obligation through its compile-context fingerprint, and now that the
+fingerprint comes from abicheck's *own* pinned toolchain rather than from a
+`compile:` block, the pin is the only thing that states it — see [The compile
+context](#the-compile-context-and-why-there-is-no-compile-block). A snapshot
 records a `schema_version`, and detectors whose evidence postdates it decline to
 run rather than trust stale facts, so a baseline dumped by an *older* abicheck
 than the reader does not fail — it silently **under-reports**. The reverse
@@ -597,13 +602,16 @@ mechanism can, for any fact this depth does collect.)
 So bumping the pin obliges re-*verifying* the published baselines: compare the
 unchanged tree with the new pin against the current baselines and diff the report
 against the old pin's. All three bumps done so far came out identical
-line-for-line apart from timings, so none needed a re-capture — the current pin
-reads the `schema_version` 25 snapshots the previous one published and writes 44
-itself, and still reports the same per-library table, the same 2314 findings and
-the same verdict. Any difference means re-capturing every published tag's
-baseline first — deleting its assets, then dispatching the baseline workflow. If a
-bump ever produces a wave of findings in one kind across an unchanged tree, suspect
-this before suspecting oneDAL.
+line-for-line apart from timings, so none needed a re-capture on the shape they
+were measured on (snapshot operands, 2314 findings, `schema_version` 25 read and 44
+written). The baseline-set migration is not such a bump and was not expected to be
+neutral: the operand changed from six snapshots to six staged binaries, and the
+report gained 188 findings for a
+[named reason](#what-the-multilib-run-compares). Any *unexplained* difference means
+re-capturing every published tag's baseline first — which now means bumping
+`ABICHECK_BASELINE_GENERATION`, since that publishes a new set beside the old one
+instead of requiring an asset deletion. If a bump ever produces a wave of findings
+in one kind across an unchanged tree, suspect this before suspecting oneDAL.
 
 **Rolling a pin back is not symmetric with bumping it.** The previous pin cannot
 read a snapshot this one writes at all — measured, it fails per library with
@@ -611,10 +619,11 @@ read a snapshot this one writes at all — measured, it fails per library with
 frame decodes short, fixed upstream since) and behind that fix it would still hit
 the hard `schema_version` rejection, since 44 is far past what it understands. A
 bump is therefore one-way for as long as the baselines it will read were written
-by the older pin: safe now, because the published `2026.0.0` assets predate this
-pin, but the moment the baseline workflow publishes at this pin, any rollback
-means re-capturing every published tag *first* — and the immutability rule makes
-that a deliberate `gh release delete-asset` per library before the dispatch.
+by the older pin. Every baseline-set is written by *this* pin — the release carried
+no assets before it — so a rollback means re-capturing every published tag first,
+under a bumped `ABICHECK_BASELINE_GENERATION` (one new archive per family, beside
+the existing ones) rather than the per-library `gh release delete-asset` the
+previous asset layout forced.
 
 ## Gating
 
@@ -624,12 +633,37 @@ Two separate questions, answered by two separate mechanisms:
 * *Did oneDAL break its ABI* — the verdict, computed after `policy.yaml`
   re-classifies findings by kind and ELF linkage.
 
-`LinuxAbicheckScan` gates on the folded release verdict with the Action's defaults:
-a binary ABI break (`BREAKING`, exit 4) fails it; a source-level API break (exit 2)
-does not, since `fail-on-api-break` stays off. Everything in this section describes
-that job unless it says otherwise; `LinuxAbicheckL2Scan` runs the same policy over
-richer evidence but is `continue-on-error` and gates nothing yet — see
+`LinuxAbicheckScan` gates on the folded release verdict: a binary ABI break
+(`BREAKING`, exit 4) fails it; a source-level API break (exit 2) does not, since
+`fail-on-api-break` stays off. Everything in this section describes that job unless
+it says otherwise; `LinuxAbicheckL2Scan` runs the same policy over richer evidence
+but is `continue-on-error` and gates nothing yet — see
 [Header depth](#header-depth).
+
+### The `API/ABI breaking change` label relaxes gating; it does not delete the report
+
+Neither abicheck job is skipped by the label any more. A label in the `if:`
+expression is a *skip*, and a skipped job produces no report, no per-library table
+and no JSON artifact — on the one PR where the report matters most, the one that
+says it breaks ABI on purpose. The label now feeds the gating inputs instead:
+
+```yaml
+fail-on-breaking:        ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
+fail-on-removed-library: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
+```
+
+so a labelled PR still runs the full comparison, still publishes the table, the job
+summary and the artifact, and merges anyway. `LinuxAbicheckL2Scan` needed no
+equivalent: it is `continue-on-error`, so it never blocked a merge and there is
+nothing for a label to relax.
+
+**`scope.on_incomplete: block` is deliberately *not* relaxed by the label**, and
+that is a sharp edge worth knowing before you hit it. A labelled PR that also
+*drops a library* from the release stays red — exit 1 on the completeness axis, not
+the compatibility one, because the run cannot prove it compared what it was asked
+to compare. The escape hatch is to re-publish the baseline for a tag that no longer
+contains that library, i.e. to change what "the release" means, which is the
+decision such a PR is actually making.
 
 A library disappearing from the release also fails it, but **not** through
 `fail-on-removed-library: true`. With no proof that the new side's inventory is
@@ -658,9 +692,63 @@ Every one of them is `func_removed_elf_only` on a WEAK symbol: the `2026.0.0`
 baseline predates `makefile` gaining `-fvisibility-inlines-hidden`, so `main`
 stopped *exporting* a large set of COMDAT inline and template symbols that are
 still defined as LOCAL FUNC in the new binaries' `.symtab`. The evidence for
-tolerating that, and the exact scope of what the two rules give up, is in
-`policy.yaml` itself. Both rules should be **deleted** once a
-post-`-fvisibility-inlines-hidden` release becomes the baseline.
+tolerating that, and the exact scope of what the rules give up, is in
+`policy.yaml` itself. They should be **deleted** once a
+post-`-fvisibility-inlines-hidden` release becomes the baseline — and that is not
+left to good intentions: every rule carries `expires: 2027-03-01`, an expired
+reclassify rule never matches, so on that date the 1952 findings return to `break`
+and this gate goes red until someone re-captures the baseline or re-dates the rules
+with a fresh justification.
+
+**The demotion is bounded by what it names, not by `.*`.** An earlier revision
+spelled the linkage rules as `symbol_pattern: ".*"` plus `binding: weak`, which
+bounds nothing: it demotes every weak function removal oneDAL will ever make,
+including ones nobody has looked at. (abicheck's selector grammar is
+conjunctive-only and refuses `binding:` as a rule's sole scope, which is why some
+identity selector is mandatory.) It is now eleven rules — for
+`func_removed_elf_only`, three `namespace:` rules (`daal`, `oneapi`, `sycl`) plus six
+explicitly-named function templates; for `func_visibility_changed`, one `namespace:
+daal` rule plus one named template — and the bound is real rather than nominal:
+
+* the three namespace rules alone demote **1943 of the 1952** and leave 9 findings
+  breaking, exit 4. Adding the six named symbols reaches 1952 demoted, exit 0, with
+  a per-library risk table identical to what `.*` produced. Same outcome, bounded
+  scope.
+* injecting a *new* weak function removal into the baseline snapshot — into the
+  declarations inventory as well as `.dynsym`, so the detector actually sees it —
+  gates when it is outside the three namespaces (`otherproj::foo::bar()`: breaking,
+  exit 4) and is demoted when it is inside one (`daal::brandnew::foo()`: risk).
+  That second result is the honest limit of a selector grammar: a *new* weak
+  removal inside `daal::`/`oneapi::`/`sycl::` is still auto-demoted. Closing it
+  needs per-finding acknowledgments, which abicheck implements engine-side and
+  exposes to neither the CLI nor the Action ("no `--acknowledgments` CLI flag yet",
+  ADR-067). Sized for the upstream ask: the file would be 1952 entries over 1689
+  unique symbols, which is why it has to be a bounded acknowledgment form
+  (component + kind + cause + release range) rather than one record per finding.
+
+**Two kinds, because the kind depends on the depth — and one depth's measurement is
+not the other's.** A revision of this file deleted the `func_visibility_changed`
+rules on the grounds that they fired zero times, which was true of the blocking
+binary-depth gate and false of the advisory header-depth one. With a declaration in
+hand abicheck reports *visibility changed* rather than *export removed*, for the same
+symbols and the same cause. Measured with those rules absent, `libonedal_core.so` at
+header depth: 230 `func_visibility_changed`, all WEAK, all `breaking`, verdict
+`BREAKING`, exit 4 — a leg that is `COMPATIBLE_WITH_RISK` with them present. So they
+are back, scoped from that measurement rather than mirrored from the removal rules:
+229 of the 230 are under `daal::`, so there is one `namespace: daal` rule and one
+named symbol (`NumericTable::getValue<int>` again), and no `oneapi`/`sycl` rule until
+a leg reports one. The general lesson is worth more than the fix: a rule's blast
+radius has to be measured at **every depth the file is passed to**, and this file is
+passed to both jobs.
+
+The named symbols are not exceptions to the namespace bound but an upstream
+matching defect, recorded because it will bite again: `namespace:` walks the
+*demangled* name's ancestor chain, and these six are function templates whose
+demangled form starts with a printed return type — `auto& oneapi::dal::…`,
+`int daal::…`, `void sycl::…` — so the first `::`-segment is `auto& oneapi`, not
+`oneapi`. abicheck strips template arguments before that walk but not a leading
+return type. It fails *closed* (the finding stays breaking), so it is a usability
+defect rather than a hole — but a seventh such template would turn the gate red.
 
 The policy is accountable rather than a blanket mute, and the linkage scoping is
 what makes it so. Negative control on the shipped shape: take one tolerated
@@ -750,11 +838,20 @@ this collapses into two `workflow_call` jobs.
 
 ## Known gaps
 
-* **The old side is never re-parsed, and that is what makes this affordable.** A
-  directory-vs-directory comparison with binaries on *both* sides re-derives every
-  fact for both; comparing against stored snapshots reads the new side only. Do not
-  "simplify" this into a binary-vs-binary directory compare, and do not drop the
-  published baselines in favour of building the tag in the PR job.
+* **What the baseline-set saves is the *build*, not the parse.** An earlier revision
+  of this file claimed the old side "is never re-parsed"; that is true only of the
+  header-depth job, which compares against stored snapshots. The binary job now
+  stages each baseline library's real ELF (`stage_binary: true`) and compares
+  `binaries/` against `lib/intel64`, so both sides *are* re-derived — deliberately,
+  because two finding kinds
+  (`symbol_leaked_from_dependency_changed`, `exported_object_alignment_reduced`)
+  and the six phantom `bundle_library_added` fixes only exist when the old binaries
+  are present. It costs 41.6 s and 442 MiB against 28 s and 0.49 MB, and ~29.5 MB
+  of release asset. What the published baseline still buys is not having to
+  *rebuild* the `2026.0.0` tag with the pinned oneAPI toolchain inside every PR job,
+  which is the expensive part (~20 min) and the fragile part (see "Rebuilding an old
+  tag on a runner"). Do not drop the published baselines in favour of building the
+  tag in the PR job.
 * **The SYCL surface is parsed by nothing.** Everything behind
   `ONEDAL_DATA_PARALLEL` needs a DPC++ frontend; castxml is the only frontend that
   carries record layout, and it is not one. So `libonedal_dpc.so` and
@@ -813,9 +910,12 @@ this collapses into two `workflow_call` jobs.
   `policy.base: strict_abi@1:<digest>` plus the serialized rule list, alongside an
   `effective_config_digest` that now describes the config that produced the
   verdict. What a single-pair comparison still has and this does not: per-finding
-  `severity`, `symbol_binding` and `finding_id`. Since the two policy rules are
-  linkage-scoped, checking *which* linkage a demoted finding had still needs a
-  local single-library rerun. The `findings` array is also still capped at 10 per
+  `severity`, `symbol_binding` and `finding_id`. Since the eleven policy rules are
+  linkage-scoped (`binding: weak` on every one), checking *which* linkage a demoted
+  finding had still needs a local single-library rerun. It is also why the
+  acknowledgment ask upstream needs `finding_id` to be present in this shape: the
+  bound in the next-but-two gap cannot be written against a report that does not
+  emit the ids. The `findings` array is also still capped at 10 per
   library (`findings_truncated: true`); the `annotations` array is not. Both of these
   are properties of the release fan-out, not of comparing a set of libraries — the
   stored-bundle-facts shape in the next-but-one gap emits full per-library reports
@@ -825,17 +925,25 @@ this collapses into two `workflow_call` jobs.
   for it), `policy.yaml` cannot reach it — a `reclassify:` entry on
   `bundle_intra_dep_removed` or `bundle_library_added` is accepted only with
   `to:` in `break, warn, risk, ignore`, and `ignore` on the removal kind is a mute
-  rather than an answer — and the six `bundle_library_added` findings are
-  structural: the old side is snapshots, so every library reads as newly added to
-  the bundle, in every PR's report, for as long as the old side stays snapshots (the
-  stored-bundle-facts gap below is what removes them). They do not gate. The one
+  rather than an answer. Staging the baseline ELFs removed the six phantom
+  `bundle_library_added` this gap used to describe — with real old binaries every
+  library matches its baseline member instead of reading as newly added — and
+  replaced them with 156 `bundle_intra_dep_signature_unverified`, which is an honest
+  observation about intra-bundle call signatures rather than an artifact of the
+  operand shape. Neither gates. The one
   supported lever is `bundle.system_providers`, which is why the allow-list exists
   rather than a policy rule. Keeping it current is real maintenance: a new
   `DT_NEEDED` edge to a library outside both abicheck's 43-entry default list and
   this one turns the whole job red, and the message will name a dependency
   removal, not a missing provider.
-* **The old side is six snapshots, not a bundle — the stored-bundle-facts shape
-  that fixes that is measured and waiting on Action surface.** abicheck can persist
+* **The old side is six binaries staged next to six snapshots, not a bundle — the
+  stored-bundle-facts shape is measured and waiting on Action surface.** Staging the
+  baseline ELFs (what ships) already bought the two binary-only finding kinds, the
+  phantom-`bundle_library_added` fix, and matched bundle members; what it does not
+  buy is a *proven* old inventory or per-finding detail, which is what this shape is
+  still for. Numbers below were measured against the older snapshots-only operand;
+  the comparisons against "today's shape" therefore understate today's cost
+  (41.6 s / 442 MiB, ~29.5 MB of asset) rather than overstate it. abicheck can persist
   the old side of a live release compare as one `BundleFacts` document
   (`--bundle-facts-out`, member identity + SONAMEs + provider/consumer entries +
   `variant_fingerprint` + `inventory_complete`) and then take that document as the
@@ -849,8 +957,8 @@ this collapses into two `workflow_call` jobs.
   the 487,979 bytes the six separate snapshots take — and the stored-vs-live compare
   **exit 0 in 24.0 s / 311 MiB**, against 40.4 s / 645 MiB for today's
   directory-of-snapshots shape on the same host. Per-library verdicts are identical
-  (five `COMPATIBLE_WITH_RISK`, `libonedal_thread.so` `COMPATIBLE`), the six phantom
-  `bundle_library_added` are gone, and `comparison_scope.old_inventory` becomes
+  (five `COMPATIBLE_WITH_RISK`, `libonedal_thread.so` `COMPATIBLE`) and
+  `comparison_scope.old_inventory` becomes
   `completeness: "proven"` ("stored bundle-facts capture asserting a complete
   inventory") — which is what would make `fail-on-removed-library: true` mean
   something and let `scope.on_incomplete: block` stop standing in for it. It is also
@@ -940,16 +1048,32 @@ this collapses into two `workflow_call` jobs.
   the job and pointed at through `gcc_path`/`frontend`, which is a cost and
   install-surface decision, not a missing capability — and it is the one thing that
   would make the two `_dpc` legs mean what their names suggest.
-* **`binding:` is not accepted as a rule's only scope.** A `reclassify:` entry must
-  name at least one of `symbol`, `symbol_pattern`, `type_pattern`, `member_name`,
-  `source_location`, `namespace` or `finding_id`, so the two linkage-scoped rules
-  in `policy.yaml` carry a `symbol_pattern: ".*"` that means nothing beyond
-  satisfying the validator. `Change.symbol_binding` *is* stamped on both the removal
-  and the visibility branch, so the selector itself works.
-* **A per-library options input on `actions/baseline` would collapse the baseline
-  workflow's six `mode: dump` steps into one composite call.** It passes no
-  per-library configuration to its dump loop, so the six explicit steps stay. Same
-  for the pin: `uses:` takes no expression, so the SHA is repeated per step.
+* **`binding:` is not accepted as a rule's only scope, and there is no per-finding
+  acknowledgment loader.** A `reclassify:` entry must name at least one of `symbol`,
+  `symbol_pattern`, `type_pattern`, `member_name`, `source_location`, `namespace` or
+  `finding_id`; the selector grammar (`policy_file.py`) has no release or expiry
+  *selector* either, only the rule-level `expires:` date. `Change.symbol_binding`
+  *is* stamped on both the removal and the visibility branch, so `binding: weak`
+  works as a conjunct — it just cannot stand alone. The consequence is the residual
+  hole measured in Gating: a rule scoped by `namespace: daal` demotes a *new* weak
+  removal in `daal::` as readily as a known one. The bound that would close it is
+  per-finding acknowledgments, which the engine implements (ADR-067) but neither the
+  CLI nor the Action exposes — "no `--acknowledgments` CLI flag yet". Sized here:
+  1952 findings over 1689 unique symbols, so the useful upstream form is a compact
+  bounded acknowledgment (component + kind + cause + release range), not 1952
+  records. Until then `expires: 2027-03-01` is the only backstop, and it is a
+  deadline rather than a bound.
+* **`actions/baseline` declares `build-config` and never reads it.** `run.sh`
+  forwards only `-H`/`-I`/`--build-info`/`--depth`/`--version`/`--compression`/`-o`,
+  so a `compile:` block in `abicheck.yml` cannot reach a baseline-set dump even
+  though the input exists in `action.yml`. That is why the header-depth job carries
+  no `compile:` block at all (see "The compile context, and why there is no
+  `compile:` block") — the two sides would parse under different frontends and
+  abicheck would refuse the comparison. The upstream ask is one line: forward
+  `INPUT_BUILD_CONFIG` as `--config`. A per-library options input would additionally
+  collapse the baseline workflow's dump loop into one composite call; as it stands
+  the two `mode: dump` steps enumerate their libraries and the pin is repeated per
+  step, since `uses:` takes no expression.
 
 `ci.yml` and `abicheck-baseline.yml` both point here rather than repeating the
 rationale. If you change the pinned commit, the baseline storage, the policy or the

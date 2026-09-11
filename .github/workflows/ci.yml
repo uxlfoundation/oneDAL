@@ -568,12 +568,15 @@ jobs:
           - libonedal_dpc.so
           - libonedal_parameters.so
           - libonedal_parameters_dpc.so
-    # Measured with the pin below, per library, on the no-debug-info build and
-    # with castxml (what this job uses -- see `compile.frontend` in
-    # .github/abicheck/abicheck.yml): 434-572 s and 4.70-4.71 GiB peak RSS, the
-    # five legs run concurrently. The clang frontend is 237-438 s for the same
-    # five verdicts. On top of the compare sits the conda-forge castxml install,
-    # the checkout and the build artifact download.
+    # Measured per library, on the no-debug-info build, five legs concurrently:
+    # 434-572 s and 4.70-4.71 GiB peak RSS. Those numbers were taken under
+    # conda-forge castxml 0.7.0; this job now resolves castxml through
+    # `dependency-source: system` (the checksum-pinned CastXML Superbuild, see the
+    # step below), which is a different frontend build, so treat the range as an
+    # order of magnitude rather than a pin. On top of the compare sits the
+    # dependency install, the checkout and the build artifact download. The
+    # frontend is not asserted in `abicheck.yml` any more -- there is no `compile:`
+    # block on either side, deliberately; see the `build-config` comment below.
     timeout-minutes: 45
     permissions:
       contents: read
