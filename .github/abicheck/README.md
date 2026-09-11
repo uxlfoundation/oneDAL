@@ -418,9 +418,9 @@ everything else in that fingerprint — and the way they agree is by *neither* o
 them asserting it.
 
 `actions/baseline/run.sh` forwards only `-H`/`-I`/`--build-info`/`--depth`/
-`--version`/`--compression`/`-o` to its dumps. It declares a `build-config` input
-and never reads it, so **a `compile:` block cannot reach a baseline-set dump at
-all**: whatever compile context abicheck resolves on its own is what the published
+`--version`/`--compression`/`-o` to its dumps, and its `action.yml` has no
+`build-config` input at all, so **a `compile:` block cannot reach a baseline-set
+dump at all**: whatever compile context abicheck resolves on its own is what the published
 snapshots record. Asserting one on the consumer side only is therefore not
 harmless, it is a guaranteed mismatch — measured on `libonedal_parameters.so` with
 `compile: {frontend: castxml, std: c++17}` still in `abicheck.yml`:
@@ -466,8 +466,8 @@ which is the right way round; the fix is re-capturing, which means bumping
 immutable and the publisher keeps it.
 
 The upstream ask that would give this back as configuration rather than
-coincidence: **have `actions/baseline` forward its declared `build-config` input to
-the dump as `--config`.** Then both sides could state the compile context in one
+coincidence: **give `actions/baseline` a `build-config` input and forward it to the
+dump as `--config`,** the way `actions/check-target` already forwards its own. Then both sides could state the compile context in one
 file again, and a mismatch would be a config error rather than an install-path
 difference.
 
@@ -641,7 +641,10 @@ The `abicheck` pins must all name the **same** commit: `ci.yml` uses the root
 Action twice and `actions/resolve-baseline` once, `abicheck-baseline.yml` uses
 `actions/baseline` twice and `actions/stage-baseline` twice. `uses:` accepts no
 expression, so the SHA cannot be shared through an env var and is written out at
-each call site; a bump has to touch all seven. The header-depth family carries the
+each call site; a bump has to touch all nine — those seven `uses:` plus the two
+`generator-git-sha:` inputs that record which abicheck wrote each family, which are
+not `uses:` lines and are the two a search for `uses: abicheck` misses. The
+header-depth family carries the
 same obligation through its compile-context fingerprint, and now that the
 fingerprint comes from abicheck's *own* pinned toolchain rather than from a
 `compile:` block, the pin is the only thing that states it — see [The compile
@@ -662,10 +665,39 @@ mechanism can, for any fact this depth does collect.)
 
 So bumping the pin obliges re-*verifying* the published baselines: compare the
 unchanged tree with the new pin against the current baselines and diff the report
-against the old pin's. All three bumps done so far came out identical
+against the old pin's. All four bumps done so far came out identical
 line-for-line apart from timings, so none needed a re-capture on the shape they
-were measured on (snapshot operands, 2314 findings, `schema_version` 25 read and 44
-written). The baseline-set migration is not such a bump and was not expected to be
+were measured on (the first three: snapshot operands, 2314 findings,
+`schema_version` 25 read and 44 written).
+
+The fourth, `555905fbe` → `0e9fdd008` (36 commits; ADR-068 now routes `mode: scan`
+through `compare --no-baseline`, plus an audit-gate exit axis and a cxxfilt
+fallback), was verified on **both** shapes this gate actually runs rather than on
+snapshot operands alone, because the two now differ:
+
+- *Blocking gate* — release fan-out, binary depth, staged baseline binaries as the
+  old operand: exit 0, `COMPATIBLE_WITH_RISK`, 41.54 s, 451,104 KiB peak RSS. Every
+  per-library verdict, reclassified total and per-(severity, kind) count identical
+  to the old pin.
+- *The five advisory L2 legs* — single pair, header depth,
+  `--require-complete-analysis`: exits 0 / 0 / 2 / 2 / 0, i.e. `libonedal.so`
+  `API_BREAK` (243 reclassified, 2441 changes), `libonedal_core.so`
+  `COMPATIBLE_WITH_RISK` (1857, 2999), `libonedal_dpc.so` `API_BREAK` (278, 3295),
+  `libonedal_parameters.so` (12, 165), `libonedal_parameters_dpc.so` (17, 214);
+  422.70 / 584.72 / 462.26 / 474.65 / 427.59 s, ~4.9 GiB RSS each. Identical to the
+  old pin per (severity, kind) on all five.
+
+One trap worth recording, because it looked like a pin regression for a while:
+compared against L2 reports stored *before* the `namespace: oneapi`
+`func_visibility_changed` rule was added, two legs differ by exactly 6 findings
+moving breaking → risk and by verdict name (`BREAKING`/4 → `API_BREAK`/2). That is
+the policy rule, not the pin. Pin-parity has to be diffed against reports taken
+with the *current* policy file, or a local policy change gets attributed to
+upstream. No Action *input* this repo passes changed across the bump either:
+`--acknowledgments`, `expected-archive-digest` and `actions/baseline`'s
+`build-config` are all still absent, so every gap recorded below stays true.
+
+The baseline-set migration is not such a bump and was not expected to be
 neutral: the operand changed from six snapshots to six staged binaries, and the
 report gained 188 findings for a
 [named reason](#what-the-multilib-run-compares). Any *unexplained* difference means
@@ -1128,14 +1160,18 @@ this collapses into two `workflow_call` jobs.
   bounded acknowledgment (component + kind + cause + release range), not 1952
   records. Until then `expires: 2027-03-01` is the only backstop, and it is a
   deadline rather than a bound.
-* **`actions/baseline` declares `build-config` and never reads it.** `run.sh`
-  forwards only `-H`/`-I`/`--build-info`/`--depth`/`--version`/`--compression`/`-o`,
-  so a `compile:` block in `abicheck.yml` cannot reach a baseline-set dump even
-  though the input exists in `action.yml`. That is why the header-depth job carries
-  no `compile:` block at all (see "The compile context, and why there is no
-  `compile:` block") — the two sides would parse under different frontends and
-  abicheck would refuse the comparison. The upstream ask is one line: forward
-  `INPUT_BUILD_CONFIG` as `--config`. A per-library options input would additionally
+* **`actions/baseline` has no `build-config` input, so a baseline-set dump cannot
+  be given a compile context.** `run.sh` forwards only
+  `-H`/`-I`/`--build-info`/`--depth`/`--version`/`--compression`/`-o`, and its
+  `action.yml` declares no config input to forward — checked at both the previous
+  pin and current upstream `main`, and stated the other way round ("declares it and
+  never reads it") in an earlier revision of this file, which was wrong. So a
+  `compile:` block in `abicheck.yml` cannot reach a baseline-set dump by any route.
+  That is why the header-depth job carries no `compile:` block at all (see "The
+  compile context, and why there is no `compile:` block") — the two sides would
+  parse under different frontends and abicheck would refuse the comparison. The
+  upstream ask: add the input and forward it as `--config`, which
+  `actions/check-target` already does with an input of that exact name. A per-library options input would additionally
   collapse the baseline workflow's dump loop into one composite call; as it stands
   the two `mode: dump` steps enumerate their libraries and the pin is repeated per
   step, since `uses:` takes no expression.

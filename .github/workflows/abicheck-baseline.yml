@@ -311,14 +311,14 @@ jobs:
       # per-family size ceiling.
       - name: Build the binary-depth baseline-set
         id: bset-binary
-        uses: abicheck/abicheck/actions/baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
+        uses: abicheck/abicheck/actions/baseline@0e9fdd008292ead47527cd5467ec48de934bc94a
         with:
           output-dir: __abi_baseline_binary
           project-ref: ${{ steps.baseline.outputs.tag }}
           profile: ${{ env.ABICHECK_PROFILE_BINARY }}
           depth: binary
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 555905fbea3ab5b099848ab32a57883ebacb96e5
+          generator-git-sha: 0e9fdd008292ead47527cd5467ec48de934bc94a
           validation: strict
           snapshot-compression: zstd
           install-deps: false
@@ -353,8 +353,10 @@ jobs:
       # gives up. `actions/baseline` runs `abicheck dump` with only
       # -H/-I/--build-info/--depth/--version/--compression/-o: it forwards
       # neither `--config` nor `--sources`, and a `compile:` block reaches a dump
-      # only through one of those two. (The Action declares a `build-config`
-      # input; its run.sh never reads it.) oneDAL's .github/abicheck/abicheck.yml
+      # only through one of those two. (`actions/baseline/action.yml` has no
+      # `build-config` input to forward either -- `actions/check-target` does,
+      # so the shape exists upstream, just not on this action.) oneDAL's
+      # .github/abicheck/abicheck.yml
       # therefore no longer carries a `compile:` block on *either* side, because
       # pinning it on the candidate side alone is worse than not pinning it:
       # measured, a candidate asserting `std: c++17` against a set that could not
@@ -377,14 +379,14 @@ jobs:
       # resolve the same one.
       - name: Build the header-depth baseline-set
         id: bset-headers
-        uses: abicheck/abicheck/actions/baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
+        uses: abicheck/abicheck/actions/baseline@0e9fdd008292ead47527cd5467ec48de934bc94a
         with:
           output-dir: __abi_baseline_headers
           project-ref: ${{ steps.baseline.outputs.tag }}
           profile: ${{ env.ABICHECK_PROFILE_HEADERS }}
           depth: headers
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 555905fbea3ab5b099848ab32a57883ebacb96e5
+          generator-git-sha: 0e9fdd008292ead47527cd5467ec48de934bc94a
           validation: strict
           snapshot-compression: zstd
           libraries: |
@@ -402,7 +404,7 @@ jobs:
       # hand-written per-family size ceiling was approximating.
       - name: Package the binary-depth baseline-set
         id: archive-binary
-        uses: abicheck/abicheck/actions/stage-baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
+        uses: abicheck/abicheck/actions/stage-baseline@0e9fdd008292ead47527cd5467ec48de934bc94a
         with:
           baseline-path: ${{ steps.bset-binary.outputs.baseline-path }}
           asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
@@ -411,7 +413,7 @@ jobs:
 
       - name: Package the header-depth baseline-set
         id: archive-headers
-        uses: abicheck/abicheck/actions/stage-baseline@555905fbea3ab5b099848ab32a57883ebacb96e5
+        uses: abicheck/abicheck/actions/stage-baseline@0e9fdd008292ead47527cd5467ec48de934bc94a
         with:
           baseline-path: ${{ steps.bset-headers.outputs.baseline-path }}
           asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
