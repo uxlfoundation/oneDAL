@@ -112,12 +112,18 @@ reclassify:
   # that are COMPATIBLE_WITH_RISK / API_BREAK with the rules present. Same cause,
   # same symbols, different kind name because the evidence is richer.
   #
-  # Both spellings are load-bearing here too, and the split is one symbol wide:
-  # with only the two `namespace:` rules for this kind, `libonedal_core.so` is
-  # still BREAKING exit 4 with exactly one breaking finding --
-  # `_ZNK4daal...NumericTable8getValueIiEET_mm`, i.e. `NumericTable::getValue<int>`,
-  # whose demangled form starts with the printed return type `int`. That one
-  # finding is what the mangled `func_visibility_changed` rules buy.
+  # The split between the two spellings is measured here too, and for this kind it
+  # is one symbol wide in one direction and zero in the other. With only the two
+  # `namespace:` rules, `libonedal_core.so` is still BREAKING exit 4 on exactly
+  # one finding -- `_ZNK4daal...NumericTable8getValueIiEET_mm`, i.e.
+  # `NumericTable::getValue<int>`, whose demangled form starts with the printed
+  # return type `int` -- so the mangled rules are load-bearing. With only the two
+  # mangled rules, both legs are byte-identical to this file (443 and 6 demoted,
+  # exit 0 / exit 2), so the `namespace:` halves currently match nothing the
+  # mangled halves miss. They are kept anyway, and not on symmetry alone: the
+  # removal kind proves this tree contains 108 `_ZZN4daal...` block-scope
+  # entities that only a demangled walk reaches, and if a future header-depth
+  # baseline covers them they arrive under *this* kind.
   #
   # Gives up: gating on the removal of a symbol the library itself built with
   # vague (WEAK/COMDAT) linkage, inside the three namespaces named below. That

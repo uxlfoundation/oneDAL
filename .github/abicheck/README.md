@@ -344,15 +344,20 @@ finding and not the *source* one: the same four members are visible in both kind
 and only the linkage kind is what oneDAL is asserting is safe. No `sycl` rule for
 this kind, because no leg reports one.
 
-**Both spellings are needed at this depth too, and the split is one symbol wide.**
-With only the two `namespace:` rules for `func_visibility_changed`,
-`libonedal_core.so` is still `BREAKING`, exit 4 — one breaking finding out of 443,
+**The two spellings split asymmetrically at this depth, measured both ways.** With
+only the two `namespace:` rules for `func_visibility_changed`, `libonedal_core.so` is
+still `BREAKING`, exit 4 — one breaking finding out of 443,
 `_ZNK4daal…NumericTable8getValueIiEET_mm`, i.e. `NumericTable::getValue<int>`, whose
 demangled form starts with the printed return type `int` and which therefore no
-`namespace:` rule can reach. Its mangled name matches `_ZN[KVR]*4daal.*`, so the
-mangled counterpart demotes it and the leg goes green. That one finding is what those
-two rules buy — the same matching defect
-the blocking gate hit (recorded under [Gating](#gating)), at a different depth.
+`namespace:` rule can reach; its mangled name matches `_ZN[KVR]*4daal.*`, so the
+mangled counterpart demotes it and the leg goes green. That is the same matching
+defect the blocking gate hit (recorded under [Gating](#gating)), at a different depth.
+Run it the other way — mangled rules only — and both legs are identical to the shipped
+file (443 and 6 demoted, exit 0 and exit 2): for *this* kind the `namespace:` halves
+match nothing the mangled halves miss today. They stay because the removal kind proves
+the shape they exist for is real in this tree — 108 `_ZZN4daal…` block-scope entities
+that only a demangled walk reaches — and a future header-depth baseline that covers
+those symbols would report them under `func_visibility_changed`.
 
 Unlike the release fan-out's json, a single-pair json carries per-finding `severity`,
 `symbol_binding` and `finding_id`, so *which* linkage a demoted finding had is
