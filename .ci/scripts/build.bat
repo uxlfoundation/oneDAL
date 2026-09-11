@@ -45,10 +45,8 @@ if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
 
 if /I "%ARCH%"=="AMD64" (
     set "PLAT=win32e"
-    set "ARCH_DIR=intel64"
 ) else if /I "%ARCH%"=="ARM64" (
     set "PLAT=winarm"
-    set "ARCH_DIR=ARM64"
 ) else (
     echo Unknown architecture: %ARCH%
     exit /b 1
@@ -57,7 +55,6 @@ if /I "%ARCH%"=="AMD64" (
 echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3
 make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3 || set errorcode=1
 
-cmake -DINSTALL_DIR=__release_win_%2\daal\latest\lib\cmake\oneDAL -DARCH_DIR="%ARCH_DIR%" -P cmake\scripts\generate_config.cmake || set errorcode=1
 rem No cmake config generation here. This script used to call
 rem cmake/scripts/generate_config.cmake itself, added by PR #2222 (merged
 rem 2023-01-04). Two weeks later PR #2243 (merged 2023-01-20) taught the makefile
