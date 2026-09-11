@@ -24,10 +24,16 @@
 # classification, so every difference stays in the report while the verdict still
 # answers "did oneDAL break its ABI".
 #
+# Every measurement in this file is against the *published* 2026.0.0 baseline-set
+# bytes -- the release asset the gate fetches -- with the new side being the
+# binaries LinuxMakeDPCPP(avx2) uploads. Comparing against a locally rebuilt
+# 2026.0.0 instead is what let a real finding hide for a while; see "When the
+# baseline operand is not the published one" in .github/abicheck/README.md.
+#
 # This file is load-bearing, measured: the same comparison with no `reclassify:`
-# block at all is BREAKING on five of the six libraries, 1952 breaking findings,
-# exit 4. With this file: 0 breaking, exit 0, COMPATIBLE_WITH_RISK, and all 1952
-# still printed as risk. There is no `overrides:` block: no change kind is
+# block at all is BREAKING on five of the six libraries, 1951 breaking findings
+# (1414 + 270 + 237 + 18 + 12), exit 4. With this file: 0 breaking, exit 0,
+# COMPATIBLE_WITH_RISK, and all 1951 still printed as risk. There is no `overrides:` block: no change kind is
 # demoted for every symbol it could ever fire on.
 #
 # Negative control for that scoping, on the shape ci.yml actually runs: take one
@@ -42,7 +48,7 @@
 # These rules exist for one cause and should be deleted, not left to rot, once a
 # post-`-fvisibility-inlines-hidden` release is published as the baseline. That
 # is not left to good intentions: every rule carries `expires: 2027-03-01`, and
-# an expired reclassify rule never matches, so on that date the 1952 findings
+# an expired reclassify rule never matches, so on that date the 1951 findings
 # return to `break` and this gate goes red until someone either re-captures the
 # baseline (the real fix) or re-dates the rules with a fresh justification.
 #
@@ -93,20 +99,25 @@ reclassify:
   # Which kind they arrive under depends on the depth, and both are needed.
   # On the release fan-out the blocking job runs there is no header AST, so
   # every one comes through the ELF export-table delta as
-  # `func_removed_elf_only` -- measured, 1952 across the five libraries
-  # (1414 + 237 + 272 + 17 + 12), and zero `func_visibility_changed`.
+  # `func_removed_elf_only` -- measured, 1951 across the five libraries
+  # (1414 + 270 + 237 + 18 + 12), and zero `func_visibility_changed`.
   #
   # Header depth is different, and a revision of this file that dropped the
   # `func_visibility_changed` rules on the strength of the binary-depth
   # measurement alone was wrong: with a declaration available, abicheck can say
-  # *visibility changed* instead of *export removed*, and it does. Measured on
-  # `libonedal_core.so` at header depth with those rules absent: 230
-  # `func_visibility_changed`, every one WEAK, all `breaking`, verdict BREAKING,
-  # exit 4 -- on a leg that is COMPATIBLE_WITH_RISK with them present. Same
-  # cause, same symbols, different kind name because the evidence is richer.
-  # 229 of the 230 sit under `daal::`; the one that does not is
-  # `NumericTable::getValue<int>`, the same leading-return-type template already
-  # named below for the removal kind.
+  # *visibility changed* instead of *export removed*, and it does. Measured at
+  # header depth against the published snapshots with those four rules absent:
+  # `libonedal_core.so` reports 443 `func_visibility_changed`, `libonedal.so`
+  # reports 6, every one WEAK, all `breaking`, both legs BREAKING exit 4 -- legs
+  # that are COMPATIBLE_WITH_RISK / API_BREAK with the rules present. Same cause,
+  # same symbols, different kind name because the evidence is richer.
+  #
+  # Both spellings are load-bearing here too, and the split is one symbol wide:
+  # with only the two `namespace:` rules for this kind, `libonedal_core.so` is
+  # still BREAKING exit 4 with exactly one breaking finding --
+  # `_ZNK4daal...NumericTable8getValueIiEET_mm`, i.e. `NumericTable::getValue<int>`,
+  # whose demangled form starts with the printed return type `int`. That one
+  # finding is what the mangled `func_visibility_changed` rules buy.
   #
   # Gives up: gating on the removal of a symbol the library itself built with
   # vague (WEAK/COMDAT) linkage, inside the three namespaces named below. That
@@ -125,12 +136,15 @@ reclassify:
   # demotes *every* weak function removal oneDAL will ever make, including ones
   # nobody has looked at.
   #
-  # `namespace:` bounds it instead, and the bound is real rather than nominal.
-  # Measured, same comparison: the three namespace rules below demote 1943 of
-  # the 1952 and leave 9 findings breaking (exit 4) -- so the rules are not a
-  # blanket. Adding the six explicitly-named symbols brings it to 1952 demoted,
-  # exit 0, with a per-library risk table identical to what `symbol_pattern:
-  # ".*"` produced (305 / 1417 / 420 / 23 / 28 / 0). Same outcome, bounded scope.
+  # A namespace bounds it instead, spelled two ways (see the mangled-name block
+  # further down for why both are needed), and the bound is real rather than
+  # nominal. Measured, same comparison: the three `namespace:` rules below demote
+  # 1949 of the 1951 and leave 2 findings breaking (exit 4); adding the three
+  # mangled-name rules reaches 1951 demoted, exit 0, per-library risk
+  # 305 / 1423 / 436 / 23 / 29 / 0. Dropping the `namespace:` rules and keeping
+  # only the mangled ones is worse, also measured: libonedal_core.so goes BREAKING
+  # with 108 breaking findings, all `_ZZN4daal...` block-scope entities that a
+  # `_ZN`-anchored prefix cannot match.
   #
   # Direct proof the bound gates: inject a *new* weak function removal into the
   # baseline snapshot (declarations inventory plus .dynsym, so the detector
@@ -141,20 +155,24 @@ reclassify:
   # still auto-demoted. Closing that needs per-finding acknowledgments, which
   # abicheck implements engine-side but does not expose to the CLI or the Action
   # ("no `--acknowledgments` CLI flag yet", ADR-067 status). The upstream ask is
-  # that loader; the file it would need here is 1952 entries -- one per
-  # (symbol, component) pair, over 1689 unique symbols -- which is why it has to
+  # that loader; the file it would need here is 1951 entries -- one per
+  # (symbol, component) pair, over ~1689 unique symbols -- which is why it has to
   # be a bounded acknowledgment form (component + kind + cause + release range)
   # and not one record per finding.
   #
-  # The six named symbols are not exceptions to the namespace bound, they are an
-  # upstream matching defect. `namespace:` walks the *demangled* name's ancestor
-  # chain, and these six are function templates whose demangled form begins with
-  # a printed return type -- `auto& oneapi::dal::...`, `int daal::...`, `void
-  # sycl::...` -- so the first `::`-segment is `auto& oneapi`, not `oneapi`, and
-  # no namespace rule can match them. abicheck strips template arguments before
-  # that walk but not a leading return type. This fails closed (the finding stays
-  # breaking), so it is a usability defect rather than a hole, and naming the six
-  # is a bounded workaround: a *seventh* such template would break the gate.
+  # The mangled-name rules below are not exceptions to the namespace bound; they
+  # restate it in a spelling an upstream matching defect cannot displace.
+  # `namespace:` walks the *demangled* name's ancestor chain, and a function
+  # template's demangled form begins with a printed return type -- `auto&
+  # oneapi::dal::...`, `int daal::...`, `std::tuple<...> sycl::...`, and in one
+  # shape the return type wraps the name entirely (`bool (*daal::...::getVector
+  # <int>())(...)`). The first `::`-segment is then `auto& oneapi`, not `oneapi`.
+  # abicheck strips template arguments before that walk but not a return type.
+  # It fails closed (the finding stays breaking), so it is a usability defect
+  # rather than a hole -- and it is measured, not theoretical: naming six such
+  # symbols individually was this file's previous answer, and the first
+  # end-to-end CI run turned up a seventh and eighth
+  # (`sycl::_V1::handler::getRoundedRange<1>` and `<2>`) and went BREAKING.
   - kind: func_removed_elf_only
     binding: weak
     namespace: 'daal'
@@ -190,67 +208,71 @@ reclassify:
       inline surface that libonedal_dpc.so re-exported as WEAK COMDAT (17
       symbols, all under sycl::_V1::). oneDAL does not own this surface; it
       re-exported it by accident of COMDAT emission and no longer does.
-  # The six function templates `namespace:` cannot reach, because their
-  # demangled form is prefixed with a printed return type. Each is the same
-  # -fvisibility-inlines-hidden demotion as the namespace rules above, named
-  # individually so a seventh one is not silently covered.
+  # ── The same three namespaces, expressed on the *mangled* name ─────────────
+  #
+  # These three exist for one reason: `namespace:` walks the *demangled* name,
+  # and a function template's demangled form carries a printed return type, so
+  # `std::tuple<sycl::_V1::range<1>, bool> sycl::_V1::handler::getRoundedRange
+  # <1>(...)` has `std::tuple<...> sycl` as its first `::`-segment and no
+  # `namespace: sycl` rule can reach it. An earlier revision handled that by
+  # naming six such symbols individually and noting that "a seventh would break
+  # the gate". A seventh and eighth did, on the first end-to-end CI run:
+  # `sycl::_V1::handler::getRoundedRange<1>` and `<2>` are exported by the
+  # published 2026.0.0 baseline and not by main, and the gate came out BREAKING
+  # (exit 4, 2 breaking on libonedal_dpc.so) even though both are the same WEAK
+  # COMDAT demotion as the 1949 findings around them. Enumeration was the wrong
+  # shape; this is the bounded form of the same intent.
+  #
+  # `symbol_pattern` is a regex `fullmatch` against the *mangled* symbol
+  # (abicheck/policy/selectors.py `_symbol_matches`), and the mangled nested-name
+  # prefix is exactly the outermost scope, unaffected by the return type: any
+  # `_ZN4daal…`/`_ZNK4daal…` symbol *is* a `daal::` symbol. So each rule below
+  # states the same bound as its `namespace:` counterpart above, and measured on
+  # the shape ci.yml runs it demotes precisely the leading-return-type templates
+  # the namespace rules miss: 1949 -> 1951 findings demoted, exit 4 -> 0. The
+  # `.*` suffix is required because the match is a fullmatch, not a search.
+  #
+  # These do not *replace* the namespace rules, and the difference is measured:
+  # with the three `namespace:` rules deleted and only these three left,
+  # `libonedal_core.so` comes out BREAKING with 108 breaking findings, all of
+  # them `_ZZN4daal…` -- block-scope entities (statics and lambdas inside a
+  # function body) whose mangling starts `_ZZ`, which the demangled-namespace
+  # walk resolves and a `_ZN`-anchored prefix cannot. Both forms are load-bearing:
+  # the namespace rules are the general bound, these are the mangled-name
+  # counterpart for the shapes the demangled walk mis-splits.
   - kind: func_removed_elf_only
     binding: weak
-    symbol: '_ZN6oneapi3dal6detail2v121homogen_table_builder5resetIdEERDaRKNS0_2v25arrayIT_EEll'
+    symbol_pattern: '_ZN[KVR]*4daal.*'
     to: risk
     expires: 2027-03-01
     label: inlines-hidden-demotion
     reason: >-
-      auto& oneapi::dal::detail::v1::homogen_table_builder::reset<double>(...) --
-      deduced-return function template, demangles with a leading `auto&` so no
-      `namespace:` selector matches it.
+      Same bound as the `namespace: daal` rule above, stated on the mangled name
+      so it also reaches function templates whose demangled form begins with a
+      printed return type (e.g. `int daal::data_management::interface1::
+      NumericTable::getValue<int>(unsigned long, unsigned long) const`), which
+      `namespace:` cannot match because their first `::`-segment is `int daal`.
   - kind: func_removed_elf_only
     binding: weak
-    symbol: '_ZN6oneapi3dal6detail2v121homogen_table_builder5resetIfEERDaRKNS0_2v25arrayIT_EEll'
+    symbol_pattern: '_ZN[KVR]*6oneapi.*'
     to: risk
     expires: 2027-03-01
     label: inlines-hidden-demotion
     reason: >-
-      auto& oneapi::dal::detail::v1::homogen_table_builder::reset<float>(...) --
-      same deduced-return case as above.
+      Same bound as the `namespace: oneapi` rule above, on the mangled name.
+      Reaches the deduced-return `homogen_table_builder::reset<T>` overloads,
+      whose demangled form starts `auto& oneapi::…`.
   - kind: func_removed_elf_only
     binding: weak
-    symbol: '_ZN6oneapi3dal6detail2v121homogen_table_builder5resetIiEERDaRKNS0_2v25arrayIT_EEll'
+    symbol_pattern: '_ZN[KVR]*4sycl.*'
     to: risk
     expires: 2027-03-01
     label: inlines-hidden-demotion
     reason: >-
-      auto& oneapi::dal::detail::v1::homogen_table_builder::reset<int>(...) --
-      same deduced-return case as above.
-  - kind: func_removed_elf_only
-    binding: weak
-    symbol: '_ZNK4daal15data_management10interface112NumericTable8getValueIiEET_mm'
-    to: risk
-    expires: 2027-03-01
-    label: inlines-hidden-demotion
-    reason: >-
-      int daal::data_management::interface1::NumericTable::getValue<int>(unsigned
-      long, unsigned long) const -- member function template, demangles with a
-      leading `int` so no `namespace:` selector matches it.
-  - kind: func_removed_elf_only
-    binding: weak
-    symbol: '_ZN4sycl3_V17handler4fillIdEEvPvRKT_m'
-    to: risk
-    expires: 2027-03-01
-    label: inlines-hidden-demotion
-    reason: >-
-      void sycl::_V1::handler::fill<double>(void*, double const&, unsigned long)
-      -- DPC++ runtime template, demangles with a leading `void` so no
-      `namespace:` selector matches it.
-  - kind: func_removed_elf_only
-    binding: weak
-    symbol: '_ZN4sycl3_V17handler4fillIfEEvPvRKT_m'
-    to: risk
-    expires: 2027-03-01
-    label: inlines-hidden-demotion
-    reason: >-
-      void sycl::_V1::handler::fill<float>(void*, float const&, unsigned long) --
-      same case as above.
+      Same bound as the `namespace: sycl` rule above, on the mangled name.
+      Reaches `handler::fill<T>` (demangles as `void sycl::…`) and
+      `handler::getRoundedRange<N>` (demangles as `std::tuple<…> sycl::…`), the
+      two that took the first end-to-end CI run to BREAKING.
   # ── The same demotion as `func_visibility_changed`, which is the kind it
   # arrives under once a declaration exists (header depth only; measured firing
   # zero times on the binary-depth gate). Scoped from the measurement, on all
@@ -296,15 +318,36 @@ reclassify:
       `preview::spmd` communicator members). The four `preview::spmd` members are
       separately reported as `experimental_removed_without_replacement` and stay
       an API break; this rule reclassifies only the linkage finding.
+  # The mangled-name counterpart for this kind, for the same reason as above:
+  # `namespace:` mis-splits a demangled name that starts with a printed return
+  # type. One such symbol is measured on the header-depth legs today (the
+  # `NumericTable::getValue<int>` member template, one of `libonedal_core.so`'s
+  # 230 visibility findings), and the pair below covers the class rather than
+  # that one instance -- which is the lesson the binary-depth gate taught when
+  # two unnamed `sycl::` templates appeared on the first CI run. No `sycl` rule
+  # for this kind: no header-depth leg reports a `func_visibility_changed`
+  # finding under `sycl::` (that surface reaches the gate only as removals at
+  # binary depth), so adding one would widen the file past what is measured.
   - kind: func_visibility_changed
     binding: weak
-    symbol: '_ZNK4daal15data_management10interface112NumericTable8getValueIiEET_mm'
+    symbol_pattern: '_ZN[KVR]*4daal.*'
     to: risk
     expires: 2027-03-01
     label: inlines-hidden-demotion
     reason: >-
-      The one of the 230 header-depth visibility findings `namespace: daal`
-      cannot reach: int daal::data_management::interface1::NumericTable::getValue
-      <int>(unsigned long, unsigned long) const demangles with a leading return
-      type, so its first `::`-segment is `int daal`. Same symbol, same cause as
-      the `func_removed_elf_only` entry above.
+      Same bound as the `namespace: daal` rule above, on the mangled name, so it
+      also reaches return-type-prefixed member templates such as
+      `int daal::data_management::interface1::NumericTable::getValue<int>(
+      unsigned long, unsigned long) const`.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: '_ZN[KVR]*6oneapi.*'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same bound as the `namespace: oneapi` rule above, on the mangled name.
+      Nothing in the current header-depth measurement needs it -- all 6 findings
+      per `oneapi` library are reached by the namespace rule -- but a
+      deduced-return or return-type-prefixed template in that surface would
+      otherwise be the same silent gap the `sycl::` pair turned out to be.

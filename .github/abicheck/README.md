@@ -80,31 +80,33 @@ verdict, plus a per-library verdict table:
 | library | verdict | breaking | risk | additions | dominant kinds |
 |---|---|---|---|---|---|
 | `libonedal.so` | `COMPATIBLE_WITH_RISK` | 0 | 305 | 108 | 237 `func_removed_elf_only`, 102 `func_added`, 51 `symbol_leaked_from_dependency_changed`, 16 `imported_symbol_added` |
-| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 1417 | 60 | 1414 `func_removed_elf_only`, 36 `var_added`, 24 `func_added`, 2 `symbol_leaked_from_dependency_changed` |
-| `libonedal_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 420 | 120 | 272 `func_removed_elf_only`, 115 `symbol_leaked_from_dependency_changed`, 114 `func_added`, 27 `imported_symbol_added` |
+| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 1423 | 60 | 1414 `func_removed_elf_only`, 36 `var_added`, 24 `func_added`, 8 `exported_object_alignment_reduced` |
+| `libonedal_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 436 | 120 | 270 `func_removed_elf_only`, 115 `symbol_leaked_from_dependency_changed`, 114 `func_added`, 47 `imported_symbol_added` |
 | `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 23 | 0 | 12 `func_removed_elf_only`, 10 `symbol_leaked_from_dependency_changed` |
-| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 28 | 0 | 17 `func_removed_elf_only`, 10 `symbol_leaked_from_dependency_changed` |
+| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 29 | 0 | 18 `func_removed_elf_only`, 10 `symbol_leaked_from_dependency_changed`, 8 `needed_added`, 8 `needed_removed` |
 | `libonedal_thread.so` | `COMPATIBLE` | 0 | 0 | 0 | 1 `visibility_leak` |
 
-Measured on `main` against the `2026.0.0` baseline-set, through the same root Action
-the job invokes, off a `resolve-baseline`-staged `binaries/` directory, with
-`policy.yaml` and `abicheck.yml` in effect: **exit 0**, verdict
-`COMPATIBLE_WITH_RISK`, `scope: complete`, 2502 per-library findings plus 156 bundle
-ones (2658 detected, 0 effective, 1952 reclassified), nothing removed from the
-report; 41.6 s and 442 MiB peak RSS.
+Measured on `main` against the **published** `2026.0.0` baseline-set bytes — the
+release asset the job fetches, not a local rebuild of the tag ([why that
+distinction cost a debugging session](#when-the-baseline-operand-is-not-the-published-one))
+— with `policy.yaml` and `abicheck.yml` in effect: **exit 0**, verdict
+`COMPATIBLE_WITH_RISK`, `scope: complete`, 2592 per-library findings plus 156 bundle
+ones (2748 detected, 0 effective, 1951 reclassified, one rule matching:
+`inlines-hidden-demotion` ×1951), nothing removed from the report; 41.3 s and
+428 MiB peak RSS.
 
 **Comparing against staged binaries reports strictly more than comparing against
-snapshots did, and the delta is exactly two kinds.** Every risk count above is
-higher than the snapshot-operand shape's (254/1415/305/13/18) by precisely its
-`symbol_leaked_from_dependency_changed` count — 51, 2, 115, 10, 10 — and
-`exported_object_alignment_reduced` appears for the first time (1 on
-`libonedal_core.so`, 6 on `libonedal_dpc.so`, both quality issues). Both kinds need
-the *old* side's real ELF: which of a library's exports were leaked in from a
-dependency, and what alignment its exported objects had, are facts a binary-depth
-snapshot does not carry forward. So the migration to baseline-sets is not
-cost-neutral in either direction — it costs 41.6 s against 28 s and 29.5 MB of
-release asset against 0.49 MB, and it buys 188 findings the previous shape could
-not see, plus the six phantom `bundle_library_added` disappearing (below).
+snapshots did, and the delta is exactly two kinds.** The snapshot-operand shape
+reported zero `symbol_leaked_from_dependency_changed` and zero
+`exported_object_alignment_reduced`; against staged binaries both appear —
+186 leaked-symbol findings (51 / 1 / 115 / 10 / 10) and 13 alignment ones
+(1 / 8 / 4, quality issues). Both kinds need the *old* side's real ELF: which of a
+library's exports were leaked in from a dependency, and what alignment its exported
+objects had, are facts a binary-depth snapshot does not carry forward. So the
+migration to baseline-sets is not cost-neutral in either direction — it costs
+41.3 s against 28 s and 29.5 MB of release asset against 0.49 MB, and it buys 199
+findings the previous shape could not see, plus the six phantom
+`bundle_library_added` disappearing (below).
 
 There is no `jobs:` input any more — abicheck removed both the input and the
 CLI's `--jobs`, and always auto-detects with a memory clamp. The earlier `jobs: 1`
@@ -242,32 +244,35 @@ requested one is exit 1 on abicheck's own assurance axis. Measured on every leg:
 `evidence_tiers: ['elf', 'header']`. A green leg therefore means *compared at
 header depth*, not *asked for header depth*.
 
-Measured on `main` against the `2026.0.0` header-depth baselines, with
-`policy.yaml` and `abicheck.yml` in effect, one library per process, the five run
-concurrently. The frontend is not named in `abicheck.yml` — there is no `compile:`
-block on either side, deliberately (see "The compile context") — so these numbers
-are whatever castxml the environment resolved: conda-forge castxml 0.7.0 for the
-rows below, against the pinned CastXML Superbuild the job now provisions:
+Measured on `main` against the **published** `2026.0.0` header-depth baseline-set
+snapshots — the same release asset the job resolves — with `policy.yaml` and
+`abicheck.yml` in effect, one library per process, the five run concurrently, under
+the pinned CastXML Superbuild (0.6.20260105-g9864b1e) the job now provisions:
 
 | library | verdict | exit | breaking | API break | risk | detected | reclassified | wall | peak RSS |
 |---|---|---|---|---|---|---|---|---|---|
-| `libonedal.so` | `API_BREAK` | 2 | 0 | 4 | 2392 | 3535 | 243 | 459 s | 4.67 GiB |
-| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 2980 | 4933 | 1857 | 572 s | 4.68 GiB |
-| `libonedal_dpc.so` | `API_BREAK` | 2 | 0 | 4 | 3244 | 4401 | 278 | 489 s | 4.68 GiB |
-| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 146 | 1420 | 12 | 435 s | 4.67 GiB |
-| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 195 | 1469 | 17 | 432 s | 4.67 GiB |
+| `libonedal.so` | `API_BREAK` | 2 | 0 | 4 | 2770 | 5205 | 6 | 459 s | 4.55 GiB |
+| `libonedal_core.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 3642 | 4470 | 443 | 571 s | 4.55 GiB |
+| `libonedal_dpc.so` | `API_BREAK` | 2 | 0 | 4 | 3600 | 6085 | 6 | 471 s | 4.55 GiB |
+| `libonedal_parameters.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 89 | 2641 | 0 | 435 s | 4.54 GiB |
+| `libonedal_parameters_dpc.so` | `COMPATIBLE_WITH_RISK` | 0 | 0 | 0 | 136 | 2704 | 0 | 422 s | 4.54 GiB |
 
 These are re-measurements, not the numbers an earlier revision of this file carried,
-and the reason is the migration to `actions/baseline`: it provisions castxml through
-abicheck's own pinned CastXML Superbuild (0.6.20260105-g9864b1e + clang 21.1.8)
-rather than the conda-forge castxml 0.7.0 this job used to install, and a
+and there are two reasons. The migration to `actions/baseline`: it provisions castxml
+through abicheck's own pinned CastXML Superbuild (0.6.20260105-g9864b1e + clang
+21.1.8) rather than the conda-forge castxml 0.7.0 this job used to install, and a
 header-depth snapshot's compile context is a fingerprint abicheck refuses to compare
-across — so the publisher's toolchain is now the consumer's, by construction. Both
+across — so the publisher's toolchain is now the consumer's, by construction. And the
+old operand: earlier rows compared against a locally dumped `2026.0.0`, these against
+the published set's snapshots, which is the only shape CI can reach (see
+[when the baseline operand is not the published one](#when-the-baseline-operand-is-not-the-published-one)).
+The verdicts, exit codes and the four API breaks are the same either way; `detected`
+and `reclassified` are not. Both
 operands resolved out of one header-depth baseline-set (five snapshots, 21,885,624
 bytes as `.tar.zst`; the set itself takes 4576 s and 3.6 GiB to build, most of it
-`validation: strict`'s per-library self-compare). Old-toolchain numbers for
-comparison: 2407 / 3007 / 3271 / 146 / 195 risk at 434–572 s — same five verdicts,
-same four API breaks, counts within ~1%.
+`validation: strict`'s per-library self-compare). Old-toolchain, local-operand
+numbers for comparison: 2407 / 3007 / 3271 / 146 / 195 risk at 434–572 s — same five
+verdicts, same four API breaks.
 
 The same five legs under the clang JSON-AST frontend gave the same five verdicts,
 the same five exit codes and the same four API breaks, with 3–66 fewer `risk`
@@ -320,30 +325,39 @@ Header depth is also where the `-fvisibility-inlines-hidden` demotion arrives un
 a *second* kind, and this is the one place `policy.yaml` is load-bearing here rather
 than inherited: with a declaration in hand abicheck says `func_visibility_changed`
 where the binary-depth fan-out says `func_removed_elf_only`. On
-`libonedal_core.so`: 1174 `func_removed_elf_only` **and** 230
-`func_visibility_changed`, every one of the 230 `symbol_binding: weak`,
-`reclassified_total: 1857`. Remove the `func_visibility_changed` rules and this leg
-is **`BREAKING`, exit 4** with those 230 as `breaking` findings — measured, and the
-reason the rules exist despite firing zero times on the blocking gate. A rule's
-blast radius has to be measured at every depth the file is passed to.
+`libonedal_core.so`: 443 `func_visibility_changed`, every one WEAK, and no
+`func_removed_elf_only` at all — with a declaration available the demotion arrives
+*only* under the richer kind, `reclassified_total: 443`. Remove the four
+`func_visibility_changed` rules and this leg is **`BREAKING`, exit 4** with those 443
+as `breaking` findings, and `libonedal.so` is **`BREAKING`, exit 4** with 6 —
+measured, and the reason the rules exist despite firing zero times on the blocking
+gate. A rule's blast radius has to be measured at every depth the file is passed to.
 
-And on every leg, not one leg: scoping those rules from `libonedal_core.so` alone
-(229 of 230 under `daal::`) left `libonedal.so` and `libonedal_dpc.so` **`BREAKING`,
-exit 4** with 6 breaking findings each, all WEAK, all under `oneapi::` —
-`chunked_array_base::reset`, `homogen_table_builder::build`, `table::init_impl` and
-the four `preview::spmd` communicator members. With the `oneapi` rule added: both
-back to `API_BREAK`/exit 2, zero breaking, `reclassified_total` 237 → 243 and
-272 → 278, and the four `experimental_removed_without_replacement` findings still
-reported. That last part is the point of demoting the *linkage* finding and not the
-*source* one: the same four members are visible in both kinds, and only the linkage
-kind is what oneDAL is asserting is safe. No `sycl` rule for this kind, because no
-leg reports one.
+And on every leg, not one leg: scoping those rules to `daal::` alone left
+`libonedal.so` and `libonedal_dpc.so` **`BREAKING`, exit 4** with 6 breaking findings
+each, all WEAK, all under `oneapi::` — `chunked_array_base::reset`,
+`homogen_table_builder::build` / `table::init_impl`, and the four `preview::spmd`
+communicator members. With the `oneapi` rule added both are back to `API_BREAK`/exit
+2 with zero breaking, and the four `experimental_removed_without_replacement`
+findings are still reported. That last part is the point of demoting the *linkage*
+finding and not the *source* one: the same four members are visible in both kinds,
+and only the linkage kind is what oneDAL is asserting is safe. No `sycl` rule for
+this kind, because no leg reports one.
+
+**Both spellings are needed at this depth too, and the split is one symbol wide.**
+With only the two `namespace:` rules for `func_visibility_changed`,
+`libonedal_core.so` is still `BREAKING`, exit 4 — one breaking finding out of 443,
+`_ZNK4daal…NumericTable8getValueIiEET_mm`, i.e. `NumericTable::getValue<int>`, whose
+demangled form starts with the printed return type `int` and which therefore no
+`namespace:` rule can reach. Its mangled name matches `_ZN[KVR]*4daal.*`, so the
+mangled counterpart demotes it and the leg goes green. That one finding is what those
+two rules buy — the same matching defect
+the blocking gate hit (recorded under [Gating](#gating)), at a different depth.
 
 Unlike the release fan-out's json, a single-pair json carries per-finding `severity`,
 `symbol_binding` and `finding_id`, so *which* linkage a demoted finding had is
-answerable from CI output instead of a local rerun — which is how the 230 were
-scoped: 229 under `daal::`, one (`NumericTable::getValue<int>`) unreachable by
-`namespace:` because its demangled form starts with a return type.
+answerable from CI output instead of a local rerun — which is how these rules were
+scoped, and how the one unreachable symbol above was identified.
 
 ### Why five libraries and not six
 
@@ -635,6 +649,35 @@ disagreement fails loudly and specifically, as `stale_generation` or as the
 "asset not listed in the digest file" error above, rather than comparing against
 the wrong facts.
 
+### When the baseline operand is not the published one
+
+Every local measurement in this document is only as good as the bytes it compared
+against, and that is a trap worth naming because it sprang once. The blocking gate
+was exit 0 locally and exit 4 on its first end-to-end CI run, on the same policy
+file, the same abicheck pin (checked, by re-running both pins locally) and the same
+new-side binaries (checked, by downloading the runner's own `__release_lnx`
+artifact). What differed was the *old* operand: the local baseline directory was a
+stale rebuild of `2026.0.0`, and all six of its libraries differ from the released
+baseline-set's staged binaries. `libonedal_dpc.so` in the published set exports the
+two `sycl::_V1::handler::getRoundedRange<N>` symbols; the stale local copy did not,
+so no local run could ever have produced the finding that turned the gate red.
+
+Two lessons, both cheap to apply:
+
+- **Fetch the published asset for local work.** `gh release download <tag> -R <repo>
+  -p 'abicheck-baseline-<profile>-gen<N>.tar.zst'`, unpack, and compare against
+  `binaries/` (binary depth) or `<library>.abicheck.json.zst` (header depth). That is
+  literally what `actions/stage-baseline` hands the gate, so a local run of the
+  released bytes reproduces CI exactly — verified: exit 4, `libonedal_dpc.so`
+  `BREAKING` with 2 breaking, 1949 reclassified, and every per-library verdict, risk
+  count and reclassified total equal to the runner's report.
+- **Do not diff a policy change against a report taken with a different policy.** The
+  first suspicion here was a pin regression, because two header-depth legs differed
+  from stored reports by 6 findings moving breaking → risk. Those reports predated a
+  policy rule, not the pin; re-running both pins under the same policy file gave
+  identical output. A pin-parity check is only meaningful when the policy file is held
+  fixed, and a policy check only when the pin and the baseline bytes are.
+
 ### The abicheck pin and the baseline must move together
 
 The `abicheck` pins must all name the **same** commit: `ci.yml` uses the root
@@ -685,7 +728,10 @@ snapshot operands alone, because the two now differ:
   `COMPATIBLE_WITH_RISK` (1857, 2999), `libonedal_dpc.so` `API_BREAK` (278, 3295),
   `libonedal_parameters.so` (12, 165), `libonedal_parameters_dpc.so` (17, 214);
   422.70 / 584.72 / 462.26 / 474.65 / 427.59 s, ~4.9 GiB RSS each. Identical to the
-  old pin per (severity, kind) on all five.
+  old pin per (severity, kind) on all five. Those counts are on the locally dumped
+  header baseline both pins were run against — they differ from the published-set
+  table above, and deliberately so: a parity claim needs identical operands on both
+  sides of the bump, not the operand CI will use.
 
 One trap worth recording, because it looked like a pin regression for a while:
 compared against L2 reports stored *before* the `namespace: oneapi`
@@ -778,9 +824,17 @@ individually `COMPATIBLE_WITH_RISK`. It does not mask a per-library break in the
 other direction either — the negative control below still exits 4 with the bundle
 verdict `COMPATIBLE`.
 
+Every number in the rest of this section is measured against the **published**
+`2026.0.0` baseline-set bytes (the release asset the gate actually fetches) with the
+new side being the artifact `LinuxMakeDPCPP(avx2)` uploaded. That distinction is not
+pedantry — see [When the baseline operand is not the published
+one](#when-the-baseline-operand-is-not-the-published-one) for the run where it
+mattered.
+
 **`policy.yaml` is load-bearing, and measured to be.** The same comparison with no
-`--policy` at all is `BREAKING` on five of the six libraries — 1952 breaking
-findings, exit 4. With it: 0 breaking, exit 0, and all 1952 still printed as risk.
+`--policy` at all is `BREAKING` on five of the six libraries — 1951 breaking
+findings (237 + 1414 + 270 + 12 + 18), exit 4. With it: 0 breaking, exit 0, and all
+1951 still printed as risk.
 Every one of them is `func_removed_elf_only` on a WEAK symbol: the `2026.0.0`
 baseline predates `makefile` gaining `-fvisibility-inlines-hidden`, so `main`
 stopped *exporting* a large set of COMDAT inline and template symbols that are
@@ -789,25 +843,40 @@ tolerating that, and the exact scope of what the rules give up, is in
 `policy.yaml` itself. They should be **deleted** once a
 post-`-fvisibility-inlines-hidden` release becomes the baseline — and that is not
 left to good intentions: every rule carries `expires: 2027-03-01`, an expired
-reclassify rule never matches, so on that date the 1952 findings return to `break`
+reclassify rule never matches, so on that date the 1951 findings return to `break`
 and this gate goes red until someone re-captures the baseline or re-dates the rules
 with a fresh justification.
 
-**The demotion is bounded by what it names, not by `.*`.** An earlier revision
+**The demotion is bounded by a namespace, not by `.*`.** An earlier revision
 spelled the linkage rules as `symbol_pattern: ".*"` plus `binding: weak`, which
 bounds nothing: it demotes every weak function removal oneDAL will ever make,
 including ones nobody has looked at. (abicheck's selector grammar is
 conjunctive-only and refuses `binding:` as a rule's sole scope, which is why some
-identity selector is mandatory.) It is now twelve rules — for
-`func_removed_elf_only`, three `namespace:` rules (`daal`, `oneapi`, `sycl`) plus six
-explicitly-named function templates; for `func_visibility_changed`, `namespace: daal`
-and `namespace: oneapi` plus one named template — and the bound is real rather than
-nominal:
+identity selector is mandatory.) It is now ten rules, two forms of the same three
+namespaces: `namespace:` rules on the demangled name (`daal`, `oneapi`, `sycl` for
+`func_removed_elf_only`; `daal`, `oneapi` for `func_visibility_changed`) and a
+mangled-name `symbol_pattern` counterpart for each. Both forms are load-bearing, and
+measured to be:
 
-* the three namespace rules alone demote **1943 of the 1952** and leave 9 findings
-  breaking, exit 4. Adding the six named symbols reaches 1952 demoted, exit 0, with
-  a per-library risk table identical to what `.*` produced. Same outcome, bounded
-  scope.
+* with **only** the `namespace:` rules, two findings stay breaking and the gate
+  exits 4 — `sycl::_V1::handler::getRoundedRange<1>` and `<2>`, whose demangled
+  spelling begins with a printed return type (`std::tuple<sycl::_V1::range<1>,
+  bool> sycl::…`), so their first `::`-segment is `std::tuple<…> sycl` and no
+  `namespace: sycl` rule can reach them. Adding the mangled counterparts takes 1949
+  demoted → 1951 and exit 4 → 0.
+* with **only** the mangled `symbol_pattern` rules, `libonedal_core.so` comes out
+  `BREAKING` with 108 breaking findings, every one a `_ZZN4daal…` symbol — a
+  block-scope static or lambda inside a function body, whose mangling starts `_ZZ`
+  rather than `_ZN`, which the demangled-namespace walk resolves and a `_ZN`-anchored
+  prefix cannot.
+* the mangled form's bound is the namespace and nothing wider, checked against real
+  data rather than asserted: of the **13,485** mangled symbols the published
+  baseline's six libraries define, the three patterns fullmatch 6163 / 4099 / 17, and
+  every one of them really is in the namespace its rule names. (`symbol_pattern` is a
+  regex `fullmatch` against the *mangled* symbol — `abicheck/policy/selectors.py`,
+  `_symbol_matches` — which is why each pattern ends in `.*` and why a
+  demangled-looking pattern such as `'^[^(]* sycl::'` matches nothing at all. That
+  cost two measured attempts to establish.)
 * injecting a *new* weak function removal into the baseline snapshot — into the
   declarations inventory as well as `.dynsym`, so the detector actually sees it —
   gates when it is outside the three namespaces (`otherproj::foo::bar()`: breaking,
@@ -816,7 +885,7 @@ nominal:
   removal inside `daal::`/`oneapi::`/`sycl::` is still auto-demoted. Closing it
   needs per-finding acknowledgments, which abicheck implements engine-side and
   exposes to neither the CLI nor the Action ("no `--acknowledgments` CLI flag yet",
-  ADR-067). Sized for the upstream ask: the file would be 1952 entries over 1689
+  ADR-067). Sized for the upstream ask: the file would be 1951 entries over ~1689
   unique symbols, which is why it has to be a bounded acknowledgment form
   (component + kind + cause + release range) rather than one record per finding.
 
@@ -826,23 +895,36 @@ rules on the grounds that they fired zero times, which was true of the blocking
 binary-depth gate and false of the advisory header-depth one. With a declaration in
 hand abicheck reports *visibility changed* rather than *export removed*, for the same
 symbols and the same cause. Measured with those rules absent, `libonedal_core.so` at
-header depth: 230 `func_visibility_changed`, all WEAK, all `breaking`, verdict
-`BREAKING`, exit 4 — a leg that is `COMPATIBLE_WITH_RISK` with them present. So they
-are back, scoped from that measurement rather than mirrored from the removal rules:
-229 of the 230 are under `daal::`, so there is one `namespace: daal` rule and one
-named symbol (`NumericTable::getValue<int>` again), and no `oneapi`/`sycl` rule until
-a leg reports one. The general lesson is worth more than the fix: a rule's blast
-radius has to be measured at **every depth the file is passed to**, and this file is
-passed to both jobs.
+header depth: 443 `func_visibility_changed`, all WEAK, all `breaking`, verdict
+`BREAKING`, exit 4 — a leg that is `COMPATIBLE_WITH_RISK` with them present, plus 6
+more on `libonedal.so`. So they are back, scoped from that measurement rather than
+mirrored from the removal rules: the 443 are under `daal::` and the 6 under
+`oneapi::`, so there is a `namespace:` rule for each and a mangled counterpart for
+each (the counterparts earn their place by exactly one symbol, measured above), and
+no `sycl` rule for this kind because no leg reports one. The general lesson is worth more than the fix: a
+rule's blast radius has to be measured at **every depth the file is passed to**, and
+this file is passed to both jobs.
 
-The named symbols are not exceptions to the namespace bound but an upstream
-matching defect, recorded because it will bite again: `namespace:` walks the
-*demangled* name's ancestor chain, and these six are function templates whose
-demangled form starts with a printed return type — `auto& oneapi::dal::…`,
-`int daal::…`, `void sycl::…` — so the first `::`-segment is `auto& oneapi`, not
-`oneapi`. abicheck strips template arguments before that walk but not a leading
-return type. It fails *closed* (the finding stays breaking), so it is a usability
-defect rather than a hole — but a seventh such template would turn the gate red.
+**The matching defect behind the mangled rules, and the run that proved enumeration
+was the wrong shape.** `namespace:` walks the *demangled* name's ancestor chain, and
+a function template's demangled form starts with a printed return type — `auto&
+oneapi::dal::…`, `int daal::…`, `void sycl::…`, and at least one shape where the
+return type wraps the name entirely (`bool (*daal::data_management::internal::
+getVector<int>())(…)`). The first `::`-segment is then `auto& oneapi`, not `oneapi`.
+abicheck strips template arguments before that walk but not a return type. It fails
+*closed* — the finding stays breaking — so it is a usability defect rather than a
+hole.
+
+An earlier revision handled it by naming six such symbols individually and recording
+that "a seventh would turn the gate red". A seventh and eighth did, on the very first
+end-to-end CI run: `sycl::_V1::handler::getRoundedRange<1>` and `<2>` are exported by
+the published `2026.0.0` baseline and not by `main`, and the blocking job came out
+`BREAKING`, exit 4, 2 breaking on `libonedal_dpc.so`, with every other sycl removal
+in the same report demoted. Both are the same WEAK COMDAT demotion as the 1949
+findings around them. The fix is not a seventh and eighth name; it is the
+mangled-prefix rules above, which state the same namespace bound in a spelling the
+return type cannot displace. An enumeration that has to grow whenever the compiler
+emits one more inline is not a bound, it is a maintenance queue.
 
 The policy is accountable rather than a blanket mute, and the linkage scoping is
 what makes it so. Negative control on the shipped shape: take one tolerated
@@ -940,7 +1022,7 @@ this collapses into two `workflow_call` jobs.
   because two finding kinds
   (`symbol_leaked_from_dependency_changed`, `exported_object_alignment_reduced`)
   and the six phantom `bundle_library_added` fixes only exist when the old binaries
-  are present. It costs 41.6 s and 442 MiB against 28 s and 0.49 MB, and ~29.5 MB
+  are present. It costs 41.3 s and 428 MiB against 28 s and 0.49 MB, and ~29.5 MB
   of release asset. What the published baseline still buys is not having to
   *rebuild* the `2026.0.0` tag with the pinned oneAPI toolchain inside every PR job,
   which is the expensive part (~20 min) and the fragile part (see "Rebuilding an old
@@ -998,11 +1080,11 @@ this collapses into two `workflow_call` jobs.
   linkage.** This was a full gap one pin ago: the fan-out's json carried
   `{bucket, kind, symbol, description, source_location}` and reported
   `policy.base: ""` / `policy.reclassify: "[]"` with `--policy` demonstrably
-  applied, so the 1952 demoted findings were indistinguishable from findings the
+  applied, so the 1951 demoted findings were indistinguishable from findings the
   base policy calls risk on its own. At this pin the json stamps each finding with
   `reclassified_by` (`inlines-hidden-demotion`), carries a `disposition_audit` per
-  library and for the run — `reclassified_total: 1952`,
-  `reclassifications: [{rule_id: inlines-hidden-demotion, matched_count: 1952}]`,
+  library and for the run — `reclassified_total: 1951`,
+  `reclassifications: [{rule_id: inlines-hidden-demotion, matched_count: 1951}]`,
   1414 of them on `libonedal_core.so` — and fills `effective_config_fields` with
   `policy.base: strict_abi@1:<digest>` plus the serialized rule list, alongside an
   `effective_config_digest` that now describes the config that produced the
@@ -1040,7 +1122,7 @@ this collapses into two `workflow_call` jobs.
   buy is a *proven* old inventory or per-finding detail, which is what this shape is
   still for. Numbers below were measured against the older snapshots-only operand;
   the comparisons against "today's shape" therefore understate today's cost
-  (41.6 s / 442 MiB, ~29.5 MB of asset) rather than overstate it. abicheck can persist
+  (41.3 s / 428 MiB, ~29.5 MB of asset) rather than overstate it. abicheck can persist
   the old side of a live release compare as one `BundleFacts` document
   (`--bundle-facts-out`, member identity + SONAMEs + provider/consumer entries +
   `variant_fingerprint` + `inventory_complete`) and then take that document as the
@@ -1156,8 +1238,8 @@ this collapses into two `workflow_call` jobs.
   removal in `daal::` as readily as a known one. The bound that would close it is
   per-finding acknowledgments, which the engine implements (ADR-067) but neither the
   CLI nor the Action exposes — "no `--acknowledgments` CLI flag yet". Sized here:
-  1952 findings over 1689 unique symbols, so the useful upstream form is a compact
-  bounded acknowledgment (component + kind + cause + release range), not 1952
+  1951 findings over ~1689 unique symbols, so the useful upstream form is a compact
+  bounded acknowledgment (component + kind + cause + release range), not 1951
   records. Until then `expires: 2027-03-01` is the only backstop, and it is a
   deadline rather than a bound.
 * **`actions/baseline` has no `build-config` input, so a baseline-set dump cannot
