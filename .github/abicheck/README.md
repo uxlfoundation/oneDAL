@@ -591,7 +591,8 @@ replaced after its digest was reviewed, which would otherwise arrive as a
 plausible-looking `Publish abicheck baseline digest` commit that re-anchors the gate
 onto the replacement. Lines for other assets are preserved rather than truncated,
 because one tag's file accumulates one line per generation and a consumer still
-pinned to the older generation greps for its own line ([Rotation](#rotation)).
+pinned to the older generation greps for its own line
+([Rotating to a newer baseline](#rotating-to-a-newer-baseline)).
 
 ### Bootstrap is explicit, and absence fails
 
