@@ -19,6 +19,7 @@ build --flag_alias=device=@config//:device
 build --flag_alias=cpu=@config//:cpu
 build --flag_alias=enable_assert=@config//:enable_assert
 build --flag_alias=stdalloc=@config//:stdalloc
+build --flag_alias=msvc_runtime=@config//:msvc_runtime
 
 # Always pass this env variable to test rules, because SYCL
 # OpenCL backend uses it to determine available devices
@@ -153,6 +154,33 @@ build:release-dpc \
 #   bazel build //cpp/oneapi/dal:tests --config=dev
 build:dev \
     --cpu=auto
+
+
+# =============================================================================
+# Windows MSVC runtime (CRT) selection
+# Equivalent to Make MSVC_RUNTIME_VERSION. Independent of --config=dbg
+# (Make REQDBG): this picks the CRT flavour and renames the produced
+# libraries, it does not add debug info or assertions.
+# =============================================================================
+
+# Configuration: 'mdd'
+# Link against the debug MSVC runtime (`-MDd`) and the `_debug` TBB variants.
+# All libraries get a `d` suffix — `onedal_cored.lib`, `onedal_cored.4.dll` —
+# so an MD and an MDd build can share one release tree.
+# Sets both the toolchain feature (which selects `-MDd`) and the build setting
+# (which `select()`s on dependencies read); they must stay in sync.
+#   bazel build //:release --config=mdd
+#   bazel build //:release --config=mdd --config=dbg   # MDd + debug info
+# Default (no --config=mdd) is the release runtime, `-MD`, unsuffixed names.
+build:mdd \
+    --features=msvc_runtime_debug \
+    --msvc_runtime=debug
+
+# To build BOTH runtimes into a single release tree in one command, use the
+# //:release_all target instead of a --config (it applies both configurations
+# internally via Bazel transitions):
+#   bazel build //:release_all
+# On non-Windows platforms //:release_all is equivalent to //:release.
 
 
 # =============================================================================

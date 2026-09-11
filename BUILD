@@ -1,5 +1,6 @@
 load("@onedal//dev/bazel:release.bzl",
     "release",
+    "release_all",
     "release_include",
     "release_extra_file",
 )
@@ -200,4 +201,18 @@ release(
         release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
         release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
     ],
+)
+
+# Single release tree holding both Windows MSVC runtime flavours: the
+# release-CRT libraries (`onedal_core.lib`) next to the debug-CRT ones
+# (`onedal_cored.lib`). Equivalent to running the Make build twice, with
+# MSVC_RUNTIME_VERSION=release and =debug, into one RELEASEDIR.
+#
+#   bazel build //:release_all
+#
+# For a single flavour use //:release (default, `-MD`) or
+# //:release --config=mdd. On Linux/macOS this equals //:release.
+release_all(
+    name = "release_all",
+    release_target = ":release",
 )

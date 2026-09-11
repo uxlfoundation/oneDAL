@@ -211,14 +211,13 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
     # do not inherit the shell `LIB`, so pass it through via the toolchain
     # env_entries (see cc_toolchain_config_win.bzl — `msvc_env_feature`).
     link_flags_cc = []
+    # NOTE: the SYCL runtime import library is not listed here — it depends on
+    # the MSVC runtime (`sycl.lib` vs `sycld.lib`, see makefile:811), which is
+    # a per-build toolchain feature rather than a repository-time constant.
+    # `cc_toolchain_config_win.bzl` adds it via the `runtime_library` feature.
     link_flags_dpcc = ([
         "-fsycl",
         "-fsycl-device-code-split={}".format(dpcc_code_split),
-        # The icx driver does not add the SYCL runtime import library for
-        # Bazel's DLL link path when most device objects are supplied through
-        # a /WHOLEARCHIVE static library. Link it explicitly so generated
-        # registration thunks resolve __sycl_{,un}register_lib on Windows.
-        "sycl.lib",
     ]) if tools.is_dpc_found else []
 
     repo_ctx.template(

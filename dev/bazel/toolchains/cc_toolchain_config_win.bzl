@@ -195,6 +195,27 @@ def _impl(ctx):
     pedantic_feature = feature(name = "pedantic")
     dbg_feature = feature(name = "dbg")
     opt_feature = feature(name = "opt")
+
+    # Debug MSVC runtime (`-MDd`), equivalent to the Makefile's
+    # `MSVC_RUNTIME_VERSION=debug`. Kept separate from the built-in `dbg`
+    # feature (Make `REQDBG`) on purpose: the CRT flavour is an ABI choice
+    # that also renames the produced libraries (`onedal_cored.lib`) and
+    # switches the linked `msvcrt`/`tbb` variants, whereas `dbg` only adds
+    # debug info and assertions. Enable via `--config=mdd`, which also flips
+    # the `@config//:msvc_runtime` build setting that `select()`s read.
+    msvc_runtime_debug_feature = feature(name = "msvc_runtime_debug")
+
+    # NOTE on CRT libraries: the Makefile spells the CRT import libraries out
+    # explicitly (`msvcrtd.lib msvcprtd.lib /nodefaultlib:libucrtd.lib
+    # ucrtd.lib`, makefile:330-332) because it compiles with `-Zl`
+    # (dev/make/compiler_definitions/icx.mkl.32e.mk:66), which strips the
+    # `/defaultlib` directives clang-cl would otherwise embed in each object.
+    # This toolchain does not pass `-Zl`, so those directives survive and
+    # `-MD`/`-MDd` alone pulls in the matching CRT. The one thing not carried
+    # over is Make's `/nodefaultlib:libucrtd.lib` guard, which overrides a
+    # static-UCRT directive coming from a third-party input on the
+    # onedal_thread link (makefile:868); add it here if such an input ever
+    # reappears.
     runtime_library_feature = feature(
         name = "runtime_library",
         enabled = True,
@@ -202,12 +223,71 @@ def _impl(ctx):
             flag_set(
                 actions = all_compile_actions,
                 flag_groups = [flag_group(flags = ["-MDd"])],
-                with_features = [with_feature_set(features = ["dbg"])],
+                with_features = [with_feature_set(features = ["msvc_runtime_debug"])],
             ),
             flag_set(
                 actions = all_compile_actions,
                 flag_groups = [flag_group(flags = ["-MD"])],
-                with_features = [with_feature_set(not_features = ["dbg"])],
+                with_features = [with_feature_set(not_features = ["msvc_runtime_debug"])],
+            ),
+            # icx refuses `#pragma omp simd` together with a debug CRT
+            # (-Wdebug-option-simd, fatal under -WX) because the debug
+            # iterators cannot be vectorized. Enable OpenMP SIMD for the
+            # release runtime only, as `COMPILER.win.icx` does in
+            # dev/make/compiler_definitions/icx.mkl.32e.mk:77. Applied to
+            # every compile action so the release build keeps the exact flag
+            # set it had when this came from `win_icx_common_flags`.
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["-Qopenmp-simd"])],
+                with_features = [with_feature_set(
+                    not_features = ["msvc_runtime_debug"],
+                )],
+            ),
+            # The DPC++ driver additionally disables debug info generation for
+            # the debug CRT, mirroring `-MDd /debug:none` in
+            # dev/make/compiler_definitions/dpcpp.mk:78.
+            flag_set(
+                actions = all_compile_actions,
+                flag_groups = [flag_group(flags = ["/debug:none"])],
+                with_features = [with_feature_set(
+                    features = ["dpc++", "msvc_runtime_debug"],
+                )],
+            ),
+        ],
+    )
+
+    # The icx driver does not add the SYCL runtime import library for Bazel's
+    # DLL link path when most device objects are supplied through a
+    # /WHOLEARCHIVE static library. Link it explicitly so generated
+    # registration thunks resolve __sycl_{,un}register_lib on Windows. The
+    # debug CRT needs the debug import library, mirroring `sycl$d.lib` in
+    # makefile:811.
+    #
+    # This is a feature of its own rather than part of `runtime_library` so it
+    # can be registered next to `default_link_flags` in the feature list
+    # below, which is where the flag sat when it came from `link_flags_dpcc`
+    # (dev/bazel/toolchains/cc_toolchain_win.bzl). Feature order determines
+    # flag order on the driver command line, and this keeps the DPC++ link
+    # line byte-identical to before apart from the library name itself.
+    sycl_runtime_library_feature = feature(
+        name = "sycl_runtime_library",
+        enabled = True,
+        flag_sets = [
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(flags = ["sycld.lib"])],
+                with_features = [with_feature_set(
+                    features = ["dpc++", "msvc_runtime_debug"],
+                )],
+            ),
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(flags = ["sycl.lib"])],
+                with_features = [with_feature_set(
+                    features = ["dpc++"],
+                    not_features = ["msvc_runtime_debug"],
+                )],
             ),
         ],
     )
@@ -728,6 +808,7 @@ def _impl(ctx):
         pedantic_feature,
         dbg_feature,
         opt_feature,
+        msvc_runtime_debug_feature,
         runtime_library_feature,
         supports_dynamic_linker_feature,
         do_not_link_dynamic_dependencies_feature,
@@ -764,6 +845,19 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
+        # `sycl.lib` / `sycld.lib` has to stay on this side of the `/link`
+        # separator emitted below, because it is where `link_flags_dpcc` used to
+        # put it and because a bare `.lib` on a clang-cl command line is a
+        # *driver input file*, not a linker-only option. Bazel emits the object
+        # files and archives through `libraries_to_link`, which is registered
+        # after `dpc_linker_mode` and therefore lands on lld-link's side, so on
+        # a DPC++ link this library is the only input the icx driver itself
+        # sees. Move it past `/link` and the driver has nothing left to do:
+        #
+        #     icx: error: no input files
+        #
+        # which is how `Linking cpp/oneapi/dal/onedal_dpc.4.dll` fails.
+        sycl_runtime_library_feature,
         # `dpc_linker_mode` emits the single `/link` separator on DPC++ links.
         # Everything the icx driver itself has to see (`-fsycl`, `-LD`,
         # `-o<out>`) stays in front of it; everything meant for lld-link
