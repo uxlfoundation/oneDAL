@@ -362,11 +362,18 @@ jobs:
       # Both operands are directories, which is abicheck's own multi-library
       # release comparison: one run fans out over every shared object in the
       # directory, matching each one to its counterpart of the same name.
-      # `depth: headers` and up is still rejected for a directory operand ("the
-      # per-library fan-out does not enforce a per-library evidence floor", exit
-      # 64), so this gate compares exported symbols and ELF metadata, not the
-      # public-header AST. What that costs, and why it is still worth running
-      # next to abidiff, is in .github/abicheck/README.md ("Binary depth").
+      # `depth: headers` does not survive this call, so the gate compares
+      # exported symbols and ELF metadata, not the public-header AST. Where it
+      # is lost has changed and the distinction matters: the CLI now forwards
+      # every depth rung for a directory operand
+      # (`cli_compare_options._resolve_depth_for_set_inputs`, which used to
+      # reject `headers` and no longer does), but *this Action* still drops it
+      # with `::notice::mode: compare with a directory/package operand ... does
+      # not honour --depth headers yet` (action/run.sh:2906 at this pin, and
+      # unchanged at abicheck main). `depth: build/source` and inline
+      # sources/build-info remain hard `::error::`s here. What binary depth
+      # costs, and why it is still worth running next to abidiff, is in
+      # .github/abicheck/README.md ("Binary depth").
       - name: Check ABI against the released baseline
         id: abicheck
         if: steps.resolve.outputs.outcome == 'resolved'
@@ -497,13 +504,21 @@ jobs:
   # It is a *matrix over libraries* rather than one directory compare, and that
   # is forced twice over:
   #
-  #   * Correctness. abicheck rejects `--depth headers` for a directory operand
-  #     outright (exit 64, "the per-library fan-out does not enforce a
-  #     per-library evidence floor"), so a release-shaped run cannot be *held*
-  #     to L2 -- a library whose headers failed to parse would silently
-  #     contribute symbols-only findings to a report that claims header depth.
-  #     A single-pair compare can, and `require-complete-analysis: true` below
-  #     is what holds it there.
+  #   * Assurance, not a CLI rejection. The older reason recorded here -- "the
+  #     CLI rejects `--depth headers` for a directory operand" -- is no longer
+  #     true and has been corrected: `_resolve_depth_for_set_inputs` forwards
+  #     every rung, and per-member floor enforcement now lives downstream in
+  #     `service_compare_pipeline.resolve_compare_request`. Two things still
+  #     stop a release-shaped run from being *held* to L2, both measured at
+  #     this pin and at abicheck main: this Action drops `depth: headers` for a
+  #     directory operand (a `::notice::`, not an error, so the run would claim
+  #     header depth while comparing symbols), and
+  #     `assurance.require_complete: true` -- the successor to
+  #     `require-complete-analysis` -- is rejected with exit 64 on a
+  #     directory/package operand *and* on a stored-bundle-facts operand,
+  #     pointing at run-plan-aware aggregation as the missing piece. A
+  #     single-pair compare accepts and holds it, which is what
+  #     `require-complete-analysis: true` below does.
   #   * Cost. Parsing both umbrella headers once per library is the expensive
   #     part, and a whole-release L2 run does it inside one process: measured
   #     29 min and 20.1 GiB peak RSS, which does not fit a 16 GB runner at all.
@@ -691,7 +706,14 @@ jobs:
           # snapshot already carries the parsed declarations, which is the whole
           # point of dumping the baselines at this depth instead of parsing the
           # release tag's sources here.
-          fail-on-removed-library: true
+          # No `fail-on-removed-library` here, deliberately. It was set to
+          # `true` on every leg and could never fire: the Action synthesizes it
+          # into `gate.fail_on_removed_library`, and the only consumer of that
+          # resolved value is the directory/release path
+          # (`cli_compare_helpers` passes it to `_dispatch_release_compare`;
+          # traced at this pin). A single-pair compare has no library inventory
+          # to lose one from, so the input only ever reached the effective-config
+          # digest. The blocking job, whose operands *are* directories, keeps it.
           policy-file: .github/abicheck/policy.yaml
           # No longer supplies a `compile:` block, and must not: `actions/baseline`
           # forwards no `--config` to its dumps, so the published header-depth

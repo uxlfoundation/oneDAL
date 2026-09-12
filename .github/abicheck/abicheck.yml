@@ -34,7 +34,18 @@
 # runtime, and nothing in the release directory provides them. abicheck's
 # bundle analysis is unconditional since the `--no-bundle-analysis` flag was
 # removed, and its resolver treats an unresolvable NEEDED soname as an
-# intra-bundle dependency removal. Naming the providers as system-provided is
+# intra-bundle dependency removal -- traced to
+# `bundle_detectors._detect_intra_dep_removed`, which reaches
+# `BUNDLE_INTRA_DEP_REMOVED` ("Runtime load ... will fail with undefined
+# symbol") on an import that no side ever had an in-bundle provider for; its
+# own `ever_provided_in_bundle` evidence is consulted only inside the
+# allow-list branch these entries feed. That is why this list is not
+# decoration: it is the only supported way to keep a never-in-bundle
+# dependency from being reported as a historical removal. abicheck already has
+# the correctly weaker kind for this evidence
+# (`BUNDLE_UNRESOLVED_INTRA_DEPENDENCY`, risk, used by the audit-mode sibling);
+# the upstream ask is for the diff-mode detector to use it -- see "Known gaps"
+# in .github/abicheck/README.md. Naming the providers as system-provided is
 # the supported way to say "this library comes from outside the bundle" --
 # abicheck ships a 43-entry default list, and these four are the ones oneDAL
 # needs on top of it.

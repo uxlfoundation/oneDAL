@@ -36,9 +36,10 @@ merged PR at a time across a release cycle never shows up in it. The abicheck ga
 answer "can I drop this build in for the release I have installed?" per library, with a
 verdict separating *break* from *risk* under a policy whose every downgrade is
 evidence-backed. The two abicheck jobs differ in the evidence they may use, hence the
-operand shape: abicheck refuses `--depth headers` for a *directory* operand, so the
-one-run release comparison is binary depth by contract, while a *single-pair* comparison
-accepts it and can be held to it — one cheap blocking job over all six libraries, five
+operand shape: the Action drops `--depth headers` for a *directory* operand and no
+assurance floor can be applied to one, so the one-run release comparison is binary depth in
+practice, while a *single-pair* comparison both takes the rung and can be held to it — one
+cheap blocking job over all six libraries, five
 expensive advisory legs ([why five](#why-five-libraries-and-not-six)), one tag read
 through two baseline families.
 
@@ -128,9 +129,17 @@ libraries, not the MKL/DPC++ runtime they link.
 
 ## Binary depth
 
-The fan-out is **binary depth by contract**: a bundle's baseline "is always raw binaries
-with no historical header/build/source evidence staged per member", and `--depth headers`
-and up is rejected for a directory operand (exit 64). `depth: binary` is accepted and
+The fan-out is **binary depth in practice, not by CLI contract**, and the earlier wording
+here ("`--depth headers` is rejected for a directory operand, exit 64") was wrong at this
+very pin. Corrected: the CLI's `_resolve_depth_for_set_inputs` forwards every rung to the
+release fan-out — its rejection was deleted once every member pair started routing through
+`service.run_compare`, which enforces the floor per member — while **the Action this gate
+calls still drops the rung** for a directory operand, as a `::notice::` rather than an
+error (`action/run.sh:2906`, verified at the pin and at abicheck `main`). Independently,
+nothing can hold such a run to the rung: `assurance.require_complete: true` exits 64 on a
+directory/package operand, and on a stored-bundle-facts operand too. What remains true from
+the older reasoning is the evidence itself: a bundle's baseline "is always raw binaries with
+no historical header/build/source evidence staged per member". `depth: binary` is accepted and
 forwarded, so `ci.yml` states it rather than inheriting it; it changes nothing today (no
 `.debug_info` in the build) but it pins the rung both sides are read at. What it gives up,
 in the report's own words — "Binary-only analysis without debug info; many ABI changes
@@ -150,20 +159,46 @@ cannot be detected (struct layout, enum values, type changes)":
   is capped at 10 per library (`findings_truncated: true`); `annotations` is not.
 
 `LinuxAbicheckL2Scan` supplies that list, at its own cost. **Header depth inside this job
-was measured and rejected twice**: asking for it is refused (exit 64 for the operand;
-`::error::` + exit 1 for the compile context, "the per-library fan-out never threads the
-L2 compile context to each pair's header dump"), and forcing `-H`/`-I` through
+was measured and rejected twice**: asking for it does not survive this Action (the rung is
+dropped with a `::notice::` as above, and the L2 compile context is a hard `::error::` +
+exit 1, "the per-library fan-out never threads the L2 compile context to each pair's header
+dump"), and forcing `-H`/`-I` through
 `extra-args` past that guard produces a header-aware whole-release run at **29 min and
 20.1 GiB peak RSS** per PR, untunable because one process holds every library's AST at
 once. Pointing this job at the header-depth baselines is worse: `depth: binary` is a
 projection cap, not a filter, so the directory run took **13 min 27 s / 14.6 GiB** and
-reported the projected-away header types as removals on an unchanged tree. Re-measured in
-the projection's best case (single-pair, published `.l2` snapshots, this config and
-policy): **every leg BREAKING, exit 4, 903 breaking `typedef_removed` per library**, up to
-**1455** on `libonedal_core.so`, `source_breaks: 0` throughout, 117–133 s and ~3.2 GiB
-each — the shipped policy halves the raw count but cannot change the outcome, since a
-projected-away typedef is not a kind any policy can reclassify. Hence two baseline
-families keyed by asset name.
+reported header-side facts the binary side cannot see as changes on an unchanged tree.
+
+**The mechanism has changed and the numbers were re-measured at this pin; the conclusion
+has not.** The earlier claim here — 903–1455 breaking `typedef_removed` per library — no
+longer reproduces: the pinned `compare/typedefs.py` clears `typedefs`,
+`typedefs_qualified` *and* `typedef_entity_ids` when it projects, and the re-run reports
+**zero** `typedef_removed`. What replaced it is attribute asymmetry, and it is easiest to
+read off a pair that cannot have an ABI change at all — the 2026.0.0 header-depth snapshot
+against **the very ELF it was dumped from** (`--depth binary`, 36.3 s / 1.03 GiB):
+
+| finding on a self-identical pair | count | why it appears |
+|---|---|---|
+| `func_added` / `var_added` | 3975 / 1605 | exports not declared in the public headers; the old side is header-scoped, the new side is the whole export table |
+| `func_static_changed` | 148 | `static` is an AST fact; the binary side has none to compare |
+| `func_lost_inline` | 49 | same, for `inline` |
+| `func_virtual_removed` | 42 | same, for `virtual` — e.g. `~KernelErrorCollection` "is no longer virtual" |
+| `func_noexcept_removed` | 16 | same, for `noexcept` |
+
+**190 breaking, verdict BREAKING, exit 4, on two views of one build.** The candidate
+(`main`) side of the same shape is 5,325 findings including 439 `func_removed_elf_only`.
+
+It is asymmetry, not projection: the same snapshot compared **against itself** at
+`--depth binary` is `COMPATIBLE`, exit 0, one finding (64.5 s / 1.39 GiB). So the
+projection is self-consistent, and what breaks is a header-parsed side meeting a
+live-extracted side under one requested rung.
+So the two baseline families are still required, for a reason now stated correctly: a
+header-depth snapshot read at binary depth loses declaration attributes rather than
+typedefs, and no policy can reclassify a difference that is an artifact of one side being
+pre-parsed and the other extracted live. Upstream ask, sharper than before: a `binary`-depth
+comparison should drop the declaration-attribute facts on the header-parsed side the way it
+already drops the typedefs, so a pair that is two views of one build cannot come out
+BREAKING.
 
 ## Header depth
 
@@ -393,9 +428,15 @@ baseline be compared against an avx512 or debug build.
 an abicheck upgrade invalidates published sets — a fixed or newly-extracted fact, a changed
 normalization or hash recipe — and *not* for report-format, policy or detector-only changes.
 It appears in the manifest and both archive names, so a bump publishes beside the old assets
-instead of colliding with immutable ones, and a consumer still on the previous generation
-fails as `stale_generation` rather than comparing against facts the new scanner cannot read.
-Both jobs' `ABICHECK_BASELINE_GENERATION` must equal the publisher's.
+instead of colliding with immutable ones. **What the generation check does and does not
+catch**, corrected from an earlier overstatement here: `stale_generation` fires when the
+archive a consumer *loaded* declares a generation other than the one it asked for. It does
+not discover that a newer generation exists — a consumer pinned to `1` that finds the
+retained gen-1 asset resolves cleanly and keeps comparing against gen-1 facts. So publishing
+gen 2 does not fail gen-1 consumers; it leaves them behind silently, and rotating both jobs'
+`ABICHECK_BASELINE_GENERATION` to match the publisher's is the step that moves them. What
+`stale_generation` does protect against is the mismatch inside one selection: an asset name
+promising one generation and a manifest declaring another.
 
 **The baseline is a release artifact, and only a release artifact.** Nothing generated by
 the publisher is committed here. `LinuxAbicheckScan` asks the release API for the asset it
@@ -826,6 +867,43 @@ Action rather than a project driver, and policy over suppression. If oneDAL's bu
   exact name. A per-library options input would additionally collapse the publisher's dump loop
   into one composite call; as it stands each dump step enumerates its libraries and the pin is
   repeated per step, since `uses:` takes no expression.
+* **An explicit `baseline-profile`/`baseline-target`/`baseline-generation` is not authoritative
+  inside the root Action.** `LinuxAbicheckL2Scan` fetches through the Action's own `abi-baseline`
+  path, which downloads `*.abicheck.json[.gz|.zst]` assets **first** and only treats the
+  profile-named baseline-set archive as a *fallback* ("Baseline-set fallback: when no single
+  `*.abicheck.json` asset was found", `action/run.sh`; same at abicheck `main`). So one legacy
+  snapshot asset on the release would be used instead of the explicitly selected set, and two
+  would fail the job as ambiguous rather than resolving the set that was named. Second half of the
+  same gap: that fallback calls `resolve_target(..., target, profile,
+  expected_baseline_generation=...)` and passes **no** `expected_project_ref`, so the L2 path
+  cannot enforce the baseline identity the blocking job's own `resolve-baseline` call does
+  (`expected-project-ref: 2026.0.0`). oneDAL is not exposed today only because `2026.0.0` carries
+  no assets at all. Upstream ask: when profile and target are given, resolve that selection
+  directly, validate release ref and generation, and use legacy discovery only when no explicit
+  selection was supplied. Not to be worked around here by curating release assets.
+* **An import with no provider on *either* side is reported as a removal.**
+  `bundle_detectors._detect_intra_dep_removed` computes `ever_provided_in_bundle` — did *this*
+  consumer previously reach a version-compatible in-bundle provider — but only consults it inside
+  the allow-list suppression branch. A consumer whose remaining `DT_NEEDED` edges are neither
+  declared in `bundle.system_providers` nor `_looks_system()` falls through to
+  `BUNDLE_INTRA_DEP_REMOVED` with the message "Runtime load of … will fail with undefined symbol",
+  even when `ever_provided_in_bundle` is false, i.e. when nothing was ever removed. The detector's
+  own docstring concedes the underlying limitation ("absence of a *bundle* regression is not proof
+  of a system export"). The correctly-weakened kind already exists —
+  `BUNDLE_UNRESOLVED_INTRA_DEPENDENCY` at `COMPATIBLE_WITH_RISK`, used by the audit-mode sibling
+  `_detect_unresolved_intra_dependency` precisely because "an audit has no old side to confirm the
+  symbol ever resolved". Unchanged at abicheck `main`. This is what makes the four MKL entries in
+  `abicheck.yml` load-bearing rather than merely informative: without them a never-in-bundle
+  dependency is manufactured into a breaking removal. Upstream ask: when
+  `ever_provided_in_bundle` is false, emit the unresolved kind, not the removal — weaker evidence
+  should narrow the conclusion, not create a finding. Keep the declarations either way; they are
+  true.
+* **`fail-on-removed-library` has no effect on a single-pair comparison.** The Action synthesizes
+  it into `gate.fail_on_removed_library`, and the only consumer of the resolved value is the
+  directory/release dispatch, so on the L2 legs it reached the effective-config digest and nothing
+  else. Removed from those legs rather than left as a decorative assertion; it stays on the
+  blocking job, whose operands are directories. Upstream ask: reject or warn on an input that
+  cannot apply to the operand shape, the way the depth and evidence inputs already do.
 
 `ci.yml` and `abicheck-baseline.yml` both point here rather than repeating the rationale. If you
 change the pinned commit, the baseline storage, the policy or the shape of the comparison, update
