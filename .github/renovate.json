@@ -38,7 +38,8 @@
       "managerFilePatterns": [
         "/^\\.ci\\/env\\/tbb.+$/",
         "/^(\\.github\\/workflows|\\.ci\\/pipeline)\\/ci.+$/",
-        "/^dev\\/download_tbb.sh/"
+        "/^dev\\/download_tbb.sh/",
+        "/^\\.github\\/workflows\\/ci-win\\.yml$/"
       ],
       "matchStrings": [
         "\\s*TBB_DEFAULT_VERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
@@ -50,11 +51,38 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.ci\\/env\\/openblas\\.sh$/"],
+      "managerFilePatterns": [
+        "/^\\.ci\\/env\\/openblas\\.bat$/",
+        "/^\\.ci\\/env\\/openblas\\.sh$/",
+        "/^\\.github\\/workflows\\/ci-win\\.yml$/"
+      ],
       "matchStrings": [
-        "BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "\\s*set\\s+BLASVERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "\\s*OPENBLAS_VERSION\\s*[:=]\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?"
       ],
       "depNameTemplate": "OpenMathLib/OpenBLAS",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
+      "matchStrings": ["\\bLLVM_VERSION:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "llvm/llvm-project",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
+      "matchStrings": ["\\bCMAKE_VERSION:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "Kitware/CMake",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
+      "matchStrings": ["\\bNINJA_VERSION:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "ninja-build/ninja",
       "datasourceTemplate": "github-releases"
     },
     {

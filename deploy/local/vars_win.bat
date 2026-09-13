@@ -21,7 +21,17 @@ call:GetFullPath "%~dp0"         SCRIPT_PATH
 call:GetFullPath "%~dp0..\..\.." DAAL_UP
 call:GetFullPath "%~dp0..\.."    DAAL_UP_OLD
 
-set DAAL_IA=intel64
+set "ARCH=%PROCESSOR_ARCHITECTURE%"
+if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
+
+if /I "%ARCH%"=="AMD64" (
+  set DAAL_IA=intel64
+) else if /I "%ARCH%"=="ARM64" (
+  set DAAL_IA=ARM64
+) else (
+    echo Unknown architecture: %ARCH%
+    exit /b 1
+)
 
 :ParseArgs
 if /i "%1"=="" goto :CheckLayout

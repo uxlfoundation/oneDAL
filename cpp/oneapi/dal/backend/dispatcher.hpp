@@ -349,6 +349,11 @@ inline constexpr auto dispatch_by_cpu(const context_cpu& ctx, Op&& op) {
     ONEDAL_IF_CPU_DISPATCH_A8SVE(
         if (test_cpu_extension(cpu_ex, cpu_extension::sve)) { return op(cpu_dispatch_sve{}); })
 
+    // Unlike x86, ARM has no non-SVE baseline kernel to fall back to. Calling
+    // cpu_dispatch_default (== cpu_dispatch_sve) here would execute real SVE
+    // instructions on a CPU that does not support them, crashing with an
+    // illegal instruction fault instead of a catchable error.
+    throw unsupported_device{ dal::detail::error_messages::sve_not_supported() };
 #elif defined(TARGET_RISCV64)
     ONEDAL_IF_CPU_DISPATCH_RV64(
         if (test_cpu_extension(cpu_ex, cpu_extension::rv64)) { return op(cpu_dispatch_rv64{}); })

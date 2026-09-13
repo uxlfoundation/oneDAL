@@ -27,7 +27,7 @@ else ifeq ($(PLAT),)
 endif
 
 # Check that we know how to build for the identified platform
-PLATs := lnx32e mac32e win32e lnxarm lnxriscv64
+PLATs := lnx32e mac32e win32e lnxarm lnxriscv64 winarm
 $(if $(filter $(PLAT),$(PLATs)),,$(error Unknown platform $(PLAT)))
 
 # Non-platform or architecture specific defines live in common.mk
@@ -126,9 +126,9 @@ dtbb           := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
 plib           := $(if $(OS_is_win),,lib)
 scr            := $(if $(OS_is_win),bat,sh)
 y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
--Fo            := $(if $(OS_is_win),-Fo,-o)
--Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
--cxx17         := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
+-Fo            := $(if $(and $(OS_is_win),$(COMPILER_is_vc)),-Fo,-o)
+-Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,$(if $(COMPILER_is_clang),-,-Q)),-)
+-cxx17         := $(if $(or $(COMPILER_is_vc), $(and $(OS_is_win),$(COMPILER_is_clang))),/std:c++17,$(-Q)std=c++17)
 -optlevel      := $(-optlevel.$(COMPILER))
 -fPIC          := $(if $(OS_is_win),,-fPIC)
 -visibility    := $(if $(OS_is_win),,-fvisibility=hidden -fvisibility-inlines-hidden)
@@ -1087,8 +1087,8 @@ endef
 $(foreach d,$(release.ONEAPI.HEADERS.COMMON),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$d),_release_oneapi_c_h)))
 $(foreach d,$(release.ONEAPI.HEADERS.OSSPEC),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$(subst _$(_OS),,$d)),_release_oneapi_c_h)))
 
-#----- releasing static/dynamic oneTBB libraries
-$(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia): _release_common
+#----- releasing static/dynamic oneTBB & OpenBLAS libraries
+$(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia) $(RELEASEDIR.open_blas.libia) $(RELEASEDIR.open_blas.soia): _release_common
 
 define .release.t
 _release_common: $2/$(notdir $1)
@@ -1096,6 +1096,8 @@ $2/$(notdir $1): $(call frompf1,$1) | $2/. ; $(value cpy)
 endef
 $(foreach t,$(releasetbb.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.soia))))
 $(foreach t,$(releasetbb.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.libia))))
+$(foreach t,$(releaseopen_blas.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.open_blas.soia))))
+$(foreach t,$(releaseopen_blas.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.open_blas.libia))))
 
 #----- cmake configs generation
 
