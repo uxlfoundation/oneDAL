@@ -945,11 +945,18 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     DAAL_ASSERT(split_result.status.ok());
     if (split_result.bSplitSucceeded)
     {
-        const intermSummFPType imp     = impurity.var;
-        const intermSummFPType impLeft = split.left.var;
+        const intermSummFPType imp                     = impurity.var;
+        const intermSummFPType impLeft                 = split.left.var;
+        const size_t nLeft                             = split.nLeft;
+        const intermSummFPType leftWeights             = split.leftWeights;
+        const intermSummFPType rightWeights            = item.totalWeights - leftWeights;
+        typename DataHelper::ImpurityData impurityLeft = split.left;
+
+        _helper.convertLeftImpToRight(item.n, impurity, split);
+        const intermSummFPType impRight = split.left.var;
 
         // check impurity decrease
-        intermSummFPType improve = imp * item.totalWeights - impLeft * item.leftWeights - (item.totalWeights - item.leftWeights) * (imp - impLeft);
+        intermSummFPType improve = imp * item.totalWeights - impLeft * leftWeights - impRight * rightWeights;
         if (improve < _minImpurityDecrease)
         {
             return makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
@@ -961,11 +968,10 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
                 addImpurityDecrease(iFeature, item.n, impurity, split);
             }
 
-            item.nLeft        = split.nLeft;
-            item.leftWeights  = split.leftWeights;
-            item.improvement  = improve;
-            item.impurityLeft = split.left;
-            _helper.convertLeftImpToRight(item.n, impurity, split);
+            item.nLeft         = nLeft;
+            item.leftWeights   = leftWeights;
+            item.improvement   = improve;
+            item.impurityLeft  = impurityLeft;
             item.impurityRight = split.left;
 
             if (!(item.node = makeSplit(iFeature, split.featureValue, split.featureUnordered, nullptr, nullptr, impurity.var)))
