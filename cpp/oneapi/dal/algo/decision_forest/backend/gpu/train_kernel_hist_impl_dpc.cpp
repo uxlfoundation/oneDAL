@@ -1845,6 +1845,15 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
     if (ctx.distr_mode_) {
+        // Every rank starts from the same seed, so the streams are separated by skipping the
+        // values the lower-numbered ranks consume: `tree_count * selected_row_total_count`
+        // values for the bootstrap draws plus `selected_ftr_count * tree_count * 2` values for
+        // the feature and threshold draws.
+        //
+        // This only works for a counter-based engine. `mt2203` has no GPU `skip_ahead` (see
+        // `pr::gen_mt2203::skip_ahead_gpu`), so with `engine_type::mt2203` the device streams
+        // of all ranks stay identical and every rank grows the same trees. The default engine
+        // is `philox4x32x10` precisely to make this pattern work.
         std::int64_t skip_value =
             comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_;
         skip_value += comm_.get_rank() * ctx.selected_ftr_count_ * ctx.tree_count_ * 2;

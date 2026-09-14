@@ -137,43 +137,42 @@ sycl::event shuffle(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     void* state = engine_.get_host_engine_state();
-    engine_.skip_ahead_gpu(count);
 
     for (std::int64_t i = 0; i < count; ++i) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }
+    // Two values are drawn per iteration, so the device mirror has to advance by `2 * count`
+    // to stay at the same position in the stream as the host engine.
+    engine_.skip_ahead_gpu(2 * count);
     auto event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
     });
     return event;
 }
 
-/// Partially shuffles the first `top` elements of an array using the Fisher-Yates algorithm.
+/// Draws `result_array.get_count()` distinct indices out of `[0, top)` using the partial
+/// Fisher-Yates algorithm. See the declaration for the stream semantics.
 /// @tparam Type The data type of the array elements.
 /// @param[in] queue_ The SYCL queue for device execution.
-/// @param[in, out] result_array The array to be partially shuffled.
-/// @param[in] top The number of elements to shuffle.
-/// @param[in] seed The seed for the engine.
-/// @param[in] method The rng engine type. Defaults to `mt19937`.
+/// @param[in, out] result_array The array the drawn indices are written to.
+/// @param[in] top The size of the population to draw from.
+/// @param[in] engine_ Reference to the device engine that owns the rng stream.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
 sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                                          ndview<Type, 1>& result_array,
                                          std::int64_t top,
-                                         std::int64_t seed,
-                                         engine_type_internal method,
+                                         device_engine& engine_,
                                          const event_vector& deps) {
-    device_engine eng_ = device_engine(queue_, seed, method);
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
-    ONEDAL_ASSERT(casted_count < casted_top);
+    ONEDAL_ASSERT(casted_count <= casted_top);
     auto indices_ptr = result_array.get_mutable_data();
 
-    std::int64_t k = 0;
     std::size_t value = 0;
-    auto state = eng_.get_host_engine_state();
+    auto state = engine_.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
         uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
         for (std::size_t j = i; j > 0; j--) {
@@ -181,12 +180,11 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                 value = j - 1;
             }
         }
-        if (value >= casted_top)
-            continue;
         indices_ptr[i] = dal::detail::integral_cast<Type>(value);
-        k++;
     }
-    ONEDAL_ASSERT(k == count);
+    // One value is drawn per iteration, so the device mirror has to advance by `count` to stay
+    // at the same position in the stream as the host engine.
+    engine_.skip_ahead_gpu(count);
     auto event = queue_.submit([&](sycl::handler& h) {
         h.depends_on(deps);
     });
@@ -228,12 +226,11 @@ INSTANTIATE_UWR(std::int32_t)
 
 INSTANTIATE_SHUFFLE(std::int32_t)
 
-#define INSTANTIATE_PARTIAL_SHUFFLE(F)                                                           \
-    template ONEDAL_EXPORT sycl::event partial_fisher_yates_shuffle(sycl::queue& queue,          \
-                                                                    ndview<F, 1>& a,             \
-                                                                    std::int64_t top,            \
-                                                                    std::int64_t seed,           \
-                                                                    engine_type_internal method, \
+#define INSTANTIATE_PARTIAL_SHUFFLE(F)                                                      \
+    template ONEDAL_EXPORT sycl::event partial_fisher_yates_shuffle(sycl::queue& queue,     \
+                                                                    ndview<F, 1>& a,        \
+                                                                    std::int64_t top,       \
+                                                                    device_engine& engine_, \
                                                                     const event_vector& deps);
 
 INSTANTIATE_PARTIAL_SHUFFLE(std::int32_t)

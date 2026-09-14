@@ -129,7 +129,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
     Index node_in_block_count = node_count;
 
-    std::size_t local_buf_byte_size = local_size * sizeof(Float) + hist_size * sizeof(hist_type_t);
+    std::size_t local_buf_byte_size = hist_size * sizeof(hist_type_t);
     ONEDAL_ASSERT(device_has_enough_local_mem(queue, local_buf_byte_size));
 
     const auto nd_range =
@@ -138,9 +138,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
     sycl::event last_event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         local_accessor_rw_t<hist_type_t> local_hist_buf(hist_size, cgh);
-        local_accessor_rw_t<Float> local_float_buf(local_size, cgh);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<2> item) {
-            auto sbg = item.get_sub_group();
             const Index node_idx = item.get_global_id(1);
             if (node_idx > (node_count - 1)) {
                 return;
@@ -164,10 +162,15 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
             // slm pointers declaration
             hist_type_t* hist_ptr =
                 local_hist_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-            Float* local_buf_float_ptr =
-                local_float_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
 
-            bs.init_clear(hist_ptr + 0 * hist_prop_count, hist_prop_count);
+            // `bs.left_hist` points into slm shared by the work group, but only the first work
+            // item ever reads or updates the best split, so it also owns the clean-up. Letting
+            // every work item clear the same slots would need an extra barrier here.
+            bs.init(hist_ptr + 0 * hist_prop_count, hist_prop_count);
+            bs.clear_scalar();
+            if (local_id == 0) {
+                bs.clear_hist();
+            }
             split_scalar_t& bs_scal = bs.scalars;
 
             for (Index ftr_idx = 0; ftr_idx < selected_ftr_count; ftr_idx++) {
@@ -175,23 +178,23 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                 ts.init(hist_ptr + 1 * hist_prop_count, hist_prop_count);
                 split_scalar_t& ts_scal = ts.scalars;
                 ts_scal.ftr_id = selected_ftr_list_ptr[node_id * selected_ftr_count + ftr_idx];
-                const Index id =
-                    (local_id < row_count) ? tree_order_ptr[row_ofs + local_id] : index_max;
-                const Index bin = (local_id < row_count)
-                                      ? data_ptr[id * column_count + ts_scal.ftr_id]
-                                      : index_max;
-                const Float response = (local_id < row_count) ? response_ptr[id] : Float(0);
-                const Index response_int =
-                    (local_id < row_count) ? static_cast<Index>(response) : -1;
+
+                // Find the range of the bins the node's rows belong to. A node can hold more
+                // rows than the work group has work items, so the rows are walked with a
+                // `local_size` stride instead of one row per work item.
+                Index local_min_bin = max_bin_count_among_ftrs;
+                Index local_max_bin = 0;
+                for (Index i = local_id; i < row_count; i += local_size) {
+                    const Index id = tree_order_ptr[row_ofs + i];
+                    const Index bin = data_ptr[id * column_count + ts_scal.ftr_id];
+                    local_min_bin = sycl::min(local_min_bin, bin);
+                    local_max_bin = sycl::max(local_max_bin, bin);
+                }
 
                 const Index min_bin =
-                    sycl::reduce_over_group(item.get_group(),
-                                            bin < index_max ? bin : max_bin_count_among_ftrs,
-                                            minimum<Index>());
+                    sycl::reduce_over_group(item.get_group(), local_min_bin, minimum<Index>());
                 const Index max_bin =
-                    sycl::reduce_over_group(item.get_group(),
-                                            bin < max_bin_count_among_ftrs ? bin : 0,
-                                            maximum<Index>());
+                    sycl::reduce_over_group(item.get_group(), local_max_bin, maximum<Index>());
 
                 const Float rand_val = ftr_rnd_ptr[node_id * selected_ftr_count + ftr_idx];
                 const Index random_bin_count = sycl::max(max_bin - min_bin, Index(1));
@@ -200,46 +203,80 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                               random_bin_count - Index(1));
                 ts_scal.ftr_bin = min_bin + random_bin_ofs;
 
-                const Index count = Index(bin <= ts_scal.ftr_bin);
-
                 if constexpr (std::is_same_v<Task, task::classification>) {
-                    const Index left_count =
-                        sycl::reduce_over_group(item.get_group(), count, plus<Index>());
-                    const Index val = (bin <= ts_scal.ftr_bin) ? response_int : -1;
-                    Index all_class_count = 0;
-
-                    for (Index class_id = 0; class_id < class_count - 1; ++class_id) {
-                        Index total_class_count = sycl::reduce_over_group(item.get_group(),
-                                                                          Index(class_id == val),
-                                                                          plus<Index>());
-                        all_class_count += total_class_count;
-                        ts.left_hist[class_id] = total_class_count;
+                    for (Index class_id = local_id; class_id < class_count;
+                         class_id += local_size) {
+                        ts.left_hist[class_id] = hist_type_t(0);
                     }
+                    sycl::group_barrier(item.get_group());
+
+                    // Accumulate the class histogram of the left part directly in local memory
+                    Index local_left_count = 0;
+                    for (Index i = local_id; i < row_count; i += local_size) {
+                        const Index id = tree_order_ptr[row_ofs + i];
+                        const Index bin = data_ptr[id * column_count + ts_scal.ftr_id];
+                        if (bin <= ts_scal.ftr_bin) {
+                            ++local_left_count;
+                            const Index response_int = static_cast<Index>(response_ptr[id]);
+                            sycl::atomic_ref<hist_type_t,
+                                             sycl::memory_order_relaxed,
+                                             sycl::memory_scope_work_group,
+                                             address::local_space>
+                                hist_resp(ts.left_hist[response_int]);
+                            hist_resp += 1;
+                        }
+                    }
+
+                    ts_scal.left_count =
+                        sycl::reduce_over_group(item.get_group(), local_left_count, plus<Index>());
+                    // `ts.left_hist` is shared by the work group and read by the first work item
+                    sycl::group_barrier(item.get_group());
+                }
+                else {
+                    // Each work item accumulates count / mean / sum of squared deviations for
+                    // its own rows in a single pass (Welford), then the per-item statistics are
+                    // combined over the work group. Recomputing the deviations against the group
+                    // mean would need a second gather over `tree_order_ptr` and `data_ptr`,
+                    // which costs far more than the per-element division.
+                    Index local_count = 0;
+                    Float local_mean = Float(0);
+                    Float local_sum2cent = Float(0);
+                    for (Index i = local_id; i < row_count; i += local_size) {
+                        const Index id = tree_order_ptr[row_ofs + i];
+                        const Index bin = data_ptr[id * column_count + ts_scal.ftr_id];
+                        if (bin <= ts_scal.ftr_bin) {
+                            const Float response = response_ptr[id];
+                            ++local_count;
+                            const Float delta = response - local_mean;
+                            local_mean += delta / Float(local_count);
+                            local_sum2cent += delta * (response - local_mean);
+                        }
+                    }
+
+                    const Index left_count =
+                        sycl::reduce_over_group(item.get_group(), local_count, plus<Index>());
+                    const Float sum = sycl::reduce_over_group(item.get_group(),
+                                                              local_mean * Float(local_count),
+                                                              plus<Float>());
+                    const Float mean = (left_count > 0) ? sum / Float(left_count) : Float(0);
+
+                    // Combine the per-item deviations: every group contributes its own
+                    // `sum2cent` plus the shift of its mean against the group mean.
+                    const Float mean_shift = local_mean - mean;
+                    const Float sum2cent = sycl::reduce_over_group(
+                        item.get_group(),
+                        (local_count > 0)
+                            ? local_sum2cent + Float(local_count) * mean_shift * mean_shift
+                            : Float(0),
+                        plus<Float>());
 
                     ts_scal.left_count = left_count;
 
-                    ts.left_hist[class_count - 1] = ts_scal.left_count - all_class_count;
-                }
-                else {
-                    const Float val = (bin <= ts_scal.ftr_bin) ? response : Float(0);
-
-                    Float left_count = Float(sycl::reduce_over_group(sbg, count, plus<Index>()));
-                    Float sum = sycl::reduce_over_group(sbg, val, plus<Float>());
-
-                    Float mean = sum / left_count;
-
-                    const Float val_s2c =
-                        (bin <= ts_scal.ftr_bin) ? (val - mean) * (val - mean) : Float(0);
-
-                    Float sum2cent = sycl::reduce_over_group(sbg, val_s2c, plus<Float>());
-
-                    reduce_hist_over_group(item, local_buf_float_ptr, left_count, mean, sum2cent);
-
-                    ts_scal.left_count = Index(left_count);
-
-                    ts.left_hist[0] = left_count;
-                    ts.left_hist[1] = mean;
-                    ts.left_hist[2] = sum2cent;
+                    if (local_id == 0) {
+                        ts.left_hist[0] = Float(left_count);
+                        ts.left_hist[1] = mean;
+                        ts.left_hist[2] = sum2cent;
+                    }
                 }
 
                 if (local_id == 0) {
@@ -260,6 +297,12 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                                  impl_const_t::hist_prop_count_,
                                                  min_obs_leaf);
                     }
+                }
+                if constexpr (std::is_same_v<Task, task::classification>) {
+                    // The whole work group rebuilds `ts.left_hist` for the next feature in the
+                    // same slm slot, so the clean-up must not start before the first work item
+                    // has finished reading the current one.
+                    sycl::group_barrier(item.get_group());
                 }
             }
 
