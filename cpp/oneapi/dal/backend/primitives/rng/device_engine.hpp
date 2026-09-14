@@ -21,12 +21,6 @@
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 
-#include <daal/include/algorithms/engines/mt2203/mt2203.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
-#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
-#include <daal/include/algorithms/engines/mt19937/mt19937.h>
-
 #include <oneapi/mkl.hpp>
 
 namespace mkl = oneapi::mkl;
@@ -69,12 +63,16 @@ public:
         return engine_type_internal::mt2203;
     }
 
-    /// Skips ahead in the random number sequence for mt2203 on the GPU.
-    /// Currently, the skip functionality is not implemented.
-    /// @param[in] nSkip The number of steps to skip in the sequence.
-    void skip_ahead_gpu(std::int64_t nSkip) override {
-        //skip;
-    }
+    /// No-op by design: oneMKL does not expose `skip_ahead` for `mt2203`.
+    ///
+    /// `mt2203` is a parametrized family of generators rather than a single skippable stream:
+    /// independent streams are obtained from the `engine_idx` constructor argument (oneMKL
+    /// provides 6024 of them), not by jumping inside one stream. Callers that need cheap
+    /// skip-based stream separation - per-rank offsets in distributed algorithms, per-tree
+    /// offsets in decision forest - must either pick a distinct `engine_idx` per stream or use
+    /// a counter-based engine such as `default_engine_type_internal` (`philox4x32x10`).
+    /// @param[in] nSkip The number of steps to skip in the sequence. Ignored.
+    void skip_ahead_gpu(std::int64_t nSkip) override {}
 
     /// Retrieves a pointer to the underlying mt2203 generator.
     /// @return A pointer to the `mt2203` RNG.
@@ -235,35 +233,31 @@ protected:
 class device_engine {
 public:
     /// @param[in] queue   The SYCL queue used to manage device operations.
-    /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
-    /// @param[in] method  The engine method. Defaults to `engine_type_internal::mt2203`.
+    /// @param[in] seed    The initial seed for the random number generator. Defaults to `default_seed`.
+    /// @param[in] method  The engine method. Defaults to `default_engine_type_internal`.
     device_engine(sycl::queue& queue,
-                  std::int64_t seed = 777,
-                  engine_type_internal method = engine_type_internal::mt2203,
+                  std::int64_t seed = default_seed,
+                  engine_type_internal method = default_engine_type_internal,
                   std::int64_t idx = 0)
             : q(queue) {
+        host_engine_ = make_daal_engine(seed, method);
         switch (method) {
             case engine_type_internal::mt2203:
-                host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mt2203>(queue, seed, idx);
                 break;
             case engine_type_internal::mcg59:
-                host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mcg59>(queue, seed);
                 break;
             case engine_type_internal::mrg32k3a:
-                host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mrg32k>(queue, seed);
                 break;
             case engine_type_internal::philox4x32x10:
-                host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_philox>(queue, seed);
                 break;
             case engine_type_internal::mt19937:
-                host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mt19937>(queue, seed);
                 break;
-            default: throw std::invalid_argument("Unsupported engine type 1");
+            default: throw std::invalid_argument("Unsupported engine type");
         }
         impl_ =
             dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(host_engine_.get());
@@ -389,7 +383,9 @@ void shuffle(std::int64_t count, Type* dst, device_engine& engine_) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }
-    engine_.skip_ahead_gpu(count);
+    // Two values are drawn per iteration, so the device mirror has to advance by `2 * count`
+    // to stay at the same position in the stream as the host engine.
+    engine_.skip_ahead_gpu(2 * count);
 }
 
 /// Generates uniformly distributed random numbers on the GPU.
@@ -443,22 +439,49 @@ sycl::event shuffle(sycl::queue& queue,
                     device_engine& engine_,
                     const event_vector& deps = {});
 
-/// Partially shuffles the first `top` elements of an array using the Fisher-Yates algorithm.
+/// Draws `result_array.get_count()` distinct indices out of `[0, top)` using the partial
+/// Fisher-Yates algorithm.
+///
+/// The draw itself runs on the host engine; the device mirror is advanced by the number of
+/// values consumed so that a later on-device `generate` on the same engine continues the stream
+/// instead of replaying values the host already used.
+///
+/// The engine is passed by reference, so consecutive calls on the same engine return different
+/// samples and the routine can be interleaved with other draws on that stream.
 /// @tparam Type The data type of the array elements.
 /// @param[in] queue_ The SYCL queue for device execution.
-/// @param[in, out] result_array The array to be partially shuffled.
-/// @param[in] top The number of elements to shuffle.
-/// @param[in] seed The seed for the engine.
-/// @param[in] method The rng engine type. Defaults to `mt19937`.
+/// @param[in, out] result_array The array the drawn indices are written to.
+/// @param[in] top The size of the population to draw from.
+/// @param[in] engine_ Reference to the device engine that owns the rng stream.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-sycl::event partial_fisher_yates_shuffle(
-    sycl::queue& queue_,
-    ndview<Type, 1>& result_array,
-    std::int64_t top,
-    std::int64_t seed,
-    engine_type_internal method = engine_type_internal::mt19937,
-    const event_vector& deps = {});
+sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
+                                         ndview<Type, 1>& result_array,
+                                         std::int64_t top,
+                                         device_engine& engine_,
+                                         const event_vector& deps = {});
+
+/// One-shot overload of `partial_fisher_yates_shuffle` that builds a throw-away engine from
+/// `seed`. Prefer the engine-reference overload when the sample has to be combined with other
+/// draws or when more than one sample is needed: this overload restarts the stream every call,
+/// so the same `seed` always yields the same sample.
+/// @tparam Type The data type of the array elements.
+/// @param[in] queue_ The SYCL queue for device execution.
+/// @param[in, out] result_array The array the drawn indices are written to.
+/// @param[in] top The size of the population to draw from.
+/// @param[in] seed The seed of the one-shot engine.
+/// @param[in] method The rng engine type. Defaults to `default_engine_type_internal`.
+/// @param[in] deps Dependencies for the SYCL event.
+template <typename Type>
+sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
+                                         ndview<Type, 1>& result_array,
+                                         std::int64_t top,
+                                         std::int64_t seed,
+                                         engine_type_internal method = default_engine_type_internal,
+                                         const event_vector& deps = {}) {
+    device_engine eng_(queue_, seed, method);
+    return partial_fisher_yates_shuffle(queue_, result_array, top, eng_, deps);
+}
 #endif
 
 } // namespace oneapi::dal::backend::primitives

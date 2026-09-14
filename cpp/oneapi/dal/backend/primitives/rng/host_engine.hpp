@@ -16,12 +16,6 @@
 
 #pragma once
 
-#include <daal/include/algorithms/engines/mt2203/mt2203.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
-#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
-#include <daal/include/algorithms/engines/mt19937/mt19937.h>
-
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
@@ -37,28 +31,11 @@ namespace oneapi::dal::backend::primitives {
 /// @note The class only supports host-based RNG and does not require a SYCL queue or device context.
 class host_engine {
 public:
-    /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
-    /// @param[in] method  The engine method. Defaults to `engine_type_internal::mt2203`.
-    host_engine(std::int64_t seed = 777,
-                engine_type_internal method = engine_type_internal::mt2203) {
-        switch (method) {
-            case engine_type_internal::mt2203:
-                host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
-                break;
-            case engine_type_internal::mcg59:
-                host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
-                break;
-            case engine_type_internal::mrg32k3a:
-                host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
-                break;
-            case engine_type_internal::philox4x32x10:
-                host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
-                break;
-            case engine_type_internal::mt19937:
-                host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
-                break;
-            default: throw std::invalid_argument("Unsupported engine type 1");
-        }
+    /// @param[in] seed    The initial seed for the random number generator. Defaults to `default_seed`.
+    /// @param[in] method  The engine method. Defaults to `default_engine_type_internal`.
+    host_engine(std::int64_t seed = default_seed,
+                engine_type_internal method = default_engine_type_internal) {
+        host_engine_ = make_daal_engine(seed, method);
         impl_ =
             dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(host_engine_.get());
         if (!impl_) {
@@ -157,26 +134,28 @@ void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
     }
 }
 
-/// Shuffles an array using random swaps on the CPU.
+/// Draws `result_array.get_count()` distinct indices out of `[0, top)` on the CPU using
+/// the partial Fisher-Yates algorithm.
+///
+/// The engine is passed by reference, so the draw advances the caller's stream: consecutive
+/// calls on the same engine return different samples and the routine can be interleaved with
+/// other draws on that stream.
 /// @tparam Type The data type of the array elements.
-/// @param[in] count The number of elements to shuffle.
-/// @param[in, out] dst Pointer to the array to be shuffled.
-/// @param[in] engine_ Reference to the device engine.
+/// @param[in, out] result_array The array the drawn indices are written to.
+/// @param[in] top The size of the population to draw from.
+/// @param[in] engine_ Reference to the host engine that owns the rng stream.
 template <typename Type>
 void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                                   std::int64_t top,
-                                  std::int64_t seed,
-                                  engine_type_internal method = engine_type_internal::mt19937) {
-    host_engine eng_ = host_engine(seed, method);
+                                  host_engine& engine_) {
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
-    ONEDAL_ASSERT(casted_count < casted_top);
+    ONEDAL_ASSERT(casted_count <= casted_top);
     auto indices_ptr = result_array.get_mutable_data();
 
-    std::int64_t k = 0;
     std::size_t value = 0;
-    auto state = eng_.get_host_engine_state();
+    auto state = engine_.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
         uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
         for (std::size_t j = i; j > 0; j--) {
@@ -184,12 +163,26 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                 value = j - 1;
             }
         }
-        if (value >= casted_top)
-            continue;
         indices_ptr[i] = dal::detail::integral_cast<Type>(value);
-        k++;
     }
-    ONEDAL_ASSERT(k == count);
+}
+
+/// One-shot overload of `partial_fisher_yates_shuffle` that builds a throw-away engine from
+/// `seed`. Prefer the engine-reference overload when the sample has to be combined with other
+/// draws or when more than one sample is needed: this overload restarts the stream every call,
+/// so the same `seed` always yields the same sample.
+/// @tparam Type The data type of the array elements.
+/// @param[in, out] result_array The array the drawn indices are written to.
+/// @param[in] top The size of the population to draw from.
+/// @param[in] seed The seed of the one-shot engine.
+/// @param[in] method The rng engine type. Defaults to `default_engine_type_internal`.
+template <typename Type>
+void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
+                                  std::int64_t top,
+                                  std::int64_t seed,
+                                  engine_type_internal method = default_engine_type_internal) {
+    host_engine eng_(seed, method);
+    partial_fisher_yates_shuffle(result_array, top, eng_);
 }
 
 } // namespace oneapi::dal::backend::primitives
