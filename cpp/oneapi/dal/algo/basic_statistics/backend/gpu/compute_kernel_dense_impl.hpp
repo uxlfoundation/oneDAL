@@ -54,15 +54,18 @@ private:
     template <bool use_weights>
     std::tuple<local_result_t, sycl::event> compute_single_pass(
         const pr::ndview<Float, 2>& data,
+        sycl::usm::alloc data_alloc_kind,
         const pr::ndview<Float, 2>& weights = {});
     template <bool use_weights>
     std::tuple<local_result_t, sycl::event> compute_by_blocks(
         const pr::ndview<Float, 2>& data,
+        sycl::usm::alloc data_alloc_kind,
         std::int64_t row_block_count,
         const pr::ndview<Float, 2>& weights = {});
     std::tuple<local_result_t, sycl::event> merge_blocks(local_buffer_list_t&& ndbuf,
                                                          std::int64_t column_count,
                                                          std::int64_t block_count,
+                                                         sycl::usm::alloc result_alloc_kind,
                                                          const bk::event_vector& deps = {});
 
     std::tuple<local_result_t, sycl::event> finalize(local_result_t&& ndres,
@@ -73,6 +76,7 @@ private:
     result_t get_result(const descriptor_t& desc,
                         const local_result_t& ndres,
                         std::int64_t column_count,
+                        alloc_kind result_alloc_kind,
                         const bk::event_vector& deps = {});
 
     sycl::queue q_;

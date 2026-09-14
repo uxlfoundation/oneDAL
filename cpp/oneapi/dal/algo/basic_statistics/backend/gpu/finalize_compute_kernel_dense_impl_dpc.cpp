@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "oneapi/dal/algo/basic_statistics/backend/gpu/common_impl.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/finalize_compute_kernel.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/finalize_compute_kernel_dense_impl.hpp"
 
@@ -36,7 +37,7 @@ using alloc = sycl::usm::alloc;
 
 using bk::context_gpu;
 using task_t = task::compute;
-using input_t = partial_compute_result<task_t>;
+using partial_result_t = partial_compute_result<task_t>;
 using result_t = compute_result<task_t>;
 using descriptor_t = detail::descriptor_base<task::compute>;
 
@@ -45,7 +46,7 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 /// @tparam Float  Floating-point type used to perform computations
 ///
 /// @param[in]  q             The SYCL queue
-/// @param[in]  sums          The allreuced input partial sums
+/// @param[in]  sums          The allreuced partial sums
 /// @param[in]  sums2         The allreuced partial sums squared
 /// @param[in]  sums2cent     The local partial sums squared centered. These sums are
 ///                           centered across local node and will be recalculated for all ranks
@@ -126,22 +127,24 @@ auto compute_all_metrics(sycl::queue& q,
 /// @tparam Float Floating-point type used to perform computations
 ///
 /// @param[in]  desc  The descriptor of the algorithm
-/// @param[in]  input The partial_compute_result class with partial sums and xtx matrix
+/// @param[in]  partial_result The partial_compute_result class with partial sums and xtx matrix
 ///
 /// @return The compute_result object, which contains functions to get covariance/correlation matrix or means.
 template <typename Float>
-result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
-                                                               const input_t& input) {
+result_t finalize_compute_kernel_dense_impl<Float>::operator()(
+    const descriptor_t& desc,
+    const partial_result_t& partial_result) {
     result_t res;
     auto local_desc = get_desc_to_compute<Float>(desc);
     const auto res_op_partial = local_desc.get_result_options();
     auto column_count = 0;
+    alloc_kind result_alloc_kind = partial_result.get_alloc_kind();
 
     if (res_op_partial.test(result_options::min)) {
-        column_count = input.get_partial_min().get_column_count();
+        column_count = partial_result.get_partial_min().get_column_count();
     }
     if (res_op_partial.test(result_options::sum)) {
-        column_count = input.get_partial_sum().get_column_count();
+        column_count = partial_result.get_partial_sum().get_column_count();
     }
 
     ONEDAL_ASSERT(column_count > 0);
@@ -150,7 +153,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
     const auto res_op = desc.get_result_options();
     res.set_result_options(desc.get_result_options());
 
-    const auto nobs_nd = pr::table2ndarray_1d<Float>(q, input.get_partial_n_rows());
+    const auto nobs_nd = pr::table2ndarray_1d<Float>(q, partial_result.get_partial_n_rows());
 
     auto rows_count_global = nobs_nd.get_data()[0];
     auto is_distributed = (comm_.get_rank_count() > 1);
@@ -161,37 +164,45 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
         }
     }
     if (res_op.test(result_options::min)) {
-        ONEDAL_ASSERT(input.get_partial_min().get_column_count() == column_count);
-        const auto min =
-            pr::table2ndarray_1d<Float>(q, input.get_partial_min(), sycl::usm::alloc::device);
+        ONEDAL_ASSERT(partial_result.get_partial_min().get_column_count() == column_count);
+        const auto min = pr::table2ndarray_1d<Float>(q,
+                                                     partial_result.get_partial_min(),
+                                                     sycl::usm::alloc::device);
 
         if (is_distributed) {
             comm_.allreduce(min.flatten(q, {}), spmd::reduce_op::min).wait();
         }
-        res.set_min(homogen_table::wrap(min.flatten(q, {}), 1, column_count));
+        res.set_min(homogen_table::wrap(flatten_result_array(q, min, result_alloc_kind, {}),
+                                        1,
+                                        column_count));
     }
 
     if (res_op.test(result_options::max)) {
-        ONEDAL_ASSERT(input.get_partial_max().get_column_count() == column_count);
-        const auto max =
-            pr::table2ndarray_1d<Float>(q, input.get_partial_max(), sycl::usm::alloc::device);
+        ONEDAL_ASSERT(partial_result.get_partial_max().get_column_count() == column_count);
+        const auto max = pr::table2ndarray_1d<Float>(q,
+                                                     partial_result.get_partial_max(),
+                                                     sycl::usm::alloc::device);
 
         {
             comm_.allreduce(max.flatten(q, {}), spmd::reduce_op::max).wait();
         }
-        res.set_max(homogen_table::wrap(max.flatten(q, {}), 1, column_count));
+        res.set_max(homogen_table::wrap(flatten_result_array(q, max, result_alloc_kind, {}),
+                                        1,
+                                        column_count));
     }
 
     if (res_op_partial.test(result_options::sum)) {
-        auto sums_nd =
-            pr::table2ndarray_1d<Float>(q, input.get_partial_sum(), sycl::usm::alloc::device);
+        auto sums_nd = pr::table2ndarray_1d<Float>(q,
+                                                   partial_result.get_partial_sum(),
+                                                   sycl::usm::alloc::device);
         auto sums2_nd = pr::table2ndarray_1d<Float>(q,
-                                                    input.get_partial_sum_squares(),
+                                                    partial_result.get_partial_sum_squares(),
                                                     sycl::usm::alloc::device);
 
-        auto sums2cent_nd = pr::table2ndarray_1d<Float>(q,
-                                                        input.get_partial_sum_squares_centered(),
-                                                        sycl::usm::alloc::device);
+        auto sums2cent_nd =
+            pr::table2ndarray_1d<Float>(q,
+                                        partial_result.get_partial_sum_squares_centered(),
+                                        sycl::usm::alloc::device);
         if (is_distributed) {
             auto sums_nd_copy =
                 pr::ndarray<Float, 1>::empty(q, { column_count }, sycl::usm::alloc::device);
@@ -239,54 +250,69 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
                                                          {});
 
         if (res_op.test(result_options::sum)) {
-            ONEDAL_ASSERT(input.get_partial_sum().get_column_count() == column_count);
-            res.set_sum(homogen_table::wrap(sums_nd.flatten(q, { update_event }), 1, column_count));
+            ONEDAL_ASSERT(partial_result.get_partial_sum().get_column_count() == column_count);
+            res.set_sum(homogen_table::wrap(
+                flatten_result_array(q, sums_nd, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::sum_squares)) {
-            ONEDAL_ASSERT(input.get_partial_sum_squares().get_column_count() == column_count);
-            res.set_sum_squares(
-                homogen_table::wrap(sums2_nd.flatten(q, { update_event }), 1, column_count));
+            ONEDAL_ASSERT(partial_result.get_partial_sum_squares().get_column_count() ==
+                          column_count);
+            res.set_sum_squares(homogen_table::wrap(
+                flatten_result_array(q, sums2_nd, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::sum_squares_centered)) {
-            ONEDAL_ASSERT(input.get_partial_sum_squares_centered().get_column_count() ==
+            ONEDAL_ASSERT(partial_result.get_partial_sum_squares_centered().get_column_count() ==
                           column_count);
-            res.set_sum_squares_centered(
-                homogen_table::wrap(sums2cent_nd.flatten(q, { update_event }), 1, column_count));
+            res.set_sum_squares_centered(homogen_table::wrap(
+                flatten_result_array(q, sums2cent_nd, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::mean)) {
             ONEDAL_ASSERT(result_means.get_dimension(0) == column_count);
-            res.set_mean(
-                homogen_table::wrap(result_means.flatten(q, { update_event }), 1, column_count));
+            res.set_mean(homogen_table::wrap(
+                flatten_result_array(q, result_means, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::second_order_raw_moment)) {
             ONEDAL_ASSERT(result_raw_moment.get_dimension(0) == column_count);
-            res.set_second_order_raw_moment(
-                homogen_table::wrap(result_raw_moment.flatten(q, { update_event }),
-                                    1,
-                                    column_count));
+            res.set_second_order_raw_moment(homogen_table::wrap(
+                flatten_result_array(q, result_raw_moment, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::variance)) {
             ONEDAL_ASSERT(result_variance.get_dimension(0) == column_count);
-            res.set_variance(
-                homogen_table::wrap(result_variance.flatten(q, { update_event }), 1, column_count));
+            res.set_variance(homogen_table::wrap(
+                flatten_result_array(q, result_variance, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::standard_deviation)) {
             ONEDAL_ASSERT(result_stddev.get_dimension(0) == column_count);
-            res.set_standard_deviation(
-                homogen_table::wrap(result_stddev.flatten(q, { update_event }), 1, column_count));
+            res.set_standard_deviation(homogen_table::wrap(
+                flatten_result_array(q, result_stddev, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
 
         if (res_op.test(result_options::variation)) {
             ONEDAL_ASSERT(result_variation.get_dimension(0) == column_count);
-            res.set_variation(homogen_table::wrap(result_variation.flatten(q, { update_event }),
-                                                  1,
-                                                  column_count));
+            res.set_variation(homogen_table::wrap(
+                flatten_result_array(q, result_variation, result_alloc_kind, { update_event }),
+                1,
+                column_count));
         }
     }
     return res;

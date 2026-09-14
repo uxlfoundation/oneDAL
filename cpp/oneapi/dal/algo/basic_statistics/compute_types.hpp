@@ -238,7 +238,10 @@ class partial_compute_result : public base {
 public:
     using task_t = Task;
 
-    partial_compute_result();
+    /// Creates a new instance of the class with the specified allocation kind.
+    /// @param alloc The allocation kind of the partial compute result.
+    /// @remark default = alloc_kind::non_usm
+    partial_compute_result(alloc_kind alloc = alloc_kind::non_usm);
 
     /// The nobs value.
     /// @remark default = table{}
@@ -293,6 +296,16 @@ public:
         set_partial_sum_squares_centered_impl(value);
         return *this;
     }
+
+    /// The allocation kind of the partial compute result.
+    /// @remark default = alloc_kind::non_usm
+    alloc_kind get_alloc_kind() const;
+
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Gets the SYCL queue associated with the partial compute result.
+    /// @remark only available when ONEDAL_DATA_PARALLEL is defined
+    std::optional<sycl::queue> get_queue() const;
+#endif
 
 protected:
     void set_partial_n_rows_impl(const table&);
