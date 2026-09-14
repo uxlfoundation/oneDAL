@@ -18,13 +18,9 @@
 
 #include <limits>
 
-#include <daal/src/externals/service_rng.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/src/algorithms/engines/engine_batch_impl.h>
-
 #include "oneapi/dal/backend/primitives/selection/row_partitioning_kernel.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows_base.hpp"
-#include "oneapi/dal/backend/primitives/rng/rnd_seq.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -43,8 +39,15 @@ class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
 
 public:
     kselect_by_rows_quick() = delete;
-    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape)
-            : rnd_seq_(queue, std::min(shape[1], max_rnd_seq_size_)) {
+    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape) {
+        // Quick select picks its pivots from a short, cyclically reused sequence of uniform
+        // values in `[0, 1)`. A fixed seed keeps the selection deterministic across runs, and
+        // the sequence is generated once here instead of per `operator()` call.
+        const std::int64_t rnd_seq_count = std::min(shape[1], max_rnd_seq_size_);
+        rnd_seq_ = ndarray<Float, 1>::empty(queue, { rnd_seq_count }, sycl::usm::alloc::shared);
+        host_engine engine(default_seed);
+        uniform<Float>(rnd_seq_count, rnd_seq_.get_mutable_data(), engine, Float(0), Float(1));
+
         data_ = ndarray<Float, 2>::empty(queue, shape, sycl::usm::alloc::device);
         indices_ = ndarray<std::int32_t, 2>::empty(queue, shape, sycl::usm::alloc::device);
     }
@@ -305,8 +308,7 @@ private:
     }
     static constexpr std::uint32_t preffered_sg_size = 16;
     static constexpr std::int64_t max_rnd_seq_size_ = 1024;
-    std::int64_t rnd_seq_size_ = max_rnd_seq_size_;
-    rnd_seq<Float> rnd_seq_;
+    ndarray<Float, 1> rnd_seq_;
     ndarray<Float, 2> data_;
     ndarray<std::int32_t, 2> indices_;
     sycl::event last_call_;
