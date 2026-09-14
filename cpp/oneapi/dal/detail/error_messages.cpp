@@ -178,9 +178,11 @@ MSG(iteration_count_lt_zero, "Iteration count is lower than zero")
 MSG(max_iteration_count_leq_zero, "Max iteration count lower than or equal to zero")
 MSG(max_iteration_count_lt_zero, "Max iteration count lower than zero")
 MSG(partial_results_alloc_kind_mismatch, "Allocation kinds of partial results tables do not match");
+MSG(results_alloc_kind_mismatch, "Allocation kinds of results tables do not match");
 MSG(weights_and_data_alloc_kind_mismatch,
     "Allocation kinds of weights and data tables do not match");
 MSG(partial_results_queues_mismatch, "Partial results queues do not match");
+MSG(results_queues_mismatch, "Results queues do not match");
 MSG(prev_partial_result_queue_mismatch,
     "Queue of the previous partial result does not match the queue of the current context");
 MSG(prev_partial_result_and_data_queues_mismatch,

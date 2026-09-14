@@ -157,6 +157,51 @@ BS_BADARG_TEST("throws if weights come from another queue than data") {
                       domain_error);
 }
 
+// The tables that are set into a partial result or a result below are the blocks of the
+// input data: only the memory they are allocated in matters for the checks, not their
+// shape or their content.
+
+BS_BADARG_TEST("throws if the tables of the partial result come from different queues") {
+    SKIP_IF(this->not_float64_friendly());
+
+    auto other_queue = this->get_other_queue();
+    partial_compute_result<> partial_result{ alloc_kind::usm_device };
+    partial_result.set_partial_min(this->get_block(0, alloc_kind::usm_device));
+
+    REQUIRE_THROWS_AS(partial_result.set_partial_max(this->get_block_on_queue(1, other_queue)),
+                      domain_error);
+}
+
+BS_BADARG_TEST("throws if a table not allocated in USM is set into a USM partial result") {
+    SKIP_IF(this->not_float64_friendly());
+
+    partial_compute_result<> partial_result{ alloc_kind::usm_device };
+
+    REQUIRE_THROWS_AS(partial_result.set_partial_min(this->get_block(0, alloc_kind::non_usm)),
+                      domain_error);
+}
+
+BS_BADARG_TEST("throws if the tables of the result come from different queues") {
+    SKIP_IF(this->not_float64_friendly());
+
+    auto other_queue = this->get_other_queue();
+    compute_result<> result;
+    result.set_result_options(result_options::min | result_options::max);
+    result.set_min(this->get_block(0, alloc_kind::usm_device));
+
+    REQUIRE_THROWS_AS(result.set_max(this->get_block_on_queue(1, other_queue)), domain_error);
+}
+
+BS_BADARG_TEST("throws if the tables of the result are allocated in USM and non-USM memory") {
+    SKIP_IF(this->not_float64_friendly());
+
+    compute_result<> result;
+    result.set_result_options(result_options::min | result_options::max);
+    result.set_min(this->get_block(0, alloc_kind::usm_device));
+
+    REQUIRE_THROWS_AS(result.set_max(this->get_block(1, alloc_kind::non_usm)), domain_error);
+}
+
 #endif
 
 } // namespace oneapi::dal::basic_statistics::test

@@ -47,6 +47,46 @@ public:
     table vart;
 
     result_option_id options;
+
+    /// The allocation kind of the tables of the result. Unlike the one of a partial
+    /// result, it is not known in advance: it is defined by the first table that is set,
+    /// and it is not set at all while the result carries no tables.
+    std::optional<alloc_kind> alloc;
+#ifdef ONEDAL_DATA_PARALLEL
+    std::optional<sycl::queue> queue;
+#endif
+
+    /// Assigns the value to one of the tables of the result
+    ///
+    /// @param[in, out] destination The table of the result to assign the value to
+    /// @param[in]      value       The table to assign to the result
+    void set_table(table& destination, const table& value) {
+        // Check allocation kind between the value and the current result. While none of
+        // the tables of the result is set, a table allocated in the memory of any kind is
+        // accepted, and it defines the kind for the rest of the tables.
+        const alloc_kind value_alloc = value.get_metadata().get_alloc_kind();
+        const bool is_value_usm = value_alloc != alloc_kind::non_usm;
+        const bool is_result_usm = alloc.value_or(value_alloc) != alloc_kind::non_usm;
+        if (is_value_usm != is_result_usm) {
+            throw domain_error(dal::detail::error_messages::results_alloc_kind_mismatch());
+        }
+#ifdef ONEDAL_DATA_PARALLEL
+        // Check queue consistency between the value and the current result
+        const auto value_queue = value.get_queue();
+        if (queue.has_value() && value_queue.has_value() && queue.value() != value_queue.value()) {
+            throw domain_error(dal::detail::error_messages::results_queues_mismatch());
+        }
+#endif
+
+        destination = value;
+
+        alloc = value_alloc;
+#ifdef ONEDAL_DATA_PARALLEL
+        if (value_queue.has_value()) {
+            queue = value_queue;
+        }
+#endif
+    }
 };
 
 template <typename Task>
@@ -72,6 +112,9 @@ public:
     table partial_sum;
     table partial_sum_squares;
     table partial_sum_squares_centered;
+    /// The allocation kind of the tables of the partial result. Unlike the one of a
+    /// result, it is known in advance: it is defined by the first block of the online
+    /// computation and is passed to the constructor.
     alloc_kind alloc;
 #ifdef ONEDAL_DATA_PARALLEL
     std::optional<sycl::queue> queue;
@@ -83,7 +126,8 @@ public:
     /// @param[in]      value       The table to assign to the partial result
     void set_table(table& destination, const table& value) {
         // Check allocation kind between the value and the current partial result
-        const bool is_value_usm = value.get_metadata().get_alloc_kind() != alloc_kind::non_usm;
+        const alloc_kind value_alloc = value.get_metadata().get_alloc_kind();
+        const bool is_value_usm = value_alloc != alloc_kind::non_usm;
         const bool is_result_usm = alloc != alloc_kind::non_usm;
         if (is_value_usm != is_result_usm) {
             throw domain_error(dal::detail::error_messages::partial_results_alloc_kind_mismatch());
@@ -269,7 +313,7 @@ void compute_result<Task>::set_min_impl(const table& value) {
     if (!get_result_options().test(result_options::min)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->min = value;
+    impl_->set_table(impl_->min, value);
 }
 
 template <typename Task>
@@ -277,7 +321,7 @@ void compute_result<Task>::set_max_impl(const table& value) {
     if (!get_result_options().test(result_options::max)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->max = value;
+    impl_->set_table(impl_->max, value);
 }
 
 template <typename Task>
@@ -285,7 +329,7 @@ void compute_result<Task>::set_sum_impl(const table& value) {
     if (!get_result_options().test(result_options::sum)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->sum = value;
+    impl_->set_table(impl_->sum, value);
 }
 
 template <typename Task>
@@ -293,7 +337,7 @@ void compute_result<Task>::set_sum_squares_impl(const table& value) {
     if (!get_result_options().test(result_options::sum_squares)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->sum2 = value;
+    impl_->set_table(impl_->sum2, value);
 }
 
 template <typename Task>
@@ -301,7 +345,7 @@ void compute_result<Task>::set_sum_squares_centered_impl(const table& value) {
     if (!get_result_options().test(result_options::sum_squares_centered)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->sum2cent = value;
+    impl_->set_table(impl_->sum2cent, value);
 }
 
 template <typename Task>
@@ -309,7 +353,7 @@ void compute_result<Task>::set_mean_impl(const table& value) {
     if (!get_result_options().test(result_options::mean)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->mean = value;
+    impl_->set_table(impl_->mean, value);
 }
 
 template <typename Task>
@@ -317,7 +361,7 @@ void compute_result<Task>::set_second_order_raw_moment_impl(const table& value) 
     if (!get_result_options().test(result_options::second_order_raw_moment)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->sorm = value;
+    impl_->set_table(impl_->sorm, value);
 }
 
 template <typename Task>
@@ -325,7 +369,7 @@ void compute_result<Task>::set_variance_impl(const table& value) {
     if (!get_result_options().test(result_options::variance)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->varc = value;
+    impl_->set_table(impl_->varc, value);
 }
 
 template <typename Task>
@@ -333,7 +377,7 @@ void compute_result<Task>::set_standard_deviation_impl(const table& value) {
     if (!get_result_options().test(result_options::standard_deviation)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->stdev = value;
+    impl_->set_table(impl_->stdev, value);
 }
 
 template <typename Task>
@@ -341,7 +385,7 @@ void compute_result<Task>::set_variation_impl(const table& value) {
     if (!get_result_options().test(result_options::variation)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
-    impl_->vart = value;
+    impl_->set_table(impl_->vart, value);
 }
 
 template <typename Task>
