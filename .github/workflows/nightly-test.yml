@@ -35,12 +35,24 @@ name: Nightly-test
 # only build a fork's commit when it carries none of the write scopes, secrets,
 # caches or on-disk credentials that make such a job a target.
 #
+# Cache access: a `workflow_run` job runs with GITHUB_REF pointing at the
+# default branch, so the `ACTIONS_RUNTIME_TOKEN` the runner injects is scoped to
+# main's cache. Read-only `permissions`, `persist-credentials: false` and the
+# absence of any cache action do not take that token away, and it is all the
+# checked-out code needs to write an entry that main-scoped caches are read from
+# on every branch — `ci.yml`'s ABI check restores such an entry into pull
+# request jobs. Nothing in these jobs uses the cache or uploads an artifact, so
+# every step that runs checked-out code blanks those variables. The artifact
+# downloads keep them because they run pinned actions, not repository code.
+#
 # CodeQL flags both checkouts under `actions/untrusted-checkout` (alerts 9 and
-# 10). The finding is accurate about the shape and does not change with any of
-# the mitigations above, because building a fork's commit is the point of these
-# jobs. Nothing beyond the mitigations should be added to appease the query; if
-# the risk is judged unacceptable instead, the fix is to stop testing fork pull
-# requests here, not to hide the checkout from the scanner.
+# 10), and the same steps under `actions/cache-poisoning/poisonable-step`. Both
+# findings are accurate about the shape and neither changes with any of the
+# mitigations above, because building a fork's commit is the point of these
+# jobs; the cache-poisoning query models no mitigation at all. Nothing beyond
+# the mitigations should be added to appease the queries; if the risk is judged
+# unacceptable instead, the fix is to stop testing fork pull requests here, not
+# to hide the checkout from the scanner.
 
 on:
   workflow_run:
@@ -176,10 +188,11 @@ jobs:
           # because such a job normally carries the base repository's write
           # scopes, secrets and default-branch cache — the "pwn request" shape.
           # None of that is present here: the permissions block above grants
-          # read only, the job references no secrets, it uses no cache action,
-          # and `persist-credentials: false` above keeps the token off disk, so
-          # building a fork's commit is no more privileged than the
-          # pull_request run that already builds it.
+          # read only, the job references no secrets, `persist-credentials:
+          # false` above keeps the token off disk, and the steps that run this
+          # checkout blank the cache-service credentials, so building a fork's
+          # commit is no more privileged than the pull_request run that already
+          # builds it.
           allow-unsafe-pr-checkout: true
       - name: Download oneDAL Linux build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -188,17 +201,41 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
           path: ./__release_lnx
+      # Every step below runs code from the checked-out commit. Each one blanks
+      # the cache-service credentials the runner injects, for the reason given
+      # in the `Cache access` note at the top of this file. Any step added after
+      # this point must carry the same block.
       - name: Install DPC++
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: .ci/env/apt.sh mkl
       - name: Install Bazelisk
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: .ci/env/bazelisk.sh
       - name: Bazel release
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: |
           source /opt/intel/oneapi/setvars.sh
           bazel build //:release --config=release-dpc --cpu=avx2
       - name: Compare make and Bazel releases
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: |
           source /opt/intel/oneapi/setvars.sh
           python dev/release_tests/compare_release_trees.py \
@@ -232,8 +269,8 @@ jobs:
           # Keep GITHUB_TOKEN out of `.git/config`, as in `bazel_lnx`.
           persist-credentials: false
           # See `bazel_lnx` for why opting out of checkout's fork guard is safe
-          # in a job that holds no write scope, no secrets, no cache and no
-          # persisted credentials.
+          # in a job that holds no write scope, no secrets, no persisted
+          # credentials and no cache access in the steps that run this checkout.
           allow-unsafe-pr-checkout: true
       - name: Download oneDAL Windows build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -248,18 +285,32 @@ jobs:
           name: intel_oneapi_basekit
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+      # As in `bazel_lnx`, every step below this point runs checked-out code or
+      # unpacks downloaded content, so each blanks the cache-service
+      # credentials. Any step added after this point must carry the same block.
       - name: Decompress Intel BaseKit
         shell: cmd
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: |
           tar -xvzf oneapi.tar.gz
           echo "Unzip complete"
       - name: Install Bazelisk
         shell: pwsh
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: .\.ci\env\bazelisk.ps1
       - name: Bazel release
         shell: cmd
         env:
           BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: |
           if not exist "%BAZEL_SH%" (
             echo ERROR: Required Bazel shell not found: %BAZEL_SH%
@@ -271,6 +322,10 @@ jobs:
           bazel build //:release --config=release-dpc --cpu=avx2
       - name: Compare make and Bazel releases
         shell: cmd
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: |
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
@@ -280,6 +335,10 @@ jobs:
             -CheckLevel 4
       - name: Build and run CMake example from Bazel release
         shell: cmd
+        env:
+          ACTIONS_RUNTIME_TOKEN: ""
+          ACTIONS_RESULTS_URL: ""
+          ACTIONS_CACHE_URL: ""
         run: |
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
