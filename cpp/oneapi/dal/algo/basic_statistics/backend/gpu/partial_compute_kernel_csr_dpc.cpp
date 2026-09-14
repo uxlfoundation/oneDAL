@@ -89,10 +89,24 @@ struct scaled_csr {
 ///
 /// Weighted statistics in this algorithm are plain per-row scaling of the data: the
 /// dense path multiplies every element of row `i` by `weights[i]` and keeps the plain
-/// row count as the observation count. For a CSR table that is exactly a scaling of the
-/// stored values by their row's weight, because a structural zero stays zero under
-/// scaling (`0 * w == 0`). So the weighted sparse case reduces to the unweighted one on
-/// a value-scaled copy of the table, with no change to the merge or finalize steps.
+/// row count as the observation count. Scaling the stored values reproduces that for
+/// every statistic, not only for the sums, because the batch CSR kernel this feeds
+/// computes statistics of the *dense* interpretation of the table: it counts the stored
+/// entries per column and, where a column has fewer of them than there are rows, folds
+/// the missing entries in as literal zeros (`fmin(cur_min, 0)` / `fmax(cur_max, 0)` and
+/// the `(row_count - cur_row_count) * mean^2` term for `sum2_cent`, see
+/// `compute_kernel_csr_impl_dpc.cpp`). Each such zero stands for a `0` in some row `i`,
+/// and `weights[i] * 0 == 0`, so it is exactly what weighting that row would have
+/// produced; each stored value `v` in row `i` becomes `weights[i] * v`, which is again
+/// exactly what weighting that row would have produced. The kernel therefore reduces
+/// over the same multiset of numbers as the dense weighted path, so extrema, sums and
+/// centered sums all agree, negative weights included, and the merge and finalize steps
+/// need no change.
+///
+/// This is one `O(nnz)` pass on top of the kernel's own, which is what makes it a
+/// two-pass formulation on this backend. Folding the weights into the reduction instead
+/// is left to the follow-up PR agreed in review, since it also needs the DAAL-side
+/// weighted `fastCSR` kernel that the CPU backend lacks.
 template <typename Float>
 inline scaled_csr<Float> scale_csr_by_weights(sycl::queue& q,
                                               const csr_table& csr,

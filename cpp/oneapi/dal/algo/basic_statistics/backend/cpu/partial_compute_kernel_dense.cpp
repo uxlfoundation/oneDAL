@@ -70,23 +70,31 @@ using daal_lom_online_dense_kernel_t =
 /// Apply per-row weights to a CSR table.
 ///
 /// Weighting in this algorithm is defined as plain per-row scaling of the data:
-/// `apply_weights` multiplies every element of row `i` by `weights[i]` and the
-/// observation count stays the plain row count. On a CSR table that is exactly a
-/// scaling of the stored values by their row's weight, because a structural zero stays
-/// zero under scaling (`0 * w == 0`), so the sparsity pattern is unchanged and the
-/// index arrays are shared with the input rather than copied. This holds for every
-/// statistic including `min` and `max`: the weighted dense matrix and the value-scaled
-/// CSR matrix are the same matrix, implicit zeros included, so the extrema agree by
-/// construction (a negative weight flips a row's sign in both alike). The weighted
-/// sparse case therefore reduces to the unweighted one, with no change to the merge or
-/// finalize steps.
+/// `apply_weights` multiplies every element of row `i` by `weights[i]`, and the
+/// observation count stays the plain row count.
 ///
-/// Cost is one streaming pass over the stored values, independent of how many
-/// statistics were requested. The DAAL kernel behind it makes at least one pass over
-/// the same values for any non-empty `result_options` and computes a whole estimate
-/// group at a time, so this never changes the asymptotic cost of a `partial_compute`
-/// call, not even when a single statistic is asked for. The scaling itself is threaded
-/// and dispatched per CPU ISA, see `apply_weights_csr`.
+/// Scaling only the stored values reproduces that exactly, and not just for the sums.
+/// The `fastCSR` kernel reads its input through `NumericTable::getBlockOfRows`, and
+/// `CSRNumericTable` implements that by densifying the block into an `nrows x ncols`
+/// buffer with the implicit zeros written out as real zeros (see `getTBlock` in
+/// `csr_numeric_table.h`). So the kernel never sees a sparse matrix at all: it sees
+/// `densify(scale(csr, w))`, while the dense weighted path hands it
+/// `apply_weights(densify(csr), w)`. Those two buffers are equal element for element,
+/// because a stored value becomes `w[i] * v` in both and a structural zero becomes
+/// `0 == w[i] * 0` in both. Equal inputs to the same kernel give equal outputs, so
+/// every statistic agrees -- `min` and `max` over the implicit zeros included, and with
+/// negative weights, which flip a row's sign identically on both sides.
+///
+/// Because the pattern is unchanged, the index arrays are shared with the input rather
+/// than copied; only `values` needs a new buffer.
+///
+/// Cost is one `O(nnz)` streaming pass over the stored values, threaded and dispatched
+/// per CPU ISA (see `apply_weights_csr`). The densification the kernel then performs is
+/// itself `O(nrows * ncols) >= O(nnz)` and happens for any non-empty `result_options`,
+/// so on this backend the added pass cannot dominate. On the GPU backend, whose sparse
+/// kernels are genuinely sparse, it is a second `O(nnz)` pass over the values; folding
+/// the weights into the reduction instead needs a weighted `fastCSR` kernel that does
+/// not exist in DAAL yet, and is left to the follow-up PR agreed in review.
 template <typename Float>
 inline csr_table scale_csr_by_weights(const context_cpu& ctx,
                                       const table& data,

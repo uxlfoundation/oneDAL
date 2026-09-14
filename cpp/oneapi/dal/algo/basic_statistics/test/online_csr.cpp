@@ -252,16 +252,19 @@ public:
     /// weights lines up row-for-row with block `i` of the data.
     void online_csr_weighted_checks(const te::csr_table_builder<>& builder,
                                     bs::result_option_id compute_mode,
-                                    std::int64_t n_blocks) {
-        CAPTURE(n_blocks, compute_mode);
+                                    std::int64_t n_blocks,
+                                    double weight_min = 0.2,
+                                    double weight_max = 3.0) {
+        CAPTURE(n_blocks, compute_mode, weight_min, weight_max);
         const auto desc = descriptor_t{}.set_result_options(compute_mode);
         const auto full_csr = builder.build_csr_table(this->get_policy());
         const auto dense_ref = builder.build_dense_table(this->get_policy());
         const auto row_count = full_csr.get_row_count();
 
         // Weights on both sides of 1 so that a path ignoring them cannot pass.
-        const auto weights_df =
-            te::dataframe_builder{ row_count, 1 }.fill_uniform(0.2, 3.0, 4242).build();
+        const auto weights_df = te::dataframe_builder{ row_count, 1 }
+                                    .fill_uniform(weight_min, weight_max, 4242)
+                                    .build();
         const table weights =
             weights_df.get_table(this->get_policy(), this->get_homogen_table_id());
 
@@ -348,6 +351,30 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
     const std::int64_t n_blocks = GENERATE(1, 3);
 
     this->online_csr_weighted_checks(data, compute_mode, n_blocks);
+}
+
+/// Weights that straddle zero, checked on the `min | max` mask specifically. A negative
+/// weight flips the sign of its row's contribution, so it moves entries from the maximum
+/// of a column to the minimum and back. Only a path that really folds the weights into
+/// the values -- implicit zeros and all -- reproduces the dense weighted extrema here.
+/// Restricted to `min | max` on purpose: mixed-sign weights drive column means towards
+/// zero, and `variation = stddev / mean` is not meaningfully comparable there.
+TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
+                     "basic_statistics online CSR flow with sign-changing weights",
+                     "[basic_statistics][integration][online]",
+                     online_csr_types) {
+    SKIP_IF(this->not_float64_friendly());
+    const float nnz_fraction = 0.05;
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    const auto data =
+        GENERATE_COPY(te::csr_table_builder(20, 10, nnz_fraction, this->data_indexing_),
+                      te::csr_table_builder(100, 20, nnz_fraction, this->data_indexing_));
+    SKIP_IF(this->not_cpu_friendly(data));
+
+    const bs::result_option_id compute_mode = result_options::min | result_options::max;
+    const std::int64_t n_blocks = GENERATE(1, 3);
+
+    this->online_csr_weighted_checks(data, compute_mode, n_blocks, -2.5, 2.5);
 }
 
 } // namespace oneapi::dal::basic_statistics::test
