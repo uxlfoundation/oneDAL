@@ -17,9 +17,11 @@
 
 #include <algorithm>
 #include <daal/include/services/daal_defines.h>
+#include <daal/src/services/service_defines.h>
 
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/detail/threading.hpp"
 
 #include "oneapi/dal/backend/dispatcher.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -65,6 +67,29 @@ std::int64_t propose_block_size(const context_cpu& ctx, const std::int64_t row_c
     return block_size;
 }
 
+/// Proposes the number of rows in the data block used in variance-covariance matrix computations on CPU.
+///
+/// @tparam Float   The type of elements that is used in computations in covariance algorithm.
+///                 The :literal:`Float` type should be at least :expr:`float` or :expr:`double`.
+///
+/// @param[in] ctx       Context that stores the information about the available CPU extensions
+///                      and available data communication mechanisms, parallel or distributed.
+/// @param[in] row_count Number of rows in the input dataset.
+///
+/// @return Number of rows in the data block used in variance-covariance matrix computations on CPU.
+template <typename Float>
+std::int64_t propose_block_size(const context_cpu& ctx, const std::int64_t row_count,
+                                std::int64_t column_count) {
+    /// The constants are defined as the values that show the best performance results
+    /// in the series of performance measurements with the varying block sizes and dataset sizes.
+    if (!daal_check_is_intel_cpu())
+        return 140;
+    const auto threads = oneapi::dal::detail::threader_get_max_threads();
+    const double h1 = 0.5 * l2_per_thread() / (column_count * sizeof(Float));
+    const double h2 = double(row_count) / threads;     // >= 1 block per thread
+    return pow2_floor(std::clamp(std::min(h1, h2), 64.0, 8192.0));
+}
+
 std::int64_t propose_max_cols_batched(const context_cpu& ctx, const std::int64_t row_count) {
     return 4096;
 }
@@ -87,8 +112,9 @@ struct compute_parameters_cpu<Float, method::dense, Task> {
         const auto& x = input.get_data();
 
         const auto row_count = x.get_row_count();
+        const auto column_count = x.get_column_count();
 
-        const auto block = propose_block_size<Float>(ctx, row_count);
+        const auto block = propose_block_size<Float>(ctx, row_count, column_count);
         const auto max_cols_batched = propose_max_cols_batched(ctx, row_count);
         const auto small_rows_threshold = propose_small_rows_threshold(ctx, row_count);
         const auto small_rows_max_cols_batched =
