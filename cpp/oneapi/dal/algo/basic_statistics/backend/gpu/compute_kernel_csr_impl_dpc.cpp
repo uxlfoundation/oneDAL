@@ -126,9 +126,9 @@ sycl::event compute_kernel_csr_impl<Float>::finalize_for_distr(
 }
 
 template <typename Float>
-result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
-                                                    const descriptor_t& desc,
-                                                    const input_t& input) {
+std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_kernel_csr_impl<Float>::compute_stats(
+    const bk::context_gpu& ctx,
+    const input_t& input) {
     auto queue = ctx.get_queue();
     const auto table = input.get_data();
     ONEDAL_ASSERT(table.get_kind() == csr_table::kind());
@@ -137,7 +137,6 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
     const bool distr_mode = comm.get_rank_count() > 1;
     const auto column_count = csr_tdata.get_column_count();
     const auto row_count = csr_tdata.get_row_count();
-    auto result_options = desc.get_result_options();
     const auto nonzero_count = csr_tdata.get_non_zero_count();
     auto [csr_data, column_indices, row_offsets] =
         csr_accessor<const Float>(csr_tdata).pull(queue,
@@ -373,7 +372,16 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
     if (distr_mode) {
         second_merge_event = finalize_for_distr(queue, comm, result_data, input, { merge_event });
     }
-    return get_result(queue, result_data, result_options, { second_merge_event });
+    return std::make_tuple(result_data, second_merge_event);
+}
+
+template <typename Float>
+result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
+                                                    const descriptor_t& desc,
+                                                    const input_t& input) {
+    auto queue = ctx.get_queue();
+    auto [result_data, compute_event] = compute_stats(ctx, input);
+    return get_result(queue, result_data, desc.get_result_options(), { compute_event });
 }
 
 template class compute_kernel_csr_impl<float>;

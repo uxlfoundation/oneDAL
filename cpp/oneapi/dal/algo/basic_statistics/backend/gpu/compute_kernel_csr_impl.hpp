@@ -23,6 +23,8 @@
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/backend/communicator.hpp"
 
+#include <tuple>
+
 #ifdef ONEDAL_DATA_PARALLEL
 
 namespace oneapi::dal::basic_statistics::backend {
@@ -44,6 +46,22 @@ class compute_kernel_csr_impl {
 
 public:
     result_t operator()(const bk::context_gpu& ctx, const descriptor_t& desc, const input_t& input);
+
+    /// Compute the per-column statistics of a CSR table and hand them back where the
+    /// kernels wrote them, in device memory.
+    ///
+    /// Callers that consume the statistics on the device -- the online `partial_compute`
+    /// -- use this rather than `operator()`, whose `compute_result` carries host copies of
+    /// every requested statistic (see `get_result_table`). Merging those into a partial
+    /// result would pull each statistic to the host and push it straight back for
+    /// `O(column_count)` of arithmetic.
+    ///
+    /// The returned array is `num_data_blocks * res_opt_count_` by `column_count`. The
+    /// merged statistics are the first `res_opt_count_` rows, row `stat::<name>` holding
+    /// the values of that statistic; the remaining rows are per-data-block scratch. The
+    /// returned event covers the last kernel that writes the array.
+    std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_stats(const bk::context_gpu& ctx,
+                                                                 const input_t& input);
 
 private:
     // Number of different basic statistics

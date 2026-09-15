@@ -38,13 +38,6 @@ void apply_weights(const pr::ndview<Float, 1>& weights, pr::ndview<Float, 2>& sa
 
 /// Scale the stored values of a CSR matrix by their row's weight, out of place.
 ///
-/// Weighting in this algorithm is plain per-row scaling of the data, see
-/// `apply_weights`. On a CSR matrix that is a scaling of the stored values alone,
-/// because a structural zero stays zero under scaling (`0 * w == 0`), so the sparsity
-/// pattern of the input is carried over unchanged and only `values` needs a new buffer.
-/// See `scale_csr_by_weights` in `partial_compute_kernel_dense.cpp` for why this is
-/// equivalent to weighting the densified matrix for every statistic, extrema included.
-///
 /// @param weights      Row weights, one per row of the matrix.
 /// @param row_offsets  CSR row offsets, `weights.get_count() + 1` of them.
 /// @param offset_shift 1 for one-based indexing, 0 for zero-based.
