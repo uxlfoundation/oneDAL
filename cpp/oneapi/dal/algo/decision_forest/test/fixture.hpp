@@ -19,8 +19,10 @@
 
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 #include <list>
+#include <vector>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
 
@@ -123,6 +125,66 @@ public:
             1 - required_accuracy) };
 
         return std::make_tuple(data, data_test, class_count, checker_list);
+    }
+
+    // `sample_weights[i]` is interpreted as the multiplicity of the training row `i`: weighting a
+    // row by an integer `w` must be equivalent to repeating that row `w` times in the input data.
+    // The two helpers below build both sides of that equivalence from a single description of the
+    // data, so a test can train on each and compare the results.
+    //
+    // `weights` holds one integer multiplicity per row of `train_arr`, which is laid out as
+    // `row_count` rows of `column_count` values with the responses in the last column (no weights
+    // column, unlike the `*_weighted_base` dataframes).
+
+    // Data with the weights appended as an extra trailing column, to be trained via
+    // `train_weighted_base_checks`.
+    te::dataframe make_weighted_dataframe(const float* train_arr,
+                                          const std::vector<std::int64_t>& weights,
+                                          std::int64_t column_count) {
+        const std::int64_t row_count = static_cast<std::int64_t>(weights.size());
+        const std::int64_t out_column_count = column_count + 1;
+
+        auto out_array = array<float>::empty(row_count * out_column_count);
+        float* out = out_array.get_mutable_data();
+
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            // Responses must stay in the last column before the weights, so the feature and
+            // response values are copied verbatim and the weight is appended.
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                out[i * out_column_count + j] = train_arr[i * column_count + j];
+            }
+            out[i * out_column_count + column_count] = static_cast<float>(weights[i]);
+        }
+
+        return te::dataframe{ out_array, row_count, out_column_count };
+    }
+
+    // Data with each row physically repeated `weights[i]` times and no weights column, to be
+    // trained via `train_base_checks`.
+    te::dataframe make_expanded_dataframe(const float* train_arr,
+                                          const std::vector<std::int64_t>& weights,
+                                          std::int64_t column_count) {
+        const std::int64_t row_count = static_cast<std::int64_t>(weights.size());
+
+        std::int64_t out_row_count = 0;
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            out_row_count += weights[i];
+        }
+
+        auto out_array = array<float>::empty(out_row_count * column_count);
+        float* out = out_array.get_mutable_data();
+
+        std::int64_t out_row = 0;
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            for (std::int64_t rep = 0; rep < weights[i]; ++rep) {
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    out[out_row * column_count + j] = train_arr[i * column_count + j];
+                }
+                ++out_row;
+            }
+        }
+
+        return te::dataframe{ out_array, out_row_count, column_count };
     }
 
     auto get_cls_dataframe(std::string ds_name, double required_accuracy) {
