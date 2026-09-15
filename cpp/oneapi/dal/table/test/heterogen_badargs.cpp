@@ -23,6 +23,10 @@
 
 namespace oneapi::dal::test {
 
+TEST("Dummy. Needed to produce non-empty test suite on host") {}
+
+#ifdef ONEDAL_DATA_PARALLEL
+
 TEST("Cannot create heterogen table from columns with different alloc kinds") {
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
@@ -31,7 +35,6 @@ TEST("Cannot create heterogen table from columns with different alloc kinds") {
     constexpr auto shared = sycl::usm::alloc::shared;
 
     auto arr0 = array<float>::empty(q, 8l, shared);
-    std::iota(begin(arr0), end(arr0), float(0));
     chunked_array<float> chunked0(arr0);
 
     auto arr1 = array<std::int32_t>::empty(q, 8l, device);
@@ -39,5 +42,22 @@ TEST("Cannot create heterogen table from columns with different alloc kinds") {
 
     REQUIRE_THROWS_AS(heterogen_table::wrap(chunked0, chunked1), invalid_argument);
 }
+
+TEST("Cannot build chunked array from chunks with different alloc kinds") {
+    DECLARE_TEST_POLICY(policy);
+    auto& q = policy.get_queue();
+
+    constexpr auto device = sycl::usm::alloc::device;
+    constexpr auto shared = sycl::usm::alloc::shared;
+
+    auto arr0 = array<float>::empty(q, 4l, shared);
+    auto arr1 = array<float>::empty(q, 4l, device);
+
+    chunked_array<float> chunked(2);
+    chunked.set_chunk(0l, arr0);
+    REQUIRE_THROWS_AS(chunked.set_chunk(1l, arr1), invalid_argument);
+}
+
+#endif
 
 } // namespace oneapi::dal::test

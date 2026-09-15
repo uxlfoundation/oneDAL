@@ -123,23 +123,6 @@ jobs:
       - name: daal/cpp/mpi samples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            # Azure GHA runners expose a MANA paravirtualized NIC that Intel
-            # MPI's OFI autoselect probes as a verbs/PSM3 device; the UD QP
-            # open fails with EINVAL and MPI_Init aborts before the sample
-            # runs. Probe libfabric directly: if the verbs provider cannot
-            # enumerate a usable endpoint on this host, pin the fabric to
-            # shared memory and force libfabric onto tcp so autoselect never
-            # touches verbs/PSM3. On real IB / OPA hardware fi_info succeeds
-            # and the override is skipped, preserving the native fabric.
-            if [ ! -z "$(command -v fi_info)" ]; then
-                if ! fi_info -p verbs > /dev/null 2>&1; then
-                    echo "libfabric verbs provider unavailable; pinning MPI fabric to shm/tcp"
-                    export I_MPI_FABRICS=shm
-                    export FI_PROVIDER=tcp
-                fi
-            else
-                echo "warning: fi_info not on PATH after setvars.sh; cannot probe verbs provider" >&2
-            fi
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
@@ -162,7 +145,17 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          # `gh cache list` reports every scope in the repository, not only the
+          # ones this run can restore from. Without `--ref` the newest matching
+          # key can belong to another pull request's scope, which `cache/restore`
+          # cannot read: the restore then misses silently and the check below
+          # compares against an empty directory. Only main-scoped entries are
+          # both restorable here and produced by a build of main.
+          CACHE_KEY=$(gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key')
+          if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
+            echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
+            exit 1
+          fi
           echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
           echo $CACHE_KEY
         env:
@@ -172,6 +165,9 @@ jobs:
         with:
           path: ./__release_lnx_main
           key: ${{ steps.get-cache-key.outputs.key }}
+          # A miss must stop the job. Continuing leaves `__release_lnx_main`
+          # empty, and an ABI comparison against nothing reports success.
+          fail-on-cache-miss: true
       - name: Download oneDAL build artifact
         uses: actions/download-artifact@v8
         with:
