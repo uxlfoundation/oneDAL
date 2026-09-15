@@ -207,6 +207,8 @@ is available as an alternative to the manual setup.
 
         _Note: You **must use clang-cl from LLVM** to build oneDAL on Windows\*-arm64. MSVC is not supported for this platform. Ensure clang-cl is installed and properly configured in your PATH before proceeding with the build.
 
+        _Note: The Arm64 reference backend does not currently have a non-SVE code path, so the build always targets `armv8-a+sve` and `REQCPU=sve` is the only supported value on this platform. As a result, the resulting binaries require a CPU with SVE support to run (this applies to both Windows\*-arm64 and Linux\*-aarch64 builds). There is currently no way to build oneDAL with only a Neon/non-SVE baseline.
+
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
 
             make -f makefile oneapi_c PLAT=win32e COMPILER=vc OPTFLAG=O2
