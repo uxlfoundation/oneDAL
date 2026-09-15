@@ -37,9 +37,9 @@ function install_dpcpp {
     # `intel-oneapi-compiler-dpcpp-cpp=<version>` literally in this file
     # (.github/renovate.json), so moving it into a variable would stop it being tracked,
     # and repeating it in a second function is how the two drift apart.
-    local extra=(intel-oneapi-runtime-libs)
-    if [ "${1:-}" == "--compiler-only" ]; then
-        extra=()
+    local extra=()
+    if [ "${1:-}" != "--compiler-only" ]; then
+        extra=(intel-oneapi-runtime-libs)
     fi
     sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.1-325 "${extra[@]}"
 }

@@ -25,7 +25,12 @@ startup_args=()
 if [[ -n "${BAZEL_OUTPUT_USER_ROOT:-}" ]]; then
     startup_args+=("--output_user_root=${BAZEL_OUTPUT_USER_ROOT}")
 fi
-common_args=(--code_coverage=true)
+# `-coverage` makes the compiler write a `.gcno` notes file next to the object
+# file, and that file is not a declared output of the compile action, so a
+# sandboxed action discards it on teardown and no gcov/lcov report can be built
+# from the run. Local execution keeps it in the output tree; this is asserted
+# below and documented in dev/bazel/README.md.
+common_args=(--code_coverage=true --spawn_strategy=local "$@")
 if [[ -n "${BAZEL_DISK_CACHE:-}" ]]; then
     common_args+=("--disk_cache=${BAZEL_DISK_CACHE}")
 fi
@@ -33,6 +38,14 @@ work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
 "${bazel_cmd}" "${startup_args[@]}" build //cpp/daal:core_static "${common_args[@]}"
+
+# The instrumentation is only usable if the notes files survive the build.
+output_path="$("${bazel_cmd}" "${startup_args[@]}" info output_path "${common_args[@]}")"
+if [[ -z "$(find -L "${output_path}" -name '*.gcno' -print -quit)" ]]; then
+    echo "ERROR: no .gcno notes files under ${output_path} after a coverage build" >&2
+    exit 1
+fi
+echo "coverage notes files (.gcno) are present in the output tree"
 
 "${bazel_cmd}" "${startup_args[@]}" aquery 'mnemonic("CppCompile", deps(//cpp/daal:core_static))' \
     "${common_args[@]}" --output=jsonproto >"${work}/core_actions.json"

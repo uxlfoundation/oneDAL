@@ -280,6 +280,19 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
     DPC++ coverage driver option so instrumented objects resolve the coverage
     runtime.
 
+    Producing a gcov/lcov report additionally needs local action execution:
+
+            bazel test //cpp/daal/...:all --code_coverage=true --spawn_strategy=local
+
+    The `.gcno` notes file the compiler writes beside each object file is not a
+    declared output of the compile action, and the `.gcda` counters a test writes
+    go to the object file's build-time path, so a sandboxed action discards both
+    when it tears down. With `--spawn_strategy=local` the notes files stay in
+    `bazel-out/<config>/bin/_objs/<module>/` and the counters land under the test's
+    runfiles; copy the `.gcda` files next to their `.gcno` and run `gcov` there.
+    This flag is about Make option parity, not about Bazel's own
+    `--collect_code_coverage` machinery, which is unrelated and unchanged.
+
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
     _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, those steps will not be necessary as Intel(R) VTune(TM) Profiler will already have been set up._

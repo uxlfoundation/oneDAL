@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-# DPC++ coverage is intentionally a nightly check: it validates the special
+# DPC++ coverage is intentionally an on-demand check: it validates the special
 # linker driver option without making public PR CI install the full runtime.
 set -euo pipefail
 
@@ -24,7 +24,7 @@ startup_args=()
 if [[ -n "${BAZEL_OUTPUT_USER_ROOT:-}" ]]; then
     startup_args+=("--output_user_root=${BAZEL_OUTPUT_USER_ROOT}")
 fi
-common_args=(--code_coverage=true --release_dpc=true)
+common_args=(--code_coverage=true --release_dpc=true "$@")
 if [[ -n "${BAZEL_DISK_CACHE:-}" ]]; then
     common_args+=("--disk_cache=${BAZEL_DISK_CACHE}")
 fi
@@ -54,4 +54,31 @@ for action in dpc_links:
 print("table_dpc link action carries -Xscoverage")
 PY
 
-echo "code-coverage DPC++ nightly smoke check passed"
+# The released library is the link that matters most, but building all of oneAPI
+# DAL with DPC++ is far more than a smoke needs. `aquery` answers the same
+# question from analysis alone, without executing the link.
+released="//cpp/oneapi/dal:dynamic_dpc"
+"${bazel_cmd}" "${startup_args[@]}" aquery "${released}" \
+    "${common_args[@]}" --output=jsonproto >"${work}/released_actions.json"
+
+python3 - "${work}/released_actions.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as f:
+    actions = json.load(f).get("actions", [])
+
+links = [a for a in actions
+         if a.get("mnemonic", "").startswith("CppLink")
+         and any("libonedal_dpc" in arg for arg in a.get("arguments", []))]
+if not links:
+    sys.exit("ERROR: no libonedal_dpc link action found for //cpp/oneapi/dal:dynamic_dpc; "
+             "mnemonics seen: {}".format(sorted({a.get("mnemonic") for a in actions})))
+for action in links:
+    if "-Xscoverage" not in action.get("arguments", []):
+        sys.exit("ERROR: -Xscoverage missing from the released DPC++ library link: {}"
+                 .format(action.get("arguments", [])))
+print("dynamic_dpc link action carries -Xscoverage")
+PY
+
+echo "code-coverage DPC++ smoke checks passed"
