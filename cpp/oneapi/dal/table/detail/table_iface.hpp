@@ -56,6 +56,28 @@ public:
     virtual pull_csr_block_iface* get_pull_csr_block_iface() = 0;
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
+/// Provides access to the SYCL queue the table data is associated with.
+///
+/// This is deliberately kept out of `table_iface` rather than added as another
+/// virtual method of it. `table_iface` is a base of `homogen_table_iface`,
+/// `heterogen_table_iface` and `csr_table_iface`, whose methods are dispatched
+/// from the inline code of released headers (see `get_original_data` in
+/// `homogen_utils.hpp`). Extending `table_iface` shifts the vtable slots of those
+/// derived interfaces and breaks binary backward compatibility with the binaries
+/// that were compiled against the previous version of the header. Implementing
+/// this interface adds a base to the table implementations only, and those are
+/// not part of the released headers.
+///
+/// Table implementations are not required to implement this interface: the ones
+/// that do not are reported as not associated with a queue.
+class queue_provider_iface {
+public:
+    virtual ~queue_provider_iface() = default;
+    virtual std::optional<sycl::queue> get_queue() const = 0;
+};
+#endif // ONEDAL_DATA_PARALLEL
+
 class homogen_table_iface : public table_iface {
 public:
     virtual dal::array<byte_t> get_data() const = 0;
@@ -307,6 +329,9 @@ public:
 
 using v1::table_iface;
 using v1::generic_table_template;
+#ifdef ONEDAL_DATA_PARALLEL
+using v1::queue_provider_iface;
+#endif // ONEDAL_DATA_PARALLEL
 using v1::homogen_table_iface;
 using v1::homogen_table_template;
 using v1::heterogen_table_iface;

@@ -20,6 +20,9 @@ ARCH_DIR_ONEDAL = arm
 _OS := lnx
 _IA := arm
 
+COMPILERs = gnu clang
+COMPILER ?= gnu
+
 include dev/make/function_definitions/arm.mk
 
 # Used as $(eval $(call set_daal_rt_deps))

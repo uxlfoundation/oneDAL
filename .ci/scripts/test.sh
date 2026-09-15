@@ -148,6 +148,24 @@ else
     exit 1
 fi
 
+if [[ "${interface}" == *"/mpi" ]]; then
+    # The MPI samples launch every rank on the runner itself, so shared memory
+    # and tcp are the only fabrics they need. Some cloud runners (e.g. Azure
+    # VMs with a MANA paravirtualized NIC) nevertheless expose a device under
+    # /sys/class/infiniband, which Intel MPI's OFI autoselect picks up as a
+    # PSM3/verbs device. Opening the endpoint then fails ("Unable to create UD
+    # QP on mana_0") and MPI_Init aborts before the sample runs. Probing with
+    # fi_info does not distinguish those hosts: the provider enumerates fine
+    # and only the endpoint open fails. So pin libfabric to tcp instead, unless
+    # the caller has already selected a provider explicitly.
+    if [ -z "${FI_PROVIDER:-}" ]; then
+        export FI_PROVIDER=tcp
+        echo "Pinning libfabric to FI_PROVIDER=${FI_PROVIDER} for MPI ${TEST_KIND}"
+    else
+        echo "Keeping caller-provided FI_PROVIDER=${FI_PROVIDER} for MPI ${TEST_KIND}"
+    fi
+fi
+
 if [[ -n "${jobs}" ]]; then
     make_op="-j${jobs}"
 elif [ "$(uname)" == "Linux" ]; then
