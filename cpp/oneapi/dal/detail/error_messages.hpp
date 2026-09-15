@@ -85,6 +85,7 @@ public:
     MSG(unsupported_data_layout);
     MSG(unsupported_data_type);
     MSG(unsupported_device_type);
+    MSG(sve_not_supported);
     MSG(unsupported_feature_type);
     MSG(unsupported_usm_alloc);
     MSG(page_size_leq_zero);
@@ -105,6 +106,8 @@ public:
     /* Tables */
     MSG(alloc_kinds_of_chunks_do_not_match);
     MSG(alloc_kinds_of_arrays_do_not_match);
+    MSG(queues_of_arrays_do_not_match);
+    MSG(queues_of_chunks_do_not_match);
     MSG(allocated_memory_size_is_not_enough_to_copy_data);
     MSG(cannot_get_data_type_from_empty_metadata);
     MSG(cannot_get_feature_type_from_empty_metadata);
