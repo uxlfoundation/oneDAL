@@ -728,18 +728,25 @@ jobs:
       Write-Host "ABI major from ${configBzl}: $major"
       # The full set of debug-runtime artifacts, matching what the Make build
       # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
+      # The DPC++ library is included because `--release_dpc` defaults to True
+      # (dev/bazel/config/config.tpl.BUILD) and this job does not turn it off,
+      # so //:release ships `onedal_dpc` through `:release_dpc_windows` in
+      # //BUILD. Only the dynamic flavour: Windows gets no static DPC library
+      # and no parameters libraries at all, so `onedal_dpcd.lib` and
+      # `onedal_parameters_dpcd.lib` are absent by design, in both CRT flavours.
       $expectedLib = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
                        "onedal_cored_dll.lib", "onedal_cored_dll.$major.lib",
-                       "onedald_dll.lib", "onedald_dll.$major.lib")
+                       "onedald_dll.lib", "onedald_dll.$major.lib",
+                       "onedal_dpcd_dll.lib", "onedal_dpcd_dll.$major.lib")
       $expectedRedist = @("onedal_cored.$major.dll", "onedal_threadd.$major.dll",
-                          "onedald.$major.dll")
+                          "onedald.$major.dll", "onedal_dpcd.$major.dll")
       $missing = @()
       $missing += $expectedLib | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
       $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
       # The import library for the threading DLL is deliberately not shipped,
       # mirroring the Make package (release.bzl _THREAD_STEMS).
       $unexpected = @("onedal_core.lib", "onedal_thread.lib", "onedal.lib",
-                      "onedal_threadd_dll.lib") |
+                      "onedal_dpc_dll.lib", "onedal_threadd_dll.lib") |
           Where-Object { Test-Path (Join-Path $libDir $_) }
       if ($missing -or $unexpected) {
           Write-Host "lib\intel64:"
