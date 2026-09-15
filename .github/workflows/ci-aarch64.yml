@@ -219,6 +219,21 @@ jobs:
           source .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
 
+      - name: Checkout oneTBB
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: uxlfoundation/oneTBB
+          ref: ${{ env.TBB_VERSION }}
+          path: ${{ github.workspace }}/__work/onetbb-src
+
+      # The `@tbb` Bazel repo defaults to an x86_64 prebuilt wheel, so an
+      # aarch64 TBB has to be supplied through TBBROOT. Only the tests need it:
+      # the libraries themselves resolve TBB at runtime, not at link time.
+      - name: Build oneTBB
+        run: |
+          .ci/env/tbb.sh
+          echo "TBBROOT=$(pwd)/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
       - name: Build OpenBLAS
         run: |
           .ci/env/openblas.sh
@@ -246,6 +261,46 @@ jobs:
             file "${lib}"
             readelf -h "${lib}" | grep -q "AArch64" || { echo "::error::${lib} is not an AArch64 ELF"; exit 1; }
           done
+
+      # Real workloads, not just a link check: the examples are built against
+      # the SVE libraries produced above and executed on this native AArch64
+      # runner, mirroring the `daal-cpp-examples-thread-dev` /
+      # `cpp-examples-thread-dev` steps of the x86 Bazel lane.
+      - name: daal/cpp examples
+        run: |
+          set -euo pipefail
+          # enable_thread_pinning hangs on AArch64; the Make lanes above work
+          # around the same example with a `timeout`. (CMake's ref-backend
+          # brownboost exclusion has no Bazel counterpart — the boosting
+          # examples are not wired into the Bazel build.)
+          excludes=(
+            -//examples/daal/cpp:enable_thread_pinning_host
+          )
+          if [ "${{ matrix.rng }}" = "openrng" ]; then
+            # Same ref+OpenRNG exclusions as the CMake EXCLUDE_LIST: these
+            # examples depend on MKL RNG behaviour.
+            excludes+=(
+              -//examples/daal/cpp:df_cls_default_dense_batch_host
+              -//examples/daal/cpp:df_cls_default_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_cls_hist_dense_batch_host
+              -//examples/daal/cpp:df_cls_hist_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_reg_default_dense_batch_host
+              -//examples/daal/cpp:df_reg_hist_dense_batch_host
+            )
+          fi
+          bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            --test_link_mode=dev \
+            --test_thread_mode=par \
+            -- //examples/daal/cpp:all "${excludes[@]}"
+
+      - name: oneapi/cpp examples
+        run: |
+          bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            --test_link_mode=dev \
+            --test_thread_mode=par \
+            //examples/oneapi/cpp:all
 
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when

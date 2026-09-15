@@ -20,18 +20,18 @@ BAZELISK_VERSION=v1.29.0
 # Bazelisk itself always runs on the CI *exec* host (even when the build
 # cross-compiles to another target arch, e.g. the riscv64 job below), so pick
 # the asset matching the host running this script, not the oneDAL target arch.
-case "$(uname -m)" in
-  x86_64|amd64)
-    BAZELISK_ASSET=bazelisk-linux-amd64
-    ;;
-  aarch64|arm64)
-    BAZELISK_ASSET=bazelisk-linux-arm64
-    ;;
+host_arch=$(uname -m)
+
+case "${host_arch}" in
+  x86_64|amd64)  arch=amd64 ;;
+  aarch64|arm64) arch=arm64 ;;
   *)
-    echo ":error: Unsupported host architecture for Bazelisk: $(uname -m)" >&2
+    echo ":error: Unsupported host architecture for Bazelisk: ${host_arch}" >&2
     exit 1
     ;;
 esac
+
+BAZELISK_ASSET="bazelisk-linux-${arch}"
 
 # collect information about the bazelisk release
 BAZELISK_JSON=$(wget -qO- \

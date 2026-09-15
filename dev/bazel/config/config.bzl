@@ -89,7 +89,6 @@ CpuInfo = provider(
 )
 
 _ISA_EXTENSIONS_X86 = ["sse2", "avx2", "avx512"]
-_ISA_EXTENSIONS_X86_MODERN = ["sse2", "avx2", "avx512"]
 _ISA_EXTENSIONS_ARM = ["sve"]
 _ISA_EXTENSIONS_RISCV64 = ["rv64"]
 _ISA_EXTENSION_AUTO_DEFAULT = "avx2"
@@ -124,10 +123,11 @@ def _check_cpu_extensions(extensions, allowed):
 def _cpu_info_impl(ctx):
     allowed = _get_allowed_isa_extensions(ctx)
     is_x86 = allowed == _ISA_EXTENSIONS_X86
-    if ctx.build_setting_value == "all":
-        isa_extensions = _ISA_EXTENSIONS_X86_MODERN if is_x86 else allowed
-    elif ctx.build_setting_value == "modern":
-        isa_extensions = _ISA_EXTENSIONS_X86_MODERN if is_x86 else allowed
+    # `all` and `modern` select the same set: they diverged only while `sse42`
+    # was built (`all` included it, `modern` did not), and that variant was
+    # removed in #3487, leaving x86 with sse2/avx2/avx512 either way.
+    if ctx.build_setting_value in ["all", "modern"]:
+        isa_extensions = allowed
     elif ctx.build_setting_value == "auto":
         # `auto_cpu` reflects the exec host's CPU probe, which is only
         # meaningful for a native x86 build. ARM/RISC-V always builds their
