@@ -107,7 +107,7 @@ function (add_examples examples_paths)
         # Detect CPU architecture
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
             set(CPU_ARCHITECTURE "intel_intel64")
-        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
             set(CPU_ARCHITECTURE "arm_aarch64")
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
             set(CPU_ARCHITECTURE "riscv64_riscv64")
