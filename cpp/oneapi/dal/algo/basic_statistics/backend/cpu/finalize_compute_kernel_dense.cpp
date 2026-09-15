@@ -31,7 +31,6 @@
 namespace oneapi::dal::basic_statistics::backend {
 
 using dal::backend::context_cpu;
-using method_t = method::dense;
 using task_t = task::compute;
 using input_t = compute_input<task_t>;
 using result_t = compute_result<task_t>;
@@ -41,11 +40,23 @@ namespace daal_lom = daal::algorithms::low_order_moments;
 namespace interop = dal::backend::interop;
 namespace bk = dal::backend;
 
-template <typename Float, daal::internal::CpuType Cpu>
-using daal_lom_online_kernel_t =
-    daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
+template <daal_lom::Method Value>
+using daal_method_constant = std::integral_constant<daal_lom::Method, Value>;
 
-template <typename Float, typename Task>
+template <typename Method>
+struct to_daal_method;
+
+template <>
+struct to_daal_method<method::dense> : daal_method_constant<daal_lom::defaultDense> {};
+
+template <>
+struct to_daal_method<method::sparse> : daal_method_constant<daal_lom::fastCSR> {};
+
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
+using daal_lom_online_kernel_t =
+    daal_lom::internal::LowOrderMomentsOnlineKernel<Float, to_daal_method<Method>::value, Cpu>;
+
+template <typename Float, typename Method, typename Task>
 static compute_result<Task> call_daal_kernel_finalize_compute(
     const context_cpu& ctx,
     const descriptor_t& desc,
@@ -80,19 +91,22 @@ static compute_result<Task> call_daal_kernel_finalize_compute(
     auto daal_stdev = interop::allocate_daal_homogen_table<Float>(1, column_count);
     auto daal_variation = interop::allocate_daal_homogen_table<Float>(1, column_count);
     if (result_ids == daal_lom::estimatesMeanVariance || result_ids == daal_lom::estimatesAll) {
-        interop::status_to_exception(
-            interop::call_daal_kernel_finalize_compute<Float, daal_lom_online_kernel_t>(
-                ctx,
-                daal_partial_obs.get(),
-                daal_partial_sums.get(),
-                daal_partial_sum_squares.get(),
-                daal_partial_sum_squares_centered.get(),
-                daal_means.get(),
-                daal_rawt.get(),
-                daal_variance.get(),
-                daal_stdev.get(),
-                daal_variation.get(),
-                &daal_parameter));
+        interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            return daal_lom_online_kernel_t<
+                       Float,
+                       oneapi::dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value,
+                       Method>()
+                .finalizeCompute(daal_partial_obs.get(),
+                                 daal_partial_sums.get(),
+                                 daal_partial_sum_squares.get(),
+                                 daal_partial_sum_squares_centered.get(),
+                                 daal_means.get(),
+                                 daal_rawt.get(),
+                                 daal_variance.get(),
+                                 daal_stdev.get(),
+                                 daal_variation.get(),
+                                 &daal_parameter);
+        }));
     }
     compute_result<Task> res;
     res.set_result_options(desc.get_result_options());
@@ -132,24 +146,26 @@ static compute_result<Task> call_daal_kernel_finalize_compute(
     return res;
 }
 
-template <typename Float, typename Task>
+template <typename Float, typename Method, typename Task>
 static compute_result<Task> finalize_compute(const context_cpu& ctx,
                                              const descriptor_t& desc,
                                              const partial_compute_result<Task>& input) {
-    return call_daal_kernel_finalize_compute<Float, Task>(ctx, desc, input);
+    return call_daal_kernel_finalize_compute<Float, Method, Task>(ctx, desc, input);
 }
 
-template <typename Float>
-struct finalize_compute_kernel_cpu<Float, method_t, task_t> {
+template <typename Float, typename Method>
+struct finalize_compute_kernel_cpu<Float, Method, task_t> {
     compute_result<task::compute> operator()(
         const context_cpu& ctx,
         const descriptor_t& desc,
         const partial_compute_result<task::compute>& input) const {
-        return finalize_compute<Float, task::compute>(ctx, desc, input);
+        return finalize_compute<Float, Method, task::compute>(ctx, desc, input);
     }
 };
 
-template struct finalize_compute_kernel_cpu<float, method_t, task_t>;
-template struct finalize_compute_kernel_cpu<double, method_t, task_t>;
+template struct finalize_compute_kernel_cpu<float, method::dense, task_t>;
+template struct finalize_compute_kernel_cpu<double, method::dense, task_t>;
+template struct finalize_compute_kernel_cpu<float, method::sparse, task_t>;
+template struct finalize_compute_kernel_cpu<double, method::sparse, task_t>;
 
 } // namespace oneapi::dal::basic_statistics::backend
