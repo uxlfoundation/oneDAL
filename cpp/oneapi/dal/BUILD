@@ -129,15 +129,27 @@ dal_dynamic_lib(
     #     Make links the same archives via
     #     `daaldep.math_backend.shared_link_deps`.
     #
-    # Linux is unchanged: libonedal.so resolves both DAAL and MKL symbols at
-    # runtime via DT_NEEDED libonedal_core.so, so the host build needs neither
-    # extra tag. Only the non-Windows DPC branch keeps the historical
-    # ["dal", "daal", "mkl_embed"] set; the Windows one is narrowed below. The
+    # Linux needs "mkl_embed" for the same reason: the CPU RNG kernels in
+    # libonedal.so reference MKL entry points directly, and the copy of MKL
+    # inside libonedal_core.so cannot satisfy them -- it is localized by
+    # --exclude-libs, so `viRngUniform` is a local `t` symbol there and never
+    # reaches the dynamic symbol table. Without the tag libonedal.so ships
+    # with `viRngUniform` undefined and no DT_NEEDED that can provide it, so
+    # linking it into a consumer fails unless that consumer happens to put MKL
+    # on its own link line. Make has always linked the same archives into
+    # libonedal.so via `daaldep.math_backend.shared_link_deps` (its
+    # libonedal.so carries `t viRngUniform` too), so this matches the Make
+    # release rather than changing behaviour. Exports are unaffected: the
+    # archives are searched only for unresolved references, and the dynamic
+    # symbol table has the same 3588 entries with and without the tag.
+    #
+    # The non-Windows DPC branch below already carries the historical
+    # ["dal", "daal", "mkl_embed"] set; the Windows one is narrowed. The
     # Windows DPC link takes MKL through the SYCL import libraries
     # `@mkl//:mkl_dpc` contributes, again matching Make.
     lib_tags = select({
         "@platforms//os:windows": ["dal", "mkl_embed"],
-        "//conditions:default": ["dal"],
+        "//conditions:default": ["dal", "mkl_embed"],
     }) + parameters_lib_disabled(["parameters"]),
     # `BUILD_PARAMETERS_LIB` defaults to `no` on Windows, so Make folds the DPC
     # parameter objects straight into onedal_dpc.dll

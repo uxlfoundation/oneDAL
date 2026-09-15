@@ -60,20 +60,26 @@ if ! grep -Fq 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' "${config}"; then
     exit 1
 fi
 
-# Report the oneMKL references left undefined in the folded host library. The
-# generated CMake config does not add a oneMKL dependency for this layout: the
-# folded libonedal.so links the static oneMKL archives itself, exactly as the
-# separate-layout build does, and hides them with --exclude-libs. A non-zero
-# count here is the signal that this no longer holds and that consumer metadata
-# has to carry oneMKL again. Reported rather than asserted so that the dynamic
-# consumer build below, not a symbol count, is what fails.
+# The generated CMake config adds no oneMKL dependency for a dynamic non-DPC
+# consumer, in either layout: libonedal.so links the static oneMKL archives
+# itself and hides them with --exclude-libs. Assert that it really does, because
+# the alternative is an undefined reference the consumer link below can only
+# resolve by accident.
+#
+# The pattern has to cover the oneMKL naming families, not just the string
+# `mkl`: the reference that actually escaped was `viRngUniform`, a VSL RNG entry
+# point whose name contains no `mkl` at all.
 if command -v nm >/dev/null 2>&1; then
     host_lib="${DALROOT}/lib/intel64/libonedal.so"
     if [[ -e "${host_lib}" ]]; then
-        echo "Undefined oneMKL references in $(basename "${host_lib}"):"
-        # `grep -c` exits 1 on a count of zero, which is a valid answer here.
-        nm -D --undefined-only "${host_lib}" 2>/dev/null \
-            | grep -ciE 'mkl|_dgemm|_sgemm' || true
+        # `grep` exits 1 when nothing matches, which is the expected outcome.
+        undefined_mkl="$(nm -D --undefined-only "${host_lib}" 2>/dev/null \
+            | grep -iE 'mkl|Rng|vsl|vml|cblas|lapack|gemm' || true)"
+        if [[ -n "${undefined_mkl}" ]]; then
+            echo "libonedal.so leaves oneMKL references undefined:" >&2
+            echo "${undefined_mkl}" >&2
+            exit 1
+        fi
     fi
 fi
 
