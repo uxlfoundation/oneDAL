@@ -60,13 +60,13 @@ if ! grep -Fq 'set(ONEDAL_USE_PARAMETERS_LIBRARY "no")' "${config}"; then
     exit 1
 fi
 
-# Report, rather than assert, the oneMKL references left undefined in the folded
-# host library. The generated CMake config sets MKL_DEPENDENCY for this layout on
-# non-Windows, and this is the evidence for whether that is necessary: these are
-# the symbols a consumer of the folded package has to resolve itself and a
-# consumer of the separate package resolves through libonedal_parameters. Not an
-# assertion, because the correct count is whatever the layout implies, not a
-# number this test should pin.
+# Report the oneMKL references left undefined in the folded host library. The
+# generated CMake config does not add a oneMKL dependency for this layout: the
+# folded libonedal.so links the static oneMKL archives itself, exactly as the
+# separate-layout build does, and hides them with --exclude-libs. A non-zero
+# count here is the signal that this no longer holds and that consumer metadata
+# has to carry oneMKL again. Reported rather than asserted so that the dynamic
+# consumer build below, not a symbol count, is what fails.
 if command -v nm >/dev/null 2>&1; then
     host_lib="${DALROOT}/lib/intel64/libonedal.so"
     if [[ -e "${host_lib}" ]]; then

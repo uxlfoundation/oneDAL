@@ -695,6 +695,11 @@ For example:
 bazel build //:release --build_parameters_lib=no
 ```
 
+Consumer metadata follows the produced package: the generated CMake config and
+pkg-config files name `onedal_parameters` only in the separate layout, and the
+prebuilt-release repository rule decides which parameter libraries to expose by
+looking for them in the package rather than by reading its metadata.
+
 CI uses `dev/bazel/tests/parameters_layout_test.sh` for analysis-only checks of
 configured release outputs, host/DPC dependency separation, folded-target
 rejection, and Windows value validation. It does not build DPC binaries.
@@ -707,7 +712,7 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 
 | Make option                    | Bazel equivalent                                             | Notes                                                                      |
 |--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
-| `BUILD_PARAMETERS_LIB=yes|no` | `--build_parameters_lib=yes|no`                              | `auto` preserves non-Windows `yes` / Windows `no` defaults; Windows `yes` is unsupported |
+| `BUILD_PARAMETERS_LIB=yes\|no` | `--build_parameters_lib=yes\|no`                             | `auto` keeps non-Windows `yes` / Windows `no`; Windows `yes` unsupported   |
 | `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |

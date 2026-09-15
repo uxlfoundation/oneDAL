@@ -28,7 +28,14 @@
         #error Unknown CPU architecture
     #endif
 
-    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    // `libonedal_parameters` exists only when oneDAL is built with
+    // `BUILD_PARAMETERS_LIB=yes`; the folded layout links the parameter objects
+    // into `libonedal` itself. `makefile` passes `-DPARAMETERS_LIB` to match.
+    #ifdef PARAMETERS_LIB
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    #else
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread)
+    #endif
 
     // The static libraries are built against the ILP64 oneMKL interface, the
     // dynamic ones against LP64 (see `dev/make/deps.mkl.mk`).
@@ -48,7 +55,11 @@
     #define LIBDIR lib
 
     #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -ldl
-    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    #ifdef PARAMETERS_LIB
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    #else
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread)
+    #endif
 
     #ifdef STATIC
         #define SUFFIX a

@@ -186,13 +186,22 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
         )
     else:
         suffix = "a" if ctx.attr.static else "so"
-        if ctx.attr.parameters_lib:
-            mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
-            onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0} ${{libdir}}/libonedal_parameters.{0} -lmkl_core -lmkl_{1} -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl".format(suffix, mkl_interface)
-        else:
-            mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
-            openmp = " -lgomp" if not ctx.attr.static else ""
-            onedal_libs = "-Wl,--start-group ${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0} -lmkl_{1} -lmkl_tbb_thread -lmkl_core -Wl,--end-group -ltbb -ltbbmalloc -lpthread{2} -ldl".format(suffix, mkl_interface, openmp)
+
+        # Keep this in sync with the `__linux__` branch of
+        # `deploy/pkg-config/pkg-config.cpp`: the static libraries are built
+        # against the ILP64 oneMKL interface, the dynamic ones against LP64, and
+        # `libonedal_parameters` exists only in the separate layout. oneDAL
+        # links the oneMKL TBB threading layer, so no OpenMP runtime belongs on
+        # a host consumer's link line.
+        mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
+        # Single braces: this is a `format()` argument, inserted verbatim.
+        parameters_lib = " ${libdir}/libonedal_parameters." + suffix if ctx.attr.parameters_lib else ""
+        onedal_libs = ("${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0}{2}" +
+                       " -lmkl_core -lmkl_{1} -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl").format(
+            suffix,
+            mkl_interface,
+            parameters_lib,
+        )
         ctx.actions.write(
             output = out,
             content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
