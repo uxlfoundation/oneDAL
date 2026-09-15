@@ -384,7 +384,8 @@ def absorb_dereferenced_links(make_root, make_files, bazel_root, bazel_links, li
     bazel_root = Path(bazel_root).resolve()
 
     errors = 0
-    absorbed = []
+    absorbed = 0
+    reconciled = []
     mismatches = []
     missing_targets = []
 
@@ -397,21 +398,23 @@ def absorb_dereferenced_links(make_root, make_files, bazel_root, bazel_links, li
         target_path = rel(target, bazel_root)
         make_files.discard(path)
         del bazel_links[path]
-        absorbed.append((path, target_path))
+        absorbed += 1
         make_target = make_root / target_path
-        # The target itself stays in both collections, so level 1 already reports
-        # a Bazel link whose target the Make release does not ship at all. Say it
-        # here too: without the target there is nothing left to check the
-        # flattened copy against, so the entry is not reconciled, only dropped.
         if not make_target.is_file():
             missing_targets.append((path, target_path))
         elif not filecmp.cmp(make_root / path, make_target, shallow=False):
             mismatches.append((path, target_path))
-
-    flagged = {path for path, _ in mismatches + missing_targets}
+        else:
+            reconciled.append((path, target_path))
 
     if missing_targets:
-        errors += len(missing_targets)
+        # Not counted as an error: the target itself stays in both collections,
+        # so level 1 already reports it as a Bazel-only file. Counting it again
+        # here would charge one absent `libonedal.so.4.0` three times, once per
+        # alias plus once for the target. Printed because it explains why those
+        # aliases are missing from the reconciled list -- without the target
+        # there is nothing left to check the flattened copy against, so the
+        # entry is not reconciled, only dropped.
         print(f"Dereferenced symlink targets missing from Make: {len(missing_targets)}")
         for path, target_path in missing_targets[:limit]:
             print(f"  ! {path}: Bazel {path} -> {target_path}, absent from Make release")
@@ -419,17 +422,14 @@ def absorb_dereferenced_links(make_root, make_files, bazel_root, bazel_links, li
         errors += len(mismatches)
         print(f"Dereferenced symlink content mismatches: {len(mismatches)}")
         for path, target_path in mismatches[:limit]:
-            print(f"  ! {path}: Make file differs from Make {target_path}"
-                  f" (Bazel {path} -> {target_path})")
+            print(f"  ! {path}: Make file differs from Make {target_path}")
     if absorbed:
-        reconciled = [path for path, _ in absorbed if path not in flagged]
         print(
             f"Make files reconciled against Bazel symlinks: {len(reconciled)}"
-            f" of {len(absorbed)} (--make-symlinks-dereferenced)"
+            f" of {absorbed} (--make-symlinks-dereferenced)"
         )
-        for path, target_path in absorbed[:limit]:
-            if path not in flagged:
-                print(f"  ~ {path} -> {target_path}")
+        for path, target_path in reconciled[:limit]:
+            print(f"  ~ {path} -> {target_path}")
     return errors
 
 
