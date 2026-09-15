@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/partial_compute_kernel.hpp"
+#include "oneapi/dal/algo/basic_statistics/backend/gpu/partial_compute_kernel_misc.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/compute_kernel_csr_impl.hpp"
 
@@ -46,29 +47,6 @@ using input_t = partial_compute_input<task_t>;
 using result_t = partial_compute_result<task_t>;
 using descriptor_t = detail::descriptor_base<task_t>;
 
-/// Which groups of partial statistics the requested `result_options` need carried across
-/// `partial_compute` calls. mean / variance / stddev / etc. are derived only at finalize
-/// time, so they only require the moment partials to be accumulated.
-struct required_partials {
-    bool min_max;
-    bool moments;
-};
-
-inline required_partials get_required_partials(const descriptor_t& desc) {
-    const auto res_op = desc.get_result_options();
-    const bool min_max = res_op.test(result_options::min) || res_op.test(result_options::max);
-    const bool moments =
-        res_op.test(result_options::sum) || res_op.test(result_options::sum_squares) ||
-        res_op.test(result_options::sum_squares_centered) || res_op.test(result_options::mean) ||
-        res_op.test(result_options::variance) ||
-        res_op.test(result_options::second_order_raw_moment) ||
-        res_op.test(result_options::standard_deviation) || res_op.test(result_options::variation);
-    // With nothing requested at all, still carry the moment partials so that the partial
-    // result stays a valid input for a later `partial_compute` or `finalize_compute` with
-    // a wider set of result options.
-    return { min_max, moments || !min_max };
-}
-
 /// A CSR table whose values have been scaled by the per-row weights, together with the
 /// arrays that own the device memory it points at. Keep the whole aggregate alive for
 /// as long as `table` is in use.
@@ -82,26 +60,16 @@ struct scaled_csr {
 
 /// Apply per-row weights to a CSR table.
 ///
-/// Weighted statistics in this algorithm are plain per-row scaling of the data: the
-/// dense path multiplies every element of row `i` by `weights[i]` and keeps the plain
-/// row count as the observation count. Scaling the stored values reproduces that for
-/// every statistic, not only for the sums, because the batch CSR kernel this feeds
-/// computes statistics of the *dense* interpretation of the table: it counts the stored
-/// entries per column and, where a column has fewer of them than there are rows, folds
-/// the missing entries in as literal zeros (`fmin(cur_min, 0)` / `fmax(cur_max, 0)` and
-/// the `(row_count - cur_row_count) * mean^2` term for `sum2_cent`, see
-/// `compute_kernel_csr_impl_dpc.cpp`). Each such zero stands for a `0` in some row `i`,
-/// and `weights[i] * 0 == 0`, so it is exactly what weighting that row would have
-/// produced; each stored value `v` in row `i` becomes `weights[i] * v`, which is again
-/// exactly what weighting that row would have produced. The kernel therefore reduces
-/// over the same multiset of numbers as the dense weighted path, so extrema, sums and
-/// centered sums all agree, negative weights included, and the merge and finalize steps
-/// need no change.
+/// Scaling the stored values weights every statistic and not only the sums, because the
+/// batch CSR kernel folds the entries a column does not store in as literal zeros
+/// (`fmin(cur_min, 0)`, `fmax(cur_max, 0)` and the `(row_count - cur_row_count) * mean^2`
+/// term of `sum2_cent`, see `compute_kernel_csr_impl_dpc.cpp`), and `weights[i] * 0 == 0`.
+/// So the kernel reduces over exactly the numbers the dense weighted path reduces over,
+/// negative weights included.
 ///
-/// This is one `O(nnz)` pass on top of the kernel's own, which is what makes it a
-/// two-pass formulation on this backend. Folding the weights into the reduction instead
-/// is left to the follow-up PR agreed in review, since it also needs the DAAL-side
-/// weighted `fastCSR` kernel that the CPU backend lacks.
+/// Scaling is a separate `O(nnz)` pass. Folding the weights into the reduction instead
+/// needs the weighted `fastCSR` kernel the DAAL side lacks, left to the follow-up PR
+/// agreed in review.
 template <typename Float>
 inline scaled_csr<Float> scale_csr_by_weights(sycl::queue& q,
                                               const csr_table& csr,
@@ -147,96 +115,6 @@ inline scaled_csr<Float> scale_csr_by_weights(sycl::queue& q,
              std::move(row_offsets) };
 }
 
-/// Bump nobs by `row_count` and return the updated total (1-element device array).
-template <typename Float>
-auto update_partial_n_rows_results(sycl::queue& q,
-                                   const std::int64_t row_count,
-                                   const pr::ndview<Float, 1>& nobs,
-                                   const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(update_partial_n_rows_results, q);
-
-    auto result_nobs = pr::ndarray<Float, 1>::empty(q, 1, alloc::device);
-    auto result_nobs_ptr = result_nobs.get_mutable_data();
-    auto nobs_ptr = nobs.get_data();
-
-    auto ev = q.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(sycl::range<1>(1), [=](sycl::item<1>) {
-            result_nobs_ptr[0] = nobs_ptr[0] + row_count;
-        });
-    });
-    return std::make_tuple(result_nobs, ev);
-}
-
-/// Element-wise min/max merge of the previous partial min/max with the current-batch
-/// min/max computed by the GPU CSR batch kernel.
-template <typename Float>
-auto update_min_max_results(sycl::queue& q,
-                            const pr::ndview<Float, 1>& prev_min,
-                            const Float* current_min_ptr,
-                            const pr::ndview<Float, 1>& prev_max,
-                            const Float* current_max_ptr,
-                            const std::int64_t column_count,
-                            const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(update_min_max_results, q);
-
-    auto result_min = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_max = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-
-    auto result_min_ptr = result_min.get_mutable_data();
-    auto result_max_ptr = result_max.get_mutable_data();
-
-    auto prev_min_data = prev_min.get_data();
-    auto prev_max_data = prev_max.get_data();
-
-    auto ev = q.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(sycl::range<1>(column_count), [=](sycl::item<1> id) {
-            result_min_ptr[id] = sycl::fmin(current_min_ptr[id], prev_min_data[id]);
-            result_max_ptr[id] = sycl::fmax(current_max_ptr[id], prev_max_data[id]);
-        });
-    });
-    return std::make_tuple(result_min, result_max, ev);
-}
-
-/// Merge previous partial sums / sum_squares with current-batch sums / sum_squares.
-/// sum_squares_centered stored on the partial is computed via the identity
-/// `sum_squares_centered = sum_squares - sum^2 / n`; finalize will recompute it exactly.
-template <typename Float>
-auto update_partial_sums(sycl::queue& q,
-                         const pr::ndview<Float, 1>& prev_sum,
-                         const Float* current_sums_ptr,
-                         const pr::ndview<Float, 1>& prev_sum2,
-                         const Float* current_sums2_ptr,
-                         const std::int64_t column_count,
-                         const pr::ndview<Float, 1>& nobs,
-                         const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(update_partial_sums_csr, q);
-
-    auto result_sums = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2 = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2cent = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-
-    auto result_sums_ptr = result_sums.get_mutable_data();
-    auto result_sums2_ptr = result_sums2.get_mutable_data();
-    auto result_sums2cent_ptr = result_sums2cent.get_mutable_data();
-
-    auto nobs_ptr = nobs.get_data();
-    auto prev_sums_data = prev_sum.get_data();
-    auto prev_sums2_data = prev_sum2.get_data();
-
-    auto ev = q.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(sycl::range<1>(column_count), [=](sycl::item<1> id) {
-            result_sums_ptr[id] = prev_sums_data[id] + current_sums_ptr[id];
-            result_sums2_ptr[id] = prev_sums2_data[id] + current_sums2_ptr[id];
-            result_sums2cent_ptr[id] =
-                result_sums2_ptr[id] - result_sums_ptr[id] * result_sums_ptr[id] / nobs_ptr[0];
-        });
-    });
-    return std::make_tuple(result_sums, result_sums2, result_sums2cent, ev);
-}
-
 /// Copy one statistic out of the batch kernel's device result array into a partial result
 /// table of its own, without leaving the device. The copy is what keeps the partial result
 /// from pinning the whole `res_opt_count_ x num_data_blocks x column_count` scratch array
@@ -265,6 +143,8 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     ONEDAL_ASSERT(data.get_kind() == csr_table::kind());
 
     const auto needed = get_required_partials(desc);
+    const std::int64_t row_count = data.get_row_count();
+    const std::int64_t column_count = data.get_column_count();
 
     // The GPU CSR batch kernel takes no weights of its own, so fold them into the data
     // by scaling the stored values per row. `weighted` must outlive the kernel call: it
@@ -278,23 +158,17 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     }
     const table& batch_data = weights.has_data() ? static_cast<const table&>(weighted.table) : data;
 
-    // Take the batch statistics through `compute_stats` rather than through the batch
-    // kernel's `operator()`: the latter returns a `compute_result` whose tables are host
-    // copies, so merging them here would move every statistic off the device and straight
-    // back for `O(column_count)` of arithmetic, once per `partial_compute` call. Reading
-    // the kernel's own device array keeps the whole online accumulation on the device --
-    // the partial result tables are device-backed too, so no statistic touches the host
-    // between the first `partial_compute` and `finalize_compute`.
+    // `compute_stats` hands back the statistics where the kernels wrote them, in device
+    // memory. The batch kernel's `operator()` would instead return a `compute_result` of
+    // host copies, and merging those would move every statistic off the device and
+    // straight back for `O(column_count)` of arithmetic, once per `partial_compute` call.
     auto batch = compute_kernel_csr_impl<Float>{}.compute_stats(ctx, { batch_data });
     const auto batch_stats = std::get<0>(batch);
     const sycl::event batch_ev = std::get<1>(batch);
     const Float* const batch_stats_ptr = batch_stats.get_data();
     const auto batch_stat = [=](stat which) {
-        return batch_stats_ptr + which * data.get_column_count();
+        return pr::ndview<Float, 1>::wrap(batch_stats_ptr + which * column_count, column_count);
     };
-
-    const std::int64_t row_count = data.get_row_count();
-    const std::int64_t column_count = data.get_column_count();
 
     auto result = partial_compute_result();
     const auto& prev = input.get_prev();
@@ -326,7 +200,7 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
                 homogen_table::wrap(res_max.flatten(q, { mm_ev }), 1, column_count));
         }
 
-        if (needed.moments) {
+        if (needed.sums) {
             const auto prev_sum_nd =
                 pr::table2ndarray_1d<Float>(q, prev.get_partial_sum(), sycl::usm::alloc::device);
             const auto prev_sum2_nd = pr::table2ndarray_1d<Float>(q,
@@ -363,7 +237,7 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             result.set_partial_max(
                 extract_stat<Float>(q, batch_stats_ptr, stat::max, column_count, { batch_ev }));
         }
-        if (needed.moments) {
+        if (needed.sums) {
             result.set_partial_sum(
                 extract_stat<Float>(q, batch_stats_ptr, stat::sum, column_count, { batch_ev }));
             result.set_partial_sum_squares(
@@ -375,8 +249,8 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             auto sums2cent =
                 pr::ndarray<Float, 1>::empty(q, column_count, sycl::usm::alloc::device);
             auto sums2cent_ptr = sums2cent.get_mutable_data();
-            const auto* const sum_ptr = batch_stat(stat::sum);
-            const auto* const sum2_ptr = batch_stat(stat::sum2);
+            const auto* const sum_ptr = batch_stat(stat::sum).get_data();
+            const auto* const sum2_ptr = batch_stat(stat::sum2).get_data();
             const Float n = Float(row_count);
             auto ev = q.submit([&](sycl::handler& cgh) {
                 cgh.depends_on(batch_ev);

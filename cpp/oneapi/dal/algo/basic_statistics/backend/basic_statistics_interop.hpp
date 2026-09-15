@@ -30,6 +30,30 @@ namespace bk = dal::backend;
 using task_t = task::compute;
 using descriptor_t = detail::descriptor_base<task_t>;
 
+/// Which groups of partial statistics have to be accumulated across `partial_compute`
+/// calls to satisfy the result options of `desc`. min/max are carried as a pair, and the
+/// sums triplet is accumulated as a unit, because finalize derives mean, variance,
+/// standard deviation, variation and the second order raw moment from it.
+struct required_partials {
+    bool min_max;
+    bool sums;
+};
+
+inline required_partials get_required_partials(const descriptor_t& desc) {
+    const auto res_op = desc.get_result_options();
+    const bool min_max = res_op.test(result_options::min) || res_op.test(result_options::max);
+    const bool sums =
+        res_op.test(result_options::sum) || res_op.test(result_options::sum_squares) ||
+        res_op.test(result_options::sum_squares_centered) || res_op.test(result_options::mean) ||
+        res_op.test(result_options::variance) ||
+        res_op.test(result_options::second_order_raw_moment) ||
+        res_op.test(result_options::standard_deviation) || res_op.test(result_options::variation);
+    // A partial result with neither group written is useless: `finalize_compute` would read
+    // an empty table for whatever it is asked for. Fall back to the sums, which are what
+    // all but two of the result options are derived from.
+    return { min_max, sums || !min_max };
+}
+
 ///  A function that dispatches the necessary partial option results
 ///  based on the input descriptor
 ///
@@ -40,29 +64,16 @@ using descriptor_t = detail::descriptor_base<task_t>;
 /// @return The descriptor for partial part of the online alogrithm
 template <typename Float>
 inline auto get_desc_to_compute(const descriptor_t& desc) {
-    const auto res_op = desc.get_result_options();
-    const bool has_min_max = res_op.test(result_options::min) || res_op.test(result_options::max);
-    const bool has_other_stat =
-        res_op.test(result_options::mean) || res_op.test(result_options::variance) ||
-        res_op.test(result_options::second_order_raw_moment) ||
-        res_op.test(result_options::variation) || res_op.test(result_options::standard_deviation);
-    // The sums triplet is accumulated as a unit: the merge step needs all three of
-    // them, and finalize derives every remaining statistic from them.
-    const bool has_sums = res_op.test(result_options::sum) ||
-                          res_op.test(result_options::sum_squares) ||
-                          res_op.test(result_options::sum_squares_centered) || has_other_stat;
+    const auto required = get_required_partials(desc);
 
     auto local_desc =
         basic_statistics::descriptor<Float, method::dense, basic_statistics::task::compute>();
 
-    // Build the partial option set additively. Requesting min/max must never drop the
-    // sums and vice versa: whatever is left out here is never written by the init step
-    // of partial_compute, so finalize would then read an empty partial table.
     result_option_id options;
-    if (has_min_max) {
+    if (required.min_max) {
         options = options | result_options::min | result_options::max;
     }
-    if (has_sums || !has_min_max) {
+    if (required.sums) {
         options = options | result_options::sum | result_options::sum_squares |
                   result_options::sum_squares_centered;
     }
