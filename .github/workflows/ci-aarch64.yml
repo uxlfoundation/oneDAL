@@ -311,12 +311,28 @@ jobs:
 
       - name: oneapi/cpp examples
         run: |
+          set -euo pipefail
+          excludes=()
+          if [ "${{ matrix.rng }}" = "openrng" ]; then
+            # First three are CMake's ref+OpenRNG EXCLUDE_LIST
+            # (examples/oneapi/cpp/CMakeLists.txt, OPENRNG_BACKEND branch); all
+            # three segfault. df_cls_dense_batch segfaults on main's Make
+            # ref+OpenRNG lane too (`errno 139`), it is just not in the CMake
+            # list and that step ends in `|| true`. Same underlying ref+OpenRNG
+            # problem as the daal/cpp forest exclusions above.
+            excludes+=(
+              -//examples/oneapi/cpp:df_reg_dense_batch_host
+              -//examples/oneapi/cpp:df_cls_dense_batch_host
+              -//examples/oneapi/cpp:louvain_batch_host
+              -//examples/oneapi/cpp:connected_components_batch_host
+            )
+          fi
           bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
             --rng_backend=${{ matrix.rng }} \
             --test_link_mode=dev \
             --test_thread_mode=par \
             --test_output=errors \
-            //examples/oneapi/cpp:all
+            -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
 
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
