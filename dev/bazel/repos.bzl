@@ -140,6 +140,25 @@ def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
             dst_entry_path = entry_fmt
             repo_ctx.symlink(src_entry_path, dst_entry_path)
 
+def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
+    """Symlink the entries the package actually ships, skipping the rest.
+
+    Used for libraries whose presence depends on how the package was built, such
+    as the separate parameter libraries. Presence is read off the file system
+    rather than out of package metadata, so the result cannot disagree with the
+    package, and OS-specific naming needs no separate attribute: entries that do
+    not exist for the host OS are simply not there.
+    """
+    substitutions = substitutions or {}
+    mapping = mapping or {}
+    present = []
+    for entry in entries:
+        entry_fmt = utils.substitute(entry, substitutions)
+        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
+        if repo_ctx.path(src_entry_path).exists:
+            present.append(entry)
+    _create_symlinks(repo_ctx, root, present, substitutions, mapping)
+
 def _matches_glob(name, pattern):
     if "*" not in pattern:
         return name == pattern
@@ -188,9 +207,15 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     }
     substitutions["%{version_binary_major}"] = _BINARY_MAJOR
     substitutions["%{version_binary_minor}"] = _BINARY_MINOR
-
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
+    # `optional_libs` holds the libraries a package ships only in some layouts,
+    # today the separate parameter libraries. Each is symlinked when the package
+    # contains it. The BUILD template picks them up with
+    # `glob(..., allow_empty = True)`, so an absent entry is what makes a folded
+    # package resolve to a template without parameter libraries -- no template
+    # substitution and no package metadata are involved.
+    _create_optional_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping)
     repo_ctx.template(
         "BUILD",
@@ -198,7 +223,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         substitutions = substitutions,
     )
 
-def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
+def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
                              root_env_var="", fallback_root="",
                              url="", sha256="", strip_prefix="",
                              local_mapping={}, download_mapping={},
@@ -223,6 +248,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[],
             "strip_prefixes": attr.string_list(default=[]),
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
+            "optional_libs": attr.string_list(default=optional_libs),
             "bins": attr.string_list(default=bins),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),

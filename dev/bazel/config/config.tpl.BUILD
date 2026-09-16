@@ -4,6 +4,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "version_info",
     "config_flag",
     "config_bool_flag",
+    "build_parameters_lib_validation",
     "dump_config_info",
     "unsupported_config",
 )
@@ -54,6 +55,40 @@ config_setting(
     ],
 )
 
+# Make BUILD_PARAMETERS_LIB parity. "auto" means yes on every non-Windows
+# target and no on Windows. Explicit yes is rejected on Windows.
+config_flag(
+    name = "build_parameters_lib",
+    build_setting_default = "auto",
+    allowed_build_setting_values = [
+        "auto",
+        "yes",
+        "no",
+    ],
+)
+
+config_setting(
+    name = "build_parameters_lib_auto_windows",
+    flag_values = {":build_parameters_lib": "auto"},
+    constraint_values = ["@platforms//os:windows"],
+)
+
+config_setting(
+    name = "build_parameters_lib_yes_windows",
+    flag_values = {":build_parameters_lib": "yes"},
+    constraint_values = ["@platforms//os:windows"],
+)
+
+config_setting(
+    name = "release_dpc_disabled",
+    flag_values = {":release_dpc": "False"},
+)
+
+build_parameters_lib_validation(
+    name = "validate_build_parameters_lib",
+    flag = ":build_parameters_lib",
+)
+
 # Make RNG_BACKEND parity (dev/make/deps.ref.mk RNG_OPENRNG). Only meaningful
 # together with backend_config=ref; selecting "openrng" under backend_config=mkl
 # has no effect since the ref RNG shim it swaps out is unused in that case.
@@ -101,6 +136,15 @@ platform(
     constraint_values = [
         "@platforms//cpu:riscv64",
         "@platforms//os:linux",
+    ],
+)
+
+# Toolchain-free target platform used by cross-platform analysis smoke tests.
+platform(
+    name = "windows_analysis_platform",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
     ],
 )
 
@@ -236,6 +280,7 @@ dump_config_info(
     cpu_info = ":cpu",
     version_info = ":version",
     flags = [
+        ":build_parameters_lib",
         ":test_link_mode",
         ":test_thread_mode",
     ],
