@@ -20,9 +20,13 @@ openblas_repo = repos.prebuilt_libs_repo_rule(
     includes = [
         "include",
     ],
+    # oneDAL builds OpenBLAS with NO_FORTRAN=1 (see .ci/env/openblas.sh), so no
+    # libgfortran.a is produced and none is needed — Make links only
+    # libopenblas.a too (dev/make/deps.ref.mk). Listing it here created a
+    # dangling symlink in the repo, which broke any action that consumes the
+    # OpenBLAS archives, e.g. `cpp/daal/libonedal_thread.a`.
     libs = [
-            "lib/libopenblas.a", 
-            "lib/libgfortran.a", 
+            "lib/libopenblas.a",
     ],
     build_template = "@onedal//dev/bazel/deps:openblas.tpl.BUILD",
 )
