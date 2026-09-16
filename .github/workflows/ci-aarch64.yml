@@ -277,21 +277,36 @@ jobs:
             -//examples/daal/cpp:enable_thread_pinning_host
           )
           if [ "${{ matrix.rng }}" = "openrng" ]; then
-            # Same ref+OpenRNG exclusions as the CMake EXCLUDE_LIST: these
-            # examples depend on MKL RNG behaviour.
+            # Decision forest is unstable on AArch64 with ref+OpenRNG: the
+            # examples either produce MKL-RNG-specific results or crash
+            # outright. CMake's EXCLUDE_LIST (examples/daal/cpp/CMakeLists.txt,
+            # OPENRNG_BACKEND branch) drops the first four below; the Make
+            # lanes above additionally fail df_reg_*_extratrees_batch and
+            # df_reg_traverse_model with errno 139 (SIGSEGV) on main, which
+            # goes unnoticed only because those steps end in `|| true`.
+            # Whether cls or reg traverse_model is the one that crashes varies
+            # between the Make and Bazel builds, so the whole training-based
+            # forest set is excluded rather than the exact observed failures.
+            # Only df_cls_dense_batch_model_builder, which assembles a model
+            # by hand and trains nothing, is kept.
             excludes+=(
               -//examples/daal/cpp:df_cls_default_dense_batch_host
-              -//examples/daal/cpp:df_cls_default_dense_extratrees_batch_host
               -//examples/daal/cpp:df_cls_hist_dense_batch_host
-              -//examples/daal/cpp:df_cls_hist_dense_extratrees_batch_host
               -//examples/daal/cpp:df_reg_default_dense_batch_host
               -//examples/daal/cpp:df_reg_hist_dense_batch_host
+              -//examples/daal/cpp:df_cls_default_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_cls_hist_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_reg_default_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_reg_hist_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_cls_traverse_model_host
+              -//examples/daal/cpp:df_reg_traverse_model_host
             )
           fi
           bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
             --rng_backend=${{ matrix.rng }} \
             --test_link_mode=dev \
             --test_thread_mode=par \
+            --test_output=errors \
             -- //examples/daal/cpp:all "${excludes[@]}"
 
       - name: oneapi/cpp examples
@@ -300,6 +315,7 @@ jobs:
             --rng_backend=${{ matrix.rng }} \
             --test_link_mode=dev \
             --test_thread_mode=par \
+            --test_output=errors \
             //examples/oneapi/cpp:all
 
   # This job adds a check named "CI AArch64" that represents overall

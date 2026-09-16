@@ -421,7 +421,17 @@ def _dal_generate_cpu_dispatcher_impl(ctx):
         "\n" +
         ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
-        ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "")
+        ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "") +
+        # Non-x86 ISAs need their dispatch macro too, otherwise
+        # ONEDAL_IF_CPU_DISPATCH_A8SVE / _RV64 in
+        # cpp/oneapi/dal/backend/dispatcher_cpu.hpp expand to nothing and
+        # dispatch_by_cpu() falls through: on ARM straight into
+        # `throw unsupported_device{ sve_not_supported() }`, so every oneAPI
+        # algorithm fails at runtime. Mirrors
+        # dev/make/function_definitions/{arm,riscv64}.mk, which emit the same
+        # defines into _dal_cpu_dispatcher_gen.hpp.
+        ("#define ONEDAL_CPU_DISPATCH_A8SVE\n"      if sets.contains(cpus, "sve")        else "") +
+        ("#define ONEDAL_CPU_DISPATCH_RV64\n"       if sets.contains(cpus, "rv64")       else "")
     )
     kernel_defines = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.write(kernel_defines, content)
