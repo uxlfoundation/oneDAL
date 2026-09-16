@@ -193,15 +193,26 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
         # `libonedal_parameters` exists only in the separate layout. oneDAL
         # links the oneMKL TBB threading layer, so no OpenMP runtime belongs on
         # a host consumer's link line.
-        mkl_interface = "intel_ilp64" if ctx.attr.static else "intel_lp64"
-        # Single braces: this is a `format()` argument, inserted verbatim.
+        #
+        # The static package names the oneMKL *archives* with `-l:` inside a
+        # link group: `-lmkl_core` finds `libmkl_core.so`, whose internals live
+        # in the kernel libraries oneMKL dlopen's at runtime, so a static
+        # consumer linking the shared libraries gets ~9600 undefined
+        # references. The archives alone are not enough either -- they are
+        # mutually recursive -- and the oneDAL archives sit inside the same
+        # group so the link does not depend on their order.
+        # Single braces: these are `format()` arguments, inserted verbatim.
         parameters_lib = " ${libdir}/libonedal_parameters." + suffix if ctx.attr.parameters_lib else ""
-        onedal_libs = ("${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0}{2}" +
-                       " -lmkl_core -lmkl_{1} -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl").format(
+        onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0}{1}".format(
             suffix,
-            mkl_interface,
             parameters_lib,
         )
+        if ctx.attr.static:
+            onedal_libs = ("-Wl,--start-group " + onedal_libs +
+                           " -l:libmkl_intel_ilp64.a -l:libmkl_tbb_thread.a -l:libmkl_core.a" +
+                           " -Wl,--end-group -ltbb -ltbbmalloc -lpthread -ldl")
+        else:
+            onedal_libs += " -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl"
         ctx.actions.write(
             output = out,
             content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
