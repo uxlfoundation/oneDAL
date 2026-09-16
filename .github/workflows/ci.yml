@@ -97,13 +97,6 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      - name: Make onedal
-        if: matrix.runner != 'ubuntu-24.04'
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          rm -rf __work
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
-          rm -rf __work
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
@@ -112,8 +105,10 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
+      # The runner exposes no GPU, so the DPC++ examples run on the OpenCL CPU
+      # device that `apt.sh dpcpp` installs with `intel-oneapi-runtime-libs`.
+      # That is the same device the retired Azure `LinuxMakeIntel_MKL` job used.
       - name: oneapi/dpc examples
-        if: matrix.runner != 'ubuntu-24.04'
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
@@ -124,6 +119,10 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+      - name: oneapi/cpp/mpi samples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
     name: ABI Conformance(avx2)
