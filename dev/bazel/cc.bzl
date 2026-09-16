@@ -25,6 +25,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "ConfigFlagInfo",
     "CpuInfo",
     "VersionInfo",
+    "validate_build_parameters_lib",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -85,6 +86,11 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
     return cc_toolchain, feature_config
 
 
+def _is_windows(ctx):
+    return ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+
 def _coverage_options(ctx, cc_toolchain, feature_config):
     """Return Make-compatible coverage driver options for oneDAL actions."""
     if not ctx.attr._code_coverage[ConfigFlagInfo].flag:
@@ -137,9 +143,7 @@ def _cc_module_impl(ctx):
         ctx.attr.define_gcov_build and ctx.attr._code_coverage[ConfigFlagInfo].flag
     ) else []
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = _is_windows(ctx)
     compilation_context, compilation_outputs = onedal_cc_compile.compile(
         name = ctx.label.name,
         ctx = ctx,
@@ -253,14 +257,21 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
     )
 
 
+def _validate_build_parameters_lib(ctx, is_windows):
+    # The policy itself lives in config.bzl so this rule and
+    # @config//:validate_build_parameters_lib state it once. Only the two
+    # inputs are read from the rule context here.
+    value = ctx.attr._build_parameters_lib[ConfigFlagInfo].flag
+    validate_build_parameters_lib(value, is_windows)
+
+
 def _cc_static_lib_impl(ctx):
+    is_windows = _is_windows(ctx)
+    _validate_build_parameters_lib(ctx, is_windows)
     toolchain, feature_config = _init_cc_rule(ctx)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
         name = ctx.attr.lib_name,
@@ -287,6 +298,10 @@ cc_static_lib = rule(
         "deps": attr.label_list(mandatory=True),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_build_parameters_lib": attr.label(
+            default = "@config//:build_parameters_lib",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -323,9 +338,8 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 
 
 def _cc_dynamic_lib_impl(ctx):
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = _is_windows(ctx)
+    _validate_build_parameters_lib(ctx, is_windows)
     # On Linux, keep produced shared libraries free of dynamic Bazel deps.
     # Release-dynamic tests provide standalone oneDAL libs through
     # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
@@ -428,6 +442,10 @@ cc_dynamic_lib = rule(
             default = "@config//:code_coverage",
             providers = [ConfigFlagInfo],
         ),
+        "_build_parameters_lib": attr.label(
+            default = "@config//:build_parameters_lib",
+            providers = [ConfigFlagInfo],
+        ),
         "_dll_to_implib": attr.label(
             default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
             allow_single_file = True,
@@ -443,9 +461,7 @@ def _cc_exec_impl(ctx):
         return
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = _is_windows(ctx)
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
         tagged_linking_contexts, ctx.attr.lib_tags)
