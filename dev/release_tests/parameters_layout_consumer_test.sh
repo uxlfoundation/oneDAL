@@ -140,16 +140,32 @@ fi
 if [[ -n "${TBBROOT:-}" ]]; then
     export LIBRARY_PATH="${TBBROOT}/lib:${LIBRARY_PATH:-}"
 fi
-for pc in dal-dynamic-threading-host dal-static-threading-host; do
-    # Resolved in its own statement: inside `c++ ... $(pkg-config ...)` a failing
-    # substitution is not the command's own status, so `set -e` would let the
-    # compile proceed with no flags and report a wall of undefined references
-    # instead of the missing .pc.
-    pc_flags="$(pkg-config --cflags --libs "${pc}")"
-    # shellcheck disable=SC2086 # deliberate word splitting of the flag list
-    c++ "${work}/smoke.cpp" -o "${work}/pkg-${pc}" ${pc_flags}
-    LD_LIBRARY_PATH="${DALROOT}/lib/intel64:${LD_LIBRARY_PATH:-}" "${work}/pkg-${pc}"
-done
+# Only the dynamic .pc is linked. The static one is checked for its layout
+# content above but cannot be linked as it stands, in either layout and both in
+# the Make and the Bazel release: it names oneMKL with `-lmkl_core
+# -lmkl_intel_ilp64 -lmkl_tbb_thread`, and `-l` finds oneMKL's *shared*
+# libraries, whose internals live in the kernel libraries oneMKL dlopen's at
+# runtime (`libmkl_def.so`, `libmkl_avx*.so`). Linking a static consumer against
+# them fails with thousands of
+#
+#   /usr/bin/ld: .../libmkl_tbb_thread.so: undefined reference to
+#       `mkl_spblas_dcsr0ng__c__mmout_par'
+#
+# Measured: identical failure with `-lmkl_intel_lp64`, so this is not about the
+# interface layer, and identical against a separate-layout release, so it is not
+# about the parameter library. A static consumer needs the archives in a link
+# group -- `-Wl,--start-group -l:libmkl_intel_ilp64.a -l:libmkl_tbb_thread.a
+# -l:libmkl_core.a -Wl,--end-group` links and runs -- which is a change to the
+# released metadata of both build systems and belongs in its own change.
+pc=dal-dynamic-threading-host
+# Resolved in its own statement: inside `c++ ... $(pkg-config ...)` a failing
+# substitution is not the command's own status, so `set -e` would let the
+# compile proceed with no flags and report a wall of undefined references
+# instead of the missing .pc.
+pc_flags="$(pkg-config --cflags --libs "${pc}")"
+# shellcheck disable=SC2086 # deliberate word splitting of the flag list
+c++ "${work}/smoke.cpp" -o "${work}/pkg-${pc}" ${pc_flags}
+LD_LIBRARY_PATH="${DALROOT}/lib/intel64:${LD_LIBRARY_PATH:-}" "${work}/pkg-${pc}"
 
 cat >"${work}/MODULE.bazel" <<EOF
 module(name = "onedal_folded_consumer")
