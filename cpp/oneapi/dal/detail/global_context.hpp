@@ -41,6 +41,33 @@ private:
 };
 
 } // namespace v1
-using v1::global_context;
-using v1::global_context_iface;
+
+namespace v2 {
+
+/// Narrows `get_cpu_info()` down to `v2::cpu_info_iface`, which additionally exposes
+/// the sizes of the CPU caches. As with `cpu_info_iface`, the interface is derived from
+/// the v1 one instead of being modified in place, so that the layout of the
+/// `v1::global_context_iface` virtual table, and thus the library ABI, stays unchanged.
+class global_context_iface : public v1::global_context_iface {
+public:
+    const v2::cpu_info_iface& get_cpu_info() const override = 0;
+};
+
+class global_context : public global_context_iface {
+public:
+    ONEDAL_EXPORT static const global_context_iface& get_global_context();
+
+    virtual ~global_context() = default;
+
+    global_context(const global_context& ctx) = delete;
+    global_context& operator=(const global_context& ctx) = delete;
+
+private:
+    global_context() {}
+};
+
+} // namespace v2
+
+using v2::global_context;
+using v2::global_context_iface;
 } // namespace oneapi::dal::detail

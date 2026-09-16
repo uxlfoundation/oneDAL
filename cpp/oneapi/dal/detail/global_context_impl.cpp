@@ -35,7 +35,7 @@ global_context_impl::global_context_impl() {
     }
     auto cpuid = env->getCpuId();
 
-    cpu_info_ = cpu_info(from_daal_cpu_type(cpuid));
+    cpu_info_ = v2::cpu_info(from_daal_cpu_type(cpuid));
 }
 
 } // namespace v1
