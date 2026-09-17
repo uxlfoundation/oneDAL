@@ -156,6 +156,20 @@ platform(
     ],
 )
 
+# Windows on ARM64 target platform, matching Make's `PLAT=winarm`. The
+# toolchain registered for it in cc_toolchain_win.tpl.BUILD is clang-cl based
+# (icx has no AArch64 target), so pass this together with clang-cl on PATH.
+# On an ARM64 Windows host it is also the auto-detected default; naming it
+# explicitly is what makes an x86_64-host cross-compile
+# (`CC=clang-cl --target=aarch64-pc-windows-msvc`) resolve.
+platform(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
+    ],
+)
+
 # Toolchain-free target platform used by cross-platform analysis smoke tests.
 platform(
     name = "windows_analysis_platform",

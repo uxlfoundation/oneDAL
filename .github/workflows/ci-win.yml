@@ -120,4 +120,101 @@ jobs:
           set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
 
+  bazel-build:
+    name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: windows-11-vs2026-arm
+    timeout-minutes: 180
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v6
+
+      # Bazel needs a Bourne shell on Windows for shell-based actions; the
+      # nightly x86 Bazel lane uses Git bash, MSYS2 is what the Make lane above
+      # already installs on this runner image.
+      - name: Setup MSYS2
+        shell: pwsh
+        run: |
+          if (Test-Path 'C:\msys64') {
+            Remove-Item 'C:\msys64' -Recurse -Force
+          }
+          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-arm64-20260611.exe -UseBasicParsing -OutFile msys2-arm64.exe
+          .\msys2-arm64.exe install --confirm-command --root "C:\msys64"
+
+      # clang-cl / lld-link / llvm-lib are the toolchain oneDAL uses for
+      # Windows ARM64, in both build systems
+      # (dev/make/compiler_definitions/clang.ref.arm.mk and
+      # dev/bazel/toolchains/cc_toolchain_win.bzl).
+      - name: Install LLVM for Win-arm64
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-woa64.exe -UseBasicParsing -OutFile LLVM-woa64.exe
+          Start-Process -FilePath ".\LLVM-woa64.exe" -ArgumentList "/S" -Wait
+          echo "$env:ProgramFiles\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install CMake and Ninja for Win-arm64
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-arm64.msi -OutFile cmake-arm64.msi
+          Start-Process msiexec.exe -ArgumentList "/i cmake-arm64.msi /quiet /norestart" -Wait
+          echo "$env:ProgramFiles\CMake\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-winarm64.zip -OutFile ninja-winarm64.zip
+          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
+          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
+
+      - name: Install Bazelisk
+        shell: pwsh
+        run: |
+          .\.ci\env\bazelisk.ps1
+          "$(Get-Location)\bazel\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # Both `@openblas` and `@tbb` default to x86_64 packages (`@openblas` has
+      # no download at all), so an ARM64 build of each has to be supplied
+      # through OPENBLASROOT / TBBROOT. Without them the repo rules now fail
+      # outright instead of producing wrong-arch binaries (see
+      # `_check_download_arch` in dev/bazel/repos.bzl).
+      - name: Build OpenBLAS
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          .ci\env\openblas.bat || exit /b 1
+          echo OPENBLASROOT=%CD%\__deps\open_blas>> %GITHUB_ENV%
+
+      - name: Build oneTBB
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          .ci\env\tbb.bat || exit /b 1
+          echo TBBROOT=%CD%\__deps\tbb\win\tbb>> %GITHUB_ENV%
+
+      - name: bazel build core_dynamic
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\msys64\usr\bin\bash.exe'
+          # Windows ARM64 implies clang-cl either way; setting it keeps the
+          # selection explicit in the log.
+          ONEDAL_WIN_COMPILER: clang
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          set PATH=C:\msys64\usr\bin;%PATH%
+          bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+            //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+
+      # A successful link is not proof of the target arch: confirm the PE
+      # machine type, as the AArch64 Linux lane does with `readelf`
+      # (.github/workflows/ci-aarch64.yml).
+      - name: Verify ARM64 PE output
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach ($lib in @("bazel-bin\cpp\daal\onedal_core.dll",
+                             "bazel-bin\cpp\oneapi\dal\onedal.dll")) {
+            $headers = & "$env:ProgramFiles\LLVM\bin\llvm-readobj.exe" --file-headers $lib
+            $headers | Select-String "Machine"
+            if (-not ($headers | Select-String "IMAGE_FILE_MACHINE_ARM64")) {
+              Write-Error "::error::$lib is not an ARM64 PE image"
+            }
+          }
+
 

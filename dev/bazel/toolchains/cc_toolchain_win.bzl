@@ -19,6 +19,7 @@ load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
 )
 load("@onedal//dev/bazel:utils.bzl", "paths")
 load("@onedal//dev/bazel/toolchains:common.bzl",
+    "ARCH_ID_TO_PLATFORM_CPU",
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
     "get_cpu_specific_options",
@@ -90,6 +91,32 @@ def _find_tools_icx(repo_ctx):
         is_dpc_found = dpcpp_found,
     )
 
+def _find_tools_clang(repo_ctx):
+    """Upstream LLVM `clang-cl` tools, matching Make's `PLAT=winarm` toolchain
+    (`COMPILER.win.clang` / `link.dynamic.win.clang` / `link.static.win.clang`
+    in dev/make/compiler_definitions/clang.ref.arm.mk).
+
+    There is no DPC++ half: `icpx` targets x86_64 only, so a clang-cl toolchain
+    (the only option on Windows ARM64) builds the host libraries alone.
+    """
+    cc_path, _ = _find_tool(repo_ctx, "clang-cl", mandatory = True)
+    # `lld-link` ships with LLVM next to clang-cl; MSVC's `link.exe` is a valid
+    # substitute on x86_64 but has no bearing on the ARM64 lane Make covers.
+    cc_link_path, lld_found = _find_tool(repo_ctx, "lld-link", mandatory = False)
+    if not lld_found:
+        cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
+    ar_path, llvm_lib_found = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
+    if not llvm_lib_found:
+        ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
+    return struct(
+        cc = cc_path,
+        dpcc = cc_path,
+        cc_link = cc_link_path,
+        dpcc_link = cc_link_path,
+        ar = ar_path,
+        is_dpc_found = False,
+    )
+
 def _is_icx_requested(repo_ctx):
     """Return True if the Windows toolchain should use Intel oneAPI icx/icpx.
 
@@ -115,11 +142,15 @@ def _configure_cc_toolchain_win_cl(repo_ctx):
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win.tpl.BUILD"),
     )
 
-def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
-    """Custom Windows toolchain using Intel oneAPI icx/icpx."""
+def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
+    """Custom Windows toolchain for the clang-cl compiler family: Intel oneAPI
+    `icx`/`icpx` (`compiler_id = "icx"`) or upstream LLVM `clang-cl`
+    (`compiler_id = "clang"`, the only option on ARM64).
+    """
     repo_ctx.file(TEST_CPP_FILE, "int main() { return 0; }")
 
-    tools = _find_tools_icx(repo_ctx)
+    tools = (_find_tools_icx(repo_ctx) if compiler_id == "icx"
+             else _find_tools_clang(repo_ctx))
 
     # Collect system include roots. The INCLUDE env (populated by Intel
     # setvars.bat + MSVC VsDevCmd.bat) covers MSVC, Windows SDK, and oneAPI
@@ -164,14 +195,22 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
                 if repo_ctx.path(inc).exists:
                     _add_builtin_include_dir(inc)
 
-    reqs_icx = struct(
+    # Upstream clang-cl keeps its builtin headers in its own resource dir, which
+    # is not exported through INCLUDE either. Ask the compiler instead of
+    # guessing an install layout (the oneAPI package layout above does not apply).
+    if compiler_id == "clang":
+        resource_dir = repo_ctx.execute([tools.cc, "-print-resource-dir"])
+        if resource_dir.return_code == 0:
+            _add_builtin_include_dir("{}/include".format(resource_dir.stdout.strip()))
+
+    reqs_llvm = struct(
         os_id = "win",
-        compiler_id = "icx",
+        compiler_id = compiler_id,
         dpc_compiler_id = "icpx",
         compiler_version = "local",
         dpc_compiler_version = "local",
-        target_arch_id = "intel64",
-        host_arch_id = "intel64",
+        target_arch_id = reqs.target_arch_id,
+        host_arch_id = reqs.host_arch_id,
         libc_version = "local",
         libc_abi_version = "local",
         compiler_abi_version = "local",
@@ -184,11 +223,11 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
     # supplied argument (including those read from @paramfile, where flag-set
     # flags would arrive too late for clang-cl to re-parse).
     compile_flags_cc = get_default_compiler_options(
-        repo_ctx, reqs_icx, tools.cc,
+        repo_ctx, reqs_llvm, tools.cc,
         is_dpcc = False, category = "common",
     )
     compile_flags_dpcc = get_default_compiler_options(
-        repo_ctx, reqs_icx, tools.dpcc,
+        repo_ctx, reqs_llvm, tools.dpcc,
         is_dpcc = True, category = "common",
     ) if tools.is_dpc_found else []
     if tools.is_dpc_found:
@@ -198,11 +237,11 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
         )
 
     compile_flags_pedantic_cc = get_default_compiler_options(
-        repo_ctx, reqs_icx, tools.cc,
+        repo_ctx, reqs_llvm, tools.cc,
         is_dpcc = False, category = "pedantic",
     )
     compile_flags_pedantic_dpcc = get_default_compiler_options(
-        repo_ctx, reqs_icx, tools.dpcc,
+        repo_ctx, reqs_llvm, tools.dpcc,
         is_dpcc = True, category = "pedantic",
     ) if tools.is_dpc_found else []
 
@@ -222,16 +261,18 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
 
     repo_ctx.template(
         "BUILD",
-        Label("@onedal//dev/bazel/toolchains:cc_toolchain_win_icx.tpl.BUILD"),
+        Label("@onedal//dev/bazel/toolchains:cc_toolchain_win_llvm.tpl.BUILD"),
         {
-            "%{cc_toolchain_identifier}": get_toolchain_identifier(reqs_icx),
-            "%{compiler}": "icx-local",
+            "%{cc_toolchain_identifier}": get_toolchain_identifier(reqs_llvm),
+            "%{compiler}": compiler_id + "-local",
             "%{abi_version}": "local",
             "%{abi_libc_version}": "local",
             "%{target_libc}": "local",
-            "%{target_cpu}": "intel64",
-            "%{host_system_name}": "win-intel64",
-            "%{target_system_name}": "win-intel64",
+            "%{target_cpu}": reqs_llvm.target_arch_id,
+            "%{host_system_name}": "win-" + reqs_llvm.host_arch_id,
+            "%{target_system_name}": "win-" + reqs_llvm.target_arch_id,
+            "%{host_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.host_arch_id],
+            "%{target_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.target_arch_id],
             "%{supports_param_files}": "1",
             "%{compiler_deps}": get_starlark_list([]),
             "%{ar_deps}": get_starlark_list([]),
@@ -272,10 +313,10 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
                 "-D__TIME__=\\\"redacted\\\"",
             ]),
             "%{cpu_flags_cc}": get_starlark_list_dict(
-                get_cpu_specific_options(reqs_icx),
+                get_cpu_specific_options(reqs_llvm),
             ),
             "%{cpu_flags_dpcc}": get_starlark_list_dict(
-                get_cpu_specific_options(reqs_icx, is_dpcc = True),
+                get_cpu_specific_options(reqs_llvm, is_dpcc = True),
             ),
             # BUILD template values are embedded in double-quoted Starlark
             # strings, so any literal backslash becomes an invalid escape.
@@ -287,8 +328,26 @@ def _configure_cc_toolchain_win_icx(repo_ctx, reqs):
         },
     )
 
+def _is_clang_requested(repo_ctx):
+    """Return True if the Windows toolchain should use upstream LLVM clang-cl."""
+    if repo_ctx.os.environ.get("ONEDAL_WIN_COMPILER", "").lower() == "clang":
+        return True
+    cc = repo_ctx.os.environ.get("CC", "").lower().split(" ")[0]
+    return cc == "clang-cl" or cc.endswith("clang-cl.exe")
+
 def configure_cc_toolchain_win(repo_ctx, reqs):
-    if _is_icx_requested(repo_ctx):
-        _configure_cc_toolchain_win_icx(repo_ctx, reqs)
+    if reqs.target_arch_id == "arm":
+        # Windows ARM64 (Make's `PLAT=winarm`) is clang-cl only: neither icx nor
+        # MSVC `cl` compiles the SVE code paths oneDAL selects for this arch.
+        requested = repo_ctx.os.environ.get("ONEDAL_WIN_COMPILER", "").lower()
+        if requested and requested != "clang":
+            fail(("ONEDAL_WIN_COMPILER={} is not supported when targeting " +
+                  "Windows ARM64; only clang-cl is (see " +
+                  "dev/make/compiler_definitions/clang.ref.arm.mk)").format(requested))
+        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "clang")
+    elif _is_clang_requested(repo_ctx):
+        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "clang")
+    elif _is_icx_requested(repo_ctx):
+        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "icx")
     else:
         _configure_cc_toolchain_win_cl(repo_ctx)

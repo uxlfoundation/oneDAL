@@ -97,11 +97,11 @@ alias(
 toolchain(
     name = "cc_toolchain_win",
     exec_compatible_with = [
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:%{host_cpu_constraint}",
         "@platforms//os:windows",
     ],
     target_compatible_with = [
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:%{target_cpu_constraint}",
         "@platforms//os:windows",
     ],
     toolchain = ":%{cc_toolchain_identifier}",

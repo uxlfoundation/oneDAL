@@ -10,13 +10,12 @@ extra_toolchain(
 toolchain(
     name = "extra_tools_win",
     exec_compatible_with = [
-        "@platforms//cpu:x86_64",
         "@platforms//os:windows",
     ],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:windows",
-    ],
+    # `patch_daal_kernel_defines.cmd` is an arch-independent text patcher run as
+    # a build action, not something that produces target-arch code, so it applies
+    # to every Windows target arch (x86_64 and ARM64 alike). Mirrors the same
+    # reasoning in extra_toolchian_lnx.tpl.BUILD.
     toolchain = ":extra_tools",
     toolchain_type = "@onedal//dev/bazel/toolchains:extra",
 )

@@ -29,4 +29,18 @@ openblas_repo = repos.prebuilt_libs_repo_rule(
             "lib/libopenblas.a",
     ],
     build_template = "@onedal//dev/bazel/deps:openblas.tpl.BUILD",
+    # On Windows `.ci/env/openblas.bat` builds a shared OpenBLAS, so the
+    # consumable pair is the `lib/openblas.lib` import library plus
+    # `bin/openblas.dll`. This matches OPENBLASDIR.libia.win /
+    # OPENBLASDIR.soia.win in dev/make/deps.ref.mk.
+    win_includes = [
+        "include",
+    ],
+    win_libs = [
+        "lib/openblas.lib",
+    ],
+    win_bins = [
+        "bin/openblas.dll",
+    ],
+    win_build_template = "@onedal//dev/bazel/deps:openblas_win.tpl.BUILD",
 )

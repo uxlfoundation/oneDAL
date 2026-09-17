@@ -14,7 +14,11 @@
 # limitations under the License.
 #===============================================================================
 
-# Custom cc_toolchain_config for Intel oneAPI icx on Windows.
+# Custom cc_toolchain_config for the clang-cl compiler family on Windows: Intel
+# oneAPI icx (x86_64) and upstream LLVM clang-cl (x86_64 and the ARM64 target of
+# Make's `PLAT=winarm`). Everything here is arch-independent — `lld-link` and
+# `llvm-lib` infer the machine type from the object files, and the target triple
+# comes from the compile flags in dev/bazel/flags.bzl.
 #
 # icx.exe runs in its native clang-cl driver mode (MSVC-compatible syntax),
 # matching dev/make/compiler_definitions/icx.mkl.32e.mk. All flags below use
