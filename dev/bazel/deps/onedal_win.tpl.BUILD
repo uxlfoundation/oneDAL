@@ -111,10 +111,5 @@ filegroup(
     ], allow_empty = True),
 )
 
-cc_library(
-    name = "onedal_dynamic_dpc",
-    srcs = [],
-    deps = [
-        ":headers",
-    ],
-)
+# No `onedal_dynamic_dpc` here: `onedal_repo` declares no Windows DPC files, so
+# the target could only be an empty library that links nothing.
