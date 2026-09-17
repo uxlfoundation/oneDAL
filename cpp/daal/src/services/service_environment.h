@@ -18,6 +18,8 @@
 #ifndef __SERVICE_ENVIRONMENT_H__
 #define __SERVICE_ENVIRONMENT_H__
 
+#include "services/daal_defines.h"
+
 namespace daal
 {
 namespace services
