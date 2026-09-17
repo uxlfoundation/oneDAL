@@ -382,6 +382,64 @@ DF_SPMD_CLS_TEST_NIGHTLY_EXT("df cls oob per observation flow") {
                                                         1 - wl.required_accuracy);
 }
 
+DF_SPMD_CLS_TEST_EXT("df cls observations per tree fraction over several ranks") {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    // Every rank draws the rows of a tree out of its own part of the data, so a
+    // fraction below 1.0 must leave every rank with a non-empty sample, whatever
+    // the rank count is.
+    const workload_cls wl = { df_ds_classification, 0.9 };
+
+    const auto [data, data_test, checker_list] =
+        this->get_cls_dataframe(wl.ds_info.name, wl.required_accuracy);
+
+    const std::int64_t rank_count_val = GENERATE_COPY(2, 4);
+    const double observations_per_tree_fraction_val = GENERATE_COPY(0.3, 0.7);
+    const bool bootstrap_val = GENERATE_COPY(false, true);
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_tree_count(30);
+    desc.set_max_tree_depth(10);
+    desc.set_bootstrap(bootstrap_val);
+    desc.set_observations_per_tree_fraction(observations_per_tree_fraction_val);
+    desc.set_class_count(wl.ds_info.class_count);
+
+    this->set_rank_count(rank_count_val);
+    const auto train_result =
+        this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
+    const auto model = train_result.get_model();
+    this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
+DF_SPMD_CLS_TEST("df cls observations per tree fraction with a small number of rows") {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    // The row order buffers hold the rows owned by a rank only, so their size and
+    // the row offsets of the root nodes depend on the local number of rows. Check
+    // that training stays in bounds when the rows are spread thin over the ranks
+    // and the requested fraction truncates the local sample to a single row.
+    const auto [data, data_test, class_count, checker_list] = this->get_cls_dataframe_base();
+
+    const std::int64_t rank_count_val = GENERATE_COPY(2, 3);
+    const double observations_per_tree_fraction_val = GENERATE_COPY(0.3, 0.7, 1.0);
+    const bool bootstrap_val = GENERATE_COPY(false, true);
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_tree_count(10);
+    desc.set_bootstrap(bootstrap_val);
+    desc.set_observations_per_tree_fraction(observations_per_tree_fraction_val);
+    desc.set_class_count(class_count);
+
+    this->set_rank_count(rank_count_val);
+    this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
+}
+
 DF_SPMD_CLS_TEST("df cls base check with default params") {
     SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_available_on_device());
@@ -613,6 +671,35 @@ DF_SPMD_REG_TEST_NIGHTLY_EXT("df reg impurity flow") {
     const auto model = train_result.get_model();
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
     this->check_trees_node_min_sample_count(model, min_observations_in_leaf_node);
+}
+
+DF_SPMD_REG_TEST_EXT("df reg observations per tree fraction over several ranks") {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    // See the classification counterpart: a fraction below 1.0 must not starve
+    // the trailing ranks of the communicator.
+    const workload_reg wl = { df_ds_white_wine, 0.94, 0.62 };
+
+    const auto [data, data_test, checker_list] =
+        this->get_reg_dataframe(wl.ds_info.name, wl.required_mse, wl.required_mae);
+
+    const std::int64_t rank_count_val = GENERATE_COPY(2, 4);
+    const double observations_per_tree_fraction_val = GENERATE_COPY(0.3, 0.7);
+    const bool bootstrap_val = GENERATE_COPY(false, true);
+
+    auto desc = this->get_default_descriptor();
+    desc.set_tree_count(30);
+    desc.set_max_tree_depth(10);
+    desc.set_bootstrap(bootstrap_val);
+    desc.set_observations_per_tree_fraction(observations_per_tree_fraction_val);
+
+    this->set_rank_count(rank_count_val);
+    const auto train_result =
+        this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
+    const auto model = train_result.get_model();
+    this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
 DF_SPMD_REG_TEST_NIGHTLY_EXT("df reg bootstrap flow") {
