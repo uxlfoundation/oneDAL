@@ -57,17 +57,36 @@ inline std::uint64_t inv_bits(std::uint64_t x) {
     return x ^ (-(x >> 63) | 0x8000000000000000ul);
 }
 
+/// Maps the raw bits of a float onto the unsigned key the radix passes sort by.
+///
+/// `inv_bits` is the order-preserving map: sorting its result ascending sorts the
+/// floats ascending. Complementing it reverses the order, so descending is the
+/// same single XOR against the complemented mask - one bitwise NOT of a value the
+/// ascending path computes anyway, evaluated at compile time per instantiation.
+/// Doing it here rather than negating the input values also keeps `-0.0` and
+/// `+0.0` on the same key.
+template <bool Ascending, typename Uint>
+inline Uint radix_key(Uint x) {
+    if constexpr (Ascending) {
+        return inv_bits(x);
+    }
+    else {
+        return ~inv_bits(x);
+    }
+}
+
 using sycl::plus;
 
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::radix_scan(sycl::queue& queue,
-                                                                 const ndview<Float, 1>& val,
-                                                                 ndarray<Index, 1>& part_hist,
-                                                                 Index elem_count,
-                                                                 std::uint32_t bit_offset,
-                                                                 std::int64_t local_size,
-                                                                 std::int64_t local_hist_count,
-                                                                 sycl::event& deps) {
+template <typename Float, typename Index, bool Ascending>
+sycl::event radix_sort_indices_inplace<Float, Index, Ascending>::radix_scan(
+    sycl::queue& queue,
+    const ndview<Float, 1>& val,
+    ndarray<Index, 1>& part_hist,
+    Index elem_count,
+    std::uint32_t bit_offset,
+    std::int64_t local_size,
+    std::int64_t local_hist_count,
+    sycl::event& deps) {
     ONEDAL_ASSERT(part_hist.get_count() == hist_buff_size_);
 
     const sycl::nd_range<1> nd_range =
@@ -104,7 +123,8 @@ sycl::event radix_sort_indices_inplace<Float, Index>::radix_scan(sycl::queue& qu
             }
 
             for (Index i = ind_start + local_id; i < ind_end; i += local_size) {
-                radix_integer_t data_bits = ((inv_bits(val_ptr[i]) >> bit_offset) & radix_range_1_);
+                radix_integer_t data_bits =
+                    ((radix_key<Ascending>(val_ptr[i]) >> bit_offset) & radix_range_1_);
                 for (std::uint32_t j = 0; j < radix_range_; j++) {
                     Index value = static_cast<Index>(data_bits == j);
                     Index partial_offset = sycl::reduce_over_group(sbg, value, plus<Index>());
@@ -123,8 +143,8 @@ sycl::event radix_sort_indices_inplace<Float, Index>::radix_scan(sycl::queue& qu
     return event;
 }
 
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::radix_hist_scan(
+template <typename Float, typename Index, bool Ascending>
+sycl::event radix_sort_indices_inplace<Float, Index, Ascending>::radix_hist_scan(
     sycl::queue& queue,
     const ndarray<Index, 1>& part_hist,
     ndarray<Index, 1>& part_prefix_hist,
@@ -178,8 +198,8 @@ sycl::event radix_sort_indices_inplace<Float, Index>::radix_hist_scan(
     return event;
 }
 
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::radix_reorder(
+template <typename Float, typename Index, bool Ascending>
+sycl::event radix_sort_indices_inplace<Float, Index, Ascending>::radix_reorder(
     sycl::queue& queue,
     const ndview<Float, 1>& val_in,
     const ndview<Index, 1>& ind_in,
@@ -237,7 +257,8 @@ sycl::event radix_sort_indices_inplace<Float, Index>::radix_reorder(
 
             for (Index i = ind_start + local_id; i < ind_end; i += local_size) {
                 radix_integer_t data_value = val_in_ptr[i];
-                radix_integer_t data_bits = ((inv_bits(data_value) >> bit_offset) & radix_range_1_);
+                radix_integer_t data_bits =
+                    ((radix_key<Ascending>(data_value) >> bit_offset) & radix_range_1_);
                 Index pos_new = 0;
                 for (std::uint32_t j = 0; j < radix_range_; j++) {
                     Index value = static_cast<Index>(data_bits == j);
@@ -255,18 +276,20 @@ sycl::event radix_sort_indices_inplace<Float, Index>::radix_reorder(
     return event;
 }
 
-template <typename Float, typename Index>
-radix_sort_indices_inplace<Float, Index>::radix_sort_indices_inplace(const sycl::queue& queue)
+template <typename Float, typename Index, bool Ascending>
+radix_sort_indices_inplace<Float, Index, Ascending>::radix_sort_indices_inplace(
+    const sycl::queue& queue)
         : queue_(queue),
           elem_count_(0) {}
 
-template <typename Float, typename Index>
-radix_sort_indices_inplace<Float, Index>::~radix_sort_indices_inplace() {
+template <typename Float, typename Index, bool Ascending>
+radix_sort_indices_inplace<Float, Index, Ascending>::~radix_sort_indices_inplace() {
     sort_event_.wait_and_throw();
 }
 
-template <typename Float, typename Index>
-void radix_sort_indices_inplace<Float, Index>::init(sycl::queue& queue, std::int64_t elem_count) {
+template <typename Float, typename Index, bool Ascending>
+void radix_sort_indices_inplace<Float, Index, Ascending>::init(sycl::queue& queue,
+                                                               std::int64_t elem_count) {
     ONEDAL_ASSERT(elem_count > 0);
     ONEDAL_ASSERT(elem_count <= de::limits<std::uint32_t>::max());
 
@@ -289,10 +312,11 @@ void radix_sort_indices_inplace<Float, Index>::init(sycl::queue& queue, std::int
     }
 }
 
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::operator()(ndview<Float, 1>& val_in,
-                                                                 ndview<Index, 1>& ind_in,
-                                                                 const event_vector& deps) {
+template <typename Float, typename Index, bool Ascending>
+sycl::event radix_sort_indices_inplace<Float, Index, Ascending>::operator()(
+    ndview<Float, 1>& val_in,
+    ndview<Index, 1>& ind_in,
+    const event_vector& deps) {
     ONEDAL_PROFILER_TASK(sort.radix_sort_indices_inplace, queue_);
     ONEDAL_ASSERT(val_in.has_mutable_data());
     ONEDAL_ASSERT(ind_in.has_mutable_data());
@@ -549,7 +573,7 @@ sycl::event radix_sort<Integer>::operator()(ndview<Integer, 2>& val_in,
     return sort_event_;
 }
 
-template <typename Float, typename Index>
+template <typename Float, typename Index, bool Ascending>
 sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
                                            ndview<Float, 1>& val_in,
                                            ndview<Index, 1>& ind_in,
@@ -573,10 +597,10 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
     // faster oneDPL path.
     // Reference: https://github.com/uxlfoundation/oneDPL/blob/main/documentation/library_guide/kernel_templates/sycl/radix_sort_by_key.rst
     if (device_max_wg_size(queue) < 1024) {
-        radix_sort_indices_inplace<Float, Index> sorter(queue);
+        radix_sort_indices_inplace<Float, Index, Ascending> sorter(queue);
         return sorter(val_in, ind_in, deps);
     }
-    return oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<true, 8>(
+    return oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<Ascending, 8>(
         queue,
         val_in.get_mutable_data(),
         val_in.get_mutable_data() + val_in.get_count(),
@@ -643,8 +667,9 @@ sycl::event radix_sort<Integer>::operator()(ndview<Integer, 2>& val_in,
     return this->operator()(val_in, val_out, val_in.get_dimension(1), deps);
 }
 
-#define INSTANTIATE_SORT_INDICES(F, I) \
-    template class ONEDAL_EXPORT radix_sort_indices_inplace<F, I>;
+#define INSTANTIATE_SORT_INDICES(F, I)                                   \
+    template class ONEDAL_EXPORT radix_sort_indices_inplace<F, I, true>; \
+    template class ONEDAL_EXPORT radix_sort_indices_inplace<F, I, false>;
 
 #define INSTANTIATE_SORT(I) template class ONEDAL_EXPORT radix_sort<I>;
 
@@ -658,12 +683,16 @@ INSTANTIATE_SORT(std::uint32_t)
 INSTANTIATE_SORT(std::int64_t)
 INSTANTIATE_SORT(std::uint64_t)
 
-#define INSTANTIATE_SORT_INDICES_DPL(Float, Index)                                   \
-    template ONEDAL_EXPORT sycl::event radix_sort_indices_inplace_dpl<Float, Index>( \
-        sycl::queue&,                                                                \
-        ndview<Float, 1>&,                                                           \
-        ndview<Index, 1>&,                                                           \
+#define INSTANTIATE_SORT_INDICES_DPL_DIR(Float, Index, Ascending)                               \
+    template ONEDAL_EXPORT sycl::event radix_sort_indices_inplace_dpl<Float, Index, Ascending>( \
+        sycl::queue&,                                                                           \
+        ndview<Float, 1>&,                                                                      \
+        ndview<Index, 1>&,                                                                      \
         const event_vector&);
+
+#define INSTANTIATE_SORT_INDICES_DPL(Float, Index)       \
+    INSTANTIATE_SORT_INDICES_DPL_DIR(Float, Index, true) \
+    INSTANTIATE_SORT_INDICES_DPL_DIR(Float, Index, false)
 
 #define INSTANTIATE_FLOAT(Index)               \
     INSTANTIATE_SORT_INDICES_DPL(float, Index) \

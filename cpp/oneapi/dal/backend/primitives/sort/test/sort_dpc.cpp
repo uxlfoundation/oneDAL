@@ -69,20 +69,23 @@ public:
         return val.to_host(this->get_queue());
     }
 
+    template <bool Ascending = true>
     void check_sort(ndarray<Float, 1>& val, ndarray<Index, 1>& ind) {
         INFO("create reference");
         auto ref = create_reference_on_host(val);
 
         INFO("run sort with indices");
-        auto event = radix_sort_indices_inplace<Float, Index>{ this->get_queue() }(val, ind);
+        auto event =
+            radix_sort_indices_inplace<Float, Index, Ascending>{ this->get_queue() }(val, ind);
         event.wait_and_throw();
 
-        check_results(val, ind, ref);
+        check_results(val, ind, ref, Ascending);
     }
 
     void check_results(const ndarray<Float, 1>& val,
                        const ndarray<Index, 1> ind,
-                       const ndarray<Float, 1>& ref) {
+                       const ndarray<Float, 1>& ref,
+                       bool ascending) {
         const Float* ref_ptr = ref.get_data();
 
         const auto val_host = val.to_host(this->get_queue());
@@ -92,8 +95,11 @@ public:
         const Index* ind_ptr = ind_host.get_data();
 
         for (Index el = 0; el < val.get_count(); el++) {
-            if (el < val.get_count() - 1 && val_ptr[el] > val_ptr[el + 1]) {
-                CAPTURE(el, val_ptr[el], el + 1, val_ptr[el + 1]);
+            const bool out_of_order =
+                el < val.get_count() - 1 &&
+                (ascending ? val_ptr[el] > val_ptr[el + 1] : val_ptr[el] < val_ptr[el + 1]);
+            if (out_of_order) {
+                CAPTURE(el, val_ptr[el], el + 1, val_ptr[el + 1], ascending);
                 FAIL("elements are placed in inapropriate order");
             }
 
@@ -102,6 +108,15 @@ public:
                 FAIL("result elements indices are incorrect");
             }
         }
+
+        // The loop above only reports on failure, so it leaves no trace that the
+        // requested direction was honoured rather than silently defaulted to
+        // ascending. This is a counted assertion on the endpoints that fails if the
+        // two directions were swapped.
+        const Float first = val_ptr[0];
+        const Float last = val_ptr[val.get_count() - 1];
+        CAPTURE(first, last, ascending);
+        REQUIRE((ascending ? first <= last : first >= last));
     }
 };
 
@@ -207,6 +222,20 @@ TEMPLATE_LIST_TEST_M(sort_with_indices_test,
     this->fill_uniform(val, -25., 25.);
 
     this->check_sort(val, ind);
+}
+
+TEMPLATE_LIST_TEST_M(sort_with_indices_test,
+                     "descending sort with indices",
+                     "[sort]",
+                     sort_indices_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    std::int64_t elem_count = GENERATE_COPY(2, 10000);
+
+    auto [val, ind] = this->allocate_arrays(elem_count);
+    this->fill_uniform(val, -25., 25.);
+
+    this->template check_sort<false>(val, ind);
 }
 
 using sort_indices_types_int = COMBINE_TYPES((std::int32_t, std::uint32_t));

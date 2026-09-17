@@ -213,10 +213,31 @@ public:
                       std::greater<float_t>{});
         }
 
+        // Source cluster of each candidate row. `fill_empty_clusters` needs this populated in the
+        // distributed path, where `reduce_candidates` shuffles it alongside the winning rows.
+        auto host_source_clusters = this->template generate_uniform_int_host<std::int32_t>( //
+            candidate_count,
+            0,
+            std::int32_t(cluster_count - 1),
+            seed);
+
         return centroid_candidates<float_t>{ host_indices.to_device(this->get_queue()),
                                              host_distances.to_device(this->get_queue()),
                                              host_empty_cluster_indices.to_device(
-                                                 this->get_queue()) };
+                                                 this->get_queue()),
+                                             host_source_clusters.to_device(this->get_queue()) };
+    }
+
+    pr::ndarray<std::int32_t, 2> generate_responses(std::int64_t row_count,
+                                                    std::int64_t cluster_count,
+                                                    int seed = 7777) {
+        return this
+            ->template generate_uniform_int_host<std::int32_t>(row_count,
+                                                               0,
+                                                               std::int32_t(cluster_count - 1),
+                                                               seed)
+            .reshape(pr::ndshape<2>{ row_count, 1 })
+            .to_device(this->get_queue());
     }
 
     template <typename T, std::int64_t dim>
@@ -240,39 +261,47 @@ public:
     std::vector<centroid_candidates<float_t>> make_candidate_partitions(
         const std::vector<pr::ndarray<std::int32_t, 1>>& indices,
         const std::vector<pr::ndarray<float_t, 1>>& distances,
-        const std::vector<pr::ndarray<std::int32_t, 1>>& empty_centroid_indices) {
+        const std::vector<pr::ndarray<std::int32_t, 1>>& empty_centroid_indices,
+        const std::vector<pr::ndarray<std::int32_t, 1>>& source_clusters) {
         ONEDAL_ASSERT(indices.size() == distances.size());
         ONEDAL_ASSERT(indices.size() == empty_centroid_indices.size());
+        ONEDAL_ASSERT(indices.size() == source_clusters.size());
 
         std::vector<centroid_candidates<float_t>> candidate_partitions;
         candidate_partitions.reserve(indices.size());
 
         for (std::size_t i = 0; i < indices.size(); i++) {
-            candidate_partitions.push_back(
-                centroid_candidates<float_t>{ indices[i],
-                                              distances[i],
-                                              empty_centroid_indices[i] });
+            candidate_partitions.push_back(centroid_candidates<float_t>{ indices[i],
+                                                                         distances[i],
+                                                                         empty_centroid_indices[i],
+                                                                         source_clusters[i] });
         }
 
         return candidate_partitions;
     }
 
-    void run_find_candidates(const pr::ndarray<float_t, 2>& closest_distances,
-                             const pr::ndarray<std::int32_t, 1>& counters,
-                             std::int64_t candidate_count) {
+    centroid_candidates<float_t> run_find_candidates(
+        const pr::ndarray<float_t, 2>& closest_distances,
+        const pr::ndarray<std::int32_t, 1>& counters,
+        const pr::ndarray<std::int32_t, 2>& responses,
+        std::int64_t candidate_count) {
         auto [candidates, find_candidates_event] = find_candidates( //
             this->get_queue(),
             candidate_count,
             closest_distances,
-            counters);
+            counters,
+            responses);
         find_candidates_event.wait_and_throw();
 
         check_candidates(closest_distances, candidates);
+        check_source_clusters(responses, candidates);
+
+        return candidates;
     }
 
     void run_fill_empty_clusters(std::int64_t cluster_count,
                                  const pr::ndarray<float_t, 2>& data,
-                                 const centroid_candidates<float_t>& candidates) {
+                                 centroid_candidates<float_t>& candidates) {
         ONEDAL_ASSERT(cluster_count > 0);
         const std::int64_t column_count = data.get_dimension(1);
 
@@ -291,7 +320,7 @@ public:
     void run_fill_empty_clusters_distr(
         std::int64_t thread_count,
         const std::vector<pr::ndarray<float_t, 2>>& data_per_rank,
-        const std::vector<centroid_candidates<float_t>>& candidates_per_rank,
+        std::vector<centroid_candidates<float_t>>& candidates_per_rank,
         const pr::ndarray<float_t, 2>& expected_centroids) {
         te::thread_communicator<spmd::device_memory_access::usm> thread_comm{ this->get_queue(),
                                                                               thread_count };
@@ -320,6 +349,27 @@ public:
         }
     }
 
+    void check_source_clusters(const pr::ndarray<std::int32_t, 2>& responses,
+                               const centroid_candidates<float_t>& candidates) {
+        const std::int64_t candidate_count = candidates.get_candidate_count();
+
+        const auto host_responses = responses.to_host(this->get_queue());
+        const auto host_indices = candidates.get_indices().to_host(this->get_queue());
+        const auto host_sources = candidates.get_source_clusters().to_host(this->get_queue());
+
+        const std::int32_t* host_responses_ptr = host_responses.get_data();
+        const std::int32_t* host_indices_ptr = host_indices.get_data();
+        const std::int32_t* host_sources_ptr = host_sources.get_data();
+
+        for (std::int64_t i = 0; i < candidate_count; i++) {
+            CAPTURE(i, host_indices_ptr[i], host_sources_ptr[i]);
+            REQUIRE(host_sources_ptr[i] == host_responses_ptr[host_indices_ptr[i]]);
+        }
+    }
+
+    /// Candidates are selected purely by distance-to-assigned-centroid, farthest first, matching
+    /// scikit-learn's `_relocate_empty_clusters`. Verified here by requiring that no unselected row
+    /// has a larger distance than any selected one.
     void check_candidates(const pr::ndarray<float_t, 2>& closest_distances,
                           const centroid_candidates<float_t>& candidates) {
         const std::int64_t candidate_count = candidates.get_candidate_count();
@@ -333,19 +383,26 @@ public:
         auto candidate_indices_ptr = host_candidate_indices.get_data();
         auto candidate_distances_ptr = host_candidate_distances.get_data();
 
+        std::vector<bool> selected(elem_count, false);
         for (std::int64_t i = 0; i < candidate_count; i++) {
-            auto distance = candidate_distances_ptr[i];
-            auto index = candidate_indices_ptr[i];
-            std::int64_t count = 0;
-            for (std::int64_t j = 0; j < elem_count; j++) {
-                auto cur_val = -1.0 * closest_distances_ptr[j];
-                if (cur_val >= distance)
-                    count++;
-            }
-            CAPTURE(i, count);
-            REQUIRE(count <= candidate_count);
+            const std::int64_t index = candidate_indices_ptr[i];
+            CAPTURE(i, index);
             REQUIRE(index >= 0);
             REQUIRE(index < elem_count);
+            REQUIRE(!selected[index]);
+            REQUIRE(candidate_distances_ptr[i] == closest_distances_ptr[index]);
+            selected[index] = true;
+        }
+
+        for (std::int64_t i = 0; i < candidate_count; i++) {
+            const std::int64_t index = candidate_indices_ptr[i];
+            for (std::int64_t j = 0; j < elem_count; j++) {
+                if (selected[j]) {
+                    continue;
+                }
+                CAPTURE(i, index, j);
+                REQUIRE(closest_distances_ptr[index] >= closest_distances_ptr[j]);
+            }
         }
     }
 
@@ -425,8 +482,11 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test, "find candidates", "[candidate
 
     const auto closest_distances = this->generate_closests_distances(cluster_count);
     const auto counters = this->generate_counters(cluster_count, candidate_count, 10, 100);
+    // `find_candidates` reads the source cluster of every candidate row out of the responses,
+    // so the responses must be as long as `closest_distances`.
+    const auto responses = this->generate_responses(cluster_count, cluster_count);
 
-    this->run_find_candidates(closest_distances, counters, candidate_count);
+    this->run_find_candidates(closest_distances, counters, responses, candidate_count);
 }
 
 TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
@@ -442,9 +502,149 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
     const std::int64_t candidate_count = 5;
 
     const auto data = this->generate_data(row_count, column_count);
-    const auto candidates = this->generate_candidates(row_count, cluster_count, candidate_count);
+    auto candidates = this->generate_candidates(row_count, cluster_count, candidate_count);
 
     this->run_fill_empty_clusters(cluster_count, data, candidates);
+}
+
+TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
+                     "fill empty clusters skips candidates at distance zero",
+                     "[fill]",
+                     kmeans_types) {
+    using float_t = TestType;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+
+    const auto data = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 1.0, 2.0 }, { 3.0, 4.0 } });
+
+    const auto candidate_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 1 });
+
+    // The second candidate already sits on the centroid it is assigned to, so relocating it could
+    // only duplicate an existing centroid. The fill leaves its empty cluster untouched;
+    // `duplicate_largest_centroid` is what writes into it afterwards.
+    const auto candidate_distances = make_device_ndarray<float_t, 1>( //
+        this->get_queue(),
+        { 7.0, 0.0 });
+
+    const auto empty_cluster_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 1, 2 });
+
+    const auto source_clusters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 0 });
+
+    centroid_candidates<float_t> candidates{ candidate_indices,
+                                             candidate_distances,
+                                             empty_cluster_indices,
+                                             source_clusters };
+
+    auto [centroids, centroids_event] = pr::ndarray<float_t, 2>::zeros( //
+        this->get_queue(),
+        { 3, 2 },
+        sycl::usm::alloc::device);
+
+    bk::communicator<spmd::device_memory_access::usm> fake_comm;
+    fill_empty_clusters(this->get_queue(),
+                        fake_comm,
+                        data,
+                        candidates,
+                        centroids,
+                        { centroids_event })
+        .wait_and_throw();
+
+    const auto expected_centroids = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 0.0, 0.0 }, { 1.0, 2.0 }, { 0.0, 0.0 } });
+
+    this->check_if_centroids_expected(expected_centroids, centroids);
+}
+
+TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
+                     "declined empty clusters duplicate the largest cluster centroid",
+                     "[fill]",
+                     kmeans_types) {
+    using float_t = TestType;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+
+    // Slot 0 was relocated (distance 7) and must be left with the row the fill wrote into it;
+    // slot 1 was declined (distance 0) and has to end up on the centroid of cluster 2, the one
+    // holding the most observations.
+    const auto candidate_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 1 });
+
+    const auto candidate_distances = make_device_ndarray<float_t, 1>( //
+        this->get_queue(),
+        { 7.0, 0.0 });
+
+    const auto empty_cluster_indices = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 1, 3 });
+
+    const auto source_clusters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 0, 2 });
+
+    centroid_candidates<float_t> candidates{ candidate_indices,
+                                             candidate_distances,
+                                             empty_cluster_indices,
+                                             source_clusters };
+
+    const auto counters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 3, 0, 5, 0 });
+
+    auto centroids = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 1.0, 1.0 }, { 7.0, 7.0 }, { 2.0, 3.0 }, { 9.0, 9.0 } });
+
+    duplicate_largest_centroid(this->get_queue(), candidates, counters, centroids).wait_and_throw();
+
+    const auto expected_centroids = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 1.0, 1.0 }, { 7.0, 7.0 }, { 2.0, 3.0 }, { 2.0, 3.0 } });
+
+    this->check_if_centroids_expected(expected_centroids, centroids);
+}
+
+TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
+                     "find candidates picks the farthest row regardless of source cluster size",
+                     "[candidates]",
+                     kmeans_types) {
+    using float_t = TestType;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+
+    // Cluster 0 holds a single row (row 0), cluster 1 holds the four others, cluster 2 is empty.
+    // Row 0 is by far the farthest from its centroid. Selection is purely by distance (matching
+    // scikit-learn's `_relocate_empty_clusters`), so row 0 wins even though cluster 0 is a
+    // singleton -- the source-cluster correction (`correct_source_clusters`) leaves such a source
+    // untouched afterwards.
+    const auto closest_distances = make_device_ndarray<float_t, 2>( //
+        this->get_queue(),
+        { { 100.0 }, { 1.0 }, { 2.0 }, { 3.0 }, { 4.0 } });
+
+    const auto counters = make_device_ndarray<std::int32_t, 1>( //
+        this->get_queue(),
+        { 1, 4, 0 });
+
+    const auto responses = make_device_ndarray<std::int32_t, 2>( //
+        this->get_queue(),
+        { { 0 }, { 1 }, { 1 }, { 1 }, { 1 } });
+
+    const auto candidates = this->run_find_candidates(closest_distances, counters, responses, 1);
+
+    const auto host_indices = candidates.get_indices().to_host(this->get_queue());
+    const auto host_sources = candidates.get_source_clusters().to_host(this->get_queue());
+
+    REQUIRE(host_indices.get_data()[0] == 0);
+    REQUIRE(host_sources.get_data()[0] == 0);
 }
 
 TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
@@ -487,9 +687,18 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
             { 0, 2, 0, 2 })
             .split(thread_count);
 
-    const auto candidates = this->make_candidate_partitions(candidate_indices,
-                                                            candidate_distances,
-                                                            candidate_empty_cluster_indices);
+    // Source cluster of every candidate row on the emitting rank. `reduce_candidates` shuffles it
+    // alongside the winning rows, so it has to be provided per rank as well.
+    const auto candidate_source_clusters = //
+        make_device_ndarray<std::int32_t, 1>( //
+            this->get_queue(), //
+            { 1, 1, 1, 1 })
+            .split(thread_count);
+
+    auto candidates = this->make_candidate_partitions(candidate_indices,
+                                                      candidate_distances,
+                                                      candidate_empty_cluster_indices,
+                                                      candidate_source_clusters);
 
     const auto expected_centroids = //
         make_device_ndarray<float_t, 2>( //
@@ -497,6 +706,69 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
             { { 11.1, 11.2, 11.3 }, //
               { 0.00, 0.00, 0.00 }, //
               { 22.1, 22.2, 22.3 } });
+
+    this->run_fill_empty_clusters_distr(thread_count, data, candidates, expected_centroids);
+}
+
+TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
+                     "fill empty clusters distributed picks the globally farthest row",
+                     "[fill][distr]",
+                     kmeans_types) {
+    using float_t = TestType;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+
+    const std::int64_t thread_count = 2;
+
+    const auto data = //
+        make_device_ndarray<float_t, 2>( //
+            this->get_queue(),
+            { { 11.1, 11.2, 11.3 },
+              { 12.1, 12.2, 12.3 },
+              { 13.1, 13.2, 13.3 },
+              { 21.1, 21.2, 21.3 },
+              { 22.1, 22.2, 22.3 },
+              { 23.1, 23.2, 23.3 } })
+            .split(thread_count);
+
+    const auto candidate_indices = //
+        make_device_ndarray<std::int32_t, 1>( //
+            this->get_queue(), //
+            { 0, 1 })
+            .split(thread_count);
+
+    // Rank 0 nominates the globally farthest row. Selection is purely by distance (matching
+    // scikit-learn's `_relocate_empty_clusters`), so the cross-rank reduction picks it regardless
+    // of its source cluster's size.
+    const auto candidate_distances = //
+        make_device_ndarray<float_t, 1>( //
+            this->get_queue(), //
+            { 10.3, 7.3 })
+            .split(thread_count);
+
+    const auto candidate_empty_cluster_indices = //
+        make_device_ndarray<std::int32_t, 1>( //
+            this->get_queue(), //
+            { 0, 0 })
+            .split(thread_count);
+
+    const auto candidate_source_clusters = //
+        make_device_ndarray<std::int32_t, 1>( //
+            this->get_queue(), //
+            { 1, 2 })
+            .split(thread_count);
+
+    auto candidates = this->make_candidate_partitions(candidate_indices,
+                                                      candidate_distances,
+                                                      candidate_empty_cluster_indices,
+                                                      candidate_source_clusters);
+
+    const auto expected_centroids = //
+        make_device_ndarray<float_t, 2>( //
+            this->get_queue(),
+            { { 11.1, 11.2, 11.3 }, //
+              { 0.00, 0.00, 0.00 }, //
+              { 0.00, 0.00, 0.00 } });
 
     this->run_fill_empty_clusters_distr(thread_count, data, candidates, expected_centroids);
 }

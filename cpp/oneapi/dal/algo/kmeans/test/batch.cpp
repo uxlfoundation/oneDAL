@@ -83,6 +83,42 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test with distinct initial centroids",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_empty_clusters_distinct_inits();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test on all-duplicate data",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_empty_clusters_all_duplicates();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test on duplicated groups",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_empty_clusters_duplicate_groups();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test with a drained source cluster",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_empty_clusters_drained_source();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "kmeans smoke train/infer test",
                      "[kmeans][batch]",
                      kmeans_types) {
@@ -555,18 +591,28 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     const auto csr_run_b = this->train(csr_desc, csr_data, init2);
     const auto dense_run = this->train(dense_desc, dense_data, init1);
 
-    // Same seed on the sparse path -> reproducible objective and iteration
-    // count across independent runs. CPU Lloyd sums in a fixed partition
-    // order -> bit-identical. GPU sycl::reduction combines partial sums in
-    // an implementation-defined order (atomic fetch_add / non-fixed
-    // workgroup tree) and float addition is non-associative, so a few ULPs
-    // of drift is expected between two runs.
-    REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
+    // Same seed on the sparse path -> reproducible objective across independent
+    // runs. CPU Lloyd sums in a fixed partition order -> bit-identical. GPU
+    // sycl::reduction combines partial sums in an implementation-defined order
+    // (atomic fetch_add / non-fixed workgroup tree) and float addition is
+    // non-associative, so a few ULPs of drift is expected between two runs.
+    //
+    // The iteration count is only required to be reproducible on the CPU. The GPU
+    // kernel stops on the objective function itself (`obj + threshold >= prev_obj`),
+    // and this case asks for `accuracy_threshold == 0`, so once the assignments have
+    // settled the true improvement is exactly zero and the comparison is decided by
+    // the reduction's ULP-level drift - a coin flip per iteration. Both runs do
+    // converge, just not necessarily on the same iteration; the CPU criterion is the
+    // centroid shift, which is computed deterministically and so stops on a fixed
+    // iteration.
     if (this->get_policy().is_cpu()) {
+        REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
         REQUIRE(csr_run_a.get_objective_function_value() ==
                 csr_run_b.get_objective_function_value());
     }
     else {
+        REQUIRE(csr_run_a.get_iteration_count() < max_iter);
+        REQUIRE(csr_run_b.get_iteration_count() < max_iter);
         const Float repro_tol = std::is_same_v<Float, double> ? Float(1e-12) : Float(1e-5);
         REQUIRE(this->check_value_with_ref_tol(csr_run_a.get_objective_function_value(),
                                                csr_run_b.get_objective_function_value(),

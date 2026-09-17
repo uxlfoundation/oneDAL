@@ -38,7 +38,10 @@ struct float2uint_map<double> {
 
 /// @tparam Float Floating-point type used for storing input values
 /// @tparam Index Integer type used for storing input indices
-template <typename Float, typename Index = std::uint32_t>
+/// @tparam Ascending Sort direction. Descending costs the same as ascending: the
+///                   direction only selects the mask that maps float bits onto the
+///                   unsigned radix key, so no per-element work is added.
+template <typename Float, typename Index = std::uint32_t, bool Ascending = true>
 class radix_sort_indices_inplace {
     static_assert(std::is_same_v<float, Float> || std::is_same_v<double, Float>);
     using radix_integer_t = typename float2uint_map<Float>::integer_t;
@@ -161,7 +164,9 @@ private:
     static constexpr inline std::uint32_t radix_count_ = sizeof(Integer);
 };
 
-template <typename Float, typename Index = std::uint32_t>
+/// @tparam Ascending Sort direction, forwarded to the oneDPL `radix_sort_by_key`
+///                   flag of the same name and to the in-house fallback.
+template <typename Float, typename Index = std::uint32_t, bool Ascending = true>
 sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
                                            ndview<Float, 1>& val,
                                            ndview<Index, 1>& ind,
