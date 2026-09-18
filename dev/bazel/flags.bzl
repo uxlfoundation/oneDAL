@@ -45,10 +45,24 @@ lnx_cc_flags = {
 # icx/icpx on Windows run in their native clang-cl driver mode, so flags
 # use MSVC-style spellings. Mirrors dev/make/compiler_definitions/{icx,dpcpp}.mkl.32e.mk
 # (COMPILER.win.icx / COMPILER.win.dpcpp).
+# NOTE: `-Qopenmp-simd` is deliberately absent here. icx rejects it together
+# with the debug CRT (`-Wdebug-option-simd`, fatal under `-WX`), so the flag
+# depends on the MSVC runtime and cannot be a repository-time constant. The
+# `runtime_library` feature in cc_toolchain_config_win.bzl adds it for
+# release-CRT builds only, matching `COMPILER.win.icx` in
+# dev/make/compiler_definitions/icx.mkl.32e.mk:77, which passes
+# `-MD -Qopenmp-simd` for the release runtime and a bare `-MDd` otherwise.
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    "-Qopenmp-simd",
+    # C++ exception handling. The Makefile passes `-EHsc` for every oneAPI
+    # object on Windows (makefile:152, used at makefile:692/704/717); without
+    # it clang-cl defaults to exceptions disabled and any `throw` in
+    # cpp/oneapi/dal/detail/common.hpp is a hard error. This used to be
+    # supplied implicitly as a side effect of `-Qopenmp-simd` (which turns on
+    # -fexceptions in clang), so it only surfaced once that flag became
+    # release-runtime-only. Pass it explicitly instead of relying on that.
+    "-EHsc",
     # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
     # Windows too, so the released `.lib` files never reference `__svml_*`.
     # (`-Zl` itself, the other half of the makefile's variable, is deliberately
