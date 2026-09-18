@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <daal/src/services/service_defines.h>
+
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/detail/global_context.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
