@@ -45,13 +45,8 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "onedal_static_dpc",
-    srcs = [],
-    deps = [
-        ":headers",
-    ],
-)
+# Packaged oneDAL releases expose DPC libraries only in dynamic form, so no
+# static-DPC consumer target is declared here either -- see `onedal.tpl.BUILD`.
 
 cc_library(
     name = "core_dynamic",
@@ -116,10 +111,5 @@ filegroup(
     ], allow_empty = True),
 )
 
-cc_library(
-    name = "onedal_dynamic_dpc",
-    srcs = [],
-    deps = [
-        ":headers",
-    ],
-)
+# No `onedal_dynamic_dpc` here: `onedal_repo` declares no Windows DPC files, so
+# the target could only be an empty library that links nothing.

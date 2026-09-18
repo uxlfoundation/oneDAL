@@ -676,10 +676,43 @@ build --linkopt=-your-link-flag
 
 ---
 
+## Parameter library layout
+
+Bazel mirrors Make's `BUILD_PARAMETERS_LIB` switch with the typed
+`--build_parameters_lib=auto|yes|no` setting:
+
+- `auto` (default) builds separate `libonedal_parameters` and
+  `libonedal_parameters_dpc` libraries on non-Windows targets, and folds those
+  objects into `onedal`/`onedal_dpc` on Windows.
+- `yes` selects the separate host and DPC parameter libraries on non-Windows
+  targets. It is unsupported on Windows and fails during analysis with a diagnostic.
+- `no` folds the host and DPC parameter modules into the corresponding main
+  libraries and omits separate parameter libraries from `//:release`.
+
+For example:
+
+```
+bazel build //:release --build_parameters_lib=no
+```
+
+Consumer metadata follows the produced package: the generated CMake config and
+pkg-config files name `onedal_parameters` only in the separate layout, and the
+prebuilt-release repository rule decides which parameter libraries to expose by
+looking for them in the package rather than by reading its metadata.
+
+CI uses `dev/bazel/tests/parameters_layout_test.sh` for analysis-only checks of
+configured release outputs, host/DPC dependency separation, folded-target
+rejection, and Windows value validation. It does not build DPC binaries.
+`dev/release_tests/parameters_layout_consumer_test.sh` separately builds and
+runs host static and dynamic consumers through packaged CMake, pkg-config, and
+Bazel metadata for the folded layout. Both take `bazel` from `PATH`; set `BAZEL`
+to run them against a specific binary, such as a downloaded `bazelisk`.
+
 ## Make → Bazel Flag Reference
 
 | Make option                    | Bazel equivalent                                             | Notes                                                                      |
 |--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
+| `BUILD_PARAMETERS_LIB=yes\|no` | `--build_parameters_lib=yes\|no`                             | `auto` keeps non-Windows `yes` / Windows `no`; Windows `yes` unsupported   |
 | `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
@@ -695,3 +728,31 @@ build --linkopt=-your-link-flag
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
+| `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
+| `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
+| `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
+
+## Cross-compiling to ARM/RISC-V
+
+AArch64 and RISC-V64 are only supported with the `ref` backend (`--backend_config=ref`),
+matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`. Both ship a single fixed
+ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
+
+```sh
+# AArch64
+CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ \
+  bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+  //cpp/daal:core_dynamic
+
+# RISC-V64
+CC=riscv64-linux-gnu-gcc CXX=riscv64-linux-gnu-g++ \
+  bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
+  //cpp/daal:core_dynamic
+```
+
+`OPENBLASROOT` must point at an OpenBLAS install built for the target arch (see
+`.ci/env/openblas.sh`). To use the OpenRNG backend instead of the ref RNG (currently
+validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at an
+OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
+effect together with `--backend_config=ref`; it is silently ignored on the MKL
+backend, whose build never compiles the ref RNG shim that OpenRNG replaces.

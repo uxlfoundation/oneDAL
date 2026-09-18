@@ -85,6 +85,7 @@ public:
     MSG(unsupported_data_layout);
     MSG(unsupported_data_type);
     MSG(unsupported_device_type);
+    MSG(sve_not_supported);
     MSG(unsupported_feature_type);
     MSG(unsupported_usm_alloc);
     MSG(page_size_leq_zero);
