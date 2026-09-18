@@ -96,6 +96,7 @@ def _generate_cmake_config_impl(ctx):
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
             "@oneDAL_VERSION@": "",
+            "@ONEDAL_USE_PARAMETERS_LIBRARY@": "yes" if ctx.attr.parameters_lib else "no",
         },
     )
     return [DefaultInfo(files = depset([out]))]
@@ -108,6 +109,7 @@ _generate_cmake_config = rule(
             mandatory = True,
         ),
         "out": attr.string(mandatory = True),
+        "parameters_lib": attr.bool(default = True),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
@@ -184,6 +186,33 @@ Cflags: /std:c++17 /MD /wd4996 /EHsc -I${{includedir}}
         )
     else:
         suffix = "a" if ctx.attr.static else "so"
+
+        # Keep this in sync with the `__linux__` branch of
+        # `deploy/pkg-config/pkg-config.cpp`: the static libraries are built
+        # against the ILP64 oneMKL interface, the dynamic ones against LP64, and
+        # `libonedal_parameters` exists only in the separate layout. oneDAL
+        # links the oneMKL TBB threading layer, so no OpenMP runtime belongs on
+        # a host consumer's link line.
+        #
+        # The static package names the oneMKL *archives* with `-l:` inside a
+        # link group: `-lmkl_core` finds `libmkl_core.so`, whose internals live
+        # in the kernel libraries oneMKL dlopen's at runtime, so a static
+        # consumer linking the shared libraries gets ~9600 undefined
+        # references. The archives alone are not enough either -- they are
+        # mutually recursive -- and the oneDAL archives sit inside the same
+        # group so the link does not depend on their order.
+        # Single braces: these are `format()` arguments, inserted verbatim.
+        parameters_lib = " ${libdir}/libonedal_parameters." + suffix if ctx.attr.parameters_lib else ""
+        onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0}{1}".format(
+            suffix,
+            parameters_lib,
+        )
+        if ctx.attr.static:
+            onedal_libs = ("-Wl,--start-group " + onedal_libs +
+                           " -l:libmkl_intel_ilp64.a -l:libmkl_tbb_thread.a -l:libmkl_core.a" +
+                           " -Wl,--end-group -ltbb -ltbbmalloc -lpthread -ldl")
+        else:
+            onedal_libs += " -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl"
         ctx.actions.write(
             output = out,
             content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
@@ -195,12 +224,12 @@ Name: oneDAL
 Description: oneAPI Data Analytics Library
 Version: {major}.{minor}
 URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-Libs: ${{libdir}}/libonedal.{suffix} ${{libdir}}/libonedal_core.{suffix} ${{libdir}}/libonedal_thread.{suffix} ${{libdir}}/libonedal_parameters.{suffix} -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
+Libs: {onedal_libs}
 Cflags: -std=c++17 -Wno-deprecated-declarations -I${{includedir}}
 """.format(
                 major = vi.major,
                 minor = vi.minor,
-                suffix = suffix,
+                onedal_libs = onedal_libs,
             ),
         )
     return [DefaultInfo(files = depset([out]))]
@@ -221,6 +250,7 @@ _generate_pkgconfig = rule(
             default = False,
             doc = "Generate a static-library pkg-config file.",
         ),
+        "parameters_lib": attr.bool(default = True),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
