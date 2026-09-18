@@ -22,7 +22,7 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
-class cpu_info : public cpu_info_iface {
+class cpu_info : public v1::cpu_info_iface {
 public:
     cpu_info();
     explicit cpu_info(const cpu_extension cpu_extension_);
@@ -35,9 +35,33 @@ public:
     std::string dump() const override;
 
 private:
-    detail::pimpl<cpu_info_iface> impl_;
+    detail::pimpl<v1::cpu_info_iface> impl_;
 };
 
 } // namespace v1
-using v1::cpu_info;
+
+namespace v2 {
+
+class cpu_info : public v2::cpu_info_iface {
+public:
+    cpu_info();
+    explicit cpu_info(const cpu_extension cpu_extension_);
+
+    cpu_vendor get_cpu_vendor() const override;
+    cpu_extension get_top_cpu_extension() const override;
+    cpu_extension get_onedal_cpu_extension() const override;
+    uint64_t get_cpu_features() const override;
+
+    std::string dump() const override;
+
+    uint64_t get_l1_cache_size() const override;
+    uint64_t get_l2_cache_size() const override;
+    uint64_t get_l3_cache_size() const override;
+
+private:
+    detail::pimpl<v2::cpu_info_iface> impl_;
+};
+
+} // namespace v2
+using v2::cpu_info;
 } // namespace oneapi::dal::detail

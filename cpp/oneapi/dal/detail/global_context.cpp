@@ -20,10 +20,20 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
+/// Kept to preserve the exported symbol; forwards to the v2 entry point so that a single
+/// instance of `global_context_impl` is shared by both versions of the interface.
+ONEDAL_EXPORT const global_context_iface& global_context::get_global_context() {
+    return v2::global_context::get_global_context();
+}
+
+} // namespace v1
+
+namespace v2 {
+
 ONEDAL_EXPORT const global_context_iface& global_context::get_global_context() {
     [[maybe_unused]] static detail::global_context_impl init;
     return init;
 }
 
-} // namespace v1
+} // namespace v2
 } // namespace oneapi::dal::detail
