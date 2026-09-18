@@ -24,7 +24,10 @@
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 
+#include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/table/csr.hpp"
+#include "oneapi/dal/table/csr_accessor.hpp"
 
 #include <daal/src/algorithms/low_order_moments/moments_online.h>
 #include <daal/src/algorithms/low_order_moments/low_order_moments_kernel.h>
@@ -32,7 +35,6 @@
 namespace oneapi::dal::basic_statistics::backend {
 
 using dal::backend::context_cpu;
-using method_t = method::dense;
 using task_t = task::compute;
 using input_t = partial_compute_input<task_t>;
 using result_t = partial_compute_result<task_t>;
@@ -41,9 +43,68 @@ using descriptor_t = detail::descriptor_base<task_t>;
 namespace daal_lom = daal::algorithms::low_order_moments;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::internal::CpuType Cpu>
+template <daal_lom::Method Value>
+using daal_method_constant = std::integral_constant<daal_lom::Method, Value>;
+
+template <typename Method>
+struct to_daal_method;
+
+template <>
+struct to_daal_method<method::dense> : daal_method_constant<daal_lom::defaultDense> {};
+
+template <>
+struct to_daal_method<method::sparse> : daal_method_constant<daal_lom::fastCSR> {};
+
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using daal_lom_online_kernel_t =
+    daal_lom::internal::LowOrderMomentsOnlineKernel<Float, to_daal_method<Method>::value, Cpu>;
+
+template <typename Float, daal::internal::CpuType Cpu>
+using daal_lom_online_dense_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
+
+/// Apply per-row weights to a CSR table by scaling its stored values.
+///
+/// This is equivalent to weighting the densified matrix, for every statistic and not only
+/// for the sums, because the `fastCSR` kernel never sees a sparse matrix: it reads its
+/// input through `NumericTable::getBlockOfRows`, which `CSRNumericTable` implements by
+/// densifying the block with the implicit zeros written out as real zeros (`getTBlock` in
+/// `csr_numeric_table.h`). So it receives `densify(scale(csr, w))` where the dense
+/// weighted path hands it `apply_weights(densify(csr), w)`, and those two buffers are
+/// equal element for element: a stored value becomes `w[i] * v` in both, and a structural
+/// zero becomes `0 == w[i] * 0` in both.
+///
+/// Scaling is a separate `O(nnz)` pass. Folding the weights into the reduction instead
+/// needs a weighted `fastCSR` kernel, left to the follow-up PR agreed in review.
+template <typename Float>
+inline csr_table scale_csr_by_weights(const context_cpu& ctx,
+                                      const table& data,
+                                      const table& weights) {
+    const auto& csr = static_cast<const csr_table&>(data);
+    const std::int64_t row_count = csr.get_row_count();
+    const std::int64_t column_count = csr.get_column_count();
+    const auto indexing = csr.get_indexing();
+    const std::int64_t shift = (indexing == sparse_indexing::one_based) ? 1 : 0;
+
+    ONEDAL_ASSERT(weights.get_row_count() == row_count);
+    ONEDAL_ASSERT(weights.get_column_count() == std::int64_t(1));
+
+    auto [values, column_indices, row_offsets] =
+        csr_accessor<const Float>(csr).pull({ 0, -1 }, indexing);
+    const auto weights_arr = row_accessor<const Float>(weights).pull();
+
+    auto scaled = dal::array<Float>::empty(values.get_count());
+    auto scaled_nd = pr::ndview<Float, 1>::wrap_mutable(scaled);
+
+    apply_weights_csr<Float>(ctx,
+                             pr::ndview<Float, 1>::wrap(weights_arr),
+                             pr::ndview<std::int64_t, 1>::wrap(row_offsets),
+                             shift,
+                             pr::ndview<Float, 1>::wrap(values),
+                             scaled_nd);
+
+    return csr_table::wrap(scaled, column_indices, row_offsets, column_count, indexing);
+}
 
 template <typename Float, typename Task>
 inline auto get_partial_result(daal_lom::PartialResult daal_partial_result,
@@ -146,11 +207,11 @@ result_t call_daal_kernel_with_weights(const context_cpu& ctx,
         }
         {
             interop::status_to_exception(
-                interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                           daal_data.get(),
-                                                                           &daal_partial,
-                                                                           &daal_parameter,
-                                                                           is_online));
+                interop::call_daal_kernel<Float, daal_lom_online_dense_kernel_t>(ctx,
+                                                                                 daal_data.get(),
+                                                                                 &daal_partial,
+                                                                                 &daal_parameter,
+                                                                                 is_online));
         }
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
 
@@ -159,18 +220,18 @@ result_t call_daal_kernel_with_weights(const context_cpu& ctx,
     else {
         {
             interop::status_to_exception(
-                interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                           daal_data.get(),
-                                                                           &daal_partial,
-                                                                           &daal_parameter,
-                                                                           is_online));
+                interop::call_daal_kernel<Float, daal_lom_online_dense_kernel_t>(ctx,
+                                                                                 daal_data.get(),
+                                                                                 &daal_partial,
+                                                                                 &daal_parameter,
+                                                                                 is_online));
         }
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
         return result;
     }
 }
 
-template <typename Float, typename Task>
+template <typename Float, typename Method, typename Task>
 result_t call_daal_kernel_without_weights(const context_cpu& ctx,
                                           const descriptor_t& desc,
                                           const partial_compute_input<Task>& input) {
@@ -223,52 +284,66 @@ result_t call_daal_kernel_without_weights(const context_cpu& ctx,
             daal_partial.set(daal_lom::PartialResultId::partialSumSquares,
                              daal_partial_sum_squares);
         }
-        interop::status_to_exception(
-            interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                       daal_data.get(),
-                                                                       &daal_partial,
-                                                                       &daal_parameter,
-                                                                       is_online));
+        interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            return daal_lom_online_kernel_t<Float,
+                                            interop::to_daal_cpu_type<decltype(cpu)>::value,
+                                            Method>()
+                .compute(daal_data.get(), &daal_partial, &daal_parameter, is_online);
+        }));
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
         return result;
     }
     else {
         {
-            interop::status_to_exception(
-                interop::call_daal_kernel<Float, daal_lom_online_kernel_t>(ctx,
-                                                                           daal_data.get(),
-                                                                           &daal_partial,
-                                                                           &daal_parameter,
-                                                                           is_online));
+            interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+                return daal_lom_online_kernel_t<Float,
+                                                interop::to_daal_cpu_type<decltype(cpu)>::value,
+                                                Method>()
+                    .compute(daal_data.get(), &daal_partial, &daal_parameter, is_online);
+            }));
         }
         auto result = get_partial_result<Float, task_t>(daal_partial, desc);
         return result;
     }
 }
 
-template <typename Float, typename Task>
+template <typename Float, typename Method, typename Task>
 static partial_compute_result<Task> partial_compute(const context_cpu& ctx,
                                                     const descriptor_t& desc,
                                                     const partial_compute_input<Task>& input) {
     if (input.get_weights().has_data()) {
-        return call_daal_kernel_with_weights<Float>(ctx, desc, input);
+        // The DAAL fastCSR online kernel has no weighted variant, and the dense weighted
+        // path densifies its input through `row_accessor`, which a CSR table does not
+        // support. Fold the weights into the CSR values instead and reuse the unweighted
+        // fastCSR kernel, which is exactly equivalent, see `scale_csr_by_weights`.
+        if constexpr (std::is_same_v<Method, method::sparse>) {
+            const auto scaled =
+                scale_csr_by_weights<Float>(ctx, input.get_data(), input.get_weights());
+            const partial_compute_input<Task> scaled_input{ input.get_prev(), scaled };
+            return call_daal_kernel_without_weights<Float, Method, Task>(ctx, desc, scaled_input);
+        }
+        else {
+            return call_daal_kernel_with_weights<Float, Task>(ctx, desc, input);
+        }
     }
     else {
-        return call_daal_kernel_without_weights<Float, Task>(ctx, desc, input);
+        return call_daal_kernel_without_weights<Float, Method, Task>(ctx, desc, input);
     }
 }
 
-template <typename Float>
-struct partial_compute_kernel_cpu<Float, method_t, task_t> {
+template <typename Float, typename Method>
+struct partial_compute_kernel_cpu<Float, Method, task_t> {
     partial_compute_result<task::compute> operator()(
         const context_cpu& ctx,
         const descriptor_t& desc,
         const partial_compute_input<task::compute>& input) const {
-        return partial_compute<Float, task::compute>(ctx, desc, input);
+        return partial_compute<Float, Method, task::compute>(ctx, desc, input);
     }
 };
 
-template struct partial_compute_kernel_cpu<float, method_t, task_t>;
-template struct partial_compute_kernel_cpu<double, method_t, task_t>;
+template struct partial_compute_kernel_cpu<float, method::dense, task_t>;
+template struct partial_compute_kernel_cpu<double, method::dense, task_t>;
+template struct partial_compute_kernel_cpu<float, method::sparse, task_t>;
+template struct partial_compute_kernel_cpu<double, method::sparse, task_t>;
 
 } // namespace oneapi::dal::basic_statistics::backend

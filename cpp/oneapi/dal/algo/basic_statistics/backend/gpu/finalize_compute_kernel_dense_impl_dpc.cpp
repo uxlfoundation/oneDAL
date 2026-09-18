@@ -152,7 +152,30 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
 
     const auto nobs_nd = pr::table2ndarray_1d<Float>(q, input.get_partial_n_rows());
 
-    auto rows_count_global = nobs_nd.get_data()[0];
+    // `nobs_nd` is dereferenced on the host below. When the partial result's row count
+    // already lives in memory the host can read, `table2ndarray_1d` hands it back as a
+    // zero-copy wrap and performs no synchronization of its own, so a kernel from the
+    // preceding `partial_compute` may still be writing it. Every statistic is divided by
+    // this value, so reading it early skews the whole result by a wide margin rather than
+    // by rounding. Synchronize before touching it from the host.
+    q.wait_and_throw();
+
+    // The observation count arrives as `Float` because `partial_n_rows` is a `Float`
+    // table: a property of the `partial_compute_result` schema, which this backend shares
+    // with the CPU one, where the count comes straight out of DAAL's `nObservations` in
+    // the algorithm's floating-point type. Every value that table can hold is an exact
+    // integer -- a row count below 2^24 is exact in float32, and every float32 at or above
+    // 2^24 is itself an integer -- so the cast below is exact and needs no rounding. What
+    // the schema cannot express is a count past the point where the float spacing exceeds
+    // one: in float32 the accumulation itself stops tracking every total beyond 2^24 rows,
+    // and nothing done here can recover that. Fixing that means changing the type of
+    // `partial_n_rows` across both backends, SPMD and serialization, which is out of
+    // scope for this PR.
+    //
+    // Carrying the count as `std::int64_t` from here on does fix the distributed side:
+    // the allreduce below used to sum the per-rank counts in `Float`, so the total could
+    // round even when every rank's own count was exact.
+    std::int64_t rows_count_global = static_cast<std::int64_t>(nobs_nd.get_data()[0]);
     auto is_distributed = (comm_.get_rank_count() > 1);
     {
         ONEDAL_PROFILER_TASK(allreduce_rows_count_global);
@@ -176,7 +199,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
         const auto max =
             pr::table2ndarray_1d<Float>(q, input.get_partial_max(), sycl::usm::alloc::device);
 
-        {
+        if (is_distributed) {
             comm_.allreduce(max.flatten(q, {}), spmd::reduce_op::max).wait();
         }
         res.set_max(homogen_table::wrap(max.flatten(q, {}), 1, column_count));
