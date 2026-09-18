@@ -15,7 +15,9 @@
 *******************************************************************************/
 
 #include "oneapi/dal/detail/common.hpp"
+#include "oneapi/dal/detail/global_context.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/detail/threading.hpp"
 
 #include "oneapi/dal/backend/dispatcher.hpp"
 
@@ -60,6 +62,45 @@ std::int64_t propose_block_size(const context_cpu& ctx, const std::int64_t row_c
         }
     }
     return block_size;
+}
+
+/// Proposes the number of rows in the data block used in variance-covariance matrix computations on CPU.
+///
+/// @tparam Float   The type of elements that is used in computations in covariance algorithm.
+///                 The :literal:`Float` type should be at least :expr:`float` or :expr:`double`.
+///
+/// @param[in] ctx       Context that stores the information about the available CPU extensions
+///                      and available data communication mechanisms, parallel or distributed.
+/// @param[in] row_count Number of rows in the input dataset.
+///
+/// @return Number of rows in the data block used in variance-covariance matrix computations on CPU.
+template <typename Float>
+std::int64_t propose_block_size(const context_cpu& ctx,
+                                const std::int64_t row_count,
+                                const std::int64_t column_count) {
+    /// The constants are defined as the values that show the best performance results
+    /// in the series of performance measurements with the varying block sizes and dataset sizes.
+    if (!daal_check_is_intel_cpu()) {
+        std::int64_t block_size = 140l;
+        if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
+            /// Here if AVX512 extensions are available on CPU
+            if (5000l < row_count && row_count <= 50000l) {
+                block_size = 1024l;
+            }
+        }
+        return block_size;
+    }
+
+    const auto& cpu_info = dal::detail::global_context::get_global_context().get_cpu_info();
+    const auto threads = dal::detail::threader_get_max_threads();
+
+    /// Half of the L2 cache is reserved for a block of the data
+    const double h1 = 0.5 * cpu_info.get_l2_cache_size() / (column_count * sizeof(Float));
+    /// At least one block per thread
+    const double h2 = double(row_count) / threads;
+
+    const auto block_size = static_cast<std::int64_t>(std::clamp(std::min(h1, h2), 64.0, 8192.0));
+    return dal::backend::down_pow2(block_size);
 }
 
 template <typename Float>
@@ -112,8 +153,9 @@ struct train_parameters_cpu<Float, method::cov, task::dim_reduction> {
         const auto& x_train = input.get_data();
 
         const auto r_count = x_train.get_row_count();
+        const auto c_count = x_train.get_column_count();
 
-        const std::int64_t block = propose_block_size<Float>(ctx, r_count);
+        const std::int64_t block = propose_block_size<Float>(ctx, r_count, c_count);
         const std::int64_t grain_size = propose_grain_size<Float>(ctx, r_count);
         const std::int64_t max_cols_batched = propose_max_cols_batched<Float>(ctx, r_count);
         const std::int64_t small_rows_threshold = propose_small_rows_threshold<Float>(ctx, r_count);
