@@ -338,6 +338,16 @@ DF_BATCH_CLS_TEST("df cls base check with default params and train weights") {
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
+// min_weight_fraction_in_leaf_node enforcement (classification).
+DF_BATCH_CLS_TEST("df cls min weight fraction reduces node count") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const splitter_mode splitter_mode_val =
+        GENERATE_COPY(splitter_mode::best, splitter_mode::random);
+    this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
+}
+
 DF_BATCH_CLS_TEST("df cls base check with non default params") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
@@ -425,6 +435,16 @@ DF_BATCH_REG_TEST("df reg base check with default params and train weights") {
         this->train_weighted_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
+// min_weight_fraction_in_leaf_node enforcement (regression).
+DF_BATCH_REG_TEST("df reg min weight fraction reduces node count") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const splitter_mode splitter_mode_val =
+        GENERATE_COPY(splitter_mode::best, splitter_mode::random);
+    this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
 }
 
 DF_BATCH_REG_TEST("df reg base check with non default params") {
