@@ -72,24 +72,25 @@ public:
                         const table& weights);
 
 private:
-    std::int64_t get_part_hist_required_mem_size(Index selected_ftr_count,
-                                                 Index max_bin_count_among_ftrs,
-                                                 Index class_count) const;
-    std::int64_t get_part_hist_elem_count(Index selected_ftr_count,
-                                          Index max_bin_count_among_ftrs,
-                                          Index class_count) const;
-
-    sycl::event gen_initial_tree_order(train_context_t& ctx,
+    /// Fills the initial row order for every tree of the current block. Each rank
+    /// samples only from its own rows, so both the generated indices and the
+    /// destination buffer are local: the buffer holds `ctx.selected_row_count_`
+    /// indices per tree.
+    ///
+    /// @param[in] ctx              a training context structure for a GPU backend
+    /// @param[in] rng_engine       a random generator engine
+    /// @param[out] tree_order_level a row order buffer to fill
+    /// @param[in] node_count       number of trees in the current block
+    sycl::event gen_initial_tree_order(const train_context_t& ctx,
                                        rng_engine_t& rng_engine,
-                                       pr::ndarray<Index, 1>& node_list,
                                        pr::ndarray<Index, 1>& tree_order_level,
-                                       Index engine_offset,
                                        Index node_count);
 
     void validate_input(const descriptor_t& desc, const table& data, const table& labels) const;
 
-    Index get_row_total_count(bool distr_mode, Index row_count);
-    Index get_global_row_offset(bool distr_mode, Index row_count);
+    /// Returns the sum of `local_count` over all ranks in distributed mode,
+    /// and `local_count` itself otherwise.
+    Index get_total_count(bool distr_mode, Index local_count);
 
     /// Initializes `ctx` training context structure based on data and
     /// descriptor class. Filling and calculating all parameters in context,
@@ -302,209 +303,6 @@ private:
                                    Index node_count,
                                    const bk::event_vector& deps = {});
 
-    /// Computes a histogram for each node at the current level. It can process
-    /// histograms partially or a single run, depending on data size.
-    ///
-    /// @param[in] ctx                      a training context structure for a GPU backend
-    /// @param[in] data                     a training data converted to bins
-    /// @param[in] response                 an array with data responses (labels)
-    /// @param[in] tree_order               current tree order
-    /// @param[in] selected_ftr_list        an array of selected features for each node
-    /// @param[in] bin_offset_list          an array of bin offsets
-    /// @param[in] node_list                a node list containing splitting information
-    /// @param[in] node_ind_list            a node indices list
-    /// @param[in] node_ind_ofs             a node indices offset
-    /// @param[in] npart_hist_list          number of partial histogram lists
-    /// @param[in] node_count               number of nodes to process
-    /// @param[in] deps                     a set of SYCL events this kernel depends on
-    std::tuple<pr::ndarray<hist_type_t, 1>, sycl::event> compute_histogram(
-        const train_context_t& ctx,
-        const pr::ndarray<Bin, 2>& data,
-        const pr::ndview<Float, 1>& response,
-        const pr::ndarray<Index, 1>& tree_order,
-        const pr::ndarray<Index, 1>& selected_ftr_list,
-        const pr::ndarray<Index, 1>& bin_offset_list,
-        const pr::ndarray<Index, 1>& node_list,
-        const pr::ndarray<Index, 1>& node_ind_list,
-        Index node_ind_ofs,
-        Index npart_hist_list,
-        Index node_count,
-        const bk::event_vector& deps = {});
-
-    /// Computes a histogram for each node at the current level in distributed manner, if
-    /// platform/device supports it and the flag `ctx.distr` is true.
-    ///
-    /// @param[in] ctx                      a training context structure for a GPU backend
-    /// @param[in] data                     a training data converted to bins
-    /// @param[in] response                 an array with data responses (labels)
-    /// @param[in] tree_order               current tree order
-    /// @param[in] selected_ftr_list        an array of selected features for each node
-    /// @param[in] bin_offset_list          an array of bin offsets
-    /// @param[in] node_list                a node list containing splitting information
-    /// @param[in] node_ind_list            a node indices list
-    /// @param[in] node_ind_ofs             a node indices offset
-    /// @param[in] npart_hist_list          number of partial histogram lists
-    /// @param[in] node_count               number of nodes to process
-    /// @param[in] deps                     a set of SYCL events this kernel depends on
-    std::tuple<pr::ndarray<hist_type_t, 1>, sycl::event> compute_histogram_distr(
-        const train_context_t& ctx,
-        const pr::ndarray<Bin, 2>& data,
-        const pr::ndview<Float, 1>& response,
-        const pr::ndarray<Index, 1>& tree_order,
-        const pr::ndarray<Index, 1>& selected_ftr_list,
-        const pr::ndarray<Index, 1>& bin_offset_list,
-        const pr::ndarray<Index, 1>& node_list,
-        const pr::ndarray<Index, 1>& node_ind_list,
-        Index node_ind_ofs,
-        Index npart_hist_list,
-        Index node_count,
-        const bk::event_vector& deps = {});
-
-    /// Computes partial histograms for each node. It is an internal kernel
-    /// used in the `compute_histogram` kernel.
-    ///
-    /// @param[in] ctx                      a training context structure for a GPU backend
-    /// @param[in] data                     a training data converted to bins
-    /// @param[in] response                 an array with data responses (labels)
-    /// @param[in] tree_order               current tree order
-    /// @param[in] selected_ftr_list        an array of selected features for each node
-    /// @param[in] bin_offset_list          an array of bin offsets
-    /// @param[in] node_list                a node list containing splitting information
-    /// @param[in] node_ind_list            a node indices list
-    /// @param[in] node_ind_ofs             a node indices offset
-    /// @param[in] part_hist_list           an array of partial histograms
-    /// @param[in] part_hist_count          number of partial histograms
-    /// @param[in] node_count               number of nodes to process
-    /// @param[in] deps                     a set of SYCL events this kernel depends on
-    sycl::event compute_partial_histograms(const train_context_t& ctx,
-                                           const pr::ndarray<Bin, 2>& data,
-                                           const pr::ndview<Float, 1>& response,
-                                           const pr::ndarray<Index, 1>& tree_order,
-                                           const pr::ndarray<Index, 1>& selected_ftr_list,
-                                           const pr::ndarray<Index, 1>& bin_offset_list,
-                                           const pr::ndarray<Index, 1>& node_list,
-                                           const pr::ndarray<Index, 1>& node_ind_list,
-                                           Index node_ind_ofs,
-                                           pr::ndarray<hist_type_t, 1>& part_hist_list,
-                                           Index part_hist_count,
-                                           Index node_count,
-                                           const bk::event_vector& deps = {});
-
-    /// Reduces a partial histogram to one `hist_list`. It is an internal kernel
-    /// used in the `compute_histogram` kernel.
-    ///
-    /// @param[in] ctx                      a training context structure for a GPU backend
-    /// @param[in] part_hist_list           an array of partial histograms
-    /// @param[in] hist_list                final histogram list
-    /// @param[in] part_hist_count          number of partial histograms
-    /// @param[in] node_count               number of nodes to process
-    /// @param[in] deps                     a set of SYCL events this kernel depends on
-    sycl::event reduce_partial_histograms(const train_context_t& ctx,
-                                          const pr::ndarray<hist_type_t, 1>& part_hist_list,
-                                          pr::ndarray<hist_type_t, 1>& hist_list,
-                                          Index part_hist_count,
-                                          Index node_count,
-                                          const bk::event_vector& deps = {});
-
-    /// Computes histogram statistics (count and sum) partially. It is an internal auxiliary kernel,
-    /// which is used in the `compute_histogram` kernel.
-    ///
-    /// @param[in] ctx                      a training context structure for a GPU backend
-    /// @param[in] data                     a training data converted to bins
-    /// @param[in] response                 an array with data responses (labels)
-    /// @param[in] tree_order               current tree order
-    /// @param[in] selected_ftr_list        an array of selected features for each node
-    /// @param[in] bin_offset_list          an array of bin offsets
-    /// @param[in] node_list                a node list containing splitting information
-    /// @param[in] node_ind_list            a node indices list
-    /// @param[in] node_ind_ofs             a node indices offset
-    /// @param[in] part_hist_list           an array of partial histograms
-    /// @param[in] part_hist_count          number of partial histograms
-    /// @param[in] node_count               number of nodes to process
-    /// @param[in] deps                     a set of SYCL events this kernel depends on
-    /// @param[in] task_val                 a task type: regression or classification
-    sycl::event compute_partial_count_and_sum(const train_context_t& ctx,
-                                              const pr::ndarray<Bin, 2>& data,
-                                              const pr::ndview<Float, 1>& response,
-                                              const pr::ndarray<Index, 1>& tree_order,
-                                              const pr::ndarray<Index, 1>& selected_ftr_list,
-                                              const pr::ndarray<Index, 1>& bin_offset_list,
-                                              const pr::ndarray<Index, 1>& node_list,
-                                              const pr::ndarray<Index, 1>& node_ind_list,
-                                              Index node_ind_ofs,
-                                              pr::ndarray<Float, 1>& part_hist_list,
-                                              Index part_hist_count,
-                                              Index node_count,
-                                              const bk::event_vector& deps = {},
-                                              const task::regression task_val = {});
-
-    /// Computes distances to center partially. It is an internal auxiliary kernel
-    /// used in the `compute_histogram` kernel.
-    ///
-    /// @param[in] ctx                      a training context structure for a GPU backend
-    /// @param[in] data                     a training data converted to bins
-    /// @param[in] response                 an array with data responses (labels)
-    /// @param[in] sum_list                 an array of partial sums
-    /// @param[in] tree_order               current tree order
-    /// @param[in] selected_ftr_list        an array of selected features for each node
-    /// @param[in] bin_offset_list          an array of bin offsets
-    /// @param[in] node_list                a node list containing splitting information
-    /// @param[in] node_ind_list            a node indices list
-    /// @param[in] node_ind_ofs             a node indices offset
-    /// @param[in] part_hist_list           an array of partial histograms
-    /// @param[in] part_hist_count          number of partial histograms
-    /// @param[in] node_count               number of nodes to process
-    /// @param[in] deps                     a set of SYCL events this kernel depends on
-    /// @param[in] task_val                 a task type: regression or classification
-    sycl::event compute_partial_sum2cent(const train_context_t& ctx,
-                                         const pr::ndarray<Bin, 2>& data,
-                                         const pr::ndview<Float, 1>& response,
-                                         const pr::ndview<Float, 1>& sum_list,
-                                         const pr::ndarray<Index, 1>& tree_order,
-                                         const pr::ndarray<Index, 1>& selected_ftr_list,
-                                         const pr::ndarray<Index, 1>& bin_offset_list,
-                                         const pr::ndarray<Index, 1>& node_list,
-                                         const pr::ndarray<Index, 1>& node_ind_list,
-                                         Index node_ind_ofs,
-                                         pr::ndarray<Float, 1>& part_hist_list,
-                                         Index part_hist_count,
-                                         Index node_count,
-                                         const bk::event_vector& deps = {},
-                                         const task::regression task_val = {});
-
-    /// Reduces partial sums into hist list. It is an internal auxiliary kernel
-    /// used in the `compute_histogram` kernel.
-    ///
-    /// @param[in] ctx              a training context structure for a GPU backend
-    /// @param[in] part_hist_list   an array of partial histograms
-    /// @param[in] hist_list        final histogram list
-    /// @param[in] part_hist_count  number of partial histograms
-    /// @param[in] node_count       number of nodes to process
-    /// @param[in] hist_prop_count  number of histogram properties
-    /// @param[in] deps             a set of SYCL events this kernel depends on
-    sycl::event sum_reduce_partial_histograms(const train_context_t& ctx,
-                                              const pr::ndarray<Float, 1>& part_hist_list,
-                                              pr::ndarray<Float, 1>& hist_list,
-                                              Index part_hist_count,
-                                              Index node_count,
-                                              Index hist_prop_count,
-                                              const bk::event_vector& deps = {});
-
-    /// Finalizes distributed calculations for histogram using partially pre-computed statistics.
-    ///
-    /// @param[in] ctx              a training context structure for a GPU backend
-    /// @param[in] sum_list         an array of partial sums
-    /// @param[in] sum2cent_list    an array of partial distances to center
-    /// @param[in] histogram_list   final histogram list
-    /// @param[in] node_count       number of nodes to process
-    /// @param[in] deps             a set of SYCL events this kernel depends on
-    sycl::event fin_histogram_distr(const train_context_t& ctx,
-                                    const pr::ndarray<Float, 1>& sum_list,
-                                    const pr::ndarray<Float, 1>& sum2cent_list,
-                                    pr::ndarray<Float, 1>& histogram_list,
-                                    Index node_count,
-                                    const bk::event_vector& deps = {});
-
     /// Computes Out-Of-Bag (OOB) error.
     ///
     /// @param[in] ctx              a training context structure for a GPU backend
@@ -624,12 +422,10 @@ private:
     pr::ndarray<Float, 1> response_host_;
     pr::ndarray<Float, 1> data_host_;
 
-    pr::ndarray<Index, 1> selected_row_host_;
-    pr::ndarray<Index, 1> selected_row_global_host_;
+    // Row order buffers for the trees of the current block. Both hold only the
+    // rows this rank owns, so their size never scales with the rank count.
     pr::ndarray<Index, 1> tree_order_lev_;
     pr::ndarray<Index, 1> tree_order_lev_buf_;
-
-    pr::ndarray<Float, 1> node_imp_decr_list_;
 
     pr::ndarray<hist_type_t, 1> oob_per_obs_list_;
     pr::ndarray<Float, 1> var_imp_variance_host_;

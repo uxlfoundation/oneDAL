@@ -54,7 +54,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::initialize_tree_orde
     Index row_count,
     Index stride,
     const bk::event_vector& deps) {
-    ONEDAL_ASSERT(tree_order.get_count() == tree_count * stride);
+    ONEDAL_ASSERT(tree_order.get_count() >= tree_count * stride);
 
     Index* tree_order_ptr = tree_order.get_mutable_data();
     const sycl::range<2> range{ de::integral_cast<std::size_t>(row_count),
@@ -137,7 +137,7 @@ train_service_kernels<Float, Bin, Index, Task>::calculate_left_child_row_count_o
 
     ONEDAL_ASSERT(data.get_count() == ctx.row_count_ * ctx.column_count_);
     ONEDAL_ASSERT(node_list.get_count() == node_count * impl_const_t::node_prop_count_);
-    ONEDAL_ASSERT(tree_order.get_count() == ctx.tree_in_block_ * ctx.selected_row_total_count_);
+    ONEDAL_ASSERT(tree_order.get_count() >= ctx.tree_in_block_ * ctx.selected_row_count_);
 
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
@@ -242,8 +242,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
 
     ONEDAL_ASSERT(data.get_count() == ctx.row_count_ * ctx.column_count_);
     ONEDAL_ASSERT(node_list.get_count() == node_count * impl_const_t::node_prop_count_);
-    ONEDAL_ASSERT(tree_order.get_count() == ctx.selected_row_count_ * ctx.tree_count_);
-    ONEDAL_ASSERT(tree_order_buf.get_count() == ctx.selected_row_count_ * ctx.tree_count_);
+    ONEDAL_ASSERT(tree_order.get_count() >= ctx.selected_row_count_ * ctx.tree_in_block_);
+    ONEDAL_ASSERT(tree_order_buf.get_count() >= ctx.selected_row_count_ * ctx.tree_in_block_);
 
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
@@ -484,7 +484,7 @@ template <typename Float, typename Bin, typename Index, typename Task>
 sycl::event train_service_kernels<Float, Bin, Index, Task>::mark_present_rows(
     const pr::ndarray<Index, 1>& row_list,
     pr::ndarray<Index, 1>& row_buffer,
-    Index global_row_count,
+    Index row_list_stride,
     Index block_row_count,
     Index node_row_count,
     Index node_count,
@@ -492,7 +492,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::mark_present_rows(
     Index krn_local_size,
     Index sbg_sum_count,
     const bk::event_vector& deps) {
-    ONEDAL_ASSERT(row_list.get_count() == de::check_mul_overflow(global_row_count, node_count));
+    ONEDAL_ASSERT(row_list.get_count() >= de::check_mul_overflow(row_list_stride, node_count));
     ONEDAL_ASSERT(row_buffer.get_count() == de::check_mul_overflow(block_row_count, node_count));
 
     const Index* rows_list_ptr = row_list.get_data();
@@ -524,7 +524,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::mark_present_rows(
 
             for (Index i = ind_start + local_id; i < ind_end; i += local_size) {
                 rows_buffer_ptr[block_row_count * node_idx +
-                                rows_list_ptr[global_row_count * node_idx + i]] = item_present_mark;
+                                rows_list_ptr[row_list_stride * node_idx + i]] = item_present_mark;
             }
         });
     });
@@ -716,7 +716,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::get_oob_row_list(
     const pr::ndarray<Index, 1>& node_list,
     pr::ndarray<Index, 1>& oob_row_count_list,
     pr::ndarray<Index, 1>& oob_row_list,
-    Index global_row_count,
+    Index row_list_stride,
     Index block_row_count,
     Index node_count,
     const bk::event_vector& deps) {
@@ -729,7 +729,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::get_oob_row_list(
             ? max_local_sums_
             : (block_row_count / krn_local_size + !(block_row_count / krn_local_size));
 
-    ONEDAL_ASSERT(row_list.get_count() == global_row_count * node_count);
+    ONEDAL_ASSERT(row_list.get_count() >= row_list_stride * node_count);
     ONEDAL_ASSERT(oob_row_count_list.get_count() == node_count + 1);
     // oob_row_list will be created here
 
@@ -757,7 +757,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::get_oob_row_list(
             node_list_host_ptr[node_idx * impl_const_t::node_prop_count_ + impl_const_t::ind_lrc];
         last_event = mark_present_rows(row_list,
                                        row_buffer,
-                                       global_row_count,
+                                       row_list_stride,
                                        block_row_count,
                                        node_row_count,
                                        node_count,

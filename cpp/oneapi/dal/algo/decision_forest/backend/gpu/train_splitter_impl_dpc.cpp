@@ -70,7 +70,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
     ONEDAL_ASSERT(data.get_count() == ctx.row_count_ * ctx.column_count_);
     ONEDAL_ASSERT(response.get_count() == ctx.row_count_);
-    ONEDAL_ASSERT(tree_order.get_count() == ctx.tree_in_block_ * ctx.selected_row_total_count_);
+    ONEDAL_ASSERT(tree_order.get_count() >= ctx.tree_in_block_ * ctx.selected_row_count_);
     ONEDAL_ASSERT(selected_ftr_list.get_count() >= node_count * ctx.selected_ftr_count_);
     ONEDAL_ASSERT(bin_offset_list.get_count() == ctx.column_count_ + 1);
     ONEDAL_ASSERT(imp_data_list.imp_list_.get_count() >=
@@ -486,7 +486,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
     ONEDAL_PROFILER_TASK(best_split, queue);
     ONEDAL_ASSERT(data.get_count() == ctx.row_count_ * ctx.column_count_);
     ONEDAL_ASSERT(response.get_count() == ctx.row_count_);
-    ONEDAL_ASSERT(tree_order.get_count() == ctx.tree_in_block_ * ctx.selected_row_total_count_);
+    ONEDAL_ASSERT(tree_order.get_count() >= ctx.tree_in_block_ * ctx.selected_row_count_);
     ONEDAL_ASSERT(selected_ftr_list.get_count() >= node_count * ctx.selected_ftr_count_);
     ONEDAL_ASSERT(bin_offset_list.get_count() == ctx.column_count_ + 1);
     ONEDAL_ASSERT(imp_data_list.imp_list_.get_count() >=
