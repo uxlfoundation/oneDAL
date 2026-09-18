@@ -178,14 +178,18 @@ jobs:
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
-          .ci\env\openblas.bat || exit /b 1
+          rem `CALL` is required: without it cmd transfers control to the child
+          rem script and never comes back, silently skipping the GITHUB_ENV write.
+          CALL .ci\env\openblas.bat
+          if errorlevel 1 exit /b 1
           echo OPENBLASROOT=%CD%\__deps\open_blas>> %GITHUB_ENV%
 
       - name: Build oneTBB
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
-          .ci\env\tbb.bat || exit /b 1
+          CALL .ci\env\tbb.bat
+          if errorlevel 1 exit /b 1
           echo TBBROOT=%CD%\__deps\tbb\win\tbb>> %GITHUB_ENV%
 
       - name: bazel build core_dynamic

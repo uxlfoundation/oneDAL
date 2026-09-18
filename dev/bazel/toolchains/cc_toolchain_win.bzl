@@ -271,6 +271,10 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{target_cpu}": reqs_llvm.target_arch_id,
             "%{host_system_name}": "win-" + reqs_llvm.host_arch_id,
             "%{target_system_name}": "win-" + reqs_llvm.target_arch_id,
+            # icx spells the standard selector `/Qstd:`; upstream clang-cl only
+            # knows `/std:` and warns on the unknown argument, which `-Werror`
+            # would make fatal.
+            "%{cxx_std_flag_prefix}": "/Qstd:" if compiler_id == "icx" else "/std:",
             "%{host_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.host_arch_id],
             "%{target_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.target_arch_id],
             "%{supports_param_files}": "1",

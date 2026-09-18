@@ -22,7 +22,7 @@
 #
 # icx.exe runs in its native clang-cl driver mode (MSVC-compatible syntax),
 # matching dev/make/compiler_definitions/icx.mkl.32e.mk. All flags below use
-# MSVC-style spellings (`/I`, `/imsvc`, `/Fo`, `/Qstd:c++17`, `-MD`, …) so
+# MSVC-style spellings (`/I`, `/imsvc`, `/Fo`, `-MD`, …) so
 # icx accepts them without a driver-mode flip. The major differences vs.
 # cc_toolchain_config_lnx.bzl:
 #
@@ -402,17 +402,23 @@ def _impl(ctx):
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["/Qstd:c++11"])],
+                flag_groups = [flag_group(
+                    flags = [ctx.attr.cxx_std_flag_prefix + "c++11"],
+                )],
                 with_features = [with_feature_set(features = ["c++11"])],
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["/Qstd:c++14"])],
+                flag_groups = [flag_group(
+                    flags = [ctx.attr.cxx_std_flag_prefix + "c++14"],
+                )],
                 with_features = [with_feature_set(features = ["c++14"])],
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["/Qstd:c++17"])],
+                flag_groups = [flag_group(
+                    flags = [ctx.attr.cxx_std_flag_prefix + "c++17"],
+                )],
                 with_features = [with_feature_set(features = ["c++17"])],
             ),
             flag_set(
@@ -944,6 +950,10 @@ cc_toolchain_config = rule(
         "cc_link_path": attr.string(mandatory = True),
         "dpcc_link_path": attr.string(mandatory = True),
         "ar_path": attr.string(mandatory = True),
+        # `/Qstd:` is the Intel spelling; upstream clang-cl only knows
+        # `/std:` and warns on the unknown argument, which `-Werror` in the
+        # clang flag set (dev/bazel/flags.bzl) would turn into a build failure.
+        "cxx_std_flag_prefix": attr.string(default = "/Qstd:"),
         "cxx_builtin_include_directories": attr.string_list(),
         "compile_flags_cc": attr.string_list(),
         "compile_flags_dpcc": attr.string_list(),

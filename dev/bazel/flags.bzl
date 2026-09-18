@@ -103,11 +103,10 @@ win_clang_common_flags = [
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
-    # `-fms-runtime-lib=dll` in COMPILER.win.clang. Only the release (non-debug)
-    # CRT is selected here; Make picks `dll_dbg` from MSVC_RT_is_release, which
-    # has no Bazel counterpart because `--compilation_mode=dbg` does not switch
-    # oneDAL to the debug CRT.
-    "-fms-runtime-lib=dll",
+    # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
+    # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
+    # config already emits `-MD`/`-MDd` from the `dbg` feature, and stating the
+    # CRT twice would let the two disagree under `--compilation_mode=dbg`.
     # clang-cl reports every vectorization pragma it cannot honor from `-O1` up,
     # which `-Werror` above would turn into a build failure. Matches
     # `warn.opts.clang` in dev/make/compiler_definitions/clang.mk.
