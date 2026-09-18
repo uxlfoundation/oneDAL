@@ -55,6 +55,23 @@ config_setting(
     ],
 )
 
+# Windows MSVC runtime library selection, equivalent to the Makefile's
+# `MSVC_RUNTIME_VERSION`. Deliberately independent of `--compilation_mode`
+# (Make `REQDBG`): the CRT flavour changes the library file names and the
+# `msvcrt`/`tbb` variants that get linked, while REQDBG only adds debug
+# info and assertions. Ignored on non-Windows platforms.
+#
+# Keep in sync with the `msvc_runtime_debug` toolchain feature — use
+# `--config=mdd` (see .bazelrc), which sets both.
+config_flag(
+    name = "msvc_runtime",
+    build_setting_default = "release",
+    allowed_build_setting_values = [
+        "release",
+        "debug",
+    ],
+)
+
 # Make BUILD_PARAMETERS_LIB parity. "auto" means yes on every non-Windows
 # target and no on Windows. Explicit yes is rejected on Windows.
 config_flag(
@@ -291,5 +308,6 @@ dump_config_info(
         ":test_link_mode",
         ":test_thread_mode",
         ":code_coverage",
+        ":msvc_runtime",
     ],
 )
