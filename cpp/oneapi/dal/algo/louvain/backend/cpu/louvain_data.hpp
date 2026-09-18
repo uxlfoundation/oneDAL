@@ -123,7 +123,17 @@ struct louvain_data {
     // Total link weight in the network
     value_type m;
 
-    host_engine eng;
+    // Louvain draws a random vertex visit order, and that order decides which local optimum
+    // the modularity optimization settles in - so the community labels it reports depend on the
+    // exact value stream of the engine, not just on its statistical quality.
+    //
+    // There is nothing mt2203-specific about the algorithm: it only calls `uniform` on the host
+    // and never needs `skip_ahead`, so any engine would do. mt2203 is pinned because it is the
+    // engine louvain has been using so far (it was the library-wide default), and pinning it
+    // keeps the reported labels bit-identical while the default moves to philox4x32x10. Louvain
+    // does not expose the engine on its descriptor, so a change here would silently reshuffle
+    // the labels of every existing caller.
+    host_engine eng{ default_seed, engine_type_internal::mt2203 };
 
     const std::int64_t vertex_count;
     const std::int64_t edge_count;

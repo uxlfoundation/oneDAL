@@ -61,9 +61,11 @@ public:
     error_metric_mode error_metric_mode_value = error_metric_mode::none;
     infer_mode infer_mode_value = infer_mode::class_responses;
 
-    // The default engine has been switched from mt2203 to philox for GPU,
-    // as philox is more efficient in terms of performance on GPU architectures.
-    // Note: Due to this change, some conformance(not critical) tests might fail as a result.
+    // Matches the library-wide default engine (see `default_engine_type_internal` in
+    // backend/primitives/rng/rng_types.hpp); spelled out here because the public descriptor
+    // must not depend on the backend rng headers. Decision forest in particular needs a
+    // counter-based engine: it separates per-rank and per-tree streams with `skip_ahead`,
+    // which mt2203 does not support on GPU.
     engine_type df_engine_type = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
@@ -73,6 +75,7 @@ public:
     variable_importance_mode variable_importance_mode_value = variable_importance_mode::none;
     voting_mode voting_mode_value = voting_mode::weighted;
 
+    // Matches `default_seed` in backend/primitives/rng/rng_types.hpp.
     std::int64_t seed = 777;
 };
 
