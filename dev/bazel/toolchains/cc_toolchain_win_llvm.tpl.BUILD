@@ -55,6 +55,7 @@ cc_toolchain_config(
     dpcc_link_path = "%{dpcc_link_path}",
     ar_path = "%{ar_path}",
     cxx_std_flag_prefix = "%{cxx_std_flag_prefix}",
+    openmp_simd_flags = [%{openmp_simd_flags}],
     cxx_builtin_include_directories = [%{cxx_builtin_include_directories}],
     compile_flags_cc = [%{compile_flags_cc}],
     compile_flags_dpcc = [%{compile_flags_dpcc}],

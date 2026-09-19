@@ -241,9 +241,16 @@ def _impl(ctx):
             # dev/make/compiler_definitions/icx.mkl.32e.mk:77. Applied to
             # every compile action so the release build keeps the exact flag
             # set it had when this came from `win_icx_common_flags`.
+            #
+            # Empty for upstream clang-cl: `-Qopenmp-simd` is an Intel spelling
+            # that clang-cl reports as an unknown argument, which `-Werror` in
+            # the clang flag set turns into a build failure, and Make's
+            # `COMPILER.win.clang` (clang.ref.arm.mk) passes no OpenMP SIMD
+            # flag either.
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["-Qopenmp-simd"])],
+                flag_groups = ([flag_group(flags = ctx.attr.openmp_simd_flags)]
+                               if ctx.attr.openmp_simd_flags else []),
                 with_features = [with_feature_set(
                     not_features = ["msvc_runtime_debug"],
                 )],
@@ -954,6 +961,10 @@ cc_toolchain_config = rule(
         # `/std:` and warns on the unknown argument, which `-Werror` in the
         # clang flag set (dev/bazel/flags.bzl) would turn into a build failure.
         "cxx_std_flag_prefix": attr.string(default = "/Qstd:"),
+        # OpenMP SIMD selector for the release MSVC runtime, emitted by the
+        # `runtime_library` feature: `-Qopenmp-simd` for icx, empty for
+        # upstream clang-cl, which does not know that spelling.
+        "openmp_simd_flags": attr.string_list(),
         "cxx_builtin_include_directories": attr.string_list(),
         "compile_flags_cc": attr.string_list(),
         "compile_flags_dpcc": attr.string_list(),

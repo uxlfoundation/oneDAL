@@ -275,6 +275,12 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             # knows `/std:` and warns on the unknown argument, which `-Werror`
             # would make fatal.
             "%{cxx_std_flag_prefix}": "/Qstd:" if compiler_id == "icx" else "/std:",
+            # `-Qopenmp-simd` is likewise Intel-only; `COMPILER.win.clang` in
+            # dev/make/compiler_definitions/clang.ref.arm.mk passes no OpenMP
+            # SIMD flag, so clang-cl gets none here either.
+            "%{openmp_simd_flags}": get_starlark_list(
+                ["-Qopenmp-simd"] if compiler_id == "icx" else [],
+            ),
             "%{host_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.host_arch_id],
             "%{target_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.target_arch_id],
             "%{supports_param_files}": "1",

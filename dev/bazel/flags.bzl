@@ -103,10 +103,16 @@ win_clang_common_flags = [
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
+    # C++ exception handling, `-EHsc` in the Makefile. It is selected by
+    # `OS_is_win` alone (makefile:152), not by the compiler, so the clang-cl
+    # toolchain needs it as much as the icx one: without it clang-cl rejects
+    # every `throw` in cpp/oneapi/dal/detail/common.hpp.
+    "-EHsc",
     # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
     # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
-    # config already emits `-MD`/`-MDd` from the `dbg` feature, and stating the
-    # CRT twice would let the two disagree under `--compilation_mode=dbg`.
+    # config already emits `-MD`/`-MDd` from the `msvc_runtime_debug` feature
+    # (`--config=mdd`), and stating the CRT twice would let the two disagree.
+    #
     # clang-cl reports every vectorization pragma it cannot honor from `-O1` up,
     # which `-Werror` above would turn into a build failure. Matches
     # `warn.opts.clang` in dev/make/compiler_definitions/clang.mk.
