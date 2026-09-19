@@ -35,6 +35,16 @@ env:
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
+# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
+# Does not apply to the main branch. Matters more now that this workflow holds a
+# three-hour Bazel job on the scarce ARM64 runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   build-and-test:
     strategy:
@@ -163,11 +173,10 @@ jobs:
           Expand-Archive ninja-winarm64.zip -DestinationPath ninja
           Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
 
+      # The script appends its install directory to GITHUB_PATH itself.
       - name: Install Bazelisk
         shell: pwsh
-        run: |
-          .\.ci\env\bazelisk.ps1
-          "$(Get-Location)\bazel\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        run: .\.ci\env\bazelisk.ps1
 
       # Both `@openblas` and `@tbb` default to x86_64 packages (`@openblas` has
       # no download at all), so an ARM64 build of each has to be supplied
@@ -178,19 +187,26 @@ jobs:
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          if errorlevel 1 exit /b 1
           rem `CALL` is required: without it cmd transfers control to the child
           rem script and never comes back, silently skipping the GITHUB_ENV write.
           CALL .ci\env\openblas.bat
           if errorlevel 1 exit /b 1
-          echo OPENBLASROOT=%CD%\__deps\open_blas>> %GITHUB_ENV%
+          rem The import library is what @openblas links (dev/bazel/deps/openblas.bzl);
+          rem assert it here so a half-installed tree fails at this step instead of
+          rem inside the repository rule.
+          if not exist "%CD%\__deps\open_blas\lib\openblas.lib" exit /b 1
+          echo OPENBLASROOT=%CD%\__deps\open_blas>> "%GITHUB_ENV%"
 
       - name: Build oneTBB
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          if errorlevel 1 exit /b 1
           CALL .ci\env\tbb.bat
           if errorlevel 1 exit /b 1
-          echo TBBROOT=%CD%\__deps\tbb\win\tbb>> %GITHUB_ENV%
+          if not exist "%CD%\__deps\tbb\win\tbb\lib\tbb12.lib" exit /b 1
+          echo TBBROOT=%CD%\__deps\tbb\win\tbb>> "%GITHUB_ENV%"
 
       - name: bazel build core_dynamic
         shell: cmd
@@ -201,7 +217,11 @@ jobs:
           ONEDAL_WIN_COMPILER: clang
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
-          set PATH=C:\msys64\usr\bin;%PATH%
+          rem Appended, not prepended: MSYS2 ships its own link.exe/find.exe/sort.exe,
+          rem and this PATH is captured into the generated toolchain
+          rem (`%{env_path}` in dev/bazel/toolchains/cc_toolchain_win.bzl), so it
+          rem must not shadow the MSVC and LLVM tools.
+          set PATH=%PATH%;C:\msys64\usr\bin
           bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
             //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
 
@@ -212,12 +232,27 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          foreach ($lib in @("bazel-bin\cpp\daal\onedal_core.dll",
-                             "bazel-bin\cpp\oneapi\dal\onedal.dll")) {
-            $headers = & "$env:ProgramFiles\LLVM\bin\llvm-readobj.exe" --file-headers $lib
-            $headers | Select-String "Machine"
-            if (-not ($headers | Select-String "IMAGE_FILE_MACHINE_ARM64")) {
-              Write-Error "::error::$lib is not an ARM64 PE image"
+          # Windows DLLs carry the ABI major (`onedal_core.4.dll`) and, for an
+          # `-MDd` build, a `d` suffix (dev/bazel/cc.bzl), so match by pattern
+          # instead of spelling the version out here.
+          foreach ($pattern in @("bazel-bin\cpp\daal\onedal_core*.dll",
+                                 "bazel-bin\cpp\oneapi\dal\onedal.*.dll")) {
+            $found = @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue)
+            if ($found.Count -eq 0) {
+              Write-Host "::error::no DLL matching $pattern was produced"
+              exit 1
+            }
+            foreach ($lib in $found) {
+              $headers = & "$env:ProgramFiles\LLVM\bin\llvm-readobj.exe" --file-headers $lib.FullName
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "::error::llvm-readobj failed on $($lib.FullName)"
+                exit 1
+              }
+              $headers | Select-String "Machine"
+              if (-not ($headers | Select-String "IMAGE_FILE_MACHINE_ARM64")) {
+                Write-Host "::error::$($lib.FullName) is not an ARM64 PE image"
+                exit 1
+              }
             }
           }
 

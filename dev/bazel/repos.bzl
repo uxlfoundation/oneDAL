@@ -15,7 +15,10 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
-load("@onedal//dev/bazel/toolchains:common.bzl", "detect_host_arch")
+load("@onedal//dev/bazel/toolchains:common.bzl",
+    "detect_host_arch",
+    "detect_target_arch",
+)
 
 _BINARY_MAJOR = "4"
 _BINARY_MINOR = "0"
@@ -195,14 +198,20 @@ def _check_download_arch(repo_ctx, os_id):
     Every default URL in MODULE.bazel points at an x86_64 package, so on an
     ARM64 host an unset root env var used to silently produce a repo full of
     wrong-arch binaries that only failed much later, at link time.
+
+    The comparison is against the *target* arch, not the host: a cross-compile
+    from x86_64 to AArch64/RISC-V64 needs target-arch dependencies just as much
+    as a native ARM64 build does, and an ARM64 host targeting intel64 needs the
+    x86_64 package. The target is derived from `CC`/`CXX` exactly as the
+    toolchain derives it (see detect_target_arch).
     """
     download_arch = _select_by_os(repo_ctx, "download_arch", os_id)
-    host_arch = detect_host_arch(repo_ctx, os_id)
-    if download_arch and download_arch != host_arch:
-        fail(("Cannot supply the {} dependency by download on this host: the " +
-              "configured package is built for {}, the host is {}. Build it " +
+    target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+    if download_arch and download_arch != target_arch:
+        fail(("Cannot supply the {} dependency by download for this target: the " +
+              "configured package is built for {}, the target is {}. Build it " +
               "from source and point {} at the result.").format(
-            repo_ctx.name, download_arch, host_arch,
+            repo_ctx.name, download_arch, target_arch,
             repo_ctx.attr.root_env_var or "the dependency root env var",
         ))
 
@@ -254,8 +263,12 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         implementation = _prebuilt_libs_repo_impl,
         environ = [
             root_env_var,
-            # Windows host-arch detection, used to reject a wrong-arch download
-            # (see _check_download_arch).
+            # Host- and target-arch detection, used to reject a wrong-arch
+            # download (see _check_download_arch). `CC`/`CXX` name the target
+            # through a triple prefix or `--target=`, the PROCESSOR_* pair is
+            # the Windows host arch.
+            "CC",
+            "CXX",
             "PROCESSOR_ARCHITECTURE",
             "PROCESSOR_ARCHITEW6432",
         ],

@@ -378,6 +378,15 @@ def _test_runtime_data():
             "@tbb//:tbb_runtime",
             "@mkl//:mkl_runtime",
         ],
+    }) + _select({
+        # `.ci/env/openblas.bat` builds a DLL, so a Windows ref-backend build
+        # needs `openblas.dll` beside the test binary in every link mode -- the
+        # static tree links the import library too. Empty on Linux, where the
+        # ref build absorbs `libopenblas.a`.
+        "@config//:backend_ref": [
+            "@openblas//:openblas_runtime",
+        ],
+        "//conditions:default": [],
     })
 
 def _test_device_args():

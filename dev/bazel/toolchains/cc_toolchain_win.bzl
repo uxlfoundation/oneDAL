@@ -100,14 +100,13 @@ def _find_tools_clang(repo_ctx):
     (the only option on Windows ARM64) builds the host libraries alone.
     """
     cc_path, _ = _find_tool(repo_ctx, "clang-cl", mandatory = True)
-    # `lld-link` ships with LLVM next to clang-cl; MSVC's `link.exe` is a valid
-    # substitute on x86_64 but has no bearing on the ARM64 lane Make covers.
-    cc_link_path, lld_found = _find_tool(repo_ctx, "lld-link", mandatory = False)
-    if not lld_found:
-        cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
-    ar_path, llvm_lib_found = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
-    if not llvm_lib_found:
-        ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
+    # `lld-link` and `llvm-lib` ship with LLVM next to clang-cl and are what
+    # Make names unconditionally, so they are required rather than falling back
+    # to MSVC's `link`/`lib`: a bare `repo_ctx.which("link")` can also pick up
+    # an unrelated `link.exe` (MSYS2 coreutils ships one), which would produce a
+    # nonsensical toolchain instead of a diagnostic.
+    cc_link_path, _ = _find_tool(repo_ctx, "lld-link", mandatory = True)
+    ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = True)
     return struct(
         cc = cc_path,
         dpcc = cc_path,
@@ -129,8 +128,10 @@ def _is_icx_requested(repo_ctx):
         return False
     if override == "icx":
         return True
-    cc = repo_ctx.os.environ.get("CC", "").lower()
-    if cc == "cl" or cc.endswith("\\cl.exe") or cc.endswith("/cl.exe"):
+    # Same basename comparison as _is_clang_requested: `CC` may be a full path
+    # with either slash flavour and with the `.exe` suffix omitted.
+    cc = repo_ctx.os.environ.get("CC", "").lower().split(" ")[0]
+    if cc.replace("\\", "/").split("/")[-1] in ["cl", "cl.exe"]:
         return False
     # Fall back to icx if the compiler is available.
     return repo_ctx.which("icx") != None
@@ -342,8 +343,11 @@ def _is_clang_requested(repo_ctx):
     """Return True if the Windows toolchain should use upstream LLVM clang-cl."""
     if repo_ctx.os.environ.get("ONEDAL_WIN_COMPILER", "").lower() == "clang":
         return True
+    # `CC` may carry a full path, with either slash flavour, and Windows lets
+    # the `.exe` suffix be omitted — compare the basename both ways.
     cc = repo_ctx.os.environ.get("CC", "").lower().split(" ")[0]
-    return cc == "clang-cl" or cc.endswith("clang-cl.exe")
+    basename = cc.replace("\\", "/").split("/")[-1]
+    return basename in ["clang-cl", "clang-cl.exe"]
 
 def configure_cc_toolchain_win(repo_ctx, reqs):
     if reqs.target_arch_id == "arm":

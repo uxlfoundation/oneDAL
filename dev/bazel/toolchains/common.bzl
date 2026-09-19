@@ -291,10 +291,30 @@ def _get_unfiltered_default_compiler_options(reqs, is_dpcc, category):
     compiler_id = reqs.dpc_compiler_id if is_dpcc else reqs.compiler_id
     return get_default_flags(reqs.target_arch_id, reqs.os_id, compiler_id, category)
 
+# Options that must never be dropped by the support probe. It compiles a test
+# file with one option at a time, so `-march=armv8-a+sve` is probed against the
+# compiler's *default* target -- x86_64 when cross-compiling from an x86_64 host
+# -- where it warns and would be filtered out. Silently dropping either of these
+# yields a wrong-arch or SVE-less build instead of an error; Make passes both
+# unconditionally (COMPILER.win.clang / COMPILER.all.gnu).
+_UNFILTERED_OPTION_PREFIXES = [
+    "--target=",
+    "-march=",
+]
+
+def _is_unfiltered_option(option):
+    for prefix in _UNFILTERED_OPTION_PREFIXES:
+        if option.startswith(prefix):
+            return True
+    return False
+
 def _filter_out_unsupported_compiler_options(repo_ctx, cc, options):
     filtered_options = []
     for option in options:
-        filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
+        if _is_unfiltered_option(option):
+            filtered_options.append(option)
+        else:
+            filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
     return filtered_options
 
 

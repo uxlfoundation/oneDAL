@@ -25,3 +25,12 @@ cc_library(
         ":openblas_core",
     ],
 )
+
+# The Linux ref build links the static `libopenblas.a`, so nothing has to travel
+# with the binaries at run time. The target exists for parity with
+# `openblas_win.tpl.BUILD`, where OpenBLAS is a DLL, so `_test_runtime_data()`
+# in dev/bazel/dal.bzl can name it unconditionally.
+filegroup(
+    name = "openblas_runtime",
+    srcs = [],
+)

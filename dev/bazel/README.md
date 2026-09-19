@@ -56,7 +56,8 @@ validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
    it in the repository root as `bazelisk.exe`. Use the `arm64` asset on an ARM64
    host; `.ci/env/bazelisk.ps1` picks the right one automatically.
    ```bat
-   set BAZELISK_VERSION=v1.28.1
+   set BAZELISK_VERSION=v1.29.0
+   rem Use bazelisk-windows-arm64.exe on an ARM64 host
    curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
    bazelisk.exe version
    ```
@@ -799,7 +800,7 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | Both runtimes in one tree      | `bazel build //:release_all`                                 | Windows only; equals `//:release` elsewhere                                |
 | `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
 | `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
-| `PLAT=winarm`                  | `--platforms=@config//:windows_arm64`                        | Windows ARM64 with `clang-cl` (ref backend only); native ARM64 host        |
+| `PLAT=winarm`                  | `--platforms=@config//:windows_arm64`                        | Windows ARM64 with `clang-cl` (ref backend only)                           |
 | `COMPILER=clang` (Windows)     | `ONEDAL_WIN_COMPILER=clang bazel build ...`                   | `clang-cl` + `lld-link` + `llvm-lib`; implied when targeting Windows ARM64 |
 | `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
 
@@ -838,9 +839,12 @@ driving `--target=aarch64-pc-windows-msvc -march=armv8-a+sve`, `lld-link` and
 ARM64 — `ONEDAL_WIN_COMPILER` may only be `clang` there, any other value fails
 with a diagnostic, because neither MSVC `cl` nor `icx` builds this target.
 
-Builds are native: the host arch is read from `PROCESSOR_ARCHITEW6432` /
-`PROCESSOR_ARCHITECTURE`, so an ARM64 host targets ARM64 by default and
-`--platforms=@config//:windows_arm64` only makes that explicit.
+The default target is the host arch, read from `PROCESSOR_ARCHITEW6432` /
+`PROCESSOR_ARCHITECTURE`, so an ARM64 host targets ARM64 and
+`--platforms=@config//:windows_arm64` only makes that explicit. Cross-compiling
+from an x86_64 host works too — the toolchain always passes the target triple
+explicitly (`CC=clang-cl --target=aarch64-pc-windows-msvc` selects it) — but only
+the native path is covered by CI.
 
 ```bat
 rem From a Developer Command Prompt for arm64 (clang-cl uses the MSVC headers,

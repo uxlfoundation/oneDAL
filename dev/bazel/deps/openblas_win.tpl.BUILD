@@ -37,3 +37,14 @@ cc_library(
         ":openblas_core",
     ],
 )
+
+# Counterpart of `@tbb//:tbb_runtime`: anything that links the import library
+# needs `openblas.dll` beside it at run time, whether oneDAL itself was linked
+# statically or dynamically. Consumed by `_test_runtime_data()` in
+# dev/bazel/dal.bzl.
+filegroup(
+    name = "openblas_runtime",
+    srcs = [
+            "bin/openblas.dll",
+           ],
+)

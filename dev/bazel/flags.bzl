@@ -119,7 +119,12 @@ win_clang_common_flags = [
     "-Wno-pass-failed",
 ]
 
-# Matches `pedantic.opts.clang` in dev/make/compiler_definitions/clang.mk.
+# Bazel-only coverage: `pedantic.opts = $(pedantic.opts.$(_OS).$(COMPILER))`
+# (common.mk:92) and Make defines no `pedantic.opts.win.clang`, so winarm passes
+# no pedantic flags at all. This is `pedantic.opts.clang` from
+# dev/make/compiler_definitions/clang.mk minus `-pedantic`, which rejects the
+# Microsoft extensions in the Windows SDK headers that the cl driver has to
+# accept.
 win_clang_pedantic_flags = [
     "-Wall",
     "-Wextra",
