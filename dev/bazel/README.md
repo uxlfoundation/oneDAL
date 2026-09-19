@@ -57,8 +57,9 @@ validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
    host; `.ci/env/bazelisk.ps1` picks the right one automatically.
    ```bat
    set BAZELISK_VERSION=v1.29.0
-   rem Use bazelisk-windows-arm64.exe on an ARM64 host
-   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
+   set BAZELISK_ARCH=amd64
+   if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set BAZELISK_ARCH=arm64
+   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-%BAZELISK_ARCH%.exe
    bazelisk.exe version
    ```
 

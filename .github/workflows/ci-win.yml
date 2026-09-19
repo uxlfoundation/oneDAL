@@ -222,8 +222,12 @@ jobs:
           rem (`%{env_path}` in dev/bazel/toolchains/cc_toolchain_win.bzl), so it
           rem must not shadow the MSVC and LLVM tools.
           set PATH=%PATH%;C:\msys64\usr\bin
+          rem `thread_dynamic` is what links `@openblas//:openblas` through
+          rem `mathbackend_thread`, so it is listed explicitly: without it the
+          rem lane would not exercise the new Windows OpenBLAS import-library
+          rem and DLL wiring at all.
           bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
-            //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+            //cpp/daal:core_dynamic //cpp/daal:thread_dynamic //cpp/oneapi/dal:dynamic
 
       # A successful link is not proof of the target arch: confirm the PE
       # machine type, as the AArch64 Linux lane does with `readelf`
@@ -236,6 +240,7 @@ jobs:
           # `-MDd` build, a `d` suffix (dev/bazel/cc.bzl), so match by pattern
           # instead of spelling the version out here.
           foreach ($pattern in @("bazel-bin\cpp\daal\onedal_core*.dll",
+                                 "bazel-bin\cpp\daal\onedal_thread*.dll",
                                  "bazel-bin\cpp\oneapi\dal\onedal.*.dll")) {
             $found = @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue)
             if ($found.Count -eq 0) {
