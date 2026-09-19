@@ -64,8 +64,11 @@ pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
         -DCMAKE_SYSTEM_PROCESSOR=arm64 ^
         -DCMAKE_SYSTEM_NAME=Windows ^
         -DCMAKE_INSTALL_PREFIX="%DST%"
+    if errorlevel 1 (popd & goto Error_build)
     cmake --build build-arm64
+    if errorlevel 1 (popd & goto Error_build)
     cmake --install build-arm64
+    if errorlevel 1 (popd & goto Error_build)
 popd
 
 echo Downloaded and unpacked OpenBlas small libraries to %DST%
@@ -77,4 +80,8 @@ exit /B 0
 
 :Error_unpack
     echo openblas.bat : Error: Failed to unpack %BLASSOURCEDIR%\openblas.zip to %BLASSOURCEDIR%, try unpack the archive manually
+    exit /B 1
+
+:Error_build
+    echo openblas.bat : Error: Failed to configure, build or install OpenBLAS from %BLASSOURCEDIR%\OpenBLAS-%BLASVERSION% into %DST%
     exit /B 1

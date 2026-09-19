@@ -15,6 +15,10 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
+load("@onedal//dev/bazel/toolchains:common.bzl",
+    "detect_host_arch",
+    "detect_target_arch",
+)
 
 _BINARY_MAJOR = "4"
 _BINARY_MINOR = "0"
@@ -188,6 +192,29 @@ def _download(repo_ctx, os_id):
         )
     return str(output)
 
+def _check_download_arch(repo_ctx, os_id):
+    """Fails instead of downloading a package built for another architecture.
+
+    Every default URL in MODULE.bazel points at an x86_64 package, so on an
+    ARM64 host an unset root env var used to silently produce a repo full of
+    wrong-arch binaries that only failed much later, at link time.
+
+    The comparison is against the *target* arch, not the host: a cross-compile
+    from x86_64 to AArch64/RISC-V64 needs target-arch dependencies just as much
+    as a native ARM64 build does, and an ARM64 host targeting intel64 needs the
+    x86_64 package. The target is derived from `CC`/`CXX` exactly as the
+    toolchain derives it (see detect_target_arch).
+    """
+    download_arch = _select_by_os(repo_ctx, "download_arch", os_id)
+    target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+    if download_arch and download_arch != target_arch:
+        fail(("Cannot supply the {} dependency by download for this target: the " +
+              "configured package is built for {}, the target is {}. Build it " +
+              "from source and point {} at the result.").format(
+            repo_ctx.name, download_arch, target_arch,
+            repo_ctx.attr.root_env_var or "the dependency root env var",
+        ))
+
 def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
@@ -195,6 +222,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         mapping = {}
     else:
         if _select_by_os(repo_ctx, "url", os_id) or _select_by_os(repo_ctx, "urls", os_id):
+            _check_download_arch(repo_ctx, os_id)
             root = _download(repo_ctx, os_id)
             mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
         elif repo_ctx.attr.fallback_root:
@@ -226,6 +254,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
                              root_env_var="", fallback_root="",
                              url="", sha256="", strip_prefix="",
+                             download_arch="intel64", win_download_arch="",
                              local_mapping={}, download_mapping={},
                              win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
                              win_url="", win_urls=[], win_sha256="", win_sha256s=[],
@@ -234,6 +263,14 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         implementation = _prebuilt_libs_repo_impl,
         environ = [
             root_env_var,
+            # Host- and target-arch detection, used to reject a wrong-arch
+            # download (see _check_download_arch). `CC`/`CXX` name the target
+            # through a triple prefix or `--target=`, the PROCESSOR_* pair is
+            # the Windows host arch.
+            "CC",
+            "CXX",
+            "PROCESSOR_ARCHITECTURE",
+            "PROCESSOR_ARCHITEW6432",
         ],
         local = True,
         configure = True,
@@ -246,6 +283,10 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "sha256s": attr.string_list(default=[]),
             "strip_prefix": attr.string(default=strip_prefix),
             "strip_prefixes": attr.string_list(default=[]),
+            # oneDAL arch ID the configured download URLs are built for. Empty
+            # disables the check.
+            "download_arch": attr.string(default=download_arch),
+            "win_download_arch": attr.string(default=win_download_arch or download_arch),
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "optional_libs": attr.string_list(default=optional_libs),

@@ -312,6 +312,17 @@ daal_dynamic_lib(
         # TBB-backed threading objects live in onedal_thread.dll.
         "@platforms//os:windows": [":services_win_dll_shim"],
         "//conditions:default": [],
+    }) + select({
+        # The ref backend's BLAS/LAPACK entry points are called straight from
+        # the core algorithm objects (svd, lbfgs, mse, ...), and a Windows DLL
+        # must resolve every symbol at link time -- unlike ELF, where they stay
+        # undefined in libonedal_core.so and bind to libonedal_thread.so at
+        # load. Link the math backend here too, as makefile:528 does through
+        # `daaldep.math_backend.shared_link_deps`. It is `openblas.lib`, the
+        # import library of `openblas.dll`, so onedal_thread.<major>.dll
+        # carrying the same import descriptors is not a duplicate definition.
+        "@config//:backend_ref_windows": [":mathbackend_thread"],
+        "//conditions:default": [],
     }),
 )
 

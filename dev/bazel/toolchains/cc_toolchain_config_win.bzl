@@ -14,11 +14,15 @@
 # limitations under the License.
 #===============================================================================
 
-# Custom cc_toolchain_config for Intel oneAPI icx on Windows.
+# Custom cc_toolchain_config for the clang-cl compiler family on Windows: Intel
+# oneAPI icx (x86_64) and upstream LLVM clang-cl (x86_64 and the ARM64 target of
+# Make's `PLAT=winarm`). Everything here is arch-independent — `lld-link` and
+# `llvm-lib` infer the machine type from the object files, and the target triple
+# comes from the compile flags in dev/bazel/flags.bzl.
 #
 # icx.exe runs in its native clang-cl driver mode (MSVC-compatible syntax),
 # matching dev/make/compiler_definitions/icx.mkl.32e.mk. All flags below use
-# MSVC-style spellings (`/I`, `/imsvc`, `/Fo`, `/Qstd:c++17`, `-MD`, …) so
+# MSVC-style spellings (`/I`, `/imsvc`, `/Fo`, `-MD`, …) so
 # icx accepts them without a driver-mode flip. The major differences vs.
 # cc_toolchain_config_lnx.bzl:
 #
@@ -237,9 +241,16 @@ def _impl(ctx):
             # dev/make/compiler_definitions/icx.mkl.32e.mk:77. Applied to
             # every compile action so the release build keeps the exact flag
             # set it had when this came from `win_icx_common_flags`.
+            #
+            # Empty for upstream clang-cl: `-Qopenmp-simd` is an Intel spelling
+            # that clang-cl reports as an unknown argument, which `-Werror` in
+            # the clang flag set turns into a build failure, and Make's
+            # `COMPILER.win.clang` (clang.ref.arm.mk) passes no OpenMP SIMD
+            # flag either.
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["-Qopenmp-simd"])],
+                flag_groups = ([flag_group(flags = ctx.attr.openmp_simd_flags)]
+                               if ctx.attr.openmp_simd_flags else []),
                 with_features = [with_feature_set(
                     not_features = ["msvc_runtime_debug"],
                 )],
@@ -398,17 +409,23 @@ def _impl(ctx):
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["/Qstd:c++11"])],
+                flag_groups = [flag_group(
+                    flags = [ctx.attr.cxx_std_flag_prefix + "c++11"],
+                )],
                 with_features = [with_feature_set(features = ["c++11"])],
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["/Qstd:c++14"])],
+                flag_groups = [flag_group(
+                    flags = [ctx.attr.cxx_std_flag_prefix + "c++14"],
+                )],
                 with_features = [with_feature_set(features = ["c++14"])],
             ),
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = [flag_group(flags = ["/Qstd:c++17"])],
+                flag_groups = [flag_group(
+                    flags = [ctx.attr.cxx_std_flag_prefix + "c++17"],
+                )],
                 with_features = [with_feature_set(features = ["c++17"])],
             ),
             flag_set(
@@ -940,6 +957,14 @@ cc_toolchain_config = rule(
         "cc_link_path": attr.string(mandatory = True),
         "dpcc_link_path": attr.string(mandatory = True),
         "ar_path": attr.string(mandatory = True),
+        # `/Qstd:` is the Intel spelling; upstream clang-cl only knows
+        # `/std:` and warns on the unknown argument, which `-Werror` in the
+        # clang flag set (dev/bazel/flags.bzl) would turn into a build failure.
+        "cxx_std_flag_prefix": attr.string(default = "/Qstd:"),
+        # OpenMP SIMD selector for the release MSVC runtime, emitted by the
+        # `runtime_library` feature: `-Qopenmp-simd` for icx, empty for
+        # upstream clang-cl, which does not know that spelling.
+        "openmp_simd_flags": attr.string_list(),
         "cxx_builtin_include_directories": attr.string_list(),
         "compile_flags_cc": attr.string_list(),
         "compile_flags_dpcc": attr.string_list(),
