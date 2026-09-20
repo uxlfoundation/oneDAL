@@ -32,6 +32,14 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
 
+    ],
+    # Kernels are `dlopen`-ed, never linked, and which ISA families a given MKL
+    # package ships changes between releases (the pinned 2025 package has no
+    # `libmkl_avx.so*`/`libmkl_mc.so*`, for instance). Listing them in `libs`
+    # would make a missing family a hard repository-rule failure that breaks
+    # every target, host-only builds included, so they are optional: present
+    # families are symlinked, absent ones are left to the dispatcher.
+    optional_libs = [
         # CPU dispatch kernels. `libmkl_core.so.2` holds only the dispatcher:
         # the actual kernels live in per-ISA shared objects that it `dlopen`s
         # by SONAME at the first classic-MKL call. Without these files in the

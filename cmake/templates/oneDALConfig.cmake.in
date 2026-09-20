@@ -172,6 +172,21 @@ if(MKL_DEPENDENCY STREQUAL "yes")
     endif()
     find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
 
+    # The SYCL domain libraries reference ~660 classic MKL entry points, so they
+    # have to precede the classic libraries in the link line: with
+    # `-Wl,--as-needed` (a common hardening default) a classic library listed
+    # first resolves nothing yet and is dropped, and the link fails with those
+    # ~660 undefined references. Make uses the same order
+    # (dev/make/deps.mkl.mk:91-95). On Windows the order is immaterial -- MKL is
+    # linked through import libraries and nothing prunes them -- so one order is
+    # used for all platforms.
+    if(ONEDAL_USE_DPCPP STREQUAL "yes")
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_blas${DAL_DEBUG_SUFFIX})
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_lapack${DAL_DEBUG_SUFFIX})
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_sparse${DAL_DEBUG_SUFFIX})
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_rng${DAL_DEBUG_SUFFIX})
+    endif()
+
     if(ONEDAL_LINK STREQUAL "static")
         list(APPEND oneDAL_IMPORTED_TARGETS
             MKL::mkl_core
@@ -203,13 +218,6 @@ if(MKL_DEPENDENCY STREQUAL "yes")
         endif()
     endif()
 
-endif()
-
-if(ONEDAL_USE_DPCPP STREQUAL "yes" AND MKL_DEPENDENCY STREQUAL "yes")
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_blas${DAL_DEBUG_SUFFIX})
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_lapack${DAL_DEBUG_SUFFIX})
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_sparse${DAL_DEBUG_SUFFIX})
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_rng${DAL_DEBUG_SUFFIX})
 endif()
 
 if (ONEDAL_INTERFACE STREQUAL "yes")
