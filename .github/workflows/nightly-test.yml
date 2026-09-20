@@ -243,7 +243,8 @@ jobs:
             --make ./__release_lnx/daal/latest \
             --bazel ./bazel-bin/release/daal/latest \
             --check-level 4 \
-            --make-symlinks-dereferenced
+            --make-symlinks-dereferenced \
+            --cross-toolchain
 
   bazel_win:
     name: oneDAL Windows Bazel test
