@@ -71,6 +71,35 @@ cc_library(
         "lib/libmkl_core.so*",
         "lib/libmkl_intel_lp64.so*",
         "lib/libmkl_gnu_thread.so*",
+
+        # CPU dispatch kernels. `libmkl_core.so.2` holds only the classic-MKL
+        # dispatcher; the computational kernels live in per-ISA shared objects
+        # that it `dlopen`s on the first classic-MKL call. It resolves them
+        # against *its own* directory (`dladdr` on itself, plus its
+        # `RPATH=$ORIGIN/.`), not against the consumer's RUNPATH, so they have
+        # to be listed here, in the same `cc_library` as `libmkl_core.so.2`:
+        # that is what makes Bazel symlink them into the same
+        # `_solib_intel64/..._Ulib` directory and stage them in test runfiles.
+        # A separate target does not work -- it gets its own `_solib` directory,
+        # and the dispatcher never looks there (measured: the load still fails
+        # with the message below).
+        #
+        # They are deliberately not wanted as DT_NEEDED entries: mapping several
+        # ISA variants at once is the kernel conflict MODULE.bazel warns about.
+        # Nothing references their symbols statically, so the toolchain's
+        # `-Wl,--as-needed` keeps them off DT_NEEDED while Bazel still stages
+        # the files, leaving the dispatcher in sole control of what gets loaded.
+        #
+        # Without them every target that reaches classic MKL at run time dies
+        # with
+        #   INTEL oneMKL ERROR: .../libmkl_avx512.so.2: cannot open shared
+        #     object file: No such file or directory.
+        #   Intel oneMKL FATAL ERROR: Cannot load libmkl_avx512.so.2 or
+        #     libmkl_def.so.2.
+        "lib/libmkl_def.so*",
+        "lib/libmkl_avx*.so*",
+        "lib/libmkl_mc*.so*",
+        "lib/libmkl_vml_*.so*",
     ]),
 )
 
