@@ -209,6 +209,12 @@ release(
         release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
         release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
     ],
+    # libonedal_thread.so records DT_NEEDED entries for TBB, so the TBB
+    # redistributables have to travel with the package, exactly as Make stages
+    # them (`makefile:274-279`, `makefile:1101`).
+    dep_runtime = [
+        ("@tbb//:tbb_runtime", "tbb/latest/lib"),
+    ],
 )
 
 # Single release tree holding both Windows MSVC runtime flavours: the

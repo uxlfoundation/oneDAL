@@ -514,12 +514,19 @@ jobs:
 
       # Expose DALROOT for subsequent tasks
       echo "##vso[task.setvariable variable=DALROOT]$(pwd)/standalone_release/daal/latest"
+      # The release root holds the sibling runtime components as well
+      # (`tbb/latest/lib`), which a consumer of the package needs to load the
+      # released libraries, so the artifact is published from here rather than
+      # from DALROOT. `LinuxReleaseCompare` reads this artifact; the comparison
+      # it runs today looks only inside `daal/latest`, but publishing the whole
+      # package is what lets it grow a check for the sibling components.
+      echo "##vso[task.setvariable variable=RELEASEROOT]$(pwd)/standalone_release"
     displayName: 'Prepare standalone release directory'
 
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
-      targetPath: '$(DALROOT)'
+      targetPath: '$(RELEASEROOT)'
     displayName: 'Upload build artifacts'
 
   - script: |
@@ -591,6 +598,16 @@ jobs:
 
   - script: |
       . "$(DALROOT)/env/vars.sh"
+      # The released libraries now record DT_NEEDED for oneTBB, and those
+      # entries are resolved against `LD_LIBRARY_PATH` and the RUNPATH of the
+      # library that holds them -- not against the test executable's RUNPATH
+      # into runfiles, which applies only to the executable's own direct
+      # dependencies. `daal/latest/env/vars.sh` adds the oneDAL lib directory
+      # alone, exactly as the Make package's does, so the sibling component the
+      # package ships is added here. This is what sourcing oneTBB's own
+      # `vars.sh` does in an installed oneAPI layout, and the mirror of the
+      # `+tbb_repo+tbb\bin` entry the Windows steps below put on `PATH`.
+      export LD_LIBRARY_PATH="$(RELEASEROOT)/tbb/latest/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
@@ -605,6 +622,9 @@ jobs:
 
   - script: |
       . "$(DALROOT)/env/vars.sh"
+      # See the previous release-dynamic step for why the staged oneTBB
+      # directory has to be on `LD_LIBRARY_PATH`.
+      export LD_LIBRARY_PATH="$(RELEASEROOT)/tbb/latest/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
@@ -815,7 +835,7 @@ jobs:
       python3 dev/release_tests/compare_release_trees.py \
         --platform linux \
         --make "$(Pipeline.Workspace)/make/daal/latest" \
-        --bazel "$(Pipeline.Workspace)/bazel"
+        --bazel "$(Pipeline.Workspace)/bazel/daal/latest"
     displayName: 'Compare Make and Bazel release trees'
 
 - job: 'WindowsBazel'

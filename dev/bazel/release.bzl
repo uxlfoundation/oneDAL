@@ -490,6 +490,55 @@ def _copy_extra_files(ctx, prefix):
             dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
+def _copy_dep_runtime(ctx, release_root):
+    """Stage third-party runtime libraries next to the `daal/latest` tree.
+
+    Make places the TBB redistributables the released libraries link against
+    into `<release root>/tbb/latest/lib` (`makefile:274-279` builds the
+    destination, `makefile:1101` performs the copy). Without them the
+    DT_NEEDED entries on libonedal_thread.so resolve to nothing and the
+    package is not self-contained.
+
+    Encoded as two parallel lists, like `extra_files`: `dep_runtime` holds the
+    file-producing targets and `dep_runtime_dst` the destination directory of
+    each. Note the root differs from `extra_files_dst`: these paths are relative
+    to the release root that *holds* `daal/latest`, since the point is to stage
+    a sibling component of it.
+    """
+    if len(ctx.attr.dep_runtime) != len(ctx.attr.dep_runtime_dst):
+        fail("dep_runtime and dep_runtime_dst must have the same length: got {} vs {}".format(
+            len(ctx.attr.dep_runtime), len(ctx.attr.dep_runtime_dst)))
+
+    # Windows is deliberately not staged here. Make puts the TBB DLLs under
+    # `tbb/latest/bin/vc_mt` and the import libraries under
+    # `tbb/latest/lib/vc_mt` (`makefile:274-276`), and a Windows DLL is found
+    # through PATH rather than through a recorded dependency, so the missing
+    # staging is not what breaks loading there.
+    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        return []
+
+    dst_files = []
+    for i, dep in enumerate(ctx.attr.dep_runtime):
+        dst_dir = ctx.attr.dep_runtime_dst[i]
+        if not dst_dir:
+            continue
+        if dst_dir == "daal" or dst_dir.startswith("daal/"):
+            fail(("dep_runtime destination '{}' of {} would write into the " +
+                  "daal/latest tree, which the release rule stages itself").format(
+                dst_dir, dep.label))
+        srcs = dep[DefaultInfo].files.to_list()
+        if not srcs:
+            # Make refuses to build a release it cannot find the runtimes for
+            # (`makefile:258`). The Bazel repository rules glob them with
+            # `allow_empty = True`, so a layout change upstream would otherwise
+            # ship a release with an empty `tbb/latest/lib` and no complaint.
+            fail("dep_runtime target {} produced no files to stage into '{}'".format(
+                dep.label, dst_dir))
+        for src in srcs:
+            dst_path = paths.join(release_root, dst_dir, src.basename)
+            dst_files.append(_copy(ctx, src, dst_path))
+    return dst_files
+
 def _copy_data(ctx, prefix):
     """Copy data files (datasets, examples, config) preserving directory structure."""
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
@@ -517,6 +566,7 @@ def _copy_to_release_impl(ctx):
     files += _copy_lib(ctx, prefix, version_info)
     files += _copy_extra_files(ctx, prefix)
     files += _copy_data(ctx, prefix)
+    files += _copy_dep_runtime(ctx, ctx.attr.name)
     return [DefaultInfo(files=depset(files))]
 
 def _release_cpu_all_transition_impl(settings, attr):
@@ -554,6 +604,15 @@ _release = rule(
         ),
         "extra_files_win_dst": attr.string_list(
             doc = "Windows-specific destination paths for extra_files; empty skips the file on Windows.",
+        ),
+        "dep_runtime": attr.label_list(
+            allow_files = False,
+            doc = "Third-party runtime libraries staged next to `daal/latest`. " +
+                  "Must be rule targets (not bare file labels), like extra_files. " +
+                  "Must be paired 1:1 with dep_runtime_dst.",
+        ),
+        "dep_runtime_dst": attr.string_list(
+            doc = "Destination directory of each dep_runtime entry, relative to the release root.",
         ),
         "_version_info": attr.label(
             default = "@config//:version",
@@ -662,27 +721,64 @@ def _relativize_release_file(file, dep):
 
     The release rule declares its outputs under `<target name>/daal/latest`
     within its own package, so a generated file's `short_path` ends up as
-    `[<package>/]release/daal/latest/lib/intel64/onedal.lib`. Locate the
-    release root by its `<name>/daal/latest` marker rather than assuming the
-    target sits in the root package.
+    `[<package>/]release/daal/latest/lib/intel64/onedal.lib`, and a sibling
+    runtime component staged by `dep_runtime` as
+    `[<package>/]release/tbb/latest/lib/libtbb.so.12`. Locate the release root
+    by its `<name>/<component>/latest` marker rather than assuming the target
+    sits in the root package, and return the component-relative remainder along
+    with the component directory, so both kinds of file round-trip.
     """
-    marker = paths.join(dep.label.name, "daal", "latest") + "/"
-    index = file.short_path.find(marker)
-    if index == -1:
-        return None
-    return file.short_path[index + len(marker):]
+    path = file.short_path
+    marker = dep.label.name + "/"
+    start = 0
+    for _ in range(path.count(marker)):
+        index = path.find(marker, start)
+        if index == -1:
+            break
+        start = index + len(marker)
+        parts = path[start:].split("/")
+        # `<component>/latest/<...>`: anything else is a package directory that
+        # happens to share the target's name.
+        if len(parts) >= 3 and parts[1] == "latest":
+            return (paths.join(parts[0], "latest"), "/".join(parts[2:]))
+    return None
 
 def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None):
+    """Copy `dep`'s release tree under `prefix`.
+
+    `prefix` names the `daal/latest` tree; sibling components staged next to it
+    keep their own `<component>/latest` path. `only_dirs` filters on the
+    component-relative path within `daal/latest`.
+
+    A sibling component in a filtered (second-flavour) pass is rejected rather
+    than skipped. The Windows TBB repository exposes both runtime flavours under
+    distinct names (`tbb12.dll` and `tbb12_debug.dll`,
+    `dev/bazel/deps/tbb_win.tpl.BUILD`), so silently keeping only the first
+    flavour's files would produce a merged tree whose debug-CRT half has no
+    runtime to load, with nothing reporting it. Whoever enables `dep_runtime` on
+    Windows has to decide what the merged tree should hold.
+    """
     dst_files = []
+    release_root = paths.dirname(paths.dirname(prefix))
     for src in dep[DefaultInfo].files.to_list():
-        rel = _relativize_release_file(src, dep)
-        if rel == None:
+        relative = _relativize_release_file(src, dep)
+        if relative == None:
             fail("Unexpected file '{}' in release tree of {}".format(
                 src.short_path, dep.label))
-        if only_dirs != None:
-            if not [d for d in only_dirs if rel.startswith(d)]:
-                continue
-        dst_files.append(_copy(ctx, src, paths.join(prefix, rel)))
+        component, rel = relative
+        if component == "daal/latest":
+            if only_dirs != None:
+                if not [d for d in only_dirs if rel.startswith(d)]:
+                    continue
+            dst = paths.join(prefix, rel)
+        else:
+            if only_dirs != None:
+                fail(("Sibling release component '{}' of {} cannot be merged " +
+                      "per MSVC runtime flavour: decide how '{}' should be " +
+                      "staged for both flavours").format(
+                    component, dep.label, rel))
+            dst = paths.join(release_root, component, rel)
+        dst_files.append(_copy(ctx, src, dst))
     return dst_files
 
 def _get_single_dep(deps, attr_name):
@@ -773,7 +869,7 @@ def release_all(name, release_target):
 def release_include(hdrs, skip_prefix="", add_prefix=""):
     return (hdrs, add_prefix, skip_prefix)
 
-def release(name, include, lib, extra_files = [], data = []):
+def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
     """Assemble the oneDAL release directory tree.
 
     Args:
@@ -792,6 +888,12 @@ def release(name, include, lib, extra_files = [], data = []):
                        data = [
                            "//data:datasets",
                            "//deploy/local:config",
+                       ]
+        dep_runtime: List of (label, dst_dir) tuples for third-party runtime
+                     libraries staged next to `daal/latest`, matching Make's
+                     `<release root>/tbb/latest/lib` layout. Example:
+                       dep_runtime = [
+                           ("@tbb//:tbb_runtime", "tbb/latest/lib"),
                        ]
     """
     rule_include = []
@@ -826,6 +928,8 @@ def release(name, include, lib, extra_files = [], data = []):
         extra_files = rule_extra_files,
         extra_files_dst = rule_extra_files_dst,
         extra_files_win_dst = rule_extra_files_win_dst,
+        dep_runtime = [label for label, _ in dep_runtime],
+        dep_runtime_dst = [dst for _, dst in dep_runtime],
     )
 
 def release_extra_file(label, dst_path, windows_dst_path = None):
