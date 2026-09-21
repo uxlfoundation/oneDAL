@@ -144,7 +144,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
     )
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
-                    dpc_deps=[], extra_deps=[], lib_tags=["dal"],
+                    dpc_deps=[], dpc_host_deps=[], extra_deps=[], lib_tags=["dal"],
                     dpc_lib_tags=None, features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
@@ -158,9 +158,10 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = dpc_lib_tags if dpc_lib_tags != None else lib_tags,
-        # Some dynamic DPC libraries also need host-only objects, e.g. the
-        # Windows delay-load shim for DAAL threading symbols.
-        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + host_deps,
+        # dpc_host_deps is reserved for platform glue compiled as host code
+        # into a DPC library. Never forward ordinary host_deps here: doing so
+        # folds host parameter objects into the DPC library as duplicates.
+        deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + dpc_host_deps,
         **kwargs
     )
 
@@ -420,7 +421,17 @@ def _dal_generate_cpu_dispatcher_impl(ctx):
         "\n" +
         ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
-        ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "")
+        ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "") +
+        # Non-x86 ISAs need their dispatch macro too, otherwise
+        # ONEDAL_IF_CPU_DISPATCH_A8SVE / _RV64 in
+        # cpp/oneapi/dal/backend/dispatcher_cpu.hpp expand to nothing and
+        # dispatch_by_cpu() falls through: on ARM straight into
+        # `throw unsupported_device{ sve_not_supported() }`, so every oneAPI
+        # algorithm fails at runtime. Mirrors
+        # dev/make/function_definitions/{arm,riscv64}.mk, which emit the same
+        # defines into _dal_cpu_dispatcher_gen.hpp.
+        ("#define ONEDAL_CPU_DISPATCH_A8SVE\n"      if sets.contains(cpus, "sve")        else "") +
+        ("#define ONEDAL_CPU_DISPATCH_RV64\n"       if sets.contains(cpus, "rv64")       else "")
     )
     kernel_defines = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.write(kernel_defines, content)
@@ -521,6 +532,10 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
             "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
+            # Matches cpp/oneapi/dal/backend/dispatcher.hpp's TARGET_ARM /
+            # TARGET_RISCV64 branches.
+            "sve":    [ "__CPU_TAG__=__CPU_TAG_ARMV8SVE__"   ],
+            "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
         },
         copts = copts + select({
             "@platforms//os:windows": ["/utf-8"],

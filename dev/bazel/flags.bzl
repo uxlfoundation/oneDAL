@@ -45,10 +45,24 @@ lnx_cc_flags = {
 # icx/icpx on Windows run in their native clang-cl driver mode, so flags
 # use MSVC-style spellings. Mirrors dev/make/compiler_definitions/{icx,dpcpp}.mkl.32e.mk
 # (COMPILER.win.icx / COMPILER.win.dpcpp).
+# NOTE: `-Qopenmp-simd` is deliberately absent here. icx rejects it together
+# with the debug CRT (`-Wdebug-option-simd`, fatal under `-WX`), so the flag
+# depends on the MSVC runtime and cannot be a repository-time constant. The
+# `runtime_library` feature in cc_toolchain_config_win.bzl adds it for
+# release-CRT builds only, matching `COMPILER.win.icx` in
+# dev/make/compiler_definitions/icx.mkl.32e.mk:77, which passes
+# `-MD -Qopenmp-simd` for the release runtime and a bare `-MDd` otherwise.
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    "-Qopenmp-simd",
+    # C++ exception handling. The Makefile passes `-EHsc` for every oneAPI
+    # object on Windows (makefile:152, used at makefile:692/704/717); without
+    # it clang-cl defaults to exceptions disabled and any `throw` in
+    # cpp/oneapi/dal/detail/common.hpp is a hard error. This used to be
+    # supplied implicitly as a side effect of `-Qopenmp-simd` (which turns on
+    # -fexceptions in clang), so it only surfaced once that flag became
+    # release-runtime-only. Pass it explicitly instead of relying on that.
+    "-EHsc",
     # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
     # Windows too, so the released `.lib` files never reference `__svml_*`.
     # (`-Zl` itself, the other half of the makefile's variable, is deliberately
@@ -135,6 +149,19 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             ]
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
+        if arch_id in ["arm", "riscv64"]:
+            # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),
+            # unlike x86's runtime-dispatched sse2/avx2/avx512 objects, so
+            # `-march` applies to every compile action, not only the
+            # `_cpu`-suffixed ones that go through get_cpu_flags(). Mirrors
+            # COMPILER.all.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk
+            # and COMPILER.lnx.clang in clang.ref.arm.mk. Make has no
+            # gnu.ref.riscv64.mk (RISC-V is clang-only there) and
+            # clang.ref.riscv64.mk carries `-march` only in rv64_OPT.clang, so
+            # for that combination this is Bazel-only coverage, not Make parity.
+            flags = flags + _get_single_variant_march_flags(arch_id)
+            if arch_id == "arm" and compiler_id == "gcc" and category == "common":
+                flags = flags + ["-ftree-vectorize"]
         return flags
     if os_id == "win":
         if compiler_id in ["icx", "icpx"]:
@@ -147,7 +174,33 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         return []
     fail("Unsupported OS")
 
+_SINGLE_VARIANT_MARCH_FLAGS = {
+    # Matches a8sve_OPT.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk and
+    # a8sve_OPT.clang in clang.ref.arm.mk.
+    "arm": ["-march=armv8-a+sve"],
+    # Matches rv64_OPT.clang in dev/make/compiler_definitions/clang.ref.riscv64.mk
+    # (Make has no gnu.ref.riscv64.mk; RISC-V is clang-only there).
+    "riscv64": ["-march=rv64gc_v1p0_zvl128b"],
+}
+
+_SINGLE_VARIANT_ISA_ID = {
+    "arm": "sve",
+    "riscv64": "rv64",
+}
+
+def _get_single_variant_march_flags(arch_id):
+    return _SINGLE_VARIANT_MARCH_FLAGS[arch_id]
+
 def get_cpu_flags(arch_id, os_id, compiler_id):
+    if arch_id in ["arm", "riscv64"]:
+        # ARM/RISC-V ship a single fixed ISA variant, no runtime dispatch.
+        # `-march` is already applied to every compile action via
+        # get_default_flags(); re-stating it here (idempotent) is only to
+        # give this feature's flag_group a non-empty flag list, which
+        # cc_toolchain_config_lnx.bzl's flag_group() requires.
+        return {
+            _SINGLE_VARIANT_ISA_ID[arch_id]: _get_single_variant_march_flags(arch_id),
+        }
     sse2 = []
     avx2 = []
     avx512 = []

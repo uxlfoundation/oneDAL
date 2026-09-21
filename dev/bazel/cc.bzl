@@ -22,8 +22,10 @@ load("@onedal//dev/bazel:utils.bzl",
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
+    "ConfigFlagInfo",
     "CpuInfo",
     "VersionInfo",
+    "validate_build_parameters_lib",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -83,12 +85,81 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
     )
     return cc_toolchain, feature_config
 
+def _is_windows(ctx):
+    return ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+
+def _msvc_runtime_is_debug(ctx, feature_config, is_windows):
+    """Return True for a Windows debug-CRT build, failing on a broken config.
+
+    Two independent knobs have to agree: the `msvc_runtime_debug` toolchain
+    feature, which is what actually selects `-MDd`, and the
+    `@config//:msvc_runtime` build setting, which exists separately because
+    `select()` cannot read toolchain features. If they disagree, oneDAL would
+    be compiled against one CRT while its libraries — and its dependencies,
+    picked by `select()` — belong to the other, so refuse to build.
+
+    Called from every compile and every library link, so that the mismatch is
+    caught even on paths that link a prebuilt release tree
+    (`--test_link_mode=release_*`) and therefore instantiate no oneDAL
+    library rule at all.
+    """
+    if not is_windows:
+        return False
+    feature_enabled = cc_common.is_enabled(
+        feature_configuration = feature_config,
+        feature_name = "msvc_runtime_debug",
+    )
+    flag_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
+    if feature_enabled != flag_debug:
+        if flag_debug:
+            # The most likely cause is a toolchain that does not define the
+            # feature at all: the `cl` fallback delegates to rules_cc's MSVC
+            # auto-config (see _configure_cc_toolchain_win_cl in
+            # dev/bazel/toolchains/cc_toolchain_win.bzl), which knows nothing
+            # about `msvc_runtime_debug`. Saying "use --config=mdd" here would
+            # be useless advice to someone who just did exactly that.
+            fail(
+                "The debug MSVC runtime was requested (--msvc_runtime=debug, " +
+                "normally via --config=mdd) but the active C++ toolchain does " +
+                "not enable the 'msvc_runtime_debug' feature, so the compiler " +
+                "would still get -MD while libraries are named for -MDd.\n" +
+                "The debug runtime is currently implemented only for the " +
+                "Intel oneAPI icx toolchain. If ONEDAL_WIN_COMPILER=cl or " +
+                "CC=cl is set, unset it so icx is selected; otherwise drop " +
+                "--config=mdd to build against the release runtime.",
+            )
+        fail(
+            "The 'msvc_runtime_debug' toolchain feature is enabled but " +
+            "--msvc_runtime=release, so oneDAL would be compiled against the " +
+            "debug CRT while its libraries keep release names.\n" +
+            "Do not pass --features=msvc_runtime_debug directly; use " +
+            "'--config=mdd', which sets both halves.",
+        )
+    return feature_enabled
+
+def _msvc_runtime_suffix(ctx, feature_config, is_windows):
+    """Return the `d` suffix appended to library names for the debug MSVC CRT.
+
+    Mirrors the Makefile's `$d` (makefile:124): on Windows a debug-runtime
+    build produces `onedal_cored.lib`, `onedal_cored.4.dll`, etc., so that MD
+    and MDd binaries can live side by side in one release tree. Always empty
+    on non-Windows platforms.
+    """
+    return "d" if _msvc_runtime_is_debug(ctx, feature_config, is_windows) else ""
+
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = _is_windows(ctx)
+    # Validate the MSVC runtime configuration here as well as in the library
+    # rules. Targets that link a prebuilt release tree
+    # (`--test_link_mode=release_*`) never instantiate a oneDAL library rule,
+    # so this is the only place that catches a half-set runtime on that path —
+    # where it matters most, since the prebuilt dependency names come from a
+    # `select()` on the build setting while `-MD`/`-MDd` comes from the feature.
+    _msvc_runtime_is_debug(ctx, feature_config, is_windows)
     compilation_context, compilation_outputs = onedal_cc_compile.compile(
         name = ctx.label.name,
         ctx = ctx,
@@ -158,6 +229,10 @@ _cc_module = rule(
         "_cpus": attr.label(
             default = "@config//:cpu",
         ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
+        ),
         "_fpts": attr.string_list(default = ["f32", "f64"]),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
@@ -185,17 +260,25 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
     )
 
 
+def _validate_build_parameters_lib(ctx, is_windows):
+    # The policy itself lives in config.bzl so this rule and
+    # @config//:validate_build_parameters_lib state it once. Only the two
+    # inputs are read from the rule context here.
+    value = ctx.attr._build_parameters_lib[ConfigFlagInfo].flag
+    validate_build_parameters_lib(value, is_windows)
+
+
 def _cc_static_lib_impl(ctx):
+    is_windows = _is_windows(ctx)
+    _validate_build_parameters_lib(ctx, is_windows)
     toolchain, feature_config = _init_cc_rule(ctx)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    rt_suffix = _msvc_runtime_suffix(ctx, feature_config, is_windows)
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
-        name = ctx.attr.lib_name,
+        name = ctx.attr.lib_name + rt_suffix,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
@@ -219,6 +302,14 @@ cc_static_lib = rule(
         "deps": attr.label_list(mandatory=True),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
+        ),
+        "_build_parameters_lib": attr.label(
+            default = "@config//:build_parameters_lib",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -255,9 +346,8 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 
 
 def _cc_dynamic_lib_impl(ctx):
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = _is_windows(ctx)
+    _validate_build_parameters_lib(ctx, is_windows)
     # On Linux, keep produced shared libraries free of dynamic Bazel deps.
     # Release-dynamic tests provide standalone oneDAL libs through
     # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
@@ -281,7 +371,10 @@ def _cc_dynamic_lib_impl(ctx):
         ctx.attr.deps, ctx.attr.lib_tags)
 
     vi = ctx.attr._version_info[VersionInfo]
-    link_name = "{}.{}".format(ctx.attr.lib_name, vi.binary_major) if is_windows else ctx.attr.lib_name
+    # The CRT suffix goes before the ABI version, matching the Makefile:
+    # `onedal_cored.4.dll` / `onedal_cored_dll.lib` (makefile:337-347).
+    rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx, feature_config, is_windows)
+    link_name = "{}.{}".format(rt_name, vi.binary_major) if is_windows else rt_name
     linux_soname_flags = [] if is_windows else [
         "-Wl,-soname,lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major),
     ]
@@ -306,7 +399,7 @@ def _cc_dynamic_lib_impl(ctx):
     if is_windows:
         default_files = []
         if dynamic_outputs.dynamic_library:
-            dynamic_release_name = "{}.{}.dll".format(ctx.attr.lib_name, vi.binary_major)
+            dynamic_release_name = "{}.{}.dll".format(rt_name, vi.binary_major)
             if dynamic_outputs.dynamic_library.basename == dynamic_release_name:
                 default_files.append(dynamic_outputs.dynamic_library)
             else:
@@ -321,7 +414,7 @@ def _cc_dynamic_lib_impl(ctx):
             default_files.append(_copy_dynamic_release_file(
                 ctx,
                 dynamic_outputs.interface_library,
-                "{}_dll.lib".format(ctx.attr.lib_name),
+                "{}_dll.lib".format(rt_name),
                 is_windows = is_windows,
             ))
     default_info = DefaultInfo(
@@ -352,9 +445,17 @@ cc_dynamic_lib = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
+        "_build_parameters_lib": attr.label(
+            default = "@config//:build_parameters_lib",
+            providers = [ConfigFlagInfo],
+        ),
         "_dll_to_implib": attr.label(
             default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
             allow_single_file = True,
+        ),
+        "_msvc_runtime": attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -366,9 +467,7 @@ def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
         return
     toolchain, feature_config = _init_cc_rule(ctx)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = _is_windows(ctx)
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
         tagged_linking_contexts, ctx.attr.lib_tags)
