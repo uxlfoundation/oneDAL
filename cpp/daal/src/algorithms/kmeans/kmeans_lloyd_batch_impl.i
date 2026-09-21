@@ -263,9 +263,12 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 // pass 2 computes that cluster's centroid without it. Several
                 // candidates can come from the same source cluster (or a
                 // candidate can be the only point of its cluster), which drains
-                // the source to zero; the `> 0` guard keeps the counters
-                // non-negative and pass 2 leaves a drained cluster at its
-                // previous centroid.
+                // the source to zero. That is allowed: pass 2 skips a drained
+                // cluster and pass 3 re-fills it with a duplicate of the biggest
+                // cluster's centroid. The `> 0` test only keeps the counters from
+                // going negative; candidate rows are distinct and each one
+                // contributes exactly 1 to its source cluster's count, so it
+                // cannot actually trigger.
                 const int srcCluster = pointAssignments[candidateRowIdx];
                 DAAL_ASSERT(srcCluster >= 0 && (size_t)srcCluster < nClusters);
                 if (clusterS0[srcCluster] > 0)

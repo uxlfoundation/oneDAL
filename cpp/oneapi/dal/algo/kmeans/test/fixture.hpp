@@ -43,7 +43,9 @@ using kmeans_types_csr = COMBINE_TYPES((float, double), (kmeans::method::lloyd_c
 template <typename TestType, typename Derived>
 class kmeans_test : public te::crtp_algo_fixture<TestType, Derived> {
 public:
-    sparse_indexing data_indexing_; // for sparse data testing
+    // For sparse data testing. Defaults to zero-based so that the helpers below can
+    // build a CSR table without every caller having to pick an indexing first.
+    sparse_indexing data_indexing_ = sparse_indexing::zero_based;
     using base_t = te::crtp_algo_fixture<TestType, Derived>;
     using float_t = std::tuple_element_t<0, TestType>;
     using method_t = std::tuple_element_t<1, TestType>;
@@ -80,6 +82,50 @@ public:
 
     bool is_sparse_method() {
         return std::is_same_v<method_t, kmeans::method::lloyd_csr>;
+    }
+
+    /// Wraps a row-major dense buffer into the table type the method under test expects:
+    /// a `homogen_table` for the dense methods, a `csr_table` for `lloyd_csr`. Every
+    /// entry is stored explicitly in the CSR case, so both tables describe exactly the
+    /// same matrix and the hand-computed expectations of the small regression cases
+    /// below hold on either path.
+    ///
+    /// @param data         Row-major buffer of `row_count * column_count` values.
+    /// @param row_count    Number of rows of the resulting table.
+    /// @param column_count Number of columns of the resulting table.
+    table make_data_table(const float_t* data,
+                          std::int64_t row_count,
+                          std::int64_t column_count) const {
+        if constexpr (!std::is_same_v<method_t, kmeans::method::lloyd_csr>) {
+            return homogen_table::wrap(data, row_count, column_count);
+        }
+        else {
+            const std::int64_t element_count = row_count * column_count;
+            const std::int64_t shift = (data_indexing_ == sparse_indexing::one_based) ? 1 : 0;
+
+            auto values = array<float_t>::empty(element_count);
+            auto column_indices = array<std::int64_t>::empty(element_count);
+            auto row_offsets = array<std::int64_t>::empty(row_count + 1);
+            auto* const values_ptr = values.get_mutable_data();
+            auto* const column_indices_ptr = column_indices.get_mutable_data();
+            auto* const row_offsets_ptr = row_offsets.get_mutable_data();
+
+            for (std::int64_t i = 0; i < row_count; ++i) {
+                row_offsets_ptr[i] = i * column_count + shift;
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    const std::int64_t idx = i * column_count + j;
+                    values_ptr[idx] = data[idx];
+                    column_indices_ptr[idx] = j + shift;
+                }
+            }
+            row_offsets_ptr[row_count] = element_count + shift;
+
+            return csr_table::wrap(values,
+                                   column_indices,
+                                   row_offsets,
+                                   column_count,
+                                   data_indexing_);
+        }
     }
 
     void exact_checks(const table& data,
@@ -204,7 +250,7 @@ public:
 
     void check_empty_clusters() {
         float_t data[] = { -10, -9.5, -9, -8.5, -8, -1, 1, 9, 9.5, 10 };
-        const auto x = homogen_table::wrap(data, 10, 1);
+        const auto x = make_data_table(data, 10, 1);
 
         float_t initial_centroids[] = { -10, -10, -10 };
         const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
@@ -228,7 +274,7 @@ public:
         // decrementing cluster 0's cS0 / cS1 on the way so its new
         // centroid becomes (-10 -9 +0 +1) / 4 = -4.5.
         float_t data[] = { -10, -9, 0, 1, 9, 10 };
-        const auto x = homogen_table::wrap(data, 6, 1);
+        const auto x = make_data_table(data, 6, 1);
 
         float_t initial_centroids[] = { -10, -10.5, -11 };
         const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
@@ -259,7 +305,7 @@ public:
         const std::int64_t max_iteration_count = 10;
 
         float_t data[] = { 5, 5, 5, 5 };
-        const auto x = homogen_table::wrap(data, row_count, 1);
+        const auto x = make_data_table(data, row_count, 1);
 
         float_t initial_centroids[] = { 5, 100 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
@@ -309,7 +355,7 @@ public:
         const std::int64_t max_iteration_count = 10;
 
         float_t data[] = { 0, 0, 100 };
-        const auto x = homogen_table::wrap(data, row_count, 1);
+        const auto x = make_data_table(data, row_count, 1);
 
         float_t initial_centroids[] = { 1, 2, 3 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
@@ -371,7 +417,7 @@ public:
         const std::int64_t max_iteration_count = 100;
 
         float_t data[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4 };
-        const auto x = homogen_table::wrap(data, row_count, 1);
+        const auto x = make_data_table(data, row_count, 1);
 
         float_t initial_centroids[] = { 0, 2, 3, 4, 5, 7 };
         const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);

@@ -141,8 +141,10 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
         // empty clusters as it found them, and the empty-cluster handling can decline to relocate
         // a cluster (see `fill_empty_clusters`), in which case the row it keeps must be the
         // previous centroid - the initial one on iteration 0 - rather than uninitialized memory.
-        // `update_centroids` below is submitted without an explicit dependency on this copy, so
-        // drain it here; it is a one-off [k x p] copy outside the iteration loop.
+        // Because `update_centroids` only overwrites the rows it recomputes, everything that later
+        // reads `arr_centroids` has to be ordered after this copy - including the
+        // `max_iteration_count == 0` path, where the loop below never runs and the copy is the
+        // whole model. It is a one-off [k x p] copy outside the iteration loop, so drain it here.
         arr_centroids.assign(queue, arr_initial).wait_and_throw();
         sycl::event last_event = data_squares_event;
 
@@ -173,6 +175,10 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             auto objective_function =
                 calc_objective_function(queue, arr_closest_distances, { count_event });
 
+            // `update_centroids` reads `arr_responses` (produced by `assign_event`) and, to decide
+            // which rows to zero, `cluster_counts` (produced by `count_event`, which already
+            // depends on `assign_event`). The queue is out-of-order, so that has to be an explicit
+            // dependency.
             auto update_event = update_centroids(queue,
                                                  values,
                                                  column_indices,
@@ -180,7 +186,8 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                                  column_count,
                                                  arr_responses,
                                                  arr_centroids,
-                                                 cluster_counts);
+                                                 cluster_counts,
+                                                 { count_event });
 
             const std::int64_t empty_cluster_count =
                 count_empty_clusters(queue, cluster_count, cluster_counts, { count_event });

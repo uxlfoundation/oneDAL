@@ -245,7 +245,7 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     DAAL_CHECK_MALLOC(clusterReplaced.get());
     service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
 
-    // Two-pass merge (mirror of kmeans_lloyd_batch_impl.i):
+    // Three-pass merge (mirror of kmeans_lloyd_batch_impl.i):
     //   Pass 1: for every empty cluster i, promote the next-farthest candidate
     //           row (a row of cCentroids) to its centroid. Candidates arrive
     //           ordered by decreasing distance, so each empty cluster is handed
@@ -255,8 +255,11 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     //           assigned to some source cluster srcCluster on its emitting rank;
     //           that cluster's clusterS0/clusterS1 already carries the row's
     //           contribution after step2::compute() aggregation, so undo it now
-    //           (when the source can still spare the row) and pass 2 computes
-    //           the source cluster's centroid without the stolen row.
+    //           and pass 2 computes the source cluster's centroid without the
+    //           stolen row. A source cluster is never spared: draining it to
+    //           zero is allowed, and pass 3 then re-fills it. The `clusterS0 > 0`
+    //           test below only keeps the counters from going negative should a
+    //           malformed partial result report the same row twice.
     //   Pass 2: normalize the remaining non-empty, non-replaced clusters.
     //   Pass 3: fill the clusters that are still empty (pass 1 stopped before
     //           them, or pass 1 stole all of their rows) with a duplicate of the

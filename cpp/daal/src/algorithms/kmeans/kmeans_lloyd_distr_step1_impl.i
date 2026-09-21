@@ -31,6 +31,8 @@
 
 #include "src/algorithms/kmeans/kmeans_lloyd_impl.i"
 
+#include <limits>
+
 using namespace daal::internal;
 using namespace daal::services::internal;
 
@@ -58,8 +60,16 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
 
     // Cluster indices are narrowed to `int` when they are written into
     // `ntAssignments` (`WriteOnlyRows<int, cpu>`) and into the per-candidate
-    // `cSources` buffer, so they have to fit into `int`.
-    DAAL_CHECK(nClusters <= static_cast<size_t>(services::internal::MaxVal<int>::get()), services::ErrorKMeansNumberOfClustersIsTooLarge);
+    // `cSources` buffer, so they have to fit into `int`. On top of that, the source
+    // cluster id of every candidate reaches step2 through column 1 of
+    // `partialCandidatesDistances`, which is an `algorithmFPType` table (see
+    // kmeans_partialresult.h), so the id must survive the int -> FP -> int round trip
+    // exactly. An FP type represents consecutive integers exactly only up to
+    // 2^digits, i.e. 2^24 for `float`; for `double` (2^53) the `int` bound is the
+    // tighter of the two.
+    constexpr int fpDigits    = std::numeric_limits<algorithmFPType>::digits;
+    const size_t maxNClusters = (fpDigits >= 31) ? static_cast<size_t>(services::internal::MaxVal<int>::get()) : (static_cast<size_t>(1) << fpDigits);
+    DAAL_CHECK(nClusters <= maxNClusters, services::ErrorKMeansNumberOfClustersIsTooLarge);
 
     size_t blockSize = 0;
     DAAL_SAFE_CPU_CALL((blockSize = BSHelper<method, algorithmFPType, cpu>::kmeansGetBlockSize(n, p, nClusters)), (blockSize = 512))

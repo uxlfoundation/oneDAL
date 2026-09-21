@@ -78,7 +78,10 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
+    // The empty-cluster relocation path is shared between the dense and the CSR
+    // kernels, so the same tiny regression runs on both; `make_data_table` builds the
+    // matching table type (see fixture.hpp).
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
     this->check_empty_clusters();
 }
 
@@ -87,7 +90,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
     this->check_empty_clusters_distinct_inits();
 }
 
@@ -96,7 +99,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
     this->check_empty_clusters_all_duplicates();
 }
 
@@ -105,7 +108,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
     this->check_empty_clusters_duplicate_groups();
 }
 
@@ -114,7 +117,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
     this->check_empty_clusters_drained_source();
 }
 
