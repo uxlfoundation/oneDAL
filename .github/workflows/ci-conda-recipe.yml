@@ -58,9 +58,13 @@ jobs:
           fetch-depth: 0 # fetch tags for conda-build
       - name: System Info
         run: .ci/scripts/describe_system.sh
+      - name: Install Miniforge
+        run: |
+          .ci/env/apt.sh miniforge
+          echo "/usr/share/miniconda/bin" >> "${GITHUB_PATH}"
       - name: Conda update
         run: |
-          echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" >> ~/.condarc
+          echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" > ~/.condarc
           conda config --add channels conda-forge
           conda config --set channel_priority strict
           conda update -y -q conda python
