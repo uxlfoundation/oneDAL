@@ -243,13 +243,19 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
         static_cast<Float>(desc.get_min_weight_fraction_in_leaf_node());
     if (min_weight_fraction > Float(0)) {
         if (ctx.is_weighted_) {
-            const Float total_weight =
+            Float total_weight =
                 pr::reduce_1d(queue_, weights_nd_, pr::sum<Float>{}, pr::identity<Float>{});
+            if (ctx.distr_mode_) {
+                {
+                    ONEDAL_PROFILER_TASK(allreduce_total_weight);
+                    comm_.allreduce(total_weight).wait();
+                }
+            }
             ctx.min_weight_leaf_ = min_weight_fraction * total_weight;
         }
         else {
             const Index min_obs_from_weight =
-                static_cast<Index>(std::ceil(min_weight_fraction * Float(ctx.row_count_)));
+                static_cast<Index>(std::ceil(min_weight_fraction * Float(ctx.row_total_count_)));
             ctx.min_observations_in_leaf_node_ =
                 std::max(ctx.min_observations_in_leaf_node_, min_obs_from_weight);
         }
