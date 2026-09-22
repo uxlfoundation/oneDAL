@@ -18,6 +18,7 @@
 
 #include <map>
 #include <set>
+#include <vector>
 
 namespace oneapi::dal::hdbscan::test {
 
@@ -29,6 +30,7 @@ class hdbscan_batch_test : public hdbscan_test<TestType, hdbscan_batch_test<Test
 // =========================================================================
 
 using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
+using hdbscan_bf_only = COMBINE_TYPES((double), (hdbscan::method::brute_force));
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: compute mode check",
@@ -943,6 +945,151 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(bf_rows, kd_rows, row_count);
+}
+
+// =========================================================================
+// Larger-scale brute_force MST tests
+//
+// The literal-array cases above are a few dozen points each, which is below
+// every threaded threshold in the brute-force backend. The cases below are
+// sized so the parallel paths are the ones under test: Boruvka's per-round
+// nearest-different-component scan runs as a real `threader_for` over
+// thousands of rows and needs several rounds to converge, and core distances
+// come from a bounded selection heap of `min_samples` entries, so
+// `min_samples` is varied to cover a shallow and a deeper heap.
+// =========================================================================
+
+/// Deterministic well-separated blobs, generated in place so the case can be
+/// sized into the threaded range without carrying a literal array. Uses a fixed
+/// 32-bit LCG: the jitter only has to be reproducible and free of exact
+/// coordinate ties, not statistically sound.
+template <typename Float>
+static std::vector<Float> make_blobs(std::int64_t per_cluster,
+                                     std::int64_t cluster_count,
+                                     std::int64_t column_count,
+                                     Float separation,
+                                     Float spread) {
+    std::vector<Float> data(per_cluster * cluster_count * column_count);
+
+    std::uint32_t state = 777u;
+    const auto next_unit = [&]() {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<Float>(state >> 8) / static_cast<Float>(1u << 24);
+    };
+
+    std::int64_t pos = 0;
+    for (std::int64_t c = 0; c < cluster_count; c++) {
+        for (std::int64_t i = 0; i < per_cluster; i++) {
+            for (std::int64_t j = 0; j < column_count; j++) {
+                const Float center = separation * static_cast<Float>(c + 1) *
+                                     static_cast<Float>(j % 2 == 0 ? 1 : -1);
+                data[pos++] = center + spread * (next_unit() - Float(0.5));
+            }
+        }
+    }
+    return data;
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force vs tree methods: same partition at thousands of rows",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // 4 x 1000 points: enough rows for a genuinely threaded Boruvka round.
+    constexpr std::int64_t per_cluster = 1000;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 3;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+
+    const auto data = make_blobs<Float>(per_cluster,
+                                        cluster_count,
+                                        column_count,
+                                        /*separation=*/Float(20.0),
+                                        /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    constexpr std::int64_t min_cluster_size = 25;
+    const std::int64_t min_samples = GENERATE(5, 50);
+    CAPTURE(min_samples);
+
+    const auto bf_desc =
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
+    const auto kd_desc =
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
+    const auto bt_desc =
+        hdbscan::descriptor<Float, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
+
+    INFO("run brute_force");
+    const auto bf_result = dal::compute(bf_desc, x);
+
+    INFO("run kd_tree");
+    const auto kd_result = dal::compute(kd_desc, x);
+
+    INFO("run ball_tree");
+    const auto bt_result = dal::compute(bt_desc, x);
+
+    INFO("the blobs are separated by 20x their spread, so all methods must recover them");
+    REQUIRE(bf_result.get_cluster_count() == cluster_count);
+
+    INFO("compare cluster counts");
+    REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
+    REQUIRE(bf_result.get_cluster_count() == bt_result.get_cluster_count());
+
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bt_rows = row_accessor<const Float>(bt_result.get_responses()).pull({ 0, -1 });
+
+    INFO("compare partitions (permutation-invariant)");
+    check_same_partition(bf_rows, kd_rows, row_count);
+    check_same_partition(bf_rows, bt_rows, row_count);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: threaded MST is stable across runs",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // A single diffuse blob: no density gap to fall back on, so the labels are
+    // decided by the MST edge order alone. Every mutual-reachability edge
+    // shorter than both endpoints' core distances collapses onto
+    // `max(core_i, core_j)`, so this input is dense in exact weight ties and the
+    // edge sort has to break them the same way every time -- otherwise repeated
+    // computes on identical input would drift.
+    constexpr std::int64_t row_count = 3000;
+    constexpr std::int64_t column_count = 2;
+
+    const auto data = make_blobs<Float>(row_count,
+                                        /*cluster_count=*/1,
+                                        column_count,
+                                        /*separation=*/Float(0.0),
+                                        /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto desc =
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(15, 5).set_result_options(
+            result_options::responses);
+
+    const auto first = dal::compute(desc, x);
+    const auto first_rows = row_accessor<const Float>(first.get_responses()).pull({ 0, -1 });
+
+    for (int run = 1; run < 3; run++) {
+        CAPTURE(run);
+        const auto again = dal::compute(desc, x);
+        REQUIRE(again.get_cluster_count() == first.get_cluster_count());
+
+        const auto again_rows = row_accessor<const Float>(again.get_responses()).pull({ 0, -1 });
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i);
+            REQUIRE(again_rows[i] == first_rows[i]);
+        }
+    }
 }
 
 // =========================================================================

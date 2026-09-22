@@ -611,6 +611,81 @@ struct ChebyshevDist
     }
 };
 
+/// Restore the max-heap property at `root` of a max-heap stored in `heap[0, size)`.
+///
+/// Plain sift-down over an implicit binary heap: repeatedly swap `root` with its
+/// larger child while that child is larger. Hand-rolled for the same reason
+/// `KnnHeap` below hand-rolls its own sift steps -- the heap here holds a single
+/// `FPType` per slot with no parallel index array, so the generic
+/// `service_heap.h` iterator/comparator machinery would only add indirection.
+///
+/// @tparam FPType Floating-point type stored in the heap
+///
+/// @param[in,out] heap Heap storage, a valid max-heap except possibly at `root`
+/// @param[in]     size Number of live heap slots
+/// @param[in]     root Index whose subtree needs restoring
+template <typename FPType>
+static inline void siftDownMaxHeap(FPType * heap, size_t size, size_t root)
+{
+    for (;;)
+    {
+        const size_t left  = 2 * root + 1;
+        const size_t right = left + 1;
+        size_t largest     = root;
+        if (left < size && heap[left] > heap[largest]) largest = left;
+        if (right < size && heap[right] > heap[largest]) largest = right;
+        if (largest == root) break;
+
+        const FPType tmp = heap[root];
+        heap[root]       = heap[largest];
+        heap[largest]    = tmp;
+        root             = largest;
+    }
+}
+
+/// Return the `k`-th smallest entry of `values[0, n)` without modifying or
+/// copying the input.
+///
+/// Keeps a bounded max-heap of the `k` smallest entries seen so far in
+/// `heapBuf`, so the root is the running `k`-th smallest and a candidate only
+/// enters when it is strictly below the root. The input row is streamed exactly
+/// once and the scratch requirement is `k` elements, independent of `n`.
+///
+/// Used for HDBSCAN core distances on the brute-force path, where `k` is
+/// `minSamples` and `n` is the point count: `std::nth_element` would need a
+/// mutable `n`-element copy of every row (an extra `2 * n` of traffic per point,
+/// `n^2` overall, plus `nThreads * n` of scratch) to compute the same value.
+/// Selection is by value, so the result is identical either way -- ties carry no
+/// index information here.
+///
+/// @tparam FPType Floating-point type
+/// @tparam cpu    CPU dispatch tag
+///
+/// @param[in]  values  Input values, length `n`, left untouched
+/// @param[in]  n       Number of input values
+/// @param[in]  k       Rank to select, `1 <= k <= n`
+/// @param[out] heapBuf Caller-owned scratch of at least `k` elements; contents
+///                     on return are the `k` smallest values in heap order
+///
+/// @return The `k`-th smallest value of `values[0, n)`
+template <typename FPType, daal::internal::CpuType cpu>
+static FPType kthSmallestBounded(const FPType * values, size_t n, size_t k, FPType * heapBuf)
+{
+    for (size_t i = 0; i < k; i++) heapBuf[i] = values[i];
+    // Bottom-up heapify: sift every internal node in reverse index order.
+    for (size_t node = k / 2; node-- > 0;) siftDownMaxHeap<FPType>(heapBuf, k, node);
+
+    for (size_t i = k; i < n; i++)
+    {
+        if (values[i] < heapBuf[0])
+        {
+            heapBuf[0] = values[i];
+            siftDownMaxHeap<FPType>(heapBuf, k, 0);
+        }
+    }
+    return heapBuf[0];
+}
+
 /// Bounded max-heap of the k nearest neighbors seen so far.
 ///
 /// Ordering invariant: `dists_[0]` is the largest distance currently in the
