@@ -135,7 +135,8 @@ public:
      * \return Status of computations
      */
     template <typename algorithmFPType>
-    DAAL_EXPORT services::Status allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method);
+    DAAL_EXPORT services::Status allocate(const daal::algorithms::Input * input,
+        const daal::algorithms::Parameter * par, const int method);
 
     /**
      * Returns result of the Cholesky algorithm
