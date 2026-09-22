@@ -38,9 +38,8 @@ struct float2uint_map<double> {
 
 /// @tparam Float Floating-point type used for storing input values
 /// @tparam Index Integer type used for storing input indices
-/// @tparam Ascending Sort direction. Descending costs the same as ascending: the
-///                   direction only selects the mask that maps float bits onto the
-///                   unsigned radix key, so no per-element work is added.
+/// @tparam Ascending Sort direction. It only selects the mask that maps float bits onto
+///                   the unsigned radix key, so descending costs the same as ascending.
 template <typename Float, typename Index = std::uint32_t, bool Ascending = true>
 class radix_sort_indices_inplace {
     static_assert(std::is_same_v<float, Float> || std::is_same_v<double, Float>);

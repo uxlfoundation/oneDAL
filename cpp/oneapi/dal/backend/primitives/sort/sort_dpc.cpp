@@ -58,13 +58,9 @@ inline std::uint64_t inv_bits(std::uint64_t x) {
 }
 
 /// Maps the raw bits of a float onto the unsigned key the radix passes sort by.
-///
-/// `inv_bits` is the order-preserving map: sorting its result ascending sorts the
-/// floats ascending. Complementing it reverses the order, so descending is the
-/// same single XOR against the complemented mask - one bitwise NOT of a value the
-/// ascending path computes anyway, evaluated at compile time per instantiation.
-/// Doing it here rather than negating the input values also keeps `-0.0` and
-/// `+0.0` on the same key.
+/// `inv_bits` is the order-preserving map; complementing it reverses the order, so
+/// descending is the same single XOR against a compile-time complemented mask. Doing it
+/// here rather than negating the input values also keeps `-0.0` and `+0.0` on one key.
 template <bool Ascending, typename Uint>
 inline Uint radix_key(Uint x) {
     if constexpr (Ascending) {

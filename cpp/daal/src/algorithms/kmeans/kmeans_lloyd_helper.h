@@ -60,11 +60,9 @@ struct TlsTask
         cS0      = service_scalable_calloc<int, cpu>(clNum);
         cValues  = service_scalable_calloc<algorithmFPType, cpu>(clNum);
         cIndices = service_scalable_calloc<size_t, cpu>(clNum);
-        // cSources[i] tracks the local cluster the candidate row at cIndices[i]
-        // was assigned to on this iteration. Needed so that when the row is
-        // used to seed an empty cluster (batch or step2 finalizeCompute), its
-        // contribution can be subtracted from the source cluster's aggregates
-        // before centroid normalization.
+        // cSources[i] is the cluster the candidate row at cIndices[i] was assigned
+        // to, so that seeding an empty cluster with that row can subtract it from
+        // the source cluster's aggregates before normalization.
         cSources = service_scalable_calloc<int, cpu>(clNum);
     }
 

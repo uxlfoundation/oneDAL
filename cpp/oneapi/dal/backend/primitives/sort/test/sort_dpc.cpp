@@ -109,10 +109,8 @@ public:
             }
         }
 
-        // The loop above only reports on failure, so it leaves no trace that the
-        // requested direction was honoured rather than silently defaulted to
-        // ascending. This is a counted assertion on the endpoints that fails if the
-        // two directions were swapped.
+        // The loop above only reports on failure, so add a counted assertion on the
+        // endpoints that fails if the two directions were swapped.
         const Float first = val_ptr[0];
         const Float last = val_ptr[val.get_count() - 1];
         CAPTURE(first, last, ascending);

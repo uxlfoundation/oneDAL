@@ -96,9 +96,8 @@ static auto fill_empty_cluster_indices(sycl::queue& queue,
     ONEDAL_ASSERT(candidate_count <= cluster_count);
     ONEDAL_ASSERT(empty_cluster_indices.get_dimension(0) >= candidate_count);
 
-    // `deps` has to be honoured here: this function returns an empty event, so anything the
-    // caller passes in has to be drained before returning or the caller has no way left to
-    // order against it. `to_host` waits on `deps` before copying.
+    // This function returns an empty event, so `deps` has to be drained before returning;
+    // `to_host` waits on them before copying.
     const auto host_counters = counters.to_host(queue, deps);
     const auto host_empty_cluster_indices = bk::make_unique_host<std::int32_t>(candidate_count);
 
@@ -153,11 +152,9 @@ static auto copy_candidates_from_data(sycl::queue& queue,
         cgh.parallel_for(range, [=](sycl::id<2> id) {
             const std::int64_t i = id[0];
             const std::int64_t j = id[1];
-            // A candidate already sitting on the centroid it is assigned to cannot improve the
-            // objective function: moving it out leaves its source cluster's mean unchanged and
-            // only plants a duplicate of an existing centroid, whose ties can flip labels
-            // forever. Leave the row where it is; `duplicate_largest_centroid` fills the empty
-            // cluster afterwards (see the header).
+            // A candidate already on its own centroid is left where it is: relocating it only
+            // plants a duplicate centroid, and ties between the two can flip labels forever.
+            // `duplicate_largest_centroid` fills the empty cluster instead.
             if (!(candidate_distances_ptr[i] > Float(0))) {
                 return;
             }
@@ -276,10 +273,9 @@ static auto scatter_candidates(sycl::queue& queue,
         cgh.parallel_for(range, [=](sycl::id<2> id) {
             const std::int64_t i = id[0];
             const std::int64_t j = id[1];
-            // Same zero-distance rule as the single-rank path. The candidate list is masked
-            // rather than truncated: `reduce_candidates` allgathers fixed-size per-rank buffers,
-            // so shortening it on one rank would desynchronize the collective. Every rank holds
-            // the same globally-agreed distances, so every rank masks the same slots.
+            // Same zero-distance rule as the single-rank path. Masked rather than truncated:
+            // `reduce_candidates` allgathers fixed-size buffers, and every rank holds the same
+            // globally-agreed distances, so every rank masks the same slots.
             if (!(candidate_distances_ptr[i] > Float(0))) {
                 return;
             }
@@ -291,18 +287,11 @@ static auto scatter_candidates(sycl::queue& queue,
     return event;
 }
 
-/// Performs the cross-rank allgather + partial-sort of local candidate lists to pick the globally
-/// best `candidate_count` rows to fill empty clusters. Extended to also carry the source-cluster
-/// id and the owner's per-rank row index for each candidate through the reduction, so that the
-/// source-cluster correction (subtracting the stolen row from the source cluster's centroid and
-/// counter) can be applied downstream. Every rank ends up with the same globally-agreed tuples,
-/// except for `row_indices`, which is rank-local and therefore masked to -1 for candidates this
-/// rank does not own.
-///
-/// The global selection is purely by distance, matching the local one in
-/// `fill_candidate_indices_and_distances` and scikit-learn's `_relocate_empty_clusters`: the
-/// globally farthest-from-their-centroid rows win, regardless of how many points their source
-/// cluster holds.
+/// Allgathers the local candidate lists and partial-sorts them to pick the globally farthest
+/// `candidate_count` rows, selecting purely by distance as the local search does. The
+/// source-cluster id and the owner's row index travel with each candidate so that
+/// `correct_source_clusters` can run downstream. Every rank ends up with the same tuples, except
+/// for `row_indices`, which is rank-local and masked to -1 for candidates this rank does not own.
 template <typename Float>
 static auto reduce_candidates(sycl::queue& queue,
                               const bk::communicator<spmd::device_memory_access::usm>& comm,
@@ -409,8 +398,8 @@ static auto reduce_candidates(sycl::queue& queue,
         }
     }
 
-    // Shuffle winners back into the per-rank layout. Each rank ends up with the same globally
-    // agreed [candidate_count] tuples of (distance, row, source_cluster).
+    // Shuffle the winners back into the per-rank layout: each rank ends up with the same
+    // [candidate_count] tuples of (distance, row, source_cluster).
     {
         const Float* host_all_candidates_ptr = host_all_candidates.get_data();
         const Float* host_all_distances_ptr = host_all_distances.get_data();
@@ -422,15 +411,8 @@ static auto reduce_candidates(sycl::queue& queue,
         std::int32_t* host_sources_ptr = host_sources.get_mutable_data();
         std::int32_t* host_row_indices_ptr = host_row_indices.get_mutable_data();
 
-        // Every rank ends up with the same globally-agreed (distance, row, source_cluster) tuples
-        // in slots [0, candidate_count) and applies the source-cluster correction (subtract the
-        // stolen row, decrement the counter) identically to its post-allreduce copy of centroids /
-        // counters, so no additional allreduce is needed after the correction.
-        //
-        // `row_indices` is the exception: it is a rank-local row index, so it is masked to -1 for
-        // candidates this rank does not own, which would otherwise be a hazard for any consumer
-        // reading `data[row_indices[i]]`. The correction itself reads the stolen row back from
-        // `centroids[dst_i]` after `fill_empty_clusters` has written it, so it needs no row index.
+        // `row_indices` is rank-local, so it is masked to -1 where this rank is not the owner:
+        // a consumer reading `data[row_indices[i]]` would otherwise go out of bounds.
         for (std::int64_t i = 0; i < candidate_count; i++) {
             const std::int64_t src_i = host_all_indices_ptr[i];
             host_distances_ptr[i] = host_all_distances_ptr[src_i];
@@ -510,9 +492,7 @@ static auto gather_scatter_candidates(sycl::queue& queue,
                                           candidate_row_indices,
                                           source_clusters,
                                           { gather_event });
-    // Post-reduce, `source_clusters` and the local `indices_` have been shuffled to match the
-    // globally winning candidates (`indices_` additionally masked to -1 where this rank is not the
-    // owner). Publish the shuffled source ids so the correction downstream sees them.
+    // Publish the shuffled source ids so `correct_source_clusters` sees the global winners.
     candidates.set_source_clusters(source_clusters);
 
     auto scatter_event = scatter_candidates(queue,
@@ -560,8 +540,7 @@ auto find_candidates(sycl::queue& queue,
                                              candidate_distances,
                                              deps);
 
-    // Look up source-cluster id for each candidate by reading responses[cand].
-    // Small kernel over `candidate_count` (typically much smaller than row_count).
+    // Look up the source-cluster id of every candidate in `responses`.
     const std::int32_t* candidate_indices_ptr = candidate_indices.get_data();
     const std::int32_t* responses_ptr = responses.get_data();
     std::int32_t* source_clusters_ptr = source_clusters.get_mutable_data();
@@ -572,10 +551,8 @@ auto find_candidates(sycl::queue& queue,
         });
     });
 
-    // `fill_sources_event` is folded into `fill_empty_cluster_indices`' dependency list rather
-    // than waited on separately: that function already drains its deps on the host (it has to,
-    // since it returns an empty event), so `source_clusters` is guaranteed to be readable by the
-    // time `find_candidates` returns without adding a second synchronization point.
+    // Folded into `fill_empty_cluster_indices`' deps rather than waited on separately: that
+    // function drains its deps on the host anyway, since it returns an empty event.
     auto fill_empty_cluster_indices_event =
         fill_empty_cluster_indices(queue,
                                    candidate_count,

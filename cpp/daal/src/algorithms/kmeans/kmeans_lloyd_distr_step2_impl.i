@@ -87,18 +87,15 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::compute(size_
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(algorithmFPType));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(size_t));
 
-    // Merge tracks value (distance), the merged candidate slot id
-    // `block * nClusters + posInBlock`, and the source cluster id on that
-    // emitting rank. cCentroids in the output table is populated at the end
-    // of this method from the winning candidate rows.
+    // Merge state: distance, merged slot id `block * nClusters + posInBlock`, and
+    // the source cluster id on the emitting rank.
     TArray<algorithmFPType, cpu> tmpValues(nClusters);
     TArray<size_t, cpu> tmpIndices(nClusters);
     TArray<int, cpu> tmpSources(nClusters);
     TArray<size_t, cpu> cIndices(nClusters);
     DAAL_CHECK_MALLOC(tmpValues.get() && tmpIndices.get() && tmpSources.get() && cIndices.get());
 
-    // Running merge state lives in cValuesTbl: col 0 (distance) and col 1
-    // (source cluster id). Convenience aliases for the two columns.
+    // Column aliases for the running merge state in cValuesTbl.
     auto cValueAt  = [&](size_t idx) -> algorithmFPType & { return cValuesTbl[idx * 2 + 0]; };
     auto cSourceAt = [&](size_t idx) -> algorithmFPType & { return cValuesTbl[idx * 2 + 1]; };
 
@@ -196,14 +193,10 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     ReadRows<algorithmFPType, cpu> mtInClusterS1(*const_cast<NumericTable *>(a[1]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtInClusterS1);
 
-    // The aggregated clusterS0 / clusterS1 arriving from step2::compute() are
-    // needed as mutable working buffers: when a candidate row is used to seed
-    // an empty cluster we have to subtract its contribution from the source
-    // cluster it was assigned to. The input tables stay read-only (they belong
-    // to the caller's partial result and finalizeCompute must be repeatable),
-    // so work on private copies. This mirrors the two-pass empty-cluster
-    // replacement logic in kmeans_lloyd_batch_impl.i (see the "Two-pass merge"
-    // comment there).
+    // Seeding an empty cluster subtracts the seed row from the aggregates of the
+    // cluster it was assigned to, so the aggregates have to be mutable. The input
+    // tables belong to the caller's partial result and finalizeCompute has to stay
+    // repeatable, hence the private copies.
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, sizeof(int));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters, p);
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nClusters * p, sizeof(algorithmFPType));
@@ -245,38 +238,20 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     DAAL_CHECK_MALLOC(clusterReplaced.get());
     service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
 
-    // Three-pass merge (mirror of kmeans_lloyd_batch_impl.i):
-    //   Pass 1: for every empty cluster i, promote the next-farthest candidate
-    //           row (a row of cCentroids) to its centroid. Candidates arrive
-    //           ordered by decreasing distance, so each empty cluster is handed
-    //           the globally farthest-from-its-centroid point still available --
-    //           the same purely distance-based selection scikit-learn's
-    //           `_relocate_empty_clusters` uses. The candidate was originally
-    //           assigned to some source cluster srcCluster on its emitting rank;
-    //           that cluster's clusterS0/clusterS1 already carries the row's
-    //           contribution after step2::compute() aggregation, so undo it now
-    //           and pass 2 computes the source cluster's centroid without the
-    //           stolen row. A source cluster is never spared: draining it to
-    //           zero is allowed, and pass 3 then re-fills it. The `clusterS0 > 0`
-    //           test below only keeps the counters from going negative should a
-    //           malformed partial result report the same row twice.
-    //   Pass 2: normalize the remaining non-empty, non-replaced clusters.
-    //   Pass 3: fill the clusters that are still empty (pass 1 stopped before
-    //           them, or pass 1 stole all of their rows) with a duplicate of the
-    //           centroid of the cluster holding the most observations.
-    //
-    // Candidates occupy slots [0, cAvail) of cValuesTbl / cCentroids ordered by
-    // decreasing distance; slots with a negative distance are empty. `cNext` is
-    // the cursor into that list.
+    // Same three passes as the batch kernel, see the helpers at the top of
+    // kmeans_lloyd_batch_impl.i for what each one is for. The candidates arrive
+    // here as rows of cCentroids instead of rows of the data table: they occupy
+    // slots [0, cAvail) of cValuesTbl / cCentroids ordered by decreasing distance,
+    // and a negative distance marks an empty slot. `cNext` is the cursor into that
+    // list.
     size_t cAvail = 0;
     while (cAvail < nClusters && !(cValuesTbl[cAvail * 2 + 0] < (algorithmFPType)0.0))
     {
         cAvail++;
     }
 
-    // Seeds cluster `i` from candidate slot `c`: promotes the candidate row to
-    // the cluster's centroid and undoes the row's contribution to the cluster it
-    // was assigned to, so pass 2 computes that cluster's centroid without it.
+    // Seeds cluster `i` from candidate slot `c` and undoes the row's contribution
+    // to the cluster it was assigned to on its emitting rank.
     auto seedFromCandidate = [&](size_t i, size_t c) -> void {
         outTarget[0] -= cValuesTbl[c * 2 + 0];
 
@@ -300,11 +275,8 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
 
     size_t cNext = 0;
 
-    // Snapshot the empty clusters before pass 1 starts moving rows: pass 1
-    // decrements the counters of the clusters it steals from, and a cluster it
-    // drains that way must not be re-seeded from yet another candidate.
-    // scikit-learn snapshots it for the same reason (`empty_clusters =
-    // np.where(weight_in_clusters == 0)`).
+    // Snapshotted before pass 1 starts moving rows, so a cluster that pass 1
+    // drains is not seeded again.
     TArray<size_t, cpu> emptyClusters(nClusters);
     DAAL_CHECK_MALLOC(emptyClusters.get());
     size_t nEmpty = 0;
@@ -320,14 +292,8 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
     // Pass 1: seed the empty clusters from the candidates, farthest first.
     for (size_t e = 0; e < nEmpty; e++)
     {
-        // Stop relocating once the farthest remaining candidate already sits on
-        // the centroid it is assigned to: moving it leaves its source cluster's
-        // mean unchanged and only plants a second centroid on top of an existing
-        // one, which lets the assignment step flip labels between two identical
-        // centroids forever. Candidates are sorted by decreasing distance, so all
-        // later ones are at distance zero too. Running out of candidates means
-        // the data holds fewer distinct rows than clusters and is handled the
-        // same way: pass 3 fills whatever is left.
+        // Stop once the farthest remaining candidate is already on its own
+        // centroid, or the candidates run out; pass 3 fills the rest.
         if (cNext == cAvail || !(cValuesTbl[cNext * 2 + 0] > (algorithmFPType)0.0))
         {
             break;
@@ -359,15 +325,11 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
         }
     }
 
-    // Pass 3. A cluster reaching this point holds no points and was not seeded by
-    // pass 1: it was either empty on entry with no candidate left to relocate, or
-    // pass 1 stole all of its rows. Fill it with a duplicate of the centroid of
-    // the cluster holding the most observations, as the batch kernel does. The
-    // data then holds fewer distinct rows than there are clusters, which is not an
-    // error condition: scikit-learn reports it as a ConvergenceWarning ("Number of
-    // distinct clusters found smaller than n_clusters") and returns a degenerate
-    // centroid rather than failing. daal kernels have no warning channel, so the
-    // closest available behaviour is to return the degenerate result too.
+    // Pass 3: duplicate the largest cluster's centroid into whatever is still
+    // empty. Reaching it means the data holds fewer distinct rows than there are
+    // clusters, which is not an error: scikit-learn reports that as a
+    // ConvergenceWarning and returns the degenerate centroids. daal kernels have no
+    // warning channel, so returning the degenerate result is the closest match.
     for (size_t i = 0; i < nClusters; i++)
     {
         if (clusterReplaced[i] || clusterS0[i] > 0)
@@ -381,10 +343,9 @@ Status KMeansDistributedStep2Kernel<method, algorithmFPType, cpu>::finalizeCompu
         }
         else
         {
-            // Not a single cluster holds an observation, so there is no centroid
-            // to duplicate. Mirror scikit-learn's `_average_centers`, which leaves
-            // a zero-weight cluster at its accumulated sum instead of dividing by
-            // zero. `clusters` is write-only here, so it has to be written.
+            // No cluster holds an observation, so there is nothing to duplicate.
+            // As in scikit-learn's `_average_centers`, a zero-weight cluster keeps
+            // its accumulated sum rather than being divided by zero.
             result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &clusterS1[i * p],
                                                               p * sizeof(algorithmFPType));
         }

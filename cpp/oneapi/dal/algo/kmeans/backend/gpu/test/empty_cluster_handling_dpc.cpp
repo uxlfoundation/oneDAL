@@ -213,8 +213,8 @@ public:
                       std::greater<float_t>{});
         }
 
-        // Source cluster of each candidate row. `fill_empty_clusters` needs this populated in the
-        // distributed path, where `reduce_candidates` shuffles it alongside the winning rows.
+        // Source cluster of each candidate row: `reduce_candidates` shuffles it alongside the
+        // winning rows, so the distributed path needs it populated.
         auto host_source_clusters = this->template generate_uniform_int_host<std::int32_t>( //
             candidate_count,
             0,
@@ -367,9 +367,9 @@ public:
         }
     }
 
-    /// Candidates are selected purely by distance-to-assigned-centroid, farthest first, matching
-    /// scikit-learn's `_relocate_empty_clusters`. Verified here by requiring that no unselected row
-    /// has a larger distance than any selected one.
+    /// Candidates are selected purely by distance to the assigned centroid, farthest first, as in
+    /// scikit-learn's `_relocate_empty_clusters`: no unselected row may have a larger distance
+    /// than a selected one.
     void check_candidates(const pr::ndarray<float_t, 2>& closest_distances,
                           const centroid_candidates<float_t>& candidates) {
         const std::int64_t candidate_count = candidates.get_candidate_count();
@@ -482,8 +482,8 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test, "find candidates", "[candidate
 
     const auto closest_distances = this->generate_closests_distances(cluster_count);
     const auto counters = this->generate_counters(cluster_count, candidate_count, 10, 100);
-    // `find_candidates` reads the source cluster of every candidate row out of the responses,
-    // so the responses must be as long as `closest_distances`.
+    // `find_candidates` reads each candidate's source cluster from the responses, so they have
+    // to be as long as `closest_distances`.
     const auto responses = this->generate_responses(cluster_count, cluster_count);
 
     this->run_find_candidates(closest_distances, counters, responses, candidate_count);
@@ -523,9 +523,8 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
         this->get_queue(),
         { 0, 1 });
 
-    // The second candidate already sits on the centroid it is assigned to, so relocating it could
-    // only duplicate an existing centroid. The fill leaves its empty cluster untouched;
-    // `duplicate_largest_centroid` is what writes into it afterwards.
+    // The second candidate already sits on its own centroid, so the fill leaves its empty cluster
+    // untouched and `duplicate_largest_centroid` writes into it afterwards.
     const auto candidate_distances = make_device_ndarray<float_t, 1>( //
         this->get_queue(),
         { 7.0, 0.0 });
@@ -572,9 +571,8 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->get_policy().is_cpu());
 
-    // Slot 0 was relocated (distance 7) and must be left with the row the fill wrote into it;
-    // slot 1 was declined (distance 0) and has to end up on the centroid of cluster 2, the one
-    // holding the most observations.
+    // Slot 0 was relocated (distance 7) and keeps the row the fill wrote into it; slot 1 was
+    // declined (distance 0) and has to end up on cluster 2's centroid, the largest cluster.
     const auto candidate_indices = make_device_ndarray<std::int32_t, 1>( //
         this->get_queue(),
         { 0, 1 });
@@ -621,11 +619,9 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->get_policy().is_cpu());
 
-    // Cluster 0 holds a single row (row 0), cluster 1 holds the four others, cluster 2 is empty.
-    // Row 0 is by far the farthest from its centroid. Selection is purely by distance (matching
-    // scikit-learn's `_relocate_empty_clusters`), so row 0 wins even though cluster 0 is a
-    // singleton -- the source-cluster correction (`correct_source_clusters`) leaves such a source
-    // untouched afterwards.
+    // Cluster 0 holds only row 0, cluster 1 the four others, cluster 2 is empty. Row 0 is the
+    // farthest from its centroid, so it wins on distance alone even though that leaves cluster 0
+    // a singleton; `correct_source_clusters` leaves such a source untouched.
     const auto closest_distances = make_device_ndarray<float_t, 2>( //
         this->get_queue(),
         { { 100.0 }, { 1.0 }, { 2.0 }, { 3.0 }, { 4.0 } });
@@ -687,8 +683,8 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
             { 0, 2, 0, 2 })
             .split(thread_count);
 
-    // Source cluster of every candidate row on the emitting rank. `reduce_candidates` shuffles it
-    // alongside the winning rows, so it has to be provided per rank as well.
+    // Source cluster of every candidate row on the emitting rank, provided per rank because
+    // `reduce_candidates` shuffles it alongside the winning rows.
     const auto candidate_source_clusters = //
         make_device_ndarray<std::int32_t, 1>( //
             this->get_queue(), //
@@ -737,9 +733,8 @@ TEMPLATE_LIST_TEST_M(empty_cluster_handling_test,
             { 0, 1 })
             .split(thread_count);
 
-    // Rank 0 nominates the globally farthest row. Selection is purely by distance (matching
-    // scikit-learn's `_relocate_empty_clusters`), so the cross-rank reduction picks it regardless
-    // of its source cluster's size.
+    // Rank 0 nominates the globally farthest row, which the cross-rank reduction picks on
+    // distance alone, regardless of its source cluster's size.
     const auto candidate_distances = //
         make_device_ndarray<float_t, 1>( //
             this->get_queue(), //

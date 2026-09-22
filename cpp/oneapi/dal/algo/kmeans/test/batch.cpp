@@ -594,20 +594,16 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     const auto csr_run_b = this->train(csr_desc, csr_data, init2);
     const auto dense_run = this->train(dense_desc, dense_data, init1);
 
-    // Same seed on the sparse path -> reproducible objective across independent
-    // runs. CPU Lloyd sums in a fixed partition order -> bit-identical. GPU
-    // sycl::reduction combines partial sums in an implementation-defined order
-    // (atomic fetch_add / non-fixed workgroup tree) and float addition is
-    // non-associative, so a few ULPs of drift is expected between two runs.
+    // The same seed has to give a reproducible objective across independent runs. The
+    // CPU kernel sums in a fixed partition order and is bit-identical; the GPU
+    // reduction combines partial sums in an implementation-defined order, so a few ULPs
+    // of drift are expected.
     //
-    // The iteration count is only required to be reproducible on the CPU. The GPU
-    // kernel stops on the objective function itself (`obj + threshold >= prev_obj`),
-    // and this case asks for `accuracy_threshold == 0`, so once the assignments have
-    // settled the true improvement is exactly zero and the comparison is decided by
-    // the reduction's ULP-level drift - a coin flip per iteration. Both runs do
-    // converge, just not necessarily on the same iteration; the CPU criterion is the
-    // centroid shift, which is computed deterministically and so stops on a fixed
-    // iteration.
+    // The iteration count is only required to be reproducible on the CPU, whose
+    // criterion is the deterministic centroid shift. The GPU stops on the objective
+    // function itself, and with `accuracy_threshold == 0` the settled improvement is
+    // exactly zero, so that comparison is decided by the ULP-level drift: both runs
+    // converge, not necessarily on the same iteration.
     if (this->get_policy().is_cpu()) {
         REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
         REQUIRE(csr_run_a.get_objective_function_value() ==

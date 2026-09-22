@@ -135,11 +135,10 @@ struct train_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
 
         Float prev_objective_function = de::limits<Float>::max();
         std::int64_t iter;
-        // Seed `arr_centroids` with the initial centroids. Every centroid an iteration recomputes
-        // is overwritten, but a cluster can keep its previous centroid instead: an empty cluster
-        // whose only available candidate row already sits on its assigned centroid is left alone
-        // (see `fill_empty_clusters`). On iteration 0 "previous" means the initial centroids, so
-        // without this copy such a cluster would read back uninitialized device memory.
+        // Seed `arr_centroids` with the initial centroids: `update_centroids` only overwrites the
+        // rows it recomputes, and an empty cluster whose candidate row already sits on its own
+        // centroid keeps the previous one (see `fill_empty_clusters`) - the initial one on
+        // iteration 0.
         sycl::event centroids_event = arr_centroids.assign(queue, arr_initial);
 
         auto updater = cluster_updater<Float>{ queue, comm }
@@ -164,13 +163,10 @@ struct train_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
                                arr_responses,
                                { centroids_event, data_squares_event, centroid_squares_event });
             centroids_event = update_clusters_event;
-            // Both comparisons are inclusive, matching the CPU kernel
-            // (`par->accuracyThreshold >= 0` and `l2Norm <= par->accuracyThreshold` in
-            // kmeans_lloyd_batch_impl.i). A threshold of exactly zero is a valid request
-            // for "stop as soon as the objective function stops improving"; with `> 0` and
-            // a strict `>` it instead meant "run all `max_iteration_count` iterations",
-            // because a converged iteration leaves the objective function unchanged
-            // rather than larger.
+            // Both comparisons are inclusive, as in the CPU kernel. A threshold of exactly
+            // zero asks to stop as soon as the objective function stops improving; with a
+            // strict `>` it meant "run all `max_iteration_count` iterations", since a
+            // converged iteration leaves the objective function unchanged rather than larger.
             if (accuracy_threshold >= 0 &&
                 objective_function + accuracy_threshold >= prev_objective_function) {
                 iter++;

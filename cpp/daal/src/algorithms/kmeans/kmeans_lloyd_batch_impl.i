@@ -46,6 +46,183 @@ namespace kmeans
 {
 namespace internal
 {
+/// Indices of the clusters that hold no points. Snapshotted before pass 1 starts
+/// moving rows: pass 1 drains the counters of the clusters it steals from, and a
+/// cluster drained that way must not be seeded again. scikit-learn's
+/// `_relocate_empty_clusters` snapshots for the same reason.
+template <CpuType cpu>
+static size_t collectEmptyClusters(const size_t nClusters, const int * const clusterS0, size_t * const emptyClusters)
+{
+    size_t nEmpty = 0;
+    for (size_t i = 0; i < nClusters; i++)
+    {
+        if (clusterS0[i] == 0)
+        {
+            emptyClusters[nEmpty] = i;
+            nEmpty++;
+        }
+    }
+    return nEmpty;
+}
+
+/// Pass 1 of the empty-cluster merge: seeds every empty cluster with the row
+/// farthest from the centroid it was assigned to, selected by distance alone as
+/// in scikit-learn's `_relocate_empty_clusters`. The row is taken out of its
+/// source cluster's aggregates so that pass 2 recomputes that centroid without
+/// it; draining a source cluster to zero is allowed, pass 3 refills it.
+///
+/// Stops at the first candidate that already sits on its own centroid, or when
+/// the candidates run out. Candidates are sorted by decreasing distance, so no
+/// later one could be relocated either. Relocating a row at distance zero would
+/// leave its source centroid where it is and plant a duplicate of an existing
+/// centroid, and ties between two identical centroids can flip labels forever
+/// without lowering the objective function.
+///
+/// `goalFuncCorrection` collects the distances of the relocated rows. The
+/// assignment step measured them against the centroids this iteration started
+/// from, so the caller subtracts them from the objective function it reports and
+/// both quantities stay on the same centroids.
+template <typename algorithmFPType, CpuType cpu>
+static Status relocateEmptyClusters(NumericTable * const ntData, const size_t p, const size_t nClusters, const size_t * const emptyClusters,
+                                    const size_t nEmpty, const algorithmFPType * const cValues, const size_t * const cIndices, const size_t cNum,
+                                    const int * const pointAssignments, const algorithmFPType * const inClusters, int * const clusterS0,
+                                    algorithmFPType * const clusterS1, algorithmFPType * const clusters, bool * const clusterReplaced,
+                                    algorithmFPType & l2Norm, algorithmFPType & goalFuncCorrection)
+{
+    size_t cPos = 0;
+    for (size_t e = 0; e < nEmpty; e++)
+    {
+        if (cPos == cNum || !(cValues[cPos] > (algorithmFPType)0.0))
+        {
+            break;
+        }
+
+        const size_t i               = emptyClusters[e];
+        const size_t candidateRowIdx = cIndices[cPos];
+        goalFuncCorrection += cValues[cPos];
+        cPos++;
+
+        ReadRows<algorithmFPType, cpu> mtRow(ntData, candidateRowIdx, 1);
+        DAAL_CHECK_BLOCK_STATUS(mtRow);
+        const algorithmFPType * const row = mtRow.get();
+
+        // The `> 0` test only keeps the counter from going negative: candidate
+        // rows are distinct and each contributes exactly 1 to its source cluster.
+        const int srcCluster = pointAssignments[candidateRowIdx];
+        DAAL_ASSERT(srcCluster >= 0 && (size_t)srcCluster < nClusters);
+        if (clusterS0[srcCluster] > 0)
+        {
+            clusterS0[srcCluster]--;
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t j = 0; j < p; j++)
+            {
+                clusterS1[srcCluster * p + j] -= row[j];
+            }
+        }
+
+        // Reduced into a per-cluster local so the inner loop can carry a
+        // `reduction` clause; the partial is added to `l2Norm` once.
+        algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
+        PRAGMA_VECTOR_ALWAYS
+        for (size_t j = 0; j < p; j++)
+        {
+            const algorithmFPType dist = inClusters[i * p + j] - row[j];
+            clusterL2Norm += dist * dist;
+        }
+        l2Norm += clusterL2Norm;
+
+        DAAL_CHECK(!daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType)),
+                   services::ErrorMemoryCopyFailedInternal);
+        clusterReplaced[i] = true;
+    }
+    return Status();
+}
+
+/// Pass 2: recomputes the centroid of every cluster pass 1 did not seed, from the
+/// theft-adjusted aggregates. Returns the cluster holding the most points, the
+/// one pass 3 duplicates, or `nClusters` if no cluster holds any.
+template <typename algorithmFPType, CpuType cpu>
+static size_t updateCentroidsFromAggregates(const size_t nClusters, const size_t p, const int * const clusterS0,
+                                            const algorithmFPType * const clusterS1, const bool * const clusterReplaced,
+                                            const algorithmFPType * const inClusters, algorithmFPType * const clusters, algorithmFPType & l2Norm)
+{
+    size_t largestCluster = nClusters;
+    for (size_t i = 0; i < nClusters; i++)
+    {
+        if (clusterReplaced[i] || clusterS0[i] <= 0)
+        {
+            continue;
+        }
+        if (largestCluster == nClusters || clusterS0[i] > clusterS0[largestCluster])
+        {
+            largestCluster = i;
+        }
+
+        const algorithmFPType coeff = (algorithmFPType)1.0 / clusterS0[i];
+
+        algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
+        PRAGMA_VECTOR_ALWAYS
+        for (size_t j = 0; j < p; j++)
+        {
+            const algorithmFPType newCluster = clusterS1[i * p + j] * coeff;
+            const algorithmFPType dist       = inClusters[i * p + j] - newCluster;
+            clusterL2Norm += dist * dist;
+            clusters[i * p + j] = newCluster;
+        }
+        l2Norm += clusterL2Norm;
+    }
+    return largestCluster;
+}
+
+/// Pass 3: fills the clusters that are still empty - pass 1 stopped before them,
+/// or stole all of their rows - with a duplicate of the largest cluster's
+/// centroid. Such a cluster owns no points, so the choice does not move the
+/// objective function, but it has to be a point of the data space rather than a
+/// leftover initial centroid to match what scikit-learn returns for the same
+/// input. A duplicate is also stable: the assignment step gives tied points to
+/// the lowest cluster index, so one of the pair stays empty and is refreshed to
+/// the same value on the next iteration, driving the centroid shift to zero.
+template <typename algorithmFPType, CpuType cpu>
+static Status fillDrainedClusters(const size_t nClusters, const size_t p, const size_t largestCluster, const int * const clusterS0,
+                                  const bool * const clusterReplaced, const algorithmFPType * const inClusters, algorithmFPType * const clusters,
+                                  algorithmFPType & l2Norm)
+{
+    for (size_t i = 0; i < nClusters; i++)
+    {
+        if (clusterReplaced[i] || clusterS0[i] > 0)
+        {
+            continue;
+        }
+        if (largestCluster < nClusters)
+        {
+            algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t j = 0; j < p; j++)
+            {
+                const algorithmFPType newCluster = clusters[largestCluster * p + j];
+                const algorithmFPType dist       = inClusters[i * p + j] - newCluster;
+                clusterL2Norm += dist * dist;
+                clusters[i * p + j] = newCluster;
+            }
+            l2Norm += clusterL2Norm;
+        }
+        else if (clusters != inClusters)
+        {
+            // Not a single cluster holds an observation, so there is no centroid
+            // to duplicate. Keep the previous one, which also keeps `clusters[i]`
+            // from being left uninitialized on iteration 0.
+            DAAL_CHECK(!daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &inClusters[i * p],
+                                                                p * sizeof(algorithmFPType)),
+                       services::ErrorMemoryCopyFailedInternal);
+        }
+    }
+    return Status();
+}
+
 template <Method method, typename algorithmFPType, CpuType cpu>
 Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTable * const * a, const NumericTable * const * r, const Parameter * par)
 {
@@ -55,7 +232,6 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
     const size_t n         = ntData->getNumberOfRows();
     const size_t p         = ntData->getNumberOfColumns();
     const size_t nClusters = par->nClusters;
-    int result             = 0;
 
     // Cluster indices are narrowed to `int` when they are written into the
     // assignment table (`WriteOnlyRows<int, cpu>`) and into the internal
@@ -72,15 +248,11 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
     TArray<algorithmFPType, cpu> clusterS1(nClusters * p);
     TArray<bool, cpu> clusterReplaced(nClusters);
     TArray<size_t, cpu> emptyClusters(nClusters);
-    DAAL_CHECK(clusterS0.get() && clusterS1.get() && clusterReplaced.get() && emptyClusters.get(), services::ErrorMemoryAllocationFailed);
-
-    // Per-point cluster assignment tracked across the outer Lloyd loop.
-    // Needed only when at least one cluster ends up empty: the replacement
-    // candidate steals a point from its previously-assigned cluster, and we
-    // must decrement that cluster's counters (clusterS0 / clusterS1) before
-    // computing its new centroid.
+    // Per-point cluster assignment, needed only when a cluster ends up empty: the
+    // row that seeds it is taken away from the cluster it was assigned to.
     TArray<int, cpu> pointAssignmentsHolder(n);
-    DAAL_CHECK(pointAssignmentsHolder.get(), services::ErrorMemoryAllocationFailed);
+    DAAL_CHECK(clusterS0.get() && clusterS1.get() && clusterReplaced.get() && emptyClusters.get() && pointAssignmentsHolder.get(),
+               services::ErrorMemoryAllocationFailed);
     int * pointAssignments = pointAssignmentsHolder.get();
 
     ReadRows<algorithmFPType, cpu> mtInClusters(*const_cast<NumericTable *>(a[1]), 0, nClusters);
@@ -124,10 +296,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     TArray<algorithmFPType, cpu> cValues(nClusters);
     TArray<size_t, cpu> cIndices(nClusters);
-    // Per-candidate source cluster IDs. Batch already resolves srcCluster via
-    // pointAssignments[candidateRowIdx], so this buffer's contents are not read
-    // here -- the parameter exists so batch and distributed can share
-    // kmeansComputeCentroidsCandidates.
+    // Not read here (batch resolves the source cluster from `pointAssignments`);
+    // the buffer exists so batch and distributed share the same candidate search.
     TArray<int, cpu> cSources(nClusters);
 
     algorithmFPType oldTargetFunc(0.0);
@@ -161,216 +331,35 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
         size_t cNum;
         DAAL_CHECK_STATUS(s, task->kmeansComputeCentroidsCandidates(cValues.get(), cIndices.get(), cSources.get(), cNum));
-        size_t cPos = 0;
 
+        // Distances of the rows relocated into empty clusters, subtracted from the
+        // objective function this iteration reports.
         algorithmFPType newCentersGoalFunc = (algorithmFPType)0.0;
-        // Squared L2 norm of the centroid shift over this iteration, summed over
-        // every cluster: `sum_i ||inClusters[i] - clusters[i]||^2`. It is the
-        // convergence criterion compared against `par->accuracyThreshold` below,
-        // so every cluster has to contribute exactly once no matter which of the
-        // three passes below ends up writing its centroid. Each pass therefore
-        // adds its own clusters' terms:
-        //   pass 1 - clusters reseeded from a candidate row,
-        //   pass 2 - clusters recomputed from the theft-adjusted aggregates,
-        //   pass 3 - clusters filled with a duplicate of the largest centroid.
-        // The remaining case, a cluster left at its previous centroid, shifts by
-        // zero and so adds nothing.
+        // Squared L2 norm of the centroid shift, `sum_i ||inClusters[i] - clusters[i]||^2`,
+        // checked against `par->accuracyThreshold` below. Every cluster contributes
+        // exactly once, whichever pass writes it; a cluster left at its previous
+        // centroid shifts by zero.
         algorithmFPType l2Norm = (algorithmFPType)0.0;
-        service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
         {
             DAAL_PROFILER_TASK(kmeansMergeReduceCentroids);
 
-            // Three-pass merge:
-            //   Pass 1: replace each empty cluster's centroid with a candidate
-            //           row -- the point that is farthest from the centroid it
-            //           was assigned to on this iteration. This matches
-            //           scikit-learn's `_relocate_empty_clusters`: the empty
-            //           clusters take the globally farthest-from-their-centroid
-            //           points, selected purely by distance regardless of how
-            //           many points their source cluster holds. Each such point
-            //           is stolen from the cluster it was assigned to, so
-            //           decrement that source cluster's counters (clusterS0,
-            //           clusterS1) here; pass 2 then computes the source
-            //           cluster's centroid without the stolen row.
-            //   Pass 2: compute centroids for the non-replaced clusters from the
-            //           (now theft-adjusted) aggregates and accumulate the L2
-            //           shift.
-            //   Pass 3: fill the clusters that are still empty (pass 1 stopped
-            //           before them, or pass 1 stole all of their rows) with a
-            //           duplicate of the centroid of the cluster that holds the
-            //           most observations.
-            //
-            // Candidates are sorted by decreasing squared distance, so cPos
-            // walks them farthest-first. Reading previous centroids from
-            // `inClusters`, not from the write-only `clusters` buffer: on the
-            // very first iteration `clusters` is the user-supplied result table
-            // whose contents are uninitialized prior to being written. From
-            // iteration 1 onward `inClusters == clusters` (set at the end of the
-            // loop), so the L2-norm of the centroid shift is unchanged.
-            //
-            // The set of empty clusters is snapshotted before pass 1 starts
-            // moving rows: pass 1 decrements the counters of the clusters it
-            // steals from, and a cluster it drains that way must not be re-seeded
-            // from yet another candidate. scikit-learn snapshots it for the same
-            // reason (`empty_clusters = np.where(weight_in_clusters == 0)`).
-            size_t nEmpty = 0;
-            for (size_t i = 0; i < nClusters; i++)
-            {
-                if (clusterS0[i] == 0)
-                {
-                    emptyClusters[nEmpty] = i;
-                    nEmpty++;
-                }
-            }
+            // Empty clusters are handled in the three passes defined above this
+            // function. Previous centroids are read from `inClusters` rather than
+            // from `clusters`: on iteration 0 `clusters` is the write-only result
+            // table and its contents are undefined, and from iteration 1 onward the
+            // two alias.
+            service_memset_seq<bool, cpu>(clusterReplaced.get(), false, nClusters);
+            const size_t nEmpty = collectEmptyClusters<cpu>(nClusters, clusterS0.get(), emptyClusters.get());
 
-            for (size_t e = 0; e < nEmpty; e++)
-            {
-                // Stop relocating once the farthest remaining candidate already
-                // sits on the centroid it is assigned to. Moving such a row
-                // leaves its source cluster's mean unchanged and only plants a
-                // second centroid on top of an existing one; the assignment step
-                // then tie-breaks between two identical centroids, which can flip
-                // labels forever without reducing the objective function. All
-                // later candidates are at distance zero too (the list is sorted),
-                // so pass 1 is done; pass 3 fills what is left. Running out of
-                // candidates (`cPos == cNum`) means there are fewer distinct rows
-                // than clusters and is handled the same way.
-                if (cPos == cNum || !(cValues[cPos] > (algorithmFPType)0.0))
-                {
-                    break;
-                }
+            DAAL_CHECK_STATUS(s, (relocateEmptyClusters<algorithmFPType, cpu>(
+                                     ntData, p, nClusters, emptyClusters.get(), nEmpty, cValues.get(), cIndices.get(), cNum, pointAssignments,
+                                     inClusters, clusterS0.get(), clusterS1.get(), clusters, clusterReplaced.get(), l2Norm, newCentersGoalFunc)));
 
-                const size_t i = emptyClusters[e];
-                // `cValues[cPos]` is this row's squared distance to the centroid it
-                // was assigned to, measured against the centroids this iteration
-                // started from. It is not re-measured after the relocation, and it
-                // does not need to be: the objective function reported for the
-                // iteration is the one accumulated by the assignment step, against
-                // those same start-of-iteration centroids
-                // (`kmeansClearClusters` sums the per-thread `goalFunc`). Removing
-                // this term drops the contribution of a row that no longer belongs
-                // to that cluster, which keeps both sides on the same centroids.
-                // The objective at the *new* centroids is a different quantity and
-                // is computed separately by
-                // `PostProcessing::computeExactObjectiveFunction` when the caller
-                // asks for `computeExactObjectiveFunction`.
-                newCentersGoalFunc += cValues[cPos];
-                const size_t candidateRowIdx = cIndices[cPos];
-                ReadRows<algorithmFPType, cpu> mtRow(ntData, candidateRowIdx, 1);
-                const algorithmFPType * row = mtRow.get();
+            const size_t largestCluster = updateCentroidsFromAggregates<algorithmFPType, cpu>(nClusters, p, clusterS0.get(), clusterS1.get(),
+                                                                                              clusterReplaced.get(), inClusters, clusters, l2Norm);
 
-                // Take the candidate away from its currently-assigned cluster so
-                // pass 2 computes that cluster's centroid without it. Several
-                // candidates can come from the same source cluster (or a
-                // candidate can be the only point of its cluster), which drains
-                // the source to zero. That is allowed: pass 2 skips a drained
-                // cluster and pass 3 re-fills it with a duplicate of the biggest
-                // cluster's centroid. The `> 0` test only keeps the counters from
-                // going negative; candidate rows are distinct and each one
-                // contributes exactly 1 to its source cluster's count, so it
-                // cannot actually trigger.
-                const int srcCluster = pointAssignments[candidateRowIdx];
-                DAAL_ASSERT(srcCluster >= 0 && (size_t)srcCluster < nClusters);
-                if (clusterS0[srcCluster] > 0)
-                {
-                    clusterS0[srcCluster]--;
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < p; j++)
-                    {
-                        clusterS1[srcCluster * p + j] -= row[j];
-                    }
-                }
-
-                // Reduced into a per-cluster local so the inner loop can carry a
-                // `reduction` clause; the partial is added to `l2Norm` once.
-                algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
-                PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j < p; j++)
-                {
-                    const algorithmFPType dist = inClusters[i * p + j] - row[j];
-                    clusterL2Norm += dist * dist;
-                }
-                l2Norm += clusterL2Norm;
-
-                result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType));
-                clusterReplaced[i] = true;
-                cPos++;
-            }
-            // Index of the cluster holding the most observations after pass 1's
-            // thefts, or nClusters while no cluster holds any.
-            size_t largestCluster = nClusters;
-            for (size_t i = 0; i < nClusters; i++)
-            {
-                if (clusterReplaced[i])
-                {
-                    continue;
-                }
-                if (clusterS0[i] > 0)
-                {
-                    if (largestCluster == nClusters || clusterS0[i] > clusterS0[largestCluster])
-                    {
-                        largestCluster = i;
-                    }
-
-                    const algorithmFPType coeff = 1.0 / clusterS0[i];
-
-                    algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
-                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < p; j++)
-                    {
-                        const algorithmFPType newCluster = clusterS1[i * p + j] * coeff;
-                        const algorithmFPType dist       = inClusters[i * p + j] - newCluster;
-                        clusterL2Norm += dist * dist;
-                        clusters[i * p + j] = newCluster;
-                    }
-                    l2Norm += clusterL2Norm;
-                }
-            }
-
-            // Pass 3. A cluster reaching this point holds no points and was not
-            // seeded by pass 1: it was either empty on entry with no candidate
-            // left to relocate, or pass 1 stole all of its rows. Fill it with a
-            // duplicate of the centroid of the cluster holding the most
-            // observations. Which centroid it lands on does not affect the
-            // objective function - it owns no points - but it has to be a point of
-            // the data space rather than a leftover initial centroid, matching
-            // what scikit-learn produces for the same inputs. A duplicate is also
-            // stable: the assignment step gives every tied point to the lowest
-            // cluster index, so one of the two stays empty and is refreshed to the
-            // same value next iteration, driving the L2 shift to zero.
-            for (size_t i = 0; i < nClusters; i++)
-            {
-                if (clusterReplaced[i] || clusterS0[i] > 0)
-                {
-                    continue;
-                }
-                if (largestCluster < nClusters)
-                {
-                    algorithmFPType clusterL2Norm = (algorithmFPType)0.0;
-                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : clusterL2Norm))
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < p; j++)
-                    {
-                        const algorithmFPType newCluster = clusters[largestCluster * p + j];
-                        const algorithmFPType dist       = inClusters[i * p + j] - newCluster;
-                        clusterL2Norm += dist * dist;
-                        clusters[i * p + j] = newCluster;
-                    }
-                    l2Norm += clusterL2Norm;
-                }
-                else if (clusters != inClusters)
-                {
-                    // Not a single cluster holds an observation, so there is no
-                    // centroid to duplicate. Keep the previous one so `clusters[i]`
-                    // is never left uninitialized on iteration 0. Skipped when the
-                    // buffers alias, in which case the value is already there.
-                    result |= daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), &inClusters[i * p],
-                                                                      p * sizeof(algorithmFPType));
-                }
-            }
+            DAAL_CHECK_STATUS(s, (fillDrainedClusters<algorithmFPType, cpu>(nClusters, p, largestCluster, clusterS0.get(), clusterReplaced.get(),
+                                                                            inClusters, clusters, l2Norm)));
         }
         {
             DAAL_PROFILER_TASK(kmeansUpdateObjectiveFunction);
@@ -424,7 +413,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         DAAL_CHECK_BLOCK_STATUS(mtIterations);
         *mtIterations.get() = kIter;
     }
-    return (!result) ? s : services::Status(services::ErrorMemoryCopyFailedInternal);
+    return s;
 }
 
 } // namespace internal
