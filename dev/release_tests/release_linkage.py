@@ -294,7 +294,7 @@ def file_digest(path):
 
 
 def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit,
-                                   cross_toolchain=False):
+                                   cross_toolchain=False, strict_undefined=False):
     """Compare what the released shared libraries *need*, not just what they offer.
 
     Level 4 used to look at exported symbols only, which made it blind to the one
@@ -328,6 +328,22 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
     So on a cross-toolchain pair the undefined half is skipped and the DT_NEEDED
     half is reported without being counted as an error. Read failures stay errors:
     an unreadable or non-ELF released library is a defect under any pairing.
+
+    `strict_undefined` decides whether a surviving undefined-symbol difference is
+    counted. It is off by default, because the undefined half is an equality only
+    when both trees resolved the *same* third-party packages, and the Azure
+    gcc-vs-gcc pairing does not: Make builds against apt oneMKL 2026.1.0
+    (`.ci/env/apt.sh`) while `@mkl` pins conda-forge mkl-static 2025.2.0
+    (`MODULE.bazel`). oneDAL links oneMKL statically, so the two releases carry
+    different oneMKL objects, and the Bazel libraries reference
+    `dlopen`/`dlsym`/`dlclose`/`dlerror`/`printf` where the Make ones do not --
+    oneMKL's own static dispatcher, five differences on two libraries, no oneDAL
+    defect. With the same oneMKL on both sides the sets match exactly, measured
+    locally on a gcc/gcc pair. The DT_NEEDED half is unaffected by the skew and
+    stays an equality, and it is the half that catches the defect this check was
+    written for: a release that does not record `libtbb.so.12`. Pass
+    `--strict-undefined` on a pairing that does control both toolchain and
+    dependency packages.
     """
     if platform not in DYNAMIC_LINKAGE_PLATFORMS:
         print(f"Skipped shared library linkage comparison: unsupported on {platform}")
@@ -423,8 +439,15 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
                 print(f"    + DT_NEEDED {name} recorded by Bazel, absent from Make")
 
     if undefined_mismatches:
-        errors += len(undefined_mismatches)
-        print(f"Shared library undefined symbol mismatches: {len(undefined_mismatches)}")
+        if strict_undefined:
+            errors += len(undefined_mismatches)
+            print(f"Shared library undefined symbol mismatches: {len(undefined_mismatches)}")
+        else:
+            print(
+                f"Shared library undefined symbol differences: {len(undefined_mismatches)}"
+                " (reported only: the two trees may resolve different"
+                " third-party packages; pass --strict-undefined to gate on this)"
+            )
         for path, only_make, only_bazel in undefined_mismatches[:limit]:
             print(f"  ! {path}: Make-only={len(only_make)}, Bazel-only={len(only_bazel)}")
             for symbol in sorted(only_make)[:limit]:

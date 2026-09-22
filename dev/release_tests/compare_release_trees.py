@@ -724,6 +724,19 @@ def main():
             "compared at all (see compare_shared_library_linkage)"
         ),
     )
+    parser.add_argument(
+        "--strict-undefined",
+        action="store_true",
+        help=(
+            "count undefined dynamic symbol differences as failures. Off by "
+            "default: the two trees need not resolve the same third-party "
+            "packages, and in Azure they do not -- Make builds against apt "
+            "oneMKL 2026.1.0 while `@mkl` pins conda-forge mkl-static 2025.2.0, "
+            "and oneMKL is linked statically. Use it where both toolchain and "
+            "dependency versions are controlled (see "
+            "compare_shared_library_linkage)"
+        ),
+    )
     parser.add_argument("--summary-limit", type=int, default=50)
     args = parser.parse_args()
     if args.structure_only:
@@ -801,6 +814,7 @@ def main():
             common_files,
             args.summary_limit,
             cross_toolchain=args.cross_toolchain,
+            strict_undefined=args.strict_undefined,
         )
         errors += linkage_errors
 
