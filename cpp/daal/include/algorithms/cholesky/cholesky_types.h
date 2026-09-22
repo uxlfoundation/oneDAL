@@ -159,15 +159,15 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const algorithms::Input * input, const algorithms::Parameter * par, int method) const override;
+    services::Status check(const algorithms::Input * input,
+        const algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
 
     /** \private */
     template <typename Archive, bool onDeserialize>
-    services::Status serialImpl(Archive * arch)
-    {
+    services::Status serialImpl(Archive * arch) {
         return daal::algorithms::Result::serialImpl<Archive, onDeserialize>(arch);
     }
 };
