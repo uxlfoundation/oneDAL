@@ -216,6 +216,36 @@ This has a direct consequence for the implementation, addressed in section
 labels become a function of the thread schedule.
 
 
+3.4 scikit-learn's own HDBSCAN test suite, run under patching
+-------------------------------------------------------------
+
+``sklearn/cluster/tests/test_hdbscan.py`` was run with
+``sklearnex.preview.cluster.HDBSCAN`` patched in (scikit-learn 1.9.0):
+**140 passed, 8 failed**, and all 8 failures are understood and deselected in
+scikit-learn-intelex with a recorded reason:
+
+* ``test_labelling_distinct`` (4 parametrizations) and
+  ``test_dbscan_clustering`` (1) -- need the ``_single_linkage_tree_``
+  attribute, which oneDAL does not return (section 6.4).
+* ``test_hdbscan_sparse`` (2) -- label numbering, see below.
+* ``test_hdbscan_allow_single_cluster_with_epsilon`` (1) -- a real oneDAL gap,
+  section 4.6.
+
+Five of the eight are the one missing result option discussed in section 6.4.
+
+The two ``test_hdbscan_sparse`` failures are worth a note because they look
+worse than they are: the test clusters the *dense* form (which oneDAL handles)
+and the *sparse* form (which falls back to scikit-learn) and compares the label
+arrays elementwise. Both find the same three clusters over the same 200 points
+-- the partitions are identical -- but oneDAL numbers them differently, so
+66.5% of the entries differ. Nothing about the clustering is wrong; the test is
+simply not numbering-invariant, and it is the only test in the suite that
+compares an offloaded result against a fallback result.
+
+Only one of the eight, ``test_hdbscan_allow_single_cluster_with_epsilon``, is a
+genuine oneDAL defect. It is section 4.6.
+
+
 4. Bugs found
 =============
 
@@ -333,7 +363,50 @@ This needs the same restructuring scikit-learn uses -- collect the epsilon
 promotions, then rebuild the selected set with a processed marker -- and is
 scoped as a follow-up rather than folded into a performance PR.
 
-4.6 ``kd_tree`` far-child pruning is weaker than documented (open, cosmetic)
+4.6 No single-cluster lambda threshold in labelling (open)
+----------------------------------------------------------
+
+:Location: ``cpp/daal/src/algorithms/hdbscan/hdbscan_cluster_utils.h``,
+           ``labelPoints``, and the GPU labelling kernel
+:Severity: correctness -- oneDAL reports no noise where scikit-learn does
+:Status: **open**, not fixed in this PR
+
+When exactly one cluster is selected and ``allow_single_cluster`` is set,
+scikit-learn's ``_do_labelling`` does not hand the whole dataset to that
+cluster. It compares each sample's fall-out lambda against a threshold --
+``1 / cluster_selection_epsilon`` when the epsilon is non-zero, otherwise the
+largest lambda among the root's children -- and labels everything below it as
+noise::
+
+    elif len(clusters) == 1 and allow_single_cluster:
+        parent_lambda = lambda_array[child_array == n]
+        if cluster_selection_epsilon != 0.0:
+            threshold = 1 / cluster_selection_epsilon
+        else:
+            threshold = lambda_array[parent_array == cluster].max()
+        if parent_lambda >= threshold:
+            label = cluster_label_map[cluster]
+
+oneDAL's ``labelPoints`` applies no threshold at all: every point whose
+``pointFellFrom`` resolves to a selected cluster gets that cluster's label. So
+on unstructured data with ``allow_single_cluster=True``, oneDAL returns a
+single cluster containing everything, where scikit-learn returns the same
+cluster plus a low-density tail of noise.
+
+This is what makes
+``sklearn/cluster/tests/test_hdbscan.py::test_hdbscan_allow_single_cluster_with_epsilon``
+fail under patching (it is currently deselected in scikit-learn-intelex with
+that explanation).
+
+The fix is small and local -- ``labelPoints`` already tracks
+``pointFellFrom[i]``, and the per-point lambda is the value on the condensed
+edge whose child is ``i``, so the threshold is one reduction over the root's
+outgoing edges. It is deliberately *not* folded into this PR: the GPU
+labelling kernel needs the identical change, and shipping it on one backend
+only would split CPU and GPU behaviour on a parameter combination that is
+currently at least consistently wrong.
+
+4.7 ``kd_tree`` far-child pruning is weaker than documented (open, cosmetic)
 ----------------------------------------------------------------------------
 
 :Location: ``nearestMrdBoruvkaQuery`` in
@@ -464,7 +537,7 @@ scan, and needs measuring rather than assuming.
 6.3 The ``kd_tree`` split-plane far-child guard
 ------------------------------------------------
 
-Section 4.6. A constant-factor saving on the tree path, which is already the
+Section 4.7. A constant-factor saving on the tree path, which is already the
 strong path (96x-191x against scikit-learn), so this is low priority despite
 being easy.
 
