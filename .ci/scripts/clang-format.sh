@@ -24,16 +24,12 @@ echo "Starting format check..."
 
 for sources_path in cpp/daal cpp/oneapi examples/oneapi examples/daal samples/oneapi samples/daal; do
     pushd ${sources_path} || exit 1
-    for filename in $(find . -type f | grep -P ".*\.(c|cpp|h|hpp|cl|i)$"); do ${CLANG_FORMAT_EXE} -style=file -i "${filename}"; done
-
-    git status | grep "nothing to commit" > /dev/null
-
-    if [ $? -eq 1 ]; then
-        echo "Clang-format check FAILED for ${sources_path}! Found not formatted files!"
-        git status
-        RETURN_CODE=3
-    else
+    if find . -type f -regextype posix-extended -regex '.*\.(c|cpp|h|hpp|cl|i)' -print0 \
+        | xargs -0 "${CLANG_FORMAT_EXE}" -style=file --dry-run --Werror; then
         echo "Clang-format check PASSED for ${sources_path}! Not formatted files not found..."
+    else
+        echo "Clang-format check FAILED for ${sources_path}! Found not formatted files!"
+        RETURN_CODE=3
     fi
     popd || exit 1
 done
