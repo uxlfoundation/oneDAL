@@ -65,11 +65,11 @@ static size_t collectEmptyClusters(const size_t nClusters, const int * const clu
     return nEmpty;
 }
 
-/// Seeds empty clusters with candidate rows farthest from their assigned centroids, 
+/// Seeds empty clusters with candidate rows farthest from their assigned centroids,
 /// mimicking scikit-learn's `_relocate_empty_clusters` logic.
 ///
-/// Iterates through candidates sorted by decreasing distance, stopping when candidates 
-/// are exhausted or distance reaches zero (to prevent duplicate centroids). Relocated 
+/// Iterates through candidates sorted by decreasing distance, stopping when candidates
+/// are exhausted or distance reaches zero (to prevent duplicate centroids). Relocated
 /// rows are subtracted from their source cluster's aggregates.
 ///
 /// @param ntData             Input data table of size `n x p`
@@ -87,7 +87,7 @@ static size_t collectEmptyClusters(const size_t nClusters, const int * const clu
 /// @param clusters           Output array of size `nClusters x p` holding updated centroid coordinates
 /// @param clusterReplaced    Output boolean array tracking which empty clusters have been successfully seeded
 /// @param l2Norm             Output accumulator for the cumulative L2 norm of the relocated points
-/// @param goalFuncCorrection Accumulates distances of relocated rows (measured against 
+/// @param goalFuncCorrection Accumulates distances of relocated rows (measured against
 ///                           initial centroids) for the caller to adjust the objective function.
 template <typename algorithmFPType, CpuType cpu>
 static Status relocateEmptyClusters(NumericTable * const ntData, const size_t p, const size_t nClusters, const size_t * const emptyClusters,
@@ -195,10 +195,10 @@ static size_t updateCentroidsFromAggregates(const size_t nClusters, const size_t
     return largestCluster;
 }
 
-/// Fills remaining empty or fully-drained clusters with a duplicate of the 
+/// Fills remaining empty or fully-drained clusters with a duplicate of the
 /// largest cluster's centroid to maintain compatibility with scikit-learn.
 ///
-/// If no clusters contain data points, the previous (initial) centroids are 
+/// If no clusters contain data points, the previous (initial) centroids are
 /// preserved to prevent uninitialized outputs.
 ///
 /// @param nClusters       Number of clusters
