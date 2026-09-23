@@ -64,18 +64,6 @@ using daal_lom_online_dense_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
 
 /// Apply per-row weights to a CSR table by scaling its stored values.
-///
-/// This is equivalent to weighting the densified matrix, for every statistic and not only
-/// for the sums, because the `fastCSR` kernel never sees a sparse matrix: it reads its
-/// input through `NumericTable::getBlockOfRows`, which `CSRNumericTable` implements by
-/// densifying the block with the implicit zeros written out as real zeros (`getTBlock` in
-/// `csr_numeric_table.h`). So it receives `densify(scale(csr, w))` where the dense
-/// weighted path hands it `apply_weights(densify(csr), w)`, and those two buffers are
-/// equal element for element: a stored value becomes `w[i] * v` in both, and a structural
-/// zero becomes `0 == w[i] * 0` in both.
-///
-/// Scaling is a separate `O(nnz)` pass. Folding the weights into the reduction instead
-/// needs a weighted `fastCSR` kernel, left to the follow-up PR agreed in review.
 template <typename Float>
 inline csr_table scale_csr_by_weights(const context_cpu& ctx,
                                       const table& data,
