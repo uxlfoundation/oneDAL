@@ -76,7 +76,7 @@ concurrency:
 jobs:
 
   cve-bin-tool-scan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Only scan artifacts from schedule or manual Nightly-build runs. Do not scan PR-originated
     # runs or workflow_dispatch verification runs — SARIF uploads must come from real nightlies.
     if: >
@@ -116,7 +116,7 @@ jobs:
   # pull request be tested at all.
   check_start:
     name: Publish Bazel test check runs
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
@@ -157,7 +157,7 @@ jobs:
 
   bazel_lnx:
     name: oneDAL Linux Bazel test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check_start
     if: >
       ${{ github.repository == 'uxlfoundation/oneDAL'
@@ -175,7 +175,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # workflow_run: pin to the commit that produced the artifacts.
           # workflow_dispatch: default to the dispatched ref (github.ref).
@@ -261,7 +261,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # workflow_run: pin to the commit that produced the artifacts.
           # workflow_dispatch: default to the dispatched ref (github.ref).
@@ -347,7 +347,7 @@ jobs:
 
   check_finish:
     name: Complete Bazel test check runs
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [check_start, bazel_lnx, bazel_win]
     # Runs whichever way the test jobs ended, so a check run is never left
     # hanging in `in_progress`. `check_start` being skipped skips this too,
