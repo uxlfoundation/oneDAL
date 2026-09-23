@@ -1912,19 +1912,35 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
     if (ctx.distr_mode_) {
-        // Every rank starts from the same seed, so the streams are separated by skipping the
-        // values the lower-numbered ranks consume: `tree_count * selected_row_total_count`
-        // values for the bootstrap draws plus `selected_ftr_count * tree_count * 2` values for
-        // the feature and threshold draws.
+        // Every rank starts from the same seed, so each one is given its own range of the
+        // sequence to draw from. How many values a rank really consumes is not known before
+        // training - `gen_feature_list()` and `gen_random_thresholds()` run once per tree level
+        // over the nodes of that level, and the MDA `shuffle()` runs over the out-of-bag rows -
+        // so the range is sized from upper bounds instead. Per tree, and counting every draw
+        // against `selected_row_total_count` rows:
+        //   * the bootstrap draws one value per row;
+        //   * a node holds at least one row, so a tree has at most `2 * row_count` nodes, and
+        //     each node draws `selected_ftr_count` values for its feature list and as many
+        //     again for the random thresholds;
+        //   * an MDA pass shuffles the out-of-bag rows once per column, and shuffling `n`
+        //     elements draws `2 * n` values.
+        // Reserving more than a rank needs only leaves a gap in the sequence, reserving less
+        // lets it walk into the next rank's values, so each term has to stay an upper bound.
         //
         // This only works for a counter-based engine. `mt2203` has no GPU `skip_ahead` (see
         // `pr::gen_mt2203::skip_ahead_gpu`), so with `engine_type::mt2203` the device streams
         // of all ranks stay identical and every rank grows the same trees. The default engine
         // is `philox4x32x10` precisely to make this pattern work.
-        std::int64_t skip_value =
-            comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_;
-        skip_value += comm_.get_rank() * ctx.selected_ftr_count_ * ctx.tree_count_ * 2;
-        engine_gpu.skip_ahead(skip_value);
+        std::int64_t values_per_row = 1 + 4 * std::int64_t(ctx.selected_ftr_count_);
+        if (ctx.mda_required_) {
+            values_per_row += 2 * std::int64_t(ctx.column_count_);
+        }
+        de::check_mul_overflow(values_per_row, std::int64_t(ctx.selected_row_total_count_));
+        const std::int64_t values_per_tree = values_per_row * ctx.selected_row_total_count_;
+        de::check_mul_overflow(values_per_tree, std::int64_t(ctx.tree_count_));
+        const std::int64_t values_per_rank = values_per_tree * ctx.tree_count_;
+        de::check_mul_overflow(values_per_rank, comm_.get_rank() + 1);
+        engine_gpu.skip_ahead(comm_.get_rank() * values_per_rank);
     }
 
     sycl::event last_event;
