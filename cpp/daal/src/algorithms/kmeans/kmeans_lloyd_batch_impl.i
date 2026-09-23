@@ -65,23 +65,30 @@ static size_t collectEmptyClusters(const size_t nClusters, const int * const clu
     return nEmpty;
 }
 
-/// Pass 1 of the empty-cluster merge: seeds every empty cluster with the row
-/// farthest from the centroid it was assigned to, selected by distance alone as
-/// in scikit-learn's `_relocate_empty_clusters`. The row is taken out of its
-/// source cluster's aggregates so that pass 2 recomputes that centroid without
-/// it; draining a source cluster to zero is allowed, pass 3 refills it.
+/// Seeds empty clusters with candidate rows farthest from their assigned centroids, 
+/// mimicking scikit-learn's `_relocate_empty_clusters` logic.
 ///
-/// Stops at the first candidate that already sits on its own centroid, or when
-/// the candidates run out. Candidates are sorted by decreasing distance, so no
-/// later one could be relocated either. Relocating a row at distance zero would
-/// leave its source centroid where it is and plant a duplicate of an existing
-/// centroid, and ties between two identical centroids can flip labels forever
-/// without lowering the objective function.
+/// Iterates through candidates sorted by decreasing distance, stopping when candidates 
+/// are exhausted or distance reaches zero (to prevent duplicate centroids). Relocated 
+/// rows are subtracted from their source cluster's aggregates.
 ///
-/// `goalFuncCorrection` collects the distances of the relocated rows. The
-/// assignment step measured them against the centroids this iteration started
-/// from, so the caller subtracts them from the objective function it reports and
-/// both quantities stay on the same centroids.
+/// @param ntData             Input data table of size `n x p`
+/// @param p                  Number of features in the input data table
+/// @param nClusters          Number of clusters
+/// @param emptyClusters      Array of size `nClusters`; emptyClusters[i] stores the index of the i-th empty cluster
+/// @param nEmpty             Number of empty clusters
+/// @param cValues            Sorted array of maximum distances from assigned centroids to candidate rows
+/// @param cIndices           Array of original dataset row indices corresponding to `cValues` candidates
+/// @param cNum               Total number of available candidate rows in `cValues` and `cIndices`
+/// @param pointAssignments   Array tracking the current cluster assignment index for each data row
+/// @param inClusters         Array of size `nClusters x p` containing the initial centroid values
+/// @param clusterS0          Output/Input array tracking number of points assigned per cluster (S0 statistic)
+/// @param clusterS1          Output/Input array tracking the coordinate sum of points per cluster (S1 statistic)
+/// @param clusters           Output array of size `nClusters x p` holding updated centroid coordinates
+/// @param clusterReplaced    Output boolean array tracking which empty clusters have been successfully seeded
+/// @param l2Norm             Output accumulator for the cumulative L2 norm of the relocated points
+/// @param goalFuncCorrection Accumulates distances of relocated rows (measured against 
+///                           initial centroids) for the caller to adjust the objective function.
 template <typename algorithmFPType, CpuType cpu>
 static Status relocateEmptyClusters(NumericTable * const ntData, const size_t p, const size_t nClusters, const size_t * const emptyClusters,
                                     const size_t nEmpty, const algorithmFPType * const cValues, const size_t * const cIndices, const size_t cNum,
