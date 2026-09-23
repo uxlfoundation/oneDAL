@@ -47,19 +47,19 @@ class compute_kernel_csr_impl {
 public:
     result_t operator()(const bk::context_gpu& ctx, const descriptor_t& desc, const input_t& input);
 
-    /// Compute the per-column statistics of a CSR table and hand them back where the
-    /// kernels wrote them, in device memory.
+    /// Computes per-column statistics for a CSR table directly in GPU memory, returning 
+    /// the data block along with a sync event.
     ///
-    /// Callers that consume the statistics on the device -- the online `partial_compute`
-    /// -- use this rather than `operator()`, whose `compute_result` carries host copies of
-    /// every requested statistic (see `get_result_table`). Merging those into a partial
-    /// result would pull each statistic to the host and push it straight back for
-    /// `O(column_count)` of arithmetic.
+    /// @note Use this instead of `operator()` when consuming statistics on-device (e.g., in 
+    ///       `partial_compute`) to avoid expensive host-device roundtrips.
     ///
-    /// The returned array is `num_data_blocks * res_opt_count_` by `column_count`. The
-    /// merged statistics are the first `res_opt_count_` rows, row `stat::<name>` holding
-    /// the values of that statistic; the remaining rows are per-data-block scratch. The
-    /// returned event covers the last kernel that writes the array.
+    /// @param ctx   GPU execution context
+    /// @param input Input dataset in CSR format
+    /// @return      A tuple containing:
+    ///              - A 2D array of size `(num_data_blocks * res_opt_count_) x column_count`, 
+    ///                where the first `res_opt_count_` rows store the merged statistics, and the 
+    ///                remaining rows act as per-block scratchpad memory.
+    ///              - A SYCL event tracking the completion of the final writing kernel.
     std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_stats(const bk::context_gpu& ctx,
                                                                  const input_t& input);
 
