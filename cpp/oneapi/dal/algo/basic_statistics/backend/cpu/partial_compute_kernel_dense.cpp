@@ -300,10 +300,8 @@ static partial_compute_result<Task> partial_compute(const context_cpu& ctx,
                                                     const descriptor_t& desc,
                                                     const partial_compute_input<Task>& input) {
     if (input.get_weights().has_data()) {
-        // The DAAL fastCSR online kernel has no weighted variant, and the dense weighted
-        // path densifies its input through `row_accessor`, which a CSR table does not
-        // support. Fold the weights into the CSR values instead and reuse the unweighted
-        // fastCSR kernel, which is exactly equivalent, see `scale_csr_by_weights`.
+        // The DAAL fastCSR online kernel has no weighted variant.
+        // Fold the weights into the CSR values instead and reuse the unweighted fastCSR kernel.
         if constexpr (std::is_same_v<Method, method::sparse>) {
             const auto scaled =
                 scale_csr_by_weights<Float>(ctx, input.get_data(), input.get_weights());
