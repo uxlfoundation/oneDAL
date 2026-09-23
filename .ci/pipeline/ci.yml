@@ -147,59 +147,6 @@ jobs:
     condition: failed()
     continueOnError: true
 
-- job: 'LinuxMakeIntel_MKL'
-  timeoutInMinutes: 0
-  variables:
-    release.dir: '__release_lnx'
-    platform.type : 'lnx32e'
-  pool:
-    vmImage: '$(VM_IMAGE)'
-  steps:
-  - script: |
-      .ci/env/apt.sh dev-base
-    displayName: 'apt-get install'
-  - script: |
-      .ci/env/apt.sh dpcpp
-    displayName: 'dpcpp installation'
-  - script: |
-      .ci/env/apt.sh mkl
-    displayName: 'mkl installation'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/describe_system.sh
-    displayName: 'System info'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
-    displayName: 'make daal'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc
-    displayName: 'make onedal_dpc'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface daal/cpp --build-system cmake
-    displayName: 'daal/cpp examples'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/cpp --build-system cmake
-    displayName: 'oneapi/cpp examples'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
-    displayName: 'oneapi/dpc examples'
-  - script: |
-      .ci/env/apt.sh miniforge
-    displayName: 'conda install'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
-    displayName: 'daal/cpp/mpi samples'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
-    displayName: 'oneapi/cpp/mpi samples'
-
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
   timeoutInMinutes: 0
   variables:
