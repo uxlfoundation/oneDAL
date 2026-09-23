@@ -160,21 +160,11 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
     // by rounding. Synchronize before touching it from the host.
     q.wait_and_throw();
 
-    // The observation count arrives as `Float` because `partial_n_rows` is a `Float`
-    // table: a property of the `partial_compute_result` schema, which this backend shares
-    // with the CPU one, where the count comes straight out of DAAL's `nObservations` in
-    // the algorithm's floating-point type. Every value that table can hold is an exact
-    // integer -- a row count below 2^24 is exact in float32, and every float32 at or above
-    // 2^24 is itself an integer -- so the cast below is exact and needs no rounding. What
-    // the schema cannot express is a count past the point where the float spacing exceeds
-    // one: in float32 the accumulation itself stops tracking every total beyond 2^24 rows,
-    // and nothing done here can recover that. Fixing that means changing the type of
-    // `partial_n_rows` across both backends, SPMD and serialization, which is out of
-    // scope for this PR.
+    // The observation count is stored as a `Float` in the partial result object,
+    // which is exact for float32 up to 2^24 rows (beyond which precision is lost during accumulation).
     //
-    // Carrying the count as `std::int64_t` from here on does fix the distributed side:
-    // the allreduce below used to sum the per-rank counts in `Float`, so the total could
-    // round even when every rank's own count was exact.
+    // Casting to `std::int64_t` here is exact and prevents further precision loss during 
+    // the SPMD allreduce sum across ranks.
     std::int64_t rows_count_global = static_cast<std::int64_t>(nobs_nd.get_data()[0]);
     auto is_distributed = (comm_.get_rank_count() > 1);
     {
