@@ -184,14 +184,22 @@ static size_t updateCentroidsFromAggregates(const size_t nClusters, const size_t
     return largestCluster;
 }
 
-/// Pass 3: fills the clusters that are still empty - pass 1 stopped before them,
-/// or stole all of their rows - with a duplicate of the largest cluster's
-/// centroid. Such a cluster owns no points, so the choice does not move the
-/// objective function, but it has to be a point of the data space rather than a
-/// leftover initial centroid to match what scikit-learn returns for the same
-/// input. A duplicate is also stable: the assignment step gives tied points to
-/// the lowest cluster index, so one of the pair stays empty and is refreshed to
-/// the same value on the next iteration, driving the centroid shift to zero.
+/// Fills remaining empty or fully-drained clusters with a duplicate of the 
+/// largest cluster's centroid to maintain compatibility with scikit-learn.
+///
+/// If no clusters contain data points, the previous (initial) centroids are 
+/// preserved to prevent uninitialized outputs.
+///
+/// @param nClusters       Number of clusters
+/// @param p               Number of features in the cluster coordinate space
+/// @param largestCluster  Index of the cluster holding the most points, used as the source for duplication
+/// @param clusterS0       Input array of size `nClusters` tracking the point count per cluster (S0 statistic)
+/// @param clusterReplaced Input boolean array of size `nClusters` indicating which clusters were already seeded in Pass 1
+/// @param inClusters      Input array of size `nClusters x p` containing the initial centroid coordinates
+/// @param clusters        Output array of size `nClusters x p` holding the updated centroid coordinates
+/// @param l2Norm          Output accumulator for the cumulative L2 norm distance between initial and updated centroids
+/// @return                Status of the execution
+
 template <typename algorithmFPType, CpuType cpu>
 static Status fillDrainedClusters(const size_t nClusters, const size_t p, const size_t largestCluster, const int * const clusterS0,
                                   const bool * const clusterReplaced, const algorithmFPType * const inClusters, algorithmFPType * const clusters,
