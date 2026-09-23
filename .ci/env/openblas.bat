@@ -58,6 +58,12 @@ rem instead, which leaves `onedal_core.<major>.dll` importing a DLL named
 rem `openblas.dll`; Windows resolves imports by base name against the modules
 rem already loaded in the process, so any other wheel shipping its own
 rem `openblas.dll` would satisfy that import.
+rem
+rem `NOFORTRAN` + `C_LAPACK` build LAPACK from the f2c-translated sources in
+rem `lapack-netlib/SRC`, which is what the Linux script gets from `NO_FORTRAN=1`.
+rem Fortran objects would otherwise put `/DEFAULTLIB:flang_rt.runtime.dynamic`
+rem into the archive, and every consumer of `openblas.lib` -- oneDAL's own DLLs
+rem first of all -- would then have to find the flang runtime at link time.
 pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     if exist build-arm64 rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
@@ -66,7 +72,8 @@ pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
         -DBINARY=64 ^
         -DCMAKE_C_COMPILER=clang-cl ^
         -DCMAKE_CXX_COMPILER=clang-cl ^
-        -DCMAKE_Fortran_COMPILER=flang-new ^
+        -DNOFORTRAN=ON ^
+        -DC_LAPACK=ON ^
         -DBUILD_SHARED_LIBS=OFF ^
         -DCMAKE_SYSTEM_PROCESSOR=arm64 ^
         -DCMAKE_SYSTEM_NAME=Windows ^
