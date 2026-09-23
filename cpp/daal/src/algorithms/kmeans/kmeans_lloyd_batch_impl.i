@@ -150,6 +150,17 @@ static Status relocateEmptyClusters(NumericTable * const ntData, const size_t p,
 /// Pass 2: recomputes the centroid of every cluster pass 1 did not seed, from the
 /// theft-adjusted aggregates. Returns the cluster holding the most points, the
 /// one pass 3 duplicates, or `nClusters` if no cluster holds any.
+///
+/// @param nClusters       Number of clusters
+/// @param p               Number of features
+/// @param clusterS0       Input array of size `nClusters` tracking the point count per cluster (S0 statistic)
+/// @param clusterS1       Input array of size `nClusters x p` tracking the coordinate sum of points per cluster (S1 statistic)
+/// @param clusterReplaced Input boolean array of size `nClusters` indicating which clusters were already seeded in Pass 1
+/// @param inClusters      Input array of size `nClusters x p` containing the initial centroid coordinates
+/// @param clusters        Output array of size `nClusters x p` holding the newly recomputed centroid coordinates
+/// @param l2Norm          Output accumulator for the cumulative L2 norm distance between initial and updated centroids
+/// @return                Index of the cluster holding the most points, or `nClusters` if all clusters are empty
+
 template <typename algorithmFPType, CpuType cpu>
 static size_t updateCentroidsFromAggregates(const size_t nClusters, const size_t p, const int * const clusterS0,
                                             const algorithmFPType * const clusterS1, const bool * const clusterReplaced,
