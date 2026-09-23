@@ -1,5 +1,5 @@
 ---
-applyTo: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/cpp/**", "**/include/**"]
+applyTo: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/*.i", "**/cpp/**", "**/include/**"]
 ---
 
 # C++ Development and Coding Guidelines for GitHub Copilot

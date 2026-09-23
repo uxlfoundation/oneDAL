@@ -90,6 +90,10 @@ The CI system employs comprehensive build matrices covering:
 - **Security**: OpenSSF Scorecard integration
 - **Documentation**: Automated doc generation and validation
 
+## Rules for Changes
+- Pipelines call scripts in `.ci/scripts/` and `.ci/env/`. Change the script, not only the pipeline YAML that calls it.
+- Style checks (clang-format, editorconfig-checker) run only in Azure `FormatterChecks`. See "Verification Before You Push" in the root `AGENTS.md`.
+
 ## Usage Guidelines
 
 ### Local Development

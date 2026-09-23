@@ -46,12 +46,14 @@ Specialized AGENTS.md files for detailed context:
 ### Build Systems & Development
 - **[dev/AGENTS.md](dev/AGENTS.md)** - Development tools and build system context
 - **[dev/bazel/AGENTS.md](dev/bazel/AGENTS.md)** - Bazel build system specifics
+- **[dev/make/AGENTS.md](dev/make/AGENTS.md)** - Make build fragments
 
 ### Documentation, Examples & Infrastructure
 - **[docs/AGENTS.md](docs/AGENTS.md)** - Documentation structure and guidelines
 - **[examples/AGENTS.md](examples/AGENTS.md)** - Example code patterns and usage
 - **[deploy/AGENTS.md](deploy/AGENTS.md)** - Deployment and distribution context
 - **[.ci/AGENTS.md](.ci/AGENTS.md)** - CI/CD infrastructure context
+- **[.github/AGENTS.md](.github/AGENTS.md)** - Workflow constraints (`nightly-build.yml`)
 
 ## 📋 Critical Development Rules
 
@@ -84,6 +86,21 @@ Specialized AGENTS.md files for detailed context:
 - **scikit-learn-intelex integration impact**
 - **API compatibility preservation**
 - **Performance consistency maintenance**
+
+## 📝 Rules for Changes
+
+These come from recurring maintainer review comments. Directory-specific rules are in the nearest `AGENTS.md`.
+
+- Comments describe the code as it will be once merged. Don't reference discarded approaches, narrate the change, or mention "this PR".
+- One PR, one logical change. Drive-by fixes, renames and mechanical changes (formatting, generated code, mass renames) go in their own PRs.
+- Search before adding a helper, constant table or validation routine. Extend the existing one and name it in the PR description.
+- Don't add a lock, critical section, guard or redundant check unless you can name the failure it prevents.
+- A bug fix comes with a test that fails without the fix.
+- Don't hardcode versions, URLs or paths that have a source of truth (`makefile.ver`, `MODULE.bazel`, `.github/renovate.json`).
+- New files use the header `Copyright contributors to the oneDAL project`. Leave existing headers alone.
+- ASCII only in source, comments and docs. Keep each file's existing line endings.
+- Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
+- Bash scripts start with `set -euo pipefail`, use `mkdir -p`, and don't silence failures with a bare `|| true`.
 
 ## ✅ Verification Before You Push
 

@@ -123,5 +123,6 @@ library_name: $(LIBRARY_OBJS)
 
 ## 📖 Further Reading
 - **[dev/bazel/AGENTS.md](bazel/AGENTS.md)** - Bazel build system details
+- **[dev/make/AGENTS.md](make/AGENTS.md)** - Make build fragments
 - **[cpp/AGENTS.md](../cpp/AGENTS.md)** - C++ implementation context
 - **[docs/AGENTS.md](../docs/AGENTS.md)** - Documentation guidelines

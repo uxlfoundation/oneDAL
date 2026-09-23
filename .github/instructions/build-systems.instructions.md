@@ -1,5 +1,5 @@
 ---
-applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.bazel", "**/*.mk", "**/CMakeLists.txt"]
+applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.bazel", "**/*.bzl", "**/*.mk", "**/CMakeLists.txt"]
 ---
 
 # Build Systems Instructions for GitHub Copilot

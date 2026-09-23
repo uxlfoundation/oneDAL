@@ -137,6 +137,11 @@ sycl::event gpu_compute(sycl::queue& q,
 - **Type Safety**: Template metaprogramming with compile-time dispatch
 - **Interface**: Never mix DAAL and oneAPI patterns in same file
 
+## 📝 Rules for Changes
+
+- Public types are declared in a versioned namespace and re-exported: `namespace v1 { struct x {}; }` followed by `using v1::x;`. The namespace is not `inline`, so a type without the `using` line is unreachable as `oneapi::dal::...::x`. Reference: `cpp/oneapi/dal/algo/pca/common.hpp`.
+- Use `nullptr`, never `0` or `NULL`. Write `override` directly, not through a macro. No `using namespace` in headers.
+
 ## 🔗 References
 
 - **[AGENTS.md](../../AGENTS.md)** - Repository overview

@@ -92,6 +92,16 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - **DAAL kernels**: `extra_deps` (e.g., `@onedal//cpp/daal/src/algorithms/pca:kernel`)
 - **Visibility**: Set appropriate visibility levels
 
+## 📝 Rules for Changes
+
+- `//conditions:default` in a `select()` means every platform not listed, macOS included, not just Linux. Put Linux-only flags under `@platforms//os:linux`.
+- No `allow_empty = True`; it hides packaging mistakes.
+- Don't hardcode the workspace name in test paths; use `${TEST_WORKSPACE}`.
+- No `use_default_shell_env = True`; it breaks hermeticity.
+- Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
+- Remove unused `load()` symbols.
+- Library binary versions are `MAJORBINARY` / `MINORBINARY` in `makefile.ver`, mirrored by `_BINARY_MAJOR` / `_BINARY_MINOR` in `dev/bazel/repos.bzl`. Change both together; don't hardcode them anywhere else.
+
 ## 🚫 Common Pitfalls
 - **Build Configuration**: Don't hardcode platform-specific paths
 - **Dependencies**: Don't mix different dependency management approaches  

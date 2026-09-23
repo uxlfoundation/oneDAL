@@ -133,6 +133,17 @@ auto table = dataSource.getNumericTable();
 - **Templates**: CPU-specific specialization for performance optimization
 - **Interface**: Never mix DAAL and oneAPI patterns in same file
 
+## 📝 Rules for Changes
+
+- Kernel bodies live in `.i` files, which `rg --type cpp` skips; search them with `rg -g '*.i'`. `*_fpt_cpu.cpp`, `*_fpt_dispatcher.cpp` and `*_fpt.cpp` only instantiate templates.
+- Kernel templates take `daal::internal::CpuType cpu` and `algorithmFPType` as template parameters. Code compiled without the `cpu` parameter is not dispatched and can execute instructions the running CPU lacks.
+- Allocate scratch memory with `TArray`, `TArrayCalloc`, `TArrayScalable` or `TArrayScalableCalloc` (`src/services/service_arrays.h`), not raw `new`. Parallelize through the threading layer (`src/threading/threading.h`, e.g. `daal::threader_for`), never TBB directly.
+- For accuracy, accumulate each row into a zero-initialized local and add it back into the target, rather than accumulating in place. Clip results that must be non-negative.
+- Guard every division by a row, observation or rank count against zero; in distributed runs a rank can have no rows.
+- Don't wrap a temporary in a non-owning array.
+- Don't use `reduction(- : x)` with OpenMP SIMD; reduce with `+` over negated terms.
+- No magic numbers. Use a named constant and say where its value comes from.
+
 ## 🔗 References
 
 - **[AGENTS.md](../../AGENTS.md)** - Repository overview

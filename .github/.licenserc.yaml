@@ -64,6 +64,7 @@ header:
     - 'docs/source/substitutions_specific.txt'
     # Some files from .ci/.github
     - '.github/instructions/*.md'
+    - '.github/copilot-instructions.md'
     - '.github/CODEOWNERS'
     - '.github/pull_request_template.md'
     - '.github/renovate.json'
