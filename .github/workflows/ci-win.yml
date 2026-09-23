@@ -162,7 +162,7 @@ jobs:
           rem script and never comes back, silently skipping the GITHUB_ENV write.
           CALL .ci\env\openblas.bat
           if errorlevel 1 exit /b 1
-          rem The import library is what @openblas links (dev/bazel/deps/openblas.bzl);
+          rem The static archive is what @openblas links (dev/bazel/deps/openblas.bzl);
           rem assert it here so a half-installed tree fails at this step instead of
           rem inside the repository rule.
           if not exist "%CD%\__deps\open_blas\lib\openblas.lib" exit /b 1

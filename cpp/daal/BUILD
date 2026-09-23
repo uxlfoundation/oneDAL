@@ -319,9 +319,10 @@ daal_dynamic_lib(
         # undefined in libonedal_core.so and bind to libonedal_thread.so at
         # load. Link the math backend here too, as the makefile rule for
         # `$(WORKDIR.lib)/$(core_y)` does through
-        # `daaldep.math_backend.shared_link_deps`. It is `openblas.lib`, the
-        # import library of `openblas.dll`, so onedal_thread.<major>.dll
-        # carrying the same import descriptors is not a duplicate definition.
+        # `daaldep.math_backend.shared_link_deps`. `openblas.lib` is a static
+        # archive, and each DLL keeps the symbols it pulls in to itself, so
+        # onedal_thread.<major>.dll linking the same archive is not a duplicate
+        # definition.
         "@config//:backend_ref_windows": [":mathbackend_thread"],
         "//conditions:default": [],
     }),

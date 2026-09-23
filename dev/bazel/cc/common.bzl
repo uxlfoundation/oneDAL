@@ -121,12 +121,10 @@ _WINDOWS_IMPORT_LIBRARIES = [
     "tbb12_debug.lib",
     "tbbmalloc.lib",
     "tbbmalloc_debug.lib",
-    # `.ci/env/openblas.bat` builds OpenBLAS with `-DBUILD_SHARED_LIBS=ON`, so
-    # the ref backend's `lib/openblas.lib` is an import library for
-    # `bin/openblas.dll` too (dev/bazel/deps/openblas_win.tpl.BUILD), unlike the
-    # static `libopenblas.a` the Linux ref build absorbs. Make only links it
-    # (`OPENBLASDIR.libia.win` in dev/make/deps.ref.mk).
-    "openblas.lib",
+    # `openblas.lib` deliberately does not belong here: `.ci/env/openblas.bat`
+    # builds OpenBLAS statically, so it is a real archive and Make merges its
+    # symbols into `onedal_core` as well
+    # (`daaldep.math_backend.static_link_deps` in dev/make/deps.ref.mk).
 ]
 
 def _unpack_linking_contexts(linking_contexts):

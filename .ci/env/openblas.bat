@@ -51,6 +51,13 @@ if errorlevel 1 goto Error_load
 tar -xf "%BLASSOURCEDIR%\openblas.zip" -C "%BLASSOURCEDIR%"
 if errorlevel 1 goto Error_unpack
 
+rem Built static, like the Linux build (.ci/env/openblas.sh): dev/make/deps.ref.mk
+rem links `openblas.$(a)` into onedal_core, so the BLAS/LAPACK symbols travel
+rem inside oneDAL's own binaries. A shared build yields an import library
+rem instead, which leaves `onedal_core.<major>.dll` importing a DLL named
+rem `openblas.dll`; Windows resolves imports by base name against the modules
+rem already loaded in the process, so any other wheel shipping its own
+rem `openblas.dll` would satisfy that import.
 pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     if exist build-arm64 rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
@@ -60,7 +67,7 @@ pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
         -DCMAKE_C_COMPILER=clang-cl ^
         -DCMAKE_CXX_COMPILER=clang-cl ^
         -DCMAKE_Fortran_COMPILER=flang-new ^
-        -DBUILD_SHARED_LIBS=ON ^
+        -DBUILD_SHARED_LIBS=OFF ^
         -DCMAKE_SYSTEM_PROCESSOR=arm64 ^
         -DCMAKE_SYSTEM_NAME=Windows ^
         -DCMAKE_INSTALL_PREFIX="%DST%"

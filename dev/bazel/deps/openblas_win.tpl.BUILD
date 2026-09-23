@@ -14,19 +14,15 @@ cc_library(
     ],
 )
 
-# `.ci/env/openblas.bat` builds OpenBLAS with `-DBUILD_SHARED_LIBS=ON`, so what
-# lands in `lib/` is the import library for `bin/openblas.dll`, not a static
-# archive. Make links exactly the same file on Windows
+# `.ci/env/openblas.bat` builds OpenBLAS with `-DBUILD_SHARED_LIBS=OFF`, so
+# `lib/openblas.lib` is a static archive and its symbols end up inside oneDAL's
+# own binaries. Make links exactly the same file on Windows
 # (`releaseopen_blas.LIBS_A := $(OPENBLASDIR)/lib/openblas.lib` through
-# `OPENBLASDIR.libia.win` in dev/make/deps.ref.mk), so the DLL has to travel
-# with anything that links it.
+# `OPENBLASDIR.libia.win` in dev/make/deps.ref.mk).
 cc_library(
     name = "openblas_core",
     srcs = [
             "lib/openblas.lib",
-           ],
-    data = [
-            "bin/openblas.dll",
            ],
 )
 
@@ -38,13 +34,11 @@ cc_library(
     ],
 )
 
-# Counterpart of `@tbb//:tbb_runtime`: anything that links the import library
-# needs `openblas.dll` beside it at run time, whether oneDAL itself was linked
-# statically or dynamically. Consumed by `_test_runtime_data()` in
-# dev/bazel/dal.bzl.
+# OpenBLAS is linked statically here too, so nothing has to travel with the
+# binaries at run time. The target exists so `_test_runtime_data()` in
+# dev/bazel/dal.bzl can name it unconditionally, same as in
+# `openblas.tpl.BUILD`.
 filegroup(
     name = "openblas_runtime",
-    srcs = [
-            "bin/openblas.dll",
-           ],
+    srcs = [],
 )

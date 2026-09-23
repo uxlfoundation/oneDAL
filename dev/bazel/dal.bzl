@@ -379,10 +379,10 @@ def _test_runtime_data():
             "@mkl//:mkl_runtime",
         ],
     }) + _select({
-        # `.ci/env/openblas.bat` builds a DLL, so a Windows ref-backend build
-        # needs `openblas.dll` beside the test binary in every link mode -- the
-        # static tree links the import library too. Empty on Linux, where the
-        # ref build absorbs `libopenblas.a`.
+        # OpenBLAS is linked statically on both OSes, so this filegroup is empty
+        # today; it stays named here so a future shared ref backend only has to
+        # fill it in (dev/bazel/deps/openblas*.tpl.BUILD), the way
+        # `@tbb//:tbb_runtime` above works.
         "@config//:backend_ref": [
             "@openblas//:openblas_runtime",
         ],
