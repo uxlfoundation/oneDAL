@@ -212,14 +212,28 @@ jobs:
   - script: |
       .ci/env/apt.sh miniforge
     displayName: 'apt-get install'
+  # Follows the conda dev-env recipe documented in INSTALL.md
+  # (section "Conda Development Environment Setup"). Install every package
+  # up front in a single conda transaction so the dep solver runs once
+  # instead of three times, and export the full set of environment
+  # variables the recipe requires (DPL_ROOT / LIBRARY_PATH /
+  # CPLUS_INCLUDE_PATH / PKG_CONFIG_PATH / CMAKE_PREFIX_PATH), not just
+  # the two that make happens to consult.
+  # The `onemkl-sycl-*` runtime packages are additions on top of the
+  # INSTALL.md list -- required by the DPC++ bazel test link path
+  # (mkl::blas::gemm sycl selector, etc.) that examples pull in through
+  # //cpp/oneapi/dal deps; not needed by the make-based DAL build.
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda create -y -n $(CONDA_ENV)
       conda activate $(CONDA_ENV)
       conda install -y -c conda-forge \
           make \
+          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
           tbb tbb-devel \
-          mkl mkl-devel mkl-static \
+          onedpl-devel \
+          mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp \
+          onemkl-sycl-blas onemkl-sycl-lapack onemkl-sycl-sparse onemkl-sycl-rng \
           cmake \
           impi-devel impi_rt
     displayName: 'Create conda environment'
@@ -231,57 +245,171 @@ jobs:
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
     displayName: 'make daal'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
     displayName: 'make onedal_c'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      conda install -y -c conda-forge \
-          mkl-dpcpp mkl-devel-dpcpp \
-          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
-          onedpl-devel
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
       mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_dpc'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
     displayName: 'daal/cpp examples'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
     displayName: 'oneapi/dpc examples'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export TBBROOT="${CONDA_PREFIX}"
       export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
+  # Extended scope: bazel build/test on the same conda env. Only the `dev`
+  # link mode is exercised -- the goal is to confirm that examples build
+  # and run against the conda MKL/TBB/impi (no release artifact is
+  # produced or staged). No conda-specific bazel config is required:
+  # the toolchain reads the standard CPATH / CPLUS_INCLUDE_PATH /
+  # LIBRARY_PATH env vars the conda activate hook exports (same
+  # contract as a custom-prefix sysroot or a sanitized libc), and the
+  # base `.bazelrc` forwards them into every action. Sanitizer coverage
+  # is orthogonal: `bazel test --config=asan` (or tsan/ubsan) picks up
+  # the sanitizer copts/linkopts on top of the env-var forwards.
+  - script: |
+      source .ci/env/bazelisk.sh
+      echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
+    displayName: 'install-bazel'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      # Minimal CPU instruction set in Azure is AVX2
+      echo "build --cpu=avx2" > ~/.bazelrc
+      bazel build @config//:dump
+      echo
+      cat bazel-bin/external/+declare_onedal_config+config/config.json
+      echo
+    displayName: 'bazel-configure (conda env)'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=dev \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-dev (conda env)'
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export MPIROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      bazel test //examples/oneapi/cpp:all \
+                 --test_link_mode=dev \
+                 --test_thread_mode=par
+    displayName: 'cpp-examples-thread-dev (conda env)'
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
   timeoutInMinutes: 0
