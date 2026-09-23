@@ -308,7 +308,7 @@ def _declare_onedal_config_impl(repo_ctx):
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
             "%{version_major}":         "2026",
-            "%{version_minor}":         "2",
+            "%{version_minor}":         "3",
             "%{version_update}":        "0",
             "%{version_build}":         utils.datestamp(repo_ctx),
             "%{version_buildrev}":      "work",
