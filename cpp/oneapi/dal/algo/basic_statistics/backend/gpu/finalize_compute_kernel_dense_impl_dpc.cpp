@@ -158,7 +158,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
     // The observation count is stored as a `Float` in the partial result object,
     // which is exact for float32 up to 2^24 rows (beyond which precision is lost during accumulation).
     //
-    // Casting to `std::int64_t` here is exact and prevents further precision loss during 
+    // Casting to `std::int64_t` here is exact and prevents further precision loss during
     // the SPMD allreduce sum across ranks.
     std::int64_t rows_count_global = static_cast<std::int64_t>(nobs_nd.get_data()[0]);
     auto is_distributed = (comm_.get_rank_count() > 1);

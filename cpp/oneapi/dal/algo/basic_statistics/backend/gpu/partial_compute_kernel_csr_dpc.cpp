@@ -58,7 +58,7 @@ struct scaled_csr {
     dal::array<std::int64_t> row_offsets;
 };
 
-/// Apply per-row weights to a CSR table.
+/// Scales the values of a CSR matrix by their corresponding row weights, out-of-place.
 ///
 /// Scaling the stored values weights every statistic and not only the sums, because the
 /// batch CSR kernel folds the entries a column does not store in as literal zeros
@@ -70,12 +70,12 @@ struct scaled_csr {
 /// Scaling is a separate `O(nnz)` pass. Folding the weights into the reduction instead
 /// needs the weighted `fastCSR` kernel the DAAL side lacks, left to the follow-up PR
 /// agreed in review.
-/// Scales the values of a CSR matrix by their corresponding row weights, out-of-place.
 ///
 /// @param q       SYCL queue.
 /// @param csr     Input numeric table of size `n x p` in CSR format.
 /// @param weights Numeric table of size `n x 1` containing row weights.
 /// @return        A new numeric table containing the scaled values in CSR format.
+template <typename Float>
 inline scaled_csr<Float> scale_csr_by_weights(sycl::queue& q,
                                               const csr_table& csr,
                                               const table& weights) {

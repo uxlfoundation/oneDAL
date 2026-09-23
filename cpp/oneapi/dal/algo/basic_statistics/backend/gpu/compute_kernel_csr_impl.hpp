@@ -47,17 +47,17 @@ class compute_kernel_csr_impl {
 public:
     result_t operator()(const bk::context_gpu& ctx, const descriptor_t& desc, const input_t& input);
 
-    /// Computes per-column statistics for a CSR table directly in GPU memory, returning 
+    /// Computes per-column statistics for a CSR table directly in GPU memory, returning
     /// the data block along with a sync event.
     ///
-    /// @note Use this instead of `operator()` when consuming statistics on-device (e.g., in 
+    /// @note Use this instead of `operator()` when consuming statistics on-device (e.g., in
     ///       `partial_compute`) to avoid expensive host-device roundtrips.
     ///
     /// @param ctx   GPU execution context
     /// @param input Input dataset in CSR format
     /// @return      A tuple containing:
-    ///              - A 2D array of size `(num_data_blocks * res_opt_count_) x column_count`, 
-    ///                where the first `res_opt_count_` rows store the merged statistics, and the 
+    ///              - A 2D array of size `(num_data_blocks * res_opt_count_) x column_count`,
+    ///                where the first `res_opt_count_` rows store the merged statistics, and the
     ///                remaining rows act as per-block scratchpad memory.
     ///              - A SYCL event tracking the completion of the final writing kernel.
     std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_stats(const bk::context_gpu& ctx,
