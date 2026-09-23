@@ -74,9 +74,7 @@ The oneDAL CI infrastructure supports:
 ### CI Platform Integration
 - **GitHub Actions**: Primary CI/CD platform for public workflows
 - **Azure DevOps**: Extended validation and internal testing
-- **Mergify**: Automated merge management
 - **Renovate**: Dependency update automation
-- **Codefactor**: Code quality analysis
 
 ### Build Matrix Configuration
 The CI system employs comprehensive build matrices covering:

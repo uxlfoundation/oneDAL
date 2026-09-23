@@ -15,13 +15,13 @@
 ### Bazel build and test
 ```bash
 # Build oneAPI interface
-`bazel build //cpp/oneapi/dal:core`
+bazel build //cpp/oneapi/dal:core
 
-# Run CPU tests
-`bazel test //cpp/oneapi/dal:tests`
+# Run CPU (host) tests
+bazel test --config=host //cpp/oneapi/dal:tests
 
-# Run GPU tests
-`bazel test --config=dpc //cpp/oneapi/dal:tests`
+# Run DPC++ tests on GPU
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests
 ```
 
 ### Make and CMake build

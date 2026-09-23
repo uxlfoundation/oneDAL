@@ -15,36 +15,38 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 ### Make (Production)
 ```bash
 # Build everything
-`make`
+make -f makefile daal oneapi PLAT=lnx32e
 
 # Platform-specific builds
-`make PLAT=lnx32e COMPILER=icx`
-`make PLAT=win32e COMPILER=vc`
+make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu
+make -f makefile oneapi_c PLAT=win32e COMPILER=vc
 
 # CPU targets
-`make REQCPU="sse2 avx2 avx512"`
+make -f makefile daal PLAT=lnx32e REQCPU="avx2 avx512"
 
 # Backend selection
-`make BACKEND_CONFIG=mkl`  # Intel MKL (default)
-`make BACKEND_CONFIG=ref`  # Reference/OpenBLAS
+make -f makefile daal PLAT=lnx32e BACKEND_CONFIG=mkl  # Intel MKL (default)
+make -f makefile daal PLAT=lnx32e BACKEND_CONFIG=ref  # Reference/OpenBLAS
 ```
 
 ### Bazel (Development)
 ```bash
 # Build targets
-`bazel build //cpp/oneapi/dal:core`
-`bazel build //examples/daal/cpp:association_rules`
+bazel build //cpp/oneapi/dal:core
+bazel build //examples/daal/cpp:cholesky
 
 # Test targets
-`bazel test //cpp/oneapi/dal:tests`
-`bazel test --config=dpc //cpp/oneapi/dal:tests`  # GPU tests
+bazel test --config=host //cpp/oneapi/dal:tests               # CPU only
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests   # DPC++ on GPU
 ```
 
 ### CMake (Integration)
+There is no root `CMakeLists.txt`. CMake builds the examples against an installed release, found with `find_package(oneDAL)`:
 ```bash
-# Configure and build
-`cmake -B build -S . -DCMAKE_BUILD_TYPE=Release`
-`cmake --build build --parallel`
+source __release_lnx/daal/latest/env/vars.sh   # Make release tree
+cd examples/oneapi/cpp
+cmake -B build -S . -DONEDAL_LINK=dynamic
+cmake --build build --parallel
 ```
 
 ## 🏗️ CPU Architecture Support

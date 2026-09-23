@@ -19,14 +19,19 @@
 ## 🏗️ Repository Structure
 
 ```
-daal/
-├── cpp/        # Core C++ implementation
-│   ├── daal/   # Traditional DAAL interface
-│   └── oneapi/ # Modern oneAPI interface
-├── dev/        # Development tools and build configs
-├── examples/   # Usage examples and tutorials
-├── docs/       # Documentation and API references
-└── deploy/     # Deployment and packaging
+oneDAL/
+├── cpp/            # Library sources
+│   ├── daal/       # DAAL interface and CPU kernels
+│   └── oneapi/     # oneAPI interface (C++ and DPC++)
+├── dev/            # Build tooling: Bazel rules (dev/bazel), Make fragments (dev/make)
+├── examples/       # Examples for the DAAL and oneAPI interfaces
+├── samples/        # Distributed (MPI/CCL) samples
+├── docs/           # Documentation sources
+├── data/           # Datasets used by examples and tests
+├── deploy/         # Packaging and environment scripts
+├── cmake/          # CMake config templates for installed releases
+├── conda-recipe/   # Conda package recipe
+└── .ci/            # CI pipelines, environment setup and build/test scripts
 ```
 
 ## 🔗 Context Files for AI Agents
@@ -46,14 +51,14 @@ Specialized AGENTS.md files for detailed context:
 - **[docs/AGENTS.md](docs/AGENTS.md)** - Documentation structure and guidelines
 - **[examples/AGENTS.md](examples/AGENTS.md)** - Example code patterns and usage
 - **[deploy/AGENTS.md](deploy/AGENTS.md)** - Deployment and distribution context
-- **[ci/AGENTS.md](ci/AGENTS.md)** - CI/CD infrastructure context
+- **[.ci/AGENTS.md](.ci/AGENTS.md)** - CI/CD infrastructure context
 
 ## 📋 Critical Development Rules
 
 ### Code Style and Standards
-- **ClangFormat**: Use project's `.clang-format` configuration
+- **ClangFormat**: Configs are per source tree (`cpp/daal/`, `cpp/oneapi/`, `examples/*/`, `samples/*/`, `dev/l0_tools/`); there is no root `.clang-format`
 - **EditorConfig**: Follow `.editorconfig` rules
-- **Modern C++**: Use C++14/17 features appropriately
+- **Modern C++**: C++17 (no C++20/23 features)
 - **STL**: Leverage standard library containers and algorithms
 - **RAII**: Follow Resource Acquisition Is Initialization principles
 
@@ -80,11 +85,54 @@ Specialized AGENTS.md files for detailed context:
 - **API compatibility preservation**
 - **Performance consistency maintenance**
 
+## ✅ Verification Before You Push
+
+### Format and style (blocking: Azure `FormatterChecks`)
+
+```bash
+pip install pre-commit && pre-commit install   # one-time
+pre-commit run --all-files
+editorconfig-checker
+```
+
+CI pins clang-format 20.1.8; other versions format differently. The pre-commit hook skips the `.i` kernel files that CI formats, so after touching a `.i` file also run `clang-format -style=file -i <file>` from the repo root.
+
+### Tests (Bazel)
+
+```bash
+bazel test --config=host //cpp/oneapi/dal/algo/<algo>:tests   # one algorithm, CPU only
+bazel test --config=host //cpp/oneapi/dal:tests               # oneAPI interface, CPU only
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests   # DPC++ on GPU
+```
+
+Without `--config`, Bazel builds and runs all tests, including DPC++ ones that need the Intel DPC++ compiler. See `dev/bazel/README.md`.
+
+### Full build (Make)
+
+```bash
+make -f makefile daal oneapi_c PLAT=lnx32e -j$(nproc)
+```
+
+See `INSTALL.md` for other platforms and build variants.
+
+### Where the checks live
+
+| Check | System | Config |
+| --- | --- | --- |
+| clang-format, editorconfig-checker | Azure DevOps | `.ci/pipeline/ci.yml` (`FormatterChecks`) |
+| Make (GNU/MKL, LLVM/OpenBLAS rv64, VC, Intel), Bazel, release compare, sklearnex | Azure DevOps | `.ci/pipeline/ci.yml` |
+| Make + DPC++ (icx), ABI check, Make GNU/MKL conda | GitHub Actions | `.github/workflows/ci.yml` |
+| Windows (incl. arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
+| aarch64 | GitHub Actions | `.github/workflows/ci-aarch64.yml` |
+| License headers | GitHub Actions | `.github/workflows/skywalking-eyes.yml` |
+| Bazel Linux/Windows | GitHub Actions (nightly) | `.github/workflows/nightly-test.yml` |
+
+Style is not gated in GitHub Actions: a green Actions run does not mean formatting passes.
+
 ## 🔍 Key Files
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
 - **[INSTALL.md](INSTALL.md)** - Build and installation instructions
 - **[MODULE.bazel](MODULE.bazel)** - Bazel module configuration
-- **[.clang-format](.clang-format)** - Code formatting rules
 
 ## 📚 Additional Resources
 - **API Documentation**: [oneDAL Developer Guide](https://uxlfoundation.github.io/oneDAL/)

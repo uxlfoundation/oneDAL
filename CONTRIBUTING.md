@@ -57,10 +57,10 @@ Public and private CIs are enabled for the repository. Your PR should pass all o
 
 **Prerequisites:** ClangFormat `20.1.8`.
 
-Our repository contains [clang-format configurations](https://github.com/uxlfoundation/oneDAL/blob/main/.clang-format) that you should use on your code. To do this, run:
+Our repository contains clang-format configurations, one per source tree (`cpp/daal`, `cpp/oneapi`, `examples/daal`, `examples/oneapi`, `samples/daal`, `samples/oneapi`, `dev/l0_tools`), that you should use on your code. To do this, run from the repository root:
 
 ```
-clang-format style=file <your file>
+clang-format -style=file -i <your file>
 ```
 
 Refer to [ClangFormat documentation](https://clang.llvm.org/docs/ClangFormat.html) for more information.
