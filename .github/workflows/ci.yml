@@ -189,7 +189,7 @@ jobs:
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
     if: github.repository == 'uxlfoundation/oneDAL'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
       CONDA_ENV: onedal_env
