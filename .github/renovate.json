@@ -29,7 +29,9 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^\\.ci\\/env\\/editorconfig-checker\\.sh$/"],
-      "matchStrings": ["VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "matchStrings": [
+        "VERSION[ \\t]*=[ \\t]*['\"]?(?<currentValue>v\\d+\\.\\d+\\.\\d+)['\"]?"
+      ],
       "depNameTemplate": "editorconfig-checker/editorconfig-checker",
       "datasourceTemplate": "github-releases"
     },
@@ -38,35 +40,63 @@
       "managerFilePatterns": [
         "/^\\.ci\\/env\\/tbb.+$/",
         "/^(\\.github\\/workflows|\\.ci\\/pipeline)\\/ci.+$/",
-        "/^dev\\/download_tbb.sh/"
+        "/^dev\\/download_tbb.sh/",
+        "/^\\.github\\/workflows\\/ci-win\\.yml$/"
       ],
       "matchStrings": [
-        "\\s*TBB_DEFAULT_VERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
-        "\\s*set\\s+TBBVERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
-        "\\s*TBB_VERSION\\s*[:=]\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?"
+        "TBB_DEFAULT_VERSION[ \\t]*=[ \\t]*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "set[ \\t]+TBBVERSION[ \\t]*=[ \\t]*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "TBB_VERSION[ \\t]*[:=][ \\t]*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?"
       ],
       "depNameTemplate": "uxlfoundation/oneTBB",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.ci\\/env\\/openblas\\.sh$/"],
+      "managerFilePatterns": [
+        "/^\\.ci\\/env\\/openblas\\..+$/",
+        "/^(\\.github\\/workflows|\\.ci\\/pipeline)\\/ci.+$/"
+      ],
       "matchStrings": [
-        "BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "BLAS_DEFAULT_VERSION[ \\t]*=[ \\t]*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "set[ \\t]+BLASVERSION[ \\t]*=[ \\t]*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "OPENBLAS_VERSION[ \\t]*[:=][ \\t]*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?"
       ],
       "depNameTemplate": "OpenMathLib/OpenBLAS",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
+      "matchStrings": ["\\bLLVM_VERSION:[ \\t]*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "llvm/llvm-project",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
+      "matchStrings": ["\\bCMAKE_VERSION:[ \\t]*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "Kitware/CMake",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
+      "matchStrings": ["\\bNINJA_VERSION:[ \\t]*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "ninja-build/ninja",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": [
-        "/^\\.ci\\/env\\/bazelisk\\.sh$/",
+        "/^\\.ci\\/env\\/bazelisk\\.(sh|ps1)$/",
         "/^dev\\/docker\\/onedal\\-dev\\.Dockerfile/",
         "/^dev\\/bazel\\/README\\.md/"
       ],
       "matchStrings": [
-        "BAZELISK_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "github\\.com/bazelbuild/bazelisk/releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/bazelisk-[^\"' ]+"
+        "BAZELISK_VERSION[ \\t]*=[ \\t]*['\"]?(?<currentValue>v\\d+\\.\\d+\\.\\d+)['\"]?",
+        "bazeliskVersion[ \\t]*=[ \\t]*['\"]?(?<currentValue>v\\d+\\.\\d+\\.\\d+)['\"]?",
+        "github\\.com/bazelbuild/bazelisk/releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/bazelisk-[^\\s\"']+"
       ],
       "depNameTemplate": "bazelbuild/bazelisk",
       "datasourceTemplate": "github-releases"

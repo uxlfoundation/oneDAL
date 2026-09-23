@@ -27,7 +27,7 @@ else ifeq ($(PLAT),)
 endif
 
 # Check that we know how to build for the identified platform
-PLATs := lnx32e mac32e win32e lnxarm lnxriscv64
+PLATs := lnx32e mac32e win32e lnxarm lnxriscv64 winarm
 $(if $(filter $(PLAT),$(PLATs)),,$(error Unknown platform $(PLAT)))
 
 # Non-platform or architecture specific defines live in common.mk
@@ -69,6 +69,10 @@ ifeq ($(BUILD_PARAMETERS_LIB),yes)
 $(error Building with the parameters library is not available on Windows OS)
 endif
 endif
+
+# Passed to the preprocessor that generates the pkg-config files so that they
+# name libonedal_parameters only in the separate layout.
+pkgconfig.parameters_define := $(if $(filter yes,$(BUILD_PARAMETERS_LIB)),-DPARAMETERS_LIB,)
 
 USERREQCPU := $(filter-out $(filter $(CPUs),$(REQCPU)),$(REQCPU))
 USECPUS := $(if $(REQCPU),$(if $(USERREQCPU),$(error Unsupported value/s in REQCPU: $(USERREQCPU). List of supported CPUs: $(CPUs)),$(REQCPU)),$(CPUs))
@@ -126,9 +130,9 @@ dtbb           := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
 plib           := $(if $(OS_is_win),,lib)
 scr            := $(if $(OS_is_win),bat,sh)
 y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
--Fo            := $(if $(OS_is_win),-Fo,-o)
--Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
--cxx17         := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
+-Fo            := $(if $(and $(OS_is_win),$(COMPILER_is_vc)),-Fo,-o)
+-Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,$(if $(COMPILER_is_clang),-,-Q)),-)
+-cxx17         := $(if $(or $(COMPILER_is_vc), $(and $(OS_is_win),$(COMPILER_is_clang))),/std:c++17,$(-Q)std=c++17)
 -optlevel      := $(-optlevel.$(COMPILER))
 -fPIC          := $(if $(OS_is_win),,-fPIC)
 -visibility    := $(if $(OS_is_win),,-fvisibility=hidden -fvisibility-inlines-hidden)
@@ -1013,8 +1017,8 @@ endif
 _release_c: ./deploy/pkg-config/pkg-config.cpp
 	mkdir -p $(RELEASEDIR.pkgconfig)
 # use the compiler's preprocessor to define the pkg-config file as it can handle cross-compilation, OS and ISA determination for all OSes.
-	$(COMPILER.$(_OS).$(COMPILER)) -E -DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
-	$(COMPILER.$(_OS).$(COMPILER)) -E ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
+	$(COMPILER.$(_OS).$(COMPILER)) -E -DSTATIC $(pkgconfig.parameters_define) ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
+	$(COMPILER.$(_OS).$(COMPILER)) -E $(pkgconfig.parameters_define) ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
 # insert license header, remove preprocessor header, swap to .pc file compliant comments, and remove quotes from the URL
 	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
 	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
@@ -1087,8 +1091,8 @@ endef
 $(foreach d,$(release.ONEAPI.HEADERS.COMMON),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$d),_release_oneapi_c_h)))
 $(foreach d,$(release.ONEAPI.HEADERS.OSSPEC),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$(subst _$(_OS),,$d)),_release_oneapi_c_h)))
 
-#----- releasing static/dynamic oneTBB libraries
-$(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia): _release_common
+#----- releasing static/dynamic oneTBB & OpenBLAS libraries
+$(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia) $(RELEASEDIR.open_blas.libia) $(RELEASEDIR.open_blas.soia): _release_common
 
 define .release.t
 _release_common: $2/$(notdir $1)
@@ -1096,11 +1100,13 @@ $2/$(notdir $1): $(call frompf1,$1) | $2/. ; $(value cpy)
 endef
 $(foreach t,$(releasetbb.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.soia))))
 $(foreach t,$(releasetbb.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.libia))))
+$(foreach t,$(releaseopen_blas.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.open_blas.soia))))
+$(foreach t,$(releaseopen_blas.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.open_blas.libia))))
 
 #----- cmake configs generation
 
 _release_cmake_configs:
-	$(if $(shell bash -c "command -v cmake"),cmake -DINSTALL_DIR=$(RELEASEDIR.lib)/cmake/oneDAL -DARCH_DIR_ONEDAL=$(ARCH_DIR_ONEDAL) -P cmake/scripts/generate_config.cmake,echo 'cmake configs generation skipped')
+	$(if $(shell bash -c "command -v cmake"),cmake -DINSTALL_DIR=$(RELEASEDIR.lib)/cmake/oneDAL -DARCH_DIR_ONEDAL=$(ARCH_DIR_ONEDAL) -DONEDAL_USE_PARAMETERS_LIBRARY=$(BUILD_PARAMETERS_LIB) -P cmake/scripts/generate_config.cmake,echo 'cmake configs generation skipped')
 
 #----- nuspecs generation
 _release_common: _release_nuspec

@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -97,13 +97,6 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      - name: Make onedal
-        if: matrix.runner != 'ubuntu-24.04'
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          rm -rf __work
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
-          rm -rf __work
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
@@ -112,8 +105,10 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
+      # The runner exposes no GPU, so the DPC++ examples run on the OpenCL CPU
+      # device that `apt.sh dpcpp` installs with `intel-oneapi-runtime-libs`.
+      # That is the same device the retired Azure `LinuxMakeIntel_MKL` job used.
       - name: oneapi/dpc examples
-        if: matrix.runner != 'ubuntu-24.04'
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
@@ -124,6 +119,10 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+      - name: oneapi/cpp/mpi samples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
     name: ABI Conformance(avx2)
@@ -132,7 +131,7 @@ jobs:
       github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
     timeout-minutes: 20
@@ -145,7 +144,17 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          # `gh cache list` reports every scope in the repository, not only the
+          # ones this run can restore from. Without `--ref` the newest matching
+          # key can belong to another pull request's scope, which `cache/restore`
+          # cannot read: the restore then misses silently and the check below
+          # compares against an empty directory. Only main-scoped entries are
+          # both restorable here and produced by a build of main.
+          CACHE_KEY=$(gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key')
+          if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
+            echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
+            exit 1
+          fi
           echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
           echo $CACHE_KEY
         env:
@@ -155,6 +164,9 @@ jobs:
         with:
           path: ./__release_lnx_main
           key: ${{ steps.get-cache-key.outputs.key }}
+          # A miss must stop the job. Continuing leaves `__release_lnx_main`
+          # empty, and an ABI comparison against nothing reports success.
+          fail-on-cache-miss: true
       - name: Download oneDAL build artifact
         uses: actions/download-artifact@v8
         with:
@@ -170,3 +182,97 @@ jobs:
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+
+  # The only job that builds oneDAL against conda-forge MKL and TBB rather than
+  # the apt oneAPI packages, so it guards the dependency layout that the
+  # conda-forge feedstock and the sklearnex conda builds see.
+  LinuxMakeGNU_MKL_Conda:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 300
+    env:
+      CONDA_ENV: onedal_env
+      RELEASE_DIR: __release_lnx_gnu
+      # `.ci/env/apt.sh miniforge` installs to this prefix and sources `conda.sh`
+      # only in its own shell, so later steps cannot rely on `conda` being on
+      # PATH. Name the script explicitly instead of asking `conda info --base`
+      # for it, which would depend on the runner image shipping conda already.
+      # `.ci/scripts/test.sh` resolves the same path the same way.
+      CONDA_SH: /usr/share/miniconda/etc/profile.d/conda.sh
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Also creates the `ci-env` conda environment from .ci/env/environment.yml,
+      # which supplies the Intel MPI that `test.sh --interface */mpi` activates.
+      - name: Install Miniforge
+        run: .ci/env/apt.sh miniforge
+      - name: Create conda environment
+        run: |
+          source "${CONDA_SH}"
+          conda create -y -n "${CONDA_ENV}"
+          conda activate "${CONDA_ENV}"
+          conda install -y -c conda-forge \
+              make \
+              tbb tbb-devel \
+              mkl mkl-devel mkl-static \
+              cmake \
+              impi-devel impi_rt
+      - name: System Info
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          .ci/scripts/describe_system.sh
+      - name: Make daal
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal --jobs 20
+      - name: Make onedal_c
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c --jobs 20
+      - name: Make onedal_dpc
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          conda install -y -c conda-forge \
+              mkl-dpcpp mkl-devel-dpcpp \
+              dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+              onedpl-devel
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --jobs 20
+      - name: daal/cpp examples
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp --build-system cmake
+      - name: oneapi/cpp examples
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler gnu --interface oneapi/cpp --build-system cmake
+      - name: oneapi/dpc examples
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler icx --interface oneapi/dpc --build-system cmake
+      - name: daal/cpp/mpi samples
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export TBBROOT="${CONDA_PREFIX}"
+          export MKLROOT="${CONDA_PREFIX}"
+          .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake

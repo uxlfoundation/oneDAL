@@ -78,8 +78,47 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->is_sparse_method());
+    // The empty-cluster relocation path is shared between the dense and the CSR
+    // kernels, so the same tiny regression runs on both; `make_data_table` builds the
+    // matching table type (see fixture.hpp).
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
     this->check_empty_clusters();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test with distinct initial centroids",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    this->check_empty_clusters_distinct_inits();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test on all-duplicate data",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    this->check_empty_clusters_all_duplicates();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test on duplicated groups",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    this->check_empty_clusters_duplicate_groups();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans empty clusters test with a drained source cluster",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);
+    this->check_empty_clusters_drained_source();
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
@@ -555,18 +594,24 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     const auto csr_run_b = this->train(csr_desc, csr_data, init2);
     const auto dense_run = this->train(dense_desc, dense_data, init1);
 
-    // Same seed on the sparse path -> reproducible objective and iteration
-    // count across independent runs. CPU Lloyd sums in a fixed partition
-    // order -> bit-identical. GPU sycl::reduction combines partial sums in
-    // an implementation-defined order (atomic fetch_add / non-fixed
-    // workgroup tree) and float addition is non-associative, so a few ULPs
-    // of drift is expected between two runs.
-    REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
+    // The same seed has to give a reproducible objective across independent runs. The
+    // CPU kernel sums in a fixed partition order and is bit-identical; the GPU
+    // reduction combines partial sums in an implementation-defined order, so a few ULPs
+    // of drift are expected.
+    //
+    // The iteration count is only required to be reproducible on the CPU, whose
+    // criterion is the deterministic centroid shift. The GPU stops on the objective
+    // function itself, and with `accuracy_threshold == 0` the settled improvement is
+    // exactly zero, so that comparison is decided by the ULP-level drift: both runs
+    // converge, not necessarily on the same iteration.
     if (this->get_policy().is_cpu()) {
+        REQUIRE(csr_run_a.get_iteration_count() == csr_run_b.get_iteration_count());
         REQUIRE(csr_run_a.get_objective_function_value() ==
                 csr_run_b.get_objective_function_value());
     }
     else {
+        REQUIRE(csr_run_a.get_iteration_count() < max_iter);
+        REQUIRE(csr_run_b.get_iteration_count() < max_iter);
         const Float repro_tol = std::is_same_v<Float, double> ? Float(1e-12) : Float(1e-5);
         REQUIRE(this->check_value_with_ref_tol(csr_run_a.get_objective_function_value(),
                                                csr_run_b.get_objective_function_value(),
