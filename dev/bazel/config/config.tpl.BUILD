@@ -48,9 +48,10 @@ config_setting(
 # Windows + ref backend. A Windows DLL has to resolve every symbol at link
 # time, so `onedal_core.<major>.dll` needs the math backend linked in directly
 # instead of relying on the loader to bind BLAS/LAPACK calls to
-# `onedal_thread.<major>.dll` the way ELF does. Matches makefile:528, where
-# `daaldep.math_backend.shared_link_deps` is a dependency of the core shared
-# library on every OS.
+# `onedal_thread.<major>.dll` the way ELF does. Matches the top-level makefile
+# rule for `$(WORKDIR.lib)/$(core_y)`, which lists
+# `daaldep.math_backend.shared_link_deps` (dev/make/deps.ref.mk) as a
+# dependency of the core shared library on every OS.
 config_setting(
     name = "backend_ref_windows",
     flag_values = {

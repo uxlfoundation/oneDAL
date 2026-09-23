@@ -51,7 +51,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve, llvm_arch: woa64 }
+          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve }
         ]
     name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
@@ -61,31 +61,16 @@ jobs:
 
       - name: Setup MSYS2
         shell: pwsh
-        run: |
-          if (Test-Path 'C:\msys64') {
-            Remove-Item 'C:\msys64' -Recurse -Force
-          }
-          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
-          .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
+        run: .\.ci\env\msys2.ps1 -Arch ${{ matrix.os.arch }}
 
       - name: Install LLVM for Win-${{ matrix.os.arch }}
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
-          Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
-          echo "%ProgramFiles%\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          
+        run: .\.ci\env\llvm.ps1 -Arch ${{ matrix.os.arch }}
+
       - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
-          Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
-          echo "%ProgramFiles%\CMake\bin" >> $env:GITHUB_PATH
-          
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
-          Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
-          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
-          
+        run: .\.ci\env\cmake_ninja.ps1 -Arch ${{ matrix.os.arch }}
+
       - name: Build OpenBLAS
         shell: cmd
         run: |
@@ -144,12 +129,7 @@ jobs:
       # already installs on this runner image.
       - name: Setup MSYS2
         shell: pwsh
-        run: |
-          if (Test-Path 'C:\msys64') {
-            Remove-Item 'C:\msys64' -Recurse -Force
-          }
-          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-arm64-20260611.exe -UseBasicParsing -OutFile msys2-arm64.exe
-          .\msys2-arm64.exe install --confirm-command --root "C:\msys64"
+        run: .\.ci\env\msys2.ps1 -Arch arm64
 
       # clang-cl / lld-link / llvm-lib are the toolchain oneDAL uses for
       # Windows ARM64, in both build systems
@@ -157,21 +137,11 @@ jobs:
       # dev/bazel/toolchains/cc_toolchain_win.bzl).
       - name: Install LLVM for Win-arm64
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-woa64.exe -UseBasicParsing -OutFile LLVM-woa64.exe
-          Start-Process -FilePath ".\LLVM-woa64.exe" -ArgumentList "/S" -Wait
-          echo "$env:ProgramFiles\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        run: .\.ci\env\llvm.ps1 -Arch arm64
 
       - name: Install CMake and Ninja for Win-arm64
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-arm64.msi -OutFile cmake-arm64.msi
-          Start-Process msiexec.exe -ArgumentList "/i cmake-arm64.msi /quiet /norestart" -Wait
-          echo "$env:ProgramFiles\CMake\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-winarm64.zip -OutFile ninja-winarm64.zip
-          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
-          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
+        run: .\.ci\env\cmake_ninja.ps1 -Arch arm64
 
       # The script appends its install directory to GITHUB_PATH itself.
       - name: Install Bazelisk
