@@ -152,12 +152,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
 
     const auto nobs_nd = pr::table2ndarray_1d<Float>(q, input.get_partial_n_rows());
 
-    // `nobs_nd` is dereferenced on the host below. When the partial result's row count
-    // already lives in memory the host can read, `table2ndarray_1d` hands it back as a
-    // zero-copy wrap and performs no synchronization of its own, so a kernel from the
-    // preceding `partial_compute` may still be writing it. Every statistic is divided by
-    // this value, so reading it early skews the whole result by a wide margin rather than
-    // by rounding. Synchronize before touching it from the host.
+    // Synchronize host and device before dereferencing 'nobs_nd'.
     q.wait_and_throw();
 
     // The observation count is stored as a `Float` in the partial result object,
