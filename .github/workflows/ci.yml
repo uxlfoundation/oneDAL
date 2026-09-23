@@ -194,6 +194,12 @@ jobs:
     env:
       CONDA_ENV: onedal_env
       RELEASE_DIR: __release_lnx_gnu
+      # `.ci/env/apt.sh miniforge` installs to this prefix and sources `conda.sh`
+      # only in its own shell, so later steps cannot rely on `conda` being on
+      # PATH. Name the script explicitly instead of asking `conda info --base`
+      # for it, which would depend on the runner image shipping conda already.
+      # `.ci/scripts/test.sh` resolves the same path the same way.
+      CONDA_SH: /usr/share/miniconda/etc/profile.d/conda.sh
 
     steps:
       - name: Checkout oneDAL
@@ -204,7 +210,7 @@ jobs:
         run: .ci/env/apt.sh miniforge
       - name: Create conda environment
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda create -y -n "${CONDA_ENV}"
           conda activate "${CONDA_ENV}"
           conda install -y -c conda-forge \
@@ -215,26 +221,26 @@ jobs:
               impi-devel impi_rt
       - name: System Info
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           .ci/scripts/describe_system.sh
       - name: Make daal
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal --jobs 20
       - name: Make onedal_c
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c --jobs 20
       - name: Make onedal_dpc
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           conda install -y -c conda-forge \
               mkl-dpcpp mkl-devel-dpcpp \
@@ -245,28 +251,28 @@ jobs:
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --jobs 20
       - name: daal/cpp examples
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp --build-system cmake
       - name: oneapi/cpp examples
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler gnu --interface oneapi/cpp --build-system cmake
       - name: oneapi/dpc examples
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler icx --interface oneapi/dpc --build-system cmake
       - name: daal/cpp/mpi samples
         run: |
-          source "$(conda info --base)/etc/profile.d/conda.sh"
+          source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
