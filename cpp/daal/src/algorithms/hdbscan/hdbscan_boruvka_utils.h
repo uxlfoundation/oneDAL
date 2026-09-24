@@ -43,12 +43,39 @@ struct UnionFind
     DAAL_INT * parent; ///< `parent[i]` is the parent index; roots satisfy `parent[i] == i`
     DAAL_INT * rank;   ///< Rank per root; ties broken by union-by-rank
 
-    /// Path-halving find.
+    /// Find that only reads the forest.
+    ///
+    /// Phase 4 of every Boruvka round resolves all `nRows` points against one shared instance in
+    /// parallel, so the find it uses must not write: compressing `parent` from several threads at
+    /// once is a data race. Every value such a write could store is a valid ancestor, so the
+    /// component ids come out correct either way, but the race is undefined behaviour and
+    /// ThreadSanitizer reports it. The GPU backend's equivalent walk
+    /// (`hdbscan/backend/gpu/kernel_impl.hpp`) is non-compressing for the same reason.
+    ///
+    /// Callers that hold the forest exclusively should prefer `findCompress`, and
+    /// `refreshComponentIds` flattens it wholesale once per round, which keeps the walk here
+    /// down to a single indirection.
     ///
     /// @param[in] x Element id
     ///
     /// @return Root id of the set containing `x`
     DAAL_INT find(DAAL_INT x) const
+    {
+        while (parent[x] != x)
+        {
+            x = parent[x];
+        }
+        return x;
+    }
+
+    /// Path-halving find; shortens the path it walks.
+    ///
+    /// Not safe to call concurrently on a shared instance -- see `find`.
+    ///
+    /// @param[in] x Element id
+    ///
+    /// @return Root id of the set containing `x`
+    DAAL_INT findCompress(DAAL_INT x)
     {
         while (parent[x] != x)
         {
@@ -152,8 +179,8 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
         if (compBestFrom[c] < 0) continue;
         const DAAL_INT u  = compBestFrom[c];
         const DAAL_INT v  = compBestTo[c];
-        const DAAL_INT ru = uf.find(u);
-        const DAAL_INT rv = uf.find(v);
+        const DAAL_INT ru = uf.findCompress(u);
+        const DAAL_INT rv = uf.findCompress(v);
         if (ru == rv) continue;
 
         mstFrom[edgesAdded]    = u;
@@ -170,18 +197,24 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
 
 /// Refresh per-point component ids after phase 3 unified some roots.
 ///
-/// Phase 4 of a Boruvka round. Parallelized because the map is O(N) with
-/// independent entries.
+/// Phase 4 of a Boruvka round. Two parallel passes rather than one, because a single pass that
+/// compressed `parent` while resolving it would have threads writing the same entries other
+/// threads are still walking -- see `UnionFind::find`. The first pass only reads the forest and
+/// lands each root in `componentOf`; the second flattens the forest from that result, every
+/// thread writing only its own index. So the round after this one finds every root in a single
+/// indirection, which is what the discarded path halving was there for.
 ///
 /// @tparam cpu CPU dispatch tag
 ///
-/// @param[in]  nRows       Number of points
-/// @param[in]  uf          Union-find state
-/// @param[out] componentOf Per-point component id (written for every entry)
+/// @param[in]     nRows       Number of points
+/// @param[in,out] uf          Union-find state; its forest is left fully flattened
+/// @param[out]    componentOf Per-point component id (written for every entry)
 template <daal::internal::CpuType cpu>
-static void refreshComponentIds(size_t nRows, const UnionFind & uf, DAAL_INT * componentOf)
+static void refreshComponentIds(size_t nRows, UnionFind & uf, DAAL_INT * componentOf)
 {
     daal::threader_for(nRows, nRows, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
+    DAAL_INT * const parent = uf.parent;
+    daal::threader_for(nRows, nRows, [&](size_t i) { parent[i] = componentOf[i]; });
 }
 
 } // namespace internal
