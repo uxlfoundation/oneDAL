@@ -64,6 +64,14 @@ rem `lapack-netlib/SRC`, which is what the Linux script gets from `NO_FORTRAN=1`
 rem Fortran objects would otherwise put `/DEFAULTLIB:flang_rt.runtime.dynamic`
 rem into the archive, and every consumer of `openblas.lib` -- oneDAL's own DLLs
 rem first of all -- would then have to find the flang runtime at link time.
+rem
+rem `USE_THREAD=OFF` + `USE_LOCKING=ON`, again as on Linux: oneDAL parallelises
+rem through oneTBB, so OpenBLAS must not bring a thread pool of its own. The
+rem CMake build defaults `USE_THREAD` to 1 whenever the machine has two cores
+rem (cmake/system.cmake), and with a static OpenBLAS both `onedal_core` and
+rem `onedal_thread` embed the archive, so a threaded build would put two
+rem independent pools in one process on top of TBB's. `USE_LOCKING` keeps the
+rem single-threaded library safe to call from several TBB threads at once.
 pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     if exist build-arm64 rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
@@ -74,6 +82,8 @@ pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
         -DCMAKE_CXX_COMPILER=clang-cl ^
         -DNOFORTRAN=ON ^
         -DC_LAPACK=ON ^
+        -DUSE_THREAD=OFF ^
+        -DUSE_LOCKING=ON ^
         -DBUILD_SHARED_LIBS=OFF ^
         -DCMAKE_SYSTEM_PROCESSOR=arm64 ^
         -DCMAKE_SYSTEM_NAME=Windows ^
