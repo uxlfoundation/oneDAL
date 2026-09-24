@@ -259,7 +259,7 @@ oneapi::dal::homogen_table solution<Cpu>::export_as_table(std::int64_t* sorted_p
 
     constexpr std::int64_t block_size = 64;
     const std::int64_t block_count = (export_solution_count - 1 + block_size) / block_size;
-    dal::detail::threader_for(block_count, block_count, [&](int index) {
+    dal::detail::threader_for(block_count, 1, [&](int index) {
         const std::int64_t first = index * block_size;
         const std::int64_t last = min(first + block_size, export_solution_count);
         for (auto i = first; i != last; ++i) {

@@ -291,7 +291,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
     {
         DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.ProcessBlocks);
         /* Compute partial results for each TLS buffer */
-        daal::threader_for(numRowsBlocks, numRowsBlocks, [&](int iBlock) {
+        daal::threader_for(numRowsBlocks, 1, [&](int iBlock) {
             struct tls_moments_data_t<algorithmFPType, cpu> * _td = tls_data.local();
             if (_td->malloc_errors)
             {

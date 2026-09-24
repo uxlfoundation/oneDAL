@@ -109,7 +109,7 @@ Status ImplicitALSTrainKernelBase<algorithmFPType, cpu>::computeFactors(size_t n
 
     getSizes(nRows, nCols, nBlocks, blockSize, tailSize);
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t i) {
+    daal::threader_for(nBlocks, 1, [&](size_t i) {
         const size_t curBlockSize = (i < tailSize) ? blockSize + 1 : blockSize;
         const size_t offset       = (i < tailSize) ? i * blockSize + i : i * blockSize + tailSize;
         int result                = 0;
@@ -132,7 +132,7 @@ Status ImplicitALSTrainKernelBase<algorithmFPType, cpu>::computeFactors(size_t n
             if (!solve(nFactors, lhs_local, rhs)) safeStat.add(ErrorALSInternal);
         } /* for(size_t j = 0; j < curBlockSize; j++) */
         if (result) safeStat.add(services::Status(services::ErrorMemoryCopyFailedInternal));
-    }); /* daal::threader_for(nBlocks, nBlocks, [ & ](size_t i) */
+    }); /* daal::threader_for(nBlocks, 1, [ & ](size_t i) */
 
     return safeStat.detach();
 }
