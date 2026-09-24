@@ -129,6 +129,9 @@ jobs:
             )
           )
           echo no OpenBLAS or flang imports in the released binaries
+          rem `findstr` leaves errorlevel 1 behind when it matches nothing, and
+          rem `echo` does not clear it, so the step needs an explicit success.
+          exit /b 0
 
       - name: Test daal
         timeout-minutes: 30
