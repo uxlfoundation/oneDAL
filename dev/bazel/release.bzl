@@ -499,9 +499,15 @@ def _copy_dep_runtime(ctx, release_root):
     DT_NEEDED entries on libonedal_thread.so resolve to nothing and the
     package is not self-contained.
 
-    Encoded as two parallel lists, like `extra_files`: `dep_runtime` holds the
-    file-producing targets and `dep_runtime_dst` the destination directory of
-    each. Note the root differs from `extra_files_dst`: these paths are relative
+    Encoded as parallel lists, like `extra_files`: `dep_runtime` holds the
+    file-producing targets, `dep_runtime_dst` the destination directory of each
+    and `dep_runtime_win_dst` the Windows destination, which differs because
+    Make splits the two kinds of artifact there: the DLLs go to
+    `tbb/latest/bin/vc_mt` and the import libraries to `tbb/latest/lib/vc_mt`
+    (`makefile:276-278`), while on Linux the `.so` is both. An empty
+    destination skips the entry on that platform.
+
+    Note the root differs from `extra_files_dst`: these paths are relative
     to the release root that *holds* `daal/latest`, since the point is to stage
     a sibling component of it.
     """
@@ -509,17 +515,11 @@ def _copy_dep_runtime(ctx, release_root):
         fail("dep_runtime and dep_runtime_dst must have the same length: got {} vs {}".format(
             len(ctx.attr.dep_runtime), len(ctx.attr.dep_runtime_dst)))
 
-    # Windows is deliberately not staged here. Make puts the TBB DLLs under
-    # `tbb/latest/bin/vc_mt` and the import libraries under
-    # `tbb/latest/lib/vc_mt` (`makefile:274-276`), and a Windows DLL is found
-    # through PATH rather than through a recorded dependency, so the missing
-    # staging is not what breaks loading there.
-    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
-        return []
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
 
     dst_files = []
     for i, dep in enumerate(ctx.attr.dep_runtime):
-        dst_dir = ctx.attr.dep_runtime_dst[i]
+        dst_dir = ctx.attr.dep_runtime_win_dst[i] if is_windows else ctx.attr.dep_runtime_dst[i]
         if not dst_dir:
             continue
         if dst_dir == "daal" or dst_dir.startswith("daal/"):
@@ -613,6 +613,10 @@ _release = rule(
         ),
         "dep_runtime_dst": attr.string_list(
             doc = "Destination directory of each dep_runtime entry, relative to the release root.",
+        ),
+        "dep_runtime_win_dst": attr.string_list(
+            doc = "Windows-specific destination directory of each dep_runtime " +
+                  "entry; empty skips the entry on Windows.",
         ),
         "_version_info": attr.label(
             default = "@config//:version",
@@ -743,20 +747,23 @@ def _relativize_release_file(file, dep):
             return (paths.join(parts[0], "latest"), "/".join(parts[2:]))
     return None
 
-def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None):
+def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None, staged = None):
     """Copy `dep`'s release tree under `prefix`.
 
     `prefix` names the `daal/latest` tree; sibling components staged next to it
     keep their own `<component>/latest` path. `only_dirs` filters on the
     component-relative path within `daal/latest`.
 
-    A sibling component in a filtered (second-flavour) pass is rejected rather
-    than skipped. The Windows TBB repository exposes both runtime flavours under
-    distinct names (`tbb12.dll` and `tbb12_debug.dll`,
-    `dev/bazel/deps/tbb_win.tpl.BUILD`), so silently keeping only the first
-    flavour's files would produce a merged tree whose debug-CRT half has no
-    runtime to load, with nothing reporting it. Whoever enables `dep_runtime` on
-    Windows has to decide what the merged tree should hold.
+    Sibling components are staged from both passes, unlike `daal/latest`, which
+    the filtered (second-flavour) pass narrows to the runtime-specific
+    directories. The Windows TBB repository selects a flavour under distinct
+    names (`tbb12.dll` versus `tbb12_debug.dll`,
+    `dev/bazel/deps/tbb_win.tpl.BUILD`), so a merged tree that kept only the
+    first pass would hold no runtime for its debug-CRT half. `staged` carries
+    the destinations already declared across passes, since Bazel rejects a
+    second `declare_file` for the same path: a file both flavours stage under
+    one name is copied once, and two different sources competing for one
+    destination fail rather than picking a winner.
     """
     dst_files = []
     release_root = paths.dirname(paths.dirname(prefix))
@@ -772,12 +779,17 @@ def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None):
                     continue
             dst = paths.join(prefix, rel)
         else:
-            if only_dirs != None:
-                fail(("Sibling release component '{}' of {} cannot be merged " +
-                      "per MSVC runtime flavour: decide how '{}' should be " +
-                      "staged for both flavours").format(
-                    component, dep.label, rel))
             dst = paths.join(release_root, component, rel)
+            if staged != None:
+                previous = staged.get(dst)
+                if previous != None:
+                    if previous != src.short_path:
+                        fail(("Release component file '{}' of {} is staged from " +
+                              "both '{}' and '{}': the two MSVC runtime flavours " +
+                              "disagree on what the merged tree should hold").format(
+                            dst, dep.label, previous, src.short_path))
+                    continue
+                staged[dst] = src.short_path
         dst_files.append(_copy(ctx, src, dst))
     return dst_files
 
@@ -806,15 +818,20 @@ def _release_all_impl(ctx):
         # copying would dereference them into duplicate real files.
         return [DefaultInfo(files = release_md[DefaultInfo].files)]
     prefix = ctx.attr.name + "/daal/latest"
-    files = _copy_from_release_tree(ctx, release_md, prefix)
+    # Destinations of the sibling components staged by `dep_runtime`, shared
+    # across both passes so each is declared once (see _copy_from_release_tree).
+    staged_components = {}
+    files = _copy_from_release_tree(ctx, release_md, prefix, staged = staged_components)
     # Only the libraries differ between the two runtimes, and they carry the
     # `d` suffix, so both flavours coexist in one lib/redist directory. The
     # pkg-config files describe the release runtime only; debug-runtime
     # consumers get the right names from oneDALConfig.cmake, which appends
-    # its own DAL_DEBUG_SUFFIX.
+    # its own DAL_DEBUG_SUFFIX. The staged runtimes of both flavours are kept:
+    # the debug TBB DLLs an `-MDd` consumer loads carry their own names.
     files += _copy_from_release_tree(
         ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
         only_dirs = _RUNTIME_SPECIFIC_DIRS,
+        staged = staged_components,
     )
     return [DefaultInfo(files = depset(files))]
 
@@ -889,11 +906,13 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
                            "//data:datasets",
                            "//deploy/local:config",
                        ]
-        dep_runtime: List of (label, dst_dir) tuples for third-party runtime
-                     libraries staged next to `daal/latest`, matching Make's
-                     `<release root>/tbb/latest/lib` layout. Example:
+        dep_runtime: List of (label, dst_dir, windows_dst_dir) tuples for
+                     third-party runtime libraries staged next to `daal/latest`,
+                     matching Make's `<release root>/tbb/latest` layout. Use the
+                     release_dep_runtime() helper to construct entries. Example:
                        dep_runtime = [
-                           ("@tbb//:tbb_runtime", "tbb/latest/lib"),
+                           release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
+                                               windows_dst_dir = "tbb/latest/bin/vc_mt"),
                        ]
     """
     rule_include = []
@@ -928,8 +947,9 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
         extra_files = rule_extra_files,
         extra_files_dst = rule_extra_files_dst,
         extra_files_win_dst = rule_extra_files_win_dst,
-        dep_runtime = [label for label, _ in dep_runtime],
-        dep_runtime_dst = [dst for _, dst in dep_runtime],
+        dep_runtime = [entry[0] for entry in dep_runtime],
+        dep_runtime_dst = [entry[1] for entry in dep_runtime],
+        dep_runtime_win_dst = [entry[2] if len(entry) == 3 else entry[1] for entry in dep_runtime],
     )
 
 def release_extra_file(label, dst_path, windows_dst_path = None):
@@ -943,3 +963,19 @@ def release_extra_file(label, dst_path, windows_dst_path = None):
         A tuple (label, dst_path) for use in release(extra_files=...).
     """
     return (label, dst_path, dst_path if windows_dst_path == None else windows_dst_path)
+
+def release_dep_runtime(label, dst_dir, windows_dst_dir = None):
+    """Helper to declare a staged runtime dependency for release().
+
+    Args:
+        label:           Bazel label of the target producing the files.
+        dst_dir:         Destination directory relative to the release root that
+                         holds `daal/latest` (e.g. "tbb/latest/lib").
+        windows_dst_dir: Windows destination directory; defaults to dst_dir.
+                         Pass "" to skip the entry on Windows.
+
+    Returns:
+        A tuple (label, dst_dir, windows_dst_dir) for use in
+        release(dep_runtime=...).
+    """
+    return (label, dst_dir, dst_dir if windows_dst_dir == None else windows_dst_dir)

@@ -523,6 +523,51 @@ jobs:
       echo "##vso[task.setvariable variable=RELEASEROOT]$(pwd)/standalone_release"
     displayName: 'Prepare standalone release directory'
 
+  - script: |
+      set -eu
+      # The staged sibling components are what make the package loadable outside
+      # a Bazel runfiles tree, and until now nothing looked at them: the
+      # `LinuxReleaseCompare` job compares `daal/latest` alone, so an empty,
+      # renamed or mis-versioned `tbb/latest/lib` would ship green. Assert that
+      # the directory is populated and that every oneTBB soname the released
+      # libraries record is satisfied by a file the package itself carries --
+      # which is also the version check, since the recorded soname holds the
+      # major version. A full Make-vs-Bazel comparison of the recorded
+      # dependencies and the staged components is a separate change.
+      cd "$(RELEASEROOT)"
+      status=0
+      for pattern in 'libtbb.so.*' 'libtbbmalloc.so.*'; do
+        # shellcheck disable=SC2086
+        if [ -z "$(find tbb/latest/lib -maxdepth 1 -name "$pattern" -print -quit)" ]; then
+          echo "ERROR: no $pattern staged in tbb/latest/lib"
+          status=1
+        fi
+      done
+      for lib in daal/latest/lib/intel64/*.so.[0-9]*; do
+        needed=$(readelf -d "$lib" | awk '/\(NEEDED\)/ { gsub(/[][]/, "", $NF); print $NF }')
+        for soname in $needed; do
+          case "$soname" in
+            libtbb*) ;;
+            *) continue ;;
+          esac
+          found=""
+          for dir in daal/latest/lib/intel64 tbb/latest/lib; do
+            if [ -e "$dir/$soname" ]; then
+              found="$dir/$soname"
+              break
+            fi
+          done
+          if [ -z "$found" ]; then
+            echo "ERROR: $lib records $soname, which the package does not ship"
+            status=1
+          else
+            echo "OK: $(basename "$lib") -> $found"
+          fi
+        done
+      done
+      exit $status
+    displayName: 'Check staged runtime dependencies'
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
@@ -907,6 +952,29 @@ jobs:
       xcopy /E /I /Y "bazel-bin\release" "$(release.dir)" >NUL
       echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
     displayName: 'Prepare standalone release directory'
+  # The Windows package stages oneTBB the way Make does: the DLLs the released
+  # libraries load under `tbb\latest\bin\vc_mt` and the import libraries a
+  # consumer links against under `tbb\latest\lib\vc_mt` (releasetbb.LIBS_Y and
+  # releasetbb.LIBS_A, makefile:277-279). Nothing else in this job looks at
+  # them -- the release comparison is rooted at `daal\latest` -- so assert the
+  # four files are present, or a dropped `dep_runtime` entry ships green.
+  - script: |
+      set staged=$(release.dir)\tbb\latest
+      for %%f in (tbb12.dll tbbmalloc.dll) do (
+        if not exist "%staged%\bin\vc_mt\%%f" (
+          echo ERROR: missing tbb\latest\bin\vc_mt\%%f
+          exit /b 1
+        )
+        echo OK: tbb\latest\bin\vc_mt\%%f
+      )
+      for %%f in (tbb12.lib tbbmalloc.lib) do (
+        if not exist "%staged%\lib\vc_mt\%%f" (
+          echo ERROR: missing tbb\latest\lib\vc_mt\%%f
+          exit /b 1
+        )
+        echo OK: tbb\latest\lib\vc_mt\%%f
+      )
+    displayName: 'Check staged runtime dependencies'
   # Debug MSVC runtime (Make MSVC_RUNTIME_VERSION=debug): checks that the
   # `-MDd` build links and that its libraries land under the `d`-suffixed
   # names, so an MD and an MDd release can share one tree. Built after the
