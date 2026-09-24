@@ -1,22 +1,8 @@
+# AGENTS.md - oneDAL
 
-# oneDAL Repository - AI Agents Context Guide
+oneDAL (oneAPI Data Analytics Library) is a C++ machine learning library with two interfaces: DAAL (`cpp/daal`, CPU) and oneAPI (`cpp/oneapi`, CPU and SYCL GPU). It is built with Make (release builds) and Bazel (tests), and is the backend for [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex).
 
-> **Purpose**: Comprehensive context for AI agents working with the oneDAL repository structure, coding standards, and development guidelines.
-
-## 🎯 Repository Overview
-
-**oneDAL** (oneAPI Data Analytics Library) is a high-performance C++ library for machine learning algorithms, providing both traditional DAAL interfaces and modern oneAPI interfaces with SYCL support for GPU acceleration.
-
-**Integration Note**: oneDAL works with [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex). They share common validation aspects and provide accelerated machine learning capabilities together.
-
-### Key Characteristics
-- **Language**: Modern C++ (17+)
-- **Architecture**: Dual interface system (DAAL + oneAPI)
-- **Build Systems**: Make (production), CMake (integration), Bazel (development/testing)
-- **Targets**: CPU (SIMD optimized), GPU (SYCL), Distributed (MPI)
-- **License**: Apache License 2.0
-
-## 🏗️ Repository Structure
+## Repository Structure
 
 ```
 oneDAL/
@@ -34,60 +20,29 @@ oneDAL/
 └── .ci/            # CI pipelines, environment setup and build/test scripts
 ```
 
-## 🔗 Context Files for AI Agents
+## Directory Guides
 
-Specialized AGENTS.md files for detailed context:
+Read the `AGENTS.md` nearest the files you change:
 
-### Core Implementation
-- **[cpp/AGENTS.md](cpp/AGENTS.md)** - C++ implementation details and patterns
-- **[cpp/daal/AGENTS.md](cpp/daal/AGENTS.md)** - Traditional DAAL interface context
-- **[cpp/oneapi/AGENTS.md](cpp/oneapi/AGENTS.md)** - Modern oneAPI interface context
+- [cpp/AGENTS.md](cpp/AGENTS.md): C++ implementation details and patterns
+- [cpp/daal/AGENTS.md](cpp/daal/AGENTS.md): Traditional DAAL interface context
+- [cpp/oneapi/AGENTS.md](cpp/oneapi/AGENTS.md): Modern oneAPI interface context
+- [dev/AGENTS.md](dev/AGENTS.md): Development tools and build system context
+- [dev/bazel/AGENTS.md](dev/bazel/AGENTS.md): Bazel build system specifics
+- [dev/make/AGENTS.md](dev/make/AGENTS.md): Make build fragments
+- [docs/AGENTS.md](docs/AGENTS.md): Documentation structure and guidelines
+- [examples/AGENTS.md](examples/AGENTS.md): Example code patterns and usage
+- [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
+- [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
+- [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)
 
-### Build Systems & Development
-- **[dev/AGENTS.md](dev/AGENTS.md)** - Development tools and build system context
-- **[dev/bazel/AGENTS.md](dev/bazel/AGENTS.md)** - Bazel build system specifics
-- **[dev/make/AGENTS.md](dev/make/AGENTS.md)** - Make build fragments
+## Conventions
+- C++17; no C++20/23 features.
+- clang-format configs are per source tree (`cpp/daal/`, `cpp/oneapi/`, `examples/*/`, `samples/*/`, `dev/l0_tools/`); there is no root `.clang-format`.
+- Parallelize through the oneDAL threading layer, never TBB directly.
+- Optimized kernels dispatch on CPU features; see `docs/source/contribution/cpu_features.rst`.
 
-### Documentation, Examples & Infrastructure
-- **[docs/AGENTS.md](docs/AGENTS.md)** - Documentation structure and guidelines
-- **[examples/AGENTS.md](examples/AGENTS.md)** - Example code patterns and usage
-- **[deploy/AGENTS.md](deploy/AGENTS.md)** - Deployment and distribution context
-- **[.ci/AGENTS.md](.ci/AGENTS.md)** - CI/CD infrastructure context
-- **[.github/AGENTS.md](.github/AGENTS.md)** - Workflow constraints (`nightly-build.yml`)
-
-## 📋 Critical Development Rules
-
-### Code Style and Standards
-- **ClangFormat**: Configs are per source tree (`cpp/daal/`, `cpp/oneapi/`, `examples/*/`, `samples/*/`, `dev/l0_tools/`); there is no root `.clang-format`
-- **EditorConfig**: Follow `.editorconfig` rules
-- **Modern C++**: C++17 (no C++20/23 features)
-- **STL**: Leverage standard library containers and algorithms
-- **RAII**: Follow Resource Acquisition Is Initialization principles
-
-### Architecture Patterns
-- **Interface Design**: Follow existing DAAL/oneAPI patterns
-- **Memory Management**: Use smart pointers and RAII
-- **Threading**: Use oneDAL threading layer, not direct primitives
-- **CPU Features**: Implement CPU feature dispatching for optimizations
-
-### Testing and Validation
-- **Build Tests**: All changes must pass build system validation
-- **Examples**: Ensure examples build and run correctly
-- **Documentation**: Update relevant documentation
-
-## 🚀 Quick Start for AI Agents
-
-1. **Understand Context**: Read relevant AGENTS.md file for your task
-2. **Follow Patterns**: Study existing code in similar areas
-3. **Respect Standards**: Apply coding guidelines consistently
-4. **Test Thoroughly**: Ensure changes work with build system
-
-### 🔄 Cross-Repository Considerations
-- **scikit-learn-intelex integration impact**
-- **API compatibility preservation**
-- **Performance consistency maintenance**
-
-## 📝 Rules for Changes
+## Rules for Changes
 
 These come from recurring maintainer review comments. Directory-specific rules are in the nearest `AGENTS.md`.
 
@@ -102,7 +57,7 @@ These come from recurring maintainer review comments. Directory-specific rules a
 - Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
 - Bash scripts start with `set -euo pipefail`, use `mkdir -p`, and don't silence failures with a bare `|| true`.
 
-## ✅ Verification Before You Push
+## Verification Before You Push
 
 ### Format and style (blocking: Azure `FormatterChecks`)
 
@@ -146,18 +101,6 @@ See `INSTALL.md` for other platforms and build variants.
 
 Style is not gated in GitHub Actions: a green Actions run does not mean formatting passes.
 
-## 🔍 Key Files
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
-- **[INSTALL.md](INSTALL.md)** - Build and installation instructions
-- **[MODULE.bazel](MODULE.bazel)** - Bazel module configuration
-
-## 📚 Additional Resources
-- **API Documentation**: [oneDAL Developer Guide](https://uxlfoundation.github.io/oneDAL/)
-- **Coding Guidelines**: [Detailed coding guide](https://uxlfoundation.github.io/oneDAL/contribution/coding_guide.html)
-- **CPU Features**: [CPU feature dispatching guide](https://uxlfoundation.github.io/oneDAL/contribution/cpu_features.html)
-- **Threading**: [Threading layer guide](https://uxlfoundation.github.io/oneDAL/contribution/threading.html)
-
----
-
-**Note**: This file serves as the main entry point. For specific implementation details, refer to the relevant sub-AGENTS.md file in the appropriate directory.
-
+## Further Reading
+- `CONTRIBUTING.md`, `INSTALL.md`
+- `docs/source/contribution/coding_guide.rst`, `docs/source/contribution/threading.rst`
