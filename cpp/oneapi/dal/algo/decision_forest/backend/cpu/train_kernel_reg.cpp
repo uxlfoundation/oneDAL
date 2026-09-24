@@ -27,6 +27,7 @@
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/model_impl.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal::decision_forest::backend {
 
@@ -55,6 +56,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
                                  const table& data,
                                  const table& responses,
                                  const table& weights) {
+    ONEDAL_PROFILER_TASK(df_reg_train);
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t column_count = data.get_column_count();
 
