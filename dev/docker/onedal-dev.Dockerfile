@@ -19,9 +19,13 @@ FROM ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea264
 ARG workdirectory="/sources/oneDAL"
 WORKDIR ${workdirectory}
 
-#Env setup
-RUN apt-get update && \
-      apt-get -y install sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar
+#Env setup - handle transient security.ubuntu.com 404 for resolute (e.g., libexpat1)
+# Retry apt with clean, mirror fallback, and fix-missing. Security pocket for 26.04 is still syncing.
+RUN rm -rf /var/lib/apt/lists/* && \
+    (apt-get update --fix-missing || (sleep 5 && apt-get update --fix-missing) || (sed -i 's|http://security.ubuntu.com|http://archive.ubuntu.com|g' /etc/apt/sources.list && sed -i 's|http://security.ubuntu.com|http://archive.ubuntu.com|g' /etc/apt/sources.list.d/*.list 2>/dev/null || true; apt-get update --fix-missing)) && \
+    (apt-get -y install --fix-missing --allow-downgrades sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar || \
+     (apt-get clean && rm -rf /var/lib/apt/lists/* && apt-get update --fix-missing && apt-get -y install --fix-missing --allow-downgrades sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar) || \
+     (sed -i 's|http://security.ubuntu.com|http://archive.ubuntu.com|g' /etc/apt/sources.list && apt-get update --fix-missing && apt-get -y install --fix-missing --allow-downgrades sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar))
 
 # Install miniconda
 ENV CONDA_DIR=/opt/conda

@@ -95,8 +95,6 @@ Table to ndarray conversion functions
 
 .. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_cm
 
-.. onedal_func:: oneapi::dal::backend::primitives::homogen_table2ndarray_cm
-
 .. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_variant
 
 .. _api_ndorder:
