@@ -167,10 +167,11 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
     // memory. The batch kernel's `operator()` would instead return a `compute_result` of
     // host copies, and merging those would move every statistic off the device and
     // straight back for `O(column_count)` of arithmetic, once per `partial_compute` call.
-    auto batch = compute_kernel_csr_impl<Float>{}.compute_stats(ctx, { batch_data });
-    const auto batch_stats = std::get<0>(batch);
-    const sycl::event batch_ev = std::get<1>(batch);
-    const Float* const batch_stats_ptr = batch_stats.get_data();
+    // `batch` must outlive every kernel enqueued below that depends on `batch_ev`: like
+    // `weighted`, it owns device memory those kernels read from. See `csr_stats`.
+    const auto batch = compute_kernel_csr_impl<Float>{}.compute_stats(ctx, { batch_data });
+    const sycl::event& batch_ev = batch.event;
+    const Float* const batch_stats_ptr = batch.stats.get_data();
     const auto batch_stat = [=](stat which) {
         return pr::ndview<Float, 1>::wrap(batch_stats_ptr + which * column_count, column_count);
     };

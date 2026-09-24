@@ -35,6 +35,25 @@ namespace pr = dal::backend::primitives;
 
 enum stat { min, max, sum, sum2, sum2_cent, mean, moment2, variance, stddev, variation };
 
+/// The per-column statistics of a CSR table in device memory, together with the device
+/// arrays the kernels that produced them read from.
+///
+/// Keep the whole aggregate alive until `event` has completed. Freeing a device USM
+/// allocation is not a synchronizing operation -- `dal::array`'s deleter calls
+/// `sycl::free` straight away (`backend/memory.hpp`) -- so dropping `values` /
+/// `column_indices` / `row_offsets` while the statistics kernels are still enqueued is a
+/// device-side use-after-free. It is the CSR input the kernels read, not the output, that
+/// makes this necessary: `stats` is what the caller wanted, so it stays alive on its own.
+/// Same reasoning, and same shape, as `scaled_csr` in `partial_compute_kernel_csr_dpc.cpp`.
+template <typename Float>
+struct csr_stats {
+    pr::ndarray<Float, 2> stats;
+    sycl::event event;
+    dal::array<Float> values;
+    dal::array<std::int64_t> column_indices;
+    dal::array<std::int64_t> row_offsets;
+};
+
 template <typename Float>
 class compute_kernel_csr_impl {
     using method_t = method::sparse;
@@ -53,15 +72,19 @@ public:
     /// @note Use this instead of `operator()` when consuming statistics on-device (e.g., in
     ///       `partial_compute`) to avoid expensive host-device roundtrips.
     ///
+    /// The kernels are only enqueued, not awaited, so the returned aggregate has to own the
+    /// pulled CSR arrays they read -- see `csr_stats`. Hold it until `csr_stats::event` has
+    /// completed.
+    ///
     /// @param ctx   GPU execution context
     /// @param input Input dataset in CSR format
-    /// @return      A tuple containing:
-    ///              - A 2D array of size `(num_data_blocks * res_opt_count_) x column_count`,
-    ///                where the first `res_opt_count_` rows store the merged statistics, and the
-    ///                remaining rows act as per-block scratchpad memory.
-    ///              - A SYCL event tracking the completion of the final writing kernel.
-    std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_stats(const bk::context_gpu& ctx,
-                                                                 const input_t& input);
+    /// @return      The statistics as a 2D array of size
+    ///              `(num_data_blocks * res_opt_count_) x column_count`, where the first
+    ///              `res_opt_count_` rows store the merged statistics, row `stat::<name>`
+    ///              holding that statistic, and the remaining rows act as per-block
+    ///              scratchpad memory; the event tracking the final writing kernel; and the
+    ///              device arrays that kernel reads from.
+    csr_stats<Float> compute_stats(const bk::context_gpu& ctx, const input_t& input);
 
 private:
     // Number of different basic statistics

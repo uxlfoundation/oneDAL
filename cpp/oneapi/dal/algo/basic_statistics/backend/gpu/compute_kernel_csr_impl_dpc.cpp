@@ -126,9 +126,8 @@ sycl::event compute_kernel_csr_impl<Float>::finalize_for_distr(
 }
 
 template <typename Float>
-std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_kernel_csr_impl<Float>::compute_stats(
-    const bk::context_gpu& ctx,
-    const input_t& input) {
+csr_stats<Float> compute_kernel_csr_impl<Float>::compute_stats(const bk::context_gpu& ctx,
+                                                               const input_t& input) {
     auto queue = ctx.get_queue();
     const auto table = input.get_data();
     ONEDAL_ASSERT(table.get_kind() == csr_table::kind());
@@ -372,7 +371,14 @@ std::tuple<pr::ndarray<Float, 2>, sycl::event> compute_kernel_csr_impl<Float>::c
     if (distr_mode) {
         second_merge_event = finalize_for_distr(queue, comm, result_data, input, { merge_event });
     }
-    return std::make_tuple(result_data, second_merge_event);
+    // The first- and second-order kernels read `csr_data` / `column_indices` and are only
+    // enqueued here, so those arrays go back to the caller rather than dying with this
+    // frame -- see `csr_stats`.
+    return { std::move(result_data),
+             second_merge_event,
+             std::move(csr_data),
+             std::move(column_indices),
+             std::move(row_offsets) };
 }
 
 template <typename Float>
@@ -380,8 +386,9 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
                                                     const descriptor_t& desc,
                                                     const input_t& input) {
     auto queue = ctx.get_queue();
-    auto [result_data, compute_event] = compute_stats(ctx, input);
-    return get_result(queue, result_data, desc.get_result_options(), { compute_event });
+    // `computed` stays alive across `get_result`, which is what awaits the kernels.
+    const auto computed = compute_stats(ctx, input);
+    return get_result(queue, computed.stats, desc.get_result_options(), { computed.event });
 }
 
 template class compute_kernel_csr_impl<float>;
