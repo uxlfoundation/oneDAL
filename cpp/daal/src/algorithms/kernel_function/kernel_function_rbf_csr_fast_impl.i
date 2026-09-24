@@ -168,17 +168,17 @@ services::Status KernelImplRBF<fastCSR, algorithmFPType, cpu>::computeInternalMa
 
         SpBlasInst<algorithmFPType, cpu>::xsyrk_a_at(dataA1, colIndicesA1, rowOffsetsA1, nVectors1, a1->getNumberOfColumns(), dataR, nVectors2);
 
-        daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
+        daal::threader_for_optional(nVectors1, 1, [=](size_t i) {
             for (size_t k = 0; k < i; k++)
             {
                 dataR[i * nVectors1 + k] = coeff * (dataR[i * nVectors1 + i] + dataR[k * nVectors1 + k] + negTwo * dataR[i * nVectors1 + k]);
             }
         });
-        daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
+        daal::threader_for_optional(nVectors1, 1, [=](size_t i) {
             dataR[i * nVectors1 + i] = zero;
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(i + 1, dataR + i * nVectors1, dataR + i * nVectors1);
         });
-        daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
+        daal::threader_for_optional(nVectors1, 1, [=](size_t i) {
             for (size_t k = i + 1; k < nVectors1; k++)
             {
                 dataR[i * nVectors1 + k] = dataR[k * nVectors1 + i];

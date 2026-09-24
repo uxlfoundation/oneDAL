@@ -51,7 +51,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
     DAAL_CHECK_BLOCK_STATUS(testPredictionBlock);
     const DataType * const testPredictionPtr = testPredictionBlock.get();
 
-    daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
         const size_t blockBegin = iBlock * blockSizeDefault;
         const size_t blockSize  = (iBlock == nBlocks - 1) ? nElements - blockBegin : blockSizeDefault;
 

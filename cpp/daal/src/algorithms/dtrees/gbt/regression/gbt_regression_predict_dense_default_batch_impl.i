@@ -458,7 +458,7 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(Numeri
         if (!s) return s;
         size_t nTreesToUse = ((iTree + dim.nTreesInBlock) < nTreesTotal ? dim.nTreesInBlock : (nTreesTotal - iTree));
 
-        daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](size_t iBlock) {
+        daal::threader_for(dim.nDataBlocks, 1, [&](size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == dim.nDataBlocks - 1) ? dim.nRowsTotal - iBlock * dim.nRowsInBlock : dim.nRowsInBlock;
             ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), iStartRow, nRowsToProcess);

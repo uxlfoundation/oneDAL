@@ -463,7 +463,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::parallelPredict(const al
         lc[i]                         = node.leftIndexOrClass;
         fv[i]                         = (algorithmFPType)node.featureValueOrResponse;
     }
-    daal::threader_for(nBlocks, nBlocks, [&, nCols](const size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&, nCols](const size_t iBlock) {
         safeStat |= predictByTree(aX + iBlock * blockSize * nCols, blockSize, nCols, fi, lc, fv, prob + iBlock * blockSize * _nClasses, iTree);
     });
 
@@ -712,7 +712,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByAllTrees(const 
     algorithmFPType * const probPtr = probBD.get();
     if (probPtr != nullptr)
     {
-        daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](size_t iBlock) {
+        daal::threader_for(dim.nDataBlocks, 1, [&](size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == dim.nDataBlocks - 1) ? dim.nRowsTotal - iStartRow : dim.nRowsInBlock;
             ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), iStartRow, nRowsToProcess);
@@ -722,7 +722,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByAllTrees(const 
 
             services::internal::service_memset_seq<algorithmFPType, cpu>(prob, algorithmFPType(0), nRowsToProcess * _nClasses);
 
-            daal::threader_for(nRowsToProcess, nRowsToProcess, [&](const size_t iRow) {
+            daal::threader_for(nRowsToProcess, 1, [&](const size_t iRow) {
                 predictByTrees(0, nTreesTotal, xBD.get() + iRow * nCols, prob + iRow * _nClasses, nTreesTotal);
                 if (_res)
                 {
@@ -735,13 +735,13 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByAllTrees(const 
     {
         // Dynamically allocated thread-local storage for class counters
         ClassesCounterTls lsData(_nClasses);
-        daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](const size_t iBlock) {
+        daal::threader_for(dim.nDataBlocks, 1, [&](const size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == dim.nDataBlocks - 1) ? dim.nRowsTotal - iStartRow : dim.nRowsInBlock;
             ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), iStartRow, nRowsToProcess);
             DAAL_CHECK_BLOCK_STATUS_THR(xBD);
             algorithmFPType * const res = resBD.get() + iStartRow;
-            daal::threader_for(nRowsToProcess, nRowsToProcess, [&](const size_t iRow) {
+            daal::threader_for(nRowsToProcess, 1, [&](const size_t iRow) {
                 algorithmFPType buf[s_cMaxClassesBufSize];
                 algorithmFPType * const val = bUseTLS ? lsData.local() : buf;
                 for (size_t i = 0; i < _nClasses; ++i) val[i] = 0;
@@ -1149,7 +1149,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
         const size_t nBlocks        = nRowsOfRes / localBlockSize + !!(nRowsOfRes % localBlockSize);
 
         // Merge results from different threads by summing the class counters for each class across all threads
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             const size_t begin = iBlock * localBlockSize;
             const size_t end   = services::internal::min<cpu, size_t>(nRowsOfRes, begin + localBlockSize);
 
@@ -1220,7 +1220,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
             const size_t localBlockSize = 256;
             const size_t nBlocks        = nRowsOfRes / localBlockSize + !!(nRowsOfRes % localBlockSize);
 
-            daal::threader_for(nBlocks, nBlocks, [&, nCols](const size_t iBlock) {
+            daal::threader_for(nBlocks, 1, [&, nCols](const size_t iBlock) {
                 const size_t begin = iBlock * localBlockSize;
                 const size_t end   = services::internal::min<cpu, size_t>(nRowsOfRes, begin + localBlockSize);
 
@@ -1340,7 +1340,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByBlocksOfTrees(c
         DAAL_CHECK_STATUS_VAR(s);
         const bool bLastGroup(nTreesTotal <= (iTree + dim.nTreesInBlock));
         const size_t nTreesToUse = (bLastGroup ? (nTreesTotal - iTree) : dim.nTreesInBlock);
-        daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&, nTreesToUse, bLastGroup](size_t iBlock) {
+        daal::threader_for(dim.nDataBlocks, 1, [&, nTreesToUse, bLastGroup](size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == dim.nDataBlocks - 1) ? dim.nRowsTotal - iStartRow : dim.nRowsInBlock;
             ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), iStartRow, nRowsToProcess);
@@ -1370,7 +1370,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByBlocksOfTrees(c
                 }
                 else
                 {
-                    daal::threader_for(nRowsToProcess, nRowsToProcess, [&](size_t iRow) {
+                    daal::threader_for(nRowsToProcess, 1, [&](size_t iRow) {
                         predictByTrees(iTree, nTreesToUse, xBD.get() + iRow * dim.nCols, prob + iRow * _nClasses, nTreesTotal);
                         if (bLastGroup)
                         {
@@ -1399,7 +1399,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByBlocksOfTrees(c
                 }
                 else
                 {
-                    daal::threader_for(nRowsToProcess, nRowsToProcess, [&](size_t iRow) {
+                    daal::threader_for(nRowsToProcess, 1, [&](size_t iRow) {
                         algorithmFPType * countsForTheRow = counts + iRow * _nClasses;
                         safeStat |= predictByTrees(iTree, nTreesToUse, xBD.get() + iRow * dim.nCols, countsForTheRow, nTreesTotal);
                         if (bLastGroup)

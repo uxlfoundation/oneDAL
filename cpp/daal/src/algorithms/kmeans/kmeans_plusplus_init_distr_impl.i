@@ -74,7 +74,7 @@ protected:
     {
         DAAL_ASSERT(nNewCandidates == 1);
         SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             safeStat |= _data.updateMinDistInBlock(aMinDistAcc, nBlocks, iBlock, 1, 0, nullptr, pNewCenters, aMinDist);
         });
         if (!safeStat) return safeStat.detach();
@@ -107,7 +107,7 @@ protected:
         DAAL_CHECK(lastAddedCenterNorm2.get(), ErrorMemoryAllocationFailed);
 
         //calculate
-        daal::threader_for(nNewCandidates, nNewCandidates, [&](size_t iPt) {
+        daal::threader_for(nNewCandidates, 1, [&](size_t iPt) {
             const algorithmFPType * pCenter = pNewCenters + this->_data.dim * iPt;
             algorithmFPType val             = 0;
             for (size_t i = 0; i < this->_data.dim; ++i) val += pCenter[i] * pCenter[i];

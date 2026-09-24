@@ -642,7 +642,7 @@ services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatur
             LapackInst<algorithmFPType, cpu>::xxrscl(&nCols, &nVectors_fp, means, &one);
         }
 
-        threader_for(nVectors, 0, [=](const int vector) {
+        threader_for(nVectors, 64, [=](const std::int64_t vector) {
             daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means,
                                                                  dataCenteredPtr + vector * nFeatures);
         });
@@ -825,7 +825,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
 
         if (nObsValue == 0)
         {
-            daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
+            daal::threader_for(nFeatures, 16, [=](size_t i) {
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
@@ -841,7 +841,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             algorithmFPType invNObs        = 1.0 / nObsValue;
             algorithmFPType invNewNObs     = 1.0 / (nObsValue + partialNObsValue);
 
-            daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
+            daal::threader_for(nFeatures, 16, [=](size_t i) {
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)

@@ -76,7 +76,7 @@ Status ZScoreKernel<algorithmFPType, sumDense, cpu>::computeMeanVariance_thr(Num
 
     SafeStatus safeStat;
     /* Compute partial unscaled variances for each block */
-    daal::threader_for(numBlocks, numBlocks, [&](int iBlock) {
+    daal::threader_for(numBlocks, 1, [&](int iBlock) {
         algorithmFPType * pVariances = tls_data.local();
         DAAL_CHECK_THR(pVariances, ErrorMemoryAllocationFailed);
 

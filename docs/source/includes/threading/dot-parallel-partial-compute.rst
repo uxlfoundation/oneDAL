@@ -17,7 +17,7 @@
    constexpr size_t blockSize = 1024;
    const size_t nBlocks = (n + blockSize - 1) / blockSize;
 
-   daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+   daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
       const size_t iStart = iBlock * blockSize;
       const size_t iEnd = (iBlock < (nBlocks - 1)) ? iStart + blockSize : n;
 

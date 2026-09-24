@@ -332,7 +332,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
 
         DAAL_CHECK_STATUS_OK((status.ok()), status);
 
-        daal::threader_for(blockCount, blockCount, [=, &bboxTLS](int iBlock) {
+        daal::threader_for(blockCount, 1, [=, &bboxTLS](int iBlock) {
             BBox * const bboxLocal = bboxTLS.local();
             if (bboxLocal)
             {
@@ -555,7 +555,7 @@ algorithmFpType KNNClassificationTrainBatchKernel<algorithmFpType, training::def
         return (algorithmFpType)0;
     }
 
-    daal::threader_for(blockCount, blockCount, [=, &histTLS, &samples, &subSamples](int iBlock) {
+    daal::threader_for(blockCount, 1, [=, &histTLS, &samples, &subSamples](int iBlock) {
         Hist * const hist = histTLS.local();
         if (hist)
         {
@@ -720,7 +720,7 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
         return 0;
     }
 
-    daal::threader_for(blockCount, blockCount, [=, &leftSegmentStartPerBlock, &rightSegmentStartPerBlock](int iBlock) {
+    daal::threader_for(blockCount, 1, [=, &leftSegmentStartPerBlock, &rightSegmentStartPerBlock](int iBlock) {
         const size_t first = start + iBlock * rowsPerBlock;
         const size_t last  = min<cpu>(first + rowsPerBlock, end);
 
@@ -854,7 +854,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
         const auto rowsPerBlock = 256;
         const auto blockCount   = (xRowCount + rowsPerBlock - 1) / rowsPerBlock;
 
-        daal::threader_for(blockCount, blockCount, [=](int iBlock) {
+        daal::threader_for(blockCount, 1, [=](int iBlock) {
             const size_t first = iBlock * rowsPerBlock;
             const size_t last  = min<cpu>(static_cast<decltype(xRowCount)>(first + rowsPerBlock), xRowCount);
 
@@ -876,7 +876,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
 
         if (rx == wx)
         {
-            daal::threader_for(blockCount, blockCount, [=](int iBlock) {
+            daal::threader_for(blockCount, 1, [=](int iBlock) {
                 const size_t first = iBlock * rowsPerBlock;
                 const size_t last  = min<cpu>(static_cast<decltype(xRowCount)>(first + rowsPerBlock), xRowCount);
 
@@ -1012,7 +1012,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     SafeStatus safeStat;
 
     daal::threader_for(
-        blockCount, blockCount, [=, &localTLS, &firstNodeIndex, &kdTreeTable, &x, &r, &rowsPerBlock, &xColumnCount, &safeStat, &engine](int iBlock) {
+        blockCount, 1, [=, &localTLS, &firstNodeIndex, &kdTreeTable, &x, &r, &rowsPerBlock, &xColumnCount, &safeStat, &engine](int iBlock) {
             int result                     = 0;
             engines::EnginePtr engineLocal = engine.clone();
 
