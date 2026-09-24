@@ -137,6 +137,11 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
 
         Float prev_objective_function = de::limits<Float>::max();
         std::int64_t iter;
+        // Seed `arr_centroids` with the initial centroids, for the reason given in
+        // train_kernel_lloyd_dense_dpc.cpp. Drained here because every later read of
+        // `arr_centroids` has to be ordered after the copy, including the
+        // `max_iteration_count == 0` path where the copy is the whole model.
+        arr_centroids.assign(queue, arr_initial).wait_and_throw();
         sycl::event last_event = data_squares_event;
 
         for (iter = 0; iter < max_iteration_count; iter++) {
@@ -166,6 +171,10 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             auto objective_function =
                 calc_objective_function(queue, arr_closest_distances, { count_event });
 
+            // `update_centroids` reads `arr_responses` (produced by `assign_event`) and, to decide
+            // which rows to zero, `cluster_counts` (produced by `count_event`, which already
+            // depends on `assign_event`). The queue is out-of-order, so that has to be an explicit
+            // dependency.
             auto update_event = update_centroids(queue,
                                                  values,
                                                  column_indices,
@@ -173,7 +182,8 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                                  column_count,
                                                  arr_responses,
                                                  arr_centroids,
-                                                 cluster_counts);
+                                                 cluster_counts,
+                                                 { count_event });
 
             const std::int64_t empty_cluster_count =
                 count_empty_clusters(queue, cluster_count, cluster_counts, { count_event });
@@ -193,14 +203,18 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                           empty_cluster_count,
                                           cluster_counts,
                                           arr_closest_distances,
+                                          arr_responses,
                                           { update_event });
                 last_event = empty_cluster_event;
             }
 
             objective_function += correction;
 
-            if (accuracy_threshold > 0 &&
-                objective_function + accuracy_threshold > prev_objective_function) {
+            // Both comparisons are inclusive: see the same check in
+            // train_kernel_lloyd_dense_dpc.cpp - a zero threshold means "stop when the
+            // objective function stops improving", matching the CPU kernel.
+            if (accuracy_threshold >= 0 &&
+                objective_function + accuracy_threshold >= prev_objective_function) {
                 iter++;
                 break;
             }
