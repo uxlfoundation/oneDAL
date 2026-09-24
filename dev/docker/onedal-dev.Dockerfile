@@ -19,9 +19,10 @@ FROM ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea264
 ARG workdirectory="/sources/oneDAL"
 WORKDIR ${workdirectory}
 
-#Env setup
-RUN apt-get update && \
-      apt-get -y install sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar
+#Env setup - resilient to transient mirror 404 (e.g., libexpat1)
+RUN apt-get update --fix-missing && \
+      apt-get -y install --fix-missing sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar || \
+      (apt-get clean && rm -rf /var/lib/apt/lists/* && apt-get update --fix-missing && apt-get -y install --fix-missing sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar)
 
 # Install miniconda
 ENV CONDA_DIR=/opt/conda
