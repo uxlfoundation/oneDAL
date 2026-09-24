@@ -99,7 +99,39 @@ jobs:
           set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
+      # `.ci/scripts/test.bat` runs each example executable with no timeout and
+      # redirects its output to a file, so a crash that pops the Windows Error
+      # Reporting dialog would wait for a click that never comes: the step then
+      # hangs until the job limit instead of reporting the non-zero exit code.
+      - name: Disable Windows Error Reporting dialogs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wer = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+          New-Item -Path $wer -Force | Out-Null
+          Set-ItemProperty -Path $wer -Name DontShowUI -Value 1 -Type DWord
+          Set-ItemProperty -Path $wer -Name Disabled -Value 1 -Type DWord
+
+      # OpenBLAS is linked statically (.ci/env/openblas.bat), so no oneDAL binary
+      # may import a DLL named `openblas.dll`: that name is not oneDAL's to claim,
+      # and Windows would resolve the import against whichever `openblas.dll` is
+      # already loaded in the process. Same idea as `Verify ARM64 PE output` in
+      # the Bazel job: check the artifact rather than trust the link.
+      - name: Verify no OpenBLAS import
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          if errorlevel 1 exit /b 1
+          for /R __release_win_${{ matrix.os.cxx }} %%f in (onedal*.dll) do (
+            dumpbin /nologo /dependents "%%f" | findstr /I /C:"openblas" /C:"flang" && (
+              echo ::error::%%f imports a math backend DLL
+              exit /b 1
+            )
+          )
+          echo no OpenBLAS or flang imports in the released binaries
+
       - name: Test daal
+        timeout-minutes: 30
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
@@ -108,6 +140,7 @@ jobs:
           .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
+        timeout-minutes: 30
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
