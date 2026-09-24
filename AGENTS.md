@@ -47,6 +47,7 @@ Read the `AGENTS.md` nearest the files you change:
 These come from recurring maintainer review comments. Directory-specific rules are in the nearest `AGENTS.md`.
 
 - Comments describe the code as it will be once merged. Don't reference discarded approaches, narrate the change, or mention "this PR".
+- Keep comments short and plain: explain why in one line when one line is enough, and in two sentences rather than a paragraph. Agent-written comments have historically been bloated and hard to read; don't restate the code, hedge, or add emphasis.
 - One PR, one logical change. Drive-by fixes, renames and mechanical changes (formatting, generated code, mass renames) go in their own PRs.
 - Search before adding a helper, constant table or validation routine. Extend the existing one and name it in the PR description.
 - Don't add a lock, critical section, guard or redundant check unless you can name the failure it prevents.
