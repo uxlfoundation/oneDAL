@@ -23,7 +23,10 @@
 #pragma once
 
 #include <chrono>
+#include <thread>
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 #include <sstream>
@@ -33,6 +36,7 @@
 #include <algorithm>
 #include <exception>
 #include <unordered_map>
+#include <unordered_set>
 #include "services/library_version_info.h"
 
 #ifdef _WIN32
@@ -123,7 +127,6 @@
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
 
-static volatile int daal_verbose_val                = -1;
 inline static constexpr int PROFILER_MODE_OFF       = 0;
 inline static constexpr int PROFILER_MODE_LOGGER    = 1;
 inline static constexpr int PROFILER_MODE_TRACER    = 2;
@@ -136,25 +139,27 @@ namespace daal
 namespace internal
 {
 
-inline static void set_verbose_from_env()
-{
-    const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
-    int newval               = PROFILER_MODE_OFF;
-    if (verbose_str)
-    {
-        char * endptr  = nullptr;
-        errno          = 0;
-        long val       = std::strtol(verbose_str, &endptr, 10);
-        bool parsed_ok = (errno == 0 && endptr != verbose_str && *endptr == '\0');
-        if (parsed_ok && val >= 0 && val <= 5) newval = static_cast<int>(val);
-    }
-    daal_verbose_val = newval;
-}
-
+// Reads ONEDAL_VERBOSE once per process; the C++17 function-local static gives thread-safe
+// single initialization and a single storage instance across all TUs (fixes the previous
+// namespace-scope `static volatile int` that gave every TU its own copy).
 inline static int daal_verbose_mode()
 {
-    if (daal_verbose_val == -1) set_verbose_from_env();
-    return daal_verbose_val;
+    static const int cached = [] {
+        const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
+        int result               = PROFILER_MODE_OFF;
+        if (verbose_str)
+        {
+            char * endptr = nullptr;
+            errno         = 0;
+            long parsed   = std::strtol(verbose_str, &endptr, 10);
+            if (errno == 0 && endptr != verbose_str && *endptr == '\0' && parsed >= 0 && parsed <= 5)
+            {
+                result = static_cast<int>(parsed);
+            }
+        }
+        return result;
+    }();
+    return cached;
 }
 
 inline static std::string format_time_for_output(std::uint64_t time_ns)
@@ -258,6 +263,7 @@ struct task_entry
     std::int64_t level;
     std::int64_t count;
     bool threading_task;
+    std::int64_t parent_idx; // -1 for top-level; index into task::kernels otherwise
 };
 
 struct task
@@ -302,6 +308,18 @@ private:
     int idx_                = -1;
     bool is_thread_         = false;
 };
+
+// Per-thread stacks of currently-open tasks. Two stacks per thread — regular and threading — kept
+// separate so a worker thread's threading task can find its own inner nesting without colliding
+// with regular tasks opened on the main thread.
+//
+// Storage: an `unordered_map<std::thread::id, vector>` protected by the profiler's global mutex.
+// We do NOT use `thread_local`: this header is included into multiple shared libraries
+// (libonedal_core, libonedal_thread, libonedal_dpc, libonedal, per-CPU-variant translation units)
+// and different .so boundaries can end up owning different TLS instances for the same OS thread,
+// which corrupts the push/pop invariant. The map avoids that entirely — all threads share one
+// well-defined instance in the singleton, and mutex-guarded access makes it thread-safe.
+using per_thread_stack_map = std::unordered_map<std::thread::id, std::vector<std::int64_t>>;
 
 class profiler
 {
@@ -357,23 +375,29 @@ public:
     /// @return A profiler_task object containing the task name and a unique task ID. Returns an invalid
     /// profiler_task (nullptr, -1) if task_name is nullptr
     ///
-    /// @note Captures the start time, updates task information, increments the current nesting level and kernel count,
-    /// and stores task details (ID, name, start time, level, active status) in the tasks_info.kernels vector.
+    /// @note Captures the start time before acquiring the profiler mutex (so lock-wait time is not
+    /// charged to the task), records the parent task index from the calling thread's regular-task stack
+    /// (falling back to the innermost open regular task across threads), derives the nesting level from
+    /// the parent, and pushes the entry into tasks_info.kernels.
     /// Invoked by the DAAL_PROFILER_TASK macro.
     inline static profiler_task start_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
 
+        const std::uint64_t ns_start = get_time();
         std::lock_guard<std::mutex> lock(global_mutex());
-        auto ns_start                = get_time();
-        auto & tasks_info            = get_instance()->get_task();
-        auto & current_level_        = get_instance()->get_current_level();
-        auto & current_kernel_count_ = get_instance()->get_kernel_count();
-        std::int64_t tmp             = current_kernel_count_;
-        tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, false });
-        current_level_++;
-        current_kernel_count_++;
-        return profiler_task(task_name, tmp);
+        auto & inst          = *get_instance();
+        auto & tasks_info    = inst.get_task();
+        auto & rstack        = inst.regular_stacks_[std::this_thread::get_id()];
+        std::int64_t new_idx = static_cast<std::int64_t>(tasks_info.kernels.size());
+
+        const std::int64_t parent_idx = rstack.empty() ? inst.innermost_regular_task_idx_ : rstack.back();
+        const std::int64_t level      = (parent_idx < 0) ? 0 : tasks_info.kernels[parent_idx].level + 1;
+
+        tasks_info.kernels.push_back({ new_idx, task_name, ns_start, level, 1, false, parent_idx });
+        rstack.push_back(new_idx);
+        inst.innermost_regular_task_idx_ = new_idx;
+        return profiler_task(task_name, static_cast<int>(new_idx));
     }
 
     /// Starts a threading-specific profiling task with the given task name and returns a profiler_task object
@@ -383,23 +407,25 @@ public:
     /// @return A profiler_task object containing the task name, a unique task ID, and a threading flag.
     /// Returns an invalid profiler_task (nullptr, -1) if task_name is nullptr
     ///
-    /// @note Uses a mutex for thread safety, logs unique task names if logging is enabled, captures the start time,
-    /// updates task info, and increments the kernel count. Stores task details in tasks_info.kernels, marking it
-    /// as a threading task. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
+    /// @note Captures the start time before acquiring the mutex. Parent index comes from the calling
+    /// worker thread's threading-task stack (allowing nested threading tasks on the same worker);
+    /// if that stack is empty, falls back to the innermost open regular task recorded across threads
+    /// (i.e. the task that spawned the parallel region). Logs unique task names once per process
+    /// if logging is enabled. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
     inline static profiler_task start_threading_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
 
+        const std::uint64_t ns_start = get_time();
         std::lock_guard<std::mutex> lock(global_mutex());
+
         if (is_logger_enabled())
         {
+            auto & inst = *get_instance();
             if (!is_service_debug_enabled())
             {
-                static std::vector<std::string> unique_task_names;
-                bool is_new_task = std::find(unique_task_names.begin(), unique_task_names.end(), task_name) == unique_task_names.end();
-                if (is_new_task)
+                if (inst.unique_threading_task_names_.insert(task_name).second)
                 {
-                    unique_task_names.push_back(task_name);
                     std::cerr << "-----------------------------------------------------------------------------" << '\n';
                     std::cerr << "THREADING Profiler task started on the main rank: " << task_name << '\n';
                 }
@@ -410,14 +436,18 @@ public:
                 std::cerr << "THREADING Profiler task started " << task_name << '\n';
             }
         }
-        auto ns_start                = get_time();
-        auto & tasks_info            = get_instance()->get_task();
-        auto & current_level_        = get_instance()->get_current_level();
-        auto & current_kernel_count_ = get_instance()->get_kernel_count();
-        std::int64_t tmp             = current_kernel_count_;
-        tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, true });
-        current_kernel_count_++;
-        return profiler_task(task_name, tmp, true);
+
+        auto & inst          = *get_instance();
+        auto & tasks_info    = inst.get_task();
+        auto & tstack        = inst.threading_stacks_[std::this_thread::get_id()];
+        std::int64_t new_idx = static_cast<std::int64_t>(tasks_info.kernels.size());
+
+        const std::int64_t parent_idx = tstack.empty() ? inst.innermost_regular_task_idx_ : tstack.back();
+        const std::int64_t level      = (parent_idx < 0) ? 0 : tasks_info.kernels[parent_idx].level + 1;
+
+        tasks_info.kernels.push_back({ new_idx, task_name, ns_start, level, 1, true, parent_idx });
+        tstack.push_back(new_idx);
+        return profiler_task(task_name, static_cast<int>(new_idx), true);
     }
 
     /// Terminates a profiling task and records its duration
@@ -425,22 +455,37 @@ public:
     /// @param[in] task_name The name of the task to end
     /// @param[in] idx_ The index of the task in the tasks_info.kernels vector
     ///
-    /// @note If task_name is nullptr, the function returns immediately. Captures the end time,
-    /// calculates the task duration, updates the task entry, and decrements the current nesting level.
-    /// Logs the task name and duration if tracing is enabled. Uses a mutex for thread safety.
+    /// @note If task_name is nullptr, the function returns immediately. Captures the end time
+    /// before acquiring the mutex (so the recorded duration excludes lock-wait time), pops the
+    /// calling thread's regular-task stack, and restores the global innermost-regular-task index
+    /// to the popped task's parent. Logs the task name and duration if tracing is enabled.
     /// Invoked by macros such as DAAL_PROFILER_TASK.
     inline static void end_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
-        auto & tasks_info          = get_instance()->get_task();
 
         std::lock_guard<std::mutex> lock(global_mutex());
-        auto & entry          = tasks_info.kernels[idx_];
-        auto duration         = ns_end - entry.duration;
-        entry.duration        = duration;
-        auto & current_level_ = get_instance()->get_current_level();
-        current_level_--;
+        auto & inst       = *get_instance();
+        auto & tasks_info = inst.get_task();
+        if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
+
+        auto & entry           = tasks_info.kernels[idx_];
+        const auto duration    = ns_end - entry.duration;
+        entry.duration         = duration;
+
+        auto & rstack = inst.regular_stacks_[std::this_thread::get_id()];
+        if (!rstack.empty() && rstack.back() == idx_)
+        {
+            rstack.pop_back();
+        }
+        else if (!rstack.empty())
+        {
+            // RAII invariant violated (should not happen); fall back to scan+erase to stay safe.
+            rstack.erase(std::remove(rstack.begin(), rstack.end(), static_cast<std::int64_t>(idx_)), rstack.end());
+        }
+        inst.innermost_regular_task_idx_ = entry.parent_idx;
+
         if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
     }
 
@@ -450,30 +495,37 @@ public:
     /// @param[in] idx_ The index of the task in the tasks_info.kernels vector
     ///
     /// @note If task_name is nullptr or idx_ is invalid, the function returns immediately.
-    /// Captures the end time, calculates the task duration, and updates the task entry.
-    /// Logs unique task names and duration if tracing is enabled, indicating completion on the main rank.
-    /// Uses a mutex for thread safety. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
+    /// Captures the end time before the mutex, calculates duration, updates the entry, and pops
+    /// the calling worker thread's threading-task stack. Logs unique task names and durations if
+    /// tracing is enabled. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
     inline static void end_threading_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
+        const std::uint64_t ns_end = get_time();
 
         std::lock_guard<std::mutex> lock(global_mutex());
-        const std::uint64_t ns_end = get_time();
-        auto & tasks_info          = get_instance()->get_task();
-
+        auto & inst       = *get_instance();
+        auto & tasks_info = inst.get_task();
         if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
 
-        auto & entry   = tasks_info.kernels[idx_];
-        auto duration  = ns_end - entry.duration;
-        entry.duration = duration;
+        auto & entry        = tasks_info.kernels[idx_];
+        const auto duration = ns_end - entry.duration;
+        entry.duration      = duration;
+
+        auto & tstack = inst.threading_stacks_[std::this_thread::get_id()];
+        if (!tstack.empty() && tstack.back() == idx_)
+        {
+            tstack.pop_back();
+        }
+        else if (!tstack.empty())
+        {
+            tstack.erase(std::remove(tstack.begin(), tstack.end(), static_cast<std::int64_t>(idx_)), tstack.end());
+        }
 
         if (is_tracer_enabled())
         {
-            static std::vector<std::string> unique_task_names;
-            bool is_new_task = std::find(unique_task_names.begin(), unique_task_names.end(), task_name) == unique_task_names.end();
-            if (is_new_task)
+            if (inst.unique_threading_task_end_names_.insert(task_name).second)
             {
-                unique_task_names.push_back(task_name);
                 std::cerr << "THREADING " << task_name
                           << " finished on the main rank(time could be different for other ranks): " << format_time_for_output(duration) << '\n';
             }
@@ -493,12 +545,14 @@ public:
         return &instance;
     }
 
-    /// Merges tasks at the same nesting level with identical names to improve profiling clarity
+    /// Merges sibling tasks with identical names (same parent, same name) into a single entry.
     ///
-    /// @note Combines tasks with the same name and level in the tasks_info.kernels vector to simplify
-    /// profiling output. For non-threading tasks, durations are summed; for threading tasks, the maximum
-    /// duration is taken. Updates task counts and removes redundant entries. Skips merging if service
-    /// debug mode is enabled to preserve detailed task information.
+    /// @note Combines matching tasks in the tasks_info.kernels vector to simplify profiling output.
+    /// For non-threading tasks, durations are summed; for threading tasks, the maximum duration is
+    /// taken (rough estimate of wall-clock time under parallelism). Skipped in service-debug mode
+    /// to preserve per-instance detail. Uses an unordered_map keyed on (parent_idx, name) so the
+    /// merge is O(n) instead of the previous O(n^2), and matches on true parent identity rather
+    /// than the ambiguous (level, name) pair.
     inline void merge_tasks()
     {
         if (is_service_debug_enabled())
@@ -507,42 +561,78 @@ public:
         }
         auto & tasks_info = get_instance()->get_task();
         auto & kernels    = tasks_info.kernels;
-        size_t i          = 0;
-        while (i < kernels.size())
+
+        // Map (parent_idx, name) -> canonical index in the compacted output.
+        struct key_t
         {
-            size_t start      = i;
-            int current_level = kernels[i].level;
-            size_t end        = start;
-            while (end < kernels.size() && kernels[end].level == current_level) ++end;
-            for (size_t j = start; j < end; ++j)
+            std::int64_t parent;
+            std::string name;
+            bool operator==(const key_t & o) const { return parent == o.parent && name == o.name; }
+        };
+        struct key_hash
+        {
+            size_t operator()(const key_t & k) const noexcept
             {
-                for (size_t k = j + 1; k < end; ++k)
-                {
-                    if (kernels[j].name == kernels[k].name)
-                    {
-                        if (kernels[j].threading_task)
-                            kernels[j].duration = std::max(kernels[j].duration, kernels[k].duration);
-                        else
-                            kernels[j].duration += kernels[k].duration;
-                        kernels.erase(kernels.begin() + k);
-                        --k;
-                        --end;
-                        kernels[j].count++;
-                    }
-                }
+                return std::hash<std::int64_t> {}(k.parent) ^ (std::hash<std::string> {}(k.name) << 1);
             }
-            i = end;
+        };
+
+        std::vector<task_entry> merged;
+        merged.reserve(kernels.size());
+        std::unordered_map<key_t, std::int64_t, key_hash> canonical;
+        std::vector<std::int64_t> remap(kernels.size(), -1);
+
+        for (size_t i = 0; i < kernels.size(); ++i)
+        {
+            const auto & e = kernels[i];
+            key_t k { e.parent_idx == -1 ? -1 : remap[e.parent_idx], e.name };
+            auto it = canonical.find(k);
+            if (it != canonical.end())
+            {
+                auto & target = merged[it->second];
+                if (target.threading_task)
+                    target.duration = std::max(target.duration, e.duration);
+                else
+                    target.duration += e.duration;
+                target.count++;
+                remap[i] = it->second;
+            }
+            else
+            {
+                task_entry ne  = e;
+                ne.parent_idx  = k.parent;
+                ne.idx         = static_cast<std::int64_t>(merged.size());
+                remap[i]       = static_cast<std::int64_t>(merged.size());
+                canonical[k]   = static_cast<std::int64_t>(merged.size());
+                merged.push_back(std::move(ne));
+            }
         }
+        kernels = std::move(merged);
     }
 
     inline task & get_task() { return task_; }
-    inline std::int64_t & get_current_level() { return current_level_; }
-    inline std::int64_t & get_kernel_count() { return kernel_count_; }
+
+public:
+    // Per-thread stacks of currently-open regular and threading tasks, keyed by std::thread::id.
+    // These are made public solely so the static start_/end_task methods (which run on many
+    // threads but share this singleton) can index into them under global_mutex(). Guarded by
+    // global_mutex().
+    per_thread_stack_map regular_stacks_;
+    per_thread_stack_map threading_stacks_;
+
+    // Innermost open regular task across all threads; used as fallback parent for threading tasks
+    // opened on worker threads that have no regular task on their own stack. Guarded by global_mutex().
+    std::int64_t innermost_regular_task_idx_ = -1;
+
+    // Once-per-process suppression sets for the logger/tracer THREADING messages. Live on the
+    // singleton so their lifetime is bounded to the profiler's, not the process, and they can be
+    // inspected. Guarded by global_mutex().
+    std::unordered_set<std::string> unique_threading_task_names_;
+    std::unordered_set<std::string> unique_threading_task_end_names_;
 
 private:
-    std::int64_t current_level_ = 0;
-    std::int64_t kernel_count_  = 0;
     task task_;
+
     static std::mutex & global_mutex()
     {
         static std::mutex m;
