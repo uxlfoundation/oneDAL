@@ -51,7 +51,8 @@ struct impurity_data<Float, Index, task::classification> {
                                                { node_count * impl_const_t::node_imp_prop_count_ },
                                                alloc::device)),
               class_hist_list_(
-                  pr::ndarray<Index, 1>::empty(q, { node_count * class_count }, alloc::device)) {}
+                  pr::ndarray<Index, 1>::empty(q, { node_count * class_count }, alloc::device)),
+              node_weight_list_(pr::ndarray<Float, 1>::empty(q, { node_count }, alloc::device)) {}
 
     impurity_data(const sycl::queue& q, const context_t& ctx, Index node_count)
             : imp_list_(
@@ -60,7 +61,8 @@ struct impurity_data<Float, Index, task::classification> {
                                                alloc::device)),
               class_hist_list_(pr::ndarray<Index, 1>::empty(q,
                                                             { node_count * ctx.class_count_ },
-                                                            alloc::device)) {}
+                                                            alloc::device)),
+              node_weight_list_(pr::ndarray<Float, 1>::empty(q, { node_count }, alloc::device)) {}
 
     imp_data_t to_host(sycl::queue& q, const dal::backend::event_vector& deps = {}) const {
         imp_data_t imp_data_host;
@@ -71,6 +73,7 @@ struct impurity_data<Float, Index, task::classification> {
 
     dal::backend::primitives::ndarray<Float, 1> imp_list_;
     dal::backend::primitives::ndarray<Index, 1> class_hist_list_;
+    dal::backend::primitives::ndarray<Float, 1> node_weight_list_;
 };
 
 template <typename Float, typename Index>
@@ -86,13 +89,15 @@ struct impurity_data<Float, Index, task::regression> {
             : imp_list_(
                   pr::ndarray<Float, 1>::empty(q,
                                                { node_count * impl_const_t::node_imp_prop_count_ },
-                                               alloc::device)) {}
+                                               alloc::device)),
+              node_weight_list_(pr::ndarray<Float, 1>::empty(q, { node_count }, alloc::device)) {}
 
     impurity_data(const sycl::queue& q, const context_t& ctx, Index node_count)
             : imp_list_(
                   pr::ndarray<Float, 1>::empty(q,
                                                { node_count * impl_const_t::node_imp_prop_count_ },
-                                               alloc::device)) {}
+                                               alloc::device)),
+              node_weight_list_(pr::ndarray<Float, 1>::empty(q, { node_count }, alloc::device)) {}
 
     imp_data_t to_host(sycl::queue& q, const dal::backend::event_vector& deps = {}) const {
         imp_data_t imp_data_host;
@@ -101,6 +106,7 @@ struct impurity_data<Float, Index, task::regression> {
     }
 
     dal::backend::primitives::ndarray<Float, 1> imp_list_;
+    dal::backend::primitives::ndarray<Float, 1> node_weight_list_;
 };
 
 // holders for impurity data pointers parametrized by task
@@ -111,9 +117,11 @@ template <typename Float, typename Index>
 struct imp_data_list_ptr<Float, Index, task::classification> {
     imp_data_list_ptr(const impurity_data<Float, Index, task::classification>& imp_data)
             : imp_list_ptr_(imp_data.imp_list_.get_data()),
-              class_hist_list_ptr_(imp_data.class_hist_list_.get_data()) {}
+              class_hist_list_ptr_(imp_data.class_hist_list_.get_data()),
+              node_weight_list_ptr_(imp_data.node_weight_list_.get_data()) {}
     const Float* imp_list_ptr_;
     const Index* class_hist_list_ptr_;
+    const Float* node_weight_list_ptr_;
 
     const Index* get_class_hist_list_ptr_or_null() {
         return class_hist_list_ptr_;
@@ -123,8 +131,10 @@ struct imp_data_list_ptr<Float, Index, task::classification> {
 template <typename Float, typename Index>
 struct imp_data_list_ptr<Float, Index, task::regression> {
     imp_data_list_ptr(const impurity_data<Float, Index, task::regression>& imp_data)
-            : imp_list_ptr_(imp_data.imp_list_.get_data()) {}
+            : imp_list_ptr_(imp_data.imp_list_.get_data()),
+              node_weight_list_ptr_(imp_data.node_weight_list_.get_data()) {}
     const Float* imp_list_ptr_;
+    const Float* node_weight_list_ptr_;
 
     const Index* get_class_hist_list_ptr_or_null() {
         return nullptr;
@@ -138,10 +148,12 @@ template <typename Float, typename Index>
 struct imp_data_list_ptr_mutable<Float, Index, task::classification> {
     imp_data_list_ptr_mutable(impurity_data<Float, Index, task::classification>& imp_data)
             : imp_list_ptr_(imp_data.imp_list_.get_mutable_data()),
-              class_hist_list_ptr_(imp_data.class_hist_list_.get_mutable_data()) {}
+              class_hist_list_ptr_(imp_data.class_hist_list_.get_mutable_data()),
+              node_weight_list_ptr_(imp_data.node_weight_list_.get_mutable_data()) {}
 
     Float* imp_list_ptr_;
     Index* class_hist_list_ptr_;
+    Float* node_weight_list_ptr_;
 
     Index* get_class_hist_list_ptr_or_null() {
         return class_hist_list_ptr_;
@@ -151,9 +163,11 @@ struct imp_data_list_ptr_mutable<Float, Index, task::classification> {
 template <typename Float, typename Index>
 struct imp_data_list_ptr_mutable<Float, Index, task::regression> {
     imp_data_list_ptr_mutable(impurity_data<Float, Index, task::regression>& imp_data)
-            : imp_list_ptr_(imp_data.imp_list_.get_mutable_data()) {}
+            : imp_list_ptr_(imp_data.imp_list_.get_mutable_data()),
+              node_weight_list_ptr_(imp_data.node_weight_list_.get_mutable_data()) {}
 
     Float* imp_list_ptr_;
+    Float* node_weight_list_ptr_;
 
     Index* get_class_hist_list_ptr_or_null() {
         return nullptr;

@@ -144,6 +144,7 @@ function install_miniforge {
     fi
 
     sudo bash "${installer}" -b -p /usr/share/miniconda
+    sudo chown -R "$(id -u):$(id -g)" /usr/share/miniconda
     source /usr/share/miniconda/etc/profile.d/conda.sh
 }
 

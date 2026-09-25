@@ -415,24 +415,28 @@ def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inp
 def _cc_dynamic_lib_impl(ctx):
     is_windows = _is_windows(ctx)
     _validate_build_parameters_lib(ctx, is_windows)
-    # On Linux, keep produced shared libraries free of dynamic Bazel deps.
-    # Release-dynamic tests provide standalone oneDAL libs through
-    # DALROOT/LD_LIBRARY_PATH while Bazel-provided runtimes such as TBB
-    # live in test runfiles; DT_NEEDED entries on those deps are not
-    # resolved through the executable RUNPATH.
+    # Released shared libraries must record their dynamic dependencies, the
+    # same way the Makefile does (`dev/make/function_definitions/lnx32e.mk:27`
+    # feeds `-ltbb -ltbbmalloc` into libonedal_thread.so at `makefile:872`,
+    # and the toolchain supplies `-lstdc++ -lm`). Requesting
+    # `do_not_link_dynamic_dependencies` here used to drop every dynamic
+    # library from the link line -- see the `libraries_to_link` and
+    # `default_dynamic_libraries` flag sets guarded by that feature in
+    # `dev/bazel/toolchains/cc_toolchain_config_lnx.bzl` -- which left the
+    # released libs without DT_NEEDED for TBB, libstdc++, libm and even for
+    # sibling oneDAL libs. Those entries cannot be substituted by the
+    # consumer: an external consumer never links TBB itself, so loading
+    # libonedal_thread.so failed with an undefined `tbb::detail::r1::*`
+    # symbol. The feature is left defined in the toolchains so it stays
+    # available through `--features`, but nothing enables it by default.
     #
-    # Windows must not request the feature. MSVC resolves every external at
+    # Windows never requested the feature. MSVC resolves every external at
     # link time, so a DLL that consumes another DLL needs the dependency's
     # import library on the command line -- exactly the `interface_library`
     # link inputs this feature suppresses. With it enabled, onedal.dll has
     # nothing to resolve the DAAL symbols it imports from onedal_core.dll
-    # against and lld-link fails with undefined externals. Nothing is lost by
-    # skipping it here: the Windows toolchain registers an empty
-    # `dynamic_link_libs`, so the feature's other flag set expands to nothing.
-    dynamic_dep_features = [] if is_windows else [
-        "do_not_link_dynamic_dependencies",
-    ]
-    toolchain, feature_config = _init_cc_rule(ctx, features=dynamic_dep_features)
+    # against and lld-link fails with undefined externals.
+    toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(

@@ -155,6 +155,7 @@ private:
     ///
     /// @param[in] ctx              a training context structure for a GPU backend
     /// @param[in] response         an array with data responses (labels)
+    /// @param[in] weights          an array of per-row weights for weighted training
     /// @param[in] tree_order       current tree order
     /// @param[in] node_list        a node list containing splitting information
     /// @param[in] imp_data_list    a list of nodes' impurity
@@ -162,6 +163,7 @@ private:
     /// @param[in] deps             a set of SYCL events this kernel depends on
     sycl::event compute_initial_histogram_local(const train_context_t& ctx,
                                                 const pr::ndarray<Float, 1>& response,
+                                                const pr::ndarray<Float, 1>& weights,
                                                 const pr::ndarray<Index, 1>& tree_order,
                                                 pr::ndarray<Index, 1>& node_list,
                                                 imp_data_t& imp_data_list,
@@ -228,6 +230,7 @@ private:
     ///
     /// @param[in] ctx              a training context structure for a GPU backend
     /// @param[in] response         an array with data responses (labels)
+    /// @param[in] weights          an array of per-row weights for weighted training
     /// @param[in] tree_order       current tree order
     /// @param[in] node_list        a node list containing splitting information
     /// @param[in] imp_data_list    a list of nodes' impurity
@@ -235,6 +238,7 @@ private:
     /// @param[in] deps             a set of SYCL events this kernel depends on
     sycl::event compute_initial_histogram(const train_context_t& ctx,
                                           const pr::ndarray<Float, 1>& response,
+                                          const pr::ndarray<Float, 1>& weights,
                                           const pr::ndarray<Index, 1>& tree_order,
                                           pr::ndarray<Index, 1>& node_list,
                                           imp_data_t& imp_data_list,
