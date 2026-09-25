@@ -69,7 +69,7 @@ pre-commit run --all-files
 editorconfig-checker
 ```
 
-The pre-commit hook checks the same files as CI, with the same clang-format version (20.1.8; other versions format differently). To run exactly what CI runs, without modifying files: `CLANG_FORMAT_EXE=clang-format-20 .ci/scripts/clang-format.sh`.
+CI runs `.ci/scripts/clang-format.sh` with clang-format 20.1.8 (other versions format differently). It reformats files in place, so commit first: `CLANG_FORMAT_EXE=clang-format-20 .ci/scripts/clang-format.sh`.
 
 ### Tests (Bazel)
 

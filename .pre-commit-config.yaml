@@ -19,7 +19,3 @@ repos:
     rev: v20.1.8
     hooks:
       - id: clang-format
-        # Same files as .ci/scripts/clang-format.sh; identify gives .i files no type tags.
-        types_or: []
-        types: [file]
-        files: ^(cpp/daal|cpp/oneapi|examples/daal|examples/oneapi|samples/daal|samples/oneapi)/.*\.(c|cpp|h|hpp|cl|i)$
