@@ -17,7 +17,15 @@
 
 RETURN_CODE=0
 
-CLANG_FORMAT_EXE=${CLANG_FORMAT_EXE:-clang-format-20}
+CLANG_FORMAT_EXE="${1:+$1}"
+
+if ! ${CLANG_FORMAT_EXE} --version; then
+    CLANG_FORMAT_EXE=${CLANG_FORMAT_EXE:-clang-format-20}
+    if ! ${CLANG_FORMAT_EXE} --version; then
+        echo "clang-format not found or not working properly."
+        exit 1
+    fi
+fi
 
 echo "Using clang-format version: $(${CLANG_FORMAT_EXE} --version)"
 echo "Starting format check..."
