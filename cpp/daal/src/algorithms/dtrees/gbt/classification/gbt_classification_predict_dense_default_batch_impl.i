@@ -455,7 +455,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         const size_t blockSize = nRows / nBlocks;
         nBlocks += (nBlocks * blockSize != nRows);
 
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             const size_t startRow  = iBlock * blockSize;
             const size_t finishRow = (((iBlock + 1) == nBlocks) ? nRows : (iBlock + 1) * blockSize);
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, res + startRow, expVal + startRow);
@@ -487,7 +487,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         auto nBlocks           = daal::threader_get_threads_number();
         const size_t blockSize = nRows / nBlocks;
         nBlocks += (nBlocks * blockSize != nRows);
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             const size_t startRow  = iBlock * blockSize;
             const size_t finishRow = (((iBlock + 1) == nBlocks) ? nRows : (iBlock + 1) * blockSize);
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, expVal + startRow, expVal + startRow);
@@ -808,7 +808,7 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::predictByAllTrees(
         algorithmFPType * valFull = valPtr.get();
         services::internal::service_memset<algorithmFPType, cpu>(valFull, algorithmFPType(bias), nRows * nClasses);
 
-        daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](size_t iBlock) {
+        daal::threader_for(dim.nDataBlocks, 1, [&](size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == (dim.nDataBlocks - 1)) ? dim.nRowsTotal - iStartRow : dim.nRowsInBlock;
             algorithmFPType * valL      = valFull + iStartRow * nClasses;
@@ -827,7 +827,7 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::predictByAllTrees(
     else if (!_prob && this->_res)
     {
         ClassesRawBoostedTls lsData(nClasses * dim.vectorBlockSizeFactor * dim.vectorBlockSizeStep);
-        daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](size_t iBlock) {
+        daal::threader_for(dim.nDataBlocks, 1, [&](size_t iBlock) {
             algorithmFPType * const val = lsData.local();
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == (dim.nDataBlocks - 1)) ? dim.nRowsTotal - iStartRow : dim.nRowsInBlock;

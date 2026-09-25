@@ -314,7 +314,7 @@ void TrainBatchTaskBase<algorithmFPType, BinIndexType, cpu>::updateOOB(size_t iT
     auto pf               = f();
     const size_t n        = _aSampleToF.size();
     const size_t nIt      = n - _nSamples;
-    daal::threader_for(nIt, nIt, [&](size_t i) {
+    daal::threader_for(nIt, 1, [&](size_t i) {
         RowIndexType iRow = aSampleToF[i + _nSamples];
         ReadRows<algorithmFPType, cpu> x(const_cast<NumericTable *>(_dataHelper.data()), iRow, 1);
         auto pNode = dtrees::prediction::internal::findNode<algorithmFPType, TreeType, cpu>(t, x.get());
@@ -464,7 +464,7 @@ services::Status computeTypeDisp(const NumericTable * x, const NumericTable * y,
 
         const dtrees::internal::IndexedFeatures::IndexType * fi = indexedFeatures.data(0);
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             const size_t iStart = iBlock * sizeOfBlock;
             const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > nRows) ? nRows : iStart + sizeOfBlock);
 

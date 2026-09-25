@@ -40,15 +40,18 @@ struct IdxValType
     bool operator>(const IdxValType & o) const { return o.value == value ? index > o.index : value > o.value; }
     bool operator<=(const IdxValType & o) const { return value < o.value || (value == o.value && index == o.index); }
 };
-typedef void (*functype)(int i, const void * a);
-typedef void (*functype_int64)(int64_t i, const void * a);
-typedef void (*functype_int32ptr)(const int * i, const void * a);
-typedef void (*functype_static)(size_t i, size_t tid, const void * a);
-typedef void (*functype2)(int i, int n, const void * a);
-typedef void (*functype_blocked_size)(size_t first, size_t last, const void * a);
+typedef void (*functype)(int64_t i, const void * a);
+typedef void (*functype_int64ptr)(const int64_t * i, const void * a);
+typedef void (*functype_static)(int64_t i, size_t tid, const void * a);
+typedef void (*functype2)(int64_t first, int64_t last, const void * a);
 typedef void * (*tls_functype)(const void * a);
 typedef void (*tls_reduce_functype)(void * p, const void * a);
-typedef void (*functype_break)(int i, bool & needBreak, const void * a);
+typedef void (*functype_break)(int64_t i, bool & needBreak, const void * a);
+
+typedef void (*functype_int32)(int i, const void * a);
+typedef void (*functype2_int32)(int first, int last, const void * a);
+typedef void (*functype_break_int32)(int i, bool & needBreak, const void * a);
+
 typedef int64_t (*loop_functype_int32_int64)(int32_t start_idx_reduce, int32_t end_idx_reduce, int64_t value_for_reduce, const void * a);
 typedef int64_t (*loop_functype_int32ptr_int64)(const int32_t * start_idx_reduce, const int32_t * end_idx_reduce, int64_t value_for_reduce,
                                                 const void * a);
@@ -87,18 +90,24 @@ extern "C"
 {
     DAAL_EXPORT int _daal_threader_get_max_threads();
     DAAL_EXPORT int _daal_threader_get_current_thread_index();
-    DAAL_EXPORT void _daal_threader_for(int n, int threads_request, const void * a, daal::functype func);
-    DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
-    DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
-    DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::functype_int64 func);
-    DAAL_EXPORT void _daal_threader_for_simple(int n, int threads_request, const void * a, daal::functype func);
-    DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
-    DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func);
-    DAAL_EXPORT void _daal_threader_for_blocked(int n, int threads_request, const void * a, daal::functype2 func);
-    DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
-    DAAL_EXPORT void _daal_threader_for_optional(int n, int threads_request, const void * a, daal::functype func);
-    DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void * a, daal::functype_break func);
 
+    DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t grain_size, const void * a, daal::functype func);
+    DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t grain_size, const void * a, daal::functype func);
+    DAAL_EXPORT void _daal_threader_for_int64ptr(const int64_t * begin, const int64_t * end, const void * a, daal::functype_int64ptr func);
+    DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::functype_static func);
+    DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t grain_size, const void * a, daal::functype2 func);
+    DAAL_EXPORT void _daal_threader_for_optional(int64_t n, int64_t grain_size, const void * a, daal::functype func);
+    DAAL_EXPORT void _daal_threader_for_break(int64_t n, int64_t grain_size, const void * a, daal::functype_break func);
+
+    DAAL_EXPORT void _daal_threader_for_int32(int n, int grain_size, const void * a, daal::functype_int32 func);
+    DAAL_EXPORT void _daal_threader_for_simple_int32(int n, int grain_size, const void * a, daal::functype_int32 func);
+    DAAL_EXPORT void _daal_threader_for_blocked_int32(int n, int grain_size, const void * a, daal::functype2_int32 func);
+    DAAL_EXPORT void _daal_threader_for_optional_int32(int n, int grain_size, const void * a, daal::functype_int32 func);
+    DAAL_EXPORT void _daal_threader_for_break_int32(int n, int grain_size, const void * a, daal::functype_break_int32 func);
+
+    DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
+
+    DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64(int32_t n, int64_t init, const void * a, daal::loop_functype_int32_int64 loop_func,
                                                           const void * b, daal::reduction_functype_int64 reduction_func);
     DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64_simple(int32_t n, int64_t init, const void * a, daal::loop_functype_int32_int64 loop_func,
@@ -225,113 +234,152 @@ inline size_t setNumberOfThreads(const size_t numThreads, void ** globalControl)
 }
 
 template <typename F>
-inline void threader_func(int i, const void * a)
+inline void threader_func(int64_t i, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i);
 }
 
 template <typename F>
-inline void static_threader_func(size_t i, size_t tid, const void * a)
+inline void static_threader_func(int64_t i, size_t tid, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i, tid);
 }
 
 template <typename F>
-inline void threader_func_b(int i0, int in, const void * a)
+inline void threader_func_int64ptr(const int64_t * i, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
-    func(i0, in);
+    func(i);
 }
 
 template <typename F>
-inline void threader_func_break(int i, bool & needBreak, const void * a)
+inline void threader_func_b(int64_t first, int64_t last, const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func(first, last);
+}
+
+template <typename F>
+inline void threader_func_break(int64_t i, bool & needBreak, const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func(i, needBreak);
+}
+
+template <typename F>
+inline void threader_func_int32(int i, const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func(i);
+}
+
+template <typename F>
+inline void threader_func_b_int32(int first, int last, const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func(first, last);
+}
+
+template <typename F>
+inline void threader_func_break_int32(int i, bool & needBreak, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i, needBreak);
 }
 
 /// Pass a function to be executed in a for loop to the threading layer.
-/// The maximal number of iterations in the loop is `2^31 - 1 (INT32_MAX)`.
+/// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
 /// The default scheduling of the threading layer is used to assign
 /// the iterations of the loop to threads.
 /// Data dependencies between the iterations are allowed, but may requre the use
 /// of synchronization primitives.
 ///
-/// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
+/// The second parameter used to be documented as reserved and was ignored: the chunk size
+/// was hardcoded to 1. It is now the grain size handed to the threading backend, so
+/// `grain_size == 1` reproduces the previous behaviour exactly and is the right value
+/// whenever a single iteration already carries enough work to amortize a task dispatch.
+/// Raise it only for loops whose body is a handful of instructions, where the dispatch
+/// cost would otherwise dominate.
+///
+/// @tparam F   Callable object of type `[/* captures */](int64_t i) -> void`,
 ///             where `i` is the loop's iteration index, `0 <= i < n`.
 ///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] reserved Parameter reserved for the future. Currently unused.
-/// @param[in] func     Callable object that defines the loop body.
+/// @param[in] n          Number of iterations in the for loop.
+/// @param[in] grain_size Minimum number of iterations the threading backend assigns to a
+///                       single thread. Must be at least 1.
+/// @param[in] func       Callable object that defines the loop body.
 template <typename F>
-inline void threader_for(int n, int reserved, const F & func)
+inline void threader_for(int64_t n, int64_t grain_size, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for(n, reserved, a, threader_func<F>);
+    _daal_threader_for(n, grain_size, a, threader_func<F>);
 }
 
 /// Pass a function to be executed in a for loop to the threading layer.
 /// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
-/// The default scheduling of the threading layer is used to assign
-/// the iterations of the loop to threads.
-/// The iterations of the loop should be logically independent.
+///
+/// The specifics of this loop comparing to `threader_for` is that the iteration space
+/// of the loop is always chunked with chunk size `grain_size`, with no further splitting
+/// or merging by the backend's heuristics.
+/// With `grain_size == 1` this means the threading layer tries to assign consecutive
+/// iterations to different threads, if possible.
+/// In case of oneTBB threading backend this means that `simple_partitioner`
+/// (https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html)
+/// is used to produce iteration to threads mappings.
+///
 /// Data dependencies between the iterations are allowed, but may requre the use
 /// of synchronization primitives.
 ///
 /// @tparam F   Callable object of type `[/* captures */](int64_t i) -> void`,
 ///             where `i` is the loop's iteration index, `0 <= i < n`.
 ///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] func     Callable object that defines the loop body.
+/// @param[in] n          Number of iterations in the for loop.
+/// @param[in] grain_size Number of iterations in a chunk. Must be at least 1.
+/// @param[in] func       Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_int64(int64_t n, const F & func)
+inline void threader_for_simple(int64_t n, int64_t grain_size, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_int64(n, a, threader_func<F>);
+    _daal_threader_for_simple(n, grain_size, a, threader_func<F>);
 }
 
-/// Pass a function to be executed in a for loop to the threading layer.
-/// The maximal number of iterations in the loop is 2^31 - 1.
+/// Pass a function to be executed in a for loop over a range of int64_t pointers
+/// to the threading layer.
 ///
-/// The specifics of this loop comparing to `threader_for` is that the iteration space
-/// of the loop is always chunked with chunk size 1.
-/// This means the threading layer tries to assign consecutive iterations to
-/// different threads, if possible.
-/// In case of oneTBB threading backend this means that `simple_partitioner`
-/// (https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html)
-/// with chunk size 1 is used to produce iteration to threads mappings.
+/// The iteration space of the loop is defined by the half-open range
+/// `[begin, end)`. Each iteration corresponds to a single pointer value
+/// within this range.
 ///
-/// Data dependencies between the iterations are allowed, but may requre the use
-/// of synchronization primitives.
+/// The specifics of this loop comparing to `threader_for` and
+/// `threader_for_simple` is that the iteration variable is not an index,
+/// but a pointer to `int64_t`. The threading layer always chunks the iteration
+/// space with chunk size 1, so each pointer in the range represents an
+/// independent iteration unit.
 ///
-/// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
-///             where `i` is the loop's iteration index, `0 <= i < n`.
+/// Data dependencies between the iterations are allowed, but may require
+/// the use of synchronization primitives.
 ///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] reserved Parameter reserved for the future. Currently unused.
+/// @tparam F   Callable object of type
+///             `[/* captures */](const int64_t * i) -> void`,
+///             where `i` iterates over all values in `[begin, end)`.
+///
+/// @param[in] begin    Pointer to the first element of the iteration range.
+/// @param[in] end      Pointer past the last element of the iteration range.
 /// @param[in] func     Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_simple(int n, int reserved, const F & func)
+inline void threader_for_int64ptr(const int64_t * begin, const int64_t * end, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_simple(n, reserved, a, threader_func<F>);
-}
-
-template <typename F>
-inline void threader_for_int32ptr(const int * begin, const int * end, const F & func)
-{
-    const void * a = static_cast<const void *>(&func);
-
-    _daal_threader_for_int32ptr(begin, end, a, threader_func<F>);
+    _daal_threader_for_int64ptr(begin, end, a, threader_func_int64ptr<F>);
 }
 
 /// Execute the for loop defined by the input parameters in parallel.
-/// The maximal number of iterations in the loop is `SIZE_MAX` in C99 standard.
+/// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
 ///
 /// The work is scheduled statically across threads.
 /// This means that the work is always scheduled in the same way across the threads:
@@ -350,7 +398,7 @@ inline void threader_for_int32ptr(const int * begin, const int * end, const F & 
 /// ...
 /// the `t`-th thread executes iterations `(t - 1) * nI, ..., n - 1`.
 ///
-/// @tparam F   Callable object of type `[/* captures */](size_t i, size_t tid) -> void`,
+/// @tparam F   Callable object of type `[/* captures */](int64_t i, size_t tid) -> void`,
 ///             where
 ///                 `i` is the loop's iteration index, `0 <= i < n`;
 ///                 `tid` is the index of the thread, `0 <= tid < t`.
@@ -358,7 +406,7 @@ inline void threader_for_int32ptr(const int * begin, const int * end, const F & 
 /// @param[in] n        Number of iterations in the for loop.
 /// @param[in] func     Callable object that defines iteration's body.
 template <typename F>
-inline void static_threader_for(size_t n, const F & func)
+inline void static_threader_for(int64_t n, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
@@ -366,43 +414,198 @@ inline void static_threader_for(size_t n, const F & func)
 }
 
 /// Pass a function to be executed in a for loop to the threading layer.
-/// The maximal number of iterations in the loop is `2^31 - 1 INT32_MAX`.
+/// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
 /// The default scheduling of the threading layer is used to assign
 /// the iterations of the loop to threads.
 ///
-/// @tparam F   Callable object of type `[/* captures */](int beginRange, int endRange) -> void`
+/// @tparam F   Callable object of type `[/* captures */](int64_t beginRange, int64_t endRange) -> void`
 ///             where
 ///                 `beginRange` is the starting index of the loop iterations block to be
 ///                                processed by a thread, `0 <= beginRange < n`;
 ///                 `endRange`   is the index after the end of the loop's iterations block to be
 ///                                processed by a thread, `beginRange < endRange <= n`;
 ///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] reserved Parameter reserved for the future. Currently unused.
-/// @param[in] func     Callable object that processes the block of loop's iterations
-///                     `[beginRange, endRange)`.
+/// @param[in] n          Number of iterations in the for loop.
+/// @param[in] grain_size Minimum number of iterations the threading backend assigns to a
+///                       single thread. Must be at least 1.
+/// @param[in] func       Callable object that processes the block of loop's iterations
+///                       `[beginRange, endRange)`.
 template <typename F>
-inline void threader_for_blocked(int n, int reserved, const F & func)
+inline void threader_for_blocked(int64_t n, int64_t grain_size, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_blocked(n, reserved, a, threader_func_b<F>);
+    _daal_threader_for_blocked(n, grain_size, a, threader_func_b<F>);
 }
 
+/// Pass a function to be executed in a for loop to the threading layer,
+/// with optional parallelization.
+///
+/// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
+/// The default scheduling of the threading layer is used to assign
+/// the iterations of the loop to threads.
+///
+/// The specifics of this loop comparing to `threader_for` is that
+/// the threading layer avoids creating nested parallel regions.
+/// If the call is made from within an already running parallel region,
+/// the loop is executed sequentially in the current thread.
+/// Otherwise, the loop may be executed in parallel according to
+/// the threading backend policy.
+///
+/// This behavior allows safe usage of this function inside code that
+/// may already be running under a parallel context, preventing
+/// oversubscription and excessive thread creation.
+///
+/// @tparam F   Callable object of type `[/* captures */](int64_t i) -> void`,
+///             where `i` is the loop's iteration index, `0 <= i < n`.
+///
+/// @param[in] n          Number of iterations in the for loop.
+/// @param[in] grain_size Minimum number of iterations per chunk for the threading backend.
+/// @param[in] func       Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_optional(int n, int threads_request, const F & func)
+inline void threader_for_optional(int64_t n, int64_t grain_size, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_optional(n, threads_request, a, threader_func<F>);
+    _daal_threader_for_optional(n, grain_size, a, threader_func<F>);
 }
 
+/// Pass a function to be executed in a for loop to the threading layer,
+/// with support for early termination ("break").
+///
+/// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
+/// The iteration space is `[0, n)`, chunked with chunk size `grain_size`.
+/// Keep `grain_size` small: cancellation is only observed between chunks, so a large
+/// chunk delays the break by up to that many iterations.
+///
+/// The specifics of this loop comparing to `threader_for` is that the
+/// callable object may request early termination of the loop.
+/// If any iteration sets the `needBreak` flag to `true`, the threading
+/// layer attempts to cancel remaining iterations.
+///
+/// In case of oneTBB threading backend this is implemented using
+/// `tbb::task_group_context::cancel_group_execution()`. Already running
+/// iterations may still complete, but no new iterations will be started
+/// after the cancellation request.
+///
+/// In the single-threaded case, the loop is stopped immediately,
+/// behaving like a regular `break` statement.
+///
+/// @tparam F   Callable object of type
+///             `[/* captures */](int64_t i, bool & needBreak) -> void`,
+///             where:
+///                 `i` is the loop's iteration index, `0 <= i < n`;
+///                 `needBreak` may be set to `true` to request early exit.
+///
+/// @param[in] n          Number of iterations in the for loop.
+/// @param[in] grain_size Number of iterations in a chunk. Must be at least 1.
+/// @param[in] func       Callable object that defines iteration's body
+///                       and may request loop termination.
 template <typename F>
-inline void threader_for_break(int n, int threads_request, const F & func)
+inline void threader_for_break(int64_t n, int64_t grain_size, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_break(n, threads_request, a, threader_func_break<F>);
+    _daal_threader_for_break(n, grain_size, a, threader_func_break<F>);
+}
+
+/// 32-bit index variants of the loops above.
+///
+/// The `int64_t` loops are the default and cover every iteration space oneDAL builds, so
+/// these are not needed to make a loop work -- a callable taking `int` binds to the 64-bit
+/// entry points unchanged. What they give is a narrower induction variable: the whole
+/// `tbb::blocked_range` and the loop counter stay 32-bit, which is worth something in loops
+/// whose body is a few instructions over an index that is provably below `INT32_MAX` and
+/// where the compiler would otherwise carry a 64-bit counter through the vectorized form.
+///
+/// Prefer the `int64_t` loops. Reach for these only with a measurement in hand, and only
+/// where the iteration count is bounded by construction -- an `n` that can exceed
+/// `INT32_MAX` silently overflows here.
+
+/// 32-bit index variant of `threader_for`.
+///
+/// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
+///             where `i` is the loop's iteration index, `0 <= i < n`.
+///
+/// @param[in] n          Number of iterations in the for loop, at most `2^31 - 1 (INT32_MAX)`.
+/// @param[in] grain_size Minimum number of iterations the threading backend assigns to a
+///                       single thread. Must be at least 1.
+/// @param[in] func       Callable object that defines the loop body.
+template <typename F>
+inline void threader_for_int32(int n, int grain_size, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_for_int32(n, grain_size, a, threader_func_int32<F>);
+}
+
+/// 32-bit index variant of `threader_for_simple`.
+///
+/// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
+///             where `i` is the loop's iteration index, `0 <= i < n`.
+///
+/// @param[in] n          Number of iterations in the for loop, at most `2^31 - 1 (INT32_MAX)`.
+/// @param[in] grain_size Number of iterations in a chunk. Must be at least 1.
+/// @param[in] func       Callable object that defines iteration's body.
+template <typename F>
+inline void threader_for_simple_int32(int n, int grain_size, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_for_simple_int32(n, grain_size, a, threader_func_int32<F>);
+}
+
+/// 32-bit index variant of `threader_for_blocked`.
+///
+/// @tparam F   Callable object of type `[/* captures */](int beginRange, int endRange) -> void`,
+///             where the block to process is `[beginRange, endRange)`.
+///
+/// @param[in] n          Number of iterations in the for loop, at most `2^31 - 1 (INT32_MAX)`.
+/// @param[in] grain_size Minimum number of iterations the threading backend assigns to a
+///                       single thread. Must be at least 1.
+/// @param[in] func       Callable object that processes the block of loop's iterations
+///                       `[beginRange, endRange)`.
+template <typename F>
+inline void threader_for_blocked_int32(int n, int grain_size, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_for_blocked_int32(n, grain_size, a, threader_func_b_int32<F>);
+}
+
+/// 32-bit index variant of `threader_for_optional`.
+///
+/// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
+///             where `i` is the loop's iteration index, `0 <= i < n`.
+///
+/// @param[in] n          Number of iterations in the for loop, at most `2^31 - 1 (INT32_MAX)`.
+/// @param[in] grain_size Minimum number of iterations the threading backend assigns to a
+///                       single thread. Must be at least 1.
+/// @param[in] func       Callable object that defines iteration's body.
+template <typename F>
+inline void threader_for_optional_int32(int n, int grain_size, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_for_optional_int32(n, grain_size, a, threader_func_int32<F>);
+}
+
+/// 32-bit index variant of `threader_for_break`.
+///
+/// @tparam F   Callable object of type `[/* captures */](int i, bool & needBreak) -> void`,
+///             where `i` is the loop's iteration index and `needBreak` may be set to `true`
+///             to request early exit.
+///
+/// @param[in] n          Number of iterations in the for loop, at most `2^31 - 1 (INT32_MAX)`.
+/// @param[in] grain_size Number of iterations in a chunk. Must be at least 1.
+/// @param[in] func       Callable object that defines iteration's body
+///                       and may request loop termination.
+template <typename F>
+inline void threader_for_break_int32(int n, int grain_size, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_for_break_int32(n, grain_size, a, threader_func_break_int32<F>);
 }
 
 template <typename callableType>

@@ -306,7 +306,7 @@ services::Status SubDataTaskDense<algorithmFPType, cpu>::copyDataByIndices(const
     const size_t nBlock = nSubsetVectors;
 
     SafeStatus safeStat;
-    daal::threader_for(nBlock, nBlock, [&](const size_t iBlock) {
+    daal::threader_for(nBlock, 1, [&](const size_t iBlock) {
         size_t iRows = wsIndices[iBlock];
         ReadRows<algorithmFPType, cpu> mtX(x, iRows, 1);
         DAAL_CHECK_BLOCK_STATUS_THR(mtX);

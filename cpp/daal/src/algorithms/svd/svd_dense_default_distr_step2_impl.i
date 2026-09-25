@@ -86,7 +86,7 @@ Status SVDDistributedStep2Kernel<algorithmFPType, method, cpu>::compute(const si
 
     SafeStatus safeStat;
 
-    daal::threader_for(nBlocks, nBlocks, [=, &safeStat](int k) {
+    daal::threader_for(nBlocks, 1, [=, &safeStat](int k) {
         ReadRows<algorithmFPType, cpu, NumericTable> aux2Block(const_cast<NumericTable *>(a[k]), 0, n); /* Aux2  [nxb][n] */
         DAAL_CHECK_BLOCK_STATUS_THR(aux2Block);
         const algorithmFPType * Aux2 = aux2Block.get();
@@ -140,7 +140,7 @@ Status SVDDistributedStep2Kernel<algorithmFPType, method, cpu>::compute(const si
 
     if (svdPar->leftSingularMatrix == requiredInPackedForm)
     {
-        daal::threader_for(nBlocks, nBlocks, [=, &safeStat](int k) {
+        daal::threader_for(nBlocks, 1, [=, &safeStat](int k) {
             WriteOnlyRows<algorithmFPType, cpu, NumericTable> aux3Block(r[2 + k], 0, n); /* Aux3  [nxb][n] */
             DAAL_CHECK_BLOCK_STATUS_THR(aux3Block);
             algorithmFPType * Aux3 = aux3Block.get();

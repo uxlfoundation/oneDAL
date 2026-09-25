@@ -265,7 +265,7 @@ Status ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::computePartial
     const size_t blockSize = nItems / nBlocks;
     const size_t base      = rowIndices[0];
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         const size_t startRow = blockSize * iBlock;
         const size_t endRows  = iBlock != nBlocks - 1 ? blockSize * (iBlock + 1) : nItems;
 

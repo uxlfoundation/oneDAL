@@ -459,7 +459,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     const DAAL_INT k = static_cast<DAAL_INT>(minSamples);
 
     // Step 2: Compute core distances via k-NN queries on the kd-tree
-    daal::threader_for(nRows, nRows, [&](size_t i) {
+    daal::threader_for(nRows, 1, [&](size_t i) {
         KnnHeap<algorithmFPType, cpu> heap(k);
         if (!heap.ok()) return;
 
@@ -516,7 +516,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
     while (numComponents > 1)
     {
-        daal::threader_for(nRows, nRows, [&](size_t i) {
+        daal::threader_for(nRows, 1, [&](size_t i) {
             const DAAL_INT comp              = componentOf[i];
             const algorithmFPType * queryPt  = data + i * nCols;
             const algorithmFPType queryCoreD = coreDistances[i];

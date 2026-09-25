@@ -207,7 +207,7 @@ protected:
         algorithmFPType * const sv = mtSv.get();
 
         SafeStatus safeStat;
-        daal::threader_for(nSV, nSV, [&](const size_t iBlock) {
+        daal::threader_for(nSV, 1, [&](const size_t iBlock) {
             const size_t iRows = svIndices[iBlock];
             ReadRows<algorithmFPType, cpu> mtX(const_cast<NumericTable *>(xTable), iRows, 1);
             DAAL_CHECK_BLOCK_STATUS_THR(mtX);

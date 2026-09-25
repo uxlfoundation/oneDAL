@@ -148,7 +148,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
             yMeansPtr[i] *= inversedNRows;
         }
 
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             const size_t startRow   = iBlock * blockSize;
             const size_t finishRow  = (iBlock + 1 == nBlocks ? nRows : (iBlock + 1) * blockSize);
             DAAL_INT numRowsInBlock = finishRow - startRow;
@@ -206,7 +206,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
         if (soaPtr)
         {
-            daal::threader_for(nFeatures, nFeatures, [&](const size_t j) {
+            daal::threader_for(nFeatures, 1, [&](const size_t j) {
                 daal::internal::WriteColumns<algorithmFPType, cpu> xBD(xTrain.get(), j, 0, nRows);
                 DAAL_CHECK_BLOCK_STATUS_THR(xBD);
                 algorithmFPType * xPtr = xBD.get();
@@ -216,7 +216,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
         }
         else
         {
-            daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+            daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
                 const size_t startRow   = iBlock * blockSize;
                 const size_t finishRow  = (iBlock + 1 == nBlocks ? nRows : (iBlock + 1) * blockSize);
                 DAAL_INT numRowsInBlock = finishRow - startRow;

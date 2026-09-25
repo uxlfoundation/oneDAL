@@ -17,7 +17,7 @@
    #include "src/threading/threading.h"
 
    void sum(const size_t n, const float* a, const float* b, float* c) {
-      daal::threader_for(n, n, [&](size_t i) {
+      daal::threader_for(n, 1, [&](size_t i) {
          c[i] = a[i] + b[i];
       });
    }
