@@ -35,6 +35,7 @@ Read the `AGENTS.md` nearest the files you change:
 - [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
 - [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
 - [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)
+- [.github/instructions/AGENTS.md](.github/instructions/AGENTS.md): Copilot instruction scopes and maintenance
 
 ## Conventions
 - C++17; no C++20/23 features.
