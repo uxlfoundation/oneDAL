@@ -191,6 +191,10 @@ def read_linux_dynamic_dependencies(path):
     objdump = shutil.which("objdump")
     if objdump:
         output = run_tool([objdump, "-p", str(path)])
+        # `objdump -p` prints no "no dynamic section" notice at all: the section
+        # header is simply absent, so its presence is what has to be checked.
+        if "Dynamic Section:" not in output:
+            raise RuntimeError(f"ELF object has no dynamic section: {path}")
         deps = set()
         for line in output.splitlines():
             parts = line.split()
@@ -245,7 +249,10 @@ def read_linux_undefined(path):
 
     readelf = shutil.which("readelf")
     if readelf:
-        output = run_tool([readelf, "-Ws", str(path)])
+        # `--dyn-syms`, not `-s`: `-s` also prints `.symtab`, whose undefined
+        # entries on an unstripped library are not part of the dynamic surface
+        # `nm -D` reads, and the result must not depend on which tool is found.
+        output = run_tool([readelf, "-W", "--dyn-syms", str(path)])
         symbols = set()
         for line in output.splitlines():
             parts = line.split()
@@ -483,6 +490,11 @@ def discover_staged_components(root):
 
     Returns None when the root does not follow the layout, so the caller can say
     it skipped the check instead of reporting an empty comparison as a pass.
+
+    A base that follows the layout but cannot be listed raises OSError instead:
+    `<base>/daal/latest` can be readable while `<base>` is not, so the tree walk
+    that built `files` does not see the problem, and treating it as an
+    unsupported layout would let a missing staged runtime pass unexamined.
     """
     root = Path(root)
     if root.name != "latest":
@@ -492,15 +504,7 @@ def discover_staged_components(root):
         return None
     excluded = {root.parent.name}
     components = {}
-    try:
-        entries = sorted(base.iterdir())
-    except OSError as err:
-        # An unreadable release root is a problem worth naming, but it is not this
-        # check's to diagnose: the tree walk that built `files` runs first and
-        # reports it.
-        print(f"Skipped staged dependency comparison: cannot read {base}: {err}")
-        return None
-    for entry in entries:
+    for entry in sorted(base.iterdir()):
         if entry.name in excluded or entry.is_symlink() or not entry.is_dir():
             continue
         staged = entry / "latest"
@@ -509,12 +513,14 @@ def discover_staged_components(root):
     return components
 
 
-def staged_file_names(roots):
+def staged_file_names(roots, release_base):
     """Base names of every file staged under the given trees, name -> sample path.
 
-    A name only counts when it resolves to something that exists, so that a
-    release staging `libtbb.so.12` as a symlink into a build tree that is no
-    longer there is reported as missing rather than accepted. `os.walk` is given
+    A name only counts when it resolves to an existing file inside
+    `release_base`, so that a release staging `libtbb.so.12` as a symlink into a
+    build tree -- whether that tree is gone or merely not part of the package, as
+    with a link into `/usr/lib` -- is reported as missing rather than accepted:
+    such a release loads on the build host and nowhere else. `os.walk` is given
     an `onerror` handler because its default is to yield nothing for a directory
     it cannot read, which would turn a permission problem into a confident and
     wrong "absent from the Bazel release". The handler collects rather than
@@ -527,6 +533,7 @@ def staged_file_names(roots):
     def on_walk_error(err):
         unreadable.append(str(err))
 
+    base = Path(release_base).resolve()
     names = {}
     for root in roots:
         for current, _dirnames, filenames in os.walk(
@@ -534,7 +541,12 @@ def staged_file_names(roots):
         ):
             for filename in filenames:
                 candidate = Path(current) / filename
-                if candidate.exists():
+                try:
+                    target = candidate.resolve(strict=True)
+                except (OSError, RuntimeError):
+                    # Dangling or looping symlink: nothing is shipped by that name.
+                    continue
+                if target.is_file() and base in target.parents:
                     names.setdefault(filename, str(candidate))
     return names, unreadable
 
@@ -585,8 +597,14 @@ def compare_staged_dependencies(make_root, bazel_root, dependencies, limit):
         )
         return 0
 
-    make_components = discover_staged_components(make_root)
-    bazel_components = discover_staged_components(bazel_root)
+    try:
+        make_components = discover_staged_components(make_root)
+        bazel_components = discover_staged_components(bazel_root)
+    except OSError as err:
+        # Unknown is not a pass: charged as an error, like an unreadable
+        # component tree below.
+        print(f"Staged dependency comparison failed: cannot list release base: {err}")
+        return 1
     if make_components is None or bazel_components is None:
         print(
             "Skipped staged dependency comparison: release roots are not"
@@ -599,12 +617,14 @@ def compare_staged_dependencies(make_root, bazel_root, dependencies, limit):
         f" Bazel {sorted(bazel_components) or '[]'}"
     )
 
-    make_staged, make_unreadable = staged_file_names(make_components.values())
+    make_staged, make_unreadable = staged_file_names(
+        make_components.values(), make_root.parent.parent
+    )
     # The compared component tree is included on the Bazel side so a runtime it
     # stages next to the oneDAL libraries instead of in a sibling tree counts as
     # shipped rather than as missing.
     bazel_staged, bazel_unreadable = staged_file_names(
-        list(bazel_components.values()) + [bazel_root]
+        list(bazel_components.values()) + [bazel_root], bazel_root.parent.parent
     )
 
     unreadable = make_unreadable + bazel_unreadable
