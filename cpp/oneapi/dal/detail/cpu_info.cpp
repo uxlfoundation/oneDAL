@@ -70,4 +70,61 @@ std::string cpu_info::dump() const {
 }
 
 } // namespace v1
+
+namespace v2 {
+
+cpu_info::cpu_info() {
+#if defined(TARGET_X86_64)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_x86>());
+#elif defined(TARGET_ARM)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_arm>());
+#elif defined(TARGET_RISCV64)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_riscv64>());
+#endif
+}
+
+cpu_info::cpu_info(const cpu_extension cpu_extension_) {
+#if defined(TARGET_X86_64)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_x86>(cpu_extension_));
+#elif defined(TARGET_ARM)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_arm>(cpu_extension_));
+#elif defined(TARGET_RISCV64)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_riscv64>(cpu_extension_));
+#endif
+}
+
+detail::cpu_vendor cpu_info::get_cpu_vendor() const {
+    return impl_->get_cpu_vendor();
+}
+
+detail::cpu_extension cpu_info::get_top_cpu_extension() const {
+    return impl_->get_top_cpu_extension();
+}
+
+detail::cpu_extension cpu_info::get_onedal_cpu_extension() const {
+    return impl_->get_onedal_cpu_extension();
+}
+
+uint64_t cpu_info::get_cpu_features() const {
+    return impl_->get_cpu_features();
+}
+
+std::string cpu_info::dump() const {
+    return impl_->dump();
+}
+
+uint64_t cpu_info::get_l1_cache_size() const {
+    return impl_->get_l1_cache_size();
+}
+
+uint64_t cpu_info::get_l2_cache_size() const {
+    return impl_->get_l2_cache_size();
+}
+
+uint64_t cpu_info::get_l3_cache_size() const {
+    return impl_->get_l3_cache_size();
+}
+
+} // namespace v2
+
 } // namespace oneapi::dal::detail

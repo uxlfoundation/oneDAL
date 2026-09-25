@@ -1670,17 +1670,17 @@ long long getCacheSize(int cache_num)
     }
 }
 
-size_t getL1CacheSize()
+DAAL_EXPORT size_t getL1CacheSize()
 {
     return getCacheSize(1);
 }
 
-size_t getL2CacheSize()
+DAAL_EXPORT size_t getL2CacheSize()
 {
     return getCacheSize(2);
 }
 
-size_t getLLCacheSize()
+DAAL_EXPORT size_t getLLCacheSize()
 {
     return getCacheSize(3);
 }
@@ -1743,17 +1743,17 @@ namespace services
 {
 namespace internal
 {
-size_t getL1CacheSize()
+DAAL_EXPORT size_t getL1CacheSize()
 {
     return DEFAULT_L1_CACHE_SIZE;
 }
 
-size_t getL2CacheSize()
+DAAL_EXPORT size_t getL2CacheSize()
 {
     return DEFAULT_L2_CACHE_SIZE;
 }
 
-size_t getLLCacheSize()
+DAAL_EXPORT size_t getLLCacheSize()
 {
     return DEFAULT_LL_CACHE_SIZE; //estimate based on mac pro
 }

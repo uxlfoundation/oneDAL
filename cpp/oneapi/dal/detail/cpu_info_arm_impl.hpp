@@ -39,5 +39,32 @@ public:
 };
 
 } // namespace v1
-using v1::cpu_info_iface;
+
+namespace v2 {
+
+/// The v1 implementation cannot be reused as a base class here: it implements
+/// `v1::cpu_info_iface` only, while `v2::cpu_info` stores its implementation as a
+/// `v2::cpu_info_iface`. The detection logic is therefore repeated on top of
+/// `v2::cpu_info_impl`, which keeps the v1 class, and thus the ABI, untouched.
+class cpu_info_arm : public cpu_info_impl {
+public:
+    cpu_info_arm() {
+        info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = detect_onedal_cpu_extension();
+        info_["vendor"] = cpu_vendor::arm;
+        info_["cpu_features"] = detect_cpu_features();
+        detect_cache_sizes();
+    }
+
+    explicit cpu_info_arm(const cpu_extension cpu_extension) {
+        info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = cpu_extension;
+        info_["vendor"] = cpu_vendor::arm;
+        info_["cpu_features"] = detect_cpu_features();
+        detect_cache_sizes();
+    }
+};
+
+} // namespace v2
+using v2::cpu_info_arm;
 } // namespace oneapi::dal::detail

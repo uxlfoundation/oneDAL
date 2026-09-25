@@ -17,6 +17,8 @@
 #include "oneapi/dal/detail/cpu_info_impl.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
+#include <daal/src/services/service_environment.h>
+
 #include <sstream>
 
 namespace oneapi::dal::detail {
@@ -136,4 +138,75 @@ std::string cpu_info_impl::dump() const {
 }
 
 } // namespace v1
+
+namespace v2 {
+namespace {
+
+template <typename T>
+T get_info_entry(const std::map<std::string, std::any>& info, const char* key) {
+    const auto entry = info.find(key);
+    if (entry == info.end()) {
+        throw invalid_argument{ error_messages::invalid_key() };
+    }
+    return std::any_cast<T>(entry->second);
+}
+
+} // namespace
+
+void cpu_info_impl::detect_cache_sizes() {
+    /// The DAAL topology services report the size of the last level cache,
+    /// which is L3 on all the architectures currently supported by oneDAL.
+    info_["l1_cache_size"] = static_cast<uint64_t>(daal::services::internal::getL1CacheSize());
+    info_["l2_cache_size"] = static_cast<uint64_t>(daal::services::internal::getL2CacheSize());
+    info_["l3_cache_size"] = static_cast<uint64_t>(daal::services::internal::getLLCacheSize());
+}
+
+cpu_vendor cpu_info_impl::get_cpu_vendor() const {
+    return get_info_entry<cpu_vendor>(info_, "vendor");
+}
+
+cpu_extension cpu_info_impl::get_top_cpu_extension() const {
+    return get_info_entry<cpu_extension>(info_, "top_cpu_extension");
+}
+
+cpu_extension cpu_info_impl::get_onedal_cpu_extension() const {
+    return get_info_entry<cpu_extension>(info_, "onedal_cpu_extension");
+}
+
+uint64_t cpu_info_impl::get_cpu_features() const {
+    return get_info_entry<uint64_t>(info_, "cpu_features");
+}
+
+uint64_t cpu_info_impl::get_l1_cache_size() const {
+    return get_info_entry<uint64_t>(info_, "l1_cache_size");
+}
+
+uint64_t cpu_info_impl::get_l2_cache_size() const {
+    return get_info_entry<uint64_t>(info_, "l2_cache_size");
+}
+
+uint64_t cpu_info_impl::get_l3_cache_size() const {
+    return get_info_entry<uint64_t>(info_, "l3_cache_size");
+}
+
+std::string cpu_info_impl::dump() const {
+    std::ostringstream ss;
+    for (auto const& [name, value] : info_) {
+        ss << name << " : ";
+        if (name == "cpu_features") {
+            v1::cpu_features_to_stream(value, ss);
+        }
+        else if (value.type() == typeid(uint64_t)) {
+            /// Cache sizes and other plain numeric entries
+            ss << std::any_cast<uint64_t>(value);
+        }
+        else {
+            v1::any_to_stream(value, ss);
+        }
+        ss << "; ";
+    }
+    return std::move(ss).str();
+}
+
+} // namespace v2
 } // namespace oneapi::dal::detail

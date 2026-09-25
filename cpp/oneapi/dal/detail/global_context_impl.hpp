@@ -21,16 +21,19 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
-class global_context_impl : public global_context_iface {
+/// The class stays in `v1` so that the exported constructor keeps its mangled name, but
+/// it implements `v2::global_context_iface`. Since the v2 interfaces only derive from the
+/// v1 ones, this neither adds virtual table slots nor changes the object layout.
+class global_context_impl : public v2::global_context_iface {
 public:
     global_context_impl();
 
-    const cpu_info_iface &get_cpu_info() const {
+    const v2::cpu_info_iface &get_cpu_info() const override {
         return cpu_info_;
     }
 
 private:
-    detail::cpu_info cpu_info_;
+    v2::cpu_info cpu_info_;
 };
 
 } // namespace v1

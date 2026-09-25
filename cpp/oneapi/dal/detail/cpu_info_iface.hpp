@@ -47,5 +47,27 @@ public:
 };
 
 } // namespace v1
-using v1::cpu_info_iface;
+
+namespace v2 {
+
+/// Extends `v1::cpu_info_iface` with the sizes of the CPU data caches.
+/// The new methods are introduced in a derived interface rather than added to
+/// `v1::cpu_info_iface` to keep the layout of the `v1::cpu_info_iface` virtual
+/// table, and thus the library ABI, unchanged. Because the interface is derived
+/// from the v1 one, a v2 implementation can still be passed everywhere a
+/// `v1::cpu_info_iface` is expected.
+class cpu_info_iface : public v1::cpu_info_iface {
+public:
+    /// The size of the L1 data cache in bytes
+    virtual uint64_t get_l1_cache_size() const = 0;
+
+    /// The size of the L2 cache in bytes
+    virtual uint64_t get_l2_cache_size() const = 0;
+
+    /// The size of the last level cache in bytes
+    virtual uint64_t get_l3_cache_size() const = 0;
+};
+
+} // namespace v2
+using v2::cpu_info_iface;
 } // namespace oneapi::dal::detail
