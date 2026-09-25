@@ -49,17 +49,39 @@ if "%LIB_OUT%"=="" ( echo dll_to_implib: missing output lib & exit /b 1 )
 rem Bazel actions get a stripped PATH that does not include MSVC tooling.
 rem Discover dumpbin/lib via VCTOOLSINSTALLDIR (set by VsDevCmd). Fall
 rem back to vswhere -find to locate the latest installed MSVC bin dir.
+rem
+rem The host tool directory is named after the *host* arch, so an ARM64 machine
+rem keeps its tools under `bin\HostARM64\ARM64`. The x64 directory is kept as a
+rem second candidate: those binaries run emulated on ARM64 Windows, and
+rem `dumpbin`/`lib` are arch-agnostic (the output machine type comes from
+rem `/machine:` below), so either copy does the job.
+set "MSVC_HOST_DIRS=HostX64\x64"
+if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "MSVC_HOST_DIRS=HostARM64\ARM64 HostX64\x64"
+if /I "%PROCESSOR_ARCHITEW6432%"=="ARM64" set "MSVC_HOST_DIRS=HostARM64\ARM64 HostX64\x64"
+rem The candidates are tried in order and the first hit wins, so the native
+rem directory is used when it exists rather than the emulated one.
+set "MSVC_BIN="
 if defined VCTOOLSINSTALLDIR (
-    set "PATH=%VCTOOLSINSTALLDIR%bin\HostX64\x64;%PATH%"
+    for %%d in (%MSVC_HOST_DIRS%) do (
+        if not defined MSVC_BIN (
+            if exist "%VCTOOLSINSTALLDIR%bin\%%d\dumpbin.exe" set "MSVC_BIN=%VCTOOLSINSTALLDIR%bin\%%d"
+        )
+    )
 )
+if defined MSVC_BIN set "PATH=!MSVC_BIN!;%PATH%"
 where dumpbin >NUL 2>&1
 if errorlevel 1 (
     set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
     if exist "!VSWHERE!" (
-        for /f "usebackq delims=" %%v in (`"!VSWHERE!" -latest -products * ^
-              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
-              -find "VC\Tools\MSVC\*\bin\HostX64\x64\dumpbin.exe"`) do (
-            set "PATH=%%~dpv;!PATH!"
+        for %%d in (%MSVC_HOST_DIRS%) do (
+            for /f "usebackq delims=" %%v in (`"!VSWHERE!" -latest -products * ^
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+                  -find "VC\Tools\MSVC\*\bin\%%d\dumpbin.exe"`) do (
+                if not defined MSVC_BIN (
+                    set "MSVC_BIN=%%~dpv"
+                    set "PATH=%%~dpv;!PATH!"
+                )
+            )
         )
     )
 )
@@ -103,7 +125,22 @@ set "LIB_TOOL=lib"
 where llvm-lib >NUL 2>&1
 if not errorlevel 1 set "LIB_TOOL=llvm-lib"
 
-%LIB_TOOL% /nologo /machine:x64 /def:"%DEF_TMP%" /out:"%LIB_OUT%" /name:%DLL_NAME%
+rem `/machine:` is mandatory for `/def:` and is not inferable from the .def, so
+rem read it off the DLL itself. `dumpbin /headers` prints the FILE HEADER line
+rem `AA64 machine (ARM64)` / `8664 machine (x64)`, and the parenthesised name is
+rem exactly the spelling `/machine:` takes. Hardcoding x64 here made every
+rem ARM64 import library an x64 one, which lld-link rejects when the next DLL
+rem links against it: `machine type x64 conflicts with arm64`.
+set "MACHINE="
+for /f "usebackq tokens=2 delims=()" %%m in (`dumpbin /nologo /headers "%DLL_IN%" ^| findstr /R /C:"machine ("`) do (
+    if not defined MACHINE set "MACHINE=%%m"
+)
+if not defined MACHINE (
+    echo dll_to_implib: cannot determine the machine type of %DLL_IN%
+    exit /b 5
+)
+
+%LIB_TOOL% /nologo /machine:!MACHINE! /def:"%DEF_TMP%" /out:"%LIB_OUT%" /name:%DLL_NAME%
 if errorlevel 1 (
     echo dll_to_implib: %LIB_TOOL% /def failed
     exit /b 4

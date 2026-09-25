@@ -35,13 +35,23 @@ env:
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
+# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
+# Does not apply to the main branch. Matters more now that this workflow holds a
+# three-hour Bazel job on the scarce ARM64 runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   build-and-test:
     strategy:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve, llvm_arch: woa64 }
+          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve }
         ]
     name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
@@ -51,31 +61,16 @@ jobs:
 
       - name: Setup MSYS2
         shell: pwsh
-        run: |
-          if (Test-Path 'C:\msys64') {
-            Remove-Item 'C:\msys64' -Recurse -Force
-          }
-          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
-          .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
+        run: .\.ci\env\msys2.ps1 -Arch ${{ matrix.os.arch }}
 
       - name: Install LLVM for Win-${{ matrix.os.arch }}
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
-          Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
-          echo "%ProgramFiles%\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          
+        run: .\.ci\env\llvm.ps1 -Arch ${{ matrix.os.arch }}
+
       - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
-          Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
-          echo "%ProgramFiles%\CMake\bin" >> $env:GITHUB_PATH
-          
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
-          Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
-          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
-          
+        run: .\.ci\env\cmake_ninja.ps1 -Arch ${{ matrix.os.arch }}
+
       - name: Build OpenBLAS
         shell: cmd
         run: |
@@ -104,7 +99,42 @@ jobs:
           set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
+      # `.ci/scripts/test.bat` runs each example executable with no timeout and
+      # redirects its output to a file, so a crash that pops the Windows Error
+      # Reporting dialog would wait for a click that never comes: the step then
+      # hangs until the job limit instead of reporting the non-zero exit code.
+      - name: Disable Windows Error Reporting dialogs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wer = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+          New-Item -Path $wer -Force | Out-Null
+          Set-ItemProperty -Path $wer -Name DontShowUI -Value 1 -Type DWord
+          Set-ItemProperty -Path $wer -Name Disabled -Value 1 -Type DWord
+
+      # OpenBLAS is linked statically (.ci/env/openblas.bat), so no oneDAL binary
+      # may import a DLL named `openblas.dll`: that name is not oneDAL's to claim,
+      # and Windows would resolve the import against whichever `openblas.dll` is
+      # already loaded in the process. Same idea as `Verify ARM64 PE output` in
+      # the Bazel job: check the artifact rather than trust the link.
+      - name: Verify no OpenBLAS import
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          if errorlevel 1 exit /b 1
+          for /R __release_win_${{ matrix.os.cxx }} %%f in (onedal*.dll) do (
+            dumpbin /nologo /dependents "%%f" | findstr /I /C:"openblas" /C:"flang" && (
+              echo ::error::%%f imports a math backend DLL
+              exit /b 1
+            )
+          )
+          echo no OpenBLAS or flang imports in the released binaries
+          rem `findstr` leaves errorlevel 1 behind when it matches nothing, and
+          rem `echo` does not clear it, so the step needs an explicit success.
+          exit /b 0
+
       - name: Test daal
+        timeout-minutes: 30
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
@@ -113,11 +143,128 @@ jobs:
           .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
+        timeout-minutes: 30
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
+
+  bazel-build:
+    name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: windows-11-vs2026-arm
+    timeout-minutes: 180
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v6
+
+      # Bazel needs a Bourne shell on Windows for shell-based actions; the
+      # nightly x86 Bazel lane uses Git bash, MSYS2 is what the Make lane above
+      # already installs on this runner image.
+      - name: Setup MSYS2
+        shell: pwsh
+        run: .\.ci\env\msys2.ps1 -Arch arm64
+
+      # clang-cl / lld-link / llvm-lib are the toolchain oneDAL uses for
+      # Windows ARM64, in both build systems
+      # (dev/make/compiler_definitions/clang.ref.arm.mk and
+      # dev/bazel/toolchains/cc_toolchain_win.bzl).
+      - name: Install LLVM for Win-arm64
+        shell: pwsh
+        run: .\.ci\env\llvm.ps1 -Arch arm64
+
+      - name: Install CMake and Ninja for Win-arm64
+        shell: pwsh
+        run: .\.ci\env\cmake_ninja.ps1 -Arch arm64
+
+      # The script appends its install directory to GITHUB_PATH itself.
+      - name: Install Bazelisk
+        shell: pwsh
+        run: .\.ci\env\bazelisk.ps1
+
+      # Both `@openblas` and `@tbb` default to x86_64 packages (`@openblas` has
+      # no download at all), so an ARM64 build of each has to be supplied
+      # through OPENBLASROOT / TBBROOT. Without them the repo rules now fail
+      # outright instead of producing wrong-arch binaries (see
+      # `_check_download_arch` in dev/bazel/repos.bzl).
+      - name: Build OpenBLAS
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          if errorlevel 1 exit /b 1
+          rem `CALL` is required: without it cmd transfers control to the child
+          rem script and never comes back, silently skipping the GITHUB_ENV write.
+          CALL .ci\env\openblas.bat
+          if errorlevel 1 exit /b 1
+          rem The static archive is what @openblas links (dev/bazel/deps/openblas.bzl);
+          rem assert it here so a half-installed tree fails at this step instead of
+          rem inside the repository rule.
+          if not exist "%CD%\__deps\open_blas\lib\openblas.lib" exit /b 1
+          echo OPENBLASROOT=%CD%\__deps\open_blas>> "%GITHUB_ENV%"
+
+      - name: Build oneTBB
+        shell: cmd
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          if errorlevel 1 exit /b 1
+          CALL .ci\env\tbb.bat
+          if errorlevel 1 exit /b 1
+          if not exist "%CD%\__deps\tbb\win\tbb\lib\tbb12.lib" exit /b 1
+          echo TBBROOT=%CD%\__deps\tbb\win\tbb>> "%GITHUB_ENV%"
+
+      - name: bazel build core_dynamic
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\msys64\usr\bin\bash.exe'
+          # Windows ARM64 implies clang-cl either way; setting it keeps the
+          # selection explicit in the log.
+          ONEDAL_WIN_COMPILER: clang
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          rem Appended, not prepended: MSYS2 ships its own link.exe/find.exe/sort.exe,
+          rem and this PATH is captured into the generated toolchain
+          rem (`%{env_path}` in dev/bazel/toolchains/cc_toolchain_win.bzl), so it
+          rem must not shadow the MSVC and LLVM tools.
+          set PATH=%PATH%;C:\msys64\usr\bin
+          rem `thread_dynamic` is what links `@openblas//:openblas` through
+          rem `mathbackend_thread`, so it is listed explicitly: without it the
+          rem lane would not exercise the new Windows OpenBLAS import-library
+          rem and DLL wiring at all.
+          bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+            //cpp/daal:core_dynamic //cpp/daal:thread_dynamic //cpp/oneapi/dal:dynamic
+
+      # A successful link is not proof of the target arch: confirm the PE
+      # machine type, as the AArch64 Linux lane does with `readelf`
+      # (.github/workflows/ci-aarch64.yml).
+      - name: Verify ARM64 PE output
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Windows DLLs carry the ABI major (`onedal_core.4.dll`) and, for an
+          # `-MDd` build, a `d` suffix (dev/bazel/cc.bzl), so match by pattern
+          # instead of spelling the version out here.
+          foreach ($pattern in @("bazel-bin\cpp\daal\onedal_core*.dll",
+                                 "bazel-bin\cpp\daal\onedal_thread*.dll",
+                                 "bazel-bin\cpp\oneapi\dal\onedal.*.dll")) {
+            $found = @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue)
+            if ($found.Count -eq 0) {
+              Write-Host "::error::no DLL matching $pattern was produced"
+              exit 1
+            }
+            foreach ($lib in $found) {
+              $headers = & "$env:ProgramFiles\LLVM\bin\llvm-readobj.exe" --file-headers $lib.FullName
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "::error::llvm-readobj failed on $($lib.FullName)"
+                exit 1
+              }
+              $headers | Select-String "Machine"
+              if (-not ($headers | Select-String "IMAGE_FILE_MACHINE_ARM64")) {
+                Write-Host "::error::$($lib.FullName) is not an ARM64 PE image"
+                exit 1
+              }
+            }
+          }
 
 
