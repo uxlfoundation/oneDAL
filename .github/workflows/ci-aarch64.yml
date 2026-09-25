@@ -27,7 +27,7 @@ on:
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
   TBB_VERSION: v2023.1.0
-  OPENBLAS_VERSION: v0.3.29
+  OPENBLAS_VERSION: v0.3.34
   OPENRNG_VERSION: 'v24.04'
 
 # Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
@@ -64,17 +64,17 @@ jobs:
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Checkout oneTBB
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
@@ -141,17 +141,17 @@ jobs:
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Checkout oneTBB
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
@@ -212,7 +212,7 @@ jobs:
     runs-on: ${{ matrix.os.label }}
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Bazel
         run: |
@@ -220,7 +220,7 @@ jobs:
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
 
       - name: Checkout oneTBB
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
