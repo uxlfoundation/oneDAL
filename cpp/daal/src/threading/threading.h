@@ -248,6 +248,13 @@ inline void static_threader_func(int64_t i, size_t tid, const void * a)
 }
 
 template <typename F>
+inline void threader_func_int64ptr(const int64_t * i, const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func(i);
+}
+
+template <typename F>
 inline void threader_func_b(int64_t first, int64_t last, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
@@ -368,7 +375,7 @@ inline void threader_for_int64ptr(const int64_t * begin, const int64_t * end, co
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_int64ptr(begin, end, a, threader_func<F>);
+    _daal_threader_for_int64ptr(begin, end, a, threader_func_int64ptr<F>);
 }
 
 /// Execute the for loop defined by the input parameters in parallel.
