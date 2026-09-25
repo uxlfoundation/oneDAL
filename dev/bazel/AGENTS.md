@@ -50,6 +50,11 @@ dal_module(
     extra_deps = ["@onedal//cpp/daal/src/algorithms/pca:kernel"],
 )
 
+dal_module(
+    name = "pca",
+    dal_deps = [":core"],
+)
+
 dal_test_suite(
     name = "interface_tests",
     srcs = glob(["test/*.cpp"]),
@@ -60,7 +65,7 @@ dal_test_suite(
 
 dal_test_suite(
     name = "tests",                    # aggregate target CI invokes
-    tests = [":backend_tests", ":interface_tests"],
+    tests = [":interface_tests"],
 )
 ```
 
@@ -79,7 +84,7 @@ bazel test --config=host //cpp/oneapi/dal/algo/pca:tests
 bazel build //:release
 ```
 
-Always scope targets and pass `--config`; with `--config` unset, tests include DPC++ targets that need the Intel DPC++ compiler. `dev/bazel/README.md` lists every config.
+Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets that need the Intel DPC++ compiler. `dev/bazel/README.md` lists every config.
 
 ## 🔧 Dependency Management
 
@@ -95,7 +100,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 ## 📝 Rules for Changes
 
 - `//conditions:default` in a `select()` means every platform not listed, macOS included, not just Linux. Put Linux-only flags under `@platforms//os:linux`.
-- No `allow_empty = True`; it hides packaging mistakes.
+- Don't add `allow_empty = True` to a glob that must match; it hides packaging mistakes. The optional globs in `dal.bzl`, `daal.bzl` and `deps/*.tpl.BUILD` need it.
 - Don't hardcode the workspace name in test paths; use `${TEST_WORKSPACE}`.
 - No `use_default_shell_env = True`; it breaks hermeticity.
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.

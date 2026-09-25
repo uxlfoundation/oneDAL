@@ -33,11 +33,11 @@ make onedal_c
 # Build oneAPI interface with CPU and GPU support
 make onedal_dpc
 
-# Build dynamic link version of examples
-export CC=icx
-export CXX=icpx
-cmake -G "Unix Makefiles" -DONEDAL_LINK=dynamic
-make
+# Build the examples against the release tree (there is no root CMakeLists.txt)
+source __release_lnx/daal/latest/env/vars.sh
+cd examples/oneapi/cpp
+cmake -B build -S . -DONEDAL_LINK=dynamic
+cmake --build build --parallel
 ```
 
 ## 🛠️ Core Patterns

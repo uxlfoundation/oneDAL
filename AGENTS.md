@@ -54,7 +54,7 @@ These come from recurring maintainer review comments. Directory-specific rules a
 - Don't add a lock, critical section, guard or redundant check unless you can name the failure it prevents.
 - A bug fix comes with a test that fails without the fix.
 - Don't hardcode versions, URLs or paths that have a source of truth (`makefile.ver`, `MODULE.bazel`, `.github/renovate.json`).
-- New files use the header `Copyright contributors to the oneDAL project`. Leave existing headers alone.
+- New source files use the header `Copyright contributors to the oneDAL project`. Leave existing headers alone.
 - ASCII only in source, comments and docs. Keep each file's existing line endings.
 - Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
 - Bash scripts start with `set -euo pipefail`, use `mkdir -p`, and don't silence failures with a bare `|| true`.
