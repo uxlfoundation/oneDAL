@@ -48,7 +48,16 @@ One of the options is to use ``daal::threader_for`` as shown here:
 
 .. include:: ../includes/threading/sum-parallel.rst
 
-The iteration space here goes from ``0`` to ``n-1``.
+The iteration space here goes from ``0`` to ``n-1``, and the loop index is a 64-bit integer,
+so an iteration space larger than ``INT32_MAX`` does not need to be blocked by hand.
+
+The second argument is the grain size: the minimal number of iterations the threading layer
+assigns to a single thread.
+``1`` is the right value whenever a single iteration already carries enough work to amortize a
+task dispatch, which is the case for most of the loops in |short_name|.
+Raise it only for loops whose body is a handful of instructions, where the dispatch cost would
+otherwise dominate.
+
 The last argument is a function object that performs a single iteration of the loop, given loop index ``i``.
 
 threader_reduce
