@@ -135,8 +135,7 @@ public:
      * \return Status of computations
      */
     template <typename algorithmFPType>
-    DAAL_EXPORT services::Status allocate(const daal::algorithms::Input * input,
-        const daal::algorithms::Parameter * par, const int method);
+    DAAL_EXPORT services::Status allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method);
 
     /**
      * Returns result of the Cholesky algorithm
@@ -160,15 +159,15 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const algorithms::Input * input,
-        const algorithms::Parameter * par, int method) const override;
+    services::Status check(const algorithms::Input * input, const algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
 
     /** \private */
     template <typename Archive, bool onDeserialize>
-    services::Status serialImpl(Archive * arch) {
+    services::Status serialImpl(Archive * arch)
+    {
         return daal::algorithms::Result::serialImpl<Archive, onDeserialize>(arch);
     }
 };
