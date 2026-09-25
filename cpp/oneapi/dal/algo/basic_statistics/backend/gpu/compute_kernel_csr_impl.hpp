@@ -172,18 +172,47 @@ private:
         return res;
     }
 
+    /// Extracts row `index` of the computed statistics into a table of its own, keeping the
+    /// data in device memory.
+    ///
+    /// The table stays on the device because that is where its consumers are. Handing back a
+    /// host copy instead makes every later read of the statistic pay a transfer: the merge in
+    /// `partial_compute` and the allreduce in `finalize_compute` both ask for their inputs with
+    /// `pr::table2ndarray_1d(.., alloc::device)`, which wraps a table in place only when the
+    /// table already holds device memory and otherwise allocates and copies (see
+    /// `homogen_table_to_same_order_ndarray` in `backend/primitives/utils.hpp`). The dense GPU
+    /// kernel wraps its results the same way.
+    ///
+    /// A copy rather than a view into `computed_result`, so that a result table does not pin
+    /// the whole `(num_data_blocks * res_opt_count_) x column_count` scratch block for as long
+    /// as the caller holds it.
+    ///
+    /// @param q               SYCL queue.
+    /// @param computed_result The statistics block written by the kernels.
+    /// @param index           Row of `computed_result` to extract, i.e. a `stat` value.
+    /// @param deps            Events indicating availability of `computed_result` for reading.
+    /// @return                The extracted statistic as a `1 x column_count` table, and the
+    ///                        event tracking the copy that fills it. The table is only safe to
+    ///                        read once that event has completed, which is what the caller
+    ///                        (`get_result`) waits for.
     std::tuple<table, sycl::event> get_result_table(sycl::queue q,
                                                     const pr::ndarray<Float, 2> computed_result,
                                                     std::int32_t index,
                                                     const std::vector<sycl::event>& deps = {}) {
         ONEDAL_ASSERT(computed_result.has_data());
-        auto column_count = computed_result.get_dimension(1);
-        const auto arr = dal::array<Float>::empty(column_count);
-        const auto res_arr_ptr = arr.get_mutable_data();
-        const auto computed_res_ptr = computed_result.get_data() + index * column_count;
-        auto event =
-            dal::backend::copy_usm2host(q, res_arr_ptr, computed_res_ptr, column_count, deps);
-        return std::make_tuple(homogen_table::wrap(arr, 1, column_count), event);
+        const auto column_count = computed_result.get_dimension(1);
+        auto extracted = pr::ndarray<Float, 1>::empty(q, column_count, sycl::usm::alloc::device);
+        const auto* const computed_res_ptr = computed_result.get_data() + index * column_count;
+        auto event = dal::backend::copy(q,
+                                        extracted.get_mutable_data(),
+                                        computed_res_ptr,
+                                        column_count,
+                                        deps);
+        // `flatten` is given no dependency on purpose: `dal::array`'s queue constructor waits
+        // for the events it is handed, so passing `event` here would serialize the extraction
+        // of the statistics one by one instead of letting `get_result` wait for all of them
+        // once at the end.
+        return std::make_tuple(homogen_table::wrap(extracted.flatten(q), 1, column_count), event);
     }
 
     std::int32_t get_result_option_index(result_option_id opt) {
