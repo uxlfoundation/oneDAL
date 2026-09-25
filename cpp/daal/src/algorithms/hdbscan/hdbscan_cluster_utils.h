@@ -18,6 +18,8 @@
 #ifndef __HDBSCAN_CLUSTER_UTILS_H__
 #define __HDBSCAN_CLUSTER_UTILS_H__
 
+#include <algorithm>
+
 #include "services/daal_defines.h"
 #include "src/algorithms/service_sort.h"
 #include "src/externals/service_memory.h"
@@ -58,11 +60,58 @@ struct CondensedEdge
     DAAL_INT childSize; ///< Number of original points in the child subtree (1 for fallen leaves)
 };
 
-/// Sort MST edges in ascending order of weight, keeping endpoint arrays aligned.
+/// Strict total order over MST edges: ascending weight, ties broken by the
+/// edge's original position, NaN weights last.
 ///
-/// Uses the shared three-array qSort: mstWeights is the key, mstFrom/mstTo are
-/// permuted in lock-step. Required by buildDendrogramFromSortedMst, whose
-/// union-find merge order assumes ascending weights.
+/// Comparing `(weight, position)` rather than `weight` alone makes the order
+/// total, which is what turns a single unstable sort into a stable one. The NaN
+/// branch is not cosmetic: a bare `wa < wb` leaves NaN incomparable to every
+/// number, which is not a strict weak ordering (`nan ~ 1`, `nan ~ 2`, `1 < 2`
+/// has no consistent placement for `nan`) and makes `std::sort` undefined
+/// behavior rather than merely producing an odd order. Grouping NaNs at the end
+/// and ordering them by position keeps the relation total for any input.
+///
+/// @tparam algorithmFPType Floating-point type used for edge weights
+///
+/// @param[in] wa First edge's weight
+/// @param[in] ia First edge's original position
+/// @param[in] wb Second edge's weight
+/// @param[in] ib Second edge's original position
+///
+/// @return True iff edge `a` must sort before edge `b`
+template <typename algorithmFPType>
+static inline bool mstEdgeLess(algorithmFPType wa, DAAL_INT ia, algorithmFPType wb, DAAL_INT ib)
+{
+    const bool aNan = !(wa == wa);
+    const bool bNan = !(wb == wb);
+    if (aNan != bNan) return bNan;
+    if (!aNan && wa != wb) return wa < wb;
+    return ia < ib;
+}
+
+/// Stably sort MST edges in ascending order of weight, keeping endpoint arrays
+/// aligned.
+///
+/// Required by buildDendrogramFromSortedMst, whose union-find merge order
+/// assumes ascending weights -- but the *tie* order matters just as much.
+/// Equal-weight MST edges are the norm rather than the exception under MRD:
+/// every edge shorter than both endpoints' core distances collapses onto
+/// `max(coreI, coreJ)`, so on clustered data a large fraction of the weights are
+/// exact duplicates. The dendrogram folds the edges in this order, so among tied
+/// edges the order decides which side of a tie-degenerate split a point lands
+/// on. The plain three-array `qSort` is introsort: its tie order follows pivot
+/// selection, which makes those outcomes an artifact of the sort rather than of
+/// the data, and discards the order the MST builder emitted (Prim's on the dense
+/// path emits ties in the same order as the reference implementation, whose sort
+/// is stable at these sizes). The GPU backend already permutes through a stable
+/// radix sort, so sorting stably here also keeps the two backends in agreement.
+///
+/// Sorts an index permutation on the composite key `(weight, position)` -- a
+/// strict total order (see `mstEdgeLess`), so one ordinary sort yields the
+/// stable permutation -- then gathers the three arrays through it. Falls back to
+/// the in-place `qSort` if the permutation buffers cannot be allocated:
+/// ascending weights, which is all the dendrogram strictly requires, are
+/// preserved and only the tie order becomes unspecified.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -74,7 +123,39 @@ struct CondensedEdge
 template <typename algorithmFPType, CpuType cpu>
 static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t edgeCount)
 {
-    daal::algorithms::internal::qSort<algorithmFPType, DAAL_INT, DAAL_INT, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
+    TArray<DAAL_INT, cpu> orderArr(edgeCount);
+    TArray<DAAL_INT, cpu> fromArr(edgeCount);
+    TArray<DAAL_INT, cpu> toArr(edgeCount);
+    TArray<algorithmFPType, cpu> weightArr(edgeCount);
+    DAAL_INT * order            = orderArr.get();
+    DAAL_INT * sortedFrom       = fromArr.get();
+    DAAL_INT * sortedTo         = toArr.get();
+    algorithmFPType * sortedWgt = weightArr.get();
+
+    if (order == nullptr || sortedFrom == nullptr || sortedTo == nullptr || sortedWgt == nullptr)
+    {
+        daal::algorithms::internal::qSort<algorithmFPType, DAAL_INT, DAAL_INT, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
+        return;
+    }
+
+    for (size_t i = 0; i < edgeCount; i++) order[i] = static_cast<DAAL_INT>(i);
+
+    const algorithmFPType * weights = mstWeights;
+    std::sort(order, order + edgeCount, [weights](DAAL_INT a, DAAL_INT b) { return mstEdgeLess<algorithmFPType>(weights[a], a, weights[b], b); });
+
+    for (size_t i = 0; i < edgeCount; i++)
+    {
+        const DAAL_INT src = order[i];
+        sortedFrom[i]      = mstFrom[src];
+        sortedTo[i]        = mstTo[src];
+        sortedWgt[i]       = mstWeights[src];
+    }
+
+    const size_t idxBytes = edgeCount * sizeof(DAAL_INT);
+    const size_t wgtBytes = edgeCount * sizeof(algorithmFPType);
+    daal::services::internal::daal_memcpy_s(mstFrom, idxBytes, sortedFrom, idxBytes);
+    daal::services::internal::daal_memcpy_s(mstTo, idxBytes, sortedTo, idxBytes);
+    daal::services::internal::daal_memcpy_s(mstWeights, wgtBytes, sortedWgt, wgtBytes);
 }
 
 /// Build the single-linkage dendrogram from sorted MST edges via union-find.
@@ -403,7 +484,9 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 /// grandparent sees the propagated score). If the parent wins, every
 /// descendant is unselected via an explicit stack walk over
 /// `childOffset`/`childList`. Oversized clusters (size > `mcsMax`) are forced
-/// onto the children-win branch unconditionally.
+/// onto the children-win branch unconditionally; this applies to leaf clusters
+/// too, which are otherwise skipped since they have no children to compare
+/// against.
 ///
 /// `treeTop` controls whether the root cluster participates. When the caller
 /// allows a single-cluster outcome, `treeTop == rootCid` and the root may win
@@ -431,7 +514,19 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 {
     for (DAAL_INT c = nClusters - 1; c >= treeTop; c--)
     {
-        if (isLeafCluster[c]) continue;
+        if (isLeafCluster[c])
+        {
+            // A leaf cluster has no children to compare against, so the
+            // stability comparison can never unselect it -- but the size cap
+            // still has to be honoured. Its propagated stability is the (empty)
+            // child sum, i.e. zero, matching the non-leaf children-win branch.
+            if (clusterSz[c] > mcsMax)
+            {
+                isSelected[c] = false;
+                stability[c]  = algorithmFPType(0);
+            }
+            continue;
+        }
 
         algorithmFPType childSum       = algorithmFPType(0);
         const DAAL_INT childOffsetC    = childOffset[c];

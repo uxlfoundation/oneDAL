@@ -316,10 +316,7 @@ public:
         const size_t blockSize = 512;
         const size_t nBlocks   = n / blockSize + !!(n % blockSize);
 
-        SafeStatus safeStat;
-
-        for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock)
-        {
+        auto finalizeBlock = [=](size_t iBlock) {
             const size_t begin = iBlock * blockSize;
             const size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, n);
             const size_t count = end - begin;
@@ -329,7 +326,38 @@ public:
                 a[i] = services::internal::max<cpu, FPType>(FPType(0), a[i]);
             }
             MathInst<FPType, cpu>::vSqrt(count, a + begin, a + begin);
+        };
+
+        // `n` spans several orders of magnitude across callers: bf_knn finalizes
+        // one result block (`nTest * k` entries) from inside a `threader_for`,
+        // while hdbscan's brute-force path finalizes a full N x N matrix -- 6.25e8
+        // entries at 25k rows, where a serial sweep costs ~0.6 s, roughly 40% of
+        // the Euclidean fit. So thread the sweep, but only once there is enough
+        // work to pay for the dispatch: the small callers stay on the plain loop
+        // and do not add a nested parallel region inside their own one.
+        // Each task takes `blocksPerTask` consecutive blocks, i.e. 32k entries, so
+        // the task count stays well inside the `int` iteration space of
+        // `threader_for` (it would take 7e13 entries to overflow it) while each
+        // task is still large enough to amortize the dispatch.
+        const size_t blocksPerTask = 64;
+        const size_t nTasks        = nBlocks / blocksPerTask + !!(nBlocks % blocksPerTask);
+        if (nTasks < 2)
+        {
+            for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock)
+            {
+                finalizeBlock(iBlock);
+            }
+            return services::Status();
         }
+
+        daal::threader_for(static_cast<int>(nTasks), static_cast<int>(nTasks), [&](int iTask) {
+            const size_t firstBlock = static_cast<size_t>(iTask) * blocksPerTask;
+            const size_t lastBlock  = services::internal::min<cpu, size_t>(firstBlock + blocksPerTask, nBlocks);
+            for (size_t iBlock = firstBlock; iBlock < lastBlock; ++iBlock)
+            {
+                finalizeBlock(iBlock);
+            }
+        });
         return services::Status();
     }
 
