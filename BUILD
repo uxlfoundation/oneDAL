@@ -3,6 +3,7 @@ load("@onedal//dev/bazel:release.bzl",
     "release_all",
     "release_include",
     "release_extra_file",
+    "release_dep_runtime",
 )
 load("@onedal//dev/bazel/config:selects.bzl",
     "parameters_lib_enabled",
@@ -208,6 +209,19 @@ release(
         release_extra_file(":release_nuspec_devel", "nuspec/inteldal.devel.linux.nuspec", windows_dst_path = "nuspec/inteldal.devel.win-x64.nuspec"),
         release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
         release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
+    ],
+    # libonedal_thread.so records DT_NEEDED entries for TBB, so the TBB
+    # redistributables have to travel with the package, exactly as Make stages
+    # them (`makefile:274-279`, `makefile:1101`). Windows splits them the way
+    # Make does: the DLLs the released libraries load at runtime go under
+    # `bin/vc_mt`, the import libraries a consumer links against under
+    # `lib/vc_mt`. On Linux the `.so` files serve both roles and
+    # `tbb_import_libs` is empty.
+    dep_runtime = [
+        release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
+                            windows_dst_dir = "tbb/latest/bin/vc_mt"),
+        release_dep_runtime("@tbb//:tbb_import_libs", "",
+                            windows_dst_dir = "tbb/latest/lib/vc_mt"),
     ],
 )
 
