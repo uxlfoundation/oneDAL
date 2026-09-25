@@ -42,8 +42,9 @@ public:
     table biases;
     double first_class_response;
     double second_class_response;
-    std::int64_t class_count = 2;
+    std::int64_t class_count = 0;
     table iteration_counts;
+    table n_support_per_class;
 
     model_impl() = default;
     model_impl(const model_impl&) = delete;
@@ -63,7 +64,7 @@ public:
 
         if constexpr (std::is_same_v<Task, task::classification> ||
                       std::is_same_v<Task, task::nu_classification>) {
-            ar(first_class_response, second_class_response, class_count);
+            ar(first_class_response, second_class_response, class_count, n_support_per_class);
         }
 
         dal::detail::serialize_polymorphic(interop_, ar);
@@ -74,7 +75,7 @@ public:
 
         if constexpr (std::is_same_v<Task, task::classification> ||
                       std::is_same_v<Task, task::nu_classification>) {
-            ar(first_class_response, second_class_response, class_count);
+            ar(first_class_response, second_class_response, class_count, n_support_per_class);
         }
 
         interop_ = dal::detail::deserialize_polymorphic<backend::model_interop>(ar);

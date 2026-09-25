@@ -163,6 +163,9 @@ public:
     ID(2050000000, heterogen_table_id);
 
     // Algorithms - SVM
+    // v1 classification/nu_classification IDs were retired when the model
+    // gained per-class support-vector counts; bumped to fail-fast on old
+    // archives rather than silently mis-parsing them.
     ID(3010000000, svm_classification_model_impl_id);
     ID(3010100000, svm_regression_model_impl_id);
     ID(3010200000, svm_model_interop_impl_multiclass_id);
