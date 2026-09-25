@@ -382,8 +382,188 @@ private:
         bs::result_option_id(dal::result_option_id_base(mask_full));
 };
 
+template <typename TestType>
+class basic_statistics_online_csr_test
+        : public basic_statistics_test<TestType, basic_statistics_online_csr_test<TestType>> {
+public:
+    using float_t = std::tuple_element_t<0, TestType>;
+    using descriptor_t = bs::descriptor<float_t, bs::method::sparse, bs::task::compute>;
+
+    /// Row-slice the fully-materialized dense reference to match a CSR prefix.
+    /// Uses raw row_accessor pulls to keep the test transport-agnostic.
+    ///
+    /// @param dense     Dense reference table of size `n x p`
+    /// @param row_count Number of leading rows to keep
+    /// @return          The first `row_count` rows of `dense`, or `dense` itself when the
+    ///                  whole table is requested
+    static table dense_row_prefix(const table& dense, std::int64_t row_count) {
+        if (row_count == dense.get_row_count())
+            return dense;
+        auto arr = row_accessor<const float_t>{ dense }.pull({ 0, row_count });
+        return homogen_table::wrap(arr, row_count, dense.get_column_count());
+    }
+
+    /// Run partial_compute + finalize_compute on `n_blocks` CSR row-shards
+    /// and check the result against batch::compute on the full CSR table
+    /// (which is itself validated against the dense reference in csr_general_checks).
+    /// Also validates every intermediate finalize(partial_k) against the dense
+    /// reference restricted to the prefix that has been fed so far. This catches
+    /// (a) merge bugs (e.g. min/max/sum forgetting a batch), (b) storage-aliasing
+    /// bugs where a later partial_compute mutates the tables underlying an earlier
+    /// finalize result, and (c) mid-stream regressions that only surface at
+    /// specific block counts.
+    ///
+    /// @param builder      Source of the CSR table and its dense reference
+    /// @param compute_mode Requested result options
+    /// @param n_blocks     Number of row-shards the table is fed in
+    void online_csr_general_checks(const te::csr_table_builder<>& builder,
+                                   bs::result_option_id compute_mode,
+                                   std::int64_t n_blocks) {
+        CAPTURE(n_blocks, compute_mode);
+        const auto desc = descriptor_t{}.set_result_options(compute_mode);
+        const auto full_csr = builder.build_csr_table(this->get_policy());
+        const auto dense_ref = builder.build_dense_table(this->get_policy());
+
+        auto batch_result = this->compute(desc, full_csr);
+        this->check_compute_result(compute_mode, dense_ref, table{}, batch_result);
+
+        const auto blocks = te::split_csr_by_rows<float_t>(full_csr, n_blocks);
+        dal::basic_statistics::partial_compute_result<> partial;
+        std::int64_t rows_fed = 0;
+        for (const auto& block : blocks) {
+            partial = this->partial_compute(desc, partial, block);
+            rows_fed += block.get_row_count();
+
+            // Snapshot: verify that at this point finalize agrees with what
+            // the batch algorithm would produce on the first `rows_fed` rows.
+            // Skip when the prefix has fewer than two rows: the reference and
+            // the kernel both divide sum_squares_centered by (n - 1), which is
+            // undefined at n == 1.
+            if (rows_fed < 2)
+                continue;
+            auto interim = this->finalize_compute(desc, partial);
+            const auto ref_prefix = dense_row_prefix(dense_ref, rows_fed);
+            this->check_compute_result(compute_mode, ref_prefix, table{}, interim);
+        }
+        // After the loop `partial` already contains all rows; the last iteration
+        // finalize covered n_blocks == the full table. Still emit the final check
+        // separately for symmetry with online.cpp.
+        auto final_result = this->finalize_compute(desc, partial);
+        this->check_compute_result(compute_mode, dense_ref, table{}, final_result);
+        this->check_for_exception_for_non_requested_results(compute_mode, final_result);
+    }
+
+    /// Feed two CSR batches where one of them holds only zeros, either as the first
+    /// batch or right after a non-empty one, and check both the intermediate and the
+    /// final finalize_compute against the dense reference. The payload rows are
+    /// strictly positive, so an all-zero batch is the only possible source of a zero
+    /// minimum: a merge that silently drops such a batch is caught by `min`, and one
+    /// that drops its rows from the observation count is caught by `mean`.
+    ///
+    /// @param compute_mode Requested result options
+    /// @param zeros_first  `true` feeds the all-zero batch first, so it also has to
+    ///                     initialize the partial result; `false` merges it into an
+    ///                     already populated partial
+    void online_csr_zero_batch_checks(bs::result_option_id compute_mode, bool zeros_first) {
+        CAPTURE(compute_mode, zeros_first);
+        constexpr std::int64_t column_count = 4;
+        constexpr std::int64_t zero_rows = 3;
+        constexpr std::int64_t data_rows = 9;
+        constexpr std::int64_t row_count = zero_rows + data_rows;
+
+        auto dense_arr = dal::array<float_t>::zeros(row_count * column_count);
+        auto dense_ptr = dense_arr.get_mutable_data();
+        const std::int64_t data_begin = zeros_first ? zero_rows : 0;
+        for (std::int64_t r = data_begin; r < data_begin + data_rows; ++r) {
+            for (std::int64_t c = 0; c < column_count; ++c) {
+                const std::int64_t i = r * column_count + c;
+                dense_ptr[i] = float_t((i % 7) + 1);
+            }
+        }
+        const table dense_ref = homogen_table::wrap(dense_arr, row_count, column_count);
+
+        const std::int64_t first_rows = zeros_first ? zero_rows : data_rows;
+        const std::int64_t second_rows = row_count - first_rows;
+        const std::vector<csr_table> blocks{
+            te::dense_to_explicit_csr<float_t>(dense_ptr,
+                                               first_rows,
+                                               column_count,
+                                               this->data_indexing_),
+            te::dense_to_explicit_csr<float_t>(dense_ptr + first_rows * column_count,
+                                               second_rows,
+                                               column_count,
+                                               this->data_indexing_)
+        };
+
+        const auto desc = descriptor_t{}.set_result_options(compute_mode);
+        dal::basic_statistics::partial_compute_result<> partial;
+        std::int64_t rows_fed = 0;
+        for (const auto& block : blocks) {
+            partial = this->partial_compute(desc, partial, block);
+            rows_fed += block.get_row_count();
+            auto interim = this->finalize_compute(desc, partial);
+            this->check_compute_result(compute_mode,
+                                       dense_row_prefix(dense_ref, rows_fed),
+                                       table{},
+                                       interim);
+        }
+        REQUIRE(rows_fed == row_count);
+        this->check_for_exception_for_non_requested_results(compute_mode,
+                                                            this->finalize_compute(desc, partial));
+    }
+
+    /// Same flow as `online_csr_general_checks`, but with per-row weights. The
+    /// reference in `check_vs_reference` scales every element by its row's weight and
+    /// keeps the plain row count as the observation count, which is exactly what the
+    /// sparse backends do by folding the weights into the stored values, see
+    /// `scale_csr_by_weights`. `te::split_table_by_rows` uses the same
+    /// regular-blocks-plus-tail split as `te::split_csr_by_rows`, so block `i` of the
+    /// weights lines up row-for-row with block `i` of the data.
+    ///
+    /// @param builder      Source of the CSR table and its dense reference
+    /// @param compute_mode Requested result options
+    /// @param n_blocks     Number of row-shards the table is fed in
+    /// @param weight_min   Lower bound of the uniformly drawn row weights
+    /// @param weight_max   Upper bound of the uniformly drawn row weights
+    void online_csr_weighted_checks(const te::csr_table_builder<>& builder,
+                                    bs::result_option_id compute_mode,
+                                    std::int64_t n_blocks,
+                                    double weight_min = 0.2,
+                                    double weight_max = 3.0) {
+        CAPTURE(n_blocks, compute_mode, weight_min, weight_max);
+        const auto desc = descriptor_t{}.set_result_options(compute_mode);
+        const auto full_csr = builder.build_csr_table(this->get_policy());
+        const auto dense_ref = builder.build_dense_table(this->get_policy());
+        const auto row_count = full_csr.get_row_count();
+
+        // Weights on both sides of 1 so that a path ignoring them cannot pass.
+        const auto weights_df = te::dataframe_builder{ row_count, 1 }
+                                    .fill_uniform(weight_min, weight_max, 4242)
+                                    .build();
+        const table weights =
+            weights_df.get_table(this->get_policy(), this->get_homogen_table_id());
+
+        const auto blocks = te::split_csr_by_rows<float_t>(full_csr, n_blocks);
+        const auto weight_blocks =
+            te::split_table_by_rows<float_t>(this->get_policy(), weights, n_blocks);
+
+        dal::basic_statistics::partial_compute_result<> partial;
+        std::int64_t rows_fed = 0;
+        for (std::int64_t b = 0; b < n_blocks; ++b) {
+            partial = this->partial_compute(desc, partial, blocks[b], weight_blocks[b]);
+            rows_fed += blocks[b].get_row_count();
+        }
+        REQUIRE(rows_fed == row_count);
+
+        auto result = this->finalize_compute(desc, partial);
+        this->check_compute_result(compute_mode, dense_ref, weights, result);
+        this->check_for_exception_for_non_requested_results(compute_mode, result);
+    }
+};
+
 using basic_statistics_types = COMBINE_TYPES((float, double), (basic_statistics::method::dense));
 using basic_statistics_sparse_types = COMBINE_TYPES((float, double),
                                                     (basic_statistics::method::sparse));
+using basic_statistics_online_csr_types = COMBINE_TYPES((float, double), (bs::method::sparse));
 
 } // namespace oneapi::dal::basic_statistics::test
