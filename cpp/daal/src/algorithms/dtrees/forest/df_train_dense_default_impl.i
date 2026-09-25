@@ -630,12 +630,7 @@ protected:
     typename DataHelper::NodeType::Base * buildBestFirst(services::Status & s, size_t iStart, size_t n, size_t level,
                                                          typename DataHelper::ImpurityData & curImpurity, bool & bUnorderedFeaturesUsed,
                                                          size_t nClasses, intermSummFPType totalWeights);
-    // Computes item's own best candidate split (if any) without regard to the
-    // remaining leaf budget, and without materializing it as an actual Split tree
-    // node -- that decision is deferred to whenever item is popped from
-    // buildBestFirst's priority queue, since only then is item's priority known
-    // relative to the rest of the frontier. A structural (data-driven) leaf is
-    // still materialized immediately, since its fate never depends on the budget.
+    // Computes item's own best candidate split and checks whether it's a structural leaf
     template <typename WorkItem>
     void buildNode(const size_t level, const size_t nClasses, WorkItem & item, typename DataHelper::ImpurityData & impurity);
 
@@ -960,17 +955,6 @@ void TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hyperparamete
         const intermSummFPType rightWeights            = item.totalWeights - leftWeights;
         typename DataHelper::ImpurityData impurityLeft = split.left;
 
-        // Use the actual right-child impurity, not (imp - impLeft): that substitution
-        // is only exact when imp equals the weighted average of the children's
-        // impurities, which Gini/variance impurity does not satisfy in general, and
-        // was throwing off leaf-selection priority in best-first growth. Note
-        // convertLeftImpToRight mutates split.nLeft/leftWeights/left in place (into
-        // the right child's), so nLeft/leftWeights/impurityLeft above must be
-        // captured before this call, not read off split afterwards.
-        //
-        // As in buildDepthFirst, compute a singleton right child directly from raw
-        // data instead of deriving it by subtraction, to avoid floating-point error
-        // that would otherwise propagate into this node's descendants' priorities.
         if (item.n - nLeft != 1)
         {
             _helper.convertLeftImpToRight(item.n, impurity, split);
@@ -981,7 +965,6 @@ void TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hyperparamete
         }
         const intermSummFPType impRight = split.left.var;
 
-        // check impurity decrease
         const intermSummFPType improve = imp * item.totalWeights - impLeft * leftWeights - impRight * rightWeights;
         if (improve >= _minImpurityDecrease)
         {
@@ -1023,12 +1006,12 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
         typename DataHelper::ImpurityData impurity {};
         typename DataHelper::ImpurityData impurityLeft {};
         typename DataHelper::ImpurityData impurityRight {};
-        typename DataHelper::NodeType::Base * finalNode;    // set once this item's fate (leaf or split) is committed
-        typename DataHelper::NodeType::Split * parentSplit; // nullptr for the tree root
-        size_t slotInParent;                                // which of parentSplit's kid[] slots this item fills in, once committed
+        typename DataHelper::NodeType::Base * finalNode;
+        typename DataHelper::NodeType::Split * parentSplit;
+        size_t slotInParent;
         IndexType iFeature;
         algorithmFPType featureValue;
-        bool splitFeatureUnordered; // whether THIS item's own candidate split feature is unordered
+        bool splitFeatureUnordered; // whether item's own candidate split feature is unordered
 
         WorkItem()
             : isLeaf(true),
@@ -1070,11 +1053,6 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
 
         WorkItem & operator=(const WorkItem & src)
         {
-            // finalNode/parentSplit/slotInParent must survive this copy in both
-            // branches: linking into the parent is deferred until this item is
-            // popped from buildBestFirst's priority queue (which always happens
-            // after at least one push/grow copy through this operator), unlike the
-            // pending-candidate fields below, which a genuine leaf never needs.
             if (src.isLeaf)
             {
                 improvement  = 0.0;
@@ -1116,7 +1094,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     }
     size_t remainingSplitNodes = _maxLeafNodes - 1;
 
-    // Create base (the tree root: parentSplit stays nullptr, marking it as such)
+    // Create base, parentSplit stays nullptr7
     WorkItem base(bUnorderedFeaturesUsed, iStart, n, level, totalWeights);
     TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(level, nClasses, base, curImpurity);
 
@@ -1134,8 +1112,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
 
         if (src.isLeaf)
         {
-            // Already decided and materialized when created (a structural leaf can
-            // never become a split, regardless of the remaining leaf budget).
+            // Node cannot be a split node due to stopping criterias.
             if (src.parentSplit)
                 src.parentSplit->kid[src.slotInParent] = src.finalNode;
             else
@@ -1143,37 +1120,20 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
             continue;
         }
 
-        // Capture everything still needed from src before any push() below, since
-        // push() can trigger BinaryHeap::grow() and reallocate the backing array,
-        // invalidating this reference.
+        // Read after the push() calls below, which overwrite src's slot in the heap
+        // array (and may reallocate it), so copy them out first. Every other field
+        // is consumed before then and can be read straight off src.
         typename DataHelper::NodeType::Split * const parentSplit = src.parentSplit;
         const size_t slotInParent                                = src.slotInParent;
-        const size_t srcStart                                    = src.start;
-        const size_t srcN                                        = src.n;
-        const size_t srcNLeft                                    = src.nLeft;
-        const size_t srcLevel                                    = src.level;
-        const intermSummFPType srcLeftWeights                    = src.leftWeights;
-        const intermSummFPType srcTotalWeights                   = src.totalWeights;
-        const bool childFeatureUnordered                         = src.featureUnordered || bool(src.splitFeatureUnordered);
-        typename DataHelper::ImpurityData srcImpurity            = src.impurity;
-        typename DataHelper::ImpurityData srcImpurityLeft        = src.impurityLeft;
-        typename DataHelper::ImpurityData srcImpurityRight       = src.impurityRight;
+
+        const bool childFeatureUnordered = src.featureUnordered || bool(src.splitFeatureUnordered);
 
         typename DataHelper::NodeType::Base * committedNode = nullptr;
         if (remainingSplitNodes)
         {
-            // src is the highest-priority pending candidate across the WHOLE
-            // frontier right now, so this is the correct moment -- not when it was
-            // created -- to decide whether it consumes one of the remaining split
-            // slots. Deciding this eagerly at creation time instead (in birth
-            // order) let lower-priority nodes claim slots ahead of genuinely
-            // higher-priority ones that just hadn't had their turn yet.
+            // Convert current node to split node as leaf budget allows it.
             --remainingSplitNodes;
 
-            // Report this split's own unordered-ness to the caller, same as
-            // buildDepthFirst does -- needed for correct handling of categorical
-            // features elsewhere, and previously never propagated out of
-            // buildBestFirst at all (only threaded through descendant WorkItems).
             bUnorderedFeaturesUsed |= bool(src.splitFeatureUnordered);
 
             if (_par.varImportance == training::MDI)
@@ -1182,20 +1142,16 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
             }
 
             typename DataHelper::NodeType::Split * splitNode =
-                makeSplit(src.iFeature, src.featureValue, src.splitFeatureUnordered, nullptr, nullptr, srcImpurity.var);
+                makeSplit(src.iFeature, src.featureValue, src.splitFeatureUnordered, nullptr, nullptr, src.impurity.var);
             if (!splitNode)
             {
                 return nullptr;
             }
-            splitNode->count = srcN;
+            splitNode->count = src.n;
 
-            WorkItem leftChild(childFeatureUnordered, srcStart, srcNLeft, srcLevel + 1, srcLeftWeights);
-            TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(srcLevel + 1, nClasses, leftChild,
-                                                                                                              srcImpurityLeft);
-            // Set unconditionally (not just in the pending-candidate case): a
-            // structural leaf still needs a correct parentSplit/slotInParent so
-            // that when it is later popped off the heap, it is recognized as
-            // already-linked rather than mistaken for the (parentless) tree root.
+            WorkItem leftChild(childFeatureUnordered, src.start, src.nLeft, src.level + 1, src.leftWeights);
+            TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(src.level + 1, nClasses, leftChild,
+                                                                                                              src.impurityLeft);
             leftChild.parentSplit  = splitNode;
             leftChild.slotInParent = 0;
             if (leftChild.isLeaf)
@@ -1203,9 +1159,9 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
                 splitNode->kid[0] = leftChild.finalNode;
             }
 
-            WorkItem rightChild(childFeatureUnordered, srcStart + srcNLeft, srcN - srcNLeft, srcLevel + 1, srcTotalWeights - srcLeftWeights);
-            TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(srcLevel + 1, nClasses, rightChild,
-                                                                                                              srcImpurityRight);
+            WorkItem rightChild(childFeatureUnordered, src.start + src.nLeft, src.n - src.nLeft, src.level + 1, src.totalWeights - src.leftWeights);
+            TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(src.level + 1, nClasses, rightChild,
+                                                                                                              src.impurityRight);
             rightChild.parentSplit  = splitNode;
             rightChild.slotInParent = 1;
             if (rightChild.isLeaf)
@@ -1215,6 +1171,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
 
             committedNode = splitNode;
 
+            // Note that these pushes might invalidate src reference
             s = binaryHeap.push(leftChild);
             if (!s.ok())
             {
@@ -1228,9 +1185,8 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
         }
         else
         {
-            // Leaf budget exhausted: fall back to a leaf using this node's own
-            // data, without ever creating (or consuming budget for) its children.
-            committedNode = makeLeaf(_aSample.get() + srcStart, srcN, srcImpurity, nClasses);
+            // Leaf budget exhausted
+            committedNode = makeLeaf(_aSample.get() + src.start, src.n, src.impurity, nClasses);
         }
 
         if (parentSplit)

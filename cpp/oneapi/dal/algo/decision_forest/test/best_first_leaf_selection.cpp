@@ -102,6 +102,9 @@ using df_best_first_types = _TE_COMBINE_TYPES_3((float, double),
 // have wrongly accepted it (verified against a build of the pre-#3772 code).
 DF_BEST_FIRST_TEST(
     "best-first split priority uses the real impurity decrease, not a same-side approximation") {
+    // max_leaf_nodes (best-first growth) is not supported on GPU; it is silently
+    // ignored there, so these assertions only hold on the CPU/host path.
+    SKIP_IF(this->is_gpu());
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
 
@@ -119,15 +122,6 @@ DF_BEST_FIRST_TEST(
     }
 }
 
-// Regression test for https://github.com/uxlfoundation/oneDAL/pull/3773.
-//
-// buildBestFirst used to spend its leaf budget (remainingSplitNodes) at
-// node-birth time -- the instant a child is created, immediately after its
-// parent is popped, in a fixed left-then-right order -- instead of at
-// node-selection (pop) time. This let a low-priority node consume the last
-// budget slot simply by being born (evaluated) first, even when a
-// higher-priority sibling was waiting right behind it.
-//
 // This dataset's root has 8 points: a "left" group (x=1..4, y=0,5,5,10) whose
 // own best further split has a modest improvement, and a "right" group
 // (x=5..8, y=100,100,200,200) whose own best further split -- cleanly
@@ -137,10 +131,9 @@ DF_BEST_FIRST_TEST(
 // true highest-priority pending candidate across the whole frontier),
 // leaving left unsplit; the birth-order bug always spent it on left instead
 // (evaluated first, by code order), regardless of right's higher quality
-// (verified against a build with only #3772's fix applied, i.e. without this
-// one).
 DF_BEST_FIRST_TEST(
     "best-first spends its leaf budget on the highest-priority pending node, not the first-born one") {
+    SKIP_IF(this->is_gpu());
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
 
