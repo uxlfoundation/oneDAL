@@ -112,6 +112,23 @@ def _normalize_download_info(repo_ctx, os_id):
         ))
     return result
 
+def _split_glob_entry(root, entry_fmt, mapping):
+    """Split a globbed entry into the directory to scan and the basename pattern."""
+    pattern = entry_fmt.split("/")[-1]
+    dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
+    root_with_dir = utils.substitute(
+        paths.join(root, dir_part) if dir_part else root,
+        mapping
+    )
+    return struct(pattern = pattern, dir_part = dir_part, root_with_dir = root_with_dir)
+
+def _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
+    glob = _split_glob_entry(root, entry_fmt, mapping)
+    for fs_entry in repo_ctx.path(glob.root_with_dir).readdir():
+        if _matches_glob(fs_entry.basename, glob.pattern):
+            return True
+    return False
+
 def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
     substitutions = substitutions or {}
     mapping = mapping or {}
@@ -119,22 +136,17 @@ def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
         if "*" in entry_fmt:
-            pattern = entry_fmt.split("/")[-1]
-            dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
-            root_with_dir = utils.substitute(
-                paths.join(root, dir_part) if dir_part else root,
-                mapping
-            )
+            glob = _split_glob_entry(root, entry_fmt, mapping)
             matched = False
-            for fs_entry in repo_ctx.path(root_with_dir).readdir():
-                if _matches_glob(fs_entry.basename, pattern):
+            for fs_entry in repo_ctx.path(glob.root_with_dir).readdir():
+                if _matches_glob(fs_entry.basename, glob.pattern):
                     matched = True
-                    dst = (paths.join(dir_part, fs_entry.basename)
-                           if dir_part else fs_entry.basename)
+                    dst = (paths.join(glob.dir_part, fs_entry.basename)
+                           if glob.dir_part else fs_entry.basename)
                     repo_ctx.symlink(str(fs_entry), dst)
             if not matched:
                 fail("No files matched pattern '%s' in directory '%s' while creating symlinks for entry '%s'" %
-                     (pattern, root_with_dir, entry_fmt))
+                     (glob.pattern, glob.root_with_dir, entry_fmt))
         else:
             src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
             dst_entry_path = entry_fmt
@@ -148,12 +160,20 @@ def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mappi
     rather than out of package metadata, so the result cannot disagree with the
     package, and OS-specific naming needs no separate attribute: entries that do
     not exist for the host OS are simply not there.
+
+    Globbed entries are kept when the pattern matches at least one file, and
+    dropped otherwise. Testing `exists` on the raw entry would never be true for
+    a pattern, so a globbed entry would always be dropped silently.
     """
     substitutions = substitutions or {}
     mapping = mapping or {}
     present = []
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
+        if "*" in entry_fmt:
+            if _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
+                present.append(entry)
+            continue
         src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
         if repo_ctx.path(src_entry_path).exists:
             present.append(entry)

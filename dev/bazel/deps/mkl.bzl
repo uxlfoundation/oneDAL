@@ -31,6 +31,31 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_sycl_lapack.so*",
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
+
+    ],
+    # Kernels are `dlopen`-ed, never linked, and which ISA families a given MKL
+    # package ships changes between releases (the pinned 2025 package has no
+    # `libmkl_avx.so*`/`libmkl_mc.so*`, for instance). Listing them in `libs`
+    # would make a missing family a hard repository-rule failure that breaks
+    # every target, host-only builds included, so they are optional: present
+    # families are symlinked, absent ones are left to the dispatcher.
+    optional_libs = [
+        # CPU dispatch kernels. `libmkl_core.so.2` holds only the dispatcher:
+        # the actual kernels live in per-ISA shared objects that it `dlopen`s
+        # by SONAME at the first classic-MKL call. Without these files in the
+        # repository every target that reaches classic MKL at run time dies
+        # with
+        #   INTEL oneMKL ERROR: .../libmkl_avx512.so.2: cannot open shared
+        #     object file
+        #   Intel oneMKL FATAL ERROR: Cannot load libmkl_avx512.so.2 or
+        #     libmkl_def.so.2.
+        # They end up in the same `cc_library` as `libmkl_core.so.2`
+        # (`mkl_classic_binary` in mkl.tpl.BUILD), which is where the
+        # dispatcher looks; see the comment there.
+        "lib/libmkl_def.so*",
+        "lib/libmkl_avx*.so*",
+        "lib/libmkl_mc*.so*",
+        "lib/libmkl_vml_*.so*",
     ],
     build_template = "@onedal//dev/bazel/deps:mkl.tpl.BUILD",
     win_includes = [
