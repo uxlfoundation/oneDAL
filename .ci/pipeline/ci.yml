@@ -389,6 +389,9 @@ jobs:
       .ci/env/apt.sh opencl
     displayName: 'install opencl'
   - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -441,9 +444,61 @@ jobs:
       echo "Checking Bazel config: stdalloc"
       bazel build --nobuild :release --stdalloc=true --release_dpc=false
 
+      # Analysis-only: validates configured release outputs, host/DPC dependency
+      # separation, folded-target rejection, and the Windows unsupported value.
+      dev/bazel/tests/parameters_layout_test.sh
+
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
     displayName: 'Bazel config smoke checks'
+
+  - script: |
+      set -euo pipefail
+      # This step is the largest consumer of disk in the job -- a second full
+      # release under a different configuration, plus a packaged consumer that
+      # builds through CMake, pkg-config and Bazel. The agent starts at over 95%
+      # of / in use, and a link that runs out of space reports nothing but
+      # `collect2: error: ld returned 1 exit status`, so account for the space
+      # here rather than diagnosing it several steps later.
+      report_disk() {
+        echo "Disk ${1} the folded consumer smoke:"
+        df -h /
+        # Both of these matter and only one is reclaimed between steps. The
+        # output base under ~/.cache/bazel goes away at the next `Clean Bazel
+        # cache (expunge)`; the --disk_cache directory does not -- `clean` has
+        # no effect on it and `bazel-cache-limit` only trims it, at 4Gb, once
+        # the whole job is over.
+        du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
+        du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
+      }
+      report_disk before
+      # Build with the same environment as the other Bazel steps. `setvars.sh`
+      # exports `MKLROOT`, which `mkl_repo` declares in `environ`, so sourcing it
+      # before the build would repoint `@mkl` at the oneAPI installation and
+      # invalidate the dependency for this step only.
+      #
+      # `--disk_cache=` disables the shared cache that `~/.bazelrc` points at
+      # (written in the `bazel-configure` step above) for this build alone.
+      # Nothing will ever reuse these artifacts: this is a one-off validation
+      # under a configuration no other step builds, so the entries share nothing
+      # with the default configuration and only occupy the cache for the rest of
+      # the job -- `bazel clean --expunge` cannot reclaim them, since it clears
+      # the output base and not a disk cache. Worth keeping on its own terms; it
+      # is not, as first assumed, the cause of the `cpp-tests-thread-dev` link
+      # failures, which persist with 4.6Gb free.
+      bazel build :release --release_dpc=false --build_parameters_lib=no --disk_cache=
+      # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
+      # oneAPI environment as an installed package user. `setvars.sh` reads
+      # optional variables such as `OCL_ICD_FILENAMES` unguarded, so `nounset`
+      # has to be relaxed while it runs.
+      set +u
+      source /opt/intel/oneapi/setvars.sh
+      set -u
+      DALROOT="$(pwd)/bazel-bin/release/daal/latest" \
+        dev/release_tests/parameters_layout_consumer_test.sh \
+        "$(pwd)/bazel-bin/release/daal/latest" "$(pwd)"
+      report_disk after
+    displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
       bazel build :release --release_dpc=false
@@ -569,14 +624,83 @@ jobs:
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
+      # `clean --expunge` clears the output base and leaves the --disk_cache
+      # directory alone, so by itself it reclaims nothing of the ~4.5Gb sitting
+      # there, and the step below -- which links 112 debug-mode test binaries and
+      # is the largest consumer in the job -- gets only ~4.6Gb to work with.
+      # Reclaiming here takes that to ~9.1Gb.
+      #
+      # This is not on its own enough; see `--disk_cache=` on that step, without
+      # which it refills the cache as it builds and fills / anyway. Both are
+      # needed: this frees the space, that stops it being spent twice.
+      #
+      # Dropped here rather than at the first expunge of this sequence so the
+      # example suites above keep their cache hits -- without them they rebuild
+      # oneDAL from scratch six times over, which is a much larger cost than the
+      # one step below losing its own.
+      #
+      # And this costs nothing at all: at 4.5Gb the cache is already over the 4Gb
+      # BAZEL_CACHE_MAX_SIZE_KB ceiling, so `bazel-cache-limit` deletes it at the
+      # end of every run regardless. This only moves that deletion to the point
+      # where the space is needed instead of after the step that needed it.
+      if [ -d "${BAZEL_CACHE_DIR:-}" ]; then
+        echo "Reclaiming Bazel disk cache: $(du -sh "${BAZEL_CACHE_DIR}" | cut -f1)"
+        rm -rf "${BAZEL_CACHE_DIR}"
+        mkdir -p "${BAZEL_CACHE_DIR}"
+      fi
+      df -h /
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      # This step fills / and dies, on a target that moves between runs --
+      # correlation_distance, covariance, linear_regression, pca, louvain over
+      # five builds, always exactly one of 112, and for five of them with nothing
+      # from ld but `collect2: error: ld returned 1 exit status`, because that is
+      # all ld says when it cannot write. With enough headroom to get further,
+      # Bazel names it:
+      #
+      #   WARNING: Remote Cache: No space left on device
+      #   BulkTransferException: No space left on device
+      #
+      # "Remote Cache" there is the `--disk_cache` from `~/.bazelrc`. So this step
+      # needs room for two copies of everything it produces: the output base, and
+      # a cache entry for each action. Emptying the cache beforehand does not
+      # help, since the step immediately refills it -- with 9.1Gb free it still
+      # reached 100% and 16Mb.
+      #
+      # `--disk_cache=` drops the second copy. Nothing is lost: the step above
+      # empties the cache, so there are no entries left to hit either way, and
+      # these outputs are of no use to anything downstream -- this is the last
+      # build in the job.
+      free -m
+      df -h /
+      du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache= \
+                 --verbose_failures
     displayName: 'cpp-tests-thread-dev'
+
+  - script: |
+      # Only reached when a step above failed, so it costs nothing on a green
+      # run. It stays in because the failure mode it reports on is silent: the
+      # step above exhausted `/` six times, and neither `ld` nor a sandbox copy
+      # says so -- the log showed only `collect2: error: ld returned 1 exit
+      # status` against a different target each run. `df` is the line that
+      # names it. `free -m` and the kernel OOM grep are kept because they are
+      # what ruled out memory pressure, which the same symptom also fits.
+      echo '=== disk ==='
+      df -h /
+      du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
+      echo '=== memory ==='
+      free -m
+      echo '=== kernel OOM records ==='
+      sudo dmesg 2>/dev/null | grep -iE 'killed process|out of memory|oom-kill' | tail -20 \
+        || echo '(none, or dmesg not readable)'
+    displayName: 'Diagnose test link failure'
+    condition: failed()
 
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
@@ -607,6 +731,70 @@ jobs:
           echo "No need for cleanup"
       fi
     displayName: 'bazel-cache-limit'
+
+- job: 'LinuxBazelGNU_OpenBLAS_rv64'
+  timeoutInMinutes: 0
+  variables:
+    OPENBLAS_VERSION : 'v0.3.27'
+    OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
+    SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
+  pool:
+    vmImage: 'ubuntu-24.04'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get install'
+  - script: |
+      .ci/env/apt.sh gnu-cross-compilers riscv64
+    displayName: 'riscv64-compiler installation'
+  - script: |
+      .ci/env/apt.sh llvm-version 18
+    displayName: 'llvm 18 installation'
+  - script: |
+      # sourcing done to set bazel version value from script
+      source .ci/env/bazelisk.sh
+      echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
+    displayName: 'install-bazel'
+  - script: |
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      key: '"riscv64" | "sysroot" | "$(SYSROOT_OS)"'
+      path: $(SYSROOT_CACHE_DIR)
+      cacheHitVar: SYSROOT_RESTORED
+  - script: |
+      .ci/env/apt.sh build-sysroot $(Pipeline.Workspace) riscv64 $(SYSROOT_OS) sysroot-riscv64
+    displayName: 'Build riscv64 sysroot'
+    condition: ne(variables.SYSROOT_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64" | "$(SYSROOT_OS)"'
+      path: $(OPENBLAS_CACHE_DIR)
+      cacheHitVar: OPENBLAS_RESTORED
+  - script: |
+      # Build OpenBLAS with clang + the riscv64 sysroot, matching
+      # LinuxMakeLLVM_OpenBLAS_rv64 (same cache key => shared cache hit). The
+      # gnu riscv64 cross-gcc on the ubuntu-24.04 image is gcc-13, which lacks
+      # the RVV segment intrinsics (vfloat32m4x2_t, __riscv_vlseg2e32_v_f32m4x2)
+      # that OpenBLAS' RISCV64_ZVL128B kernels use, so it cannot build them.
+      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
+    displayName: 'Build OpenBLAS'
+    condition: ne(variables.OPENBLAS_RESTORED, 'true')
+  - script: |
+      export CC=riscv64-linux-gnu-gcc
+      export CXX=riscv64-linux-gnu-g++
+      export OPENBLASROOT=$(OPENBLAS_CACHE_DIR)
+      bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
+        //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+    displayName: 'bazel build (riscv64 cross)'
+  - script: |
+      set -euo pipefail
+      for lib in bazel-bin/cpp/daal/libonedal_core.so bazel-bin/cpp/oneapi/dal/libonedal.so; do
+        file "${lib}"
+        readelf -h "${lib}" | grep -q "RISC-V" || { echo "##vso[task.logissue type=error]${lib} is not a RISC-V ELF"; exit 1; }
+      done
+    displayName: 'Verify RISC-V ELF output'
 
 - job: 'LinuxReleaseCompare'
   dependsOn:
@@ -676,6 +864,20 @@ jobs:
     displayName: 'bazel-configure'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build @config//:validate_build_parameters_lib --build_parameters_lib=yes > build_parameters_lib_yes.log 2>&1
+      if not errorlevel 1 (
+        type build_parameters_lib_yes.log
+        echo ERROR: Windows --build_parameters_lib=yes unexpectedly succeeded
+        exit /b 1
+      )
+      findstr /C:"--build_parameters_lib=yes is not supported on Windows" build_parameters_lib_yes.log >NUL || (
+        type build_parameters_lib_yes.log
+        echo ERROR: expected Windows parameter-library diagnostic was not found
+        exit /b 1
+      )
+    displayName: 'Reject separate parameter libraries on Windows'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release'
@@ -685,6 +887,82 @@ jobs:
       xcopy /E /I /Y "bazel-bin\release" "$(release.dir)" >NUL
       echo ##vso[task.setvariable variable=DALROOT]$(Build.Repository.LocalPath)\$(release.dir)\daal\latest
     displayName: 'Prepare standalone release directory'
+  # Debug MSVC runtime (Make MSVC_RUNTIME_VERSION=debug): checks that the
+  # `-MDd` build links and that its libraries land under the `d`-suffixed
+  # names, so an MD and an MDd release can share one tree. Built after the
+  # release tree above is copied out, since it reuses bazel-bin/release.
+  # Analysis-only check of both MSVC-runtime configurations, ahead of the MDd
+  # build below. The debug runtime is driven by two settings that have to
+  # agree — the `msvc_runtime_debug` toolchain feature and the
+  # `@config//:msvc_runtime` build setting — and a mismatch is reported during
+  # analysis (see `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
+  # surfaces that in seconds rather than after a full icx compile, and also
+  # proves the //:release_all transitions are well-formed.
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --nobuild --verbose_failures || exit /b 1
+    displayName: 'analyze-msvc-runtime-configs'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      rem Clear the staged tree the MD build left behind. Bazel only replaces
+      rem the files the current build declares, so onedal_core.lib and friends
+      rem would still sit next to onedal_cored.lib and the name check below
+      rem could not tell a leftover from a library that failed to pick up the
+      rem `d` suffix. The MD tree itself is already copied out to
+      rem $(release.dir), and the deleted outputs are re-staged on demand.
+      if exist "bazel-bin\release\daal" rmdir /S /Q "bazel-bin\release\daal"
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release-mdd'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $root = "bazel-bin\release\daal\latest"
+      $libDir = Join-Path $root "lib\intel64"
+      $redistDir = Join-Path $root "redist\intel64"
+      if (-not (Test-Path $libDir)) { throw "Missing directory: $libDir" }
+      # Read the ABI major from the same constant the build uses, so an ABI bump
+      # does not have to be repeated here to keep this check honest.
+      $configBzl = "dev\bazel\config\config.bzl"
+      $majorMatch = Select-String -Path $configBzl -Pattern '^_BINARY_MAJOR\s*=\s*"(\d+)"'
+      if (-not $majorMatch) { throw "Could not read _BINARY_MAJOR from $configBzl" }
+      $major = $majorMatch.Matches[0].Groups[1].Value
+      Write-Host "ABI major from ${configBzl}: $major"
+      # The full set of debug-runtime artifacts, matching what the Make build
+      # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
+      # The DPC++ library is included because `--release_dpc` defaults to True
+      # (dev/bazel/config/config.tpl.BUILD) and this job does not turn it off,
+      # so //:release ships `onedal_dpc` through `:release_dpc_windows` in
+      # //BUILD. Only the dynamic flavour: Windows gets no static DPC library
+      # and no parameters libraries at all, so `onedal_dpcd.lib` and
+      # `onedal_parameters_dpcd.lib` are absent by design, in both CRT flavours.
+      $expectedLib = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
+                       "onedal_cored_dll.lib", "onedal_cored_dll.$major.lib",
+                       "onedald_dll.lib", "onedald_dll.$major.lib",
+                       "onedal_dpcd_dll.lib", "onedal_dpcd_dll.$major.lib")
+      $expectedRedist = @("onedal_cored.$major.dll", "onedal_threadd.$major.dll",
+                          "onedald.$major.dll", "onedal_dpcd.$major.dll")
+      $missing = @()
+      $missing += $expectedLib | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
+      # The import library for the threading DLL is deliberately not shipped,
+      # mirroring the Make package (release.bzl _THREAD_STEMS).
+      $unexpected = @("onedal_core.lib", "onedal_thread.lib", "onedal.lib",
+                      "onedal_dpc_dll.lib", "onedal_threadd_dll.lib") |
+          Where-Object { Test-Path (Join-Path $libDir $_) }
+      if ($missing -or $unexpected) {
+          Write-Host "lib\intel64:"
+          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          if (Test-Path $redistDir) {
+              Write-Host "redist\intel64:"
+              Get-ChildItem $redistDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          }
+          if ($missing) { Write-Host "MISSING: $($missing -join ', ')" }
+          if ($unexpected) { Write-Host "UNEXPECTED: $($unexpected -join ', ')" }
+          throw "Debug-runtime release tree does not match the expected name set."
+      }
+      Write-Host "Debug-runtime library names OK."
+    displayName: 'Verify debug-runtime library names'
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel icx build'
@@ -752,6 +1030,78 @@ jobs:
           Write-Host "No need for cleanup"
       }
     displayName: 'bazel-cache-limit'
+
+# Both MSVC runtimes merged into a single release tree by one command
+# (`//:release_all`), which exercises the transitions in release.bzl rather
+# than the plain single-flavour path.
+#
+# Deliberately NOT part of the pull-request run: it builds the whole Windows
+# release twice, and adding that to `WindowsBazel` — which already builds MD
+# and MDd — pushed that job past the six-hour hosted-agent limit and lost the
+# agent mid-compile. The PR run keeps the cheap
+# `bazel build //:release_all --nobuild` analysis check, which catches a
+# malformed transition in seconds; this job validates the staged output and
+# runs on manual or scheduled pipeline runs only.
+- job: 'WindowsBazelReleaseAll'
+  condition: in(variables['Build.Reason'], 'Manual', 'Schedule')
+  timeoutInMinutes: 0
+  variables:
+    platform.type : 'win32e'
+    BAZELISK_VERSION: 'v1.28.1'
+    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
+    BAZEL_OUTPUT_USER_ROOT: 'C:\b'
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+  steps:
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: 'Install oneAPI Base Toolkit'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
+      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
+      & "$(BAZELISK_EXE)" version
+    displayName: 'install-bazel'
+  - task: Cache@2
+    inputs:
+      key: '"$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      restoreKeys: |
+        "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
+      path: $(BAZEL_CACHE_DIR)
+    displayName: 'bazel-cache'
+  - script: |
+      if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
+      if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
+      set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
+      set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --cpu=avx2> "%USERPROFILE%\.bazelrc"
+      echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
+      echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
+    displayName: 'bazel-configure'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
+    displayName: 'release-all'
+  - powershell: |
+      $ErrorActionPreference = "Stop"
+      $libDir = "bazel-bin\release_all\daal\latest\lib\intel64"
+      if (-not (Test-Path $libDir)) {
+          throw "Combined release tree is missing: $libDir"
+      }
+      # Both flavours must be present side by side, and the shared
+      # runtime-independent files must not have been duplicated away.
+      $expected = @("onedal_core.lib", "onedal_cored.lib",
+                    "onedal_thread.lib", "onedal_threadd.lib",
+                    "onedal.lib", "onedald.lib",
+                    "onedal_core_dll.lib", "onedal_cored_dll.lib")
+      $missing = $expected | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
+      if ($missing) {
+          Write-Host "Files present in ${libDir}:"
+          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          throw "Combined release tree is missing: $($missing -join ', ')"
+      }
+      Write-Host "Combined MD + MDd release tree OK."
+    displayName: 'Verify combined release tree'
 
 - job: LinuxSklearnex
   dependsOn: LinuxMakeGNU_MKL

@@ -28,13 +28,42 @@
         #error Unknown CPU architecture
     #endif
 
-    #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
-    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    // `libonedal_parameters` exists only when oneDAL is built with
+    // `BUILD_PARAMETERS_LIB=yes`; the folded layout links the parameter objects
+    // into `libonedal` itself. `makefile` passes `-DPARAMETERS_LIB` to match.
+    #ifdef PARAMETERS_LIB
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    #else
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread)
+    #endif
 
+    // The static libraries are built against the ILP64 oneMKL interface, the
+    // dynamic ones against LP64 (see `dev/make/deps.mkl.mk`).
+    //
+    // A static consumer needs the oneMKL *archives*, named with `-l:` and
+    // resolved inside a link group:
+    //
+    //   * `-lmkl_core` finds `libmkl_core.so`, whose internals live in the
+    //     kernel libraries oneMKL dlopen's at runtime (`libmkl_def.so`,
+    //     `libmkl_avx*.so`), so a static link against the shared libraries
+    //     leaves ~9600 undefined references. oneDAL itself links the archives
+    //     (`daaldep.$(PLAT).mkl.*` in `dev/make/deps.mkl.mk`) and localizes
+    //     them with `--exclude-libs`, so a static consumer must supply them.
+    //   * naming the archives without a group still leaves ~400 undefined
+    //     references, and repeating them once leaves ~30: oneMKL's archives
+    //     are mutually recursive and need `--start-group`.
+    //   * the oneDAL archives are inside the group too, which makes the link
+    //     independent of their order, matching what `oneDALConfig.cmake`
+    //     already asks CMake consumers to do.
     #ifdef STATIC
         #define SUFFIX a
+        #define MATH_LIBS -l:libmkl_intel_ilp64.a -l:libmkl_tbb_thread.a -l:libmkl_core.a
+        #define OTHER_LIBS -ltbb -ltbbmalloc -lpthread -ldl
+        #define LIBS_LINE -Wl,--start-group ONEDAL_LIBS MATH_LIBS -Wl,--end-group OTHER_LIBS
     #else
         #define SUFFIX so
+        #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
+        #define LIBS_LINE ONEDAL_LIBS OTHER_LIBS
     #endif
 
     #define PATH(inp) ${libdir}/lib##inp.SUFFIX
@@ -45,7 +74,11 @@
     #define LIBDIR lib
 
     #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -ldl
-    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    #ifdef PARAMETERS_LIB
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
+    #else
+        #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread)
+    #endif
 
     #ifdef STATIC
         #define SUFFIX a
@@ -54,6 +87,11 @@
     #endif
 
     #define PATH(inp) ${libdir}/lib##inp.SUFFIX
+
+    // Apple's linker has no `--start-group` and no `-l:`, so the static
+    // package's oneMKL naming is left as it is here; see the `__linux__`
+    // branch for why that shape is not linkable.
+    #define LIBS_LINE ONEDAL_LIBS OTHER_LIBS
 
     #define OPTS -std=c++17 -Wno-deprecated-declarations -diag-disable=10441
 
@@ -70,6 +108,8 @@
         #define PATH(inp) ${libdir}/inp##_dll.lib
     #endif
 
+    #define LIBS_LINE ONEDAL_LIBS OTHER_LIBS
+
     #define OPTS /std:c++17 /MD /wd4996 /EHsc
 
 #else
@@ -83,7 +123,7 @@ includedir=${prefix}/include
 
 Name: oneDAL
 Description: oneAPI Data Analytics Library
-Version: 2026.2
+Version: 2026.3
 URL: ONEDAL_URL
-Libs: ONEDAL_LIBS OTHER_LIBS
+Libs: LIBS_LINE
 Cflags: OPTS -I${includedir}

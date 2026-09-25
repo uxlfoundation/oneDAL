@@ -64,17 +64,17 @@ jobs:
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Checkout oneTBB
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
@@ -141,17 +141,17 @@ jobs:
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Checkout oneTBB
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
@@ -198,12 +198,148 @@ jobs:
         env:
           CMAKE_GENERATOR: Ninja
 
+  bazel-build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [
+          { name: GitHub hosted, label: ubuntu-24.04-arm },
+        ]
+        rng: [ ref, openrng ]
+
+    name: LinuxBazel_OpenBLAS(SVE)${{ matrix.rng == 'openrng' && '_OpenRNG' || '' }}-${{ matrix.os.name }}
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ${{ matrix.os.label }}
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Bazel
+        run: |
+          source .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout oneTBB
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: uxlfoundation/oneTBB
+          ref: ${{ env.TBB_VERSION }}
+          path: ${{ github.workspace }}/__work/onetbb-src
+
+      # The `@tbb` Bazel repo defaults to an x86_64 prebuilt wheel, so an
+      # aarch64 TBB has to be supplied through TBBROOT. Only the tests need it:
+      # the libraries themselves resolve TBB at runtime, not at link time.
+      - name: Build oneTBB
+        run: |
+          .ci/env/tbb.sh
+          echo "TBBROOT=$(pwd)/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
+      - name: Build OpenBLAS
+        run: |
+          .ci/env/openblas.sh
+          echo "OPENBLASROOT=$(pwd)/__deps/openblas_aarch64" >> "$GITHUB_ENV"
+
+      - name: Build OpenRNG
+        if: matrix.rng == 'openrng'
+        run: |
+          .ci/env/openrng.sh --version ${{ env.OPENRNG_VERSION }}
+          echo "OPENRNGROOT=$(pwd)/__deps/openrng" >> "$GITHUB_ENV"
+
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+
+      - name: bazel build core_dynamic
+        run: |
+          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+
+      - name: Verify AArch64 ELF output
+        run: |
+          set -euo pipefail
+          for lib in bazel-bin/cpp/daal/libonedal_core.so bazel-bin/cpp/oneapi/dal/libonedal.so; do
+            file "${lib}"
+            readelf -h "${lib}" | grep -q "AArch64" || { echo "::error::${lib} is not an AArch64 ELF"; exit 1; }
+          done
+
+      # Real workloads, not just a link check: the examples are built against
+      # the SVE libraries produced above and executed on this native AArch64
+      # runner, mirroring the `daal-cpp-examples-thread-dev` /
+      # `cpp-examples-thread-dev` steps of the x86 Bazel lane.
+      - name: daal/cpp examples
+        run: |
+          set -euo pipefail
+          # enable_thread_pinning hangs on AArch64; the Make lanes above work
+          # around the same example with a `timeout`. (CMake's ref-backend
+          # brownboost exclusion has no Bazel counterpart — the boosting
+          # examples are not wired into the Bazel build.)
+          excludes=(
+            -//examples/daal/cpp:enable_thread_pinning_host
+          )
+          if [ "${{ matrix.rng }}" = "openrng" ]; then
+            # Decision forest is unstable on AArch64 with ref+OpenRNG: the
+            # examples either produce MKL-RNG-specific results or crash
+            # outright. CMake's EXCLUDE_LIST (examples/daal/cpp/CMakeLists.txt,
+            # OPENRNG_BACKEND branch) drops the first four below; the Make
+            # lanes above additionally fail df_reg_*_extratrees_batch and
+            # df_reg_traverse_model with errno 139 (SIGSEGV) on main, which
+            # goes unnoticed only because those steps end in `|| true`.
+            # Whether cls or reg traverse_model is the one that crashes varies
+            # between the Make and Bazel builds, so the whole training-based
+            # forest set is excluded rather than the exact observed failures.
+            # Only df_cls_dense_batch_model_builder, which assembles a model
+            # by hand and trains nothing, is kept.
+            excludes+=(
+              -//examples/daal/cpp:df_cls_default_dense_batch_host
+              -//examples/daal/cpp:df_cls_hist_dense_batch_host
+              -//examples/daal/cpp:df_reg_default_dense_batch_host
+              -//examples/daal/cpp:df_reg_hist_dense_batch_host
+              -//examples/daal/cpp:df_cls_default_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_cls_hist_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_reg_default_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_reg_hist_dense_extratrees_batch_host
+              -//examples/daal/cpp:df_cls_traverse_model_host
+              -//examples/daal/cpp:df_reg_traverse_model_host
+            )
+          fi
+          bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            --test_link_mode=dev \
+            --test_thread_mode=par \
+            --test_output=errors \
+            -- //examples/daal/cpp:all "${excludes[@]}"
+
+      - name: oneapi/cpp examples
+        run: |
+          set -euo pipefail
+          excludes=()
+          if [ "${{ matrix.rng }}" = "openrng" ]; then
+            # First three are CMake's ref+OpenRNG EXCLUDE_LIST
+            # (examples/oneapi/cpp/CMakeLists.txt, OPENRNG_BACKEND branch); all
+            # three segfault. df_cls_dense_batch segfaults on main's Make
+            # ref+OpenRNG lane too (`errno 139`), it is just not in the CMake
+            # list and that step ends in `|| true`. Same underlying ref+OpenRNG
+            # problem as the daal/cpp forest exclusions above.
+            excludes+=(
+              -//examples/oneapi/cpp:df_reg_dense_batch_host
+              -//examples/oneapi/cpp:df_cls_dense_batch_host
+              -//examples/oneapi/cpp:louvain_batch_host
+              -//examples/oneapi/cpp:connected_components_batch_host
+            )
+          fi
+          bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            --test_link_mode=dev \
+            --test_thread_mode=par \
+            --test_output=errors \
+            -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
+
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
   # running a matrix CI, and allows changing the CI without needing to change
   # the overall required check name.
   status:
-    needs: [build-and-test, openrng-build-and-test]
+    needs: [build-and-test, openrng-build-and-test, bazel-build-and-test]
     runs-on: ubuntu-latest
     name: "CI AArch64"
     steps:
