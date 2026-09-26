@@ -25,129 +25,87 @@ dev/bazel/
 ```
 
 ## 🎯 Configuration Files
-- **[MODULE.bazel](MODULE.bazel)** - Root module configuration
-- **[.bazelrc](.bazelrc)** - Bazel configuration options
+- **[MODULE.bazel](../../MODULE.bazel)** - Root module configuration
+- **[.bazelrc](../../.bazelrc)** - Bazel configuration options
 - **[dev/bazel/BUILD](BUILD)** - Root build configuration
 - **[dev/bazel/cc/BUILD](cc/BUILD)** - C++ build configuration
 - **[dev/bazel/deps/BUILD](deps/BUILD)** - Dependency management
 
 ### Module Configuration
-```python
-# MODULE.bazel
-module(
-    name = "onedal",
-    version = "1.0.0",
-)
-
-bazel_dep(name = "rules_cc", version = "0.2.18")
-bazel_dep(name = "catch2", version = "3.9.1")
-```
+`MODULE.bazel` declares a handful of `bazel_dep`s (`platforms`, `bazel_skylib`, `rules_cc`, `rules_shell`, `fmt`). Everything else is a repository rule: catch2 is an `http_archive` with `build_file = "//dev/bazel/deps:catch2.BUILD"`, and MKL, TBB, OpenBLAS, MPI, CCL, DPL and OpenCL come from the `dev/bazel/deps/*.bzl` rules. Read `MODULE.bazel` for current versions rather than copying them from here.
 
 ## 🔧 Build Rules and Patterns
 
-### C++ Library Target
+oneDAL does not use bare `cc_library` / `cc_test`. All modules go through the macros in `@onedal//dev/bazel:dal.bzl` (`dal_module`, `dal_test_suite`) and `@onedal//dev/bazel:daal.bzl` (`daal_module`). Compiler flags, CPU dispatch and threading are toolchain-owned (`dev/bazel/flags.bzl`); never hand-write `copts`.
+
 ```python
-cc_library(
-    name = "library_name",
-    srcs = glob(["src/**/*.cpp"]),
-    hdrs = glob(["include/**/*.h"]),
-    deps = [
-        "//path/to:dependency",
-        "//dev/bazel/deps:external_lib",
-    ],
-    visibility = ["//visibility:public"],
-    copts = ["-std=c++17", "-O3"],
+load("@onedal//dev/bazel:dal.bzl", "dal_module", "dal_test_suite")
+
+package(default_visibility = ["//visibility:public"])
+
+dal_module(
+    name = "core",
+    auto = True,                       # globs sources by convention, excludes test/
+    dal_deps = ["@onedal//cpp/oneapi/dal:core"],
+    extra_deps = ["@onedal//cpp/daal/src/algorithms/pca:kernel"],
+)
+
+dal_module(
+    name = "pca",
+    dal_deps = [":core"],
+)
+
+dal_test_suite(
+    name = "interface_tests",
+    srcs = glob(["test/*.cpp"]),
+    hdrs = glob(["test/*.hpp"]),
+    dal_deps = [":pca"],
+    framework = "catch2",              # injects the catch2 main; don't add a catch2 dep by hand
+)
+
+dal_test_suite(
+    name = "tests",                    # aggregate target CI invokes
+    tests = [":interface_tests"],
 )
 ```
 
-### C++ Test Target
-```python
-cc_test(
-    name = "library_test",
-    srcs = glob(["test/**/*.cpp"]),
-    deps = [
-        ":library_name",
-        "//dev/bazel/deps:catch2",
-    ],
-    copts = ["-std=c++17", "-g"],
-)
-```
+Reference implementation: `cpp/oneapi/dal/algo/pca/BUILD`.
 
 ## 🔧 Common Commands
 
 ```bash
-# Build entire project
-bazel build //...
+# Build the oneAPI core
+bazel build //cpp/oneapi/dal:core
 
-# Build specific target
-bazel build //cpp/daal:daal
+# Test one algorithm, CPU only
+bazel test --config=host //cpp/oneapi/dal/algo/pca:tests
 
-# Run tests
-bazel test //...
-
-# Clean build
-bazel clean --expunge
+# Build the release tree
+bazel build //:release
 ```
+
+Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets that need the Intel DPC++ compiler. `dev/bazel/README.md` lists every config.
 
 ## 🔧 Dependency Management
 
-### External Dependencies
-```python
-# dev/bazel/deps/BUILD
-cc_library(
-    name = "tbb",
-    srcs = glob(["tbb/src/**/*.cpp"]),
-    hdrs = glob(["tbb/include/**/*.h"]),
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "mkl",
-    srcs = glob(["mkl/lib/**/*.so"]),
-    hdrs = glob(["mkl/include/**/*.h"]),
-    visibility = ["//visibility:public"],
-)
-```
+External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_core`, `@tbb//:tbb`, `@openblas//:openblas`, `@mpi//:mpi`. `dev/bazel/deps/BUILD` declares no targets; the `*.tpl.BUILD` files next to it are the BUILD templates for those repositories.
 
 ## 🎯 Development Guidelines
 
-### Build Target Naming
-- **Libraries**: Use descriptive names (e.g., `daal_core`, `oneapi_dal`)
-- **Tests**: Append `_test` suffix (e.g., `daal_core_test`)
-- **Examples**: Use descriptive names (e.g., `kmeans_example`)
-
 ### Dependencies
-- **Internal**: Use relative paths (e.g., `//cpp/daal:daal`)
-- **External**: Use dependency rules (e.g., `//dev/bazel/deps:tbb`)
+- **Internal**: Full `@onedal//` labels in `dal_deps` (e.g., `@onedal//cpp/oneapi/dal:core`)
+- **DAAL kernels**: `extra_deps` (e.g., `@onedal//cpp/daal/src/algorithms/pca:kernel`)
 - **Visibility**: Set appropriate visibility levels
 
-## 🔍 Common Patterns
+## 📝 Rules for Changes
 
-### Conditional Compilation
-```python
-cc_library(
-    name = "platform_specific",
-    srcs = select({
-        "//dev/bazel/config:linux": ["src/linux.cpp"],
-        "//dev/bazel/config:windows": ["src/windows.cpp"],
-        "//conditions:default": ["src/default.cpp"],
-    }),
-    deps = [":common"],
-)
-```
-
-### Feature Detection
-```python
-cc_library(
-    name = "feature_detection",
-    srcs = ["src/feature_detection.cpp"],
-    copts = select({
-        "//dev/bazel/config:avx512": ["-mavx512f"],
-        "//dev/bazel/config:avx2": ["-mavx2"],
-        "//conditions:default": [],
-    }),
-)
-```
+- `//conditions:default` in a `select()` means every platform not listed, macOS included, not just Linux. Put Linux-only flags under `@platforms//os:linux`.
+- Don't add `allow_empty = True` to a glob that must match; it hides packaging mistakes. The optional globs in `dal.bzl`, `daal.bzl` and `deps/*.tpl.BUILD` need it.
+- Don't hardcode the workspace name in test paths; use `${TEST_WORKSPACE}`.
+- No `use_default_shell_env = True`; it breaks hermeticity.
+- Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
+- Remove unused `load()` symbols.
+- Library binary versions are `MAJORBINARY` / `MINORBINARY` in `makefile.ver`, mirrored by `_BINARY_MAJOR` / `_BINARY_MINOR` in `dev/bazel/repos.bzl`. Change both together; don't hardcode them anywhere else.
 
 ## 🚫 Common Pitfalls
 - **Build Configuration**: Don't hardcode platform-specific paths
@@ -160,9 +118,7 @@ cc_library(
 - **CI/CD Integration**: Primary build system for CI/CD
 
 ## 🔧 Required Tools
-- **Bazel**: 5.0+ for modern Bazel features
-- **Python**: 3.7+ for build rule development
-- **Compilers**: GCC 7+, Clang 6+, MSVC 2017+
+- **Bazel**: version pinned in `.bazelversion`; `.ci/env/bazelisk.sh` installs a matching launcher
 
 ## 📖 Further Reading
 - **[dev/AGENTS.md](../AGENTS.md)** - Development tools context

@@ -15,13 +15,13 @@
 ### Bazel build and test
 ```bash
 # Build oneAPI interface
-`bazel build //cpp/oneapi/dal:core`
+bazel build //cpp/oneapi/dal:core
 
-# Run CPU tests
-`bazel test //cpp/oneapi/dal:tests`
+# Run CPU (host) tests
+bazel test --config=host //cpp/oneapi/dal:tests
 
-# Run GPU tests
-`bazel test --config=dpc //cpp/oneapi/dal:tests`
+# Run DPC++ tests on GPU
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests
 ```
 
 ### Make and CMake build
@@ -33,11 +33,11 @@ make onedal_c
 # Build oneAPI interface with CPU and GPU support
 make onedal_dpc
 
-# Build dynamic link version of examples
-export CC=icx
-export CXX=icpx
-cmake -G "Unix Makefiles" -DONEDAL_LINK=dynamic
-make
+# Build the examples against the release tree (there is no root CMakeLists.txt)
+source __release_lnx/daal/latest/env/vars.sh
+cd examples/oneapi/cpp
+cmake -B build -S . -DONEDAL_LINK=dynamic
+cmake --build build --parallel
 ```
 
 ## 🛠️ Core Patterns
@@ -136,6 +136,11 @@ sycl::event gpu_compute(sycl::queue& q,
 - **GPU**: SYCL integration with USM for zero-copy operations
 - **Type Safety**: Template metaprogramming with compile-time dispatch
 - **Interface**: Never mix DAAL and oneAPI patterns in same file
+
+## 📝 Rules for Changes
+
+- Public types are declared in a versioned namespace and re-exported: `namespace v1 { struct x {}; }` followed by `using v1::x;`. The namespace is not `inline`, so a type without the `using` line is unreachable as `oneapi::dal::...::x`. Reference: `cpp/oneapi/dal/algo/pca/common.hpp`.
+- Use `nullptr`, never `0` or `NULL`. Write `override` directly, not through a macro. No `using namespace` in headers.
 
 ## 🔗 References
 

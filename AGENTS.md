@@ -1,98 +1,108 @@
+# AGENTS.md - oneDAL
 
-# oneDAL Repository - AI Agents Context Guide
+oneDAL (oneAPI Data Analytics Library) is a C++ machine learning library with two interfaces: DAAL (`cpp/daal`, CPU) and oneAPI (`cpp/oneapi`, CPU and SYCL GPU). It is built with Make (release builds) and Bazel (tests), and is the backend for [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex).
 
-> **Purpose**: Comprehensive context for AI agents working with the oneDAL repository structure, coding standards, and development guidelines.
-
-## 🎯 Repository Overview
-
-**oneDAL** (oneAPI Data Analytics Library) is a high-performance C++ library for machine learning algorithms, providing both traditional DAAL interfaces and modern oneAPI interfaces with SYCL support for GPU acceleration.
-
-**Integration Note**: oneDAL works with [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex). They share common validation aspects and provide accelerated machine learning capabilities together.
-
-### Key Characteristics
-- **Language**: Modern C++ (17+)
-- **Architecture**: Dual interface system (DAAL + oneAPI)
-- **Build Systems**: Make (production), CMake (integration), Bazel (development/testing)
-- **Targets**: CPU (SIMD optimized), GPU (SYCL), Distributed (MPI)
-- **License**: Apache License 2.0
-
-## 🏗️ Repository Structure
+## Repository Structure
 
 ```
-daal/
-├── cpp/        # Core C++ implementation
-│   ├── daal/   # Traditional DAAL interface
-│   └── oneapi/ # Modern oneAPI interface
-├── dev/        # Development tools and build configs
-├── examples/   # Usage examples and tutorials
-├── docs/       # Documentation and API references
-└── deploy/     # Deployment and packaging
+oneDAL/
+├── cpp/            # Library sources
+│   ├── daal/       # DAAL interface and CPU kernels
+│   └── oneapi/     # oneAPI interface (C++ and DPC++)
+├── dev/            # Build tooling: Bazel rules (dev/bazel), Make fragments (dev/make)
+├── examples/       # Examples for the DAAL and oneAPI interfaces
+├── samples/        # Distributed (MPI/CCL) samples
+├── docs/           # Documentation sources
+├── data/           # Datasets used by examples and tests
+├── deploy/         # Packaging and environment scripts
+├── cmake/          # CMake config templates for installed releases
+├── conda-recipe/   # Conda package recipe
+└── .ci/            # CI pipelines, environment setup and build/test scripts
 ```
 
-## 🔗 Context Files for AI Agents
+## Directory Guides
 
-Specialized AGENTS.md files for detailed context:
+Read the `AGENTS.md` nearest the files you change:
 
-### Core Implementation
-- **[cpp/AGENTS.md](cpp/AGENTS.md)** - C++ implementation details and patterns
-- **[cpp/daal/AGENTS.md](cpp/daal/AGENTS.md)** - Traditional DAAL interface context
-- **[cpp/oneapi/AGENTS.md](cpp/oneapi/AGENTS.md)** - Modern oneAPI interface context
+- [cpp/AGENTS.md](cpp/AGENTS.md): C++ implementation details and patterns
+- [cpp/daal/AGENTS.md](cpp/daal/AGENTS.md): Traditional DAAL interface context
+- [cpp/oneapi/AGENTS.md](cpp/oneapi/AGENTS.md): Modern oneAPI interface context
+- [dev/AGENTS.md](dev/AGENTS.md): Development tools and build system context
+- [dev/bazel/AGENTS.md](dev/bazel/AGENTS.md): Bazel build system specifics
+- [dev/make/AGENTS.md](dev/make/AGENTS.md): Make build fragments
+- [docs/AGENTS.md](docs/AGENTS.md): Documentation structure and guidelines
+- [examples/AGENTS.md](examples/AGENTS.md): Example code patterns and usage
+- [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
+- [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
+- [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)
+- [.github/instructions/AGENTS.md](.github/instructions/AGENTS.md): Copilot instruction scopes and maintenance
 
-### Build Systems & Development
-- **[dev/AGENTS.md](dev/AGENTS.md)** - Development tools and build system context
-- **[dev/bazel/AGENTS.md](dev/bazel/AGENTS.md)** - Bazel build system specifics
+## Conventions
+- C++17; no C++20/23 features.
+- clang-format configs are per source tree (`cpp/daal/`, `cpp/oneapi/`, `examples/*/`, `samples/*/`, `dev/l0_tools/`); there is no root `.clang-format`.
+- Parallelize through the oneDAL threading layer, never TBB directly.
+- Optimized kernels dispatch on CPU features; see `docs/source/contribution/cpu_features.rst`.
 
-### Documentation, Examples & Infrastructure
-- **[docs/AGENTS.md](docs/AGENTS.md)** - Documentation structure and guidelines
-- **[examples/AGENTS.md](examples/AGENTS.md)** - Example code patterns and usage
-- **[deploy/AGENTS.md](deploy/AGENTS.md)** - Deployment and distribution context
-- **[ci/AGENTS.md](ci/AGENTS.md)** - CI/CD infrastructure context
+## Rules for Changes
 
-## 📋 Critical Development Rules
+These come from recurring maintainer review comments. Directory-specific rules are in the nearest `AGENTS.md`.
 
-### Code Style and Standards
-- **ClangFormat**: Use project's `.clang-format` configuration
-- **EditorConfig**: Follow `.editorconfig` rules
-- **Modern C++**: Use C++14/17 features appropriately
-- **STL**: Leverage standard library containers and algorithms
-- **RAII**: Follow Resource Acquisition Is Initialization principles
+- Comments describe the code as it will be once merged. Don't reference discarded approaches, narrate the change, or mention "this PR".
+- Keep comments short and plain: explain why in one line when one line is enough, and in two sentences rather than a paragraph. Agent-written comments have historically been bloated and hard to read; don't restate the code, hedge, or add emphasis.
+- One PR, one logical change. Drive-by fixes, renames and mechanical changes (formatting, generated code, mass renames) go in their own PRs.
+- Search before adding a helper, constant table or validation routine. Extend the existing one and name it in the PR description.
+- Don't add a lock, critical section, guard or redundant check unless you can name the failure it prevents.
+- A bug fix comes with a test that fails without the fix.
+- Don't hardcode versions, URLs or paths that have a source of truth (`makefile.ver`, `MODULE.bazel`, `.github/renovate.json`).
+- New source files use the header `Copyright contributors to the oneDAL project`. Leave existing headers alone.
+- ASCII only in source, comments and docs. Keep each file's existing line endings.
+- Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
+- Bash scripts start with `set -euo pipefail`, use `mkdir -p`, and don't silence failures with a bare `|| true`.
 
-### Architecture Patterns
-- **Interface Design**: Follow existing DAAL/oneAPI patterns
-- **Memory Management**: Use smart pointers and RAII
-- **Threading**: Use oneDAL threading layer, not direct primitives
-- **CPU Features**: Implement CPU feature dispatching for optimizations
+## Verification Before You Push
 
-### Testing and Validation
-- **Build Tests**: All changes must pass build system validation
-- **Examples**: Ensure examples build and run correctly
-- **Documentation**: Update relevant documentation
+### Format and style (blocking: Azure `FormatterChecks`)
 
-## 🚀 Quick Start for AI Agents
+```bash
+pip install pre-commit && pre-commit install   # one-time
+pre-commit run --all-files
+editorconfig-checker
+```
 
-1. **Understand Context**: Read relevant AGENTS.md file for your task
-2. **Follow Patterns**: Study existing code in similar areas
-3. **Respect Standards**: Apply coding guidelines consistently
-4. **Test Thoroughly**: Ensure changes work with build system
+CI runs `.ci/scripts/clang-format.sh` with clang-format 20.1.8 (other versions format differently). It reformats files in place, so commit first: `CLANG_FORMAT_EXE=clang-format-20 .ci/scripts/clang-format.sh`.
 
-### 🔄 Cross-Repository Considerations
-- **scikit-learn-intelex integration impact**
-- **API compatibility preservation**
-- **Performance consistency maintenance**
+### Tests (Bazel)
 
-## 🔍 Key Files
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
-- **[INSTALL.md](INSTALL.md)** - Build and installation instructions
-- **[MODULE.bazel](MODULE.bazel)** - Bazel module configuration
-- **[.clang-format](.clang-format)** - Code formatting rules
+```bash
+bazel test --config=host //cpp/oneapi/dal/algo/<algo>:tests   # one algorithm, CPU only
+bazel test --config=host //cpp/oneapi/dal:tests               # oneAPI interface, CPU only
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests   # DPC++ on GPU
+```
 
-## 📚 Additional Resources
-- **API Documentation**: [oneDAL Developer Guide](https://uxlfoundation.github.io/oneDAL/)
-- **Coding Guidelines**: [Detailed coding guide](https://uxlfoundation.github.io/oneDAL/contribution/coding_guide.html)
-- **CPU Features**: [CPU feature dispatching guide](https://uxlfoundation.github.io/oneDAL/contribution/cpu_features.html)
-- **Threading**: [Threading layer guide](https://uxlfoundation.github.io/oneDAL/contribution/threading.html)
+Without `--config`, Bazel builds and runs all tests, including DPC++ ones that need the Intel DPC++ compiler. See `dev/bazel/README.md`.
 
----
+### Full build (Make)
 
-**Note**: This file serves as the main entry point. For specific implementation details, refer to the relevant sub-AGENTS.md file in the appropriate directory.
+```bash
+make -f makefile daal oneapi_c PLAT=lnx32e -j$(nproc)
+```
 
+See `INSTALL.md` for other platforms and build variants.
+
+### Where the checks live
+
+| Check | System | Config |
+| --- | --- | --- |
+| clang-format, editorconfig-checker | Azure DevOps | `.ci/pipeline/ci.yml` (`FormatterChecks`) |
+| Make (GNU/MKL, LLVM/OpenBLAS rv64, VC, Intel), Bazel, release compare, sklearnex | Azure DevOps | `.ci/pipeline/ci.yml` |
+| Make + DPC++ (icx), ABI check, Make GNU/MKL conda | GitHub Actions | `.github/workflows/ci.yml` |
+| Windows (incl. arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
+| aarch64 | GitHub Actions | `.github/workflows/ci-aarch64.yml` |
+| License headers | GitHub Actions | `.github/workflows/skywalking-eyes.yml` |
+| Bazel Linux/Windows | GitHub Actions (nightly) | `.github/workflows/nightly-test.yml` |
+
+Style is not gated in GitHub Actions: a green Actions run does not mean formatting passes.
+
+## Further Reading
+- `CONTRIBUTING.md`, `INSTALL.md`
+- `docs/source/contribution/coding_guide.rst`, `docs/source/contribution/threading.rst`

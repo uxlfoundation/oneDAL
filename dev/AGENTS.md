@@ -42,17 +42,17 @@ dev/
 - **Incremental Builds**: Fast incremental compilation
 
 ### Configuration Files
-- **[MODULE.bazel](MODULE.bazel)** - Root module configuration
-- **[.bazelrc](.bazelrc)** - Bazel configuration options
+- **[MODULE.bazel](../MODULE.bazel)** - Root module configuration
+- **[.bazelrc](../.bazelrc)** - Bazel configuration options
 - **[dev/bazel/BUILD](bazel/BUILD)** - Root build configuration
 
 ### Common Commands
 ```bash
-# Build entire project
-bazel build //...
+# Build the oneAPI core
+bazel build //cpp/oneapi/dal:core
 
-# Run tests
-bazel test //...
+# Test one algorithm, CPU only
+bazel test --config=host //cpp/oneapi/dal/algo/pca:tests
 
 # Clean build
 bazel clean --expunge
@@ -67,7 +67,7 @@ bazel clean --expunge
 - **Dependency Management**: Manual dependency specification
 
 ### Configuration Files
-- **[makefile](makefile)** - Root makefile
+- **[makefile](../makefile)** - Root makefile
 - **[dev/make/common.mk](make/common.mk)** - Common make rules
 - **[dev/make/deps.mk](make/deps.mk)** - Dependency management
 
@@ -123,5 +123,6 @@ library_name: $(LIBRARY_OBJS)
 
 ## 📖 Further Reading
 - **[dev/bazel/AGENTS.md](bazel/AGENTS.md)** - Bazel build system details
+- **[dev/make/AGENTS.md](make/AGENTS.md)** - Make build fragments
 - **[cpp/AGENTS.md](../cpp/AGENTS.md)** - C++ implementation context
 - **[docs/AGENTS.md](../docs/AGENTS.md)** - Documentation guidelines

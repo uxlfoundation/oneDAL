@@ -153,6 +153,11 @@ auto infer_result = infer(desc, train_result.get_model(), test_data);
 - **Threading**: TBB integration for task-based parallelism
 - **GPU**: SYCL for heterogeneous computing
 
+### ABI and Public API
+- Removing anything from a public header needs a deprecation period and an entry in `docs/source/deprecation.rst`. Expected symbol removals go in `.github/.abignore`, which the ABI check reads.
+- Don't change copy semantics (shallow vs deep) as a side effect of another change.
+- Export macros (`DAAL_EXPORT`, `ONEDAL_EXPORT`) and symbol visibility must stay the same between the Bazel and Make builds.
+
 ## 📖 Further Reading
 - **[AGENTS.md](/AGENTS.md)** - Repository overview and context
 - **[cpp/daal/AGENTS.md](/cpp/daal/AGENTS.md)** - DAAL interface specifics

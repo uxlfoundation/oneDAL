@@ -5,7 +5,7 @@
 # to LF line endings on checkout.
 *.c text
 *.h text
-*.i text
+*.i text linguist-language=C++
 *.hpp text
 *.cpp text
 *.def text

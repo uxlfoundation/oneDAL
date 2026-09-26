@@ -74,9 +74,7 @@ The oneDAL CI infrastructure supports:
 ### CI Platform Integration
 - **GitHub Actions**: Primary CI/CD platform for public workflows
 - **Azure DevOps**: Extended validation and internal testing
-- **Mergify**: Automated merge management
 - **Renovate**: Dependency update automation
-- **Codefactor**: Code quality analysis
 
 ### Build Matrix Configuration
 The CI system employs comprehensive build matrices covering:
@@ -91,6 +89,10 @@ The CI system employs comprehensive build matrices covering:
 - **ABI Compatibility**: Binary interface stability validation
 - **Security**: OpenSSF Scorecard integration
 - **Documentation**: Automated doc generation and validation
+
+## Rules for Changes
+- Pipelines call scripts in `.ci/scripts/` and `.ci/env/`. Change the script, not only the pipeline YAML that calls it.
+- Style checks (clang-format, editorconfig-checker) run only in Azure `FormatterChecks`. See "Verification Before You Push" in the root `AGENTS.md`.
 
 ## Usage Guidelines
 

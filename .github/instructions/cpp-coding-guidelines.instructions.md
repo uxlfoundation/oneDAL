@@ -1,5 +1,5 @@
 ---
-applyTo: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/cpp/**", "**/include/**"]
+applyTo: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/*.i", "**/cpp/**", "**/include/**"]
 ---
 
 # C++ Development and Coding Guidelines for GitHub Copilot
@@ -255,39 +255,14 @@ private:
 };
 ```
 
-## 🔍 **PR Review Checklist**
+## PR Review Checklist
 
-### Code Quality (VALIDATED CRITERIA)
-- [ ] **Interface consistency** - No mixing DAAL/oneAPI patterns
-  - DAAL: `services::Status`, `SharedPtr`, `.h` headers, traditional guards
-  - oneAPI: exceptions, `std::unique_ptr`/`std::shared_ptr`, `.hpp` headers, `#pragma once`
-- [ ] **Memory management** follows interface patterns
-  - DAAL: `daal::services::SharedPtr<T>`
-  - oneAPI: `std::unique_ptr`, `std::shared_ptr`
-- [ ] **Error handling** appropriate for interface
-  - DAAL: `services::Status` return codes
-  - oneAPI: C++ exceptions
-- [ ] **Naming conventions** followed consistently
-- [ ] **Header guards** correct for interface (`#pragma once` vs traditional)
+- Preserve the interface contract: DAAL uses `services::Status`, `SharedPtr`, `.h` headers, and traditional guards; oneAPI uses exceptions, standard smart pointers, `.hpp` headers, and `#pragma once`.
+- Check ownership, lifetime, error propagation, type safety, and bounds handling when the changed code makes them relevant.
+- Preserve CPU dispatch and avoid introducing C++20/23 features.
+- Flag public API or ABI changes unless the change explicitly accounts for compatibility.
 
-### Style and Security
-- [ ] **C++17 maximum standard** - no C++20/23 features
-- [ ] **Indentation** uses 4 spaces (no tabs)
-- [ ] **File headers** include copyright and description (validated format)
-- [ ] **Type safety** with proper validation
-- [ ] **Const correctness** applied appropriately
-- [ ] **Bounds checking** implemented where needed
-
-## 🚨 **Critical Reminders for PR Review**
-
-1. **Interface Separation** - NEVER mix DAAL and oneAPI patterns in the same file
-2. **Memory Management** - Use correct smart pointer types for each interface
-3. **Error Handling** - Use status codes for DAAL, exceptions for oneAPI
-4. **Header Extensions** - `.h` for DAAL, `.hpp` for oneAPI
-5. **Include Guards** - Traditional guards for DAAL, `#pragma once` for oneAPI
-6. **C++17 Compliance** - No C++20/23 features for maximum compatibility
-
-## 🔄 **Cross-Reference**
-- **[general.md](/.github/instructions/general.md)** - General repository context
-- **[build-systems.md](/.github/instructions/build-systems.md)** - Build system instructions
-- **[examples.md](/.github/instructions/examples.md)** - Example code patterns
+## Cross-Reference
+- [general.instructions.md](general.instructions.md) - Repository context
+- [build-systems.instructions.md](build-systems.instructions.md) - Build system instructions
+- [examples.instructions.md](examples.instructions.md) - Example code patterns
