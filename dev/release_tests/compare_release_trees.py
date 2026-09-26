@@ -718,10 +718,12 @@ def main():
         "--cross-toolchain",
         action="store_true",
         help=(
-            "the two releases are built by different compilers, as in the nightly "
-            "icx Make vs gcc Bazel pairing; linkage differences are then reported "
-            "instead of failing the comparison, and undefined symbols are not "
-            "compared at all (see compare_shared_library_linkage)"
+            "the two releases are not linked by the same compiler driver and "
+            "flags, as in the nightly icx Make vs icx Bazel pairing; DT_NEEDED "
+            "differences are then reported instead of failing the comparison, "
+            "except a Bazel-only dependency on an Intel compiler runtime, and "
+            "undefined symbols are not compared at all (see "
+            "compare_shared_library_linkage)"
         ),
     )
     parser.add_argument(

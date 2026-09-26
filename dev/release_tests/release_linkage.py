@@ -56,6 +56,12 @@ DYNAMIC_LINKAGE_PLATFORMS = ("linux",)
 # shown to be a build-system detail rather than a linkage one.
 LINUX_IGNORED_NEEDED = set()
 
+# Intel compiler support runtimes, by soname prefix: the libraries `-no-intel-lib`
+# keeps off the link line and `-static-intel` is meant to link statically. A
+# dependency on one of these that only the Bazel release records is counted even
+# on a cross-toolchain pair; see `compare_shared_library_linkage`.
+INTEL_COMPILER_RUNTIMES = ("libimf.", "libsvml.", "libirng.", "libintlc.", "libirc.")
+
 # Undefined dynamic references get their own ignore rules rather than reusing the
 # export ones. The export list drops everything under `_ZN3tbb`, because which
 # oneTBB template instantiation a build happens to emit as a *definition* is not
@@ -316,25 +322,38 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
     have to read every library a second time, the union of the DT_NEEDED entries
     the Make libraries record.
 
-    `cross_toolchain` is for pairings whose two trees are built by different
-    compilers -- the nightly compares an icx Make release against a gcc Bazel one.
-    Neither half of this check is an equality there, as measured on such a pair:
+    `cross_toolchain` is for pairings whose two trees are not linked by the same
+    compiler driver with the same flags. The nightly is one: both sides are icx
+    -- `setvars.sh` puts `icx` on PATH and `detect_default_compiler` prefers it
+    -- but Make links with the C driver `icx -no-intel-lib`
+    (`dev/make/compiler_definitions/icx.mkl.32e.mk`) and Bazel with its own icx
+    toolchain (`-static-intel`, libstdc++ on the link line). An icx Make release
+    against a gcc Bazel one is another. Neither half of this check is an
+    equality on such a pair:
 
       * DT_NEEDED. The icx Make libraries record no `libstdc++.so.6` at all,
-        because `dev/make/compiler_definitions/icx.mkl.32e.mk` links with the C
-        driver `icx` plus `-no-intel-lib` and so never adds it, while the gnu path
-        links with `g++`; and they record `libm.so.6` on `libonedal_thread` and
-        `libonedal_parameters`, which the `icx` driver adds unconditionally and
-        which resolves none of those libraries' undefined symbols. Eight
-        differences on four libraries, none of them a Bazel defect.
-      * Undefined symbols. 40 symbols differ, 29 of them in the `daal::`
-        namespace: icx and gcc inline and place code differently, so which
-        references cross a library boundary is a property of the compiler, not of
-        the build system. No prefix list can express that.
+        because the C driver never adds it, while both Bazel toolchains do; and
+        they record `libm.so.6`, which the `icx` driver adds unconditionally
+        (`libonedal`, `libonedal_core` and `libonedal_thread` on the nightly,
+        where Bazel does not record it). On the nightly that is 6 differences on 6
+        libraries, the SYCL ones also differing in which oneMKL and compiler
+        runtimes each side records.
+      * Undefined symbols. On an icx-vs-gcc pair 40 symbols differ, 29 of them in
+        the `daal::` namespace: the two compilers inline and place code
+        differently, so which references cross a library boundary is a property
+        of the compiler, not of the build system. No prefix list can express
+        that. The icx-vs-icx nightly has not been measured with this half on.
 
     So on a cross-toolchain pair the undefined half is skipped and the DT_NEEDED
-    half is reported without being counted as an error. Read failures stay errors:
-    an unreadable or non-ELF released library is a defect under any pairing.
+    half is reported without being counted as an error, with one exception: a
+    Bazel-only dependency on an Intel compiler runtime (`INTEL_COMPILER_RUNTIMES`)
+    is still counted. Neither release stages those runtimes -- Make ships oneTBB
+    and nothing else -- and Make links with `-no-intel-lib` precisely so its
+    libraries do not need them, so a Bazel library that records one fails to load
+    on any host without the oneAPI compiler runtime. The nightly Bazel
+    `libonedal.so` and `libonedal_core.so` record `libimf.so` despite
+    `-static-intel`. Read failures stay errors too: an unreadable or non-ELF
+    released library is a defect under any pairing.
 
     `strict_undefined` decides whether a surviving undefined-symbol difference is
     counted. It is off by default, because the undefined half is an equality only
@@ -359,6 +378,7 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
     errors = 0
     compared = 0
     dependency_mismatches = []
+    compiler_runtime_needs = []
     undefined_mismatches = []
     unreadable = []
     skipped_undefined = []
@@ -406,8 +426,11 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
             unreadable.append((path, str(err)))
         else:
             if make_needed != bazel_needed:
-                dependency_mismatches.append(
-                    (path, make_needed - bazel_needed, bazel_needed - make_needed)
+                only_bazel = bazel_needed - make_needed
+                dependency_mismatches.append((path, make_needed - bazel_needed, only_bazel))
+                compiler_runtime_needs.extend(
+                    (path, name) for name in sorted(only_bazel)
+                    if name.startswith(INTEL_COMPILER_RUNTIMES)
                 )
 
         if not compare_undefined:
@@ -433,7 +456,7 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
         if cross_toolchain:
             print(
                 f"Shared library dependency differences: {len(dependency_mismatches)}"
-                " (reported only: the two trees are built by different compilers)"
+                " (reported only: the two trees are not linked by the same driver and flags)"
             )
         else:
             errors += len(dependency_mismatches)
@@ -444,6 +467,19 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
                 print(f"    - DT_NEEDED {name} recorded by Make, absent from Bazel")
             for name in sorted(only_bazel)[:limit]:
                 print(f"    + DT_NEEDED {name} recorded by Bazel, absent from Make")
+
+    if cross_toolchain and compiler_runtime_needs:
+        # Already counted per library above on a same-toolchain pair.
+        errors += len(compiler_runtime_needs)
+        print(
+            "Bazel-only dependencies on unshipped Intel compiler runtimes:"
+            f" {len(compiler_runtime_needs)}"
+        )
+        for path, name in compiler_runtime_needs[:limit]:
+            print(
+                f"  ! {path}: DT_NEEDED {name}, which neither release stages"
+                " and Make links without (-no-intel-lib)"
+            )
 
     if undefined_mismatches:
         if strict_undefined:
@@ -464,7 +500,7 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
 
     if skipped_undefined:
         reason = (
-            "the two trees are built by different compilers"
+            "the two trees are not linked by the same driver and flags"
             if cross_toolchain
             else "undefined symbols are not comparable across the DPC toolchains"
         )
