@@ -38,7 +38,11 @@ Path to the release produced by the Bazel `//:release` target.
 
 .PARAMETER CheckLevel
 Validation depth passed to `compare_release_trees.py`; level 4 includes the
-full manifest and binary-surface checks used by nightly CI.
+full manifest and binary-surface checks used by nightly CI. Level 4's dynamic
+dependency and undefined-symbol comparison is Linux-only so far -- the DLL
+equivalent needs `dumpbin /DEPENDENTS` and `/IMPORTS` parsing, which the
+comparator does not implement yet -- so on Windows it reports itself skipped
+rather than passing silently.
 
 .PARAMETER MaxDiffLines
 Maximum number of difference lines printed in the summary.

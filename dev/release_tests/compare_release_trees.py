@@ -21,9 +21,15 @@ import filecmp
 import re
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
+
+from release_linkage import (
+    compare_shared_library_linkage,
+    compare_staged_dependencies,
+    is_shared_library,
+    run_tool,
+)
 
 
 TEXT_SUFFIXES = {
@@ -60,11 +66,6 @@ BINARY_SUFFIXES = {
     ".lib",
     ".pdb",
     ".so",
-}
-
-SHARED_LIBRARY_SUFFIXES = {
-    "linux": (".so",),
-    "windows": (".dll",),
 }
 
 IGNORED_FILES = {
@@ -594,20 +595,6 @@ def text_mismatch_diff(make_root, bazel_root, path, context=1, max_lines=12):
     return lines
 
 
-def run_tool(args):
-    result = subprocess.run(
-        args,
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        errors="replace",
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
-    return result.stdout
-
-
 def read_linux_exports(path):
     nm = shutil.which("nm")
     if nm:
@@ -664,13 +651,6 @@ def read_exports(platform, path):
     if platform == "windows":
         return read_windows_exports(path)
     raise ValueError(f"unsupported platform: {platform}")
-
-
-def is_shared_library(platform, path):
-    if platform == "linux":
-        return ".so" in Path(path).name
-    suffixes = SHARED_LIBRARY_SUFFIXES[platform]
-    return Path(path).suffix.lower() in suffixes
 
 
 def compare_shared_library_exports(platform, make_root, bazel_root, files, limit):
@@ -732,6 +712,31 @@ def main():
             "the Make release travelled through a transport that replaces "
             "symlinks with copies of their targets, such as a GitHub artifact; "
             "compare those entries by content instead of by kind"
+        ),
+    )
+    parser.add_argument(
+        "--cross-toolchain",
+        action="store_true",
+        help=(
+            "the two releases are not linked by the same compiler driver and "
+            "flags, as in the nightly icx Make vs icx Bazel pairing; DT_NEEDED "
+            "differences are then reported instead of failing the comparison, "
+            "except a Bazel-only dependency on an Intel compiler runtime, and "
+            "undefined symbols are not compared at all (see "
+            "compare_shared_library_linkage)"
+        ),
+    )
+    parser.add_argument(
+        "--strict-undefined",
+        action="store_true",
+        help=(
+            "count undefined dynamic symbol differences as failures. Off by "
+            "default: the two trees need not resolve the same third-party "
+            "packages, and in Azure they do not -- Make builds against apt "
+            "oneMKL 2026.1.0 while `@mkl` pins conda-forge mkl-static 2025.2.0, "
+            "and oneMKL is linked statically. Use it where both toolchain and "
+            "dependency versions are controlled (see "
+            "compare_shared_library_linkage)"
         ),
     )
     parser.add_argument("--summary-limit", type=int, default=50)
@@ -799,6 +804,28 @@ def main():
             make_root,
             bazel_root,
             common_files,
+            args.summary_limit,
+        )
+
+        print("")
+        print("=== level 4: shared library dependencies and undefined symbols ===")
+        linkage_errors, make_dependencies = compare_shared_library_linkage(
+            args.platform,
+            make_root,
+            bazel_root,
+            common_files,
+            args.summary_limit,
+            cross_toolchain=args.cross_toolchain,
+            strict_undefined=args.strict_undefined,
+        )
+        errors += linkage_errors
+
+        print("")
+        print("=== level 4: staged runtime dependencies ===")
+        errors += compare_staged_dependencies(
+            make_root,
+            bazel_root,
+            make_dependencies,
             args.summary_limit,
         )
 
