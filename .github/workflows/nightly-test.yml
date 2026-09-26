@@ -138,10 +138,7 @@ jobs:
         with:
           script: |
             const headSha = context.payload.workflow_run?.head_sha || context.sha
-            // This run, not `workflow_run.html_url`: that is the Nightly-build
-            // run that triggered this one, whose page holds none of the test
-            // jobs and is green whenever a test job is red. `check_finish`
-            // narrows this to the individual job once the jobs exist.
+            // `check_finish` narrows this to each job's page once the jobs exist.
             const detailsUrl =
               `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             for (const [output, name] of [
@@ -359,9 +356,7 @@ jobs:
     if: always() && needs.check_start.result == 'success'
     permissions:
       checks: write
-      # Reading this run's own job list is what turns each check's "Details"
-      # link into a link to that job's log. This job checks nothing out, so the
-      # scope is never exposed to the tested commit.
+      # Job list lookup for per-job "Details" links.
       actions: read
     steps:
       - name: Report check runs (finish)
@@ -375,9 +370,7 @@ jobs:
           script: |
             const runUrl =
               `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-            // Resolve each test job's own page, so "Details" on a red check
-            // opens the log that failed instead of a run summary the reader
-            // then has to search. Job names are the `name:` values below.
+            // Map job `name:` values to their log pages for "Details" links.
             const jobUrls = new Map()
             try {
               const jobs = await github.paginate(
@@ -393,8 +386,7 @@ jobs:
                 jobUrls.set(job.name, job.html_url)
               }
             } catch (error) {
-              // A check pointing at the run is still usable, so never fail the
-              // run over this: the conclusions below are what must be reported.
+              // Fall back to the run URL; reporting conclusions matters more.
               core.warning(`Could not resolve per-job URLs: ${error.message}`)
             }
             // A job result the checks API accepts verbatim is passed through, so
