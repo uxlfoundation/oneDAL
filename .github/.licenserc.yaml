@@ -66,6 +66,10 @@ header:
     - '.github/CODEOWNERS'
     - '.github/pull_request_template.md'
     - '.github/renovate.json'
+    # Agent-eval task data: JSON specs, patches and BUILD files copied into the task repo
+    - 'dev/agent_evals/tasks/**/*.json'
+    - 'dev/agent_evals/tasks/**/*.patch'
+    - 'dev/agent_evals/tasks/**/BUILD.oracle'
     # Specific files
     - 'LICENSE'
     - 'AGENTS.md'

@@ -20,7 +20,7 @@ Everything host-specific is read from environment variables so the harness runs 
 
   ONEDAL_EVAL_SRC      oneDAL git clone with full history (default: the checkout this file lives in).
                        Mined tasks read fix commits from it, so it must contain them.
-  ONEDAL_EVAL_ROOT     where run directories go (default: /tmp/onedal-agent-evals-$USER). Must have no
+  ONEDAL_EVAL_ROOT     where run directories go (default: $TMPDIR/onedal-agent-evals-$USER). Must have no
                        CLAUDE.md / AGENTS.md / .claude in any ancestor directory, or those files leak into every arm.
   ONEDAL_EVAL_BAZEL    real bazel/bazelisk binary (default: first bazelisk/bazel on PATH outside bin/).
   ONEDAL_EVAL_REPO_CACHE, ONEDAL_EVAL_DISK_CACHE   shared Bazel caches (default: under ONEDAL_EVAL_ROOT/cache).
@@ -30,6 +30,7 @@ import getpass
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 H = Path(__file__).resolve().parent
@@ -68,7 +69,8 @@ def src():
 
 
 def root():
-    r = Path(os.environ.get("ONEDAL_EVAL_ROOT", f"/tmp/onedal-agent-evals-{getpass.getuser()}")).resolve()
+    r = Path(os.environ.get("ONEDAL_EVAL_ROOT")
+             or Path(tempfile.gettempdir()) / f"onedal-agent-evals-{getpass.getuser()}").resolve()
     if not os.environ.get("ONEDAL_EVAL_ALLOW_ANCESTOR_CONTEXT"):
         for d in [r, *r.parents]:
             hits = [n for n in ANCESTOR_CONTEXT if (d / n).exists()]
