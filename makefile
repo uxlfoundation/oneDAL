@@ -150,6 +150,9 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC          := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 -DEBC_DPCPP    := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+# Compression of the embedded SPIR-V fat binary. Decompressed by the runtime at JIT
+# time, so host symbols and the ABI are unchanged; it costs link time, not run time.
+-offloadcompress := --offload-compress
 -DGCOV_BUILD   := $(if $(filter yes,$(GCOV_ENABLED)),-DGCOV_BUILD)
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
@@ -810,7 +813,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize.dpc)
 endif
@@ -833,7 +836,7 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize.dpc)
 endif
