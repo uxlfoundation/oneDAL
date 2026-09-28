@@ -136,6 +136,10 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -optlevel      := $(-optlevel.$(COMPILER))
 -fPIC          := $(if $(OS_is_win),,-fPIC)
 -visibility    := $(if $(OS_is_win),,-fvisibility=hidden -fvisibility-inlines-hidden)
+# Per-symbol sections so that the linker below can drop whatever the exported
+# entry points do not reach. Everything non-exported is already hidden.
+-sections      := $(if $(OS_is_win),,-ffunction-sections -fdata-sections)
+-lsections     := $(if $(OS_is_lnx),-Wl$(comma)--gc-sections,)
 -DMKL_ILP64    := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
 -DMKL_LP64     := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_LP64)
 -Zl            := $(-Zl.$(COMPILER))
@@ -516,7 +520,7 @@ $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_lin
 $(WORKDIR.lib)/$(core_a):                   LOPT:=
 $(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
 
-$(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
+$(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(core_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
@@ -529,7 +533,7 @@ $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_d
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DGCOV_BUILD)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DGCOV_BUILD)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
@@ -538,7 +542,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DGCOV_BUILD)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DGCOV_BUILD)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -693,7 +697,7 @@ $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt: | $(ONEAPI.tmpdir_y.dpc)/.
 
 # Set compilation options to the object files which are part of STATIC lib
 $(ONEAPI.objs_a): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_a)/inc_a_folders.txt
-$(ONEAPI.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
+$(ONEAPI.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
                           -DDAAL_NOTHROW_EXCEPTIONS \
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -705,7 +709,7 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a)))
 
 # Set compilation options to the object files which are part of DYNAMIC lib
 $(ONEAPI.objs_y): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y)/inc_y_folders.txt
-$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
+$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
                           -DDAAL_NOTHROW_EXCEPTIONS \
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -718,7 +722,7 @@ $(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y)))
 
 $(ONEAPI.objs_y.dpc): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
-$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP) $(-visibility) $(-sanitize) $(-DMKL_LP64) $(-EHsc) $(pedantic.opts.dpcpp) \
+$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-sections) $(-Zl_DPCPP) $(-visibility) $(-sanitize) $(-DMKL_LP64) $(-EHsc) $(pedantic.opts.dpcpp) \
                               -DDAAL_NOTHROW_EXCEPTIONS \
                               -DDAAL_HIDE_DEPRECATED \
                               -DONEDAL_DATA_PARALLEL \
@@ -770,7 +774,7 @@ $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): \
 $(WORKDIR.lib)/$(oneapi_y): \
     $(daaldep.math_backend.shared_link_deps) \
     $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC)
+$(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
@@ -785,7 +789,7 @@ $(ONEAPI.tmpdir_y)/$(parameters_y:%.$y=%_link.txt): \
 $(WORKDIR.lib)/$(parameters_y): \
     $(WORKDIR.lib)/$(oneapi_y) $(daaldep.ipp) $(daaldep.vml) $(daaldep.mkl) \
     $(ONEAPI.tmpdir_y)/$(parameters_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(parameters_y): LOPT += $(-fPIC)
+$(WORKDIR.lib)/$(parameters_y): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
@@ -804,7 +808,7 @@ $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
 ifndef OS_is_win
@@ -827,7 +831,7 @@ $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt): \
 $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(WORKDIR.lib)/$(oneapi_y.dpc) \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
 ifndef OS_is_win
@@ -869,7 +873,7 @@ THR_TBB.objs_y := $(addprefix $(THR.tmpdir_y)/,$(THR.srcs:%.cpp=%_tbb.$o))
 $(WORKDIR.lib)/$(thr_tbb_a): LOPT:=
 $(WORKDIR.lib)/$(thr_tbb_a): $(THR_TBB.objs_a) ; $(LINK.STATIC)
 
-$(WORKDIR.lib)/$(thr_tbb_y): LOPT += $(-fPIC) $(daaldep.rt.thr) $(-lsanitize)
+$(WORKDIR.lib)/$(thr_tbb_y): LOPT += $(-fPIC) $(-lsections) $(daaldep.rt.thr) $(-lsanitize)
 $(WORKDIR.lib)/$(thr_tbb_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.dll=%_dll.lib),)
 $(WORKDIR.lib)/$(thr_tbb_y): $(THR_TBB.objs_y) $(if $(OS_is_win),$(THR.tmpdir_y)/dll_tbb.res,) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
@@ -878,7 +882,7 @@ THR.objs_y := $(THR_TBB.objs_y)
 THR_TBB.objs := $(THR_TBB.objs_a) $(THR_TBB.objs_y)
 THR.objs := $(THR.objs_a) $(THR.objs_y)
 
-$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
+$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
 
 $(THR.objs_a): $(THR.tmpdir_a)/thr_inc_a_folders.txt
 $(THR.objs_a): COPT += @$(THR.tmpdir_a)/thr_inc_a_folders.txt
