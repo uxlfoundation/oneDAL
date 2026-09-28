@@ -1,0 +1,13 @@
+diff --git a/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i b/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i
+index 59e2f7d..999a5af 100644
+--- a/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i
++++ b/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i
+@@ -92,7 +92,7 @@ public:
+         }
+         else if (pairwiseDistance == PairwiseDistanceType::chebyshev)
+         {
+-            dist.reset(new ChebyshevDistances<FPType, cpu>(*testTable, *trainTable));
++            dist.reset(new EuclideanDistances<FPType, cpu>(*testTable, *trainTable, false));
+         }
+         else if (pairwiseDistance == PairwiseDistanceType::cosine)
+         {

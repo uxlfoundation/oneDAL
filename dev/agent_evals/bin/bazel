@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Per-run bazel wrapper put first on the agent's PATH: isolated output_base, shared repository and disk caches.
+OB=${EVAL_OB:?EVAL_OB unset}
+unset MKLROOT
+startup=()
+while [[ $# -gt 0 && $1 == -* ]]; do startup+=("$1"); shift; done
+verb=${1-}
+[[ $# -gt 0 ]] && shift
+caches=()
+case $verb in
+  build|test|run|query|cquery|aquery|fetch|coverage)
+    caches=(--repository_cache="$ONEDAL_EVAL_REPO_CACHE" --disk_cache="$ONEDAL_EVAL_DISK_CACHE") ;;
+esac
+exec "${ONEDAL_EVAL_BAZEL:?ONEDAL_EVAL_BAZEL unset}" --output_base="$OB" "${startup[@]}" ${verb:+"$verb"} "${caches[@]}" "$@"

@@ -1,0 +1,135 @@
+[
+ {
+  "id": "pr3718-t1",
+  "file": ".github/workflows/ci-win.yml",
+  "line": 32,
+  "author": "icfaust",
+  "kind": "convention",
+  "comment": "Need to be added to renovate.json for proper tracking.",
+  "addressed": true,
+  "comment_id": 3658535946,
+  "start_line": 31
+ },
+ {
+  "id": "pr3718-t2",
+  "file": ".github/workflows/ci-win.yml",
+  "line": 53,
+  "author": "icfaust",
+  "kind": "convention",
+  "comment": "Msys2 provides a github action for this, I think we can trust them on that and would be lower maintenance (unless not available for this os/cpu combo?) let me know",
+  "addressed": false,
+  "comment_id": 3658554474,
+  "start_line": 49
+ },
+ {
+  "id": "pr3718-t3",
+  "file": ".github/workflows/ci-win.yml",
+  "line": 58,
+  "author": "icfaust",
+  "kind": "convention",
+  "comment": "This way of installing llvm is likely to be high maintenance (hardcoded version in a url) is there any way to make this better for renovate tracking?",
+  "addressed": true,
+  "comment_id": 3658564565
+ },
+ {
+  "id": "pr3718-t4",
+  "file": "cpp/daal/include/services/daal_defines.h",
+  "line": 95,
+  "author": "icfaust",
+  "kind": "correctness",
+  "comment": "This should impact normal llvm builds on x86 using windows. Is this something we have checked what impact this may have?",
+  "addressed": true,
+  "comment_id": 3658588494
+ },
+ {
+  "id": "pr3718-t5",
+  "file": "cpp/daal/src/services/compiler/generic/env_detect_features.cpp",
+  "line": 41,
+  "author": "icfaust",
+  "kind": "convention",
+  "comment": "This probably needs some code comments to make it more maintainable.",
+  "addressed": true,
+  "comment_id": 3658779592,
+  "start_line": 38
+ },
+ {
+  "id": "pr3718-t6",
+  "file": "dev/make/function_definitions/winarm.mk",
+  "line": 36,
+  "author": "icfaust",
+  "kind": "nit",
+  "comment": "This line is wild.",
+  "addressed": false,
+  "comment_id": 3658798793
+ },
+ {
+  "id": "pr3718-t7",
+  "file": ".ci/env/openblas.bat",
+  "line": 3,
+  "author": "david-cortes-intel",
+  "kind": "convention",
+  "comment": "If this is not a copy-paste, please use the new copyright header:\nhttps://github.com/uxlfoundation/oneDAL/blob/main/CONTRIBUTING.md#copyright-guidelines-for-contributions",
+  "addressed": true,
+  "comment_id": 3671961659
+ },
+ {
+  "id": "pr3718-t8",
+  "file": ".ci/env/openblas.bat",
+  "line": 20,
+  "author": "david-cortes-intel",
+  "kind": "convention",
+  "comment": "Aren't batch files meant to be runnable with the old Cmd.exe alone? Feels quite odd to launch powershell from a .bat file.",
+  "addressed": true,
+  "comment_id": 3671967858
+ },
+ {
+  "id": "pr3718-t9",
+  "file": ".ci/env/openblas.bat",
+  "line": 24,
+  "author": "david-cortes-intel",
+  "kind": "correctness",
+  "comment": "Does this mean that cross-compilation is not supported?",
+  "addressed": false,
+  "comment_id": 3671969693
+ },
+ {
+  "id": "pr3718-t10",
+  "file": "cpp/daal/include/services/daal_defines.h",
+  "line": 70,
+  "author": "david-cortes-intel",
+  "kind": "correctness",
+  "comment": "I understand the CI is using clang-cl, not plain clang. Isn't that compiler supposed to provide the same headers with these kinds of definitions?",
+  "addressed": true,
+  "comment_id": 3671991847
+ },
+ {
+  "id": "pr3718-t11",
+  "file": "cpp/daal/src/externals/service_service_ref.h",
+  "line": 49,
+  "author": "david-cortes-intel",
+  "kind": "correctness",
+  "comment": "`aligned_alloc` is part of the C++17 standard:\nhttps://en.cppreference.com/cpp/memory/c/aligned_alloc\n\nDoes MSVC or clang-cl not offer it?",
+  "addressed": false,
+  "comment_id": 3672004735
+ },
+ {
+  "id": "pr3718-t12",
+  "file": "cpp/daal/src/services/service_defines.h",
+  "line": 140,
+  "author": "david-cortes-intel",
+  "kind": "correctness",
+  "comment": "This is in a series of elses that already checked for clang. It would have no effect.",
+  "addressed": true,
+  "comment_id": 3672022018
+ },
+ {
+  "id": "pr3718-t13",
+  "file": "dev/make/compiler_definitions/clang.ref.arm.mk",
+  "line": 44,
+  "author": "david-cortes-intel",
+  "kind": "correctness",
+  "comment": "As far as I know, there is no requirement to support SVE in order to run windows on ARM.",
+  "addressed": false,
+  "comment_id": 3672030282
+ }
+]
