@@ -55,10 +55,17 @@ inline std::tuple<array<T>, sycl::event> to_host(const array<T>& ary) {
         return { ary, sycl::event{} };
     }
 
-    ONEDAL_ASSERT(ary.get_queue().has_value());
     auto q = ary.get_queue().value();
 
-    const auto ary_host = array<T>::empty(q, ary.get_count());
+    // Host and shared USM are readable on the host already, so the array is aliased
+    // rather than copied. The queue is drained because `to_host` takes no dependencies
+    // and is the only ordering the caller has against work still in flight.
+    if (is_host_usm(ary) || is_shared_usm(ary)) {
+        q.wait_and_throw();
+        return { ary, sycl::event{} };
+    }
+
+    const auto ary_host = array<T>::empty(q, ary.get_count(), sycl::usm::alloc::host);
     const auto event =
         copy_usm2host<T>(q, ary_host.get_mutable_data(), ary.get_data(), ary.get_count());
     return { ary_host, event };
