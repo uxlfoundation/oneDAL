@@ -936,11 +936,20 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
 /// @param[in]     maxClusterSize          Maximum cluster size cap (0 == uncapped)
 ///
 /// @return Number of distinct labels emitted (== `labelCounter`); 0 if the MST is empty
+///         or there are no points at all
 template <typename algorithmFPType, CpuType cpu>
 int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize,
                               int * assignments, int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
                               size_t maxClusterSize = 0)
 {
+    // `edgeCount` and `totalNodes` below are unsigned expressions that wrap to
+    // huge values for `nRows == 0`, and those values then become allocation and
+    // memset lengths. There is nothing to cluster in an empty input, so bail out
+    // before the arithmetic instead of relying on every caller to check.
+    if (nRows == 0)
+    {
+        return 0;
+    }
     const size_t edgeCount  = nRows - 1;
     const size_t totalNodes = 2 * nRows - 1;
 
