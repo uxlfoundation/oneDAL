@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/dbscan/backend/gpu/compute_kernel.hpp"
+#include "oneapi/dal/algo/dbscan/backend/gpu/kernel_fp_impl.hpp"
 #include "oneapi/dal/algo/dbscan/backend/gpu/results.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -37,11 +38,12 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-template <typename Float>
+template <typename Float, typename Metric>
 static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                           const descriptor_t& desc,
                                           const table& local_data,
-                                          const table& local_weights) {
+                                          const table& local_weights,
+                                          const Metric& metric) {
     auto& comm = ctx.get_communicator();
     auto& queue = ctx.get_queue();
 
@@ -121,7 +123,6 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                  {})
             .wait_and_throw();
     }
-    const Float epsilon = desc.get_epsilon() * desc.get_epsilon();
     const std::int64_t min_observations = desc.get_min_observations();
 
     // array indicates if the point is a core or not
@@ -159,7 +160,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                         weights_nd,
                                                         arr_cores,
                                                         arr_neighbours,
-                                                        epsilon,
+                                                        metric,
                                                         min_observations);
 
     for (std::int64_t j = 0; j < rank_count - 1; j++) {
@@ -192,7 +193,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                            actual_weights,
                                                            arr_cores,
                                                            arr_neighbours,
-                                                           epsilon,
+                                                           metric,
                                                            min_observations,
                                                            { get_cores_event })
                 .wait_and_throw();
@@ -204,7 +205,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                            weights_nd,
                                                            arr_cores,
                                                            arr_neighbours,
-                                                           epsilon,
+                                                           metric,
                                                            min_observations,
                                                            { get_cores_event })
                 .wait_and_throw();
@@ -301,7 +302,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                    arr_responses,
                                                    total_points_queue_size_arr,
                                                    observation_indices,
-                                                   epsilon,
+                                                   metric,
                                                    cluster_count - 1,
                                                    { fill_queue_event })
                 .wait_and_throw();
@@ -331,7 +332,19 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
 template <typename Float>
 static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const input_t& input) {
-    return compute_kernel_dense_impl<Float>(ctx, desc, input.get_data(), input.get_weights());
+    // The metric arrives as a template argument so that each metric is compiled
+    // into its own set of neighborhood kernels; see `dispatch_by_metric`.
+    return dispatch_by_metric<Float>(desc.get_metric(),
+                                     desc.get_epsilon(),
+                                     desc.get_degree(),
+                                     [&](const auto& metric) {
+                                         return compute_kernel_dense_impl<Float>(
+                                             ctx,
+                                             desc,
+                                             input.get_data(),
+                                             input.get_weights(),
+                                             metric);
+                                     });
 }
 
 template <typename Float>
