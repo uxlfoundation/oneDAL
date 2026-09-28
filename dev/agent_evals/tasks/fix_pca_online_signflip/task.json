@@ -1,0 +1,22 @@
+{
+ "id": "fix_pca_online_signflip",
+ "family": "fix",
+ "base": "5019e745^",
+ "grader": "test_pass",
+ "hidden_from": "5019e745",
+ "hidden_files": [
+  "cpp/oneapi/dal/algo/pca/test/fixture.hpp",
+  "cpp/oneapi/dal/algo/pca/test/online.cpp"
+ ],
+ "targets": [
+  "//cpp/oneapi/dal/algo/pca:test_online_host"
+ ],
+ "prompt": "Bug report: PCA trained through the online interface on CPU (`partial_train` over several row blocks followed by `finalize_train`, `pca::method::cov`) does not honour `descriptor::set_deterministic(true)`. The eigenvalues match the batch `train` result on the same data, but some eigenvectors come out with the opposite sign compared to batch training with deterministic=true and to the reference (gold) eigenvectors, so downstream transforms are not reproducible between the batch and online APIs. Expected: with deterministic enabled, online training produces eigenvectors with the same sign convention as batch training, regardless of how many blocks the data was split into. Find and fix the root cause in the library. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.",
+ "regression_targets": [
+  "//cpp/oneapi/dal/algo/pca:backend_test_sign_flip_host",
+  "//cpp/oneapi/dal/algo/pca:test_badarg_host",
+  "//cpp/oneapi/dal/algo/pca:test_batch_host",
+  "//cpp/oneapi/dal/algo/pca:test_overflow_host",
+  "//cpp/oneapi/dal/algo/pca:test_serialization_host"
+ ]
+}

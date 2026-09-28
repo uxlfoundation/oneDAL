@@ -1,0 +1,42 @@
+[
+ {
+  "id": "pr3674-t1",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/regression/df_regression_train_dense_default_impl.i",
+  "line": 1221,
+  "author": "david-cortes-intel",
+  "kind": "correctness",
+  "comment": "If you're going to do this, then it makes more sense to make `normalizedWeights` of `intermSummFPType`. It also would need to be modified in a lot of other places to be consistent.",
+  "addressed": true,
+  "comment_id": 3479493438
+ },
+ {
+  "id": "pr3674-t2",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 68,
+  "author": "david-cortes-intel",
+  "kind": "convention",
+  "comment": "Could put vectorization pragma with reductor.",
+  "addressed": true,
+  "comment_id": 3479503046
+ },
+ {
+  "id": "pr3674-t3",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 74,
+  "author": "david-cortes-intel",
+  "kind": "api",
+  "comment": "Does this need to be a oneDAL table? It's just a one-dimensional array which could be passed as a unique or shared pointer.",
+  "addressed": false,
+  "comment_id": 3479510057
+ },
+ {
+  "id": "pr3674-t4",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 83,
+  "author": "david-cortes-intel",
+  "kind": "convention",
+  "comment": "It could use ?rscl (preferrably) or ?scal from MKL.",
+  "addressed": true,
+  "comment_id": 3479512229
+ }
+]

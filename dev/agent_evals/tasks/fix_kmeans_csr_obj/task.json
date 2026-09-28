@@ -1,0 +1,18 @@
+{
+ "id": "fix_kmeans_csr_obj",
+ "family": "fix",
+ "base": "cf0c0a0b^",
+ "grader": "test_pass",
+ "hidden_from": "cf0c0a0b",
+ "hidden_files": [
+  "cpp/oneapi/dal/algo/kmeans/test/batch.cpp"
+ ],
+ "targets": [
+  "//cpp/oneapi/dal/algo/kmeans:test_batch_host"
+ ],
+ "prompt": "Bug report: K-Means on CPU with sparse CSR input (method::lloyd_csr) and `compute_exact_objective_function` enabled reports an objective function value that is systematically too small. Training on the same data materialized as a dense table (method::lloyd_dense) from the same initial centroids gives the same centroids and assignments, but a larger (correct) objective value. With n_init > 1 in scikit-learn-intelex this makes the wrong trial get picked as best. Find and fix the root cause in the library so the CSR objective matches the dense one. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.",
+ "regression_targets": [
+  "//cpp/oneapi/dal/algo/kmeans:test_badarg_host",
+  "//cpp/oneapi/dal/algo/kmeans:test_serialization_host"
+ ]
+}

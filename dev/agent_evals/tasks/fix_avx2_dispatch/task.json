@@ -1,0 +1,29 @@
+{
+ "id": "fix_avx2_dispatch",
+ "family": "fix",
+ "base": "3120d0ab",
+ "grader": "test_pass_files",
+ "setup_patch": "setup.patch",
+ "hidden_files": [
+  "cpp/oneapi/dal/algo/subgraph_isomorphism/test/cpu_dispatch.cpp"
+ ],
+ "targets": [
+  "//cpp/oneapi/dal/algo/subgraph_isomorphism:test_cpu_dispatch_host"
+ ],
+ "test_flags": [
+  "--cpu=all"
+ ],
+ "regression_targets": [
+  "//cpp/oneapi/dal/algo/subgraph_isomorphism:test_subgraph_isomorphism_test_host",
+  "//cpp/oneapi/dal/algo/subgraph_isomorphism:test_badargs_host"
+ ],
+ "regression_flags": [
+  "--test_arg=--order",
+  "--test_arg=decl"
+ ],
+ "root_cause": {
+  "file": "cpp/oneapi/dal/algo/subgraph_isomorphism/backend/cpu/compiler_adapt.hpp",
+  "must_not_contain": "i < 32; i++"
+ },
+ "prompt": "Bug report: oneapi::dal::preview::graph_matching (subgraph isomorphism, CPU) returns too few matches on machines that only have AVX2, such as Intel Haswell/Skylake client or AMD Zen 2 workstations. Example: target = complete graph on 70 vertices, pattern = triangle, kind non_induced, max_match_count 0 (all matches). The expected count is 70*69*68 = 328440, but on an AVX2-only machine the library returns 34563. Denser/larger target graphs are affected; small ones look fine. The same code and the same library build give the correct count on AVX-512 servers. The machine you are working on is an AVX-512 server, which is why the existing tests pass here. Find and fix the root cause in the library. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests."
+}

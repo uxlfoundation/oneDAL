@@ -1,0 +1,13 @@
+diff --git a/cpp/daal/src/algorithms/service_kernel_math.h b/cpp/daal/src/algorithms/service_kernel_math.h
+index 23b10ba..4436afe 100644
+--- a/cpp/daal/src/algorithms/service_kernel_math.h
++++ b/cpp/daal/src/algorithms/service_kernel_math.h
+@@ -638,7 +638,7 @@ protected:
+         {
+             for (size_t iy = 0; iy < nY; ++iy)
+             {
+-                res[ix * nY + iy] = computeDistance(x + ix * nDims, y + iy * nDims, nDims);
++                res[iy * nX + ix] = computeDistance(x + ix * nDims, y + iy * nDims, nDims);
+             }
+         }
+ 

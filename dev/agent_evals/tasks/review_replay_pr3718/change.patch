@@ -1,0 +1,1028 @@
+From 94452afaf690312853ea95bcffe683694f9867c1 Mon Sep 17 00:00:00 2001
+From: Dev Contributor <dev@example.com>
+Date: Mon, 27 Jul 2026 06:20:19 -0700
+Subject: [PATCH] Feature/win arm64 support
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+## Add Windows ARM64 (winarm) build support
+
+Adds native build support for oneDAL on Windows ARM64 using clang/lld-link, extending the existing `win32e` (MSVC) and `lnxarm` targets.
+
+### Build system
+- New `winarm` platform target with clang/lld-link/llvm-lib toolchain (`winarm.mk`, `clang.ref.arm.mk`, `arm.mk`, `lnxarm.mk`, `vc.mkl.32e.mk`, `common.mk`)
+- Registered `winarm` in top-level `PLATs`; made Windows flags (`-Fo`, `-Q`, `-EHsc`, link rules) conditional on MSVC vs. clang
+- Fixed TBB/OpenBLAS path resolution to be per-architecture (`$(_IA)`) instead of hardcoded to `intel64`, in both `makefile` and `deps.ref.mk`
+- Wired OpenBLAS into the same release-copy machinery as TBB
+- Added VS2026 build tools support with arch-aware `vcvarsall.bat` (replacing x64-only `vcvars64.bat`)
+
+### Core / algorithm compatibility (clang-cl ≠ real MSVC)
+- Guarded `_MSC_VER`-only code paths with `!defined(__clang__)` across `daal_defines.h`, `service_defines.h`, `service_topo.cpp`, `env_detect_features.cpp`, KD-tree KNN kernel, and `oneapi/dal/{backend,detail}/common.hpp`
+- Added ARM64 Windows SVE feature detection via `KUSER_SHARED_DATA`
+- Switched to `_aligned_malloc`/`_aligned_free` on Windows instead of POSIX `aligned_alloc`/`free`
+
+### CI / tooling
+- `build.bat` / `test.bat`: detect host arch (`AMD64`/`ARM64`), set `PLAT=winarm`, propagate `ARCH_DIR` through TBB/OpenBLAS paths
+- Fixed robocopy bug in `tbb.bat` deleting source dirs after move
+- Fixed OpenBLAS archive path casing (`OpenBlas-*` → `OpenBLAS-*`)
+- `deploy/local/vars_win.bat`: derive `DAAL_IA` from host arch instead of hardcoding `intel64`
+- `examples/cmake/setup_examples.cmake` / `samples/cmake/setup_samples.cmake`: recognize `ARM64`, fix `intel_intel64` → `intel64` naming
+---
+ .ci/env/openblas.bat                          |  84 +++++++++++++
+ .ci/env/tbb.bat                               |  45 ++++++-
+ .ci/scripts/build.bat                         |  40 +++---
+ .ci/scripts/test.bat                          |  71 +++++++----
+ .github/workflows/ci-win.yml                  | 117 ++++++++++++++++++
+ cpp/daal/include/services/daal_defines.h      |   6 +-
+ .../kdtree_knn_classification_train_kernel.h  |   2 +-
+ .../k_nearest_neighbors/kdtree_knn_impl.i     |   2 +-
+ cpp/daal/src/externals/service_service_ref.h  |  16 ++-
+ .../compiler/generic/env_detect_features.cpp  |  16 ++-
+ cpp/daal/src/services/service_defines.h       |  10 +-
+ cpp/daal/src/services/service_topo.cpp        |   2 +-
+ cpp/oneapi/dal/backend/common.hpp             |   2 +-
+ cpp/oneapi/dal/detail/common.hpp              |   2 +-
+ deploy/local/vars_win.bat                     |  12 +-
+ dev/make/common.mk                            |   8 +-
+ .../compiler_definitions/clang.ref.arm.mk     |   9 +-
+ dev/make/compiler_definitions/icx.mkl.32e.mk  |   3 +
+ dev/make/compiler_definitions/vc.mkl.32e.mk   |   3 +-
+ dev/make/deps.ref.mk                          |  23 +++-
+ dev/make/function_definitions/arm.mk          |   2 -
+ dev/make/function_definitions/lnxarm.mk       |   3 +
+ dev/make/function_definitions/winarm.mk       |  38 ++++++
+ examples/cmake/setup_examples.cmake           |   2 +-
+ makefile                                      |  14 ++-
+ samples/cmake/setup_samples.cmake             |   2 +-
+ 26 files changed, 453 insertions(+), 81 deletions(-)
+ create mode 100644 .ci/env/openblas.bat
+ create mode 100644 .github/workflows/ci-win.yml
+ create mode 100644 dev/make/function_definitions/winarm.mk
+
+diff --git a/.ci/env/openblas.bat b/.ci/env/openblas.bat
+new file mode 100644
+index 00000000..8e67e498
+--- /dev/null
++++ b/.ci/env/openblas.bat
+@@ -0,0 +1,84 @@
++@echo off
++rem ============================================================================
++rem Copyright 2020 Intel Corporation
++rem
++rem Licensed under the Apache License, Version 2.0 (the "License");
++rem you may not use this file except in compliance with the License.
++rem You may obtain a copy of the License at
++rem
++rem     http://www.apache.org/licenses/LICENSE-2.0
++rem
++rem Unless required by applicable law or agreed to in writing, software
++rem distributed under the License is distributed on an "AS IS" BASIS,
++rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++rem See the License for the specific language governing permissions and
++rem limitations under the License.
++rem ============================================================================
++
++setlocal
++
++rem req: PowerShell 3.0+
++powershell.exe -command "if ($PSVersionTable.PSVersion.Major -lt 3) {Write-Host \"The script requires PowerShell 3.0 or above (current version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor))\"; exit 1} else {exit 0}"
++if errorlevel 1 goto Error_load
++
++if /I not "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
++    echo Current only available for ARM64.
++    exit /B 1
++)
++
++if /i "%1"=="" (
++    set DST=%~dp0..\..\__deps\open_blas
++) else (
++    set DST=%1\..\..\__deps\open_blas
++)
++set BLASSOURCEDIR=%~dp0..\..\__work\openblas
++set BLASVERSION=0.3.33
++set BLASURLROOT=https://github.com/OpenMathLib/OpenBLAS/archive/refs/tags/v%BLASVERSION%
++set BLASPACKAGE=
++set BLASURL=%BLASURLROOT%%BLASPACKAGE%.zip
++set "PATH=C:\Program Files\LLVM\bin;%PATH%"
++
++IF "%VS_VER%"=="2026_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++) ELSE IF "%VS_VER%"=="2019_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++) ELSE IF "%VS_VER%"=="2017_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++)
++
++if not exist "%DST%" powershell.exe -command "New-Item -Path \"%DST%\" -ItemType Directory" >nul
++if not exist "%BLASSOURCEDIR%" powershell.exe -command "New-Item -Path \"%BLASSOURCEDIR%\" -ItemType Directory" >nul
++
++powershell.exe -command "(New-Object System.Net.WebClient).DownloadFile('%BLASURL%', '%BLASSOURCEDIR%\openblas.zip')"
++if errorlevel 1 goto Error_load
++
++powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%BLASSOURCEDIR%\openblas.zip\", \"%BLASSOURCEDIR%\") } catch { $_.exception; exit 1 }} else {exit 1}"
++if errorlevel 1 goto Error_unpack
++
++pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
++    rmdir /s /q build-arm64
++    cmake -B build-arm64 -S . -GNinja ^
++        -DCMAKE_BUILD_TYPE=Release ^
++        -DTARGET=ARMV8 ^
++        -DBINARY=64 ^
++        -DCMAKE_C_COMPILER=clang-cl ^
++        -DCMAKE_CXX_COMPILER=clang-cl ^
++        -DCMAKE_Fortran_COMPILER=flang-new ^
++        -DBUILD_SHARED_LIBS=ON ^
++        -DCMAKE_SYSTEM_PROCESSOR=arm64 ^
++        -DCMAKE_SYSTEM_NAME=Windows ^
++        -DCMAKE_INSTALL_PREFIX="%DST%"
++    cmake --build build-arm64
++    cmake --install build-arm64
++popd
++
++echo Downloaded and unpacked OpenBlas small libraries to %DST%
++exit /B 0
++
++:Error_load
++    echo openblas.bat : Error: Failed to load %BLASURL% to %BLASSOURCEDIR%, try to load it manually
++    exit /B 1
++
++:Error_unpack
++    echo openblas.bat : Error: Failed to unpack %BLASSOURCEDIR%\openblas.zip to %BLASSOURCEDIR%, try unpack the archive manually
++    exit /B 1
+\ No newline at end of file
+diff --git a/.ci/env/tbb.bat b/.ci/env/tbb.bat
+index 1cad08e5..b025aa89 100755
+--- a/.ci/env/tbb.bat
++++ b/.ci/env/tbb.bat
+@@ -19,10 +19,16 @@ rem req: PowerShell 3.0+
+ powershell.exe -command "if ($PSVersionTable.PSVersion.Major -ge 3) {exit 1} else {Write-Host \"The script requires PowerShell 3.0 or above (current version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor))\"}" && goto Error_load
+ 
+ set TBBVERSION=2023.0.0
+-set TBBURLROOT=https://github.com/uxlfoundation/oneTBB/releases/download/v%TBBVERSION%/
+-set TBBPACKAGE=oneapi-tbb-%TBBVERSION%-win
++if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
++    set TBBURLROOT=https://github.com/uxlfoundation/oneTBB/archive/refs/tags/v%TBBVERSION%
++    set TBBPACKAGE=
++) else (
++    set TBBURLROOT=https://github.com/uxlfoundation/oneTBB/releases/download/v%TBBVERSION%/
++    set TBBPACKAGE=oneapi-tbb-%TBBVERSION%-win
++)
+ 
+ set TBBURL=%TBBURLROOT%%TBBPACKAGE%.zip
++
+ if /i "%1"=="" (
+     set DST=%~dp0..\..\__deps\tbb
+ ) else (
+@@ -37,11 +43,40 @@ if not exist "%DST%\win\bin" (
+     powershell.exe -command "(New-Object System.Net.WebClient).DownloadFile('%TBBURL%', '%DST%\%TBBPACKAGE%.zip')" && goto Unpack || goto Error_load
+ 
+ :Unpack
+-    powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%DST%\%TBBPACKAGE%.zip\", \"%DST%\") ; Copy-Item \"%DST%\oneapi-tbb-%TBBVERSION%\*\" -Destination \"%DST%\win\tbb\" -Recurse }catch{$_.exception ; exit 1}} else {exit 1}" || goto Error_unpack
++    if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
++        powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%DST%\%TBBPACKAGE%.zip\", \"%DST%\") ; }catch{$_.exception ; exit 1}} else {exit 1}" && goto Build_oneTBB || goto Error_unpack
++    ) else (
++        powershell.exe -command "if (Get-Command Add-Type -errorAction SilentlyContinue) {Add-Type -Assembly \"System.IO.Compression.FileSystem\"; try { [IO.Compression.zipfile]::ExtractToDirectory(\"%DST%\%TBBPACKAGE%.zip\", \"%DST%\") ; Copy-Item \"%DST%\oneapi-tbb-%TBBVERSION%\*\" -Destination \"%DST%\win\tbb\" -Recurse }catch{$_.exception ; exit 1}} else {exit 1}" || goto Error_unpack
++        if not exist %DST%\win\tbb\redist\intel64\vc14 powershell.exe -command "New-Item -Path \"%DST%\win\tbb\redist\intel64\vc14\" -ItemType Directory"
++    )
++    goto Exit 
+ 
+-    if not exist %DST%\win\tbb\redist\intel64\vc14 powershell.exe -command "New-Item -Path \"%DST%\win\tbb\redist\intel64\vc14\" -ItemType Directory"
++:Build_oneTBB
++    IF "%VS_VER%"=="2026_build_tools" (
++        @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    ) ELSE IF "%VS_VER%"=="2019_build_tools" (
++        @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    ) ELSE IF "%VS_VER%"=="2017_build_tools" (
++        @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    )
++    pushd "%DST%\oneTBB-%TBBVERSION%"
++        rmdir /s /q build-arm64
++        cmake -B build-arm64 -S . -GNinja ^
++            -DCMAKE_BUILD_TYPE=Release ^
++            -DTBB_TEST=OFF ^
++            -DCMAKE_INSTALL_PREFIX="%DST%\win\tbb"
++        cmake --build build-arm64
++        cmake --install build-arm64
++        mkdir "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
++        mkdir "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" 2>nul
+ 
+-    goto Exit 
++        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\%PROCESSOR_ARCHITECTURE%\vc14" /E
++        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\redist\vc14" /E
++        robocopy "%DST%\win\tbb\bin" "%DST%\win\tbb\bin\vc14" /E
++        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\%PROCESSOR_ARCHITECTURE%\vc14" *.lib
++        robocopy "%DST%\win\tbb\lib" "%DST%\win\tbb\lib\vc14" *.lib
++    popd
++    exit /B 0
+ 
+ :Error_load
+     echo tbb.bat : Error: Failed to load %TBBURL% to %DST%, try to load it manually
+diff --git a/.ci/scripts/build.bat b/.ci/scripts/build.bat
+index 4da80269..823a0282 100644
+--- a/.ci/scripts/build.bat
++++ b/.ci/scripts/build.bat
+@@ -22,27 +22,39 @@ rem %3 - Instruction set
+ set errorcode=0
+ echo CPUCOUNT=%NUMBER_OF_PROCESSORS%
+ 
+-echo PATH=C:\msys64\usr\bin;%PATH%
+-set PATH=C:\msys64\usr\bin;%PATH%
++echo "PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%"
++set "PATH=C:\Program Files\LLVM\bin;C:\msys64\usr\bin;%PATH%"
+ 
+ echo pacman -S --noconfirm msys/make
+ pacman -S --noconfirm msys/make
+ 
+ IF "%VS_VER%"=="2017_build_tools" (
+-    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+-    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++) ELSE IF "%VS_VER%"=="2019_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+ ) ELSE (
+-    IF "%VS_VER%"=="2019_build_tools" (
+-        @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+-        echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+-    ) ELSE (
+-          @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+-          echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+-    )
++    @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
++    echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+ )
+ 
+-echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3
+-make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT=win32e REQCPU=%3 || set errorcode=1
++set "ARCH=%PROCESSOR_ARCHITECTURE%"
++if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
+ 
+-cmake -DINSTALL_DIR=__release_win_vc\daal\latest\lib\cmake\oneDAL -DARCH_DIR=intel64 -P cmake\scripts\generate_config.cmake || set errorcode=1
++if /I "%ARCH%"=="AMD64" (
++    set "PLAT=win32e"
++    set "ARCH_DIR=intel64"
++) else if /I "%ARCH%"=="ARM64" (
++    set "PLAT=winarm"
++    set "ARCH_DIR=ARM64"
++) else (
++    echo Unknown architecture: %ARCH%
++    exit /b 1
++)
++
++echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3
++make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3 || set errorcode=1
++
++cmake -DINSTALL_DIR=__release_win_%2\daal\latest\lib\cmake\oneDAL -DARCH_DIR="%ARCH_DIR%" -P cmake\scripts\generate_config.cmake || set errorcode=1
+ EXIT /B %errorcode%
+diff --git a/.ci/scripts/test.bat b/.ci/scripts/test.bat
+index 424db407..e587de1b 100644
+--- a/.ci/scripts/test.bat
++++ b/.ci/scripts/test.bat
+@@ -44,31 +44,58 @@ set PATH=C:\msys64\usr\bin;%PATH%
+ 
+ echo "%VISUALSTUDIOVERSION% HERE"
+ 
+-IF "%VS_VER%"=="2017_build_tools" (
+-    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+-    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
++set "ARCH=%PROCESSOR_ARCHITECTURE%"
++if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
++
++if /I "%ARCH%"=="AMD64" (
++    set "ARCH_DIR=intel_intel64"
++) else if /I "%ARCH%"=="ARM64" (
++    set "ARCH_DIR=arm_aarch64"
++) else (
++    echo Unknown architecture: %ARCH%
++    exit /b 1
++)
++
++IF "%VS_VER%"=="2026_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    echo "C:\Program Files (x86)\Microsoft Visual Studio\q8\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    set "sln=slnx"
++) ELSE IF "%VS_VER%"=="2017_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    echo "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    set "sln=sln"
++) ELSE IF "%VS_VER%"=="2019_build_tools" (
++    @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
++    set "sln=sln"
+ ) ELSE (
+-    IF "%VS_VER%"=="2019_build_tools" (
+-        @call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+-        echo "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+-    ) ELSE (
+-          @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+-          echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+-    )
++    @call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
++    echo "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
++    set "sln=sln"
+ )
+ 
+ echo call %release_dir%\daal\latest\env\vars.bat
+ call %release_dir%\daal\latest\env\vars.bat || set errorcode=1
+ 
+-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%LIB%
+-set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%LIB%
+-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%PATH%
+-set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%PATH%
++echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%
++set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%LIB%
++echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%
++set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\vc_mt;%PATH%
++
++echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%
++set LIB=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%LIB%
++echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%
++set PATH=%~dp0..\..\%release_dir%\tbb\latest\bin\vc_mt;%PATH%
++
++echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%
++set LIB=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%LIB%
++echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%
++set PATH=%~dp0..\..\%release_dir%\open_blas\latest\lib\vc_mt;%PATH%
+ 
+-echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%LIB%
+-set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%LIB%
+-echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%PATH%
+-set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%PATH%
++echo set LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%
++set LIB=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%LIB%
++echo set PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%
++set PATH=%~dp0..\..\%release_dir%\open_blas\latest\bin\vc_mt;%PATH%
+ 
+ echo set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
+ set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
+@@ -87,11 +114,11 @@ if "%build_system%"=="cmake" (
+     if exist Build rd /S /Q Build
+     md Build
+ 
+-    set results_dir=_cmake_results\intel_intel64_%cmake_link_mode_short%\Release
+-    echo cmake -B Build -S . -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
+-    cmake -B Build -S . -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
++    set "results_dir=_cmake_results\%ARCH_DIR%_%cmake_link_mode_short%\Release"
++    echo cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
++    cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
+     set solution_name=%examples:\=_%
+-    msbuild.exe "Build\!solution_name!_examples.sln" /p:Configuration=Release || set errorcode=1
++    msbuild.exe "Build\!solution_name!_examples.!sln!" /p:Configuration=Release || set errorcode=1
+ 
+     for /f "delims=." %%F in ('dir /B !results_dir!\*.exe 2^> nul') do (
+         set example=%%F
+diff --git a/.github/workflows/ci-win.yml b/.github/workflows/ci-win.yml
+new file mode 100644
+index 00000000..5922c7a6
+--- /dev/null
++++ b/.github/workflows/ci-win.yml
+@@ -0,0 +1,117 @@
++#===============================================================================
++# Copyright contributors to the oneDAL project
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#===============================================================================
++
++name: "Windows CI"
++
++on:
++  pull_request:
++    branches:
++      - main
++      - 'feature/**'
++  push:
++    branches:
++      - main
++      - 'feature/**'
++  
++env:
++  DEP_DIR: ${{ github.workspace }}/__deps
++  TBB_VERSION: v2023.1.0
++  OPENBLAS_VERSION: v0.3.33
++  VS_VER: 2026_build_tools
++
++jobs:
++  build-and-test:
++    strategy:
++      fail-fast: false
++      matrix:
++        os: [
++          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve, llvm_arch: woa64 }
++        ]
++    name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
++    runs-on: ${{ matrix.os.label }}
++    steps:
++      - name: Checkout repository
++        uses: actions/checkout@v6
++
++      - name: Setup MSYS2
++        shell: pwsh
++        run: |
++          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
++          .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
++
++      - name: Install LLVM for Win-${{ matrix.os.arch }}
++        shell: pwsh
++        run: |
++          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
++          Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
++          echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
++          
++      - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
++        shell: pwsh
++        run: |
++          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
++          Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
++          echo "C:\Program Files\CMake\bin" >> $env:GITHUB_PATH
++          
++          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
++          Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
++          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
++          
++      - name: Build OpenBLAS
++        shell: cmd
++        run: |
++          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
++          set PATH=C:\Program Files\LLVM\bin;%PATH%
++          .ci\env\openblas.bat
++
++      - name: Build oneTBB
++        shell: cmd
++        run: |
++          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
++          set PATH=C:\Program Files\LLVM\bin;%PATH%
++          .ci\env\tbb.bat
++
++      - name: Build daal
++        shell: cmd
++        run: |
++          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
++          set PATH=C:\Program Files\LLVM\bin;%PATH%
++          .ci\scripts\build.bat daal ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
++
++      - name: Build onedal_c
++        shell: cmd
++        run: |
++          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
++          set PATH=C:\Program Files\LLVM\bin;%PATH%
++          .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
++
++      - name: Test daal
++        shell: cmd
++        run: |
++          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
++          set PATH=C:\Program Files\LLVM\bin;%PATH%
++          set "CMAKE_GENERATOR=Visual Studio 18 2026"
++          .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
++
++      - name: Test oneapi
++        shell: cmd
++        run: |
++          CALL "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
++          set PATH=C:\Program Files\LLVM\bin;%PATH%
++          set "CMAKE_GENERATOR=Visual Studio 18 2026"
++          .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
++
++
+diff --git a/cpp/daal/include/services/daal_defines.h b/cpp/daal/include/services/daal_defines.h
+index fdb9f05c..febee5e3 100644
+--- a/cpp/daal/include/services/daal_defines.h
++++ b/cpp/daal/include/services/daal_defines.h
+@@ -67,7 +67,7 @@
+ #endif
+ 
+ /* oneDAL 64-bit integer types */
+-#if !(defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && defined(_MSC_VER)
++#if !(defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && defined(_MSC_VER) && !defined(__clang__)
+     #define DAAL_INT64  __int64
+     #define DAAL_UINT64 unsigned __int64
+ #else
+@@ -92,7 +92,7 @@
+ #else
+     #ifdef __GNUC__
+         #define DAAL_DEPRECATED __attribute__((deprecated))
+-    #elif defined(_MSC_VER)
++    #elif defined(_MSC_VER) && !defined(__clang__)
+         #define DAAL_DEPRECATED __declspec(deprecated)
+     #else
+         #define DAAL_DEPRECATED
+@@ -109,7 +109,7 @@
+     #endif
+ #endif
+ 
+-#if defined(_MSC_VER)
++#if defined(_MSC_VER) && !defined(__clang__)
+     #define DAAL_FORCEINLINE __forceinline
+ #else
+     #define DAAL_FORCEINLINE inline __attribute__((always_inline))
+diff --git a/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_classification_train_kernel.h b/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_classification_train_kernel.h
+index 2d3a95d6..7060047d 100755
+--- a/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_classification_train_kernel.h
++++ b/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_classification_train_kernel.h
+@@ -29,7 +29,7 @@
+ #include "algorithms/k_nearest_neighbors/kdtree_knn_classification_training_types.h"
+ #include "src/algorithms/service_error_handling.h"
+ 
+-#if defined(_MSC_VER)
++#if defined(_MSC_VER) && !defined(__clang__)
+     #define DAAL_FORCEINLINE   __forceinline
+     #define DAAL_FORCENOINLINE __declspec(noinline)
+ #else
+diff --git a/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_impl.i b/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_impl.i
+index 1a34acc6..fabbd134 100644
+--- a/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_impl.i
++++ b/cpp/daal/src/algorithms/k_nearest_neighbors/kdtree_knn_impl.i
+@@ -24,7 +24,7 @@
+ #ifndef __KDTREE_KNN_IMPL_I__
+ #define __KDTREE_KNN_IMPL_I__
+ 
+-#if defined(_MSC_VER) || defined(DAAL_INTEL_CPP_COMPILER)
++#if defined(_MSC_VER) && !defined(__clang__) || defined(DAAL_INTEL_CPP_COMPILER)
+     #include <immintrin.h>
+ #endif
+ 
+diff --git a/cpp/daal/src/externals/service_service_ref.h b/cpp/daal/src/externals/service_service_ref.h
+index f74a9027..67b8c36e 100644
+--- a/cpp/daal/src/externals/service_service_ref.h
++++ b/cpp/daal/src/externals/service_service_ref.h
+@@ -44,9 +44,21 @@ namespace ref
+ {
+ struct RefService
+ {
+-    static void * serv_malloc(size_t size, size_t alignment) { return aligned_alloc(alignment, size); }
++    static void * serv_malloc(size_t size, size_t alignment) { 
++        #if defined(_MSC_VER)
++            return _aligned_malloc(size, alignment);
++        #else
++            return aligned_alloc(alignment, size);
++        #endif
++    }
+ 
+-    static void serv_free(void * ptr) { free(ptr); }
++    static void serv_free(void * ptr) { 
++        #if defined(_MSC_VER)
++            return _aligned_free(ptr);
++        #else
++            free(ptr); 
++        #endif
++    }
+ 
+     // TODO: Call of the function below in env_detect.cpp should be removed for alternative arch
+     // Remove the method after that or replace with proper call from new backend library
+diff --git a/cpp/daal/src/services/compiler/generic/env_detect_features.cpp b/cpp/daal/src/services/compiler/generic/env_detect_features.cpp
+index 7cb285ef..88673ae7 100644
+--- a/cpp/daal/src/services/compiler/generic/env_detect_features.cpp
++++ b/cpp/daal/src/services/compiler/generic/env_detect_features.cpp
+@@ -32,9 +32,13 @@
+         #include <cpuid.h> // __cpuidex
+     #endif
+ 
+-#elif defined(TARGET_ARM)
++#elif defined(TARGET_ARM) && defined(__linux__)
+     #include <sys/auxv.h>
+     #include <asm/hwcap.h>
++#elif defined(TARGET_ARM) && defined(_MSC_VER)
++    #define KUSER_SHARED_DATA_ADDR   0x7FFE0000UL
++    #define PROCESSOR_FEATURES_OFFSET 0x274
++    #define PF_ARM_SVE_INSTRUCTIONS_AVAILABLE  46
+ #elif defined(TARGET_RISCV64)
+ // TODO: Include vector if and when we need to use some vector intrinsics in
+ // here
+@@ -341,9 +345,13 @@ bool daal_has_amx_bf16()
+ #elif defined(TARGET_ARM)
+ static bool check_sve_features()
+ {
+-    unsigned long hwcap = getauxval(AT_HWCAP);
+-
+-    return (hwcap & HWCAP_SVE) != 0;
++    #if defined(__linux__)
++        unsigned long hwcap = getauxval(AT_HWCAP);
++        return (hwcap & HWCAP_SVE) != 0;
++    #else
++        const volatile uint8_t* features = (const volatile uint8_t*)(KUSER_SHARED_DATA_ADDR + PROCESSOR_FEATURES_OFFSET);
++        return features[PF_ARM_SVE_INSTRUCTIONS_AVAILABLE] != 0;
++    #endif
+ }
+ 
+ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
+diff --git a/cpp/daal/src/services/service_defines.h b/cpp/daal/src/services/service_defines.h
+index f2cd7241..8f51ace3 100644
+--- a/cpp/daal/src/services/service_defines.h
++++ b/cpp/daal/src/services/service_defines.h
+@@ -137,7 +137,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
+     #define PRAGMA_VECTOR_ALWAYS
+     #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+     #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+-#elif defined(_MSC_VER)
++#elif defined(_MSC_VER) && !defined(__clang__)
+     #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
+     #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
+     #define PRAGMA_VECTOR_UNALIGNED
+@@ -391,14 +391,14 @@ typedef union
+ 
+ #define COMPUTE_DAAL_VERSION(majorVersion, minorVersion, updateVersion) (majorVersion * 10000 + minorVersion * 100 + updateVersion)
+ 
+-#if defined(_MSC_VER) || defined(DAAL_INTEL_CPP_COMPILER)
++#if defined(_MSC_VER) && !defined(__clang__) || defined(DAAL_INTEL_CPP_COMPILER)
+     #include <immintrin.h>
+     #define DAAL_PREFETCH_READ_T0(addr) _mm_prefetch((char *)addr, _MM_HINT_T0)
+ #else
+     #define DAAL_PREFETCH_READ_T0(addr) __builtin_prefetch((char *)addr, 0, 3)
+ #endif
+ 
+-#if defined(_MSC_VER)
++#if defined(_MSC_VER) && !defined(__clang__)
+     #define DAAL_FORCEINLINE   __forceinline
+     #define DAAL_FORCENOINLINE __declspec(noinline)
+ #else
+@@ -406,13 +406,13 @@ typedef union
+     #define DAAL_FORCENOINLINE __attribute__((noinline))
+ #endif
+ 
+-#if defined(_MSC_VER) && (_MSC_VER < 1900)
++#if defined(_MSC_VER) && !defined(__clang__) && (_MSC_VER < 1900)
+     #define DAAL_ALIGNAS(n) __declspec(align(n))
+ #else
+     #define DAAL_ALIGNAS(n) alignas(n)
+ #endif
+ 
+-#if defined(_MSC_VER)
++#if defined(_MSC_VER) && !defined(__clang__)
+     #define DAAL_PACKED_STRUCT(...) __pragma(pack(push, 1)) __VA_ARGS__ __pragma(pack(pop))
+ #else
+     #define DAAL_PACKED_STRUCT(...) __VA_ARGS__ __attribute__((packed))
+diff --git a/cpp/daal/src/services/service_topo.cpp b/cpp/daal/src/services/service_topo.cpp
+index 8461044e..69e1236f 100644
+--- a/cpp/daal/src/services/service_topo.cpp
++++ b/cpp/daal/src/services/service_topo.cpp
+@@ -116,7 +116,7 @@ typedef cpuset_t cpu_set_t;
+             #endif
+         #endif
+ 
+-        #if defined(_MSC_VER)
++        #if defined(_MSC_VER) && !defined(__clang__)
+             #if (_MSC_FULL_VER >= 160040219)
+                 #include <intrin.h>
+             #else
+diff --git a/cpp/oneapi/dal/backend/common.hpp b/cpp/oneapi/dal/backend/common.hpp
+index 8298d498..7b5774b2 100644
+--- a/cpp/oneapi/dal/backend/common.hpp
++++ b/cpp/oneapi/dal/backend/common.hpp
+@@ -50,7 +50,7 @@
+ #define PRAGMA_VECTOR_ALWAYS
+ #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+ #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+-#elif defined(_MSC_VER)
++#elif defined(_MSC_VER) && !defined(__clang__)
+ #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
+ #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
+ #define PRAGMA_VECTOR_UNALIGNED
+diff --git a/cpp/oneapi/dal/detail/common.hpp b/cpp/oneapi/dal/detail/common.hpp
+index d08c92bb..7dabd7b5 100644
+--- a/cpp/oneapi/dal/detail/common.hpp
++++ b/cpp/oneapi/dal/detail/common.hpp
+@@ -28,7 +28,7 @@
+ #include "oneapi/dal/common.hpp"
+ #include "oneapi/dal/detail/error_messages.hpp"
+ 
+-#if defined(_MSC_VER)
++#if defined(_MSC_VER) && !defined(__clang__)
+ #define ONEDAL_FORCEINLINE __forceinline
+ #else
+ #define ONEDAL_FORCEINLINE inline __attribute__((always_inline))
+diff --git a/deploy/local/vars_win.bat b/deploy/local/vars_win.bat
+index dd8fdfb5..8ad1e067 100644
+--- a/deploy/local/vars_win.bat
++++ b/deploy/local/vars_win.bat
+@@ -21,7 +21,17 @@ call:GetFullPath "%~dp0"         SCRIPT_PATH
+ call:GetFullPath "%~dp0..\..\.." DAAL_UP
+ call:GetFullPath "%~dp0..\.."    DAAL_UP_OLD
+ 
+-set DAAL_IA=intel64
++set "ARCH=%PROCESSOR_ARCHITECTURE%"
++if defined PROCESSOR_ARCHITEW6432 set "ARCH=%PROCESSOR_ARCHITEW6432%"
++
++if /I "%ARCH%"=="AMD64" (
++  set DAAL_IA=intel64
++) else if /I "%ARCH%"=="ARM64" (
++  set DAAL_IA=ARM64
++) else (
++    echo Unknown architecture: %ARCH%
++    exit /b 1
++)
+ 
+ :ParseArgs
+ if /i "%1"=="" goto :CheckLayout
+diff --git a/dev/make/common.mk b/dev/make/common.mk
+index e442ad73..4992e868 100644
+--- a/dev/make/common.mk
++++ b/dev/make/common.mk
+@@ -67,7 +67,7 @@ md5sum.cmd.win = md5sum
+ md5sum.cmd.mac = md5 -q
+ 
+ # Enable compiler-provided defences as recommended by Intel Security Development Lifecycle document (SW.01)
+-secure.opts.win = -GS
++secure.opts.win = $(if $(COMPILER_is_vc),-GS,)
+ secure.opts.lnx = -Wformat -Wformat-security -fstack-protector-strong
+ secure.opts.mac = -Wformat -Wformat-security -O2 -D_FORTIFY_SOURCE=2 -fstack-protector
+ 
+@@ -76,7 +76,7 @@ secure.opts.link.win = -DYNAMICBASE -NXCOMPAT
+ secure.opts.link.lnx = -z relro -z now -z noexecstack
+ secure.opts.link.mac =
+ 
+-RC.COMPILE = rc.exe $(RCOPT) -fo$@ $<
++RC.COMPILE = $(if $(COMPILER_is_clang),llvm-rc,rc.exe) $(RCOPT) -fo$@ $<
+ 
+ # Used as $(eval $(call set_c_compile,$(COMPILER),$(_OS),$(gcc_toolchain))
+ C.COMPILE = $(if $(COMPILER.$(_OS).$(COMPILER)),$(COMPILER.$(_OS).$(COMPILER)),$(error COMPILER.$(_OS).$(COMPILER) must be defined)) \
+@@ -114,7 +114,7 @@ link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.
+ .addmod = $(if $(filter %.o,$1),addmod $(filter %.o,$1))
+ .addlink = $(if $(filter %_link.txt,$1),addmod $(shell tr '\n' ', ' < $(filter %_link.txt,$1)))
+ link.static.lnx.script = printf "create $@\n$(call .addlib,$1)\n$(call .addmod,$1)\n$(call .addlink,$1)\nsave\n" | $(if $(AR_is_command_line),${AR},ar) -M
+-link.static.win = lib $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
++link.static.win = $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
+ link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
+ 
+ # Link dynamic lib
+@@ -122,7 +122,7 @@ LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(link.dynamic.cmd)
+ link.dynamic.cmd = $(call link.dynamic.$(_OS),$(secure.opts.link.$(_OS)) $(or $1,$(^.no-mkdeps)) $(LOPT))
+ link.dynamic.lnx = $(if $(link.dynamic.lnx.$(COMPILER)),$(link.dynamic.lnx.$(COMPILER)),$(error link.dynamic.lnx.$(COMPILER) must be defined)) \
+                    $(EXCLUDE_LIBS) -Wl,-soname,$(@F).$(MAJORBINARY) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
+-link.dynamic.win = link $(link.dynamic.win.$(COMPILER)) -WX -nologo -map -dll $(-DEBL) \
++link.dynamic.win = $(link.dynamic.win.$(COMPILER)) -WX -nologo -map -dll $(-DEBL) \
+                    $(patsubst %_link.txt,@%_link.txt,$(patsubst %.def,-DEF:%.def,$1)) -out:$@
+ link.dynamic.mac = $(if $(link.dynamic.mac.$(COMPILER)),$(link.dynamic.mac.$(COMPILER)),$(error link.dynamic.mac.$(COMPILER) must be defined)) \
+                    -undefined dynamic_lookup -dynamiclib -Wl,-flat_namespace -Wl,-install_name,@rpath/$(subst .dylib,.$(MAJORBINARY).dylib,$(@F)) \
+diff --git a/dev/make/compiler_definitions/clang.ref.arm.mk b/dev/make/compiler_definitions/clang.ref.arm.mk
+index 15f33abd..e6387a6c 100644
+--- a/dev/make/compiler_definitions/clang.ref.arm.mk
++++ b/dev/make/compiler_definitions/clang.ref.arm.mk
+@@ -21,7 +21,7 @@
+ 
+ include dev/make/compiler_definitions/clang.mk
+ 
+-PLATs.clang = lnxarm
++PLATs.clang = lnxarm winarm
+ 
+ 
+ LINKERS_SUPPORTED := bfd gold lld
+@@ -33,6 +33,7 @@ ifneq ($(LINKER),)
+ endif
+ 
+ COMPILER.lnx.clang.target = $(if $(filter yes,$(COMPILER_is_cross)),--target=aarch64-linux-gnu)
++COMPILER.win.clang.target = --target=aarch64-pc-windows-msvc
+ 
+ COMPILER.sysroot = $(if $(SYSROOT),--sysroot $(SYSROOT))
+ 
+@@ -40,6 +41,10 @@ COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
+                      -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wno-empty-body -Wreturn-type \
+                      $(COMPILER.lnx.clang.target) \
+                      $(COMPILER.sysroot)
++COMPILER.win.clang= clang++ -march=armv8-a+sve \
++                     -fms-runtime-lib=$(if $(MSVC_RT_is_release),dll,dll_dbg) \
++                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Wno-deprecated-declarations \
++                     $(COMPILER.win.clang.target)
+ 
+ # Linker flags
+ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+@@ -47,6 +52,8 @@ link.dynamic.lnx.clang = clang++ -march=armv8-a+sve \
+                          $(linker.ld.flag) \
+                          $(COMPILER.lnx.clang.target) \
+                          $(COMPILER.sysroot)
++link.dynamic.win.clang = lld-link
++link.static.win.clang = llvm-lib
+ 
+ pedantic.opts.lnx.clang = $(pedantic.opts.clang)
+ 
+diff --git a/dev/make/compiler_definitions/icx.mkl.32e.mk b/dev/make/compiler_definitions/icx.mkl.32e.mk
+index 1315ae57..e9e5ee07 100644
+--- a/dev/make/compiler_definitions/icx.mkl.32e.mk
++++ b/dev/make/compiler_definitions/icx.mkl.32e.mk
+@@ -82,6 +82,9 @@ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+ link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
+ link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
+ 
++link.dynamic.win.icx = link
++link.static.win.icx = lib
++
+ pedantic.opts.lnx.icx = -pedantic \
+                         -Wall \
+                         -Wextra \
+diff --git a/dev/make/compiler_definitions/vc.mkl.32e.mk b/dev/make/compiler_definitions/vc.mkl.32e.mk
+index 508f925f..e655b9b5 100644
+--- a/dev/make/compiler_definitions/vc.mkl.32e.mk
++++ b/dev/make/compiler_definitions/vc.mkl.32e.mk
+@@ -41,7 +41,8 @@ endif
+ # Disable C4661 because of false positives
+ COMPILER.win.vc = cl $(if $(MSVC_RT_is_release),-MD, -MDd) -nologo -EHsc -wd4661 -WX ${CXXFLAGS}
+ 
+-link.dynamic.win.vc = /DEPENDENTLOADFLAG:0x2000 ${LDFLAGS}
++link.dynamic.win.vc = link /DEPENDENTLOADFLAG:0x2000 ${LDFLAGS}
++link.static.win.vc = lib
+ 
+ p4_OPT.vc   =
+ mc3_OPT.vc  =
+diff --git a/dev/make/deps.ref.mk b/dev/make/deps.ref.mk
+index 1e05581d..d81613dd 100644
+--- a/dev/make/deps.ref.mk
++++ b/dev/make/deps.ref.mk
+@@ -23,18 +23,33 @@ OPENBLASDIR:= $(if $(wildcard $(DIR)/__deps/open_blas/*),$(DIR)/__deps/open_blas
+                 $(if $(wildcard $(OPENBLASROOT)/include/*),$(subst \,/,$(OPENBLASROOT)),                              \
+                     $(error Can`t find OPENBLAS libs in $(DIR)/__deps/open_blas or OPENBLASROOT.)))
+ OPENBLASDIR.include := $(OPENBLASDIR)/include
+-OPENBLASDIR.libia := $(OPENBLASDIR)/lib
+ 
+-daaldep.math_backend.thr := $(OPENBLASDIR.libia)/libopenblas.$a
+-daaldep.math_backend.seq := $(OPENBLASDIR.libia)/libopenblas.$a
++OPENBLASDIR.libia.win := $(if $(OS_is_win),$(OPENBLASDIR)/lib,)
++OPENBLASDIR.libia.lnx := $(if $(OS_is_lnx),$(OPENBLASDIR)/lib,)
++
++OPENBLASDIR.soia.win := $(if $(OS_is_win),$(OPENBLASDIR)/bin,)
++OPENBLASDIR.soia.lnx := $(if $(OS_is_lnx),$(OPENBLASDIR)/lib,)
++
++OPENBLASDIR.libia := $(OPENBLASDIR.libia.$(_OS))
++OPENBLASDIR.soia :=  $(OPENBLASDIR.soia.$(_OS))
++
++releaseopen_blas.LIBS_A := $(OPENBLASDIR.libia)/$(plib)openblas.$(a)
++releaseopen_blas.LIBS_Y := $(OPENBLASDIR.soia)/$(plib)openblas.$(y)
++
++daaldep.math_backend.thr := $(releaseopen_blas.LIBS_A)
++daaldep.math_backend.seq := $(releaseopen_blas.LIBS_A)
+ 
+ daaldep.math_backend.incdir := $(OPENBLASDIR.include)
+ daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
+ 
++RELEASEDIR.open_blas       := $(RELEASEDIR)/open_blas/latest
++RELEASEDIR.open_blas.libia := $(RELEASEDIR.open_blas)/lib$(if $(OS_is_mac),,$(if $(OS_is_win),/vc_mt,/))
++RELEASEDIR.open_blas.soia  := $(if $(OS_is_win),$(RELEASEDIR.open_blas)/bin/vc_mt,$(RELEASEDIR.open_blas.libia))
++
+ # List of OpenBLAS libraries to exclude from linking.
+ # This list is used to generate the `--exclude-libs` linker options.
+ # If you need to exclude additional libraries, extend this list by appending the library names.
+-MATH_LIBS_TO_EXCLUDE := libopenblas.$a 
++MATH_LIBS_TO_EXCLUDE := $(plib)openblas.$a 
+ 
+ ifeq ($(RNG_OPENRNG), yes)
+ 	OPENRNGDIR:= $(if $(wildcard $(DIR)/__deps/openrng/*),$(DIR)/__deps/openrng,                            \
+diff --git a/dev/make/function_definitions/arm.mk b/dev/make/function_definitions/arm.mk
+index c9a359a6..07450502 100644
+--- a/dev/make/function_definitions/arm.mk
++++ b/dev/make/function_definitions/arm.mk
+@@ -19,8 +19,6 @@ ifeq ($(filter ref,$(BACKEND_CONFIG)),)
+           Supported config for '$(PLAT)' are ['ref'])
+ endif
+ 
+-COMPILERs = gnu clang
+-COMPILER ?= gnu
+ CPUs := sve
+ CPUs.files := a8sve
+ OPTFLAG ?= O2
+diff --git a/dev/make/function_definitions/lnxarm.mk b/dev/make/function_definitions/lnxarm.mk
+index c383e135..ef6767d8 100644
+--- a/dev/make/function_definitions/lnxarm.mk
++++ b/dev/make/function_definitions/lnxarm.mk
+@@ -20,6 +20,9 @@ ARCH_DIR_ONEDAL = arm
+ _OS := lnx
+ _IA := arm
+ 
++COMPILERs = gnu clang
++COMPILER ?= gnu
++
+ include dev/make/function_definitions/arm.mk
+ 
+ # Used as $(eval $(call set_daal_rt_deps))
+diff --git a/dev/make/function_definitions/winarm.mk b/dev/make/function_definitions/winarm.mk
+new file mode 100644
+index 00000000..e5779dbc
+--- /dev/null
++++ b/dev/make/function_definitions/winarm.mk
+@@ -0,0 +1,38 @@
++#===============================================================================
++# Copyright contributors to the oneDAL project
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#===============================================================================
++
++BACKEND_CONFIG ?= ref
++ARCH = arm
++ARCH_DIR_ONEDAL = ARM64
++_OS := win
++_IA := ARM64
++
++COMPILERs = clang
++COMPILER ?= clang
++
++include dev/make/function_definitions/arm.mk
++
++# Used as $(eval $(call set_daal_rt_deps))
++define set_daal_rt_deps
++  $$(eval daaldep.winarm.rt.thr  := -LIBPATH:$$(RELEASEDIR.tbb.libia) \
++          $$(dep_thr) $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
++  $$(eval daaldep.winarm.rt.seq  := $$(dep_seq) \
++          $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
++  $$(eval daaldep.winarm.rt.dpc  := $$(dep_dpc) \
++          $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
++  $$(eval daaldep.win.threxport.create = grep -v -E '^(;|$$$$$$$$)' $$$$< $$$$(USECPUS.out.grep.filter))
++endef
++
+diff --git a/examples/cmake/setup_examples.cmake b/examples/cmake/setup_examples.cmake
+index 89e29d27..d6e32cc7 100644
+--- a/examples/cmake/setup_examples.cmake
++++ b/examples/cmake/setup_examples.cmake
+@@ -107,7 +107,7 @@ function (add_examples examples_paths)
+         # Detect CPU architecture
+         if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+             set(CPU_ARCHITECTURE "intel_intel64")
+-        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
++        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+             set(CPU_ARCHITECTURE "arm_aarch64")
+         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+             set(CPU_ARCHITECTURE "riscv64_riscv64")
+diff --git a/makefile b/makefile
+index c9c2c4df..62c499e4 100644
+--- a/makefile
++++ b/makefile
+@@ -27,7 +27,7 @@ else ifeq ($(PLAT),)
+ endif
+ 
+ # Check that we know how to build for the identified platform
+-PLATs := lnx32e mac32e win32e lnxarm lnxriscv64
++PLATs := lnx32e mac32e win32e lnxarm lnxriscv64 winarm
+ $(if $(filter $(PLAT),$(PLATs)),,$(error Unknown platform $(PLAT)))
+ 
+ # Non-platform or architecture specific defines live in common.mk
+@@ -126,8 +126,8 @@ dtbb           := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
+ plib           := $(if $(OS_is_win),,lib)
+ scr            := $(if $(OS_is_win),bat,sh)
+ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
+--Fo            := $(if $(OS_is_win),-Fo,-o)
+--Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
++-Fo            := $(if $(and $(OS_is_win),$(COMPILER_is_vc)),-Fo,-o)
++-Q             := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,$(if $(COMPILER_is_clang),-,-Q)),-)
+ -cxx17         := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
+ -optlevel      := $(-optlevel.$(COMPILER))
+ -fPIC          := $(if $(OS_is_win),,-fPIC)
+@@ -149,7 +149,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
+ -sanitize      := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
+ -lsanitize     := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
+ -lsanitize.dpc := $(if $(REQSAN),-Xarch_host -fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.dpcpp),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.dpcpp))))
+--EHsc          := $(if $(OS_is_win),-EHsc,)
++-EHsc          := $(if $(and $(OS_is_win), $(COMPILER_is_vc)),-EHsc,)
+ -isystem       := $(if $(OS_is_win),-I,-isystem)
+ -sGRP          := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
+ -eGRP          := $(if $(OS_is_lnx),-Wl$(comma)--end-group,)
+@@ -1087,8 +1087,8 @@ endef
+ $(foreach d,$(release.ONEAPI.HEADERS.COMMON),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$d),_release_oneapi_c_h)))
+ $(foreach d,$(release.ONEAPI.HEADERS.OSSPEC),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$(subst _$(_OS),,$d)),_release_oneapi_c_h)))
+ 
+-#----- releasing static/dynamic oneTBB libraries
+-$(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia): _release_common
++#----- releasing static/dynamic oneTBB & OpenBLAS libraries
++$(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia) $(RELEASEDIR.open_blas.libia) $(RELEASEDIR.open_blas.soia): _release_common
+ 
+ define .release.t
+ _release_common: $2/$(notdir $1)
+@@ -1096,6 +1096,8 @@ $2/$(notdir $1): $(call frompf1,$1) | $2/. ; $(value cpy)
+ endef
+ $(foreach t,$(releasetbb.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.soia))))
+ $(foreach t,$(releasetbb.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.libia))))
++$(foreach t,$(releaseopen_blas.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.open_blas.soia))))
++$(foreach t,$(releaseopen_blas.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.open_blas.libia))))
+ 
+ #----- cmake configs generation
+ 
+diff --git a/samples/cmake/setup_samples.cmake b/samples/cmake/setup_samples.cmake
+index f57ab081..8d30ee58 100644
+--- a/samples/cmake/setup_samples.cmake
++++ b/samples/cmake/setup_samples.cmake
+@@ -87,7 +87,7 @@ function(add_samples samples_paths)
+         # Detect CPU architecture
+         if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "AMD64")
+             set(CPU_ARCHITECTURE "intel_intel64")
+-        elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "aarch64")
++        elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "ARM64")
+             set(CPU_ARCHITECTURE "arm_aarch64")
+         else()
+             message(FATAL_ERROR "Unknown architecture ${CMAKE_HOST_SYSTEM_PROCESSOR}")

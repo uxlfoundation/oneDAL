@@ -1,0 +1,44 @@
+[
+ {
+  "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+  "line": 115,
+  "severity": "blocker",
+  "rule": "last block size is nRows % blockSize",
+  "message": "When nRows is a multiple of blockSize the last block gets 0 rows (nRows % blockSize), so its rows are skipped; use nRows - startRow."
+ },
+ {
+  "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+  "line": 124,
+  "severity": "major",
+  "rule": "std::mutex instead of the oneDAL threading layer",
+  "message": "Merging under std::lock_guard<std::mutex> bypasses the threading layer; merge the thread-local ranges in tlsRange.reduce() instead."
+ },
+ {
+  "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+  "line": 24,
+  "severity": "major",
+  "rule": "DAAL file uses #pragma once instead of #ifndef guard",
+  "message": "DAAL .i/.h files use #ifndef __COVARIANCE_CONSTANT_COLUMNS_IMPL_I__ include guards, not #pragma once."
+ },
+ {
+  "file": "cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp",
+  "line": 65,
+  "severity": "minor",
+  "rule": "hard-coded error message instead of error_messages",
+  "message": "Add an entry to dal::detail::error_messages instead of a string literal in the throw."
+ },
+ {
+  "file": "cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp",
+  "line": 159,
+  "severity": "major",
+  "rule": "check guarded by cov_matrix instead of cor_matrix",
+  "message": "The constant-column check runs when result_options::cov_matrix is requested (rejecting valid covariance input) and not for cor_matrix."
+ },
+ {
+  "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+  "line": 3,
+  "severity": "minor",
+  "rule": "new file copyright header",
+  "message": "New files use 'Copyright contributors to the oneDAL project', not 'Copyright 2026 Intel Corporation'."
+ }
+]

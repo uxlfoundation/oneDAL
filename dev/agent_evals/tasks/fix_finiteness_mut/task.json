@@ -1,0 +1,22 @@
+{
+ "id": "fix_finiteness_mut",
+ "family": "fix",
+ "base": "3120d0ab",
+ "grader": "test_pass",
+ "setup_patch": "setup.patch",
+ "hidden_from": "3120d0ab",
+ "hidden_files": [
+  "cpp/oneapi/dal/algo/finiteness_checker/test/batch.cpp"
+ ],
+ "targets": [
+  "//cpp/oneapi/dal/algo/finiteness_checker:test_batch_host"
+ ],
+ "root_cause": {
+  "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+  "must_contain": "&& !(doubleZeroBits != (uint64Ptr[i] & doubleFracMask) && allowNaN)) return true;"
+ },
+ "prompt": "Bug report: oneapi::dal::finiteness_checker gives a wrong answer for double-precision data. With `set_allow_NaN(true)`, a table that contains +inf or -inf is reported as finite (get_finite() == true) when the table is small (e.g. a 1x1 table holding +inf). The same input in single precision (float) is correctly reported as not finite. Infinities must never be treated as finite, regardless of allow_NaN. Find and fix the root cause in the library. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.",
+ "regression_targets": [
+  "//cpp/oneapi/dal/algo/kmeans:test_batch_host"
+ ]
+}

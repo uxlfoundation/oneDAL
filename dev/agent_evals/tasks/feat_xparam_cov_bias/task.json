@@ -1,0 +1,32 @@
+{
+ "id": "feat_xparam_cov_bias",
+ "family": "feature",
+ "base": "3120d0ab",
+ "grader": "test_pass",
+ "setup_patch": "setup.patch",
+ "hidden_from": "3120d0ab",
+ "hidden_files": [
+  "cpp/oneapi/dal/algo/covariance/test/fixture.hpp",
+  "cpp/oneapi/dal/algo/covariance/test/batch.cpp",
+  "cpp/oneapi/dal/algo/covariance/test/compute_parameters.cpp",
+  "cpp/oneapi/dal/algo/covariance/test/online.cpp",
+  "cpp/oneapi/dal/algo/covariance/test/spmd.cpp",
+  "cpp/oneapi/dal/algo/covariance/test/online_spmd.cpp"
+ ],
+ "targets": [
+  "//cpp/oneapi/dal/algo/covariance:test_batch_host",
+  "//cpp/oneapi/dal/algo/covariance:test_compute_parameters_host",
+  "//cpp/oneapi/dal/algo/covariance:test_online_host",
+  "//cpp/oneapi/dal/algo/covariance:test_spmd_host",
+  "//cpp/oneapi/dal/algo/covariance:test_online_spmd_host"
+ ],
+ "regression_targets": [
+  "//cpp/oneapi/dal/algo/covariance:test_badargs_host",
+  "//cpp/oneapi/dal/algo/pca:test_online_host"
+ ],
+ "root_cause": {
+  "file": "cpp/daal/include/algorithms/covariance/covariance_types.h",
+  "must_contain": "bool bias"
+ },
+ "prompt": "Implement the following feature request in this repository (oneDAL). `bazel` is on PATH. This machine is CPU-only and has no oneAPI DPC++ compiler (`icpx`), so only the host (`*_host`) Bazel test targets can be built and run here. Do not weaken or delete existing tests.\n\n# [Feature] covariance: add a `bias` option to choose the 1/N (biased) covariance estimator\n\n### Motivation\n\n`oneapi::dal::covariance` always returns the unbiased sample covariance, normalized by `1/(N-1)`. scikit-learn-intelex needs the maximum-likelihood (biased) estimator normalized by `1/N` as well (`sklearn.covariance.EmpiricalCovariance`, `numpy.cov(..., bias=True)`). Rescaling the result on the Python side is wrong for correlation outputs and in the online/distributed flows, so the option has to exist in the library itself, the same way `assume_centered` already does.\n\n### Requested API\n\nOn `oneapi::dal::covariance::descriptor<Float, Method, Task>` (and its `detail::descriptor_base<Task>`), following exactly the pattern of the existing `assume_centered` property:\n\n```cpp\nbool get_bias() const;                 // default: false\nauto& set_bias(const bool& value);     // returns *this, chainable\n```\n\nSemantics:\n- `bias == false` (default): current behaviour, covariance normalized by `1/(N-1)`.\n- `bias == true`: covariance normalized by `1/N`, where N is the total number of observations (for online compute, the number of rows accumulated over all `partial_compute` calls).\n- `means` are unaffected. The correlation matrix is unaffected by the choice.\n- Must work for batch `compute` and for online `partial_compute` + `finalize_compute`, in combination with `assume_centered` and every `result_options` value.\n\n### Implementation requirements\n\nThe CPU path of oneDAL covariance is implemented on top of the DAAL covariance kernels, so the option has to be plumbed all the way down: the DAAL `daal::algorithms::covariance::Parameter` struct should get a new public field `bool bias = false;` (next to `assumeCentered`) that makes the DAAL covariance finalization use `1/N` instead of `1/(N-1)`, and the oneDAL CPU backend must set it from `desc.get_bias()` for both batch and online (finalize) compute. Do not implement it by rescaling results in the oneAPI layer.\n\nGPU (DPC++) kernels do not need to implement the option in this change (they cannot be built on this machine), but do not remove or break GPU code.\n\n### Acceptance\n\nThe existing covariance host test suites keep passing, and new tests that construct e.g.\n\n```cpp\ncovariance::descriptor<Float, Method, covariance::task::compute>()\n    .set_result_options(result_option)\n    .set_assume_centered(assume_centered)\n    .set_bias(bias);\n```\n\nand compare against a `1/N` (bias) or `1/(N-1)` reference pass in `//cpp/oneapi/dal/algo/covariance:test_batch_host`, `test_online_host` and `test_compute_parameters_host`.\n"
+}
