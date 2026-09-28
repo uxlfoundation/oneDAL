@@ -187,6 +187,12 @@ inline void threader_func(std::int64_t i, const void *a) {
 }
 
 template <typename F>
+inline void threader_func_int32ptr(const std::int32_t *i, const void *a) {
+    const F &lambda = *static_cast<const F *>(a);
+    lambda(i);
+}
+
+template <typename F>
 inline void threader_func_int64ptr(const std::int64_t *i, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
     lambda(i);
@@ -212,6 +218,25 @@ inline ONEDAL_EXPORT void threader_for_simple(std::int64_t n,
     const void *a = static_cast<const void *>(&lambda);
 
     _onedal_threader_for_simple_with_grain(n, grain_size, a, threader_func<F>);
+}
+
+/// Iterates over a range of 32-bit indices addressed by pointer.
+///
+/// This one keeps a 32-bit element type on purpose: it walks the neighbor lists of
+/// `preview::topology<std::int32_t>`, which stores vertex ids as `std::int32_t`, so there
+/// is no `std::int64_t` range to iterate over. Only the loop index type became 64-bit.
+///
+/// @tparam F      The callable type; invoked as `lambda(const std::int32_t *)`
+/// @param[in] begin   The first element of the range
+/// @param[in] end     One past the last element of the range
+/// @param[in] lambda  The body to run for every element of the range
+template <typename F>
+inline ONEDAL_EXPORT void threader_for_int32ptr(const std::int32_t *begin,
+                                                const std::int32_t *end,
+                                                const F &lambda) {
+    const void *a = static_cast<const void *>(&lambda);
+
+    _onedal_threader_for_int32ptr(begin, end, a, threader_func_int32ptr<F>);
 }
 
 template <typename F>

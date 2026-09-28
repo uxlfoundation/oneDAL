@@ -125,6 +125,52 @@ void checkTiling(const BlockLog & log, int64_t n)
     REQUIRE(expectedFirst == n);
 }
 
+/// Records which thread indices a loop body ran on.
+///
+/// Like `VisitLog`, the body never asserts: it only records the index of the thread it ran on, and
+/// the shape of the schedule is checked after the parallel region has completed.
+class ThreadIdLog
+{
+public:
+    ThreadIdLog() : _seen(static_cast<size_t>(threader_get_max_threads_number()))
+    {
+        for (auto & seen : _seen)
+        {
+            seen.store(false, std::memory_order_relaxed);
+        }
+    }
+
+    /// Record that the calling thread ran an iteration. Safe to call concurrently.
+    void mark()
+    {
+        const int threadId = threader_get_max_current_thread_index();
+        if (threadId < 0 || static_cast<size_t>(threadId) >= _seen.size())
+        {
+            _outOfRange.store(true, std::memory_order_relaxed);
+            return;
+        }
+        _seen[static_cast<size_t>(threadId)].store(true, std::memory_order_relaxed);
+    }
+
+    /// @return `true` if every thread index handed out was within `[0, max_threads)`.
+    bool inRange() const { return !_outOfRange.load(std::memory_order_relaxed); }
+
+    /// @return Number of distinct thread indices that ran at least one iteration.
+    size_t distinctCount() const
+    {
+        size_t count = 0;
+        for (const auto & seen : _seen)
+        {
+            if (seen.load(std::memory_order_relaxed)) ++count;
+        }
+        return count;
+    }
+
+private:
+    std::vector<std::atomic<bool> > _seen;
+    std::atomic<bool> _outOfRange { false };
+};
+
 /// @return `true` if the threading layer is configured to run loops in parallel, so that
 ///         assertions on the *shape* of the partitioning are meaningful. The loops fall back to a
 ///         plain sequential pass otherwise.
@@ -167,12 +213,54 @@ TEST("threader_for_optional visits every index exactly once, nested or not", "[t
     threader_for_optional(n, 1, [&](int64_t i) { flat.mark(i); });
     REQUIRE(flat.visitedExactlyOnce());
 
+    // Outside of a parallel region the loop is a real parallel one, so with more than one thread
+    // available its iterations are spread over more than one of them. The iteration space is much
+    // larger than above because the body is trivial and the partitioner only splits a space it
+    // considers worth splitting.
+    if (isParallel())
+    {
+        constexpr int64_t wide = 2000000;
+        ThreadIdLog threads;
+        threader_for_optional(wide, 1, [&](int64_t i) {
+            (void)i;
+            threads.mark();
+        });
+        REQUIRE(threads.inRange());
+        REQUIRE(threads.distinctCount() > 1u);
+    }
+
     // Called from inside a parallel region, the loop runs sequentially in the calling thread
     // instead of nesting a second one -- it still has to cover the whole iteration space.
     constexpr int64_t outerCount = 8;
     VisitLog nested(outerCount * n);
-    threader_for(outerCount, 1, [&](int64_t outer) { threader_for_optional(n, 1, [&](int64_t inner) { nested.mark(outer * n + inner); }); });
+
+    // One entry per outer iteration, holding the index of the thread that ran the inner loop for
+    // it, or `noThread` until the first inner iteration claims it. A nested `threader_for_optional`
+    // that did spawn a parallel region would leave at least one entry claimed by one thread and
+    // then visited by another.
+    constexpr int noThread = -1;
+    std::vector<std::atomic<int> > innerThread(static_cast<size_t>(outerCount));
+    for (auto & thread : innerThread)
+    {
+        thread.store(noThread, std::memory_order_relaxed);
+    }
+    std::atomic<bool> innerMigrated { false };
+
+    threader_for(outerCount, 1, [&](int64_t outer) {
+        threader_for_optional(n, 1, [&](int64_t inner) {
+            nested.mark(outer * n + inner);
+
+            const int threadId = threader_get_max_current_thread_index();
+            auto & claimed     = innerThread[static_cast<size_t>(outer)];
+            int expected       = noThread;
+            if (!claimed.compare_exchange_strong(expected, threadId, std::memory_order_relaxed) && expected != threadId)
+            {
+                innerMigrated.store(true, std::memory_order_relaxed);
+            }
+        });
+    });
     REQUIRE(nested.visitedExactlyOnce());
+    REQUIRE(!innerMigrated.load(std::memory_order_relaxed));
 }
 
 TEST("threader_for_blocked tiles the iteration space with (first, last) blocks", "[threading][unit]")
