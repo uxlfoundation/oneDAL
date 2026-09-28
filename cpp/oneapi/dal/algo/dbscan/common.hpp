@@ -22,6 +22,26 @@
 
 namespace oneapi::dal::dbscan {
 
+namespace v1 {
+
+/// Distance metric used for the epsilon-neighborhood search in DBSCAN.
+enum class distance_metric {
+    /// Euclidean (:math:`L_2`) distance.
+    euclidean,
+    /// Manhattan (:math:`L_1`) distance.
+    manhattan,
+    /// Minkowski (:math:`L_p`) distance with configurable :expr:`degree`.
+    minkowski,
+    /// Chebyshev (:math:`L_\infty`) distance.
+    chebyshev,
+    /// Cosine distance (:math:`1 - \cos\theta`).
+    cosine
+};
+
+} // namespace v1
+
+using v1::distance_metric;
+
 namespace task {
 namespace v1 {
 /// Tag-type that parameterizes entities used for solving
@@ -107,12 +127,16 @@ public:
     double get_epsilon() const;
     std::int64_t get_min_observations() const;
     bool get_mem_save_mode() const;
+    distance_metric get_metric() const;
+    double get_degree() const;
     result_option_id get_result_options() const;
 
 protected:
     void set_min_observations_impl(std::int64_t);
     void set_epsilon_impl(double);
     void set_mem_save_mode_impl(bool);
+    void set_metric_impl(distance_metric);
+    void set_degree_impl(double);
     void set_result_options_impl(const result_option_id& value);
 
 private:
@@ -189,6 +213,30 @@ public:
 
     auto& set_mem_save_mode(bool value) {
         base_t::set_mem_save_mode_impl(value);
+        return *this;
+    }
+
+    /// The distance metric used for the epsilon-neighborhood search.
+    /// The value of :literal:`epsilon` is always interpreted in the units of the
+    /// selected metric.
+    distance_metric get_metric() const {
+        return base_t::get_metric();
+    }
+
+    auto& set_metric(distance_metric value) {
+        base_t::set_metric_impl(value);
+        return *this;
+    }
+
+    /// The degree :math:`p` of the Minkowski distance. Ignored by every other
+    /// metric.
+    /// @invariant :expr:`degree > 0`
+    double get_degree() const {
+        return base_t::get_degree();
+    }
+
+    auto& set_degree(double value) {
+        base_t::set_degree_impl(value);
         return *this;
     }
 

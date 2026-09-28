@@ -204,21 +204,22 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 Status DBSCANBatchKernel<algorithmFPType, method, cpu>::computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights,
                                                                          NumericTable * ntAssignments, NumericTable * ntNClusters,
                                                                          NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                                                         const Parameter * par)
+                                                                         const Parameter * par, algorithms::internal::PairwiseDistanceType metric,
+                                                                         double degree)
 {
     Status s;
     const size_t nRows = ntData->getNumberOfRows();
 
     const algorithmFPType epsilon         = par->epsilon;
     const algorithmFPType minObservations = par->minObservations;
-    const algorithmFPType minkowskiPower  = (algorithmFPType)2.0;
+    const algorithmFPType minkowskiPower  = (algorithmFPType)degree;
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, sizeof(Neighborhood<algorithmFPType, cpu>));
 
     TArray<Neighborhood<algorithmFPType, cpu>, cpu> neighs(nRows);
     DAAL_CHECK_MALLOC(neighs.get());
 
-    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(ntData, ntData, ntWeights, epsilon, minkowskiPower);
+    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(ntData, ntData, ntWeights, epsilon, minkowskiPower, metric);
     DAAL_CHECK_STATUS_VAR(nEngine.queryFull(neighs.get()));
 
     WriteRows<int, cpu> assignRows(ntAssignments, 0, nRows);
@@ -285,17 +286,18 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 Status DBSCANBatchKernel<algorithmFPType, method, cpu>::computeMemSave(const NumericTable * ntData, const NumericTable * ntWeights,
                                                                        NumericTable * ntAssignments, NumericTable * ntNClusters,
                                                                        NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                                                       const Parameter * par)
+                                                                       const Parameter * par, algorithms::internal::PairwiseDistanceType metric,
+                                                                       double degree)
 {
     Status s;
 
     const algorithmFPType epsilon         = par->epsilon;
     const algorithmFPType minObservations = par->minObservations;
-    const algorithmFPType minkowskiPower  = (algorithmFPType)2.0;
+    const algorithmFPType minkowskiPower  = (algorithmFPType)degree;
 
     const size_t nRows = ntData->getNumberOfRows();
 
-    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(ntData, ntData, ntWeights, epsilon, minkowskiPower);
+    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(ntData, ntData, ntWeights, epsilon, minkowskiPower, metric);
 
     WriteRows<int, cpu> assignRows(ntAssignments, 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(assignRows);

@@ -83,6 +83,35 @@ DBSCAN_BADARG_TEST("accepts positive epsilon") {
     REQUIRE_NOTHROW(this->get_descriptor().set_epsilon(1.0));
 }
 
+DBSCAN_BADARG_TEST("throws if minkowski degree is not positive") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(0.0), domain_error);
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(-1.0), domain_error);
+}
+
+DBSCAN_BADARG_TEST("accepts positive minkowski degree") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_degree(3.0));
+}
+
+DBSCAN_BADARG_TEST("accepts every supported metric") {
+    for (auto metric : { distance_metric::euclidean,
+                         distance_metric::manhattan,
+                         distance_metric::minkowski,
+                         distance_metric::chebyshev,
+                         distance_metric::cosine }) {
+        REQUIRE_NOTHROW(
+            this->compute(this->get_descriptor().set_metric(metric), this->get_data(), table{}));
+    }
+}
+
+DBSCAN_BADARG_TEST("throws if metric is out of range") {
+    // The metric is only validated where it is translated for the backend, so
+    // the descriptor itself accepts the value and the compute call rejects it.
+    const auto metric = static_cast<distance_metric>(5);
+    REQUIRE_THROWS_AS(
+        this->compute(this->get_descriptor().set_metric(metric), this->get_data(), table{}),
+        invalid_argument);
+}
+
 // Is it reasonable in case of negative weights?
 /*
 DBSCAN_BADARG_TEST("throws if min_observatons is negative") {
