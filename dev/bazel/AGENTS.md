@@ -10,7 +10,7 @@ Bazel is the **development and testing build system** for oneDAL, providing fast
 ### Key Characteristics
 - **Development Build System**: Used for development and CI/CD
 - **Dependency Management**: Automatic dependency resolution
-- **Multi-platform**: Linux, Windows, macOS support
+- **Multi-platform**: Linux and Windows toolchains
 - **Incremental Builds**: Fast incremental compilation
 - **Hermetic Builds**: Reproducible build environments
 
@@ -105,12 +105,8 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - No `use_default_shell_env = True`; it breaks hermeticity.
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
 - Remove unused `load()` symbols.
+- Don't hardcode platform-specific paths; reference external libraries by their repository labels.
 - Library binary versions are `MAJORBINARY` / `MINORBINARY` in `makefile.ver`, mirrored by `_BINARY_MAJOR` / `_BINARY_MINOR` in `dev/bazel/repos.bzl`. Change both together; don't hardcode them anywhere else.
-
-## 🚫 Common Pitfalls
-- **Build Configuration**: Don't hardcode platform-specific paths
-- **Dependencies**: Don't mix different dependency management approaches  
-- **Toolchains**: Don't assume toolchain availability, test on target platforms
 
 ## 🧪 Testing and Validation
 - **Build Validation**: Ensure builds work on all supported platforms

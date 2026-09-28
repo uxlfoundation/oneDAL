@@ -94,7 +94,7 @@ enum class cpu_feature : uint64_t {
 
 ### Key Dependencies
 - **Math**: Intel MKL (primary), OpenBLAS (reference)
-- **Threading**: Intel TBB for task-based parallelism
+- **Threading**: Intel TBB, used only through the threading layer (`cpp/oneapi/dal/detail/threading.hpp`, `cpp/daal/src/threading/threading.h`)
 - **GPU**: Intel SYCL for heterogeneous computing
 - **Distributed**: MPI via `oneapi::dal::preview::spmd`
 
@@ -150,7 +150,7 @@ auto infer_result = infer(desc, train_result.get_model(), test_data);
 
 ### Performance
 - **CPU Dispatch**: Templates specialized by `CpuType` for optimal SIMD
-- **Threading**: TBB integration for task-based parallelism
+- **Threading**: Parallelize through the threading layer, never TBB directly
 - **GPU**: SYCL for heterogeneous computing
 
 ### ABI and Public API

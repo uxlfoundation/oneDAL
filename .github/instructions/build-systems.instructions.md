@@ -98,21 +98,23 @@ export MKLROOT=/path/to/mkl
 
 ### Algorithm Module Pattern
 ```python
-# DAAL module
+# DAAL kernel (cpp/daal/src/algorithms/kmeans/BUILD); the macro adds C++17 and CPU dispatch defines
 daal_module(
-    name = "kmeans",
-    features = [ "c++17" ],
-    cpu_defines = {
-        "sse2":   [ "DAAL_CPU=sse2" ],
-        "avx2":   [ "DAAL_CPU=avx2" ],
-        "avx512": [ "DAAL_CPU=avx512" ],
-    },
+    name = "kernel",
+    auto = True,
+    deps = [
+        "@onedal//cpp/daal:core",
+        "@onedal//cpp/daal:engines",
+        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
+    ],
 )
 
-# oneAPI module
+# oneAPI module (cpp/oneapi/dal/algo/kmeans/BUILD)
 dal_module(
     name = "kmeans",
-    compile_as = ["c++", "dpc++"],  # CPU and GPU
+    auto = True,
+    dal_deps = ["@onedal//cpp/oneapi/dal:core"],
+    extra_deps = ["@onedal//cpp/daal/src/algorithms/kmeans:kernel"],
 )
 ```
 

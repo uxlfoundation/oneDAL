@@ -1,47 +1,7 @@
 # AGENTS.md - oneDAL
 
-oneDAL (oneAPI Data Analytics Library) is a C++ machine learning library with two interfaces: DAAL (`cpp/daal`, CPU) and oneAPI (`cpp/oneapi`, CPU and SYCL GPU). It is built with Make (release builds) and Bazel (tests), and is the backend for [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex).
-
-## Repository Structure
-
-```
-oneDAL/
-├── cpp/            # Library sources
-│   ├── daal/       # DAAL interface and CPU kernels
-│   └── oneapi/     # oneAPI interface (C++ and DPC++)
-├── dev/            # Build tooling: Bazel rules (dev/bazel), Make fragments (dev/make)
-├── examples/       # Examples for the DAAL and oneAPI interfaces
-├── samples/        # Distributed (MPI/CCL) samples
-├── docs/           # Documentation sources
-├── data/           # Datasets used by examples and tests
-├── deploy/         # Packaging and environment scripts
-├── cmake/          # CMake config templates for installed releases
-├── conda-recipe/   # Conda package recipe
-└── .ci/            # CI pipelines, environment setup and build/test scripts
-```
-
-## Directory Guides
-
-Read the `AGENTS.md` nearest the files you change:
-
-- [cpp/AGENTS.md](cpp/AGENTS.md): C++ implementation details and patterns
-- [cpp/daal/AGENTS.md](cpp/daal/AGENTS.md): Traditional DAAL interface context
-- [cpp/oneapi/AGENTS.md](cpp/oneapi/AGENTS.md): Modern oneAPI interface context
-- [dev/AGENTS.md](dev/AGENTS.md): Development tools and build system context
-- [dev/bazel/AGENTS.md](dev/bazel/AGENTS.md): Bazel build system specifics
-- [dev/make/AGENTS.md](dev/make/AGENTS.md): Make build fragments
-- [docs/AGENTS.md](docs/AGENTS.md): Documentation structure and guidelines
-- [examples/AGENTS.md](examples/AGENTS.md): Example code patterns and usage
-- [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
-- [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
-- [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)
-- [.github/instructions/AGENTS.md](.github/instructions/AGENTS.md): Copilot instruction scopes and maintenance
-
-## Conventions
-- C++17; no C++20/23 features.
-- clang-format configs are per source tree (`cpp/daal/`, `cpp/oneapi/`, `examples/*/`, `samples/*/`, `dev/l0_tools/`); there is no root `.clang-format`.
-- Parallelize through the oneDAL threading layer, never TBB directly.
-- Optimized kernels dispatch on CPU features; see `docs/source/contribution/cpu_features.rst`.
+oneDAL is a C++ machine learning library with two interfaces: DAAL (`cpp/daal`, CPU) and oneAPI (`cpp/oneapi`, CPU and SYCL GPU). Make builds releases, Bazel runs tests (`dev/`); CI lives in `.ci/` and `.github/`. It is the backend for [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex).
+Also at the top level: `examples/`, `samples/` (MPI/CCL), `docs/`, `data/`, `deploy/`, `cmake/` (release CMake configs), `conda-recipe/`.
 
 ## Rules for Changes
 
@@ -57,7 +17,7 @@ These come from recurring maintainer review comments. Directory-specific rules a
 - New source files use the header `Copyright contributors to the oneDAL project`. Leave existing headers alone.
 - ASCII only in source, comments and docs. Keep each file's existing line endings.
 - Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
-- Bash scripts start with `set -euo pipefail`, use `mkdir -p`, and don't silence failures with a bare `|| true`.
+- New Bash scripts start with `set -euo pipefail`. Use `mkdir -p`, and don't silence failures with a bare `|| true`.
 
 ## Verification Before You Push
 
@@ -102,6 +62,29 @@ See `INSTALL.md` for other platforms and build variants.
 | Bazel Linux/Windows | GitHub Actions (nightly) | `.github/workflows/nightly-test.yml` |
 
 Style is not gated in GitHub Actions: a green Actions run does not mean formatting passes.
+
+## Conventions
+- C++17; no C++20/23 features.
+- clang-format configs are per source tree (`cpp/daal/`, `cpp/oneapi/`, `examples/*/`, `samples/*/`, `dev/l0_tools/`); there is no root `.clang-format`.
+- Parallelize through the oneDAL threading layer, never TBB directly.
+- Optimized kernels dispatch on CPU features; see `docs/source/contribution/cpu_features.rst`.
+
+## Directory Guides
+
+Read the `AGENTS.md` nearest the files you change:
+
+- [cpp/AGENTS.md](cpp/AGENTS.md): C++ implementation details and patterns
+- [cpp/daal/AGENTS.md](cpp/daal/AGENTS.md): Traditional DAAL interface context
+- [cpp/oneapi/AGENTS.md](cpp/oneapi/AGENTS.md): Modern oneAPI interface context
+- [dev/AGENTS.md](dev/AGENTS.md): Development tools and build system context
+- [dev/bazel/AGENTS.md](dev/bazel/AGENTS.md): Bazel build system specifics
+- [dev/make/AGENTS.md](dev/make/AGENTS.md): Make build fragments
+- [docs/AGENTS.md](docs/AGENTS.md): Documentation structure and guidelines
+- [examples/AGENTS.md](examples/AGENTS.md): Example code patterns and usage
+- [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
+- [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
+- [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)
+- [.github/instructions/AGENTS.md](.github/instructions/AGENTS.md): Copilot instruction scopes and maintenance
 
 ## Further Reading
 - `CONTRIBUTING.md`, `INSTALL.md`

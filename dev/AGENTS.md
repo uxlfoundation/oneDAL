@@ -38,7 +38,7 @@ dev/
 ### Key Characteristics
 - **Development Build System**: Used for development and CI/CD
 - **Dependency Management**: Automatic dependency resolution
-- **Multi-platform**: Supports Linux
+- **Multi-platform**: Linux and Windows toolchains
 - **Incremental Builds**: Fast incremental compilation
 
 ### Configuration Files
@@ -76,21 +76,7 @@ bazel clean --expunge
 ## 🔍 Build System Patterns
 
 ### Bazel Pattern
-```python
-cc_library(
-    name = "library_name",
-    srcs = glob(["src/**/*.cpp"]),
-    hdrs = glob(["include/**/*.h"]),
-    deps = ["//path/to:dependency"],
-    visibility = ["//visibility:public"],
-)
-
-cc_test(
-    name = "library_test",
-    srcs = glob(["test/**/*.cpp"]),
-    deps = [":library_name", "//dev/bazel/deps:gtest"],
-)
-```
+BUILD files use the `dal_module`, `dal_test_suite` and `daal_module` macros, never bare `cc_library` / `cc_test`. See [dev/bazel/AGENTS.md](bazel/AGENTS.md).
 
 ### Make Pattern
 ```makefile
@@ -114,7 +100,7 @@ library_name: $(LIBRARY_OBJS)
 - **Platforms**: Test on supported platforms
 
 ## 🔧 Required Tools
-- **Bazel**: 5.0+ for Bazel builds
+- **Bazel**: version pinned in `.bazelversion`
 - **Make**: GNU Make 3.81+ for Make builds  
 - **Compilers**: GCC 7+, Clang 6+, MSVC 2017+
 - **Intel oneAPI**: For SYCL development

@@ -5,61 +5,10 @@
 This document describes the CI infrastructure for oneDAL (Intel Data Analytics Library)
 ## Directory Structure
 
-### `.ci` Folder
-
-The `.ci` folder contains the core CI infrastructure scripts and configurations organized into three main subdirectories:
-
-#### `.ci/env/` - Environment Setup Scripts
-- **`apt.sh`** - Package installation script for Ubuntu/Debian systems with functions for:
-  - Intel OneAPI toolkit components (DPC++, TBB, DPL, MKL)
-  - Development tools (clang-format, editorconfig-checker)
-  - Base development packages and dependencies
-- **`bazelisk.sh`** - Bazel build system setup and installation
-- **`editorconfig-checker.sh`** - EditorConfig compliance checker installation
-- **`environment.yml`** - Conda environment specification
-- **`openblas.sh`** - OpenBLAS library installation and configuration
-- **`openrng.sh`** - OpenRNG backend setup for random number generation
-- **`tbb.sh`** / **`tbb.bat`** - Intel TBB (Threading Building Blocks) setup for Linux/Windows
-- **`riscv64-clang-crosscompile-toolchain.cmake`** - RISC-V cross-compilation toolchain configuration
-
-#### `.ci/pipeline/` - CI Pipeline Definitions
-- **`ci.yml`** - Main Azure DevOps pipeline configuration with:
-  - Multi-platform build matrices (Linux, Windows)
-  - Compiler configurations (GNU, Clang, Intel)
-  - Build targets (daal, onedal_c)
-  - Testing and validation jobs
-  - Artifact publishing
-- **`docs.yml`** - Documentation build and deployment pipeline
-
-#### `.ci/scripts/` - Build and Test Scripts
-- **`build.sh`** / **`build.bat`** - Cross-platform build orchestration with support for:
-  - Multiple compilers (gnu, clang, icx)
-  - Architecture optimizations (AVX2, etc.)
-  - Backend configurations (MKL, reference implementations)
-  - Cross-compilation capabilities
-- **`test.sh`** / **`test.bat`** - Comprehensive testing framework execution
-- **`clang-format.sh`** - Code formatting verification
-- **`describe_system.sh`** - System information collection for debugging
-- **`abi_check.sh`** - ABI compatibility verification
-- **`install_basekit.bat`** - Intel OneAPI Base Toolkit installation for Windows
-- **`collect_opencl_rt.ps1`** - OpenCL runtime collection script
-
-### `.github/workflows/` - GitHub Actions Workflows
-
-#### Core CI Workflows
-- **`ci.yml`** - Main CI pipeline for x86 platforms with DPC++ builds
-- **`ci-aarch64.yml`** - AArch64 (ARM64) specific CI pipeline
-- **`nightly-build.yml`** / **`nightly-test.yml`** - Automated nightly builds and testing
-
-#### Specialized Workflows
-- **`docker-validation-ci.yml`** / **`docker-validation-nightly.yml`** - Container-based validation
-- **`docs-release.yml`** - Documentation deployment and release management
-- **`label-enforcement.yml`** - PR labeling automation
-- **`pr-checklist.yml`** - Pull request compliance verification
-- **`renovate-validation.yml`** - Dependency update validation
-- **`skywalking-eyes.yml`** - License header compliance checking
-- **`slack-pr-notification.yml`** - Team notification system
-- **`openssf-scorecard.yml`** - Security scorecard assessment
+- `.ci/pipeline/ci.yml`: the Azure DevOps pipeline (build matrix, `FormatterChecks`); `docs.yml` builds the docs.
+- `.ci/env/`: dependency installers. `apt.sh` takes a component name (`dev-base`, `mkl`, ...); `tbb`, `openblas` and `bazelisk` each have `.sh` and Windows variants.
+- `.ci/scripts/`: `build.sh` / `build.bat` (compiler, optimization, backend and cross-compile options), `test.sh` / `test.bat`, `clang-format.sh`, `abi_check.sh`, and the Windows release checks (`compare_windows_release.ps1`, `test_bazel_release_cmake_example.ps1`).
+- `.github/workflows/`: GitHub Actions. `ci.yml`, `ci-win.yml` and `ci-aarch64.yml` build and test; `nightly-build.yml` produces artifacts other repositories download (see `.github/AGENTS.md`).
 
 ## CI/CD Architecture
 
@@ -75,6 +24,7 @@ The oneDAL CI infrastructure supports:
 - **GitHub Actions**: Primary CI/CD platform for public workflows
 - **Azure DevOps**: Extended validation and internal testing
 - **Renovate**: Dependency update automation
+- **Codefactor**: Code quality analysis
 
 ### Build Matrix Configuration
 The CI system employs comprehensive build matrices covering:
