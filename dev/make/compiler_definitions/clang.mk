@@ -39,12 +39,13 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
+# -U_FORTIFY_SOURCE comes first because some toolchain builds predefine it.
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.clang = -$(OPTFLAG)
 else ifeq ($(OPTFLAG),Ofast)
-    -optlevel.clang = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+    -optlevel.clang = -O3 -ffast-math -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 else
-    -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    -optlevel.clang = -$(OPTFLAG) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 endif
 
 -Zl.clang =
