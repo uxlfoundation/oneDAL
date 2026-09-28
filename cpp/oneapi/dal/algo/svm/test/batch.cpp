@@ -14,6 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <vector>
+
 #include "oneapi/dal/algo/svm/infer.hpp"
 #include "oneapi/dal/algo/svm/train.hpp"
 
@@ -23,7 +28,9 @@
 #include "oneapi/dal/test/engine/math.hpp"
 #include "oneapi/dal/test/engine/metrics/classification.hpp"
 
+#include "oneapi/dal/table/csr.hpp"
 #include "oneapi/dal/table/homogen.hpp"
+#include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::svm::test {
 
@@ -1025,6 +1032,292 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     const double ref_accuracy = 0.6379;
 
     this->check_kernel_accuracy(x_train, y_train, x_test, y_test, svm_desc, ref_accuracy);
+}
+
+// ============================================================================
+// Reconstructing a multi-class model from its public arrays.
+//
+// `move_estimator_to` (and scikit-learn-intelex, when scikit-learn does the fit
+// and oneDAL only predicts) builds an `svm::model` through the public setters
+// and never runs a oneDAL train, so the model carries no DAAL interop pointer
+// and the one-vs-one sub-models have to be rebuilt from the aggregated arrays.
+// These cases pin down that the rebuilt model infers exactly like the trained
+// one, for dense and for CSR support vectors, and that the shapes the rebuild
+// depends on are checked rather than trusted.
+// ============================================================================
+
+/// Three well-separated 2D blobs, one per class, with enough exact zeros that a
+/// CSR encoding of the support vectors is genuinely sparse.
+template <typename Float>
+struct multiclass_blobs {
+    static constexpr std::int64_t class_count = 3;
+    static constexpr std::int64_t pair_count = class_count * (class_count - 1) / 2;
+    static constexpr std::int64_t column_count = 2;
+    static constexpr std::int64_t train_row_count = 15;
+    static constexpr std::int64_t test_row_count = 6;
+
+    std::array<Float, train_row_count * column_count> x_train_data = {
+        -5.0, -5.0, -4.8, -5.2, -5.2, -4.8, -4.9, -5.1, -5.1, -4.9, 5.0, -5.0, 4.8, -5.2, 5.2,
+        -4.8, 4.9,  -5.1, 5.1,  -4.9, 0.0,  5.0,  -0.2, 4.8,  0.2,  4.8, -0.1, 5.1, 0.1,  5.1
+    };
+    std::array<Float, train_row_count> y_train_data = {
+        0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2
+    };
+    std::array<Float, test_row_count * column_count> x_test_data = { -5.0, -5.0, 5.0,  -5.0,
+                                                                     0.0,  5.0,  -4.5, -4.5,
+                                                                     4.5,  -4.5, 0.5,  4.5 };
+
+    table x_train() const {
+        return homogen_table::wrap(x_train_data.data(), train_row_count, column_count);
+    }
+    table y_train() const {
+        return homogen_table::wrap(y_train_data.data(), train_row_count, 1);
+    }
+    table x_test() const {
+        return homogen_table::wrap(x_test_data.data(), test_row_count, column_count);
+    }
+};
+
+/// Encodes a dense host buffer as CSR, storing only the non-zero values. Unlike
+/// `te::dense_to_explicit_csr` this leaves the per-row non-zero counts uneven,
+/// which is what exercises the row-offset arithmetic of the sparse rebuild.
+///
+/// @tparam Float        Floating-point type of the values
+/// @param dense         Row-major buffer of `row_count x column_count` values
+/// @param row_count     Number of rows in `dense`
+/// @param column_count  Number of columns in `dense`
+/// @return              A one-based CSR table holding the non-zeros of `dense`
+template <typename Float>
+static csr_table dense_to_sparse_csr(const Float* dense,
+                                     std::int64_t row_count,
+                                     std::int64_t column_count) {
+    std::vector<Float> values;
+    std::vector<std::int64_t> column_indices;
+    std::vector<std::int64_t> row_offsets;
+    row_offsets.push_back(1);
+    for (std::int64_t r = 0; r < row_count; ++r) {
+        for (std::int64_t c = 0; c < column_count; ++c) {
+            const Float v = dense[r * column_count + c];
+            if (v != Float(0)) {
+                values.push_back(v);
+                column_indices.push_back(c + 1);
+            }
+        }
+        row_offsets.push_back(std::int64_t(values.size()) + 1);
+    }
+    // `csr_table::wrap` takes `dal::array`s, and `dal::array<T>::empty(0)`
+    // throws, so an all-zero input cannot be encoded here. None of the callers
+    // pass one.
+    REQUIRE(!values.empty());
+
+    auto data_arr = dal::array<Float>::empty(std::int64_t(values.size()));
+    auto cols_arr = dal::array<std::int64_t>::empty(std::int64_t(column_indices.size()));
+    auto offs_arr = dal::array<std::int64_t>::empty(row_count + 1);
+    std::copy(values.begin(), values.end(), data_arr.get_mutable_data());
+    std::copy(column_indices.begin(), column_indices.end(), cols_arr.get_mutable_data());
+    std::copy(row_offsets.begin(), row_offsets.end(), offs_arr.get_mutable_data());
+
+    return csr_table::wrap(data_arr, cols_arr, offs_arr, column_count, sparse_indexing::one_based);
+}
+
+/// Largest absolute difference between two tables of equal element count.
+///
+/// @tparam Float Floating-point type to read both tables as
+/// @param left   First table
+/// @param right  Second table, same shape as `left`
+/// @return       `max |left[i] - right[i]|` as a double
+template <typename Float>
+static double max_abs_diff(const table& left, const table& right) {
+    const auto left_arr = row_accessor<const Float>{ left }.pull();
+    const auto right_arr = row_accessor<const Float>{ right }.pull();
+    REQUIRE(left_arr.get_count() == right_arr.get_count());
+
+    double worst = 0.0;
+    for (std::int64_t i = 0; i < left_arr.get_count(); ++i) {
+        const double d =
+            std::abs(static_cast<double>(left_arr[i]) - static_cast<double>(right_arr[i]));
+        if (d > worst) {
+            worst = d;
+        }
+    }
+    return worst;
+}
+
+TEMPLATE_LIST_TEST_M(svm_batch_test,
+                     "svm multi-class model can be reconstructed via public setters",
+                     "[svm][integration][batch][multiclass][manual-model]",
+                     svm_nightly_types) {
+    SKIP_IF(this->multiclass_not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    using kernel_t = linear::descriptor<float_t, linear::method::dense>;
+    using blobs_t = multiclass_blobs<float_t>;
+
+    const blobs_t blobs{};
+    const auto svm_desc =
+        svm::descriptor<float_t, method_t, svm::task::classification, kernel_t>{
+            kernel_t{}.set_scale(1.0).set_shift(0.0)
+        }
+            .set_class_count(blobs_t::class_count)
+            .set_c(1.0);
+
+    INFO("train reference multi-class model");
+    const auto trained_model = this->train(svm_desc, blobs.x_train(), blobs.y_train()).get_model();
+
+    INFO("training must populate class_count and n_support_per_class");
+    REQUIRE(trained_model.get_class_count() == blobs_t::class_count);
+    REQUIRE(trained_model.get_n_support_per_class().get_row_count() == 1);
+    REQUIRE(trained_model.get_n_support_per_class().get_column_count() == blobs_t::class_count);
+
+    INFO("reference decision_function has class_count*(class_count-1)/2 columns");
+    const auto reference =
+        this->infer(svm_desc, trained_model, blobs.x_test()).get_decision_function();
+    REQUIRE(reference.get_row_count() == blobs_t::test_row_count);
+    REQUIRE(reference.get_column_count() == blobs_t::pair_count);
+
+    INFO("rebuild model via public setters only (mirrors move_estimator_to path)");
+    auto rebuilt = svm::model<svm::task::classification>{}
+                       .set_class_count(blobs_t::class_count)
+                       .set_support_vectors(trained_model.get_support_vectors())
+                       .set_coeffs(trained_model.get_coeffs())
+                       .set_biases(trained_model.get_biases())
+                       .set_n_support_per_class(trained_model.get_n_support_per_class());
+
+    const auto rebuilt_df = this->infer(svm_desc, rebuilt, blobs.x_test()).get_decision_function();
+    REQUIRE(rebuilt_df.get_row_count() == blobs_t::test_row_count);
+    REQUIRE(rebuilt_df.get_column_count() == blobs_t::pair_count);
+
+    INFO("rebuilt decision values must match the trained-model output");
+    const double worst = max_abs_diff<float_t>(reference, rebuilt_df);
+    CAPTURE(worst);
+    REQUIRE(worst < te::get_tolerance<float_t>(1e-4, 1e-10));
+}
+
+TEMPLATE_LIST_TEST_M(svm_batch_test,
+                     "svm multi-class model can be reconstructed from csr support vectors",
+                     "[svm][integration][batch][multiclass][manual-model][csr]",
+                     svm_nightly_types) {
+    SKIP_IF(this->multiclass_not_available_on_device());
+    SKIP_IF(this->get_policy().is_gpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    using kernel_t = linear::descriptor<float_t, linear::method::dense>;
+    using blobs_t = multiclass_blobs<float_t>;
+
+    const blobs_t blobs{};
+    const auto svm_desc =
+        svm::descriptor<float_t, method_t, svm::task::classification, kernel_t>{
+            kernel_t{}.set_scale(1.0).set_shift(0.0)
+        }
+            .set_class_count(blobs_t::class_count)
+            .set_c(1.0);
+
+    INFO("train on dense data to obtain the aggregated arrays");
+    const auto trained_model = this->train(svm_desc, blobs.x_train(), blobs.y_train()).get_model();
+    const auto reference =
+        this->infer(svm_desc, trained_model, blobs.x_test()).get_decision_function();
+
+    INFO("re-encode the support vectors as csr, as a sklearn sparse fit would hand them over");
+    const auto sv_dense = trained_model.get_support_vectors();
+    const auto sv_arr = row_accessor<const float_t>{ sv_dense }.pull();
+    const auto sv_csr = dense_to_sparse_csr<float_t>(sv_arr.get_data(),
+                                                     sv_dense.get_row_count(),
+                                                     sv_dense.get_column_count());
+    REQUIRE(sv_csr.get_row_count() == sv_dense.get_row_count());
+    REQUIRE(sv_csr.get_column_count() == sv_dense.get_column_count());
+
+    auto rebuilt = svm::model<svm::task::classification>{}
+                       .set_class_count(blobs_t::class_count)
+                       .set_support_vectors(sv_csr)
+                       .set_coeffs(trained_model.get_coeffs())
+                       .set_biases(trained_model.get_biases())
+                       .set_n_support_per_class(trained_model.get_n_support_per_class());
+
+    INFO("a csr model infers csr data and reproduces the dense decision values");
+    const auto x_test_csr = dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
+                                                         blobs_t::test_row_count,
+                                                         blobs_t::column_count);
+    const auto rebuilt_df = this->infer(svm_desc, rebuilt, x_test_csr).get_decision_function();
+    REQUIRE(rebuilt_df.get_row_count() == blobs_t::test_row_count);
+    REQUIRE(rebuilt_df.get_column_count() == blobs_t::pair_count);
+
+    const double worst = max_abs_diff<float_t>(reference, rebuilt_df);
+    CAPTURE(worst);
+    REQUIRE(worst < te::get_tolerance<float_t>(1e-4, 1e-10));
+
+    INFO("one kernel serves both operands, so mixing csr and dense must be refused");
+    REQUIRE_THROWS_AS(this->infer(svm_desc, rebuilt, blobs.x_test()), invalid_argument);
+
+    auto rebuilt_dense = svm::model<svm::task::classification>{}
+                             .set_class_count(blobs_t::class_count)
+                             .set_support_vectors(sv_dense)
+                             .set_coeffs(trained_model.get_coeffs())
+                             .set_biases(trained_model.get_biases())
+                             .set_n_support_per_class(trained_model.get_n_support_per_class());
+    REQUIRE_THROWS_AS(this->infer(svm_desc, rebuilt_dense, x_test_csr), invalid_argument);
+}
+
+TEMPLATE_LIST_TEST_M(svm_batch_test,
+                     "svm rejects multi-class models whose shapes do not add up",
+                     "[svm][integration][batch][multiclass][manual-model]",
+                     svm_nightly_types) {
+    SKIP_IF(this->multiclass_not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    using kernel_t = linear::descriptor<float_t, linear::method::dense>;
+    using blobs_t = multiclass_blobs<float_t>;
+    using desc_t = svm::descriptor<float_t, method_t, svm::task::classification, kernel_t>;
+
+    const blobs_t blobs{};
+    const auto svm_desc = desc_t{ kernel_t{}.set_scale(1.0).set_shift(0.0) }
+                              .set_class_count(blobs_t::class_count)
+                              .set_c(1.0);
+
+    const auto trained_model = this->train(svm_desc, blobs.x_train(), blobs.y_train()).get_model();
+
+    const auto base_model = [&]() {
+        return svm::model<svm::task::classification>{}
+            .set_class_count(blobs_t::class_count)
+            .set_support_vectors(trained_model.get_support_vectors())
+            .set_coeffs(trained_model.get_coeffs())
+            .set_biases(trained_model.get_biases())
+            .set_n_support_per_class(trained_model.get_n_support_per_class());
+    };
+
+    INFO("class_count below two is out of the documented range");
+    REQUIRE_THROWS_AS(svm::model<svm::task::classification>{}.set_class_count(1), domain_error);
+
+    INFO("a descriptor that disagrees with the model must not pick a code path silently");
+    const auto binary_desc = desc_t{ kernel_t{}.set_scale(1.0).set_shift(0.0) }.set_c(1.0);
+    REQUIRE_THROWS_AS(this->infer(binary_desc, trained_model, blobs.x_test()), invalid_argument);
+
+    INFO("n_support_per_class is what makes the rebuild possible; absent, refuse");
+    auto no_counts = base_model().set_n_support_per_class(table{});
+    REQUIRE_THROWS_AS(this->infer(svm_desc, no_counts, blobs.x_test()), invalid_argument);
+
+    INFO("n_support_per_class must be a single row of class_count counts");
+    const std::array<std::int32_t, blobs_t::class_count - 1> short_counts = { 1, 1 };
+    auto bad_counts = base_model().set_n_support_per_class(
+        homogen_table::wrap(short_counts.data(), 1, blobs_t::class_count - 1));
+    REQUIRE_THROWS_AS(this->infer(svm_desc, bad_counts, blobs.x_test()), invalid_argument);
+
+    INFO("the per-class counts must sum to the aggregated support-vector count");
+    const std::array<std::int32_t, blobs_t::class_count> wrong_sum = { 1, 1, 1 };
+    auto bad_sum = base_model().set_n_support_per_class(
+        homogen_table::wrap(wrong_sum.data(), 1, blobs_t::class_count));
+    REQUIRE_THROWS_AS(this->infer(svm_desc, bad_sum, blobs.x_test()), invalid_argument);
+
+    INFO("biases must hold one scalar per one-vs-one sub-model");
+    const std::array<double, blobs_t::pair_count - 1> short_biases = { 0.0, 0.0 };
+    auto bad_biases = base_model().set_biases(
+        homogen_table::wrap(short_biases.data(), blobs_t::pair_count - 1, 1));
+    REQUIRE_THROWS_AS(this->infer(svm_desc, bad_biases, blobs.x_test()), invalid_argument);
 }
 
 } // namespace oneapi::dal::svm::test
