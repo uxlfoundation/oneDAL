@@ -26,8 +26,6 @@ CORE.SERV.COMPILER.icx = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
-
 ifeq ($(OS_is_win),true)
     ifneq ($(LINKER),)
         ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
@@ -77,7 +75,6 @@ COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX \
                      -Wno-deprecated-declarations -Wno-empty-body ${CXXFLAGS} $(-stdalloc.icx)
 
-linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
 link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)

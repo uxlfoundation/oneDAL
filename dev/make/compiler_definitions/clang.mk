@@ -28,9 +28,15 @@ CORE.SERV.COMPILER.clang = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+    endif
+endif
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
-    $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))

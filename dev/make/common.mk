@@ -76,6 +76,10 @@ secure.opts.link.win = -DYNAMICBASE -NXCOMPAT
 secure.opts.link.lnx = -z relro -z now -z noexecstack
 secure.opts.link.mac =
 
+# Alternate linker selection, shared by every compiler definition. The LINKER value
+# itself is validated per compiler, since the accepted set differs.
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+
 RC.COMPILE = $(if $(COMPILER_is_clang),llvm-rc,rc.exe) $(RCOPT) -fo$@ $<
 
 # Used as $(eval $(call set_c_compile,$(COMPILER),$(_OS),$(gcc_toolchain))
@@ -155,9 +159,6 @@ info.building.%:; $(info ========= Building $(subst ., ,$*) =========)
 
 # symbols dump
 nm = $(if $(OS_is_win),dumpbin -symbols $@ | grep ' External ' | grep -v ' __ImageBase$$' | grep -v '(.string.)' ,nm $@ )
-
-# sed's -b option for binary files on win
-sed.-b = $(if $(OS_is_win),-b)
 
 # sed's -i option for inplace file changes
 sed.-i = $(sed.-i.$(_OS))
