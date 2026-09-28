@@ -323,13 +323,8 @@ static DAAL_INT updateNodeComponents(KdNode<algorithmFPType> * nodes, const DAAL
 ///   3. visit the nearer child first so that `bestMrd` is already tight when the
 ///      far child is reached.
 ///
-/// Both children are always descended into; the far child is rejected by test 2
-/// evaluated at its own node, not by a cheaper check at the parent. A split-plane
-/// test here (`|queryVal - splitVal| * invAlpha` raised to at least `coreQ`, a
-/// valid MRD lower bound for every supported Lp metric) would reject the common
-/// case without the recursive call and without the O(`nCols`) bbox bound. It
-/// cannot prune anything test 2 would not, since the child's bbox lies inside the
-/// half-space, so this is a constant-factor saving only.
+/// Both children are always descended into: the far child is rejected by test 2 at its own node,
+/// not by a split-plane test at the parent, which would only save a constant factor.
 ///
 /// Alpha is applied only to the dist(q,p) term inside MRD (canonical HDBSCAN
 /// robust single linkage); core distances are left unscaled.

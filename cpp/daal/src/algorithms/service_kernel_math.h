@@ -328,17 +328,10 @@ public:
             MathInst<FPType, cpu>::vSqrt(count, a + begin, a + begin);
         };
 
-        // `n` spans several orders of magnitude across callers: bf_knn finalizes
-        // one result block (`nTest * k` entries) from inside a `threader_for`,
-        // while hdbscan's brute-force path finalizes a full N x N matrix -- 6.25e8
-        // entries at 25k rows, where a serial sweep costs ~0.6 s, roughly 40% of
-        // the Euclidean fit. So thread the sweep, but only once there is enough
-        // work to pay for the dispatch: the small callers stay on the plain loop
-        // and do not add a nested parallel region inside their own one.
-        // Each task takes `blocksPerTask` consecutive blocks, i.e. 32k entries, so
-        // the task count stays well inside the `int` iteration space of
-        // `threader_for` (it would take 7e13 entries to overflow it) while each
-        // task is still large enough to amortize the dispatch.
+        // `n` spans orders of magnitude across callers: bf_knn finalizes one result block from
+        // inside a `threader_for`, hdbscan a full N x N matrix. So thread the sweep, but only once
+        // there is enough work to pay for the dispatch, which also keeps the small callers off a
+        // nested parallel region. One task per `blocksPerTask` consecutive blocks, i.e. 32k entries.
         const size_t blocksPerTask = 64;
         const size_t nTasks        = nBlocks / blocksPerTask + !!(nBlocks % blocksPerTask);
         if (nTasks < 2)
