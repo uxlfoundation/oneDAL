@@ -950,19 +950,12 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 // =========================================================================
 // Larger-scale brute_force MST tests
 //
-// The literal-array cases above are a few dozen points each, which is below
-// every threaded threshold in the brute-force backend. The cases below are
-// sized so the parallel paths are the ones under test: Boruvka's per-round
-// nearest-different-component scan runs as a real `threader_for` over
-// thousands of rows and needs several rounds to converge, and core distances
-// come from a bounded selection heap of `min_samples` entries, so
-// `min_samples` is varied to cover a shallow and a deeper heap.
+// The literal-array cases above are below every threaded threshold in the backend. These are
+// sized so the parallel Boruvka scan is the path under test.
 // =========================================================================
 
-/// Deterministic well-separated blobs, generated in place so the case can be
-/// sized into the threaded range without carrying a literal array. Uses a fixed
-/// 32-bit LCG: the jitter only has to be reproducible and free of exact
-/// coordinate ties, not statistically sound.
+/// Deterministic well-separated blobs. The fixed LCG only has to be reproducible and free of
+/// exact coordinate ties, not statistically sound.
 template <typename Float>
 static std::vector<Float> make_blobs(std::int64_t per_cluster,
                                      std::int64_t cluster_count,
@@ -1056,12 +1049,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-    // A single diffuse blob: no density gap to fall back on, so the labels are
-    // decided by the MST edge order alone. Every mutual-reachability edge
-    // shorter than both endpoints' core distances collapses onto
-    // `max(core_i, core_j)`, so this input is dense in exact weight ties and the
-    // edge sort has to break them the same way every time -- otherwise repeated
-    // computes on identical input would drift.
+    // A single diffuse blob: no density gap, so the labels are decided by the MST edge order
+    // alone, and the input is dense in exact weight ties for the sort to break reproducibly.
     constexpr std::int64_t row_count = 3000;
     constexpr std::int64_t column_count = 2;
 
@@ -1428,9 +1417,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
         return sizes;
     };
 
-    // Uncapped: the two blobs are found as clusters of 5 points each. They are
-    // leaves of the condensed tree, so they have no children to lose the EOM
-    // stability comparison against -- only the size cap can unselect them.
+    // Uncapped: two clusters of 5 points. Both are condensed-tree leaves, so only the size cap
+    // can unselect them.
     const auto uncapped = cluster_sizes(0);
     REQUIRE(uncapped.size() == 2);
     for (const auto& [label, size] : uncapped) {

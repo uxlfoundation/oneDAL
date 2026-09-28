@@ -28,16 +28,6 @@
  *
  * Complexity: O(N^2) for the distance matrix, O(N^2 * log N) worst case for
  *             Boruvka's MST.
- *
- * Boruvka is kept here even though Prim's would do strictly less total work on a
- * complete graph (one pass over the matrix instead of ~log2(N) passes), because
- * the two have very different parallel shapes and on this path the shape wins.
- * Boruvka's per-round nearest-different-component query is one
- * `threader_for(nRows)` over independent rows: N^2 work behind a single barrier,
- * spread over every thread. Prim's is N sequential barriers with only N
- * candidate slots to split between them, so it cannot fill a wide machine --
- * measured 20-25% slower than Boruvka across the brute-force benchmark set on a
- * 224-thread host at 15k-30k rows. See the note above Step 3.
  * Memory:     O(N^2) for the distance matrix, O(N) working arrays.
  */
 
@@ -220,14 +210,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const size_t t      = (target >= nRows) ? nRows - 1 : target;
 
     {
-        // The core distance is the `t + 1`-th smallest entry of row `i`, so a
-        // bounded max-heap of exactly that capacity is enough: `kthSmallestBounded`
-        // streams the row once and keeps only `t + 1` floats of scratch per
-        // thread. The earlier formulation copied the whole `nRows`-long row into
-        // a per-thread `TlsMem(nRows)` slot and ran `std::nth_element` over it --
-        // `2 * nRows` of extra traffic per point (`nRows^2` overall, 160 GB of
-        // read + write at 100k float64) and `nThreads * nRows` of scratch, for
-        // the same value. Selection is by value, so the result is unchanged.
+        // The core distance is the `t + 1`-th smallest entry of row `i`, so a bounded heap of that
+        // capacity is enough -- no row copy and no `nThreads * nRows` of scratch.
         const size_t heapSize = t + 1;
         daal::TlsMem<algorithmFPType, cpu> tlsHeap(heapSize);
         SafeStatus safeStat;
@@ -245,21 +229,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // =========================================================================
     // Step 3: Build MST using Boruvka's algorithm with MRD
     //
-    // Prim's algorithm was tried here and reverted. On a complete graph Prim's
-    // does strictly less total work -- `nRows - 1` iterations each streaming one
-    // row, so one pass over the matrix against Boruvka's ~log2(N) -- but the two
-    // differ in parallel shape, and on this path the shape dominates. Boruvka's
-    // per-round query is a single `threader_for(nRows)` over independent rows:
-    // N^2 of work behind one barrier, spread over every thread. Prim's needs N
-    // sequential barriers with only N candidate slots to divide between them, so
-    // past a few dozen blocks the task dispatch costs more than the scan and the
-    // machine sits idle. Measured on a 224-thread host over the brute-force
-    // benchmark set (15k-30k rows, 3-3072 features), block-partitioned Prim's
-    // came out 20-25% slower than Boruvka on every case.
-    //
-    // What Boruvka is left paying is one full pass over the matrix per round.
-    // The nearest-neighbour candidate cache built below removes most of those
-    // passes without changing a single label; see the note on it.
+    // Prim's was tried and reverted: it does less total work on a complete graph, but its N
+    // sequential barriers cannot fill a wide machine and it measured 20-25% slower than Boruvka.
     // =========================================================================
 
     TArray<DAAL_INT, cpu> mstFromVec(edgeCount);
@@ -318,14 +289,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
         const algorithmFPType inf      = daal::services::internal::MaxVal<algorithmFPType>::get();
 
-        // A per-point cache of the `k` smallest MRD neighbours was tried here to
-        // answer phase 1 without touching the matrix. It is exactly
-        // label-preserving -- MRD is fixed once core distances are known, and the
-        // first cached entry outside the point's component is provably the
-        // row-wide `(MRD, index)` argmin -- but it measured only 1.03x geomean on
-        // the brute-force benchmark set: Boruvka converges in very few rounds, so
-        // there are few matrix passes to save, and building the cache costs one of
-        // them. Not worth nRows * k * 16 bytes and the extra hot-path branch.
+        // A per-point cache of the `k` smallest MRD neighbours was tried here and reverted: it is
+        // label-preserving, but Boruvka converges in so few rounds that it only measured 1.03x.
         while (numComponents > 1)
         {
             // Phase 1: For each point, find nearest different-component neighbor under MRD.
@@ -364,13 +329,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             refreshComponentIds<cpu>(nRows, uf, componentOf);
         }
 
-        // The MRD graph over a dense distance matrix is complete, so a round can
-        // only fail to find a candidate when the matrix holds NaNs -- every
-        // comparison against them is false -- i.e. on non-finite input. Bail out
-        // rather than handing `sortMstAndExtractClusters` a truncated MST whose
-        // tail entries of `mstFrom` / `mstTo` / `mstWeights` were never written:
-        // those uninitialized indices are read as tree nodes and produce garbage
-        // labels or an out-of-bounds access.
+        // The MRD graph is complete, so a round only fails to find a candidate on non-finite input.
+        // A truncated MST leaves tail entries uninitialized, which are then read as tree nodes.
         if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
     }
 

@@ -60,16 +60,11 @@ struct CondensedEdge
     DAAL_INT childSize; ///< Number of original points in the child subtree (1 for fallen leaves)
 };
 
-/// Strict total order over MST edges: ascending weight, ties broken by the
-/// edge's original position, NaN weights last.
+/// Strict total order over MST edges: ascending weight, ties broken by the edge's original
+/// position, NaN weights last.
 ///
-/// Comparing `(weight, position)` rather than `weight` alone makes the order
-/// total, which is what turns a single unstable sort into a stable one. The NaN
-/// branch is not cosmetic: a bare `wa < wb` leaves NaN incomparable to every
-/// number, which is not a strict weak ordering (`nan ~ 1`, `nan ~ 2`, `1 < 2`
-/// has no consistent placement for `nan`) and makes `std::sort` undefined
-/// behavior rather than merely producing an odd order. Grouping NaNs at the end
-/// and ordering them by position keeps the relation total for any input.
+/// The composite key is what makes one unstable sort stable. Grouping NaNs keeps the relation a
+/// strict weak ordering, which a bare `wa < wb` would not be for a NaN input.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 ///
@@ -89,29 +84,13 @@ static inline bool mstEdgeLess(algorithmFPType wa, DAAL_INT ia, algorithmFPType 
     return ia < ib;
 }
 
-/// Stably sort MST edges in ascending order of weight, keeping endpoint arrays
-/// aligned.
+/// Stably sort MST edges in ascending order of weight, keeping endpoint arrays aligned.
 ///
-/// Required by buildDendrogramFromSortedMst, whose union-find merge order
-/// assumes ascending weights -- but the *tie* order matters just as much.
-/// Equal-weight MST edges are the norm rather than the exception under MRD:
-/// every edge shorter than both endpoints' core distances collapses onto
-/// `max(coreI, coreJ)`, so on clustered data a large fraction of the weights are
-/// exact duplicates. The dendrogram folds the edges in this order, so among tied
-/// edges the order decides which side of a tie-degenerate split a point lands
-/// on. The plain three-array `qSort` is introsort: its tie order follows pivot
-/// selection, which makes those outcomes an artifact of the sort rather than of
-/// the data, and discards the order the MST builder emitted (Prim's on the dense
-/// path emits ties in the same order as the reference implementation, whose sort
-/// is stable at these sizes). The GPU backend already permutes through a stable
-/// radix sort, so sorting stably here also keeps the two backends in agreement.
-///
-/// Sorts an index permutation on the composite key `(weight, position)` -- a
-/// strict total order (see `mstEdgeLess`), so one ordinary sort yields the
-/// stable permutation -- then gathers the three arrays through it. Falls back to
-/// the in-place `qSort` if the permutation buffers cannot be allocated:
-/// ascending weights, which is all the dendrogram strictly requires, are
-/// preserved and only the tie order becomes unspecified.
+/// Required by buildDendrogramFromSortedMst, which folds the edges in this order, so among tied
+/// edges the order decides tie-degenerate splits -- and equal weights are the norm under MRD. The
+/// sort is therefore an index permutation on `(weight, position)`, matching the GPU backend's
+/// stable radix sort, with a fallback to the in-place `qSort` if the permutation buffers cannot be
+/// allocated, which preserves ascending weights and leaves only the tie order unspecified.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -484,9 +463,7 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 /// grandparent sees the propagated score). If the parent wins, every
 /// descendant is unselected via an explicit stack walk over
 /// `childOffset`/`childList`. Oversized clusters (size > `mcsMax`) are forced
-/// onto the children-win branch unconditionally; this applies to leaf clusters
-/// too, which are otherwise skipped since they have no children to compare
-/// against.
+/// onto the children-win branch unconditionally, leaf clusters included.
 ///
 /// `treeTop` controls whether the root cluster participates. When the caller
 /// allows a single-cluster outcome, `treeTop == rootCid` and the root may win
@@ -516,10 +493,8 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
     {
         if (isLeafCluster[c])
         {
-            // A leaf cluster has no children to compare against, so the
-            // stability comparison can never unselect it -- but the size cap
-            // still has to be honoured. Its propagated stability is the (empty)
-            // child sum, i.e. zero, matching the non-leaf children-win branch.
+            // No children to compare against, so only the size cap can unselect a leaf; its
+            // propagated stability is the empty child sum, as on the children-win branch.
             if (clusterSz[c] > mcsMax)
             {
                 isSelected[c] = false;
@@ -942,10 +917,7 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
                               int * assignments, int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
                               size_t maxClusterSize = 0)
 {
-    // `edgeCount` and `totalNodes` below are unsigned expressions that wrap to
-    // huge values for `nRows == 0`, and those values then become allocation and
-    // memset lengths. There is nothing to cluster in an empty input, so bail out
-    // before the arithmetic instead of relying on every caller to check.
+    // `edgeCount` and `totalNodes` below wrap for `nRows == 0` and then become allocation lengths.
     if (nRows == 0)
     {
         return 0;
