@@ -25,8 +25,9 @@ import config
 
 
 def sh(cmd, cwd=None, env=None, check=True, timeout=None):
-    r = subprocess.run(cmd, cwd=cwd, env=env, shell=isinstance(cmd, str), text=True,
-                       capture_output=True, timeout=timeout)
+    """Run an argv list; a string is run by `bash -c` (for pipes and redirections)."""
+    argv = ["bash", "-c", cmd] if isinstance(cmd, str) else cmd
+    r = subprocess.run(argv, cwd=cwd, env=env, text=True, capture_output=True, timeout=timeout)
     if check and r.returncode:
         raise RuntimeError(f"{cmd}: rc={r.returncode}\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}")
     return r
@@ -103,8 +104,8 @@ def prep(task, arm, rd):
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "--amend", "-m", "snapshot")
     if t.get("review_patch"):
-        sh(f"git -c user.name='Dev Contributor' -c user.email=dev@example.com am -q "
-           f"{task_dir(task) / t['review_patch']}", cwd=repo)
+        sh(["git", "-c", "user.name=Dev Contributor", "-c", "user.email=dev@example.com", "am", "-q",
+            str(task_dir(task) / t["review_patch"])], cwd=repo)
     base = git(repo, "rev-parse", "HEAD").stdout.strip()
     (rd / "meta.json").write_text(json.dumps({"task": task, "arm": arm, "base_sha": base}))
     return repo
