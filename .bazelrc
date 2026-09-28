@@ -1,7 +1,5 @@
 # Global options
 
-common  
-
 build -c opt \
       --incompatible_enable_cc_toolchain_resolution \
       --incompatible_require_linker_input_cc_api 
@@ -206,8 +204,7 @@ build:dbg \
 # Adds -g to the default opt build; preserves -O2/-O3 optimization.
 #   bazel build //:release --config=dbg-symbols
 build:dbg-symbols \
-    --copt=-g \
-    --cxxopt=-g
+    --copt=-g
 
 
 # Configuration: 'asan'
@@ -271,7 +268,8 @@ build:ubsan \
 #   bazel build //:release --copt=-march=native
 #   bazel build //:release --copt=-O2
 #   bazel build //:release --linkopt=-Wl,--as-needed
-# Or persist in user-local ~/.bazelrc:
+# Or persist them per-checkout in user.bazelrc, which is imported below and is
+# git-ignored, or globally in ~/.bazelrc:
 #   build --copt=-your-flag
 # Bazel combines repeated --copt/--cxxopt/--linkopt values from configs and
 # user flags; avoid passing conflicting flags such as multiple optimization
@@ -307,3 +305,10 @@ build:type \
 # typically via %ONEAPI_ROOT%\setvars.bat). To fall back to the stock
 # rules_cc MSVC cl auto-config, set ONEDAL_WIN_COMPILER=cl in the
 # environment (or pass --repo_env=ONEDAL_WIN_COMPILER=cl to bazel).
+
+# =============================================================================
+# Per-checkout overrides. Keeps machine-specific settings -- typically
+# --jobs / --local_ram_resources on a shared or memory-constrained box -- out of
+# this file. Optional: bazel ignores the import when the file is absent.
+# =============================================================================
+try-import %workspace%/user.bazelrc
