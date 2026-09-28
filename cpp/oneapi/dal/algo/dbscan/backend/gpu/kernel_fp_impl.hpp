@@ -51,6 +51,7 @@ inline std::int64_t get_recommended_min_width(const sycl::queue& queue,
 ///
 /// @tparam Float        Floating-point type used to perform computations
 /// @tparam use_weights  Bool type used to check that weights are enabled
+/// @tparam Metric       Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue            The SYCL queue
 /// @param[in]  data             The input data of size `row_count` x `column_count`
@@ -58,20 +59,20 @@ inline std::int64_t get_recommended_min_width(const sycl::queue& queue,
 /// @param[in]  cores            The current cores of size `row_count` x `1`
 /// @param[in]  neighbours       The current neighbours of size `row_count` x `1`
 ///                              it contains the counter of neighbours for each point
-/// @param[in]  epsilon          The input parameter epsilon
+/// @param[in]  metric           The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations The input parameter min_observation
 /// @param[in]  deps             Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
-template <typename Float, bool use_weights>
+template <typename Float, bool use_weights, typename Metric>
 struct get_core_wide_kernel {
     static auto run(sycl::queue& queue,
                     const pr::ndview<Float, 2>& data,
                     const pr::ndview<Float, 2>& weights,
                     pr::ndview<std::int32_t, 1>& cores,
                     pr::ndview<Float, 1>& neighbours,
-                    Float epsilon,
+                    const Metric& metric,
                     std::int64_t min_observations,
                     const bk::event_vector& deps) {
         const std::int64_t local_row_count = data.get_dimension(0);
@@ -110,25 +111,25 @@ struct get_core_wide_kernel {
 
                     Float count = neighbours_ptr[wg_id];
                     for (std::int64_t j = 0; j < local_row_count; j++) {
-                        Float sum = Float(0);
+                        metric_accumulator<Float> acc;
                         std::int64_t count_iter = 0;
                         for (std::int64_t i = local_id; i < column_count; i += local_size) {
                             count_iter++;
-                            Float val =
-                                data_ptr[wg_id * column_count + i] - data_ptr[j * column_count + i];
-                            sum += val * val;
+                            metric.step(acc,
+                                        data_ptr[wg_id * column_count + i],
+                                        data_ptr[j * column_count + i]);
 
-                            if (count_iter % block_split_size == 0 &&
-                                local_size * count_iter <= column_count) {
-                                Float distance_check =
-                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
-                                if (distance_check > epsilon) {
-                                    break;
+                            if constexpr (Metric::partial_is_lower_bound) {
+                                if (count_iter % block_split_size == 0 &&
+                                    local_size * count_iter <= column_count) {
+                                    if (metric.reduce(sg, acc) > metric.threshold) {
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
-                        if (distance <= epsilon) {
+                        Float distance = metric.reduce(sg, acc);
+                        if (distance <= metric.threshold) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
                                 neighbours_ptr[wg_id] = count;
@@ -155,6 +156,7 @@ struct get_core_wide_kernel {
 ///
 /// @tparam Float        Floating-point type used to perform computations
 /// @tparam use_weights  Bool type used to check that weights are enabled
+/// @tparam Metric       Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -162,20 +164,20 @@ struct get_core_wide_kernel {
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
-template <typename Float, bool use_weights>
+template <typename Float, bool use_weights, typename Metric>
 struct get_core_narrow_kernel {
     static auto run(sycl::queue& queue,
                     const pr::ndview<Float, 2>& data,
                     const pr::ndview<Float, 2>& weights,
                     pr::ndview<std::int32_t, 1>& cores,
                     pr::ndview<Float, 1>& neighbours,
-                    Float epsilon,
+                    const Metric& metric,
                     std::int64_t min_observations,
                     const bk::event_vector& deps) {
         const std::int64_t local_row_count = data.get_dimension(0);
@@ -197,13 +199,13 @@ struct get_core_narrow_kernel {
             cgh.depends_on(deps);
             cgh.parallel_for(sycl::range<1>{ std::size_t(local_row_count) }, [=](sycl::id<1> idx) {
                 for (std::int64_t j = 0; j < local_row_count; j++) {
-                    Float sum = 0.0;
+                    metric_accumulator<Float> acc;
                     for (std::int64_t i = 0; i < column_count; i++) {
-                        Float val =
-                            data_ptr[idx * column_count + i] - data_ptr[j * column_count + i];
-                        sum += val * val;
+                        metric.step(acc,
+                                    data_ptr[idx * column_count + i],
+                                    data_ptr[j * column_count + i]);
                     }
-                    if (sum > epsilon) {
+                    if (metric.finish(acc) > metric.threshold) {
                         continue;
                     }
                     neighbours_ptr[idx] += use_weights ? weights_ptr[j] : Float(1);
@@ -229,6 +231,7 @@ struct get_core_narrow_kernel {
 ///
 /// @tparam Float        Floating-point type used to perform computations
 /// @tparam use_weights  Bool type used to check that weights are enabled
+/// @tparam Metric       Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -237,13 +240,13 @@ struct get_core_narrow_kernel {
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
-template <typename Float, bool use_weights>
+template <typename Float, bool use_weights, typename Metric>
 struct get_core_send_recv_replace_wide_kernel {
     static auto run(sycl::queue& queue,
                     const pr::ndview<Float, 2>& data,
@@ -251,7 +254,7 @@ struct get_core_send_recv_replace_wide_kernel {
                     const pr::ndview<Float, 2>& weights,
                     pr::ndview<std::int32_t, 1>& cores,
                     pr::ndview<Float, 1>& neighbours,
-                    Float epsilon,
+                    const Metric& metric,
                     std::int64_t min_observations,
                     const bk::event_vector& deps) {
         const std::int64_t local_row_count = data.get_dimension(0);
@@ -291,24 +294,24 @@ struct get_core_send_recv_replace_wide_kernel {
 
                     Float count = neighbours_ptr[wg_id];
                     for (std::int64_t j = 0; j < row_count_replace; j++) {
-                        Float sum = Float(0);
+                        metric_accumulator<Float> acc;
                         std::int64_t count_iter = 0;
                         for (std::int64_t i = local_id; i < column_count; i += local_size) {
                             count_iter++;
-                            Float val = data_ptr[wg_id * column_count + i] -
-                                        data_replace_ptr[j * column_count + i];
-                            sum += val * val;
-                            if (count_iter % block_split_size == 0 &&
-                                local_size * count_iter <= column_count) {
-                                Float distance_check =
-                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
-                                if (distance_check > epsilon) {
-                                    break;
+                            metric.step(acc,
+                                        data_ptr[wg_id * column_count + i],
+                                        data_replace_ptr[j * column_count + i]);
+                            if constexpr (Metric::partial_is_lower_bound) {
+                                if (count_iter % block_split_size == 0 &&
+                                    local_size * count_iter <= column_count) {
+                                    if (metric.reduce(sg, acc) > metric.threshold) {
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
-                        if (distance <= epsilon) {
+                        Float distance = metric.reduce(sg, acc);
+                        if (distance <= metric.threshold) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
                                 neighbours_ptr[wg_id] = count;
@@ -337,6 +340,7 @@ struct get_core_send_recv_replace_wide_kernel {
 ///
 /// @tparam Float        Floating-point type used to perform computations
 /// @tparam use_weights  Bool type used to check that weights are enabled
+/// @tparam Metric       Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -345,13 +349,13 @@ struct get_core_send_recv_replace_wide_kernel {
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
-template <typename Float, bool use_weights>
+template <typename Float, bool use_weights, typename Metric>
 struct get_core_send_recv_replace_narrow_kernel {
     static auto run(sycl::queue& queue,
                     const pr::ndview<Float, 2>& data,
@@ -359,7 +363,7 @@ struct get_core_send_recv_replace_narrow_kernel {
                     const pr::ndview<Float, 2>& weights,
                     pr::ndview<std::int32_t, 1>& cores,
                     pr::ndview<Float, 1>& neighbours,
-                    Float epsilon,
+                    const Metric& metric,
                     std::int64_t min_observations,
                     const bk::event_vector& deps) {
         const auto local_row_count = data.get_dimension(0);
@@ -381,13 +385,13 @@ struct get_core_send_recv_replace_narrow_kernel {
             cgh.depends_on(deps);
             cgh.parallel_for(sycl::range<1>{ std::size_t(local_row_count) }, [=](sycl::id<1> idx) {
                 for (std::int64_t j = 0; j < row_count_replace; j++) {
-                    Float sum = 0.0;
+                    metric_accumulator<Float> acc;
                     for (std::int64_t i = 0; i < column_count; i++) {
-                        Float val = data_ptr[idx * column_count + i] -
-                                    data_replace_ptr[j * column_count + i];
-                        sum += val * val;
+                        metric.step(acc,
+                                    data_ptr[idx * column_count + i],
+                                    data_replace_ptr[j * column_count + i]);
                     }
-                    if (sum > epsilon) {
+                    if (metric.finish(acc) > metric.threshold) {
                         continue;
                     }
                     neighbours_ptr[idx] += use_weights ? weights_ptr[j] : Float(1);
@@ -410,7 +414,8 @@ struct get_core_send_recv_replace_narrow_kernel {
 ///  A function that dispatches the local core points search function
 ///  based on the column count
 ///
-/// @tparam Float  Floating-point type used to perform computations
+/// @tparam Float   Floating-point type used to perform computations
+/// @tparam Metric  Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -418,49 +423,50 @@ struct get_core_send_recv_replace_narrow_kernel {
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
 template <typename Float>
-template <bool use_weights>
+template <bool use_weights, typename Metric>
 sycl::event kernels_fp<Float>::get_cores_impl(sycl::queue& queue,
                                               const pr::ndview<Float, 2>& data,
                                               const pr::ndview<Float, 2>& weights,
                                               pr::ndview<std::int32_t, 1>& cores,
                                               pr::ndview<Float, 1>& neighbours,
-                                              Float epsilon,
+                                              const Metric& metric,
                                               std::int64_t min_observations,
                                               const bk::event_vector& deps) {
     const std::int64_t column_count = data.get_dimension(1);
     if (column_count > get_recommended_min_width(queue)) {
-        return get_core_wide_kernel<Float, use_weights>::run(queue,
-                                                             data,
-                                                             weights,
-                                                             cores,
-                                                             neighbours,
-                                                             epsilon,
-                                                             min_observations,
-                                                             deps);
+        return get_core_wide_kernel<Float, use_weights, Metric>::run(queue,
+                                                                     data,
+                                                                     weights,
+                                                                     cores,
+                                                                     neighbours,
+                                                                     metric,
+                                                                     min_observations,
+                                                                     deps);
     }
     else {
-        return get_core_narrow_kernel<Float, use_weights>::run(queue,
-                                                               data,
-                                                               weights,
-                                                               cores,
-                                                               neighbours,
-                                                               epsilon,
-                                                               min_observations,
-                                                               deps);
+        return get_core_narrow_kernel<Float, use_weights, Metric>::run(queue,
+                                                                       data,
+                                                                       weights,
+                                                                       cores,
+                                                                       neighbours,
+                                                                       metric,
+                                                                       min_observations,
+                                                                       deps);
     }
 }
 
 ///  A function that dispatches the sendrecv_replaced core points search function
 ///  based on the column count
 ///
-/// @tparam Float  Floating-point type used to perform computations
+/// @tparam Float   Floating-point type used to perform computations
+/// @tparam Metric  Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -469,14 +475,14 @@ sycl::event kernels_fp<Float>::get_cores_impl(sycl::queue& queue,
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
 template <typename Float>
-template <bool use_weights>
+template <bool use_weights, typename Metric>
 sycl::event kernels_fp<Float>::get_cores_send_recv_replace_impl(
     sycl::queue& queue,
     const pr::ndview<Float, 2>& data,
@@ -484,38 +490,41 @@ sycl::event kernels_fp<Float>::get_cores_send_recv_replace_impl(
     const pr::ndview<Float, 2>& weights,
     pr::ndview<std::int32_t, 1>& cores,
     pr::ndview<Float, 1>& neighbours,
-    Float epsilon,
+    const Metric& metric,
     std::int64_t min_observations,
     const bk::event_vector& deps) {
     const std::int64_t column_count = data.get_dimension(1);
     if (column_count > get_recommended_min_width(queue)) {
-        return get_core_send_recv_replace_wide_kernel<Float, use_weights>::run(queue,
-                                                                               data,
-                                                                               data_replace,
-                                                                               weights,
-                                                                               cores,
-                                                                               neighbours,
-                                                                               epsilon,
-                                                                               min_observations,
-                                                                               deps);
+        return get_core_send_recv_replace_wide_kernel<Float, use_weights, Metric>::run(
+            queue,
+            data,
+            data_replace,
+            weights,
+            cores,
+            neighbours,
+            metric,
+            min_observations,
+            deps);
     }
     else {
-        return get_core_send_recv_replace_narrow_kernel<Float, use_weights>::run(queue,
-                                                                                 data,
-                                                                                 data_replace,
-                                                                                 weights,
-                                                                                 cores,
-                                                                                 neighbours,
-                                                                                 epsilon,
-                                                                                 min_observations,
-                                                                                 deps);
+        return get_core_send_recv_replace_narrow_kernel<Float, use_weights, Metric>::run(
+            queue,
+            data,
+            data_replace,
+            weights,
+            cores,
+            neighbours,
+            metric,
+            min_observations,
+            deps);
     }
 }
 
 ///  A function that dispatches the local core points search function
 ///  based on the input wieghts
 ///
-/// @tparam Float  Floating-point type used to perform computations
+/// @tparam Float   Floating-point type used to perform computations
+/// @tparam Metric  Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -523,19 +532,20 @@ sycl::event kernels_fp<Float>::get_cores_send_recv_replace_impl(
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
 template <typename Float>
+template <typename Metric>
 sycl::event kernels_fp<Float>::get_cores(sycl::queue& queue,
                                          const pr::ndview<Float, 2>& data,
                                          const pr::ndview<Float, 2>& weights,
                                          pr::ndview<std::int32_t, 1>& cores,
                                          pr::ndview<Float, 1>& neighbours,
-                                         Float epsilon,
+                                         const Metric& metric,
                                          std::int64_t min_observations,
                                          const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(get_cores, queue);
@@ -545,7 +555,7 @@ sycl::event kernels_fp<Float>::get_cores(sycl::queue& queue,
                                     weights,
                                     cores,
                                     neighbours,
-                                    epsilon,
+                                    metric,
                                     min_observations,
                                     deps);
     }
@@ -554,7 +564,7 @@ sycl::event kernels_fp<Float>::get_cores(sycl::queue& queue,
                                  weights,
                                  cores,
                                  neighbours,
-                                 epsilon,
+                                 metric,
                                  min_observations,
                                  deps);
 }
@@ -562,7 +572,8 @@ sycl::event kernels_fp<Float>::get_cores(sycl::queue& queue,
 ///  A function that dispatches the sendrecv_replaced core points search function
 ///  based on the input wieghts
 ///
-/// @tparam Float  Floating-point type used to perform computations
+/// @tparam Float   Floating-point type used to perform computations
+/// @tparam Metric  Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue             The SYCL queue
 /// @param[in]  data              The input data of size `row_count` x `column_count`
@@ -571,20 +582,21 @@ sycl::event kernels_fp<Float>::get_cores(sycl::queue& queue,
 /// @param[in]  cores             The current cores of size `row_count` x `1`
 /// @param[in]  neighbours        The current neighbours of size `row_count` x `1`
 ///                               it contains the counter of neighbours for each point
-/// @param[in]  epsilon           The input parameter epsilon
+/// @param[in]  metric            The metric operation, carrying the powered epsilon
 /// @param[in]  min_observations  The input parameter min_observation
 /// @param[in]  deps              Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays(cores and neighbours) for reading and writing
 template <typename Float>
+template <typename Metric>
 sycl::event kernels_fp<Float>::get_cores_send_recv_replace(sycl::queue& queue,
                                                            const pr::ndview<Float, 2>& data,
                                                            const pr::ndview<Float, 2>& data_replace,
                                                            const pr::ndview<Float, 2>& weights,
                                                            pr::ndview<std::int32_t, 1>& cores,
                                                            pr::ndview<Float, 1>& neighbours,
-                                                           Float epsilon,
+                                                           const Metric& metric,
                                                            std::int64_t min_observations,
                                                            const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(get_cores_send_recv_replace, queue);
@@ -595,7 +607,7 @@ sycl::event kernels_fp<Float>::get_cores_send_recv_replace(sycl::queue& queue,
                                                       weights,
                                                       cores,
                                                       neighbours,
-                                                      epsilon,
+                                                      metric,
                                                       min_observations,
                                                       deps);
     }
@@ -605,7 +617,7 @@ sycl::event kernels_fp<Float>::get_cores_send_recv_replace(sycl::queue& queue,
                                                    weights,
                                                    cores,
                                                    neighbours,
-                                                   epsilon,
+                                                   metric,
                                                    min_observations,
                                                    deps);
 }
@@ -688,11 +700,11 @@ std::int32_t kernels_fp<Float>::start_next_cluster(sycl::queue& queue,
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated array for reading and writing
-sycl::event set_init_index(sycl::queue& queue,
-                           pr::ndview<bool, 1>& observation_indices,
-                           std::int32_t index,
-                           bool value,
-                           const bk::event_vector& deps) {
+inline sycl::event set_init_index(sycl::queue& queue,
+                                  pr::ndview<bool, 1>& observation_indices,
+                                  std::int32_t index,
+                                  bool value,
+                                  const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(set_init_index, queue);
 
     auto observation_indices_ptr = observation_indices.get_mutable_data();
@@ -716,11 +728,11 @@ sycl::event set_init_index(sycl::queue& queue,
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated array for reading and writing
-sycl::event set_arr_value(sycl::queue& queue,
-                          pr::ndview<std::int32_t, 1>& points_queue_size,
-                          std::int32_t index,
-                          std::int32_t value,
-                          const bk::event_vector& deps) {
+inline sycl::event set_arr_value(sycl::queue& queue,
+                                 pr::ndview<std::int32_t, 1>& points_queue_size,
+                                 std::int32_t index,
+                                 std::int32_t value,
+                                 const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(set_arr_value, queue);
 
     auto points_queue_size_ptr = points_queue_size.get_mutable_data();
@@ -793,7 +805,8 @@ sycl::event kernels_fp<Float>::fill_current_points_queue(
 ///  A struct that calculate distances between current observations and unassigned points.
 ///  Also this function updates the responses and indicies of points which should be copied on the next step
 ///
-/// @tparam Float  Floating-point type used to perform computations
+/// @tparam Float   Floating-point type used to perform computations
+/// @tparam Metric  Metric operation from `distance_metric_op.hpp`
 ///
 /// @param[in]  queue                  The SYCL queue
 /// @param[in]  data                   The input data of size `row_count` x `column_count`
@@ -803,13 +816,14 @@ sycl::event kernels_fp<Float>::fill_current_points_queue(
 /// @param[in]  responses              The current responbses of size `row_count` x `1`
 /// @param[in]  queue_size_arr         The array(1x1) that contains total number of new observations
 /// @param[in]  indices_cores          The indicies of the points which should be copied `row_count` x `1`
-/// @param[in]  epsilon                The input parameter epsilon
+/// @param[in]  metric                 The metric operation, carrying the powered epsilon
 /// @param[in]  cluster_id             The current cluster id
 /// @param[in]  deps                   Events indicating availability of the `data` for reading or writing
 ///
 /// @return A SYCL event indicating the availability
 /// of the updated arrays for reading and writing
 template <typename Float>
+template <typename Metric>
 sycl::event kernels_fp<Float>::update_points_queue(sycl::queue& queue,
                                                    const pr::ndview<Float, 2>& data,
                                                    const pr::ndview<std::int32_t, 1>& cores,
@@ -817,7 +831,7 @@ sycl::event kernels_fp<Float>::update_points_queue(sycl::queue& queue,
                                                    pr::ndview<std::int32_t, 1>& responses,
                                                    pr::ndview<std::int32_t, 1>& queue_size_arr,
                                                    pr::ndview<bool, 1>& indices_cores,
-                                                   Float epsilon,
+                                                   const Metric& metric,
                                                    std::int32_t cluster_id,
                                                    const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(update_points_queue, queue);
@@ -863,14 +877,14 @@ sycl::event kernels_fp<Float>::update_points_queue(sycl::queue& queue,
                     return;
 
                 for (std::int64_t j = 0; j < queue_size; j++) {
-                    Float sum = 0.0;
+                    metric_accumulator<Float> acc;
                     for (std::int64_t i = local_id; i < column_count; i += local_size) {
-                        Float val = data_ptr[wg_id * column_count + i] -
-                                    current_queue_ptr[j * column_count + i];
-                        sum += val * val;
+                        metric.step(acc,
+                                    data_ptr[wg_id * column_count + i],
+                                    current_queue_ptr[j * column_count + i]);
                     }
-                    Float distance = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
-                    if (distance > epsilon)
+                    Float distance = metric.reduce(sg, acc);
+                    if (distance > metric.threshold)
                         continue;
                     if (local_id == 0) {
                         responses_ptr[wg_id] = cluster_id;
@@ -918,7 +932,7 @@ std::int32_t kernels_fp<Float>::get_points_queue_size(
 ///                    that helps to get queue sizes and storage it on GPU
 ///
 /// @return The number of cores
-std::int64_t count_cores(sycl::queue& queue, const pr::ndview<std::int32_t, 1>& cores) {
+inline std::int64_t count_cores(sycl::queue& queue, const pr::ndview<std::int32_t, 1>& cores) {
     const std::uint64_t row_count = cores.get_dimension(0);
     ONEDAL_ASSERT(row_count > 0);
     std::int64_t sum_result = 0;

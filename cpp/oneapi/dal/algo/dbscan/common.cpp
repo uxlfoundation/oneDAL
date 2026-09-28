@@ -47,6 +47,8 @@ public:
     std::int64_t min_observations;
     double epsilon;
     bool mem_save_mode;
+    distance_metric metric = distance_metric::euclidean;
+    double degree = 2.0;
     result_option_id result_options = default_result_options<Task>;
 };
 
@@ -90,6 +92,29 @@ void descriptor_base<Task>::set_min_observations_impl(std::int64_t value) {
 template <typename Task>
 void descriptor_base<Task>::set_mem_save_mode_impl(bool value) {
     impl_->mem_save_mode = value;
+}
+
+template <typename Task>
+distance_metric descriptor_base<Task>::get_metric() const {
+    return impl_->metric;
+}
+
+template <typename Task>
+double descriptor_base<Task>::get_degree() const {
+    return impl_->degree;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_metric_impl(distance_metric value) {
+    impl_->metric = value;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_degree_impl(double value) {
+    if (value <= 0.0) {
+        throw domain_error(dal::detail::error_messages::invalid_minkowski_degree());
+    }
+    impl_->degree = value;
 }
 
 template <typename Task>

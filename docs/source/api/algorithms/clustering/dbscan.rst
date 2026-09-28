@@ -41,6 +41,10 @@ Descriptor
 ----------
 .. onedal_class:: oneapi::dal::dbscan::descriptor
 
+Enum classes
+~~~~~~~~~~~~
+.. onedal_enumclass:: oneapi::dal::dbscan::distance_metric
+
 Method tags
 ~~~~~~~~~~~
 .. onedal_tags_namespace:: oneapi::dal::dbscan::method

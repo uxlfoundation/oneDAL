@@ -390,11 +390,131 @@ struct NTask
     daal::tls<TlsNTask<FPType, cpu> *> * tlsNTask;
 };
 
+/// Threshold that a powered (unrooted) distance must not exceed for a point to
+/// lie inside the `eps` neighborhood.
+///
+/// The neighborhood search never needs a true distance, only its comparison
+/// against `eps`, so each metric is evaluated in the cheapest form that stays
+/// monotone in the true distance and `eps` is mapped into that same space.
+/// Euclidean distances stay squared and Minkowski distances stay raised to the
+/// power `p`; Manhattan, Chebyshev and cosine distances take no root to begin
+/// with, so for them the threshold is `eps` itself.
+///
+/// @param[in] metric The pairwise distance metric in use
+/// @param[in] eps    The neighborhood radius, in the units of `metric`
+/// @param[in] p      The Minkowski degree; ignored by every other metric
+/// @return The value that powered distances are compared against
+template <typename FPType, CpuType cpu>
+inline FPType poweredEpsilon(PairwiseDistanceType metric, FPType eps, FPType p)
+{
+    switch (metric)
+    {
+    case PairwiseDistanceType::euclidean: return eps * eps;
+    case PairwiseDistanceType::minkowski: return MathInst<FPType, cpu>::sPowx(eps, p);
+    default: return eps;
+    }
+}
+
+/// Powered point-to-point distance functors for the memory-saving neighborhood
+/// search.
+///
+/// Each functor returns exactly the quantity that the matching
+/// `PairwiseDistances` batch engine writes into its result buffer, so both
+/// search paths share `poweredEpsilon` as their cut-off. They are functors
+/// rather than a single function taking a runtime metric tag so that the
+/// dispatch happens once per query instead of once per candidate pair.
+template <typename FPType, CpuType cpu>
+struct EuclideanPoweredDistance
+{
+    FPType operator()(const FPType * a, const FPType * b, size_t dim) const
+    {
+        FPType sum = 0;
+        for (size_t i = 0; i < dim; ++i)
+        {
+            const FPType diff = b[i] - a[i];
+            sum += diff * diff;
+        }
+        return sum;
+    }
+};
+
+template <typename FPType, CpuType cpu>
+struct ManhattanPoweredDistance
+{
+    FPType operator()(const FPType * a, const FPType * b, size_t dim) const
+    {
+        FPType sum = 0;
+        for (size_t i = 0; i < dim; ++i)
+        {
+            sum += MathInst<FPType, cpu>::sFabs(b[i] - a[i]);
+        }
+        return sum;
+    }
+};
+
+template <typename FPType, CpuType cpu>
+struct MinkowskiPoweredDistance
+{
+    explicit MinkowskiPoweredDistance(FPType p) : _p(p) {}
+
+    FPType operator()(const FPType * a, const FPType * b, size_t dim) const
+    {
+        FPType sum = 0;
+        for (size_t i = 0; i < dim; ++i)
+        {
+            sum += MathInst<FPType, cpu>::sPowx(MathInst<FPType, cpu>::sFabs(b[i] - a[i]), _p);
+        }
+        return sum;
+    }
+
+    FPType _p;
+};
+
+template <typename FPType, CpuType cpu>
+struct ChebyshevPoweredDistance
+{
+    FPType operator()(const FPType * a, const FPType * b, size_t dim) const
+    {
+        FPType res = 0;
+        for (size_t i = 0; i < dim; ++i)
+        {
+            const FPType diff = MathInst<FPType, cpu>::sFabs(b[i] - a[i]);
+            if (diff > res)
+            {
+                res = diff;
+            }
+        }
+        return res;
+    }
+};
+
+template <typename FPType, CpuType cpu>
+struct CosinePoweredDistance
+{
+    FPType operator()(const FPType * a, const FPType * b, size_t dim) const
+    {
+        FPType dot = 0;
+        FPType aa  = 0;
+        FPType bb  = 0;
+        for (size_t i = 0; i < dim; ++i)
+        {
+            dot += a[i] * b[i];
+            aa += a[i] * a[i];
+            bb += b[i] * b[i];
+        }
+        const FPType norm = MathInst<FPType, cpu>::sSqrt(aa) * MathInst<FPType, cpu>::sSqrt(bb);
+        // A zero row has no direction, so there is no angle between it and
+        // anything else. Report maximum separation instead of dividing by zero.
+        return norm > FPType(0) ? FPType(1) - dot / norm : FPType(1);
+    }
+};
+
 template <Method, typename FPType, CpuType cpu>
 class NeighborhoodEngine
 {
 public:
-    NeighborhoodEngine(const NumericTable * inTable, const NumericTable * outTable, const NumericTable * weights, FPType eps, FPType p);
+    NeighborhoodEngine(const NumericTable * inTable, const NumericTable * outTable, const NumericTable * weights, FPType eps, FPType p,
+                       PairwiseDistanceType metric = PairwiseDistanceType::euclidean);
 
     services::Status queryFull(Neighborhood<FPType, cpu> * neighs, bool doReset = false);
 
@@ -407,8 +527,9 @@ class NeighborhoodEngine<defaultDense, FPType, cpu>
     DAAL_NEW_DELETE();
 
 public:
-    NeighborhoodEngine(const NumericTable * inTable, const NumericTable * outTable, const NumericTable * weights, FPType eps, FPType p)
-        : _inTable(inTable), _outTable(outTable), _weights(weights), _eps(eps), _p(p)
+    NeighborhoodEngine(const NumericTable * inTable, const NumericTable * outTable, const NumericTable * weights, FPType eps, FPType p,
+                       PairwiseDistanceType metric = PairwiseDistanceType::euclidean)
+        : _inTable(inTable), _outTable(outTable), _weights(weights), _eps(eps), _p(p), _metric(metric)
     {}
 
     ~NeighborhoodEngine() {}
@@ -430,7 +551,67 @@ public:
         return count;
     }
 
+    /// Computes the full epsilon-neighborhood of every row of the inner table by
+    /// evaluating blocks of the pairwise distance matrix.
+    ///
+    /// Only selects the distance engine that matches the configured metric; the
+    /// search itself lives in `queryFullImpl`, which is instantiated once per
+    /// engine so that the per-block distance calls are not virtual.
+    ///
+    /// @param[out]    neighs  Per-row neighborhoods, at least as many as the inner table has rows
+    /// @param[in]     doReset Whether to clear `neighs` before filling it
+    /// @return Status of the computation
     services::Status queryFull(Neighborhood<FPType, cpu> * neighs, bool doReset = false)
+    {
+        switch (_metric)
+        {
+        case PairwiseDistanceType::euclidean:
+        {
+            EuclideanDistances<FPType, cpu> metric(*_inTable, *_outTable);
+            return queryFullImpl(metric, neighs, doReset);
+        }
+        case PairwiseDistanceType::manhattan:
+        {
+            MinkowskiDistances<FPType, cpu> metric(*_inTable, *_outTable, true, 1.0);
+            return queryFullImpl(metric, neighs, doReset);
+        }
+        case PairwiseDistanceType::minkowski:
+        {
+            MinkowskiDistances<FPType, cpu> metric(*_inTable, *_outTable, true, (double)_p);
+            return queryFullImpl(metric, neighs, doReset);
+        }
+        case PairwiseDistanceType::chebyshev:
+        {
+            ChebyshevDistances<FPType, cpu> metric(*_inTable, *_outTable);
+            return queryFullImpl(metric, neighs, doReset);
+        }
+        case PairwiseDistanceType::cosine:
+        {
+            CosineDistances<FPType, cpu> metric(*_inTable, *_outTable);
+            return queryFullImpl(metric, neighs, doReset);
+        }
+        }
+
+        return services::Status(services::ErrorMethodNotSupported);
+    }
+
+    services::Status query(size_t * indices, size_t n, Neighborhood<FPType, cpu> * neighs, bool doReset = false)
+    {
+        switch (_metric)
+        {
+        case PairwiseDistanceType::euclidean: return queryImpl(EuclideanPoweredDistance<FPType, cpu> {}, indices, n, neighs, doReset);
+        case PairwiseDistanceType::manhattan: return queryImpl(ManhattanPoweredDistance<FPType, cpu> {}, indices, n, neighs, doReset);
+        case PairwiseDistanceType::minkowski: return queryImpl(MinkowskiPoweredDistance<FPType, cpu> { _p }, indices, n, neighs, doReset);
+        case PairwiseDistanceType::chebyshev: return queryImpl(ChebyshevPoweredDistance<FPType, cpu> {}, indices, n, neighs, doReset);
+        case PairwiseDistanceType::cosine: return queryImpl(CosinePoweredDistance<FPType, cpu> {}, indices, n, neighs, doReset);
+        }
+
+        return services::Status(services::ErrorMethodNotSupported);
+    }
+
+private:
+    template <typename Metric>
+    services::Status queryFullImpl(Metric & metric, Neighborhood<FPType, cpu> * neighs, bool doReset)
     {
         SafeStatus safeStat;
 
@@ -446,10 +627,9 @@ public:
         const size_t outDim = _outTable->getNumberOfColumns();
         DAAL_ASSERT(outDim >= dim);
 
-        EuclideanDistances<FPType, cpu> metric(*_inTable, *_outTable);
         DAAL_CHECK_STATUS_VAR(metric.init());
 
-        const FPType epsP = MathInst<FPType, cpu>::sPowx(_eps, _p);
+        const FPType epsP = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
 
         const size_t inBlockSize = 128;
         const size_t nInBlocks   = inRows / inBlockSize + (inRows % inBlockSize > 0);
@@ -525,7 +705,8 @@ public:
         return safeStat.detach();
     }
 
-    services::Status query(size_t * indices, size_t n, Neighborhood<FPType, cpu> * neighs, bool doReset = false)
+    template <typename Distance>
+    services::Status queryImpl(Distance dist, size_t * indices, size_t n, Neighborhood<FPType, cpu> * neighs, bool doReset)
     {
         SafeStatus safeStat;
         services::Status s;
@@ -561,7 +742,7 @@ public:
             }
         }
 
-        FPType epsP = MathInst<FPType, cpu>::sPowx(_eps, _p);
+        const FPType epsP = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
 
         size_t outBlockSize = 256;
         size_t nOutBlocks   = outRows / outBlockSize + (outRows % outBlockSize > 0);
@@ -593,8 +774,8 @@ public:
             {
                 for (size_t j = 0; j < jSize; j++)
                 {
-                    FPType dist = distancePow2<FPType, cpu>(queryRows[i].get(), &outData[j * outDim], dim);
-                    if (dist <= epsP)
+                    const FPType d = dist(queryRows[i].get(), &outData[j * outDim], dim);
+                    if (d <= epsP)
                     {
                         DAAL_CHECK_MALLOC_THR(!localNeighs[i].add(j + j1, (weights ? weights[j] : (FPType)1.0)));
                     }
@@ -624,13 +805,13 @@ public:
         return s;
     }
 
-private:
     const NumericTable * _inTable;
     const NumericTable * _outTable;
     const NumericTable * _weights;
 
     FPType _eps;
     FPType _p;
+    PairwiseDistanceType _metric;
 };
 
 template <typename FPType, CpuType cpu>

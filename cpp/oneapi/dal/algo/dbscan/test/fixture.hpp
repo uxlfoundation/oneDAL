@@ -48,6 +48,62 @@ public:
             .set_mem_save_mode(true)
             .set_result_options(result_options::responses);
     }
+    /// Builds a descriptor that uses an explicit distance metric.
+    ///
+    /// @param[in] epsilon           The neighborhood radius, in the units of `metric`
+    /// @param[in] min_observations  The core-point threshold
+    /// @param[in] metric            The distance metric to search the neighborhood with
+    /// @param[in] degree            The Minkowski degree; ignored by every other metric
+    /// @param[in] mem_save_mode     Whether to take the memory-saving code path
+    ///
+    /// @return The configured descriptor
+    auto get_metric_descriptor(float_t epsilon,
+                               std::int64_t min_observations,
+                               distance_metric metric,
+                               double degree,
+                               bool mem_save_mode) const {
+        return dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_mem_save_mode(mem_save_mode)
+            .set_result_options(result_options::responses)
+            .set_metric(metric)
+            .set_degree(degree);
+    }
+
+    /// Computes with the given metric in both memory modes and compares the
+    /// responses against a reference.
+    ///
+    /// Both modes are exercised because on CPU the memory-saving path measures
+    /// distances point by point while the default path goes through a blocked
+    /// distance matrix, so a metric can be wired into one and not the other.
+    ///
+    /// @param[in] data              The input data
+    /// @param[in] epsilon           The neighborhood radius, in the units of `metric`
+    /// @param[in] min_observations  The core-point threshold
+    /// @param[in] metric            The distance metric to search the neighborhood with
+    /// @param[in] degree            The Minkowski degree; ignored by every other metric
+    /// @param[in] ref_responses     The expected responses
+    void run_metric_checks(const table &data,
+                           float_t epsilon,
+                           std::int64_t min_observations,
+                           distance_metric metric,
+                           double degree,
+                           const table &ref_responses) {
+        CAPTURE(epsilon, min_observations, degree);
+
+        for (bool mem_save_mode : { false, true }) {
+            CAPTURE(mem_save_mode);
+
+            INFO("create descriptor");
+            const auto dbscan_desc =
+                get_metric_descriptor(epsilon, min_observations, metric, degree, mem_save_mode);
+
+            INFO("run compute");
+            const auto compute_result =
+                oneapi::dal::test::engine::compute(this->get_policy(), dbscan_desc, data, table{});
+            check_responses_against_ref(compute_result.get_responses(), ref_responses);
+        }
+    }
+
     void check_if_close(const table &left,
                         const table &right,
                         std::string name = "",

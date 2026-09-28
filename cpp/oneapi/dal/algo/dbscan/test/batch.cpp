@@ -206,6 +206,250 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     this->run_checks(x, table{}, epsilon, min_observations, r);
 }
 
+// The metric tests below use column counts on both sides of the narrow/wide
+// threshold of the GPU neighborhood kernels, which is four columns, so that both
+// the sub-group and the scalar distance loops are covered.
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan narrow metric test",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    // Pairwise distances: (p0, p1) = 1.41 / 2 / 1 / 1.26,
+    //                     (p1, p2) = 2.83 / 4 / 2 / 2.52,
+    //                     (p0, p2) = 4.24 / 6 / 3 / 3.78
+    // for euclidean / manhattan / chebyshev / minkowski(3) respectively.
+    constexpr float_t data[] = { 0.0, 0.0, 1.0, 1.0, 3.0, 3.0 };
+    const auto x = homogen_table::wrap(data, 3, 2);
+
+    constexpr std::int64_t min_observations = 2;
+
+    constexpr std::int32_t pair_and_noise[] = { 0, 0, -1 };
+    const auto r_pair_and_noise = homogen_table::wrap(pair_and_noise, 3, 1);
+
+    constexpr std::int32_t all_noise[] = { -1, -1, -1 };
+    const auto r_all_noise = homogen_table::wrap(all_noise, 3, 1);
+
+    constexpr std::int32_t one_cluster[] = { 0, 0, 0 };
+    const auto r_one_cluster = homogen_table::wrap(one_cluster, 3, 1);
+
+    // Only the two closest points fall inside a radius of 1.5, and only under a
+    // metric that does not add the two coordinate differences up.
+    this->run_metric_checks(x,
+                            1.5,
+                            min_observations,
+                            distance_metric::euclidean,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            1.5,
+                            min_observations,
+                            distance_metric::chebyshev,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            1.5,
+                            min_observations,
+                            distance_metric::minkowski,
+                            3.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x, 1.5, min_observations, distance_metric::manhattan, 2.0, r_all_noise);
+
+    // A radius of 2.5 additionally links the middle point to the far one, but
+    // only for chebyshev.
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::euclidean,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::manhattan,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::minkowski,
+                            3.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::chebyshev,
+                            2.0,
+                            r_one_cluster);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan wide metric test",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    // Pairwise distances: (p0, p1) = 2.24 / 5 / 1 / 1.71,
+    //                     (p0, p2) = 4    / 4 / 4 / 4,
+    //                     (p1, p2) = 3.61 / 7 / 3 / 3.14
+    // for euclidean / manhattan / chebyshev / minkowski(3) respectively.
+    constexpr float_t data[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                                 1.0, 1.0, 4.0, 0.0, 0.0, 0.0, 0.0 };
+    const auto x = homogen_table::wrap(data, 3, 5);
+
+    constexpr std::int64_t min_observations = 2;
+
+    constexpr std::int32_t pair_and_noise[] = { 0, 0, -1 };
+    const auto r_pair_and_noise = homogen_table::wrap(pair_and_noise, 3, 1);
+
+    constexpr std::int32_t all_noise[] = { -1, -1, -1 };
+    const auto r_all_noise = homogen_table::wrap(all_noise, 3, 1);
+
+    constexpr std::int32_t one_cluster[] = { 0, 0, 0 };
+    const auto r_one_cluster = homogen_table::wrap(one_cluster, 3, 1);
+
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::euclidean,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::chebyshev,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x,
+                            2.5,
+                            min_observations,
+                            distance_metric::minkowski,
+                            3.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x, 2.5, min_observations, distance_metric::manhattan, 2.0, r_all_noise);
+
+    this->run_metric_checks(x,
+                            3.5,
+                            min_observations,
+                            distance_metric::euclidean,
+                            2.0,
+                            r_pair_and_noise);
+    this->run_metric_checks(x, 3.5, min_observations, distance_metric::manhattan, 2.0, r_all_noise);
+    this->run_metric_checks(x,
+                            3.5,
+                            min_observations,
+                            distance_metric::chebyshev,
+                            2.0,
+                            r_one_cluster);
+    this->run_metric_checks(x,
+                            3.5,
+                            min_observations,
+                            distance_metric::minkowski,
+                            3.0,
+                            r_one_cluster);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan minkowski degree matches the dedicated metrics",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    constexpr float_t data[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                                 1.0, 1.0, 4.0, 0.0, 0.0, 0.0, 0.0 };
+    const auto x = homogen_table::wrap(data, 3, 5);
+
+    constexpr std::int64_t min_observations = 2;
+    const double epsilon = GENERATE_COPY(1.5, 2.5, 3.5, 4.5);
+
+    INFO("run the reference metric");
+    const auto reference =
+        oneapi::dal::test::engine::compute(this->get_policy(),
+                                           this->get_metric_descriptor(epsilon,
+                                                                       min_observations,
+                                                                       distance_metric::euclidean,
+                                                                       2.0,
+                                                                       true),
+                                           x,
+                                           table{});
+
+    INFO("minkowski with degree 2 reproduces euclidean");
+    this->run_metric_checks(x,
+                            epsilon,
+                            min_observations,
+                            distance_metric::minkowski,
+                            2.0,
+                            reference.get_responses());
+
+    INFO("run the reference metric");
+    const auto manhattan_reference =
+        oneapi::dal::test::engine::compute(this->get_policy(),
+                                           this->get_metric_descriptor(epsilon,
+                                                                       min_observations,
+                                                                       distance_metric::manhattan,
+                                                                       2.0,
+                                                                       true),
+                                           x,
+                                           table{});
+
+    INFO("minkowski with degree 1 reproduces manhattan");
+    this->run_metric_checks(x,
+                            epsilon,
+                            min_observations,
+                            distance_metric::minkowski,
+                            1.0,
+                            manhattan_reference.get_responses());
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan cosine metric test",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    constexpr std::int64_t min_observations = 2;
+    constexpr double epsilon = 0.1;
+
+    constexpr std::int32_t responses[] = { 0, 0, -1 };
+    const auto r = homogen_table::wrap(responses, 3, 1);
+
+    // The first two rows are collinear, so the cosine distance between them is
+    // zero however far apart they are in the euclidean sense. The third row is
+    // orthogonal to both, at the maximum cosine distance of one.
+    constexpr float_t narrow_data[] = { 1.0, 0.0, 2.0, 0.0, 0.0, 1.0 };
+    const auto x_narrow = homogen_table::wrap(narrow_data, 3, 2);
+    this->run_metric_checks(x_narrow, epsilon, min_observations, distance_metric::cosine, 2.0, r);
+
+    constexpr float_t wide_data[] = { 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.0,
+                                      0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0 };
+    const auto x_wide = homogen_table::wrap(wide_data, 3, 5);
+    this->run_metric_checks(x_wide, epsilon, min_observations, distance_metric::cosine, 2.0, r);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan cosine metric handles zero rows",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    // A zero row has no direction, so it must not be a neighbour of anything,
+    // not even of itself, and it must not produce a NaN either.
+    constexpr float_t data[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                                 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0 };
+    const auto x = homogen_table::wrap(data, 3, 5);
+
+    constexpr std::int32_t responses[] = { -1, 0, 0 };
+    const auto r = homogen_table::wrap(responses, 3, 1);
+
+    this->run_metric_checks(x, 0.1, 2, distance_metric::cosine, 2.0, r);
+}
+
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
                      "dbscan gold data clusters test",
                      "[dbscan][batch]",
