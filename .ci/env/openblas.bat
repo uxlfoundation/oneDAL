@@ -28,7 +28,7 @@ if /i "%1"=="" (
     set DST=%1\..\..\__deps\open_blas
 )
 set BLASSOURCEDIR=%~dp0..\..\__work\openblas
-set BLASVERSION=0.3.33
+set BLASVERSION=0.3.34
 set BLASURLROOT=https://github.com/OpenMathLib/OpenBLAS/archive/refs/tags/v%BLASVERSION%
 set BLASPACKAGE=
 set BLASURL=%BLASURLROOT%%BLASPACKAGE%.zip

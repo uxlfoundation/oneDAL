@@ -43,7 +43,9 @@ using kmeans_types_csr = COMBINE_TYPES((float, double), (kmeans::method::lloyd_c
 template <typename TestType, typename Derived>
 class kmeans_test : public te::crtp_algo_fixture<TestType, Derived> {
 public:
-    sparse_indexing data_indexing_; // for sparse data testing
+    // For sparse data testing; zero-based by default so the helpers below can build a
+    // CSR table without every caller picking an indexing first.
+    sparse_indexing data_indexing_ = sparse_indexing::zero_based;
     using base_t = te::crtp_algo_fixture<TestType, Derived>;
     using float_t = std::tuple_element_t<0, TestType>;
     using method_t = std::tuple_element_t<1, TestType>;
@@ -80,6 +82,49 @@ public:
 
     bool is_sparse_method() {
         return std::is_same_v<method_t, kmeans::method::lloyd_csr>;
+    }
+
+    /// Wraps a row-major dense buffer into the table type the method under test expects:
+    /// a `homogen_table` for the dense methods, a `csr_table` for `lloyd_csr`. The CSR
+    /// case stores every entry explicitly, so both tables describe the same matrix and
+    /// the hand-computed expectations below hold on either path.
+    ///
+    /// @param data         Row-major buffer of `row_count * column_count` values.
+    /// @param row_count    Number of rows of the resulting table.
+    /// @param column_count Number of columns of the resulting table.
+    table make_data_table(const float_t* data,
+                          std::int64_t row_count,
+                          std::int64_t column_count) const {
+        if constexpr (!std::is_same_v<method_t, kmeans::method::lloyd_csr>) {
+            return homogen_table::wrap(data, row_count, column_count);
+        }
+        else {
+            const std::int64_t element_count = row_count * column_count;
+            const std::int64_t shift = (data_indexing_ == sparse_indexing::one_based) ? 1 : 0;
+
+            auto values = array<float_t>::empty(element_count);
+            auto column_indices = array<std::int64_t>::empty(element_count);
+            auto row_offsets = array<std::int64_t>::empty(row_count + 1);
+            auto* const values_ptr = values.get_mutable_data();
+            auto* const column_indices_ptr = column_indices.get_mutable_data();
+            auto* const row_offsets_ptr = row_offsets.get_mutable_data();
+
+            for (std::int64_t i = 0; i < row_count; ++i) {
+                row_offsets_ptr[i] = i * column_count + shift;
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    const std::int64_t idx = i * column_count + j;
+                    values_ptr[idx] = data[idx];
+                    column_indices_ptr[idx] = j + shift;
+                }
+            }
+            row_offsets_ptr[row_count] = element_count + shift;
+
+            return csr_table::wrap(values,
+                                   column_indices,
+                                   row_offsets,
+                                   column_count,
+                                   data_indexing_);
+        }
     }
 
     void exact_checks(const table& data,
@@ -204,18 +249,198 @@ public:
 
     void check_empty_clusters() {
         float_t data[] = { -10, -9.5, -9, -8.5, -8, -1, 1, 9, 9.5, 10 };
-        const auto x = homogen_table::wrap(data, 10, 1);
+        const auto x = make_data_table(data, 10, 1);
 
         float_t initial_centroids[] = { -10, -10, -10 };
         const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
 
-        float_t final_centroids[] = { -1.65, 10, 9.5 };
+        float_t final_centroids[] = { -4.5, 10, 9.5 };
         const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
 
         float_t responses[] = { 0, 0, 0, 0, 0, 0, 0, 2, 2, 1 };
         const auto y = homogen_table::wrap(responses, 10, 1);
 
         this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
+    }
+
+    void check_empty_clusters_distinct_inits() {
+        // Distinct initial centroids, unlike the repeated -10 of
+        // check_empty_clusters, but still all to the left of the data: every point
+        // is closest to -10, so clusters 1 and 2 come out empty on iteration 0.
+        // They are then seeded with the two farthest-from-own-centroid rows, 10 and
+        // 9, which leaves cluster 0 at (-10 -9 +0 +1) / 4 = -4.5.
+        float_t data[] = { -10, -9, 0, 1, 9, 10 };
+        const auto x = make_data_table(data, 6, 1);
+
+        float_t initial_centroids[] = { -10, -10.5, -11 };
+        const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
+
+        float_t final_centroids[] = { -4.5, 10, 9 };
+        const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
+
+        float_t responses[] = { 0, 0, 0, 0, 2, 1 };
+        const auto y = homogen_table::wrap(responses, 6, 1);
+
+        this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
+    }
+
+    void check_empty_clusters_all_duplicates() {
+        // Fewer distinct values than clusters, so no partition with k non-empty
+        // clusters exists and relocation cannot invent one: the only candidate row
+        // already sits on its own centroid. The kernel leaves it there and
+        // duplicates the largest cluster's centroid instead, which is what
+        // scikit-learn returns for this input.
+        const std::int64_t cluster_count = 2;
+        const std::int64_t row_count = 4;
+        const std::int64_t max_iteration_count = 10;
+
+        float_t data[] = { 5, 5, 5, 5 };
+        const auto x = make_data_table(data, row_count, 1);
+
+        float_t initial_centroids[] = { 5, 100 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        // A zero threshold stops the run once the centroids stop moving, which both
+        // backends now honour, so it converges inside `max_iteration_count`.
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(centroids.get_count() == cluster_count);
+        CAPTURE(centroids[0], centroids[1]);
+        REQUIRE(centroids[0] == float_t(5));
+        REQUIRE(centroids[1] == float_t(5));
+
+        REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        // A duplicated centroid is a fixed point, so the run converges.
+        CAPTURE(train_result.get_iteration_count());
+        REQUIRE(train_result.get_iteration_count() < max_iteration_count);
+
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+        REQUIRE(responses.get_count() == row_count);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i, responses[i]);
+            REQUIRE(responses[i] == 0);
+        }
+    }
+
+    void check_empty_clusters_drained_source() {
+        // The winning candidate, 100, is the only row of the cluster it is assigned
+        // to, so seeding an empty cluster with it drains its source. The CPU and GPU
+        // kernels differ on whether the source is drained or kept, hence a different
+        // iteration count, but both reach the same fixed point: both distinct values
+        // represented, every point on its centroid, and the remaining empty cluster
+        // holding a duplicate.
+        const std::int64_t cluster_count = 3;
+        const std::int64_t row_count = 3;
+        const std::int64_t max_iteration_count = 10;
+
+        float_t data[] = { 0, 0, 100 };
+        const auto x = make_data_table(data, row_count, 1);
+
+        float_t initial_centroids[] = { 1, 2, 3 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(centroids.get_count() == cluster_count);
+
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+        REQUIRE(responses.get_count() == row_count);
+
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const int response = responses[i];
+            CAPTURE(i, response, data[i]);
+            REQUIRE(response >= 0);
+            REQUIRE(response < cluster_count);
+            REQUIRE(centroids[response] == data[i]);
+        }
+
+        // Every centroid is one of the two distinct data values, and both of
+        // them are used: nothing was left behind on an initial position.
+        bool zero_found = false;
+        bool hundred_found = false;
+        for (std::int64_t i = 0; i < cluster_count; i++) {
+            CAPTURE(i, centroids[i]);
+            REQUIRE((centroids[i] == float_t(0) || centroids[i] == float_t(100)));
+            zero_found = zero_found || (centroids[i] == float_t(0));
+            hundred_found = hundred_found || (centroids[i] == float_t(100));
+        }
+        REQUIRE(zero_found);
+        REQUIRE(hundred_found);
+
+        REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        CAPTURE(train_result.get_iteration_count());
+        REQUIRE(train_result.get_iteration_count() < max_iteration_count);
+    }
+
+    void check_empty_clusters_duplicate_groups() {
+        // Four groups of three duplicated points and six clusters, so at most four
+        // clusters can be non-empty. The fixed point is the same however the backend
+        // breaks the distance ties: every group on a centroid of its own, the extra
+        // clusters duplicating one of those, objective function zero.
+        const std::int64_t cluster_count = 6;
+        const std::int64_t row_count = 12;
+        const std::int64_t max_iteration_count = 100;
+
+        float_t data[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4 };
+        const auto x = make_data_table(data, row_count, 1);
+
+        float_t initial_centroids[] = { 0, 2, 3, 4, 5, 7 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, max_iteration_count, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        REQUIRE(centroids.get_count() == cluster_count);
+
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+        REQUIRE(responses.get_count() == row_count);
+
+        // Every point ended up exactly on the centroid it is assigned to.
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const int response = responses[i];
+            CAPTURE(i, response, data[i]);
+            REQUIRE(response >= 0);
+            REQUIRE(response < cluster_count);
+            REQUIRE(centroids[response] == data[i]);
+        }
+
+        // No centroid was left on its initial position: each is one of the four
+        // group values, the empty clusters duplicating one of them.
+        for (std::int64_t i = 0; i < cluster_count; i++) {
+            CAPTURE(i, centroids[i]);
+            REQUIRE(centroids[i] >= float_t(1));
+            REQUIRE(centroids[i] <= float_t(4));
+            REQUIRE(centroids[i] == std::floor(centroids[i]));
+        }
+
+        // All four groups are represented, so no group shares a centroid.
+        for (std::int64_t value = 1; value <= 4; value++) {
+            bool found = false;
+            for (std::int64_t i = 0; i < cluster_count; i++) {
+                found = found || (centroids[i] == float_t(value));
+            }
+            CAPTURE(value);
+            REQUIRE(found);
+        }
+
+        REQUIRE(train_result.get_objective_function_value() == float_t(0));
+
+        // The state above is a fixed point, so the run converges.
+        CAPTURE(train_result.get_iteration_count());
+        REQUIRE(train_result.get_iteration_count() < max_iteration_count);
     }
 
     void check_on_smoke_data() {
