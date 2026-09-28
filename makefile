@@ -144,11 +144,14 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DMKL_LP64     := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_LP64)
 -Zl            := $(-Zl.$(COMPILER))
 -Zl_DPCPP      := $(-Zl.dpcpp)
+# Always on, for the host and the DPC++ part alike. They used to be appended to
+# -DEBC, which reads as if they were debug-only.
+-DTBBCOMPAT    := -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 # if REQDBG set to 'symbols', it will disable assert checking.
 # Debug flags are defined per compiler in dev/make/compiler_definitions/ under -DEBC,
 # they are always enabled when the REQDBG flag is set.
--DEBC          := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
--DEBC_DPCPP    := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
+-DEBC          := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) $(-DTBBCOMPAT)
+-DEBC_DPCPP    := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) $(-DTBBCOMPAT)
 -DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 # Compression of the embedded SPIR-V fat binary. Decompressed by the runtime at JIT
 # time, so host symbols and the ABI are unchanged; it costs link time, not run time.
