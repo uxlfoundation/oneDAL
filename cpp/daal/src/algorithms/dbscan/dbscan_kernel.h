@@ -43,13 +43,21 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class DBSCANBatchKernel : public Kernel
 {
 public:
+    /// The distance metric and the Minkowski degree are kernel arguments rather
+    /// than `Parameter` fields because `Parameter` is part of the published DAAL
+    /// ABI, while this kernel is internal. They default to the squared Euclidean
+    /// behaviour every existing caller relies on.
     services::Status computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
                                       NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                      const Parameter * par);
+                                      const Parameter * par,
+                                      algorithms::internal::PairwiseDistanceType metric = algorithms::internal::PairwiseDistanceType::euclidean,
+                                      double degree                                     = 2.0);
 
     services::Status computeMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
                                     NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
-                                    const Parameter * par);
+                                    const Parameter * par,
+                                    algorithms::internal::PairwiseDistanceType metric = algorithms::internal::PairwiseDistanceType::euclidean,
+                                    double degree                                     = 2.0);
 
 private:
     services::Status processNeighborhood(size_t clusterId, int * assignments, const Neighborhood<algorithmFPType, cpu> & neigh,
