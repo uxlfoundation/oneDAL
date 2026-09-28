@@ -164,7 +164,8 @@ sycl::event scatter_host2device_blocking(sycl::queue& q,
 
     const auto block_size = propose_block_size<float>(q, block_count);
     const bk::uniform_blocking blocking(block_count, block_size);
-    std::vector<sycl::event> events(blocking.get_block_count());
+    std::vector<sycl::event> events;
+    events.reserve(blocking.get_block_count());
 
     const auto block_range = blocking.get_block_count();
 
@@ -194,9 +195,11 @@ sycl::event scatter_host2device_blocking(sycl::queue& q,
         });
         events.push_back(scatter_event);
     }
-    // We need to wait until scatter kernel is completed to deallocate
-    // `gathered_device_unique`
-    return bk::wait_or_pass(events);
+    // `gathered_device_unique` is freed on return and `sycl::free` does not synchronize,
+    // so every scatter kernel reading from it has to complete here, whatever the block count.
+    sycl::event::wait_and_throw(events);
+
+    return sycl::event{};
 }
 
 } // namespace oneapi::dal::backend
