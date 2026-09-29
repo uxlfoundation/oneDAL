@@ -236,8 +236,15 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
             ctx.min_weight_leaf_ = min_weight_fraction * total_weight;
         }
         else {
+            // Unweighted input: `min_weight_fraction_in_leaf_node` degenerates to a
+            // fraction of the observation count, which is a property of the whole
+            // dataset and not of this rank's shard, so it needs the all-ranks total
+            // rather than `ctx.row_count_`. Computed here instead of being kept in
+            // the context, so that no allocation can reach for an all-ranks count by
+            // accident -- that is what this change is removing.
+            const Index row_total_count = get_total_count(ctx.distr_mode_, ctx.row_count_);
             const Index min_obs_from_weight =
-                static_cast<Index>(std::ceil(min_weight_fraction * Float(ctx.row_total_count_)));
+                static_cast<Index>(std::ceil(min_weight_fraction * Float(row_total_count)));
             ctx.min_observations_in_leaf_node_ =
                 std::max(ctx.min_observations_in_leaf_node_, min_obs_from_weight);
         }
