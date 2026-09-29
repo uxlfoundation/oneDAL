@@ -1946,6 +1946,262 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 // =========================================================================
+// single-cluster (root-only) selection tests
+// =========================================================================
+
+/// One dense blob plus a ladder of increasingly distant points. The condensed
+/// tree of this dataset never splits into two clusters of `min_cluster_size`
+/// points, so the root cluster is the only candidate and the outcome is decided
+/// entirely by `allow_single_cluster`, `cluster_selection_epsilon` and the
+/// cluster selection method. Every reference below comes from
+/// `sklearn.cluster.HDBSCAN(min_cluster_size=3, min_samples=3, ...)`.
+constexpr std::int64_t single_root_row_count = 16;
+constexpr double single_root_data[] = {
+    0.5366,  0.131, //
+    0.0289,  -0.559, //
+    -0.0832, -0.1064, //
+    -0.0248, -0.1881, //
+    -0.0131, -0.1432, //
+    -0.3942, 0.2654, //
+    0.2644,  0.5129, //
+    0.015,   -0.1214, //
+    -0.1636, -0.4639, //
+    0.2947,  -0.3303, //
+    -0.3555, -0.0617, //
+    0.4458,  0.071, //
+    1.5,     0.0, //
+    2.5,     0.0, //
+    4.0,     0.0, //
+    7.0,     0.0, //
+};
+
+/// Materialize `single_root_data` in the floating-point type under test.
+///
+/// @tparam Float Floating-point type of the test instantiation
+///
+/// @return An owning array of `2 * single_root_row_count` feature values
+template <typename Float>
+static dal::array<Float> make_single_root_data() {
+    auto arr = dal::array<Float>::empty(single_root_row_count * 2);
+    auto* const dst = arr.get_mutable_data();
+    for (std::int64_t i = 0; i < single_root_row_count * 2; i++) {
+        dst[i] = static_cast<Float>(single_root_data[i]);
+    }
+    return arr;
+}
+
+/// Compare responses against a pinned reference label vector entry by entry.
+///
+/// Unlike `check_same_partition` this is not permutation-invariant, which is
+/// exactly what a single-cluster reference needs: there is at most one label, so
+/// the only question is which points carry it.
+///
+/// @tparam Float Floating-point type of the response table
+///
+/// @param[in] responses Response table under test
+/// @param[in] ref       Reference labels, length `row_count`
+/// @param[in] row_count Number of observations
+template <typename Float>
+static void check_exact_labels(const table& responses,
+                               const std::int32_t* ref,
+                               std::int64_t row_count) {
+    const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < row_count; i++) {
+        CAPTURE(i, rows[i], ref[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) == ref[i]);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: single-cluster selection demotes weak members",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    // Without an epsilon the threshold is the root's own death lambda, so only
+    // the three points that persist to the very end of the tree stay clustered.
+    // They all drop out at that same lambda, so the comparison does not depend on
+    // how equal distances are broken.
+    constexpr std::int32_t ref_labels[] = { -1, -1, -1, 0,  0,  -1, -1, 0,
+                                            -1, -1, -1, -1, -1, -1, -1, -1 };
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_allow_single_cluster(true)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    check_exact_labels<Float>(result.get_responses(), ref_labels, single_root_row_count);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: cluster_selection_epsilon sets the single-cluster "
+                     "threshold",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    // With an epsilon the threshold becomes `1 / epsilon`, a lambda that does not
+    // depend on the tree, so the labels are fully determined and can be pinned
+    // against scikit-learn.
+    constexpr std::int32_t ref_labels_eps1[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1
+    };
+    constexpr std::int32_t ref_labels_eps3[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1 };
+
+    const double epsilon = GENERATE(1.0, 3.0);
+    const std::int32_t* const ref_labels = (epsilon == 1.0) ? ref_labels_eps1 : ref_labels_eps3;
+    CAPTURE(epsilon);
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_allow_single_cluster(true)
+                          .set_cluster_selection_epsilon(epsilon)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    check_exact_labels<Float>(result.get_responses(), ref_labels, single_root_row_count);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: a root-only tree is all noise by default",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3).set_result_options(
+            result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < single_root_row_count; i++) {
+        CAPTURE(i, rows[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) == -1);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: leaf selection never picks the root cluster",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    // Leaf selection picks the leaves of the cluster tree, and the root is not
+    // one of them; a tree that never splits has no candidate at all. This holds
+    // with `allow_single_cluster` too, which in leaf mode only relaxes the
+    // labeling threshold of an already-selected root.
+    const bool allow_single_cluster = GENERATE(false, true);
+    CAPTURE(allow_single_cluster);
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_allow_single_cluster(allow_single_cluster)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < single_root_row_count; i++) {
+        CAPTURE(i, rows[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) == -1);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: leaf selection still splits a two-cluster dataset",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Guards the leaf-mode change above against over-reach: as soon as the
+    // condensed tree does split, leaf selection must still return its leaves.
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 2);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    REQUIRE(static_cast<std::int32_t>(rows[0]) >= 0);
+    REQUIRE(static_cast<std::int32_t>(rows[5]) >= 0);
+    REQUIRE(static_cast<std::int32_t>(rows[0]) != static_cast<std::int32_t>(rows[5]));
+    for (std::int64_t i = 0; i < 10; i++) {
+        CAPTURE(i, rows[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) ==
+                static_cast<std::int32_t>(i < 5 ? rows[0] : rows[5]));
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan kd_tree: leaf selection never picks the root cluster",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_kd_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan ball_tree: leaf selection never picks the root cluster",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bt_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+}
+
+// =========================================================================
 // GPU tests (conditional on ONEDAL_DATA_PARALLEL)
 // =========================================================================
 

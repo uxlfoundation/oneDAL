@@ -90,6 +90,19 @@ Using the Excess of Mass (EOM) method [Campello2013]_, compute the stability of 
 cluster in the condensed tree, then select the set of clusters that maximizes total
 stability. Selected clusters provide the flat clustering output.
 
+With ``cluster_selection_method = leaf`` the leaves of the condensed cluster tree
+are selected instead. The root is not a leaf of that tree, so a condensed tree
+that never splits into two clusters of ``min_cluster_size`` observations selects
+nothing and the whole dataset is noise.
+
+The root cluster is a candidate for EOM only when ``allow_single_cluster`` is
+set. When it wins and is the only selected cluster, the flat clustering has no
+sibling to separate noise from signal, so an observation is kept only if the
+:math:`\lambda` at which it fell out of the tree reaches a threshold:
+:math:`1 / \texttt{cluster\_selection\_epsilon}` when an epsilon is set, and the
+root's own death :math:`\lambda` otherwise, which keeps only the observations
+that persist to the very end.
+
 Each cluster gets a unique identifier, an integer from :math:`0` to
 :math:`\text{cluster\_count} - 1`. Observations not belonging to any cluster
 are assigned :math:`-1` (noise).
