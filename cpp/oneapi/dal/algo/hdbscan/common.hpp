@@ -121,6 +121,7 @@ ONEDAL_EXPORT result_option_id get_core_observations_id();
 ONEDAL_EXPORT result_option_id get_core_flags_id();
 ONEDAL_EXPORT result_option_id get_cluster_centers_id();
 ONEDAL_EXPORT result_option_id get_medoid_centers_id();
+ONEDAL_EXPORT result_option_id get_probabilities_id();
 
 } // namespace detail
 
@@ -140,6 +141,9 @@ const inline result_option_id core_flags = detail::get_core_flags_id();
 const inline result_option_id cluster_centers = detail::get_cluster_centers_id();
 /// Return cluster medoids (member point minimizing intra-cluster distance).
 const inline result_option_id medoid_centers = detail::get_medoid_centers_id();
+/// Return the membership strength of every observation in the cluster it was
+/// assigned to, in ``[0, 1]``. Noise points get ``0``.
+const inline result_option_id probabilities = detail::get_probabilities_id();
 
 } // namespace result_options
 

@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
 #include <limits>
 #include <cmath>
 #include <map>
@@ -191,6 +192,82 @@ public:
 
         INFO("check mode");
         check_for_exception_for_non_requested_results(compute_mode, compute_result);
+
+        if (compute_mode.test(result_options::probabilities)) {
+            INFO("check requested probabilities are populated");
+            check_probabilities(compute_result, data.get_row_count());
+        }
+    }
+
+    /// Check the shape and the value invariants of a requested `probabilities` table.
+    ///
+    /// Only the invariants that hold for every input are checked: the table has the
+    /// documented shape, every membership strength lies in `[0, 1]`, a noise point
+    /// gets exactly 0 and a clustered point gets a strictly positive value, and the
+    /// most persistent point of the whole dataset reaches 1 (the deepest surviving
+    /// point of a cluster drops out at that cluster's death lambda, which is what the
+    /// ratio normalizes by). The responses are only cross-checked when they were
+    /// requested too, so this also covers the probabilities-only mode.
+    ///
+    /// @param[in] result    Compute result with `probabilities` requested
+    /// @param[in] row_count Number of input observations
+    void check_probabilities(const result_t& result, std::int64_t row_count) {
+        const auto probabilities = result.get_probabilities();
+        REQUIRE(probabilities.get_row_count() == row_count);
+        REQUIRE(probabilities.get_column_count() == 1);
+
+        const auto probs = row_accessor<const Float>(probabilities).pull({ 0, -1 });
+
+        const bool has_responses = result.get_result_options().test(result_options::responses);
+        dal::array<Float> labels;
+        if (has_responses) {
+            labels = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+        }
+
+        Float max_prob = Float(0);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i, probs[i]);
+            REQUIRE(probs[i] >= Float(0));
+            REQUIRE(probs[i] <= Float(1));
+            if (has_responses) {
+                const auto label = static_cast<std::int32_t>(labels[i]);
+                if (label < 0) {
+                    REQUIRE(probs[i] == Float(0));
+                }
+                else {
+                    REQUIRE(probs[i] > Float(0));
+                    max_prob = std::max(max_prob, probs[i]);
+                }
+            }
+        }
+
+        if (has_responses && result.get_cluster_count() > 0) {
+            INFO("the most persistent clustered point reaches full membership");
+            REQUIRE(max_prob == Float(1));
+        }
+    }
+
+    /// Run compute with `responses | probabilities` and check both outputs together.
+    ///
+    /// @param[in] data             Input data table
+    /// @param[in] min_cluster_size `min_cluster_size` parameter value
+    /// @param[in] min_samples      `min_samples` parameter value
+    void run_probability_checks(const table& data,
+                                std::int64_t min_cluster_size,
+                                std::int64_t min_samples) {
+        CAPTURE(min_cluster_size, min_samples);
+
+        INFO("create descriptor");
+        const auto hdbscan_desc =
+            get_descriptor(min_cluster_size, min_samples)
+                .set_result_options(result_options::responses | result_options::probabilities);
+
+        INFO("run compute");
+        const auto compute_result =
+            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+
+        INFO("check probabilities");
+        check_probabilities(compute_result, data.get_row_count());
     }
 
     void check_for_exception_for_non_requested_results(result_option_id compute_mode,
@@ -212,6 +289,9 @@ public:
         }
         if (!compute_mode.test(result_options::medoid_centers)) {
             REQUIRE_THROWS_AS(result.get_medoid_centers(), domain_error);
+        }
+        if (!compute_mode.test(result_options::probabilities)) {
+            REQUIRE_THROWS_AS(result.get_probabilities(), domain_error);
         }
     }
 };

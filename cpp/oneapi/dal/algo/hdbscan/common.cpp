@@ -45,6 +45,10 @@ result_option_id get_medoid_centers_id() {
     return result_option_id::make_by_index(5);
 }
 
+result_option_id get_probabilities_id() {
+    return result_option_id::make_by_index(6);
+}
+
 template <typename Task>
 const result_option_id default_result_options = result_options::responses;
 
