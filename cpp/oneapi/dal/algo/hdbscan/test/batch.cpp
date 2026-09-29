@@ -16,6 +16,10 @@
 
 #include "oneapi/dal/algo/hdbscan/test/fixture.hpp"
 
+#ifdef ONEDAL_DATA_PARALLEL
+#include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
+#endif
+
 #include <map>
 #include <set>
 #include <vector>
@@ -2087,6 +2091,64 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
+}
+
+// The two sizing helpers below guard row counts whose n x n matrix is several
+// gigabytes, so they cannot be reached through `dal::compute` in a test. Drive
+// them directly instead.
+
+TEST("hdbscan gpu: the square launches stay inside the int32 range limit",
+     "[hdbscan][batch][gpu]") {
+    constexpr std::int64_t int32_max = 2147483647;
+
+    // Below the limit a single launch still covers the whole matrix.
+    REQUIRE(dal::backend::max_range_2d_rows(1) >= 1);
+    REQUIRE(dal::backend::max_range_2d_rows(46340) * 46340 <= int32_max);
+    REQUIRE(dal::backend::max_range_2d_rows(46340) >= 46340);
+
+    // 46341^2 is the first square past int32, so blocking must kick in there.
+    REQUIRE(dal::backend::max_range_2d_rows(46341) < 46341);
+
+    for (const std::int64_t n : { std::int64_t(46341),
+                                  std::int64_t(50000),
+                                  std::int64_t(100000),
+                                  std::int64_t(1000000),
+                                  int32_max }) {
+        const std::int64_t rows = dal::backend::max_range_2d_rows(n);
+        REQUIRE(rows >= 1);
+        REQUIRE(rows * n <= int32_max);
+    }
+}
+
+TEST("hdbscan gpu: brute_force rejects a matrix larger than device memory",
+     "[hdbscan][batch][gpu]") {
+    constexpr std::int64_t gib = 1024 * 1024 * 1024;
+    constexpr std::int64_t f64 = 8;
+
+    // 16 GiB global, 4 GiB per allocation: 10k rows need 800 MB and fit.
+    REQUIRE(backend::mrd_matrix_fits_on_device(10000, 8, f64, 4 * gib, 16 * gib));
+
+    // 30k rows need 7.2 GB, past the single-allocation limit.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(30000, 8, f64, 4 * gib, 16 * gib));
+
+    // A 32k x 32k matrix is 7.63 GiB and fits both one allocation and the 9 GiB
+    // budget, but the input table pushes the total over once it gets wide.
+    REQUIRE(backend::mrd_matrix_fits_on_device(32000, 8, f64, 16 * gib, 18 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(32000, 8000, f64, 16 * gib, 18 * gib));
+
+    // The reported 100k-row `std::bad_alloc`: 80 GB in float64 on a 48 GB card.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(100000, 8, f64, 48 * gib, 48 * gib));
+
+    // Only part of global memory is usable: a 32.5 GiB matrix allocates on a
+    // 48 GiB card and then faults on first access, so it has to be rejected
+    // even though it is under the 45 GiB single-allocation limit.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(66000, 8, f64, 45 * gib, 48 * gib));
+    REQUIRE(backend::mrd_matrix_fits_on_device(50000, 8, f64, 45 * gib, 48 * gib));
+
+    // Halving the element size halves the footprint, so float32 is checked
+    // against its own size rather than the widest one.
+    REQUIRE(backend::mrd_matrix_fits_on_device(20000, 8, 4, 4 * gib, 16 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(20000, 8, f64, 2 * gib, 16 * gib));
 }
 
 #endif // ONEDAL_DATA_PARALLEL

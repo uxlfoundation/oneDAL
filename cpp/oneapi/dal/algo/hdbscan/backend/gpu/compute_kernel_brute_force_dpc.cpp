@@ -71,20 +71,20 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     const std::int64_t max_cluster_size = desc.get_max_cluster_size();
     const double alpha = desc.get_alpha();
 
+    check_mrd_matrix_fits_on_device<Float>(queue, row_count, local_data.get_column_count());
+
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
-    // Step 1: Compute pairwise distance matrix
-    auto [dist_matrix, dist_alloc_event] =
-        pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
-    dist_alloc_event.wait_and_throw();
+    // Step 1: Compute pairwise distance matrix.
+    // Left uninitialized on purpose: `compute_distance_matrix` writes every
+    // entry, and an n x n zero fill is both wasted bandwidth and a `cgh.fill`
+    // of n^2 elements, which the runtime rejects once n^2 leaves int32.
+    auto dist_matrix =
+        pr::ndarray<Float, 2>::empty(queue, { row_count, row_count }, sycl::usm::alloc::device);
 
-    auto dist_event = compute_distance_matrix<Float>(queue,
-                                                     data_nd,
-                                                     dist_matrix,
-                                                     metric,
-                                                     degree,
-                                                     { dist_alloc_event });
+    auto dist_event =
+        compute_distance_matrix<Float>(queue, data_nd, dist_matrix, metric, degree, {});
     dist_event.wait_and_throw();
 
     // Step 2: Compute core distances from the unscaled distance matrix.

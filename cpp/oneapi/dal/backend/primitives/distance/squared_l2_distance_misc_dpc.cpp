@@ -59,15 +59,32 @@ sycl::event scatter_2d(sycl::queue& q,
     const auto* const inp1_ptr = inp1.get_data();
     const auto* const inp2_ptr = inp2.get_data();
     auto* const out_ptr = out.get_mutable_data();
-    const auto out_range = make_range_2d(n_samples1, n_samples2);
 
+    // `n_samples1 * n_samples2` can leave int32 for a large square output, so
+    // scatter in row blocks instead of one grid. Each block writes its own rows
+    // and only depends on `deps`, so the launches are free to overlap.
+    const auto block_rows = max_range_2d_rows(n_samples2);
+
+    event_vector block_events;
+    for (std::int64_t row_start = 0; row_start < n_samples1; row_start += block_rows) {
+        const auto rows = std::min(block_rows, n_samples1 - row_start);
+        block_events.push_back(q.submit([&](sycl::handler& h) {
+            h.depends_on(deps);
+
+            h.parallel_for(make_range_2d(rows, n_samples2), [=](sycl::id<2> idx) {
+                const auto row = row_start + static_cast<std::int64_t>(idx[0]);
+                auto* out_place = out_ptr + out_stride * row + idx[1];
+                *out_place = inp1_ptr[row] + inp2_ptr[idx[1]];
+            });
+        }));
+    }
+
+    if (block_events.size() == 1u) {
+        return block_events.front();
+    }
     return q.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-
-        h.parallel_for(out_range, [=](sycl::id<2> idx) {
-            auto* out_place = out_ptr + out_stride * idx[0] + idx[1];
-            *out_place = inp1_ptr[idx[0]] + inp2_ptr[idx[1]];
-        });
+        h.depends_on(block_events);
+        h.single_task([]() {});
     });
 }
 
