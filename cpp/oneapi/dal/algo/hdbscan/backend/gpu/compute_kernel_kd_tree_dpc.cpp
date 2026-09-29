@@ -239,18 +239,30 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
     responses_event.wait_and_throw();
 
-    auto cluster_event = extract_clusters<Float>(queue,
-                                                 mst_from,
-                                                 mst_to,
-                                                 mst_weights,
-                                                 arr_responses,
-                                                 row_count,
-                                                 min_cluster_size,
-                                                 { sort_event, responses_event },
-                                                 cluster_selection,
-                                                 allow_single_cluster,
-                                                 cluster_selection_epsilon,
-                                                 max_cluster_size);
+    // Left empty unless requested, which is what tells `extract_clusters` to skip
+    // the probability kernels and `make_results` that there is nothing to wrap.
+    const bool need_probabilities = desc.get_result_options().test(result_options::probabilities);
+    pr::ndarray<Float, 1> arr_probabilities;
+    if (need_probabilities) {
+        arr_probabilities =
+            std::get<0>(pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device));
+        queue.wait_and_throw();
+    }
+
+    auto cluster_event = extract_clusters<Float>(
+        queue,
+        mst_from,
+        mst_to,
+        mst_weights,
+        arr_responses,
+        row_count,
+        min_cluster_size,
+        { sort_event, responses_event },
+        cluster_selection,
+        allow_single_cluster,
+        cluster_selection_epsilon,
+        max_cluster_size,
+        need_probabilities ? arr_probabilities.get_mutable_data() : nullptr);
     cluster_event.wait_and_throw();
 
     // Count clusters via GPU reduction
@@ -275,7 +287,12 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
     const std::int32_t max_label = max_label_host.get_data()[0];
     const std::int64_t cluster_count = (max_label >= 0) ? (max_label + 1) : 0;
 
-    return make_results<Float>(queue, desc, arr_responses, cluster_count, local_data);
+    return make_results<Float>(queue,
+                               desc,
+                               arr_responses,
+                               cluster_count,
+                               local_data,
+                               arr_probabilities);
 }
 
 template <typename Float>

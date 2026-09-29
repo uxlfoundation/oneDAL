@@ -19,6 +19,7 @@
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 
+#include "oneapi/dal/backend/atomic.hpp"
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
@@ -83,8 +84,13 @@ struct cluster_work_ptrs {
 
     std::int32_t* nc_ptr;
 
-    // Lambda at which each point dropped out of the condensed tree. Null unless
-    // `allow_single_cluster` is set, the only case that needs it.
+    // Membership-probability output and its scratch. All four are null unless the
+    // caller requested probabilities, in which case `prob_ptr` is the output view
+    // and the rest hold the per-cluster death lambda, the same value keyed by
+    // dense label, and the lambda at which each point dropped out.
+    Float* prob_ptr;
+    Float* cdeath_ptr;
+    Float* ldeath_ptr;
     Float* plam_ptr;
 
     std::int64_t row_count;
@@ -1476,14 +1482,106 @@ inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
     });
 }
 
+/// Cluster extraction kernels 6-8: membership strength of every point.
+///
+/// Device twin of the CPU `computeMembershipProbabilities`, and like it a
+/// transcription of scikit-learn's `_hdbscan.hdbscan._get_probabilities`: a
+/// point's strength is the lambda at which it dropped out of the condensed tree
+/// normalized by the lambda at which its cluster died. 1 means the point
+/// persisted to the very end of its cluster, values near 0 mean it detached
+/// almost immediately, and noise is 0.
+///
+/// Phase 6 (parallel_for over condensed edges): `fetch_max` the edge lambda into
+/// the parent cluster's death lambda, and record the edge lambda as the drop
+/// lambda of the child when the child is an original point. Each point is the
+/// child of at most one condensed edge, so that second store needs no atomic.
+///
+/// Phase 7 (parallel_for over clusters): re-key the death lambda by dense label,
+/// so phase 8 can index it with the response it already has instead of walking
+/// back up to the selected ancestor cluster.
+///
+/// Phase 8 (parallel_for over points): divide, clamping to 1. The three cases
+/// that give exactly 1 are a cluster with no outgoing edge (death lambda 0, the
+/// normalization is undefined), a point whose own lambda is at least its
+/// cluster's, and a point that never dropped out at all -- `plam_ptr` still
+/// holds the -1 sentinel for the last case and the `lam < 0` test catches it.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion of phase 8
+template <typename Float>
+inline sycl::event membership_probability_kernels(sycl::queue& queue,
+                                                  const cluster_work_ptrs<Float>& w,
+                                                  const bk::event_vector& deps) {
+    // Ranged over the `3 * row_count` worst-case condensed-edge bound that
+    // extract_clusters allocates, not over `total_nodes`, which is smaller.
+    auto k6_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(3 * w.row_count), [=](sycl::id<1> idx) {
+            const std::int32_t ei = static_cast<std::int32_t>(idx[0]);
+            if (ei >= w.cond_cnt_ptr[0])
+                return;
+
+            const std::int32_t parent = w.cond_p_ptr[ei];
+            const std::int32_t child = w.cond_c_ptr[ei];
+            const Float lambda = w.cond_l_ptr[ei];
+
+            if (parent >= 0 && parent < static_cast<std::int32_t>(w.total_nodes))
+                bk::atomic_global_max(w.cdeath_ptr + parent, lambda);
+            if (child >= 0 && child < static_cast<std::int32_t>(w.row_count))
+                w.plam_ptr[child] = lambda;
+        });
+    });
+
+    auto k7_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ k6_event });
+        h.parallel_for(sycl::range<1>(w.total_nodes), [=](sycl::id<1> idx) {
+            const std::int32_t c = static_cast<std::int32_t>(idx[0]);
+            if (c < static_cast<std::int32_t>(w.row_count) || c >= w.nc_ptr[0])
+                return;
+            if (!w.is_ptr[c])
+                return;
+            const std::int32_t label = w.clab_ptr[c];
+            if (label >= 0 && label < static_cast<std::int32_t>(w.total_nodes))
+                w.ldeath_ptr[label] = w.cdeath_ptr[c];
+        });
+    });
+
+    auto k8_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ k7_event });
+        h.parallel_for(sycl::range<1>(w.row_count), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const std::int32_t label = w.resp_ptr[i];
+            if (label < 0 || label >= static_cast<std::int32_t>(w.total_nodes)) {
+                w.prob_ptr[i] = Float(0);
+                return;
+            }
+
+            const Float max_lambda = w.ldeath_ptr[label];
+            const Float lambda = w.plam_ptr[i];
+            if (!(max_lambda > Float(0)) || lambda < Float(0)) {
+                w.prob_ptr[i] = Float(1);
+                return;
+            }
+            w.prob_ptr[i] = (lambda < max_lambda) ? lambda / max_lambda : Float(1);
+        });
+    });
+
+    return k8_event;
+}
+
 /// Extract HDBSCAN cluster labels from a sorted MST on the GPU.
 ///
 /// Orchestrator: allocates every device-side working buffer, fills a
 /// `cluster_work_ptrs<Float>`, and chains the four extraction kernels:
 /// `build_dendrogram_kernels` -> `build_condensed_tree_kernel` ->
 /// `eom_select_clusters_kernel` -> `assign_label_kernels`, followed by
-/// `single_cluster_threshold_kernel` when `allow_single_cluster` is set. Final responses
-/// are written to the caller-supplied `responses` view.
+/// `single_cluster_threshold_kernel` when `allow_single_cluster` is set. Final
+/// responses are written to the caller-supplied `responses` view.
 ///
 /// @tparam Float Floating-point type used for MST weights
 ///
@@ -1499,6 +1597,9 @@ inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
 /// @param[in]  allow_single_cluster      If false, reject root-only outcomes
 /// @param[in]  cluster_selection_epsilon Distance epsilon for cluster_selection_epsilon (0 disables)
 /// @param[in]  max_cluster_size          Maximum cluster size cap (0 disables)
+/// @param[out] probabilities             Optional device buffer of length `row_count` receiving the
+///                                       membership strength of each point in `[0, 1]`. Pass
+///                                       `nullptr` to skip the three extra kernels
 ///
 /// @return Event signaling completion of the labeling phase
 template <typename Float>
@@ -1513,7 +1614,8 @@ inline sycl::event extract_clusters(sycl::queue& queue,
                                     std::int32_t cluster_selection = 0,
                                     bool allow_single_cluster = false,
                                     Float cluster_selection_epsilon = Float(0),
-                                    std::int64_t max_cluster_size = 0) {
+                                    std::int64_t max_cluster_size = 0,
+                                    Float* probabilities = nullptr) {
     ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 
     ONEDAL_ASSERT(row_count > 0);
@@ -1597,10 +1699,19 @@ inline sycl::event extract_clusters(sycl::queue& queue,
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
-    // The drop-out lambda per point only feeds the single-cluster threshold pass,
-    // so it is left unallocated unless that pass can run at all.
-    pr::ndarray<Float, 1> point_lambda;
-    if (allow_single_cluster) {
+    // Probability scratch: the death lambda per cluster and the same value keyed
+    // by dense label. Only allocated when the caller asked for probabilities,
+    // which is not the default. The per-point drop-out lambda is shared with the
+    // single-cluster threshold pass, so it follows `allow_single_cluster` too.
+    const bool need_point_lambda = (probabilities != nullptr) || allow_single_cluster;
+    pr::ndarray<Float, 1> cluster_death, label_death, point_lambda;
+    if (probabilities != nullptr) {
+        cluster_death = std::get<0>(
+            pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device));
+        label_death = std::get<0>(
+            pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device));
+    }
+    if (need_point_lambda) {
         point_lambda = std::get<0>(
             pr::ndarray<Float, 1>::full(queue, row_count, Float(-1), sycl::usm::alloc::device));
         queue.wait_and_throw();
@@ -1643,13 +1754,16 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     w.cprt_ptr = cluster_parent.get_mutable_data();
     w.cc0_ptr = child_clusters_0.get_mutable_data();
     w.cc1_ptr = child_clusters_1.get_mutable_data();
+    w.prob_ptr = probabilities;
+    w.cdeath_ptr = (probabilities != nullptr) ? cluster_death.get_mutable_data() : nullptr;
+    w.ldeath_ptr = (probabilities != nullptr) ? label_death.get_mutable_data() : nullptr;
+    w.plam_ptr = need_point_lambda ? point_lambda.get_mutable_data() : nullptr;
     w.pff_ptr = point_fell_from.get_mutable_data();
     w.dp_ptr = dendro_parent.get_mutable_data();
     w.stk_ptr = stack_arr.get_mutable_data();
     w.stk_cid_ptr = stack_cid.get_mutable_data();
     w.leaf_stk_ptr = leaf_stack_arr.get_mutable_data();
     w.nc_ptr = n_clusters_arr.get_mutable_data();
-    w.plam_ptr = allow_single_cluster ? point_lambda.get_mutable_data() : nullptr;
     w.row_count = row_count;
     w.edge_count = edge_count;
     w.min_cluster_size = min_cluster_size;
@@ -1672,15 +1786,24 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     auto k4_event = assign_label_kernels<Float>(queue, w, { k3b_event });
     k4_event.wait_and_throw();
 
-    if (!allow_single_cluster) {
-        return k4_event;
+    sycl::event labeling_event = k4_event;
+    if (allow_single_cluster) {
+        // `point_lambda` is owned by this frame and the pass dereferences it, so
+        // the event has to be awaited here: `sycl::free` does not synchronize.
+        labeling_event = single_cluster_threshold_kernel<Float>(queue, w, { k4_event });
+        labeling_event.wait_and_throw();
     }
 
-    // `point_lambda` is owned by this frame and the pass dereferences it, so the
-    // event has to be awaited here: `sycl::free` does not synchronize.
-    auto k5_event = single_cluster_threshold_kernel<Float>(queue, w, { k4_event });
-    k5_event.wait_and_throw();
-    return k5_event;
+    if (probabilities == nullptr) {
+        return labeling_event;
+    }
+
+    // The three probability scratch arrays are owned by this frame and every
+    // kernel below dereferences them, so the event has to be awaited here:
+    // `sycl::free` does not synchronize.
+    auto k8_event = membership_probability_kernels<Float>(queue, w, { labeling_event });
+    k8_event.wait_and_throw();
+    return k8_event;
 }
 
 #endif

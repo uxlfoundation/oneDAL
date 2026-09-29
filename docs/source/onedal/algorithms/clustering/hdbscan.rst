@@ -107,6 +107,21 @@ Each cluster gets a unique identifier, an integer from :math:`0` to
 :math:`\text{cluster\_count} - 1`. Observations not belonging to any cluster
 are assigned :math:`-1` (noise).
 
+**(6) Membership probabilities (optional):**
+When the ``probabilities`` result option is requested, each observation also gets a
+membership strength in its cluster. With :math:`\lambda_i = 1 / d_i`, where
+:math:`d_i` is the mutual reachability distance at which observation :math:`x_i`
+fell out of the condensed tree, and :math:`\lambda_C^{\max}` the largest such value
+over the selected cluster :math:`C` the observation was assigned to,
+
+.. math::
+   p_i = \frac{\min(\lambda_i, \lambda_C^{\max})}{\lambda_C^{\max}}
+
+so the most persistent members of a cluster get :math:`1` and the ones that detach
+right after the cluster is born get a value close to :math:`0`. Noise observations
+get :math:`0`. A cluster that never loses an observation has
+:math:`\lambda_C^{\max} = 0`; all of its members then get :math:`1`.
+
 
 .. _hdbscan_c_math_brute_force:
 

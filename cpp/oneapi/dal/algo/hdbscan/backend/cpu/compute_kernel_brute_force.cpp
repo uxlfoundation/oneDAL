@@ -84,12 +84,24 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
         1,
         daal::data_management::NumericTable::doAllocate);
 
+    // The DAAL kernel writes membership strengths straight into this array and
+    // skips the extra pass when the table is null, which an unallocated array
+    // produces through `convert_to_daal_homogen_table`'s empty-input branch.
+    const bool need_probabilities = desc.get_result_options().test(result_options::probabilities);
+    array<Float> arr_probabilities;
+    if (need_probabilities) {
+        arr_probabilities = array<Float>::empty(row_count);
+    }
+    auto daal_probabilities =
+        interop::convert_to_daal_homogen_table(arr_probabilities, row_count, 1);
+
     // Call DAAL kernel via CPU dispatch using type alias that binds Method
     interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_brute_force_t>(
         ctx,
         daal_data.get(),
         daal_assignments.get(),
         daal_nclusters.get(),
+        daal_probabilities.get(),
         static_cast<size_t>(min_cluster_size),
         static_cast<size_t>(min_samples),
         daal_metric,
@@ -190,6 +202,10 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
 
             daal_data->releaseBlockOfRows(data_block);
         }
+    }
+
+    if (need_probabilities) {
+        results.set_probabilities(dal::homogen_table::wrap(arr_probabilities, row_count, 1));
     }
 
     return results;

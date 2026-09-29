@@ -699,6 +699,104 @@ static void resolveClusterLabels(DAAL_INT rootCid, DAAL_INT nClusters, const boo
     }
 }
 
+/// Resolve, for every cluster, the id of the deepest selected ancestor (itself included).
+///
+/// Same forward sweep and same parent-before-child invariant as
+/// resolveClusterLabels; it resolves to the cluster *id* rather than to the
+/// dense label because the membership probability has to index per-cluster
+/// arrays (the death lambda) and the dense label is not such an index.
+///
+/// @param[in]  rootCid         Root cluster id (== `nRows`)
+/// @param[in]  nClusters       Total cluster count
+/// @param[in]  isSelected      Selection mask, length `nClusters`
+/// @param[in]  clusterParent   Parent cluster id per cluster (-1 for root), length `nClusters`
+/// @param[out] resolvedCluster Deepest selected ancestor per cluster (-1 if none), length `nClusters`
+static void resolveSelectedAncestors(DAAL_INT rootCid, DAAL_INT nClusters, const bool * isSelected, const DAAL_INT * clusterParent,
+                                     DAAL_INT * resolvedCluster)
+{
+    for (DAAL_INT c = 0; c < rootCid; c++) resolvedCluster[c] = -1;
+    for (DAAL_INT c = rootCid; c < nClusters; c++)
+    {
+        if (isSelected[c])
+        {
+            resolvedCluster[c] = c;
+            continue;
+        }
+        const DAAL_INT p   = clusterParent[c];
+        resolvedCluster[c] = (p >= rootCid && p < nClusters) ? resolvedCluster[p] : -1;
+    }
+}
+
+/// Membership strength of every point in the cluster it was assigned to.
+///
+/// Mirrors scikit-learn's `_hdbscan.hdbscan._get_probabilities`: a point's
+/// strength is the lambda at which it dropped out of the condensed tree,
+/// normalized by the lambda at which its cluster died (the largest lambda over
+/// the cluster's outgoing condensed edges). 1 means the point survived to the
+/// very end of its cluster, values near 0 mean it detached almost immediately,
+/// and noise is 0.
+///
+/// Three cases give exactly 1:
+///   - the cluster has no outgoing edge, so its death lambda is 0 and the
+///     normalization is undefined (sklearn's `max_lambda == 0.0` branch);
+///   - the point's own lambda is not finite, which happens for duplicate points
+///     at zero mutual reachability distance (sklearn's `not isfinite` branch --
+///     this implementation substitutes the largest finite value instead of an
+///     infinity, which the `min()` below handles identically);
+///   - the point never dropped out before its cluster died, i.e. it is one of
+///     the points that labelPoints has to resolve through the dendrogram; such
+///     a point outlived the cluster by definition.
+///
+/// @tparam algorithmFPType Floating-point type used for lambdas
+/// @tparam cpu             CPU dispatch tag
+///
+/// @param[in]  condensed       Condensed-tree edges, length `nCondensed`
+/// @param[in]  condensedLambda Death lambda per edge, length `nCondensed`
+/// @param[in]  nCondensed      Number of condensed-tree edges
+/// @param[in]  nRows           Number of original points
+/// @param[in]  nClusters       Total cluster count
+/// @param[in]  rootCid         Root cluster id (== `nRows`)
+/// @param[in]  pointCluster    Condensed cluster each point was resolved through (-1 if noise), length `nRows`
+/// @param[in]  pointLambda     Lambda at which each point dropped out, or a negative
+///                             value if it never did, length `nRows`
+/// @param[in]  resolvedCluster Deepest selected ancestor per cluster, length `nClusters`
+/// @param[in]  assignments     Final point labels (-1 for noise), length `nRows`
+/// @param[out] probabilities   Output membership strength in `[0, 1]`, length `nRows`
+template <typename algorithmFPType, CpuType cpu>
+static void computeMembershipProbabilities(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
+                                           DAAL_INT nClusters, DAAL_INT rootCid, const DAAL_INT * pointCluster, const algorithmFPType * pointLambda,
+                                           const DAAL_INT * resolvedCluster, const int * assignments, algorithmFPType * probabilities)
+{
+    TArray<algorithmFPType, cpu> clusterDeathArr(nClusters);
+    algorithmFPType * clusterDeath = clusterDeathArr.get();
+    for (DAAL_INT c = 0; c < nClusters; c++) clusterDeath[c] = algorithmFPType(0);
+    for (size_t ei = 0; ei < nCondensed; ei++)
+    {
+        const DAAL_INT p = condensed[ei].parent;
+        if (p >= rootCid && p < nClusters && condensedLambda[ei] > clusterDeath[p]) clusterDeath[p] = condensedLambda[ei];
+    }
+
+    for (size_t i = 0; i < nRows; i++)
+    {
+        probabilities[i] = algorithmFPType(0);
+        if (assignments[i] < 0) continue;
+
+        const DAAL_INT cid = pointCluster[i];
+        if (cid < rootCid || cid >= nClusters) continue;
+        const DAAL_INT sc = resolvedCluster[cid];
+        if (sc < rootCid || sc >= nClusters) continue;
+
+        const algorithmFPType maxLambda = clusterDeath[sc];
+        const algorithmFPType lambda    = pointLambda[i];
+        if (!(maxLambda > algorithmFPType(0)) || lambda < algorithmFPType(0))
+        {
+            probabilities[i] = algorithmFPType(1);
+            continue;
+        }
+        probabilities[i] = (lambda < maxLambda) ? lambda / maxLambda : algorithmFPType(1);
+    }
+}
+
 /// Reverse the child arrays into a parent pointer for every dendrogram node.
 ///
 /// @param[in]  leftChild    Left child id for every internal node, length `totalNodes`
@@ -791,7 +889,7 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
 /// A third pass runs only when the clustering ends up being the root cluster
 /// alone, see applySingleClusterThreshold.
 ///
-/// @tparam algorithmFPType Floating-point type used for lambdas
+/// @tparam algorithmFPType Floating-point type (unused; kept for cpu dispatch)
 /// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]  condensed       Condensed-tree edges, length `nCondensed`
@@ -812,13 +910,17 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
 ///                             noise, both fit into `int` regardless of
 ///                             `nRows`, so the write happens with an explicit
 ///                             narrowing cast at this layer.
+/// @param[out] probabilities   Optional output membership strength in `[0, 1]`,
+///                             length `nRows`. Pass `nullptr` to skip the
+///                             computation and its scratch allocations
 ///
 /// @return Number of distinct labels emitted (0..labelCounter-1); 0 when the
 ///         single-cluster threshold demoted every point to noise
 template <typename algorithmFPType, CpuType cpu>
 static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * condensedLambda, size_t nCondensed, size_t nRows,
                        const DAAL_INT * leftChild, const DAAL_INT * rightChild, const DAAL_INT * dendroToCluster, const bool * isSelected,
-                       DAAL_INT nClusters, DAAL_INT rootCid, bool allowSingleCluster, double clusterSelectionEpsilon, int * assignments)
+                       DAAL_INT nClusters, DAAL_INT rootCid, bool allowSingleCluster, double clusterSelectionEpsilon, int * assignments,
+                       algorithmFPType * probabilities = nullptr)
 {
     const size_t totalNodes = 2 * nRows - 1;
 
@@ -844,20 +946,31 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
     DAAL_ASSERT(labelCounter >= 0);
 
     // A clustering that consists of the root alone does not separate noise by
-    // itself, so the weakest members are demoted by their drop-out lambda. That
-    // lambda is the only reason to keep a per-point array around, hence the
-    // conditional allocation.
+    // itself, so the weakest members are demoted by their drop-out lambda.
     const bool singleRootSelected = allowSingleCluster && labelCounter == 1 && isSelected[rootCid];
+
+    // The scratch arrays are only allocated when something below needs them;
+    // `pointCluster` records which condensed cluster each point was resolved
+    // through (the dense label alone cannot index per-cluster data) and
+    // `pointLambda` the lambda it dropped out at, negative if it never did.
+    const bool needProbs       = (probabilities != nullptr);
+    const bool needPointLambda = needProbs || singleRootSelected;
 
     TArray<DAAL_INT, cpu> clusterParentArr(nClusters);
     TArray<DAAL_INT, cpu> pointFellFromArr(nRows);
-    TArray<algorithmFPType, cpu> pointLambdaArr(singleRootSelected ? nRows : 0);
+    TArray<DAAL_INT, cpu> pointClusterArr(needProbs ? nRows : 0);
+    TArray<algorithmFPType, cpu> pointLambdaArr(needPointLambda ? nRows : 0);
     DAAL_INT * clusterParent      = clusterParentArr.get();
     DAAL_INT * pointFellFrom      = pointFellFromArr.get();
+    DAAL_INT * pointCluster       = pointClusterArr.get();
     algorithmFPType * pointLambda = pointLambdaArr.get();
     for (DAAL_INT c = 0; c < nClusters; c++) clusterParent[c] = -1;
     for (size_t i = 0; i < nRows; i++) pointFellFrom[i] = -1;
-    if (singleRootSelected)
+    if (needProbs)
+    {
+        for (size_t i = 0; i < nRows; i++) pointCluster[i] = -1;
+    }
+    if (needPointLambda)
     {
         for (size_t i = 0; i < nRows; i++) pointLambda[i] = algorithmFPType(-1);
     }
@@ -869,7 +982,7 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
         else
         {
             pointFellFrom[e.child] = e.parent;
-            if (singleRootSelected) pointLambda[e.child] = condensedLambda[ei];
+            if (needPointLambda) pointLambda[e.child] = condensedLambda[ei];
         }
     }
 
@@ -881,6 +994,7 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
     {
         const DAAL_INT c = pointFellFrom[i];
         assignments[i]   = (c >= rootCid && c < nClusters) ? resolvedLabel[c] : -1;
+        if (needProbs) pointCluster[i] = c;
     }
 
     TArray<DAAL_INT, cpu> dendroParentArr(totalNodes);
@@ -898,6 +1012,7 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
             if (cid >= rootCid)
             {
                 assignments[i] = resolvedLabel[cid];
+                if (needProbs) pointCluster[i] = cid;
                 break;
             }
             nid = dendroParent[nid];
@@ -911,6 +1026,15 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
         // Every point was demoted, so the root label is unused and the result has
         // no cluster at all.
         labelCounter = 0;
+    }
+
+    if (needProbs)
+    {
+        TArray<DAAL_INT, cpu> resolvedClusterArr(nClusters);
+        DAAL_INT * resolvedCluster = resolvedClusterArr.get();
+        resolveSelectedAncestors(rootCid, nClusters, isSelected, clusterParent, resolvedCluster);
+        computeMembershipProbabilities<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, nClusters, rootCid, pointCluster,
+                                                             pointLambda, resolvedCluster, assignments, probabilities);
     }
 
     return labelCounter;
@@ -936,13 +1060,15 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
 /// @param[in]     allowSingleCluster      If false, reject root-only outcomes
 /// @param[in]     clusterSelectionEpsilon Distance epsilon for cluster_selection_epsilon (0 == disabled)
 /// @param[in]     maxClusterSize          Maximum cluster size cap (0 == uncapped)
+/// @param[out]    probabilities           Optional membership strength per point in `[0, 1]`,
+///                                        length `nRows`. Pass `nullptr` to skip it
 ///
-/// @return Number of distinct labels emitted (== `labelCounter`); 0 if the MST is empty or
-///         every point ended up as noise
+/// @return Number of distinct labels emitted (== `labelCounter`); 0 if the MST is
+///         empty or every point ended up as noise
 template <typename algorithmFPType, CpuType cpu>
 int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize,
                               int * assignments, int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
-                              size_t maxClusterSize = 0)
+                              size_t maxClusterSize = 0, algorithmFPType * probabilities = nullptr)
 {
     const size_t edgeCount  = nRows - 1;
     const size_t totalNodes = 2 * nRows - 1;
@@ -964,6 +1090,10 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
     if (root < 0)
     {
         for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
+        if (probabilities != nullptr)
+        {
+            for (size_t i = 0; i < nRows; i++) probabilities[i] = algorithmFPType(0);
+        }
         return 0;
     }
 
@@ -993,7 +1123,7 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
                                          allowSingleCluster, clusterSelectionEpsilon, isSelected);
 
     return labelPoints<algorithmFPType, cpu>(condensed, condensedLambda, nCondensed, nRows, leftChild, rightChild, dendroToCluster, isSelected,
-                                             nClusters, rootCid, allowSingleCluster, clusterSelectionEpsilon, assignments);
+                                             nClusters, rootCid, allowSingleCluster, clusterSelectionEpsilon, assignments, probabilities);
 }
 
 } // namespace internal

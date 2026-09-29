@@ -548,12 +548,10 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 // Main HDBSCAN kd-tree compute
 // =========================================================================
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
-                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           algorithms::internal::PairwiseDistanceType pairwiseDistance,
-                                                                           double minkowskiDegree, int clusterSelection, bool allowSingleCluster,
-                                                                           double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
-                                                                           size_t leafSize)
+services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
+    const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities, size_t minClusterSize,
+    size_t minSamples, algorithms::internal::PairwiseDistanceType pairwiseDistance, double minkowskiDegree, int clusterSelection,
+    bool allowSingleCluster, double clusterSelectionEpsilon, size_t maxClusterSize, double alpha, size_t leafSize)
 {
     const size_t nRows = ntData->getNumberOfRows();
     const size_t nCols = ntData->getNumberOfColumns();
@@ -564,6 +562,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         DAAL_CHECK_BLOCK_STATUS(assignBlock);
         int * assignments = assignBlock.get();
         for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
+
+        WriteOnlyRows<algorithmFPType, cpu> probBlock;
+        algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
+        DAAL_CHECK_BLOCK_STATUS(probBlock);
+        if (probabilities)
+        {
+            for (size_t i = 0; i < nRows; i++) probabilities[i] = algorithmFPType(0);
+        }
+
         WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
         DAAL_CHECK_BLOCK_STATUS(ncBlock);
         ncBlock.get()[0] = 0;
@@ -683,8 +690,13 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_BLOCK_STATUS(assignBlock);
     int * assignments = assignBlock.get();
 
-    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize);
+    WriteOnlyRows<algorithmFPType, cpu> probBlock;
+    algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
+    DAAL_CHECK_BLOCK_STATUS(probBlock);
+
+    int labelCounter =
+        sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments, clusterSelection,
+                                                        allowSingleCluster, clusterSelectionEpsilon, maxClusterSize, probabilities);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);
