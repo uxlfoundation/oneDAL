@@ -256,8 +256,8 @@ def check_cmake_cmd(f, i, toks, s):
     for t in toks:
         if t.startswith("-D"):
             v = t[2:].split("=")[0]
-            hit = subprocess.run(["git", "-C", TREE, "grep", "-q", "-w", v, "--", "*.txt", "*.cmake", "*.in"]).returncode == 0
-            add(f, i, "cmake_var", v, "ok" if hit else "fail", "referenced in CMake sources", s)
+            hit = subprocess.run(["git", "-C", TREE, "grep", "-q", "-w", v, "--", "*.txt", "*.cmake", "*.in"])
+            add(f, i, "cmake_var", v, "ok" if hit.returncode == 0 else "fail", "referenced in CMake sources", s)
 
 
 def check_cmd(f, i, line):
