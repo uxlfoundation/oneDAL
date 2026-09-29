@@ -318,7 +318,11 @@ TEST("threader_for_blocked spans an iteration space wider than INT32_MAX", "[thr
     REQUIRE(blocks.size() > 1u);
 }
 
-TEST("threader_for reaches indices beyond INT32_MAX", "[threading][unit]")
+// Weekly scope: unlike the blocked case below, this one has to run the body once per index, so its
+// cost scales with 1/thread count. It is negligible on a many-core host and a few seconds on a
+// two-core runner. The default scope keeps the blocked case, which covers the same 64-bit boundary
+// arithmetic at the cost of a few hundred callbacks.
+TEST("threader_for reaches indices beyond INT32_MAX", "[threading][unit][weekly]")
 {
     const int64_t n = int64_t(std::numeric_limits<int32_t>::max()) + 3;
 
