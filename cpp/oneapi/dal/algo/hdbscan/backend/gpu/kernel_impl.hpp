@@ -221,6 +221,11 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
         });
     });
 
+    // `ksel_vals` is scratch owned by this function and the extraction above reads it. Freeing
+    // device USM is not a synchronizing operation, so returning here would let its destructor
+    // release the selected values out from under the running kernel.
+    extract_event.wait_and_throw();
+
     return extract_event;
 }
 

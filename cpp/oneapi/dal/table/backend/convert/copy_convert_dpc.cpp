@@ -205,6 +205,12 @@ sycl::event copy_convert(sycl::queue& queue,
         first = last;
     }
 
+    // The four device arrays above are scratch owned by this function, and every chunk kernel
+    // dereferences the pointers and strides they hold. Freeing device USM is not a synchronizing
+    // operation, so returning here would let their destructors release the descriptors out from
+    // under the running kernels. The `wait_and_throw(deps)` at the top only covers the inputs.
+    last_event.wait_and_throw();
+
     return last_event;
 }
 

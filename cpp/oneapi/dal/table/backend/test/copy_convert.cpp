@@ -99,6 +99,16 @@ public:
     constexpr static inline std::int64_t row_count = std::tuple_size_v<sources_t>;
     constexpr static inline auto result_type = detail::make_data_type<result_t>();
 
+    /// The device `copy_convert` stages the per-row pointers and strides in device scratch it owns
+    /// itself, so it must not hand back an event that is still in flight: `sycl::free` does not
+    /// synchronize, and those descriptors would be released from under the conversion kernels.
+    ///
+    /// @param[in] event The event returned by `copy_convert`.
+    void check_event_is_complete(const sycl::event& event) const {
+        const auto status = event.get_info<sycl::info::event::command_execution_status>();
+        REQUIRE(status == sycl::info::event_command_status::complete);
+    }
+
     void test_copy_convert_rm() {
         auto& queue = this->get_queue();
         auto host_policy = this->get_host_policy();
@@ -116,6 +126,8 @@ public:
                                   result_type,
                                   result,
                                   { this->col_count, 1l });
+
+        this->check_event_is_complete(event);
 
         sycl::event::wait_and_throw({ event });
 
@@ -144,6 +156,8 @@ public:
                                   result_type,
                                   result,
                                   { 1l, row_count });
+
+        this->check_event_is_complete(event);
 
         sycl::event::wait_and_throw({ event });
 
