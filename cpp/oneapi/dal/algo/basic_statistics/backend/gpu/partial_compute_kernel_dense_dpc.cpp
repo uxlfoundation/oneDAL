@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/partial_compute_kernel.hpp"
+#include "oneapi/dal/algo/basic_statistics/backend/gpu/partial_compute_kernel_misc.hpp"
 #include "oneapi/dal/algo/basic_statistics/backend/gpu/compute_kernel.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
@@ -39,110 +40,6 @@ using task_t = task::compute;
 using input_t = partial_compute_input<task_t>;
 using result_t = partial_compute_result<task_t>;
 using descriptor_t = detail::descriptor_base<task_t>;
-
-template <typename Float>
-auto update_partial_n_rows_results(sycl::queue& q,
-                                   const std::int64_t row_count,
-                                   const pr::ndview<Float, 1>& nobs,
-                                   const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(update_partial_n_rows_results, q);
-
-    auto result_nobs = pr::ndarray<Float, 1>::empty(q, 1, alloc::device);
-    auto result_nobs_ptr = result_nobs.get_mutable_data();
-    auto nobs_ptr = nobs.get_data();
-
-    auto nobs_update_event = q.submit([&](sycl::handler& cgh) {
-        const auto range = sycl::range(1);
-
-        cgh.depends_on(deps);
-        cgh.parallel_for(range, [=](sycl::item<1> id) {
-            result_nobs_ptr[0] = nobs_ptr[0] + row_count;
-        });
-    });
-
-    return std::make_tuple(result_nobs, nobs_update_event);
-}
-
-template <typename Float>
-auto update_min_max_results(sycl::queue& q,
-                            const pr::ndview<Float, 1>& min,
-                            const table current_min,
-                            const pr::ndview<Float, 1>& max,
-                            const table current_max,
-                            const std::int64_t column_count,
-                            const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(update_min_max_results, q);
-
-    auto result_min = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_max = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-
-    auto result_min_ptr = result_min.get_mutable_data();
-    auto result_max_ptr = result_max.get_mutable_data();
-
-    auto current_min_ptr =
-        pr::table2ndarray_1d<Float>(q, current_min, sycl::usm::alloc::device).get_data();
-    auto current_max_ptr =
-        pr::table2ndarray_1d<Float>(q, current_max, sycl::usm::alloc::device).get_data();
-
-    auto min_data = min.get_data();
-    auto max_data = max.get_data();
-
-    auto merge_min_max_event = q.submit([&](sycl::handler& cgh) {
-        const auto range = sycl::range<1>(column_count);
-
-        cgh.depends_on(deps);
-        cgh.parallel_for(range, [=](sycl::item<1> id) {
-            result_min_ptr[id] = sycl::fmin(current_min_ptr[id], min_data[id]);
-            result_max_ptr[id] = sycl::fmax(current_max_ptr[id], max_data[id]);
-        });
-    });
-    return std::make_tuple(result_min, result_max, merge_min_max_event);
-}
-
-template <typename Float>
-auto update_partial_sums(sycl::queue& q,
-                         const pr::ndview<Float, 1>& sums,
-                         const table current_sums,
-                         const pr::ndview<Float, 1>& sums2,
-                         const table current_sums2,
-                         const std::int64_t column_count,
-                         const pr::ndview<Float, 1>& nobs,
-                         const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(update_partial_results, q);
-
-    auto result_sums = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2 = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2cent = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-
-    auto result_sums_ptr = result_sums.get_mutable_data();
-    auto result_sums2_ptr = result_sums2.get_mutable_data();
-    auto result_sums2cent_ptr = result_sums2cent.get_mutable_data();
-
-    auto current_sums_ptr =
-        pr::table2ndarray_1d<Float>(q, current_sums, sycl::usm::alloc::device).get_data();
-    auto current_sums2_ptr =
-        pr::table2ndarray_1d<Float>(q, current_sums2, sycl::usm::alloc::device).get_data();
-
-    auto nobs_ptr = nobs.get_data();
-    auto sums_data = sums.get_data();
-    auto sums2_data = sums2.get_data();
-
-    auto update_sums_event = q.submit([&](sycl::handler& cgh) {
-        const auto range = sycl::range<1>(column_count);
-
-        cgh.depends_on(deps);
-        cgh.parallel_for(range, [=](sycl::item<1> id) {
-            result_sums_ptr[id] = current_sums_ptr[id] + sums_data[id];
-
-            result_sums2_ptr[id] = current_sums2_ptr[id] + sums2_data[id];
-            // These sums are centered across one node and able only from partial_result object.
-            // These sums are recomputed in the finalize_compute step.
-            result_sums2cent_ptr[id] =
-                result_sums2_ptr[id] - result_sums_ptr[id] * result_sums_ptr[id] / nobs_ptr[0];
-        });
-    });
-    return std::make_tuple(result_sums, result_sums2, result_sums2cent, update_sums_event);
-}
 
 template <typename Float, typename Task>
 static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
@@ -185,13 +82,18 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
         if (res_op.test(result_options::min) || res_op.test(result_options::max)) {
             const auto min_nd =
                 pr::table2ndarray_1d<Float>(q, input_.get_partial_min(), sycl::usm::alloc::device);
-            const auto max_nd = pr::table2ndarray_1d<Float>(q, input_.get_partial_max());
+            const auto max_nd =
+                pr::table2ndarray_1d<Float>(q, input_.get_partial_max(), sycl::usm::alloc::device);
+            const auto cur_min_nd =
+                pr::table2ndarray_1d<Float>(q, compute_result_.get_min(), sycl::usm::alloc::device);
+            const auto cur_max_nd =
+                pr::table2ndarray_1d<Float>(q, compute_result_.get_max(), sycl::usm::alloc::device);
             auto [result_min, result_max, update_min_max_event] =
                 update_min_max_results(q,
                                        min_nd,
-                                       compute_result_.get_min(),
+                                       cur_min_nd,
                                        max_nd,
-                                       compute_result_.get_max(),
+                                       cur_max_nd,
                                        column_count,
                                        { nobs_update_event });
 
@@ -212,12 +114,17 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             const auto sums2_nd = pr::table2ndarray_1d<Float>(q,
                                                               input_.get_partial_sum_squares(),
                                                               sycl::usm::alloc::device);
+            const auto cur_sums_nd =
+                pr::table2ndarray_1d<Float>(q, compute_result_.get_sum(), sycl::usm::alloc::device);
+            const auto cur_sums2_nd = pr::table2ndarray_1d<Float>(q,
+                                                                  compute_result_.get_sum_squares(),
+                                                                  sycl::usm::alloc::device);
             auto [result_sums, result_sums2, result_sums2cent, merge_sums_event] =
                 update_partial_sums(q,
                                     sums_nd,
-                                    compute_result_.get_sum(),
+                                    cur_sums_nd,
                                     sums2_nd,
-                                    compute_result_.get_sum_squares(),
+                                    cur_sums2_nd,
                                     column_count,
                                     result_nobs,
                                     { nobs_update_event });

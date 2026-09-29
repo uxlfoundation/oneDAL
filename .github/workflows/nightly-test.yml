@@ -138,8 +138,9 @@ jobs:
         with:
           script: |
             const headSha = context.payload.workflow_run?.head_sha || context.sha
-            const detailsUrl = context.payload.workflow_run?.html_url
-              || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            // `check_finish` narrows this to each job's page once the jobs exist.
+            const detailsUrl =
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             for (const [output, name] of [
               ['lnx_check_run_id', 'Nightly-test / oneDAL Linux Bazel test'],
               ['win_check_run_id', 'Nightly-test / oneDAL Windows Bazel test'],
@@ -355,6 +356,8 @@ jobs:
     if: always() && needs.check_start.result == 'success'
     permissions:
       checks: write
+      # Job list lookup for per-job "Details" links.
+      actions: read
     steps:
       - name: Report check runs (finish)
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -365,14 +368,33 @@ jobs:
           WIN_RESULT: ${{ needs.bazel_win.result }}
         with:
           script: |
-            const detailsUrl = context.payload.workflow_run?.html_url
-              || `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const runUrl =
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            // Map job `name:` values to their log pages for "Details" links.
+            const jobUrls = new Map()
+            try {
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: context.runId,
+                  per_page: 100,
+                },
+              )
+              for (const job of jobs) {
+                jobUrls.set(job.name, job.html_url)
+              }
+            } catch (error) {
+              // Fall back to the run URL; reporting conclusions matters more.
+              core.warning(`Could not resolve per-job URLs: ${error.message}`)
+            }
             // A job result the checks API accepts verbatim is passed through, so
             // a cancelled or skipped test job does not read as a failed check.
             const passThrough = new Set(['success', 'cancelled', 'skipped'])
-            for (const [idVar, resultVar] of [
-              ['LNX_CHECK_RUN_ID', 'LNX_RESULT'],
-              ['WIN_CHECK_RUN_ID', 'WIN_RESULT'],
+            for (const [idVar, resultVar, jobName] of [
+              ['LNX_CHECK_RUN_ID', 'LNX_RESULT', 'oneDAL Linux Bazel test'],
+              ['WIN_CHECK_RUN_ID', 'WIN_RESULT', 'oneDAL Windows Bazel test'],
             ]) {
               const checkRunId = Number(process.env[idVar])
               if (!checkRunId) continue
@@ -383,6 +405,6 @@ jobs:
                 check_run_id: checkRunId,
                 status: 'completed',
                 conclusion: passThrough.has(result) ? result : 'failure',
-                details_url: detailsUrl,
+                details_url: jobUrls.get(jobName) || runUrl,
               })
             }

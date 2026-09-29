@@ -27,7 +27,7 @@ on:
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
   TBB_VERSION: v2023.1.0
-  OPENBLAS_VERSION: v0.3.29
+  OPENBLAS_VERSION: v0.3.34
   OPENRNG_VERSION: 'v24.04'
 
 # Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844

@@ -195,7 +195,10 @@ public:
         float_t initial_centroids[] = { -10, -10, -10 };
         const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
 
-        float_t final_centroids[] = { -1.65, 10, 9.5 };
+        // With the source-cluster correction applied by every rank after the allgather (see
+        // `correct_source_clusters` in empty_cluster_handling.hpp), the distributed path now
+        // converges to the same centroids as the single-rank batch fixture.
+        float_t final_centroids[] = { -4.5, 10, 9.5 };
         const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
 
         float_t responses[] = { 0, 0, 0, 0, 0, 0, 0, 2, 2, 1 };
