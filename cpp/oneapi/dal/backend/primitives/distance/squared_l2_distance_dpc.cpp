@@ -52,8 +52,19 @@ sycl::event distance<Float, squared_l2_metric<Float>>::operator()(
     const event_vector& deps) const {
     auto [norms1_array, norms1_event] = get_norms(inp1, deps);
     auto [norms2_array, norms2_event] = get_norms(inp2, deps);
-    return this
-        ->operator()(inp1, inp2, out, norms1_array, norms2_array, { norms1_event, norms2_event });
+    auto last_event = this->operator()(inp1,
+                                       inp2,
+                                       out,
+                                       norms1_array,
+                                       norms2_array,
+                                       { norms1_event, norms2_event });
+
+    // The norm arrays are owned by this overload, and freeing device USM is not a synchronizing
+    // operation: returning while `scatter_2d` still reads them would let the array destructors
+    // free memory out from under the running kernel.
+    last_event.wait_and_throw();
+
+    return last_event;
 }
 
 #define INSTANTIATE(F, A, B)                                                                       \

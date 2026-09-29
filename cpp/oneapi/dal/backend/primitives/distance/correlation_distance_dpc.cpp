@@ -80,12 +80,20 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
         get_inversed_norms(centered_inp1, { comp_dev1_event });
     auto [inv_norms2_array, inv_norms2_event] =
         get_inversed_norms(centered_inp2, { comp_dev2_event });
-    return this->operator()(centered_inp1,
-                            centered_inp2,
-                            out,
-                            inv_norms1_array,
-                            inv_norms2_array,
-                            { inv_norms1_event, inv_norms2_event });
+    auto last_event = this->operator()(centered_inp1,
+                                       centered_inp2,
+                                       out,
+                                       inv_norms1_array,
+                                       inv_norms2_array,
+                                       { inv_norms1_event, inv_norms2_event });
+
+    // The centered copies of the inputs and the inversed-norm arrays are all owned by this
+    // overload, and freeing device USM is not a synchronizing operation: returning while the
+    // inner product and the cosine finalize still read them would let the array destructors
+    // free memory out from under the running kernels.
+    last_event.wait_and_throw();
+
+    return last_event;
 }
 
 #define INSTANTIATE(F, A, B)                                                                    \
