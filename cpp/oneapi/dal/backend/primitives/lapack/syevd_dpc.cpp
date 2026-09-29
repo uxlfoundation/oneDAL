@@ -62,16 +62,23 @@ sycl::event syevd(sycl::queue& queue,
     auto scratchpad =
         ndarray<Float, 1>::empty(queue, { scratchpad_size }, sycl::usm::alloc::device);
 
-    return syevd_wrapper(queue,
-                         job,
-                         ul,
-                         column_count,
-                         a.get_mutable_data(),
-                         lda,
-                         eigenvalues.get_mutable_data(),
-                         scratchpad.get_mutable_data(),
-                         scratchpad_size,
-                         deps);
+    auto syevd_event = syevd_wrapper(queue,
+                                     job,
+                                     ul,
+                                     column_count,
+                                     a.get_mutable_data(),
+                                     lda,
+                                     eigenvalues.get_mutable_data(),
+                                     scratchpad.get_mutable_data(),
+                                     scratchpad_size,
+                                     deps);
+
+    // The scratchpad is owned by this function and LAPACK keeps writing to it for the whole
+    // decomposition. Freeing device USM is not a synchronizing operation, so returning here would
+    // let `scratchpad`'s destructor release the buffer out from under the running kernels.
+    syevd_event.wait_and_throw();
+
+    return syevd_event;
 }
 
 #define INSTANTIATE(jobz, uplo, F)                                               \

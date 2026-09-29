@@ -142,6 +142,7 @@ sycl::event solve_spectral_decomposition(
 
     /// Now calculate the actual solution: Qis * Qis' * B
     const std::int64_t eigenvectors_offset = num_discarded * dim_A;
+    sycl::event last_event;
     if (nrhs == 1) {
         auto ev_mutable_vec_view = ndview<Float, 1>::wrap(ev_mutable, num_taken);
         auto b_mutable_vec_view = ndview<Float, 1>::wrap(b.get_mutable_data(), dim_A);
@@ -154,14 +155,14 @@ sycl::event solve_spectral_decomposition(
                  Float(1),
                  Float(0),
                  { inv_sqrt_eigenvectors_event, event_b });
-        return gemv(queue,
-                    ndview<Float, 2, ndorder::f>::wrap(Q_mutable + eigenvectors_offset,
-                                                       ndshape<2>(dim_A, num_taken)),
-                    ev_mutable_vec_view,
-                    b_mutable_vec_view,
-                    Float(1),
-                    Float(0),
-                    { gemv_right_event });
+        last_event = gemv(queue,
+                          ndview<Float, 2, ndorder::f>::wrap(Q_mutable + eigenvectors_offset,
+                                                             ndshape<2>(dim_A, num_taken)),
+                          ev_mutable_vec_view,
+                          b_mutable_vec_view,
+                          Float(1),
+                          Float(0),
+                          { gemv_right_event });
     }
 
     else {
@@ -178,15 +179,23 @@ sycl::event solve_spectral_decomposition(
                  Float(1),
                  Float(0),
                  { inv_sqrt_eigenvectors_event, event_b });
-        return gemm(queue,
-                    ev_mutable_mat_view,
-                    ndview<Float, 2, ndorder::c>::wrap(Q_mutable + eigenvectors_offset,
-                                                       ndshape<2>(num_taken, dim_A)),
-                    b_mutable_mat_view,
-                    Float(1),
-                    Float(0),
-                    { gemm_right_event });
+        last_event = gemm(queue,
+                          ev_mutable_mat_view,
+                          ndview<Float, 2, ndorder::c>::wrap(Q_mutable + eigenvectors_offset,
+                                                             ndshape<2>(num_taken, dim_A)),
+                          b_mutable_mat_view,
+                          Float(1),
+                          Float(0),
+                          { gemm_right_event });
     }
+
+    /// `eigenvalues` is scratch owned by this function -- it also backs `ev_mutable`, which is the
+    /// intermediate buffer of the two-step solve above. Freeing device USM is not a synchronizing
+    /// operation, so returning here would let its destructor release the buffer out from under the
+    /// running BLAS kernel.
+    last_event.wait_and_throw();
+
+    return last_event;
 }
 
 /// Returns the minimum value among entries in the diagonal of a square matrix
@@ -275,7 +284,15 @@ sycl::event solve_system(sycl::queue& queue,
         solution_event = solve_with_fallback<uplo>(queue, xtx, xty, nxtx, nxty, dependencies);
     }
 
-    return beta_copy_transform<beta>(queue, nxty, final_xty, { solution_event });
+    auto transform_event = beta_copy_transform<beta>(queue, nxty, final_xty, { solution_event });
+
+    /// `nxty` holds the solution and is owned by this function, and the transform above reads it.
+    /// Freeing device USM is not a synchronizing operation, so returning here would let `nxty`'s
+    /// destructor release the solution out from under the running kernel. The
+    /// `queue.wait_and_throw()` in the `try` block above only covers the factorization.
+    transform_event.wait_and_throw();
+
+    return transform_event;
 }
 
 #define INSTANTIATE(U, B, F, XL, YL)                                 \
