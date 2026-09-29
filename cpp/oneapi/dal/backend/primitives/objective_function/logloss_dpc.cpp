@@ -248,6 +248,13 @@ sycl::event compute_logloss_with_der_sparse(sycl::queue& q,
                           Float(0),
                           { loss_event, derw0_event });
     }
+
+    // `derivative_object` is scratch owned by this function and the sparse `gemv` above reads it.
+    // Freeing device USM is not a synchronizing operation, so returning here would let its
+    // destructor release the buffer out from under the running kernel -- same reason the dense
+    // `compute_logloss_with_der` below waits on `der_event`.
+    gemv_event.wait_and_throw();
+
     return gemv_event;
 }
 
@@ -437,12 +444,19 @@ sycl::event add_regularization_loss(sycl::queue& q,
             sum += L1 * sycl::fabs(param) + L2 * param * param;
         });
     });
-    return q.submit([&](sycl::handler& cgh) {
+    auto accumulate_event = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on({ reg_event });
         cgh.single_task([=] {
             *out_ptr += *reg_ptr;
         });
     });
+
+    // `out_reg` is scratch owned by this function and the accumulating task above reads it.
+    // Freeing device USM is not a synchronizing operation, so returning here would let its
+    // destructor release the buffer out from under the running task.
+    accumulate_event.wait_and_throw();
+
+    return accumulate_event;
 }
 
 template <typename Float>
@@ -478,12 +492,19 @@ sycl::event add_regularization_gradient_loss(sycl::queue& q,
         });
     });
 
-    return q.submit([&](sycl::handler& cgh) {
+    auto accumulate_event = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on({ reg_event });
         cgh.single_task([=] {
             *out_ptr += *reg_ptr;
         });
     });
+
+    // `reg_val` is scratch owned by this function and the accumulating task above reads it.
+    // Freeing device USM is not a synchronizing operation, so returning here would let its
+    // destructor release the buffer out from under the running task.
+    accumulate_event.wait_and_throw();
+
+    return accumulate_event;
 }
 
 template <typename Float>

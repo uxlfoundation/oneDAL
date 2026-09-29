@@ -254,6 +254,14 @@ public:
                                                                 L2,
                                                                 fit_intercept,
                                                                 { logloss_event });
+
+        // `add_regularization_loss` accumulates through scratch it owns itself, so it must not
+        // hand back an event that is still in flight: `sycl::free` does not synchronize, and the
+        // scratch would be released from under the accumulating task.
+        REQUIRE(
+            logloss_reg_event.template get_info<sycl::info::event::command_execution_status>() ==
+            sycl::info::event_command_status::complete);
+
         logloss_reg_event.wait_and_throw();
 
         const float_t val_logloss1 = out_logloss.to_host(this->get_queue(), {}).at(0);
@@ -278,6 +286,12 @@ public:
                                                                             L2,
                                                                             fit_intercept,
                                                                             { logloss_event_der });
+
+        // Same contract for the gradient-and-loss variant.
+        REQUIRE(regul_logloss_and_der_event
+                    .template get_info<sycl::info::event::command_execution_status>() ==
+                sycl::info::event_command_status::complete);
+
         regul_logloss_and_der_event.wait_and_throw();
         auto out_derivative_host = out_derivative.to_host(this->get_queue());
 
