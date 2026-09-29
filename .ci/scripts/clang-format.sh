@@ -23,6 +23,9 @@
 
 RETURN_CODE=0
 
+# Major version of clang-format used in CI. Other versions may format the code differently.
+REQUIRED_CLANG_FORMAT_MAJOR=20
+
 # The first argument, if given, is the clang-format executable to use.
 CLANG_FORMAT_CANDIDATES=("$1" "${CLANG_FORMAT_EXE}" clang-format-20 clang-format)
 
@@ -33,13 +36,18 @@ STAGED_FILES=("$@")
 
 CLANG_FORMAT_EXE=
 for candidate in "${CLANG_FORMAT_CANDIDATES[@]}"; do
-    if [ -n "${candidate}" ] && "${candidate}" --version > /dev/null 2>&1; then
+    [ -n "${candidate}" ] || continue
+    candidate_major=$("${candidate}" --version 2> /dev/null | grep -oP 'version \K[0-9]+' | head -n 1)
+    if [ "${candidate_major}" = "${REQUIRED_CLANG_FORMAT_MAJOR}" ]; then
         CLANG_FORMAT_EXE="${candidate}"
         break
+    elif [ -n "${candidate_major}" ]; then
+        echo "Skipping ${candidate}: version ${candidate_major} found, version ${REQUIRED_CLANG_FORMAT_MAJOR} required."
     fi
 done
 if [ -z "${CLANG_FORMAT_EXE}" ]; then
-    echo "clang-format not found or not working properly."
+    echo "clang-format version ${REQUIRED_CLANG_FORMAT_MAJOR} not found or not working properly."
+    echo "Install clang-format-${REQUIRED_CLANG_FORMAT_MAJOR} or set CLANG_FORMAT_EXE to its path."
     exit 1
 fi
 
@@ -66,7 +74,11 @@ if [ ${#STAGED_FILES[@]} -gt 0 ]; then
         [ ${in_sources_path} -eq 1 ] || continue
 
         hash_before=$(git hash-object "${filename}")
-        ${CLANG_FORMAT_EXE} -style=file -i "${filename}"
+        if ! "${CLANG_FORMAT_EXE}" -style=file -i "${filename}"; then
+            echo "clang-format failed for ${filename}"
+            RETURN_CODE=1
+            continue
+        fi
         hash_after=$(git hash-object "${filename}")
 
         if [ "${hash_before}" != "${hash_after}" ]; then
@@ -79,7 +91,7 @@ if [ ${#STAGED_FILES[@]} -gt 0 ]; then
         printf '    %s\n' "${NOT_FORMATTED_FILES[@]}"
         echo "The files were reformatted in place. Review the changes and stage them with 'git add'."
         RETURN_CODE=3
-    else
+    elif [ ${RETURN_CODE} -eq 0 ]; then
         echo "Clang-format check PASSED! Not formatted files not found..."
     fi
 
