@@ -213,6 +213,13 @@ public:
         float_t conv_tol = sizeof(float_t) == 4 ? 1e-7 : 1e-14;
         auto [opt_event, num_iter, inner_iter] =
             newton_cg(this->get_queue(), *func_, x, conv_tol, 100, 200l, { x_event });
+
+        // `newton_cg` writes the solution through a slice of scratch it owns itself, so it must
+        // not hand back an event that is still in flight: `sycl::free` does not synchronize, and
+        // the scratch would be released from under the final copy.
+        REQUIRE(opt_event.template get_info<sycl::info::event::command_execution_status>() ==
+                sycl::info::event_command_status::complete);
+
         opt_event.wait_and_throw();
         auto x_host = x.to_host(this->get_queue());
 

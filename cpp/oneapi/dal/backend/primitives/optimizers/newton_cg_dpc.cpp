@@ -138,6 +138,13 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
         last = copy(queue, x, buffer2, {});
         last_iter_deps = { last };
     }
+
+    // `buffer2` is a slice of `buffer`, which this function owns, and the copy above reads it.
+    // Freeing device USM is not a synchronizing operation, so returning here would let `buffer`'s
+    // destructor release the updated solution out from under the running copy. The early returns
+    // above are already safe: they hand back `last_event`, which the inner loop waits on.
+    last.wait_and_throw();
+
     return make_tuple(last, cur_iter_id, inner_iter_sum);
 }
 
