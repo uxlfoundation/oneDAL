@@ -65,10 +65,59 @@ if ! command -v nm >/dev/null 2>&1; then
     exit 1
 fi
 
-# Namespaces that oneDAL does not treat as part of the public ABI. Kept in
-# sync with the [suppress_*] entries of .github/.abignore so that this report
-# and abidiff agree on what "public" means; update both together.
-internal_sym_re='_Z+.*4daal[[:digit:]].*8internal[[:digit:]].*|_Z+N6oneapi3dal[[:digit:]].*(7backend|6detail|7preview)[[:digit:]].*'
+# Namespaces that oneDAL does not treat as part of the public ABI. Derived from
+# .github/.abignore rather than restated here, so this report and abidiff cannot
+# drift apart on what "public" means: the suppression file is the single source.
+#
+# Only unconditional suppressions are taken, i.e. [suppress_{type,variable,
+# function}] stanzas that say 'drop = yes' and carry no 'change_kind'. A stanza
+# with a 'change_kind' says "this kind of change to these symbols is allowed",
+# not "these symbols are internal" -- the added-{type,variable,function} block
+# at the end of .abignore covers every oneapi::dal symbol, so honouring it here
+# would filter the entire public surface away and the report would go blind.
+#
+# libabigail's symbol_name_regexp is POSIX ERE, the same dialect awk matches
+# with, so the patterns transfer verbatim.
+abignore=.github/.abignore
+if [ ! -f "$abignore" ]; then
+    echo "::error:: ${abignore} not found (required to know which namespaces are internal)"
+    exit 1
+fi
+
+internal_sym_re=$(awk '
+    function flush() {
+        if (suppress && drop == "yes" && change_kind == "" && re != "" && !(re in seen))
+        {
+            seen[re] = 1
+            out = (out == "" ? re : out "|" re)
+        }
+        suppress = 0; drop = ""; change_kind = ""; re = ""
+    }
+    { sub(/^[[:space:]]+/, ""); sub(/[[:space:]]+$/, "") }
+    /^;/ || /^$/ { next }
+    /^\[/ {
+        flush()
+        suppress = ($0 ~ /^\[suppress_(type|variable|function)\][[:space:]]*$/)
+        next
+    }
+    {
+        key = $0; sub(/[[:space:]]*=.*$/, "", key)
+        val = $0; sub(/^[^=]*=[[:space:]]*/, "", val)
+        if (key == "symbol_name_regexp") re = val
+        else if (key == "drop") drop = val
+        else if (key == "change_kind") change_kind = val
+    }
+    END { flush(); print out }
+' "$abignore")
+
+# An empty set would classify every symbol as public-and-unchanged-looking in
+# one direction and swallow the whole surface in the other, so refuse to run a
+# report whose notion of "internal" came out empty.
+if [ -z "$internal_sym_re" ]; then
+    echo "::error:: no unconditional [suppress_*] entries parsed from ${abignore}"
+    exit 1
+fi
+echo "internal-namespace filter from ${abignore}: ${internal_sym_re}"
 
 public_syms () {
     # Sorted, unique names of the defined external dynamic symbols of $1,
