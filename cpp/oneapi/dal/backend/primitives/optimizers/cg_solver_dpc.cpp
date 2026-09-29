@@ -84,7 +84,6 @@ std::pair<sycl::event, std::int64_t> cg_solve(sycl::queue& queue,
                                            Float(0),
                                            conj_vector,
                                            { compute_r0_event }); // p0 = -r0 + 0 * p
-    auto conj_host = conj_vector.to_host(queue, {});
     dot_product<Float>(queue, residual, residual, tmp_ptr, &r_norm, { compute_r0_event })
         .wait_and_throw(); // compute r^T r
 
