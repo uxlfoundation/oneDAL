@@ -36,7 +36,14 @@ inline sycl::event sort_inplace(sycl::queue& queue_,
                                 const bk::event_vector& deps = {}) {
     ONEDAL_ASSERT(src.get_count() > 0);
     auto src_ind = pr::ndarray<Index, 1>::empty(queue_, { src.get_count() });
-    return pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_, src, src_ind, deps);
+    auto sort_event = pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_, src, src_ind, deps);
+
+    // `src_ind` is the index scratch owned by this function and the sort keeps permuting it.
+    // Freeing device USM is not a synchronizing operation, so returning here would let its
+    // destructor release the buffer out from under the running sort.
+    sort_event.wait_and_throw();
+
+    return sort_event;
 }
 
 template <typename Float, typename Bin, typename Index>
