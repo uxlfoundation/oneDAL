@@ -281,6 +281,25 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQPROFILE=yes
 
+- To build the DPC++ device code against [oneMath](https://github.com/uxlfoundation/oneMath) instead of oneMKL, so that it can run on NVIDIA GPUs, add `DPC_MATH_BACKEND=onemath`:
+
+    _Note: experimental, and Linux x86-64 only. Only the BLAS and LAPACK domains build against oneMath today; the RNG and sparse BLAS primitives do not, so this does not yet build the library as a whole. See the "NVIDIA GPUs through oneMath" section of [the Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for the detail and for the oneMath cmake recipe._
+
+    - Point `ONEMATHROOT` at a oneMath install built with the backends you need, and keep its `lib` directory on `LD_LIBRARY_PATH`:
+
+            export ONEMATHROOT=/path/to/onemath
+            export LD_LIBRARY_PATH="${ONEMATHROOT}/lib:${LD_LIBRARY_PATH}"
+
+    - Ask the compiler for an NVPTX device target. `ONEDAL_SYCL_TARGETS` is passed to both the DPC++ compile and link as `-fsycl-targets=`; leaving it unset keeps the compiler's default (Intel SPIR-V), which is useful for checking the build without NVIDIA hardware:
+
+            export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
+
+    - Run `make` to build oneDAL:
+
+            make -f makefile oneapi_dpc PLAT=lnx32e DPC_MATH_BACKEND=onemath
+
+    `DPC_MATH_BACKEND` is independent of `BACKEND_CONFIG`, which selects the *host* math library: a build can use oneMKL on the CPU and oneMath on the GPU. Intermediate objects go to `__work_onemath` rather than `__work`, so switching back and forth does not need a `clean`.
+
 ---
 **NOTE:** Built libraries are located in the `__release_{os_name}[_{compiler_name}]/daal` directory.
 

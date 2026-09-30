@@ -205,11 +205,25 @@ USECPUS.out.defs.filter := $(if $(USECPUS.out.defs),sed $(sed.-b) $(sed.-i) -E -
 DAALTHRS ?= tbb
 DAALAY   ?= a y
 
+# Math library behind the DPC++ device primitives, chosen independently of
+# BACKEND_CONFIG: that one names the host math library, which a DPC++ build keeps
+# using on the CPU side either way. Defined here rather than next to the rest of
+# the math backend handling because WORKDIR below is keyed on it.
+DPC_MATH_BACKEND ?= mkl
+$(if $(filter $(DPC_MATH_BACKEND),mkl onemath),,$(error unknown dpc math backend $(DPC_MATH_BACKEND)))
+
+# A non-default device math backend gets its own working directory. The
+# incremental build only re-examines a command line when a makefile is newer than
+# the object, so sharing one directory would otherwise mix objects compiled
+# against two different math libraries and fail at link. The default path keeps
+# the directory name it has always had.
+WORKDIR.dpc_math_suffix := $(if $(filter-out mkl,$(DPC_MATH_BACKEND)),_$(DPC_MATH_BACKEND))
+
 DIR:=.
 CPPDIR:=$(DIR)/cpp
 CPPDIR.daal:=$(CPPDIR)/daal
 CPPDIR.onedal:=$(CPPDIR)/oneapi/dal
-WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
+WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))$(WORKDIR.dpc_math_suffix)/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
 RELEASEDIR ?= $(DIR)/__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 RELEASEDIR.daal        := $(RELEASEDIR)/daal/latest
 RELEASEDIR.data        := $(RELEASEDIR.daal)/data
@@ -305,6 +319,14 @@ ifeq ($(BACKEND_CONFIG), mkl)
 endif
 
 include dev/make/deps.$(BACKEND_CONFIG).mk
+
+# Device-side math library (DPC_MATH_BACKEND, validated near WORKDIR above).
+# `mkl` needs no file of its own, because the device link line for oneMKL is
+# already part of deps.mkl.mk; only a device backend that differs from the host
+# one has something to add.
+ifneq ($(DPC_MATH_BACKEND), mkl)
+    include dev/make/deps.dpc.$(DPC_MATH_BACKEND).mk
+endif
 
 #=============================== VTune SDK folders ======================================
 
@@ -722,6 +744,7 @@ $(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP)
                               -DDAAL_NOTHROW_EXCEPTIONS \
                               -DDAAL_HIDE_DEPRECATED \
                               -DONEDAL_DATA_PARALLEL \
+                              $(daaldep.math_backend.dpc_defines) \
                               -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                               $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG) \
                               -D__ONEDAL_ENABLE_EXPORT__ \
@@ -1147,6 +1170,17 @@ Flags:
       assertions and adds debug symbols. Any value will enable debug mode,
       except value "symbols" which will only add debug symbols.
       special value: symbols
+  DPC_MATH_BACKEND - math library behind the DPC++ device primitives, chosen
+      independently of BACKEND_CONFIG (which names the host one)
+      mkl     - oneMKL, Intel GPUs [default]
+      onemath - oneMath, which also dispatches to cuBLAS/cuSOLVER/cuSPARSE/
+                cuRAND and so runs the device code on NVIDIA GPUs. Experimental:
+                only the BLAS and LAPACK domains build against it. Requires
+                ONEMATHROOT, and PLAT=lnx32e. Combine with
+                ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda to build for NVPTX.
+      See the "NVIDIA GPUs through oneMath" section of dev/bazel/README.md.
+  ONEDAL_SYCL_TARGETS - value for the compiler's -fsycl-targets, applied to both
+      the DPC++ compile and link. Empty leaves the compiler at its default target
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
   STDALLOC - flag that makes the library use stdlib allocators instead of
              MKL's (default: no)

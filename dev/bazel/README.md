@@ -841,7 +841,7 @@ Which library is used is decided by `--dpc_math_backend`:
 
 | Value               | Library | Device support                       |
 |---------------------|---------|--------------------------------------|
-| `mkl` _(default)_   | oneMKL  | Intel GPUs. What Make builds.        |
+| `mkl` _(default)_   | oneMKL  | Intel GPUs                           |
 | `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs, BLAS and LAPACK only |
 
 This is orthogonal to `--backend_config`, which selects the *host* math library
@@ -874,10 +874,12 @@ Two things have to be provided:
    backend libraries next to it are loaded by the dispatcher.
 
 2. **An NVPTX target for the compiler.** `ONEDAL_SYCL_TARGETS` is appended to
-   both the DPC++ compile and link actions as `-fsycl-targets=`. It is an
-   environment variable rather than a build flag because the DPC++ flag sets are
-   baked in when the toolchain repository is configured, before build flags are
-   visible; changing it refetches the toolchain.
+   both the DPC++ compile and link actions as `-fsycl-targets=`; device code is
+   produced at both, so it has to reach both. Under Bazel it is an environment
+   variable rather than a build flag because the DPC++ flag sets are baked in
+   when the toolchain repository is configured, before build flags are visible;
+   changing it refetches the toolchain. Make reads the same variable, and takes
+   it as a make variable too.
 
    ```sh
    export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
@@ -886,8 +888,25 @@ Two things have to be provided:
 
 `--config=nvidia-gpu` is shorthand for `--dpc_math_backend=onemath`.
 
-What builds today, measured against oneMath built from source at commit
-`3273ca2` with the `mklcpu` and `mklgpu` backends:
+The Make build has the same switch, spelled `DPC_MATH_BACKEND` and reading the
+same two environment variables:
+
+```sh
+export ONEMATHROOT=/path/to/onemath
+export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
+make -f makefile oneapi_dpc PLAT=lnx32e DPC_MATH_BACKEND=onemath
+```
+
+`DPC_MATH_BACKEND` is independent of `BACKEND_CONFIG` there too, and the
+non-default value gets its own `__work_onemath` directory: the incremental build
+only re-examines a command line when a makefile is newer than the object, so a
+shared working directory would mix objects compiled against two different math
+libraries. `$ONEMATHROOT/lib` has to be on `LD_LIBRARY_PATH` at run time, in the
+same way a oneMKL build needs oneMKL's. Only `PLAT=lnx32e` is wired up; anything
+else is rejected rather than linked against a guessed library name.
+
+What builds today, measured through both build systems against oneMath built
+from source at commit `3273ca2` with the `mklcpu` and `mklgpu` backends:
 
 | domain | status |
 |---|---|
@@ -914,15 +933,11 @@ configuration alone:
   that satisfies both and the layer needs a per-backend implementation.
 
 Consequently only algorithms that stay within BLAS and LAPACK can run on this
-configuration, and `--dpc_math_backend=onemath` does not yet build the library
-as a whole.
+configuration, and neither `--dpc_math_backend=onemath` nor
+`DPC_MATH_BACKEND=onemath` yet builds the library as a whole.
 
 Other known limitations:
 
-- Make does not build this configuration; `--dpc_math_backend` is Bazel-only.
-  Adding it to Make means a `dev/make/deps.onemath.mk` plus
-  `compiler_definitions/*.onemath.*.mk`, which the DPC++ Make path would need to
-  learn to select independently of `BACKEND_CONFIG`.
 - Not covered by CI, and no NVIDIA hardware is validated. The oneMath side was
   exercised with the `mklgpu` backend on an Intel GPU, which checks the
   interface but none of the CUDA code paths.
