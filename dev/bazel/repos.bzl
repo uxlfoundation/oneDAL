@@ -154,9 +154,29 @@ def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mappi
     present = []
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
-        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
-        if repo_ctx.path(src_entry_path).exists:
-            present.append(entry)
+        if "*" in entry_fmt:
+            # `exists` on a pattern is always false, so a globbed entry has to be
+            # resolved to the concrete names before the presence test -- without
+            # this, a pattern is silently dropped even when the package ships
+            # files matching it. Resolved here rather than handed to
+            # `_create_symlinks`, which fails an unmatched pattern by design.
+            pattern = entry_fmt.split("/")[-1]
+            dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
+            root_with_dir = utils.substitute(
+                paths.join(root, dir_part) if dir_part else root,
+                mapping
+            )
+            dir_path = repo_ctx.path(root_with_dir)
+            if not dir_path.exists:
+                continue
+            for fs_entry in dir_path.readdir():
+                if _matches_glob(fs_entry.basename, pattern):
+                    present.append(paths.join(dir_part, fs_entry.basename)
+                                   if dir_part else fs_entry.basename)
+        else:
+            src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
+            if repo_ctx.path(src_entry_path).exists:
+                present.append(entry)
     _create_symlinks(repo_ctx, root, present, substitutions, mapping)
 
 def _matches_glob(name, pattern):

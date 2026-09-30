@@ -163,10 +163,17 @@ build:release-dpc \
 #   export ONEMATHROOT=/path/to/onemath
 #   export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
 #   bazel test --config=nvidia-gpu //cpp/oneapi/dal/backend/primitives/blas:tests
+#
+# The test lane also forwards LD_LIBRARY_PATH. oneMath's dispatcher `dlopen`s its
+# per-domain backends through a `$ORIGIN` RUNPATH, and under Bazel `$ORIGIN` is
+# the `_solib` directory the dispatcher is staged into rather than the oneMath
+# install, so without a search path every test aborts with
+# `oneapi::math::backend_not_found`. Put $ONEMATHROOT/lib on LD_LIBRARY_PATH.
 build:nvidia-gpu \
     --dpc_math_backend=onemath
 test:nvidia-gpu \
-    --dpc_math_backend=onemath
+    --dpc_math_backend=onemath \
+    --test_env=LD_LIBRARY_PATH
 
 # Configuration: 'dev'
 # Fast local development build — compiles only for the host machine's

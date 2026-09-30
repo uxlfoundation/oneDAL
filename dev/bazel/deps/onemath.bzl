@@ -32,21 +32,29 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # staged as optional libraries: they must sit next to `libonemath.so` at run
 # time but are never link inputs, and which of them exist depends on how
 # oneMath was configured.
+#
+# Every pattern is globbed the way `mkl.bzl` globs its shared objects, because
+# oneMath installs `libonemath.so` as a symlink to the SONAME'd
+# `libonemath.so.<abi>`. Staging only the symlink links fine -- `ld` follows it
+# -- but records a `DT_NEEDED` on the SONAME that is then absent from the test
+# runfiles, and every binary dies at startup with `libonemath.so.0: cannot open
+# shared object file`. Bazel treats the versioned file as a runtime-only input,
+# so naming both is exactly what is wanted.
 onemath_repo = repos.prebuilt_libs_repo_rule(
     includes = [
         "include",
     ],
     libs = [
-        "lib/libonemath.so",
+        "lib/libonemath.so*",
     ],
     optional_libs = [
-        "lib/libonemath_blas_cublas.so",
-        "lib/libonemath_lapack_cusolver.so",
-        "lib/libonemath_rng_curand.so",
-        "lib/libonemath_sparse_blas_cusparse.so",
-        "lib/libonemath_blas_mklgpu.so",
-        "lib/libonemath_lapack_mklgpu.so",
-        "lib/libonemath_rng_mklgpu.so",
+        "lib/libonemath_blas_cublas.so*",
+        "lib/libonemath_lapack_cusolver.so*",
+        "lib/libonemath_rng_curand.so*",
+        "lib/libonemath_sparse_blas_cusparse.so*",
+        "lib/libonemath_blas_mklgpu.so*",
+        "lib/libonemath_lapack_mklgpu.so*",
+        "lib/libonemath_rng_mklgpu.so*",
     ],
     build_template = "@onedal//dev/bazel/deps:onemath.tpl.BUILD",
 )

@@ -170,7 +170,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=[ "c++", "dpc++" ],
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
-             use_onedal_release_libs=True, **kwargs):
+             use_onedal_release_libs=True, target_compatible_with=None, **kwargs):
     # TODO: Check `compile_as` parameter
     # TODO: Refactor this rule once decision on the tests structure is made
     if not framework in ["catch2", "none"]:
@@ -226,6 +226,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["host", iface_access_tag],
             args = test_args,
+            target_compatible_with = target_compatible_with,
         )
         tests_for_test_suite.append(name + "_host")
     if "dpc++" in compile_as:
@@ -241,6 +242,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["dpc", iface_access_tag],
             args = test_args,
+            target_compatible_with = target_compatible_with,
         )
         tests_for_test_suite.append(name + "_dpc")
     native.test_suite(

@@ -35,8 +35,17 @@ namespace oneapi::dal::kmeans::test {
 namespace te = dal::test::engine;
 namespace la = dal::test::engine::linalg;
 
+// `lloyd_csr` on the device goes through the sparse BLAS primitives, which the
+// oneMath backend does not provide -- see `te::device_sparse_blas_supported()`.
+// The method is dropped from the mixed list rather than skipped case by case;
+// the CSR-only cases below carry a `SKIP_IF` instead, because a
+// `COMBINE_TYPES` list cannot be empty.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using kmeans_types = COMBINE_TYPES((float, double), (kmeans::method::lloyd_dense));
+#else
 using kmeans_types = COMBINE_TYPES((float, double),
                                    (kmeans::method::lloyd_dense, kmeans::method::lloyd_csr));
+#endif
 
 using kmeans_types_csr = COMBINE_TYPES((float, double), (kmeans::method::lloyd_csr));
 
