@@ -36,6 +36,13 @@ pr:
     exclude:
     - docs
     - .ci/pipeline/docs.yml
+    # Changes that cannot affect the library build or tests.
+    # Only PR builds are filtered; pushes to main keep the trigger above.
+    - '**/*.md'
+    - dev/agent_evals
+    - conda-recipe
+    - .github
+    - third-party-programs.txt
 
 variables:
   OPENBLAS_VERSION : 'v0.3.34'
