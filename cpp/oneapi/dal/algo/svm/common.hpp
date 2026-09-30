@@ -483,8 +483,9 @@ public:
     /// per class. Required for restoring a multi-class one-vs-one model
     /// through public setters: support vectors and coefficients in the
     /// aggregated model are stored in row-blocks grouped by class in the
-    /// same order as this table. Used with :expr:`task::classification`
-    /// and :expr:`task::nu_classification`.
+    /// same order as this table. Every count must be at least one and they
+    /// must sum to the row count of :expr:`support_vectors`. Used with
+    /// :expr:`task::classification` and :expr:`task::nu_classification`.
     /// @remark default = table{}
     template <typename T = Task, typename = detail::enable_if_classification_t<T>>
     const table &get_n_support_per_class() const {
