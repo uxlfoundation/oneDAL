@@ -22,6 +22,7 @@ import re
 def parse_trace(rd):
     res, tools, bazel_cmds, make_cmds, read_files = None, 0, [], [], []
     build_ids, build_fail, icpx_hit = set(), 0, False
+    agents_md_loader = None  # unknown until the init event is seen
     p = rd / "trace.jsonl"
     for line in p.read_text().splitlines() if p.exists() else []:
         try:
@@ -30,6 +31,9 @@ def parse_trace(rd):
             continue
         if ev.get("type") == "result":
             res = ev
+        if ev.get("type") == "system" and ev.get("subtype") == "init":
+            # Claude Code 2.1.277+ loads AGENTS.md through this builtin plugin; older CLIs do not have it
+            agents_md_loader = any(pl.get("name") == "cc-plugin-agents-md" for pl in ev.get("plugins") or [])
         content = ev.get("message", {}).get("content")
         if not isinstance(content, list):
             continue
@@ -59,4 +63,5 @@ def parse_trace(rd):
             "subtype": (res or {}).get("subtype"), "tool_calls": tools,
             "bazel_cmds": bazel_cmds, "n_bazel": len(bazel_cmds), "n_make": len(make_cmds),
             "n_build_fail": build_fail, "icpx_hit": icpx_hit, "guidance_read": guidance_read,
+            "agents_md_loader": agents_md_loader,
             "bg_denied": len(hook.read_text().splitlines()) if hook.exists() else 0}
