@@ -38,4 +38,19 @@ TEMPLATE_LIST_TEST_M(sparse_blas_test, "ones matrix sparse CSR gemv", "[csr][gem
     this->test_gemv();
 }
 
+TEMPLATE_LIST_TEST_M(sparse_blas_test,
+                     "ones matrix sparse CSR gemv with a cached plan",
+                     "[csr][gemv]",
+                     gemv_types) {
+    // DPC++ Sparse GEMV from micro MKL libs is not supported on CPU
+    SKIP_IF(this->get_policy().is_cpu());
+
+    // Test takes too long time if HW emulates float64
+    // Temporary workaround: skip tests on architectures that do not support native float64
+    SKIP_IF(!this->get_policy().has_native_float64());
+
+    this->generate_dimensions_gemv();
+    this->test_gemv_optimized();
+}
+
 } // namespace oneapi::dal::backend::primitives::test
