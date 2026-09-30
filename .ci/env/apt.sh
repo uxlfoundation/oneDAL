@@ -134,7 +134,11 @@ function install_miniforge {
 }
 
 function install_abigail {
-    sudo apt-get install -y abigail-tools
+    # binutils is not pulled in by abigail-tools, but .ci/scripts/abi_check.sh
+    # needs nm, objcopy and readelf next to abidiff. It happens to be present on
+    # the GitHub runner images; naming it here keeps the check from depending on
+    # that.
+    sudo apt-get install -y abigail-tools binutils
 }
 
 if [ "${component}" == "dpcpp" ]; then

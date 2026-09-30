@@ -18,10 +18,35 @@
 ci_dir=$(dirname $(dirname $(dirname "${BASH_SOURCE[0]}")))
 cd $ci_dir
 
+# Symbol names are ASCII, and the symbol-set comparison below relies on `sort`
+# and `comm` agreeing on collation order. Pinning the locale makes that
+# agreement independent of the runner image.
+export LC_ALL=C
+
 # relative paths must be made from the oneDAL repo root
 main_release_dir=$1
 release_dir=$2
 RETURN_CODE=0
+
+# abidiff reads DWARF when it is there and the symbol-only comparisons below
+# need nm; both are used unconditionally, so a missing binutils would otherwise
+# surface as a wrong answer rather than as a failure.
+for tool in nm objcopy readelf; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "::error:: ${tool} not found (binutils is required, see .ci/env/apt.sh abigail)"
+        exit 1
+    fi
+done
+
+has_dwarf () {
+    # libabigail builds a type-aware corpus from .debug_info and an
+    # ELF-symbol-only one without it, so this decides which kind of comparison
+    # a given library can take part in.
+    readelf -SW "$1" 2>/dev/null | grep -q '[[:space:]]\.debug_info[[:space:]]'
+}
+
+strip_dir=$(mktemp -d)
+trap 'rm -rf "${strip_dir}"' EXIT
 
 echo "Shared Library ABI Conformance"
 solibs=($(ls $main_release_dir/lib*.so))
@@ -35,10 +60,45 @@ for i in "${solibs[@]}"
 do
     name=$(basename $i)
     echo "======== ${name} ========"
-    abidiff --suppr .github/.abignore $i $release_dir/$name
+    old=$i
+    new=$release_dir/$name
+
+    # The two sides come from different builds -- this branch against a cached
+    # build of main -- so the commit that turns debug info on or off for a
+    # library leaves them disagreeing about it until main is rebuilt. abidiff
+    # does not fail on that (it falls back to the symbol sets), but the result is
+    # a weaker check than the log claims, and nothing says so. Say so, and strip
+    # both sides so the comparison is the same in either direction no matter how
+    # libabigail chooses to mix a DWARF corpus with a symbols-only one.
+    dwarf_old=no; has_dwarf "$old" && dwarf_old=yes
+    dwarf_new=no; has_dwarf "$new" && dwarf_new=yes
+    if [ "$dwarf_old" != "$dwarf_new" ] && [ -f "$new" ]; then
+        echo "::warning:: ${name}: debug info present in only one build" \
+             "(main: ${dwarf_old}, this branch: ${dwarf_new}). Comparing stripped" \
+             "copies, so this library is checked for symbol addition and removal" \
+             "only. Rerun the 'CI' workflow on main to restore the type-level check."
+        if objcopy --strip-debug "$old" "${strip_dir}/main_${name}" &&
+           objcopy --strip-debug "$new" "${strip_dir}/branch_${name}"; then
+            old=${strip_dir}/main_${name}
+            new=${strip_dir}/branch_${name}
+        else
+            echo "::error:: objcopy failed for ${name}; comparing unstripped"
+            RETURN_CODE=$((RETURN_CODE+1))
+        fi
+    fi
+
+    abidiff --suppr .github/.abignore "$old" "$new"
     retVal=$?
     # ignore a return value of 4 as it signifies a possibly compatible change
-    if [ $retVal != 4 ]; then RETURN_CODE=$(($RETURN_CODE+$retVal)); fi
+    if [ $retVal != 4 ]; then
+        RETURN_CODE=$(($RETURN_CODE+$retVal))
+    else
+        # With debug info present this is the common outcome for a real type
+        # change, so surface it in the checks UI instead of leaving it to whoever
+        # scrolls the log.
+        echo "::warning:: ${name}: abidiff reports a sub-type change it considers" \
+             "possibly compatible. Not a failure, but read the diff above."
+    fi
 done
 
 # Cross-flavor public-symbol drift report.
@@ -60,11 +120,7 @@ done
 # Failing here would force such PRs to carry the 'API/ABI breaking change'
 # label, which skips the whole job (.github/workflows/ci.yml) and would
 # therefore disable the abidiff gate above to silence an expected message.
-if ! command -v nm >/dev/null 2>&1; then
-    echo "::error:: nm not found (required for cross-flavor symbol drift report)"
-    exit 1
-fi
-
+#
 # Namespaces that oneDAL does not treat as part of the public ABI. Derived from
 # .github/.abignore rather than restated here, so this report and abidiff cannot
 # drift apart on what "public" means: the suppression file is the single source.
@@ -129,8 +185,14 @@ public_syms () {
     # inside a process substitution is invisible to the enclosing pipeline.
     dump=$(nm -D --defined-only --extern-only "$1") || return 1
     # filtering in awk (not grep) keeps the pipeline status meaningful: grep
-    # exits 1 when every symbol happens to be filtered out.
-    printf '%s\n' "$dump" | awk -v re="$internal_sym_re" 'NF && $NF !~ re { print $NF }' | sort -u
+    # exits 1 when every symbol happens to be filtered out. The pattern is
+    # passed through the environment rather than with `-v`, which would expand
+    # escape sequences in it and silently widen a pattern that spells a literal
+    # `\.` or `\+`.
+    printf '%s\n' "$dump" |
+        internal_sym_re="$internal_sym_re" \
+            awk 'NF && $NF !~ ENVIRON["internal_sym_re"] { print $NF }' |
+        sort -u
 }
 
 new_syms () {

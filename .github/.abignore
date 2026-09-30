@@ -18,17 +18,26 @@
 ;;;; DAAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect daal::internal namespaces
+;
+; A note on the shape of these patterns. In Itanium mangling a nested name is a
+; run of length-prefixed components: daal::internal::f is N4daal8internal1fE.
+; The digit in front of `internal` is that component's own length prefix, so
+; there is nothing between `4daal` and `8internal` for a nested-namespace symbol
+; directly under `daal`. A pattern that requires a digit there --
+; `4daal[[:digit:]].*8internal` -- therefore only matches when some other
+; namespace sits in between, and silently lets every symbol in `daal::internal`
+; itself through. `.*` is what allows both.
 
 [suppress_type]
-symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+.*4daal.*8internal[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+.*4daal.*8internal[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+.*4daal.*8internal[[:digit:]].*
 drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -54,6 +63,11 @@ drop = yes
 ;;;; DAAL 2026.0 REMOVALS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect the removed daal symbols
+;
+; If this block is ever re-enabled, drop the `drop = yes` lines with it, for the
+; reason spelled out under "newly added symbols" below: `drop` and `change_kind`
+; together suppress every change to the whole `daal` namespace, not just the
+; deleted-* kind.
 
 ;[suppress_type]
 ;symbol_name_regexp = _Z+N4daal[[:digit:]].*
@@ -75,55 +89,61 @@ drop = yes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect oneapi::dal backend namespaces
 [suppress_type]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*7backend[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*7backend[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*7backend[[:digit:]].*
 drop = yes
 
 ; deselect oneapi::dal detail namespaces
 [suppress_type]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*6detail[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*6detail[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*6detail[[:digit:]].*
 drop = yes
 
 ; deselect oneapi::dal preview namespaces
 [suppress_type]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*7preview[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*7preview[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+symbol_name_regexp = _Z+N6oneapi3dal.*7preview[[:digit:]].*
 drop = yes
 
 ; deselect oneapi::dal newly added symbols
+;
+; Deliberately no `drop = yes` here. `drop` removes the matched artifact from
+; both ABI corpora before any comparison happens, so it cannot be combined with
+; `change_kind`: the artifact is gone, and every change to it disappears with
+; it, not only the added-* kind named below. Since these patterns cover the
+; whole `oneapi::dal` surface, `drop = yes` made abidiff blind to it -- deleting
+; a public oneapi::dal function, or changing the layout of a struct it takes,
+; both reported clean. Without `drop` the `change_kind` filter does what it
+; says: additions are filtered out, removals and sub-type changes are reported.
 [suppress_type]
 symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
 change_kind = added-type
-drop = yes
 
 [suppress_variable]
 symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
 change_kind = added-variable
-drop = yes
 
 [suppress_function]
 symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
 change_kind = added-function
-drop = yes
