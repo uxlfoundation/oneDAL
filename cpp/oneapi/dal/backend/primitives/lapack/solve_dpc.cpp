@@ -286,10 +286,16 @@ sycl::event solve_system(sycl::queue& queue,
 
     auto transform_event = beta_copy_transform<beta>(queue, nxty, final_xty, { solution_event });
 
-    /// `nxty` holds the solution and is owned by this function, and the transform above reads it.
-    /// Freeing device USM is not a synchronizing operation, so returning here would let `nxty`'s
-    /// destructor release the solution out from under the running kernel. The
-    /// `queue.wait_and_throw()` in the `try` block above only covers the factorization.
+    /// Three device buffers owned by this function are still live inputs to the work queued
+    /// above, and freeing device USM is not a synchronizing operation, so returning here would
+    /// let their destructors release memory out from under the running kernels:
+    ///   - `nxty`, which holds the solution the transform above reads;
+    ///   - `nxtx`, which holds the factorization `potrs_solution` reads;
+    ///   - `dummy`, which is the scratchpad `potrf_factorization` allocated on first use and
+    ///     `potrs_solution` then reuses -- the subtlest of the three, because nothing in this
+    ///     function names it after the call.
+    /// The `queue.wait_and_throw()` in the `try` block above only covers the factorization, so
+    /// the solve and the transform are still in flight at this point.
     transform_event.wait_and_throw();
 
     return transform_event;

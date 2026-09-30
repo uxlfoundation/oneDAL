@@ -108,6 +108,12 @@ sycl::event gesvd(sycl::queue& queue,
     // The scratchpad is owned by this function and LAPACK keeps writing to it for the whole
     // decomposition. Freeing device USM is not a synchronizing operation, so returning here would
     // let `scratchpad`'s destructor release the buffer out from under the running kernels.
+    //
+    // `potrf`/`potrs` next door solve the same problem without blocking, by taking the scratchpad
+    // as an `opt_array<Float>&` the caller keeps alive. That is the better shape, but it moves the
+    // lifetime onto every caller. It is not worth it here: this runs once per PCA fit, from a
+    // single call site, so the host block costs one synchronization per fit rather than one per
+    // iteration. Switch to the `opt_array` form if `gesvd` ever grows a caller in a loop.
     gesvd_event.wait_and_throw();
 
     return gesvd_event;
