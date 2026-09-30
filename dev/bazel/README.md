@@ -823,3 +823,75 @@ validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at a
 OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
 effect together with `--backend_config=ref`; it is silently ignored on the MKL
 backend, whose build never compiles the ref RNG shim that OpenRNG replaces.
+
+## NVIDIA GPUs through oneMath (experimental)
+
+The DPC++ device sources are written against the oneMKL DPC++ interface but use
+no Intel-specific SYCL extension: sub-group sizes are queried at run time and
+there is no ESIMD, no `sycl::ext::intel`, and no hard-coded device selector.
+The only Intel-specific piece is the math library itself, so pointing the build
+at [oneMath](https://github.com/uxlfoundation/oneMath) — the open-source
+implementation of the same interface, which additionally dispatches to cuBLAS,
+cuSOLVER, cuSPARSE and cuRAND — is enough to run the same kernels on an NVIDIA
+GPU.
+
+Which library is used is decided by `--dpc_math_backend`:
+
+| Value               | Library | Device support                       |
+|---------------------|---------|--------------------------------------|
+| `mkl` _(default)_   | oneMKL  | Intel GPUs. What Make builds.        |
+| `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs          |
+
+This is orthogonal to `--backend_config`, which selects the *host* math library
+(`mkl` or `ref`); a DPC++ build keeps using whatever that says on the CPU side.
+Only `cpp/oneapi/dal/backend/math_backend.hpp` knows the difference — it maps
+the `mkl::` namespace used by ~150 call sites onto `oneapi::mkl` or
+`oneapi::math`, driven by the `ONEDAL_MATH_BACKEND_ONEMATH` define that the
+selected dependency carries.
+
+Two things have to be provided:
+
+1. **oneMath**, built with the backends you want, pointed at by `ONEMATHROOT`.
+   There is no redistributable to download because the backend set is fixed at
+   oneMath configure time:
+
+   ```sh
+   cmake -B build -S . -GNinja \
+     -DCMAKE_CXX_COMPILER=icpx \
+     -DENABLE_MKLGPU_BACKEND=OFF \
+     -DENABLE_CUBLAS_BACKEND=ON \
+     -DENABLE_CUSOLVER_BACKEND=ON \
+     -DENABLE_CURAND_BACKEND=ON \
+     -DENABLE_CUSPARSE_BACKEND=ON \
+     -DCMAKE_INSTALL_PREFIX=$HOME/onemath
+   cmake --build build --target install
+   export ONEMATHROOT=$HOME/onemath
+   ```
+
+   oneDAL links only the run-time dispatching `libonemath.so`; the per-domain
+   backend libraries next to it are loaded by the dispatcher.
+
+2. **An NVPTX target for the compiler.** `ONEDAL_SYCL_TARGETS` is appended to
+   both the DPC++ compile and link actions as `-fsycl-targets=`. It is an
+   environment variable rather than a build flag because the DPC++ flag sets are
+   baked in when the toolchain repository is configured, before build flags are
+   visible; changing it refetches the toolchain.
+
+   ```sh
+   export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
+   bazel test --config=nvidia-gpu //cpp/oneapi/dal/backend/primitives/blas:tests
+   ```
+
+`--config=nvidia-gpu` is shorthand for `--dpc_math_backend=onemath`.
+
+Known limitations:
+
+- Make does not build this configuration; `--dpc_math_backend` is Bazel-only.
+  Adding it to Make means a `dev/make/deps.onemath.mk` plus
+  `compiler_definitions/*.onemath.*.mk`, which the DPC++ Make path would need to
+  learn to select independently of `BACKEND_CONFIG`.
+- Not covered by CI, and no NVIDIA hardware is validated. Expect gaps in the
+  parts of the oneMKL interface oneDAL uses that a given oneMath release
+  implements differently, the sparse BLAS domain being the most likely.
+- Devices without `aspect::fp64` need `--test_disable_fp64=yes`; that covers the
+  tests, not the algorithms themselves.

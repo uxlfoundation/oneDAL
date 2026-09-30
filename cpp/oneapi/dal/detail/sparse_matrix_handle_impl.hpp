@@ -18,13 +18,13 @@
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::detail {
 
 namespace v1 {
 
-namespace mkl = oneapi::mkl;
+namespace mkl = oneapi::dal::backend::math;
 
 /// Class that hides the implementation details of the `backend::primitives::sparse_matrix_handle` class
 class sparse_matrix_handle_impl {

@@ -72,6 +72,12 @@ openblas_repo(name = "openblas", root_env_var = "OPENBLASROOT",)
 openrng_repo = use_repo_rule("@onedal//dev/bazel/deps:openrng.bzl", "openrng_repo")
 openrng_repo(name = "openrng", root_env_var = "OPENRNGROOT",)
 
+# Alternative SYCL math library, selected with `--dpc_math_backend=onemath`.
+# Has to be built locally with the wanted backends enabled, so there is no URL
+# to download from; the repository is only resolved when that flag is set.
+onemath_repo = use_repo_rule("@onedal//dev/bazel/deps:onemath.bzl", "onemath_repo")
+onemath_repo(name = "onemath", root_env_var = "ONEMATHROOT",)
+
 tbb_repo = use_repo_rule("@onedal//dev/bazel/deps:tbb.bzl", "tbb_repo")
 tbb_repo(
     name = "tbb",

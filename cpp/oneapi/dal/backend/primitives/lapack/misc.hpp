@@ -18,11 +18,11 @@
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
-namespace mkl = oneapi::mkl;
+namespace mkl = oneapi::dal::backend::math;
 
 inline constexpr mkl::job ident_job(mkl::job order) {
     constexpr auto novec = mkl::job::novec;

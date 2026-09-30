@@ -179,6 +179,22 @@ def _add_sycl_linkage(repo_ctx, cc):
     else:
         return []
 
+def _get_sycl_target_flags(repo_ctx):
+    """Retarget SYCL device code, for example to NVIDIA NVPTX.
+
+    oneDAL's device sources are target-agnostic -- they use no Intel SYCL
+    extensions and query sub-group sizes at run time -- so changing GPU vendor
+    is purely a toolchain concern: `-fsycl-targets` has to reach both the DPC++
+    compile and the DPC++ link action, and nothing else in the build changes.
+
+    Read from ONEDAL_SYCL_TARGETS rather than a `--@config//` build flag
+    because the DPC++ flag sets are baked into the toolchain when this
+    repository is configured, before any build flag is visible. Unset leaves
+    the compiler at its default target (Intel SPIR-V).
+    """
+    targets = repo_ctx.os.environ.get("ONEDAL_SYCL_TARGETS", "").strip()
+    return ["-fsycl-targets={}".format(targets)] if targets else []
+
 def configure_cc_toolchain_lnx(repo_ctx, reqs):
     if reqs.os_id != "lnx":
         auto_configure_fail("Cannot configure Linux toolchain for '{}'".format(reqs.os_id))
@@ -204,6 +220,9 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
 
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
+
+    # Extra SYCL target triples, e.g. `nvptx64-nvidia-cuda` for NVIDIA GPUs.
+    sycl_target_flags = _get_sycl_target_flags(repo_ctx)
 
     repo_ctx.template(
         "BUILD",
@@ -277,6 +296,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
+                sycl_target_flags +
                 add_compiler_option_if_supported(
                     repo_ctx,
                     tools.cc,
@@ -339,6 +359,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
+                sycl_target_flags +
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.dpcc,

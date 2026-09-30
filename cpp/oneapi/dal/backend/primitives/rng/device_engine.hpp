@@ -27,9 +27,9 @@
 #include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
 #include <daal/include/algorithms/engines/mt19937/mt19937.h>
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
-namespace mkl = oneapi::mkl;
+namespace mkl = oneapi::dal::backend::math;
 namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL

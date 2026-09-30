@@ -17,7 +17,7 @@
 #include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 

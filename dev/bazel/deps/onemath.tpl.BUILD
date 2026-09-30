@@ -1,0 +1,45 @@
+package(default_visibility = ["//visibility:public"])
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "headers",
+    hdrs = glob([
+        "include/**/*.h",
+        "include/**/*.hpp",
+    ]),
+    includes = [
+        "include",
+    ],
+)
+
+cc_library(
+    name = "onemath_dpc",
+    # Only the run-time dispatching library is linked; the per-domain backend
+    # libraries listed in `onemath_runtime` are loaded by the dispatcher.
+    srcs = glob([
+        "lib/libonemath.so*",
+    ]),
+    linkopts = [
+        # Same cap as `@mkl//:mkl_dpc`: a fixed 16 gives the best trade-off
+        # between device-code link speedup and memory used, and is clamped to
+        # `nproc` on smaller machines.
+        "-fsycl-max-parallel-link-jobs=16",
+    ],
+    deps = [
+        ":headers",
+        "@opencl//:opencl_binary",
+    ],
+    # Switches `dal/backend/math_backend.hpp` from <oneapi/mkl.hpp> to
+    # <oneapi/math.hpp>. Carried by the dependency rather than by the algorithm
+    # targets so the define cannot drift from the library being linked.
+    defines = [
+        "ONEDAL_MATH_BACKEND_ONEMATH",
+    ],
+)
+
+filegroup(
+    name = "onemath_runtime",
+    srcs = glob([
+        "lib/libonemath*.so*",
+    ], allow_empty = True),
+)
