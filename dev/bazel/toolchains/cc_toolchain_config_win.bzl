@@ -807,6 +807,11 @@ cc_toolchain_config = rule(
     # COMMON_ATTRS.
     attrs = dict(
         COMMON_ATTRS,
+        # A standalone linker, `lld-link` or `link`, rather than the compiler
+        # driver the compile actions use. Linux links through the driver, so
+        # these are Windows only.
+        cc_link_path = attr.string(mandatory = True),
+        dpcc_link_path = attr.string(mandatory = True),
         # `INCLUDE` / `LIB` / `PATH` values captured at repo-configure time
         # so bazel-sandboxed compile and link actions can find MSVC + Windows
         # SDK + oneAPI headers/libs without the shell env being inherited.

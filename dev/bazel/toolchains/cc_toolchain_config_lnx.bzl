@@ -25,7 +25,6 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "action_config",
     "tool",
 )
-load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
@@ -47,20 +46,6 @@ def _impl(ctx):
 
     dpcc_tool = tool(
         path = ctx.attr.dpcc_path,
-        with_features = [
-            with_feature_set(features = ["dpc++"]),
-        ],
-    )
-
-    cc_link_tool = tool(
-        path = ctx.attr.cc_link_path,
-        with_features = [
-            with_feature_set(not_features = ["dpc++"])
-        ]
-    )
-
-    dpcc_link_tool = tool(
-        path = ctx.attr.dpcc_link_path,
         with_features = [
             with_feature_set(features = ["dpc++"]),
         ],
@@ -146,7 +131,7 @@ def _impl(ctx):
             "sysroot",
             "default_dynamic_libraries",
         ],
-        tools = [ cc_link_tool, dpcc_link_tool ],
+        tools = [ cc_tool, dpcc_tool ],
     )
 
     cpp_link_nodeps_dynamic_library_action = action_config(
@@ -162,7 +147,7 @@ def _impl(ctx):
             "strip_debug_symbols",
             "sysroot",
         ],
-        tools = [ cc_link_tool, dpcc_link_tool ],
+        tools = [ cc_tool, dpcc_tool ],
     )
 
     cpp_link_dynamic_library_action = action_config(
@@ -180,17 +165,10 @@ def _impl(ctx):
             "sysroot",
             "default_dynamic_libraries",
         ],
-        tools = [ cc_link_tool, dpcc_link_tool ],
+        tools = [ cc_tool, dpcc_tool ],
     )
 
     cpp_link_static_library_action = common.cpp_link_static_library_action(ctx.attr.ar_path)
-
-    cpp_merge_static_libraries_action = action_config(
-        action_name = CPP_MERGE_STATIC_LIBRARIES,
-        tools = [
-            tool(path = ctx.attr.ar_merge_path)
-        ],
-    )
 
     strip_action = action_config(
         action_name = ACTION_NAMES.strip,
@@ -234,7 +212,6 @@ def _impl(ctx):
         cpp_link_nodeps_dynamic_library_action,
         cpp_link_dynamic_library_action,
         cpp_link_static_library_action,
-        cpp_merge_static_libraries_action,
         strip_action,
     ]
 
@@ -1007,7 +984,6 @@ cc_toolchain_config = rule(
     # COMMON_ATTRS.
     attrs = dict(
         COMMON_ATTRS,
-        ar_merge_path = attr.string(mandatory = True),
         strip_path = attr.string(mandatory = True),
         no_canonical_system_headers_flags_cc = attr.string_list(),
         no_canonical_system_headers_flags_dpcc = attr.string_list(),
