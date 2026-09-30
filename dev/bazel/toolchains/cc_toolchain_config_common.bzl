@@ -306,8 +306,6 @@ COMMON_ATTRS = {
     "abi_libc_version": attr.string(mandatory = True),
     "cc_path": attr.string(mandatory = True),
     "dpcc_path": attr.string(mandatory = True),
-    "cc_link_path": attr.string(mandatory = True),
-    "dpcc_link_path": attr.string(mandatory = True),
     "ar_path": attr.string(mandatory = True),
     "cxx_builtin_include_directories": attr.string_list(),
     "compile_flags_cc": attr.string_list(),
