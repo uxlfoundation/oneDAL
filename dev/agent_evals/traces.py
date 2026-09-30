@@ -38,7 +38,7 @@ def parse_trace(rd):
                 tools += 1
                 inp = c.get("input", {})
                 cmd = inp.get("command", "") if c["name"] == "Bash" else ""
-                if re.search(r"\bbazel\b", cmd):
+                if re.search(r"\bbazel(?:isk)?\b", cmd):
                     bazel_cmds.append(cmd)
                     build_ids.add(c.get("id"))
                 elif re.search(r"\bmake\b", cmd):

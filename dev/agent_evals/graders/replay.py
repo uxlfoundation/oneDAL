@@ -21,7 +21,9 @@ gold.json (next to task.json, or t["gold"]):
                                                         revision. line is in that revision's new file; kind is
                                                         correctness|api|tests|convention|docs|nit; addressed says
                                                         whether the code was changed in response before merge.
-A thread is hit if a finding is on the same file and |finding.line - gold.line| <= t.get("window", 5).
+A thread is hit if a finding is on the same file and |finding.line - gold.line| <= t.get("window", 5). Matching is
+one-to-one: pairs are taken nearest first, so one finding credits at most one thread and vice versa. Location is the
+only criterion on purpose (no judge, deterministic); recall is a score, not a verdict.
 Score-only (pass None): humans miss things and raise non-defects, so neither recall nor precision is a verdict.
 precision_proxy = findings within the window of any gold thread / n_findings (a lower bound on precision).
 "recall" (= recall_all) and "decoys_flagged" ([]) are emitted so run.py's review self-check applies unchanged.
@@ -47,12 +49,17 @@ def g_replay(rd, t, tr):
     if not isinstance(findings, list):
         return {"pass": False, "parse_error": True}
     findings = [f for f in findings if isinstance(f, dict)]
-    hit, near = set(), 0
-    for f in findings:
+    pairs, near = [], 0
+    for i, f in enumerate(findings):
         path, _, line = finding_fields(f)
-        matched = [g["id"] for g in gold if _near(g, path, line, window)]
-        hit.update(matched)
-        near += bool(matched)
+        close = [(abs(line - g["line"]), i, g["id"]) for g in gold if _near(g, path, line, window)]
+        pairs += close
+        near += bool(close)
+    hit, used = set(), set()
+    for _, i, gid in sorted(pairs):
+        if i not in used and gid not in hit:
+            used.add(i)
+            hit.add(gid)
     by_kind = {}
     for g in gold:
         c = by_kind.setdefault(g["kind"], [0, 0])

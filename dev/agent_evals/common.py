@@ -17,6 +17,7 @@
 """Shell, git, snapshot and arm helpers shared by the runner and the graders."""
 import json
 import re
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -24,12 +25,11 @@ from pathlib import Path
 import config
 
 
-def sh(cmd, cwd=None, env=None, check=True, timeout=None):
-    """Run an argv list; a string is run by `bash -c` (for pipes and redirections)."""
-    argv = ["bash", "-c", cmd] if isinstance(cmd, str) else cmd
+def sh(argv, cwd=None, env=None, check=True, timeout=None):
+    """Run an argv list (never through a shell)."""
     r = subprocess.run(argv, cwd=cwd, env=env, text=True, capture_output=True, timeout=timeout)
     if check and r.returncode:
-        raise RuntimeError(f"{cmd}: rc={r.returncode}\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}")
+        raise RuntimeError(f"{argv}: rc={r.returncode}\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}")
     return r
 
 
@@ -59,7 +59,11 @@ def show(rev, path):
 def snapshot(commit, dest):
     """History-free tree of oneDAL at commit: no git log to leak the fix, no eval tasks to leak the answers."""
     dest.mkdir(parents=True)
-    sh(f"git -C {config.src()} archive {commit} | tar -x -C {dest}")
+    archive = subprocess.Popen(["git", "-C", str(config.src()), "archive", commit], stdout=subprocess.PIPE)
+    tar = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout)
+    archive.stdout.close()
+    if archive.wait() or tar.returncode:
+        raise RuntimeError(f"git archive {commit} | tar: rc={archive.returncode}/{tar.returncode}")
     shutil.rmtree(dest / config.EVAL_DIR_IN_REPO, ignore_errors=True)
     git(dest, "init", "-q")
     git(dest, "add", "-A")
@@ -113,10 +117,15 @@ def prep(task, arm, rd):
 
 # ---------------------------------------------------------------- grading helpers
 def bazel(rd, args, log):
-    """Run bazel in the run's repo with the run's output_base; returns (rc, log text)."""
-    r = sh(["bash", "-c", f"bazel {args} > {log} 2>&1; echo $?"], cwd=rd / "repo", env=config.run_env(rd),
-           check=False)
-    return int(r.stdout.strip().splitlines()[-1] or 1), (Path(log).read_text() if Path(log).exists() else "")
+    """Run bazel in the run's repo with the run's output_base; returns (rc, log text).
+
+    args is split with shlex and executed without a shell, so it cannot chain or redirect commands.
+    """
+    env = config.run_env(rd)
+    with open(log, "w") as out:
+        rc = subprocess.run([str(config.BIN / "bazel"), *shlex.split(args)], cwd=rd / "repo", env=env,
+                            stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT).returncode
+    return rc, Path(log).read_text(errors="replace")
 
 
 def last_json(text):

@@ -16,6 +16,7 @@
 
 """Build tasks: the agent reports a command or an artifact; the grader re-runs or inspects it."""
 import re
+import shlex
 from pathlib import Path
 
 from common import bazel, last_json
@@ -26,8 +27,12 @@ def g_bazel_cmd(rd, t, tr):
     j = last_json(tr["result_text"]) or {}
     cmd = (j.get("command") or "").strip()
     out = {"reported_command": cmd}
-    if not re.match(r"^bazel\s+test\b", cmd) or any(c in cmd for c in ";&|`$>"):
+    if not re.match(r"^bazel\s+test\b", cmd) or any(c in cmd for c in ";&|`$<>\r\n"):
         return {**out, "pass": False, "why": "no/invalid bazel test command"}
+    try:
+        shlex.split(cmd)
+    except ValueError:
+        return {**out, "pass": False, "why": "unparseable bazel test command"}
     rc, log = bazel(rd, cmd[len("bazel"):] + " --nocache_test_results", rd / "grade.log")
     ok = rc == 0 and re.search(re.escape(t["expect_target"]) + r"\s+PASSED", log) is not None
     return {**out, "pass": ok, "rerun_rc": rc}
@@ -42,7 +47,7 @@ def g_artifact_path(rd, t, tr):
     p = Path(j.get("path") or "/nonexistent")
     real = p.resolve() if p.exists() else None
     ok = bool(real and real.is_file() and re.match(t.get("artifact_re", r"libonedal_core\.so"), real.name)
-              and str(real).startswith(str(rd.resolve())) and t.get("path_must_contain", "release") in str(p)
+              and real.is_relative_to(rd.resolve()) and t.get("path_must_contain", "release") in str(p)
               and open(real, "rb").read(4) == b"\x7fELF")
     return {"reported_path": str(p), "reported_command": j.get("command"), "pass": ok}
 

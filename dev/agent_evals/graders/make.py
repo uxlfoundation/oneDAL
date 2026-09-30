@@ -17,12 +17,13 @@
 """Make-build tasks: the agent builds with the make build system; Bazel must not be used for the build."""
 import os
 import re
+import subprocess
 import sys
 
 from common import sh
 from graders.build import g_artifact_path
 
-BAZEL_BUILD = re.compile(r"\bbazel\s+(?:-\S+\s+)*(build|test|run)\b")
+BAZEL_BUILD = re.compile(r"\bbazel(?:isk)?\s+(?:-\S+\s+)*(build|test|run)\b")
 
 
 def g_make_artifact(rd, t, tr):
@@ -34,7 +35,7 @@ def g_make_artifact(rd, t, tr):
 
 # Measured recipe (build_make_gnu): oneMKL static libs + headers and oneTBB from PyPI into a venv
 # outside the repo, then the CI target `daal` with GCC for one ISA (sse2 is always added).
-MAKE_CMD = "make -f makefile daal PLAT=lnx32e COMPILER=gnu REQCPU=avx2 -j{j}"
+MAKE_CMD = ["make", "-f", "makefile", "daal", "PLAT=lnx32e", "COMPILER=gnu", "REQCPU=avx2"]
 
 
 def o_make(rd, repo, t):
@@ -43,10 +44,11 @@ def o_make(rd, repo, t):
     sh([str(deps / "bin" / "pip"), "install", "-q", "mkl-static", "mkl-include", "tbb-devel"], timeout=1800)
     env = dict(os.environ, MKLROOT=str(deps), TBBROOT=str(deps),
                LD_LIBRARY_PATH=f"{deps}/lib:{os.environ.get('LD_LIBRARY_PATH', '')}")
-    cmd = MAKE_CMD.format(j=os.cpu_count())
-    sh(f"{cmd} > {rd / 'oracle_make.log'} 2>&1", cwd=repo, env=env, check=False, timeout=3600)
+    cmd = [*MAKE_CMD, f"-j{os.cpu_count()}"]
+    with open(rd / "oracle_make.log", "w") as log:
+        subprocess.run(cmd, cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=3600)
     lib = next(iter(sorted(repo.glob("__release_lnx_gnu/daal/latest/lib/intel64/libonedal_core.so*"))), None)
-    return '```json\n{"path": "' + str(lib) + '", "command": "' + cmd + '"}\n```'
+    return '```json\n{"path": "' + str(lib) + '", "command": "' + " ".join(cmd) + '"}\n```'
 
 
 GRADERS = {"make_artifact": g_make_artifact}
