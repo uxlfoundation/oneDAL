@@ -36,7 +36,7 @@ struct problem
 
 static problem make_problem(std::size_t n, std::size_t p, std::size_t k)
 {
-    problem pr{ n, p, k, std::vector<double>(n * p), std::vector<double>(n), std::vector<double>(k * (p + 1)) };
+    problem pr { n, p, k, std::vector<double>(n * p), std::vector<double>(n), std::vector<double>(k * (p + 1)) };
     std::mt19937_64 gen(42);
     std::normal_distribution<double> normal(0.0, 1.0);
     std::uniform_int_distribution<std::size_t> label(0, k - 1);
