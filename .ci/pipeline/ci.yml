@@ -65,17 +65,17 @@ jobs:
     vmImage: '$(VM_IMAGE)'
   steps:
     - script: |
-        .ci/env/apt.sh clang-format
-        .ci/env/editorconfig-checker.sh
+        set -euo pipefail
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
+        pip install pre-commit
       displayName: 'Install Dependencies'
     - script: |
-        .ci/scripts/clang-format.sh
-      displayName: 'clang-format check'
-      failOnStderr: true
-    - script: |
-        editorconfig-checker
-      displayName: 'editorconfig-checker'
-      failOnStderr: true
+        set -euo pipefail
+        source venv/bin/activate
+        pre-commit run --all-files --show-diff-on-failure
+      displayName: 'pre-commit checks'
 
 - job: 'LinuxMakeGNU_MKL'
   timeoutInMinutes: 0

@@ -15,10 +15,15 @@
 #===============================================================================
 
 repos:
-  - repo: local
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v20.1.8
     hooks:
       - id: clang-format
-        name: clang-format
-        entry: ./.ci/scripts/clang-format.sh
-        language: unsupported_script
-        args: [clang-format]
+        # identify gives .i files no type tags.
+        types_or: []
+        types: [file]
+        files: ^(cpp/daal|cpp/oneapi|examples/daal|examples/oneapi|samples/daal|samples/oneapi)/.*\.(c|cpp|h|hpp|cl|i)$
+  - repo: https://github.com/editorconfig-checker/editorconfig-checker
+    rev: v3.11.2
+    hooks:
+      - id: editorconfig-checker
