@@ -159,11 +159,23 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
         auto counts_data = counts_arr.get_mutable_data();
         const auto sv_idx_data = sv_idx_arr.get_data();
         const auto resp_data = resp_arr.get_data();
+        // Counts alone do not describe the layout: the restoration path slices the
+        // aggregated arrays into per-class blocks using them, which is only the
+        // right answer while the rows really are grouped in increasing class
+        // order. daal produces that order but nothing here would notice if it
+        // stopped, so the order is checked while it is being walked -- one
+        // comparison per support vector, against silently sliced-apart classes.
+        std::int64_t previous_class = 0;
         for (std::int64_t i = 0; i < n_sv; ++i) {
             const auto cls = static_cast<std::int64_t>(resp_data[sv_idx_data[i]]);
             if (cls < 0 || cls >= class_count_i64) {
                 throw invalid_argument(dal::detail::error_messages::invalid_number_of_classes());
             }
+            if (cls < previous_class) {
+                throw internal_error(
+                    dal::detail::error_messages::input_model_does_not_match_kernel_function());
+            }
+            previous_class = cls;
             ++counts_data[cls];
         }
         trained_model->n_support_per_class =

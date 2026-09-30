@@ -19,6 +19,7 @@
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
+#include "oneapi/dal/backend/memory.hpp"
 
 #include "oneapi/dal/algo/svm/backend/cpu/infer_kernel.hpp"
 #include "oneapi/dal/algo/svm/backend/kernel_function_impl.hpp"
@@ -85,19 +86,13 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_dense(
 
     daal::data_management::BlockDescriptor<Float> blk;
     pair_sv->getBlockOfRows(0, n_i + n_j, daal::data_management::writeOnly, blk);
+    // Each class block is a contiguous row range of a row-major matrix, so one
+    // copy per block is enough -- there is nothing to do per row.
     Float* dst = blk.getBlockPtr();
     const Float* src_i = sv_data + first_i * column_count;
     const Float* src_j = sv_data + first_j * column_count;
-    for (std::int64_t r = 0; r < n_i; ++r) {
-        for (std::int64_t k = 0; k < column_count; ++k) {
-            dst[r * column_count + k] = src_i[r * column_count + k];
-        }
-    }
-    for (std::int64_t r = 0; r < n_j; ++r) {
-        for (std::int64_t k = 0; k < column_count; ++k) {
-            dst[(n_i + r) * column_count + k] = src_j[r * column_count + k];
-        }
-    }
+    dal::backend::copy(dst, src_i, n_i * column_count);
+    dal::backend::copy(dst + n_i * column_count, src_j, n_j * column_count);
     pair_sv->releaseBlockOfRows(blk);
 
     return daal::data_management::NumericTablePtr{ pair_sv };
@@ -292,8 +287,21 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     interop::status_to_exception(status);
 
     // Cumulative per-class offsets into the aggregated SV / coeff matrices.
+    //
+    // Every count has to be checked for being positive, not only their sum: the
+    // counts come straight from a public setter, and a negative one can cancel
+    // against a too-large one to reach the right total while still turning the
+    // offsets below into out-of-bounds reads. A class with no support vectors at
+    // all is rejected too -- its every pair would have to be represented by an
+    // absent sub-model, and the daal prediction kernel then drops the class from
+    // its count without renumbering the pairs, which mixes up which pair each
+    // decision value belongs to rather than reporting an error.
     std::vector<std::int64_t> class_offsets(class_count + 1, 0);
     for (std::uint64_t c = 0; c < class_count; ++c) {
+        if (n_per_class[c] <= 0) {
+            throw invalid_argument(
+                dal::detail::error_messages::input_model_does_not_match_kernel_function());
+        }
         class_offsets[c + 1] = class_offsets[c] + n_per_class[c];
     }
     if (class_offsets[class_count] != n_sv_total) {
@@ -311,12 +319,6 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
         for (std::uint64_t j = i + 1; j < class_count; ++j, ++imodel) {
             const std::int64_t n_j = n_per_class[j];
             const std::int64_t pair_n_sv = n_i + n_j;
-            if (pair_n_sv == 0) {
-                multiclass_model->setTwoClassClassifierModel(
-                    imodel,
-                    daal::algorithms::classifier::ModelPtr{});
-                continue;
-            }
 
             // Build per-pair support vectors: class-i block followed by class-j block.
             auto pair_sv_nt =

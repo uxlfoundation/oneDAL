@@ -1313,6 +1313,30 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
         homogen_table::wrap(wrong_sum.data(), 1, blobs_t::class_count));
     REQUIRE_THROWS_AS(this->infer(svm_desc, bad_sum, blobs.x_test()), invalid_argument);
 
+    INFO("a negative count that cancels against a too-large one still has the right sum");
+    // The sum check alone would accept this, and the per-class offsets it yields
+    // would read outside the aggregated support-vector matrix.
+    const std::int64_t n_sv_total = trained_model.get_support_vectors().get_row_count();
+    REQUIRE(n_sv_total > 1);
+    const std::array<std::int32_t, blobs_t::class_count> signed_counts = {
+        -1,
+        1,
+        static_cast<std::int32_t>(n_sv_total)
+    };
+    auto bad_signed = base_model().set_n_support_per_class(
+        homogen_table::wrap(signed_counts.data(), 1, blobs_t::class_count));
+    REQUIRE_THROWS_AS(this->infer(svm_desc, bad_signed, blobs.x_test()), invalid_argument);
+
+    INFO("a class with no support vectors cannot be represented as pairwise sub-models");
+    const std::array<std::int32_t, blobs_t::class_count> empty_class_counts = {
+        0,
+        1,
+        static_cast<std::int32_t>(n_sv_total - 1)
+    };
+    auto bad_empty_class = base_model().set_n_support_per_class(
+        homogen_table::wrap(empty_class_counts.data(), 1, blobs_t::class_count));
+    REQUIRE_THROWS_AS(this->infer(svm_desc, bad_empty_class, blobs.x_test()), invalid_argument);
+
     INFO("biases must hold one scalar per one-vs-one sub-model");
     const std::array<double, blobs_t::pair_count - 1> short_biases = { 0.0, 0.0 };
     auto bad_biases = base_model().set_biases(
