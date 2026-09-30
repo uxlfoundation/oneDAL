@@ -462,4 +462,49 @@ TEST("threader_for_blocked_int32 tiles the iteration space with (first, last) bl
     }
 }
 
+TEST("the conditional loops cover the space and honour inParallel", "[threading][unit]")
+{
+    constexpr size_t n = 5000;
+
+    for (const bool inParallel : { false, true })
+    {
+        VisitLog plain(static_cast<int64_t>(n));
+        conditional_threader_for(inParallel, n, [&](size_t i) { plain.mark(static_cast<int64_t>(i)); });
+        REQUIRE(plain.visitedExactlyOnce());
+
+        VisitLog stat(static_cast<int64_t>(n));
+        conditional_static_threader_for(inParallel, n, [&](size_t i, size_t tid) {
+            (void)tid;
+            stat.mark(static_cast<int64_t>(i));
+        });
+        REQUIRE(stat.visitedExactlyOnce());
+    }
+
+    // `inParallel` has to buy actual parallelism, not just a parallel-looking call. These loops
+    // forward to `threader_for`/`static_threader_for`, whose grain size the conditional wrappers
+    // choose on the caller's behalf -- a grain size as large as the iteration space would leave the
+    // whole loop in one chunk and run on a single thread while still visiting every index.
+    if (isParallel())
+    {
+        constexpr size_t wide = 2000000;
+
+        ThreadIdLog plainThreads;
+        conditional_threader_for(true, wide, [&](size_t i) {
+            (void)i;
+            plainThreads.mark();
+        });
+        REQUIRE(plainThreads.inRange());
+        REQUIRE(plainThreads.distinctCount() > 1u);
+
+        ThreadIdLog staticThreads;
+        conditional_static_threader_for(true, wide, [&](size_t i, size_t tid) {
+            (void)i;
+            (void)tid;
+            staticThreads.mark();
+        });
+        REQUIRE(staticThreads.inRange());
+        REQUIRE(staticThreads.distinctCount() > 1u);
+    }
+}
+
 } // namespace daal::test
