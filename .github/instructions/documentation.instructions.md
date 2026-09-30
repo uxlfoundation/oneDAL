@@ -4,7 +4,7 @@ applyTo: ["**/docs/**", "**/*.rst", "**/*.md", "**/Doxyfile"]
 
 # Documentation Instructions for GitHub Copilot
 
-Read [../../docs/AGENTS.md](../../docs/AGENTS.md) for the documentation structure and build pipeline.
+Read [../../docs/AGENTS.md](../../docs/AGENTS.md) for the documentation layout and build rules.
 
 ## Review Focus
 

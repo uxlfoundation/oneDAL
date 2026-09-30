@@ -79,8 +79,8 @@ Read the `AGENTS.md` nearest the files you change:
 - [dev/AGENTS.md](dev/AGENTS.md): Development tools and build system context
 - [dev/bazel/AGENTS.md](dev/bazel/AGENTS.md): Bazel build system specifics
 - [dev/make/AGENTS.md](dev/make/AGENTS.md): Make build fragments
-- [docs/AGENTS.md](docs/AGENTS.md): Documentation structure and guidelines
-- [examples/AGENTS.md](examples/AGENTS.md): Example code patterns and usage
+- [docs/AGENTS.md](docs/AGENTS.md): Sphinx docs layout and build rules
+- [examples/AGENTS.md](examples/AGENTS.md): Example layout, `BUILD` registration and docs coupling
 - [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
 - [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
 - [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)

@@ -4,7 +4,7 @@ applyTo: ["**/examples/**", "**/samples/**"]
 
 # Examples Instructions for GitHub Copilot
 
-Read [../../examples/AGENTS.md](../../examples/AGENTS.md) for the interface-specific patterns and build context.
+Read [../../examples/AGENTS.md](../../examples/AGENTS.md) for the example layout, `BUILD` registration and docs coupling.
 
 ## Review Focus
 
