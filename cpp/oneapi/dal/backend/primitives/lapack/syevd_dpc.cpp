@@ -76,6 +76,10 @@ sycl::event syevd(sycl::queue& queue,
     // The scratchpad is owned by this function and LAPACK keeps writing to it for the whole
     // decomposition. Freeing device USM is not a synchronizing operation, so returning here would
     // let `scratchpad`'s destructor release the buffer out from under the running kernels.
+    //
+    // As in `gesvd`, the non-blocking `opt_array<Float>&` scratchpad that `potrf`/`potrs` use is
+    // the better shape but pushes the lifetime onto the caller; with one call site, once per PCA
+    // fit, the host block is cheaper than that API change.
     syevd_event.wait_and_throw();
 
     return syevd_event;
