@@ -64,7 +64,9 @@ ifeq ($(STDALLOC), yes)
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
+# ABI-safe debug-size reductions on Linux: zstd-compress .debug_* sections and dedup
+# DWARF type DIEs across TUs. Both are transparent to gdb/lldb and don't change emitted code.
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g -gz=zstd -fdebug-types-section) -fno-system-debug -Wno-pass-failed
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan
