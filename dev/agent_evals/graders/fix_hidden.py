@@ -19,7 +19,8 @@
 Grader `test_pass_files`: same result keys as `test_pass` (graders/fix.py), which it delegates to. Extra task keys:
 
   hidden_files        repo paths restored over the agent's tree before grading. Each is taken from
-                      tasks/<id>/hidden/<path> when that file exists, else from the `hidden_from` commit
+                      tasks/<id>/hidden/<path> (or <path>.oracle, used for BUILD files) when that file
+                      exists, else from the `hidden_from` commit
                       (so mined and synthetic hidden files can be mixed).
   test_flags          extra bazel flags for the hidden `targets` run, e.g. ["--cpu=all"]
   regression_flags    extra bazel flags for the `regression_targets` run
@@ -37,6 +38,9 @@ def g_test_pass_files(rd, t, tr):
     agent_touched = [f for f in changed_files(rd) if is_test_file(f)]
     for f in t["hidden_files"]:
         src = task_dir(t["id"]) / "hidden" / f
+        if not src.is_file():
+            # BUILD files are stored as BUILD.oracle so the eval tree itself holds no Bazel packages
+            src = src.with_name(src.name + ".oracle")
         text = src.read_text() if src.is_file() else show(t["hidden_from"], f)
         (repo / f).parent.mkdir(parents=True, exist_ok=True)
         (repo / f).write_text(text)
