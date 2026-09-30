@@ -15,7 +15,10 @@
 # limitations under the License.
 #===============================================================================
 
-echo
-echo "%{tool_name} is not found!"
-echo "Make sure %{tool_name} is available in \$PATH"
-echo
+# Exit non-zero: this stands in for a tool the toolchain could not find, so
+# every action that reaches it has to fail. Succeeding without writing the
+# declared outputs makes Bazel report "not all outputs were created" and hides
+# the message below.
+echo "%{tool_name} is not found!" >&2
+echo "Make sure %{tool_name} is available in \$PATH" >&2
+exit 1

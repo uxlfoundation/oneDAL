@@ -77,7 +77,8 @@
     response file, which the driver needs and Bazel's own param-file support
     does not provide for a wrapped tool.
   - `toolchains/tools/tool_not_found.tpl.sh` and `.tpl.bat` — stand in for an
-    optional tool that is not installed, today only the DPC++ compiler. The
-    failure belongs in analysis, not in an action: `@config` already knows
-    whether DPC++ was found, so a DPC++ target could `select()` onto an error
-    target the way `daal_module` does for `--stdalloc` on non-Linux.
+    optional tool that is not installed, today only the DPC++ compiler, and
+    fail the action that reaches them. The failure belongs in analysis instead:
+    `@config` already knows whether DPC++ was found, so a DPC++ target could
+    `select()` onto an error target the way `daal_module` does for `--stdalloc`
+    on non-Linux.
