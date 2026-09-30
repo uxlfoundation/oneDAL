@@ -36,14 +36,25 @@ sycl::event generate_rng(Distribution& distr,
             *(static_cast<gen_philox*>(engine_.get_device_engine_base_ptr().get()))->get();
         return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-    else if (engine_type == engine_type_internal::mt19937) {
-        auto& device_engine =
-            *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
-        return mkl::rng::generate(distr, device_engine, count, dst, deps);
-    }
     else if (engine_type == engine_type_internal::mrg32k3a) {
         auto& device_engine =
             *(static_cast<gen_mrg32k*>(engine_.get_device_engine_base_ptr().get()))->get();
+        return mkl::rng::generate(distr, device_engine, count, dst, deps);
+    }
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    // The wrappers for these three exist -- so a `device_engine` carrying one is
+    // still usable through the host-side rng paths -- but oneMath declares no
+    // such device engine to hand to `generate`. See device_engine.hpp.
+    else if (engine_type == engine_type_internal::mt19937 ||
+             engine_type == engine_type_internal::mcg59 ||
+             engine_type == engine_type_internal::mt2203) {
+        throw unimplemented(
+            dal::detail::error_messages::rng_engine_not_available_in_math_backend());
+    }
+#else
+    else if (engine_type == engine_type_internal::mt19937) {
+        auto& device_engine =
+            *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
         return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else if (engine_type == engine_type_internal::mcg59) {
@@ -56,6 +67,7 @@ sycl::event generate_rng(Distribution& distr,
             *(static_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
         return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
+#endif
     else {
         throw std::runtime_error("Unsupported engine type in generate_rng");
     }

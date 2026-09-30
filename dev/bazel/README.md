@@ -834,8 +834,8 @@ at [oneMath](https://github.com/uxlfoundation/oneMath) — the open-source
 implementation of the same interface, which additionally dispatches to cuBLAS,
 cuSOLVER, cuSPARSE and cuRAND — lets the same kernels run on an NVIDIA GPU, as
 far as oneMath implements the interface the kernels use. That is currently BLAS
-and LAPACK, not the whole library; see the domain table below before expecting
-an algorithm to build.
+and LAPACK, not the whole library; see the table below for what that leaves
+out.
 
 Which library is used is decided by `--dpc_math_backend`:
 
@@ -843,6 +843,12 @@ Which library is used is decided by `--dpc_math_backend`:
 |---------------------|---------|--------------------------------------|
 | `mkl` _(default)_   | oneMKL  | Intel GPUs                           |
 | `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs, BLAS and LAPACK only |
+
+Note that `onemath` is not an NVIDIA-only setting: oneMath's own `mklgpu`
+backend targets Intel GPUs, and a oneMath build with no CUDA backend and no
+`ONEDAL_SYCL_TARGETS` is a perfectly ordinary Intel GPU build. That is how this
+configuration is tested here, since the two gaps below are interface gaps rather
+than device ones and show up on any target.
 
 This is orthogonal to `--backend_config`, which selects the *host* math library
 (`mkl` or `ref`); a DPC++ build keeps using whatever that says on the CPU side.
@@ -901,19 +907,50 @@ make -f makefile oneapi_dpc PLAT=lnx32e DPC_MATH_BACKEND=onemath
 non-default value gets its own `__work_onemath` directory: the incremental build
 only re-examines a command line when a makefile is newer than the object, so a
 shared working directory would mix objects compiled against two different math
-libraries. `$ONEMATHROOT/lib` has to be on `LD_LIBRARY_PATH` at run time, in the
-same way a oneMKL build needs oneMKL's. Only `PLAT=lnx32e` is wired up; anything
-else is rejected rather than linked against a guessed library name.
+libraries. `$ONEMATHROOT/lib` is recorded as an rpath on `libonedal_dpc.so`, so
+consumers link and run without `LD_LIBRARY_PATH`; an absolute rpath is warranted
+here because oneMath has no redistributable and no standard prefix, and without
+it `ld` reports every oneMath symbol undefined when a consumer links against the
+result. Only `PLAT=lnx32e` is wired up; anything else is rejected rather than
+linked against a guessed library name.
 
-What builds today, measured through both build systems against oneMath built
-from source at commit `3273ca2` with the `mklcpu` and `mklgpu` backends:
+What works today, measured through both build systems against oneMath built from
+source at commit `3273ca2` with the `mklcpu` and `mklgpu` backends, running on an
+Intel Data Center GPU Max 1100:
 
 | domain | status |
 |---|---|
-| BLAS | builds and links |
-| LAPACK | builds and links |
-| RNG | **does not build** — engines missing from oneMath |
-| sparse BLAS | **does not build** — different API |
+| BLAS | works |
+| LAPACK | works |
+| RNG | `philox4x32x10` and `mrg32k3a` work; `mt2203`, `mt19937` and `mcg59` throw `unimplemented` |
+| sparse BLAS | throws `unimplemented` |
+
+The library builds and links as a whole either way — the two gaps below are
+compiled out rather than left to fail the build, so a `DPC_MATH_BACKEND=onemath`
+build produces a `libonedal_dpc.so` that examples and tests can be linked and run
+against. What is not there reports itself as `unimplemented` at the point of use
+instead of being silently substituted, which matters because the missing RNG
+engines have no numerically equivalent stand-in.
+
+Concretely: all 45 DPC++ examples build against such a library, and 44 of them
+run and produce the same output as the oneMKL build. The one that does not is
+`kmeans_lloyd_csr_batch`, which throws `unimplemented` out of the sparse BLAS
+layer.
+
+Neither gap is as wide as the domain table suggests, which is worth spelling out
+so the table is not read as a list of unusable algorithms:
+
+- The three absent engines are reachable only on request. `decision_forest` is
+  the only oneAPI descriptor that exposes `engine_type`, its default is
+  `philox4x32x10`, and that default is what the one device-side draw
+  (`pr::uniform` on the bootstrap indices) ends up using — so decision forest
+  runs unless the caller explicitly asks for `mt2203`, `mt19937` or `mcg59`.
+- The host-side RNG paths — `shuffle`, `uniform_without_replacement` and the
+  Fisher-Yates helper, which is how `kmeans_init` draws its random centroids —
+  take their numbers from the DAAL engines and never touch the device engine, so
+  they work with any engine type.
+- Sparse BLAS is only entered for a `csr_table` on the device, so it bites
+  exactly the CSR-input algorithms.
 
 The two gaps are not a matter of naming and cannot be closed by this
 configuration alone:
@@ -932,17 +969,11 @@ configuration alone:
   stages). oneMKL 2026 does not offer the newer form, so there is no spelling
   that satisfies both and the layer needs a per-backend implementation.
 
-Neither `--dpc_math_backend=onemath` nor `DPC_MATH_BACKEND=onemath` therefore
-builds the library as a whole yet. A full `make onedal_dpc
-DPC_MATH_BACKEND=onemath` links the host libraries and then stops with eight
-translation units failing: the four that hold the two gaps themselves
-(`primitives/rng/device_engine_dpc`, `primitives/sparse_blas/{gemm,gemv,set_csr_data}_dpc`),
-`detail/sparse_matrix_handle_impl`, and the three decision forest GPU training
-kernels, which instantiate the missing engines through `device_engine.hpp`. So
-`libonedal_dpc.so` does not link, and nothing that needs it — no DPC++ example,
-no DPC++ test — can be built or run against oneMath today. The host
-`libonedal.so` is unaffected, but it never used the device backend to begin
-with.
+Until either is closed, `oneapi::math` is reached only for BLAS and LAPACK, and
+the `sparse_blas` primitives and three of the five device RNG engines are
+`unimplemented` under `onemath`. Both gaps live behind
+`ONEDAL_MATH_BACKEND_ONEMATH`, so the default oneMKL build compiles exactly the
+code it did before.
 
 Other known limitations:
 

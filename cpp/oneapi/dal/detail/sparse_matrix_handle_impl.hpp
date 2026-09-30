@@ -46,7 +46,13 @@ public:
 
 private:
     mkl::sparse::matrix_handle_t handle_;
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    // Kept so the class has one shape for both backends, but the oneMath path
+    // neither creates nor releases a handle, so nothing there reads it.
+    [[maybe_unused]] sycl::queue& queue_;
+#else
     sycl::queue& queue_;
+#endif
 };
 
 } // namespace v1

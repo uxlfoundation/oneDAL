@@ -26,9 +26,11 @@
 #  stays whatever BACKEND_CONFIG selected, so a build can take oneMKL on the CPU
 #  and oneMath on the GPU.
 #
-#  Not every domain oneDAL uses is available in oneMath -- BLAS and LAPACK are,
-#  RNG and sparse BLAS are not. See the "NVIDIA GPUs through oneMath" section of
-#  dev/bazel/README.md for what that means in practice.
+#  Not every domain oneDAL uses is available in oneMath: BLAS and LAPACK are,
+#  sparse BLAS is not, and RNG only in part. The gaps are compiled out behind
+#  ONEDAL_MATH_BACKEND_ONEMATH and throw `unimplemented` at the point of use, so
+#  the library still builds and links as a whole. See the "NVIDIA GPUs through
+#  oneMath" section of dev/bazel/README.md for what that means in practice.
 #--
 
 ifeq (,$(ONEMATHROOT))
@@ -66,9 +68,21 @@ daaldep.math_backend.dpc_defines := -DONEDAL_MATH_BACKEND_ONEMATH
 
 # Only the run-time dispatching library is linked. The per-domain backend shared
 # objects that sit next to it (libonemath_blas_cublas.so and friends) are
-# dlopened by the dispatcher, so they have to be findable at run time -- keep
-# $(ONEMATHROOT)/lib on LD_LIBRARY_PATH -- but they are not link inputs, and
-# which of them exist depends on how oneMath was configured.
-onemath_libs.lnx32e := -L$(ONEMATHDIR.lib) -lonemath -lsycl -lm -ldl
+# dlopened by the dispatcher, so they have to be findable at run time, but they
+# are not link inputs and which of them exist depends on how oneMath was
+# configured.
+#
+# The rpath is what makes the result usable rather than merely linkable. oneMath
+# has no redistributable and no standard prefix, so unlike oneMKL it cannot be
+# reached through the release tree's $ORIGIN-relative rpath. Without it,
+# libonedal_dpc.so records a DT_NEEDED on libonemath.so.0 that nothing can
+# resolve: linking any consumer against it fails with `libonemath.so.0 ... not
+# found` followed by every oneMath symbol reported undefined, because ld does not
+# consult LD_LIBRARY_PATH when resolving a dependency of a shared library.
+# Recording the absolute path is acceptable here in a way it would not be for a
+# redistributable build -- this configuration is experimental and built against
+# one specific local install by definition.
+onemath_libs.lnx32e := -L$(ONEMATHDIR.lib) -Wl,-rpath,$(ONEMATHDIR.lib) \
+                       -lonemath -lsycl -lm -ldl
 
 daaldep.math_backend.dpc_link_deps := $(onemath_libs.$(PLAT))

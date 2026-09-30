@@ -283,12 +283,11 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
 - To build the DPC++ device code against [oneMath](https://github.com/uxlfoundation/oneMath) instead of oneMKL, so that it can run on NVIDIA GPUs, add `DPC_MATH_BACKEND=onemath`:
 
-    _Note: experimental, and Linux x86-64 only. Only the BLAS and LAPACK domains build against oneMath today; the RNG and sparse BLAS primitives do not, so this does not yet build the library as a whole. See the "NVIDIA GPUs through oneMath" section of [the Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for the detail and for the oneMath cmake recipe._
+    _Note: experimental, and Linux x86-64 only. The library builds and links as a whole, but oneMath does not cover every domain oneDAL uses: sparse BLAS, and three of the five device RNG engines, throw `unimplemented` rather than running. See the "NVIDIA GPUs through oneMath" section of [the Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for exactly what that affects and for the oneMath cmake recipe._
 
-    - Point `ONEMATHROOT` at a oneMath install built with the backends you need, and keep its `lib` directory on `LD_LIBRARY_PATH`:
+    - Point `ONEMATHROOT` at a oneMath install built with the backends you need. Its `lib` directory is recorded as an rpath on `libonedal_dpc.so`, so no `LD_LIBRARY_PATH` is needed to link or run against the result:
 
             export ONEMATHROOT=/path/to/onemath
-            export LD_LIBRARY_PATH="${ONEMATHROOT}/lib:${LD_LIBRARY_PATH}"
 
     - Ask the compiler for an NVPTX device target. `ONEDAL_SYCL_TARGETS` is passed to both the DPC++ compile and link as `-fsycl-targets=`; leaving it unset keeps the compiler's default (Intel SPIR-V), which is useful for checking the build without NVIDIA hardware:
 

@@ -34,6 +34,18 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
+/// Not every math backend provides every engine below: oneMath declares
+/// `philox4x32x10` and `mrg32k3a` only, so under `ONEDAL_MATH_BACKEND_ONEMATH`
+/// the `mt2203`, `mt19937` and `mcg59` wrappers hold no device generator.
+///
+/// They stay constructible rather than being compiled out, because
+/// `device_engine` always builds a host engine and a device engine as a pair,
+/// and the host-side entry points -- `shuffle`, `uniform_without_replacement`
+/// and `partial_fisher_yates_shuffle`, all of which draw from the DAAL engine --
+/// never touch the device one. Keeping the object lets those keep working with
+/// any engine type; only a device-side `generate` on an absent engine throws,
+/// from `generate_rng` in device_engine_dpc.cpp.
+
 /// Abstract base class for all random number generators (RNGs).
 /// It defines a common interface for working with different types of RNGs, including methods
 /// for retrieving the engine method and skipping ahead in the random number sequence.
@@ -60,8 +72,12 @@ public:
     /// Constructor that initializes the mt2203 generator for use on the GPU.
     /// @param[in] queue The SYCL queue to manage device operations.
     /// @param[in] seed The initial seed for the generator.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    gen_mt2203(sycl::queue, std::int64_t, std::int64_t = 0) {}
+#else
     gen_mt2203(sycl::queue queue, std::int64_t seed, std::int64_t engine_idx = 0)
             : _gen(queue, seed, engine_idx) {}
+#endif
 
     /// Returns the engine method for mt2203.
     /// @return The `mt2203` engine method as an enum value of `engine_type_internal`.
@@ -76,6 +92,7 @@ public:
         //skip;
     }
 
+#ifndef ONEDAL_MATH_BACKEND_ONEMATH
     /// Retrieves a pointer to the underlying mt2203 generator.
     /// @return A pointer to the `mt2203` RNG.
     mkl::rng::mt2203* get() {
@@ -84,6 +101,7 @@ public:
 
 protected:
     mkl::rng::mt2203 _gen;
+#endif
 };
 
 /// Implementation of the philox4x32x10 random number generator for GPU.
@@ -164,7 +182,11 @@ public:
     /// Constructor that initializes the mt19937 generator for use on the GPU.
     /// @param[in] queue The SYCL queue to manage device operations.
     /// @param[in] seed The initial seed for the generator.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    gen_mt19937(sycl::queue, std::int64_t) {}
+#else
     gen_mt19937(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
+#endif
 
     /// Returns the engine method for mt19937.
     /// @return The `mt19937` engine method as an enum value of `engine_type_internal`.
@@ -174,6 +196,9 @@ public:
 
     /// Skips ahead in the random number sequence for mt19937 on the GPU.
     /// @param[in] nSkip The number of steps to skip in the sequence.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    void skip_ahead_gpu(std::int64_t) override {}
+#else
     void skip_ahead_gpu(std::int64_t nSkip) override {
         skip_ahead(_gen, nSkip);
     }
@@ -186,6 +211,7 @@ public:
 
 protected:
     mkl::rng::mt19937 _gen;
+#endif
 };
 
 /// Implementation of the mcg59 random number generator for GPU.
@@ -198,7 +224,11 @@ public:
     /// Constructor that initializes the mcg59 generator for use on the GPU.
     /// @param[in] queue The SYCL queue to manage device operations.
     /// @param[in] seed The initial seed for the generator.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    gen_mcg59(sycl::queue, std::int64_t) {}
+#else
     gen_mcg59(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
+#endif
 
     /// Returns the engine method for mcg59.
     /// @return The `mcg59` engine method as an enum value of `engine_type_internal`.
@@ -208,6 +238,9 @@ public:
 
     /// Skips ahead in the random number sequence for mcg59 on the GPU.
     /// @param[in] nSkip The number of steps to skip in the sequence.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    void skip_ahead_gpu(std::int64_t) override {}
+#else
     void skip_ahead_gpu(std::int64_t nSkip) override {
         skip_ahead(_gen, nSkip);
     }
@@ -220,6 +253,7 @@ public:
 
 protected:
     mkl::rng::mcg59 _gen;
+#endif
 };
 
 /// A class that provides a unified interface for random number generation on both CPU and GPU devices.
