@@ -30,6 +30,8 @@ Configuration is by environment variable, see config.py. Runs go to $ONEDAL_EVAL
 import argparse
 import itertools
 import json
+import os
+import signal
 import subprocess
 import sys
 import time
@@ -62,6 +64,27 @@ def write_settings(rd):
         {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [hook]}]}}, indent=1))
 
 
+def kill_group(proc, grace=10):
+    """SIGTERM the agent's whole process group (children left by a finished agent too), SIGKILL after grace."""
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.time() + grace
+    while time.time() < deadline:
+        proc.poll()  # reap the leader, or its zombie keeps the group alive
+        try:
+            os.killpg(proc.pid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.5)
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    proc.wait()
+
+
 def run_agent(task, arm, model, rep, batch):
     t = task_spec(task)
     rd = run_dir(batch, task, arm, model, rep)
@@ -74,11 +97,15 @@ def run_agent(task, arm, model, rep, batch):
            "--disallowedTools", "WebFetch", "WebSearch"]
     t0 = time.time()
     with open(rd / "trace.jsonl", "w") as out, open(rd / "agent.err", "w") as err:
+        # own session, so the agent's foreground builds/tests can be killed with it before grading starts
+        proc = subprocess.Popen(cmd, cwd=repo, env=config.run_env(rd), stdin=subprocess.DEVNULL, stdout=out,
+                                stderr=err, start_new_session=True)
         try:
-            rc = subprocess.run(cmd, cwd=repo, env=config.run_env(rd), stdin=subprocess.DEVNULL, stdout=out,
-                                stderr=err, timeout=config.agent_timeout()).returncode
+            rc = proc.wait(timeout=config.agent_timeout())
         except subprocess.TimeoutExpired:
             rc = "timeout"
+        finally:
+            kill_group(proc)
     m = meta(rd)
     m.update(model=model, model_id=config.model_id(model), rep=rep, batch=batch, agent_rc=rc,
              wall_s=round(time.time() - t0))

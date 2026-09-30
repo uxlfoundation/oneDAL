@@ -18,7 +18,8 @@
 
 manifest.json:
   seeds   [{id, class, file, lines, kw}]  known problems. A finding hits a seed if its file matches ("*" = any) and
-                                          its rule/message matches kw, or (no kw hit) its line is within 1 of lines.
+                                          its rule/message matches kw, or (no kw hit) its line is within 1 of lines;
+                                          the line fallback credits only the nearest such seed.
   decoys  [{id, file, lines, kw}]         things that look wrong but are fine. Flagging one is a false positive.
 A manifest with no seeds is a clean-diff control: every finding is a false positive.
 """
@@ -30,8 +31,18 @@ from common import last_json, task_dir
 SEVERE = ("blocker", "major")
 
 
+def norm_path(p):
+    """Repository-relative path of a finding: absolute paths into the run's repo/ are cut at repo/."""
+    p = str(p or "").strip().replace("\\", "/")
+    if "/repo/" in p:
+        p = p.rsplit("/repo/", 1)[1]
+    while p.startswith("./"):
+        p = p[2:]
+    return p.lstrip("/")
+
+
 def finding_fields(f):
-    path = str(f.get("file", "")).lstrip("./")
+    path = norm_path(f.get("file"))
     text = " ".join(str(f.get(k, "")) for k in ("rule", "message", "evidence"))
     try:
         line = int(f.get("line") or -99)
@@ -41,7 +52,7 @@ def finding_fields(f):
 
 
 def same_file(entry, path):
-    return entry["file"] == "*" or bool(path) and (path.endswith(entry["file"]) or entry["file"].endswith(path))
+    return entry["file"] == "*" or bool(path) and path == norm_path(entry["file"])
 
 
 def g_review(rd, t, tr):
@@ -55,9 +66,11 @@ def g_review(rd, t, tr):
     for f in findings:
         path, text, line = finding_fields(f)
         matched = [s["id"] for s in seeds if same_file(s, path) and re.search(s["kw"], text, re.I)]
-        if not matched:  # keyword miss: fall back to exact-line proximity
-            matched = [s["id"] for s in seeds
-                       if same_file(s, path) and s["file"] != "*" and any(abs(line - x) <= 1 for x in s["lines"])]
+        if not matched:  # keyword miss: fall back to line proximity, crediting only the nearest seed
+            near = [(min(abs(line - x) for x in s["lines"]), s["id"]) for s in seeds
+                    if same_file(s, path) and s["file"] != "*" and s["lines"]]
+            near = [n for n in near if n[0] <= 1]
+            matched = [min(near)[1]] if near else []
         if matched:
             hit.update(matched)
             continue
