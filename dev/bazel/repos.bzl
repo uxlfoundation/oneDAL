@@ -251,15 +251,16 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
     if root:
+        # A local installation is used as it is, so there is no archive layout to map from.
         mapping = {}
+    elif _select_by_os(repo_ctx, "urls", os_id):
+        root = _download(repo_ctx, os_id)
+        mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
     else:
-        if _select_by_os(repo_ctx, "urls", os_id):
-            root = _download(repo_ctx, os_id)
-            mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
-        elif repo_ctx.attr.fallback_root:
-            root = repo_ctx.attr.fallback_root
-        else:
-            fail("Cannot locate {} dependency".format(repo_ctx.name))
+        fail("Cannot locate {} dependency: neither ${} is set nor archives are declared".format(
+            repo_ctx.name,
+            repo_ctx.attr.root_env_var,
+        ))
     substitutions = {
         "%{os}": os_id,
         "%{repo_root}": str(repo_ctx.path("")),
@@ -295,7 +296,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
                              required_any_libs=[], required_any_libs_description="",
                              win_required_any_libs=[],
-                             root_env_var="", fallback_root="", archives=[],
+                             root_env_var="", archives=[],
                              download_mapping={},
                              win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
                              win_archives=[], win_download_mapping={}):
@@ -322,10 +323,9 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         win_required_any_libs: Windows override for `required_any_libs`.
         root_env_var: Environment variable holding a local installation root.
                       When set in the environment it wins over `archives`.
-        fallback_root: Root to use when neither the variable nor `archives` is
-                       available.
         archives: `repos.archive()` entries to download when no local
-                  installation is pointed to.
+                  installation is pointed to. A dependency that declares none
+                  is therefore only resolvable through `root_env_var`.
         download_mapping: Maps the layout the entries above are written in (LHS)
                           onto the layout the downloaded archives actually have
                           (RHS), e.g. `{"lib/intel64": "lib/"}`.
@@ -350,7 +350,6 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         configure = True,
         attrs = {
             "root_env_var": attr.string(default=root_env_var),
-            "fallback_root": attr.string(default=fallback_root),
             "urls": attr.string_list(default=download_info.urls),
             "sha256s": attr.string_list(default=download_info.sha256s),
             "strip_prefixes": attr.string_list(default=download_info.strip_prefixes),
