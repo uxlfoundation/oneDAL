@@ -25,6 +25,8 @@ Everything host-specific is read from environment variables so the harness runs 
   ONEDAL_EVAL_BAZEL    real bazel/bazelisk binary (default: first bazelisk/bazel on PATH outside bin/).
   ONEDAL_EVAL_REPO_CACHE, ONEDAL_EVAL_DISK_CACHE   shared Bazel caches (default: under ONEDAL_EVAL_ROOT/cache).
   ONEDAL_EVAL_AGENT_TIMEOUT   seconds per agent run (default 2700).
+  ONEDAL_EVAL_CLAUDE   Claude Code CLI binary (default: `claude` on PATH). The version matters: 2.1.277+ loads
+                       AGENTS.md when no CLAUDE.md is present, older CLIs do not; each run records it.
 """
 import getpass
 import os
@@ -90,6 +92,15 @@ def real_bazel():
         if found:
             return found
     raise SystemExit("no bazel/bazelisk on PATH; set ONEDAL_EVAL_BAZEL")
+
+
+def claude_bin():
+    return os.environ.get("ONEDAL_EVAL_CLAUDE", "claude")
+
+
+def claude_version():
+    r = subprocess.run([claude_bin(), "--version"], capture_output=True, text=True)
+    return r.stdout.split()[0] if r.returncode == 0 and r.stdout else None
 
 
 def agent_timeout():

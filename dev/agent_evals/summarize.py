@@ -35,7 +35,7 @@ def main(batch_dir):
     cols = ["pass", "strict_pass", "format_ok", "root_cause_fixed", "recall", "kill_rate", "n_findings", "cost",
             "turns", "n_bazel", "n_build_fail"]
     print(f"{'task':24} {'model':6} {'arm':11} {'n':>2} " + " ".join(f"{c[:6]:>6}" for c in cols)
-          + "  icpx bg gread decoys")
+          + "  icpx bg gread amd decoys")
     for k in sorted(cells):
         rs = cells[k]
         vals = []
@@ -45,4 +45,5 @@ def main(batch_dir):
         dec = collections.Counter(d for r in rs for d in (r.get("decoys_flagged") or []))
         print(f"{k[0][:24]:24} {k[1][:6]:6} {k[2][:11]:11} {len(rs):2} " + " ".join(f"{v:>6}" for v in vals)
               + f"  {sum(bool(r.get('icpx_hit')) for r in rs):4} {sum(r.get('bg_denied', 0) for r in rs):2} "
-              + f"{mean([len(r.get('guidance_read', [])) for r in rs]):>5} {dict(dec) or ''}")
+              + f"{mean([len(r.get('guidance_read', [])) for r in rs]):>5} "
+              + f"{sum(bool(r.get('agents_md_loader')) for r in rs):3} {dict(dec) or ''}")

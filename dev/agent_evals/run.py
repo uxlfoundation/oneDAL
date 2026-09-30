@@ -19,8 +19,8 @@
 
   run.py list                                      tasks and their grader
   run.py check   <task>...                         grader self-check, no LLM: untouched repo must fail, reference passes
-  run.py agent   <task> <arm> <model> <rep>        prep a history-free repo for the arm, run `claude -p`, grade
-  run.py matrix  [--tasks ..] [--arms ..] [--models ..] [--reps N] [-j N] [--batch NAME] [--force]
+  run.py agent   <task> <arm> <model> <rep> [--effort L]  prep a history-free repo for the arm, run `claude -p`, grade
+  run.py matrix  [--tasks ..] [--arms ..] [--models ..] [--reps N] [-j N] [--batch NAME] [--effort L] [--force]
   run.py grade   <run_dir>...                      re-grade existing runs (deterministic; reruns the tests)
   run.py static  [--tree DIR] [--out FILE]         T0: check guidance claims against the tree, $0
   run.py summary [--batch NAME]                    per-cell table of every graded run in the batch
@@ -85,16 +85,17 @@ def kill_group(proc, grace=10):
     proc.wait()
 
 
-def run_agent(task, arm, model, rep, batch):
+def run_agent(task, arm, model, rep, batch, effort=None):
     t = task_spec(task)
     rd = run_dir(batch, task, arm, model, rep)
     repo = prep(task, arm, rd)
     write_settings(rd)
     prompt = t["prompt"] + ("\n\nWork in the foreground: background commands are disabled here, and your final "
                             "answer ends the session.")
-    cmd = ["claude", "-p", prompt, "--model", config.model_id(model), "--output-format", "stream-json", "--verbose",
+    cmd = [config.claude_bin(), "-p", prompt, "--model", config.model_id(model),
+           "--output-format", "stream-json", "--verbose",
            "--permission-mode", "bypassPermissions", "--max-budget-usd", str(config.model_budget(model)),
-           "--disallowedTools", "WebFetch", "WebSearch"]
+           "--disallowedTools", "WebFetch", "WebSearch"] + (["--effort", effort] if effort else [])
     t0 = time.time()
     with open(rd / "trace.jsonl", "w") as out, open(rd / "agent.err", "w") as err:
         # own session, so the agent's foreground builds/tests can be killed with it before grading starts
@@ -108,6 +109,7 @@ def run_agent(task, arm, model, rep, batch):
             kill_group(proc)
     m = meta(rd)
     m.update(model=model, model_id=config.model_id(model), rep=rep, batch=batch, agent_rc=rc,
+             effort=effort, cli_version=config.claude_version(),
              wall_s=round(time.time() - t0))
     (rd / "meta.json").write_text(json.dumps(m))
     try:
@@ -160,7 +162,8 @@ def matrix(a):
     print(f"{len(jobs)} runs, {len(jobs) - len(todo)} already graded, running {len(todo)} with -j {a.j}", flush=True)
 
     def one(j):
-        r = sh([sys.executable, str(Path(__file__).resolve()), "agent", *map(str, j), "--batch", a.batch], check=False)
+        r = sh([sys.executable, str(Path(__file__).resolve()), "agent", *map(str, j), "--batch", a.batch,
+                *(["--effort", a.effort] if a.effort else [])], check=False)
         (sys.stdout if r.returncode == 0 else sys.stderr).write(r.stdout + (r.stderr if r.returncode else ""))
         sys.stdout.flush()
 
@@ -179,6 +182,7 @@ def main():
         p.add_argument(x)
     p.add_argument("rep", type=int)
     p.add_argument("--batch", default="default")
+    p.add_argument("--effort")
     p = sub.add_parser("matrix")
     p.add_argument("--tasks")
     p.add_argument("--arms", default=",".join(ARMS))
@@ -186,6 +190,7 @@ def main():
     p.add_argument("--reps", type=int, default=3)
     p.add_argument("-j", type=int, default=4)
     p.add_argument("--batch", default="default")
+    p.add_argument("--effort", help="Claude Code --effort level, e.g. low")
     p.add_argument("--force", action="store_true")
     p = sub.add_parser("grade")
     p.add_argument("run_dirs", nargs="+", type=Path)
@@ -203,7 +208,7 @@ def main():
     elif a.cmd == "check":
         sys.exit(0 if all([check_verdict(t) for t in a.tasks or all_tasks()]) else 1)
     elif a.cmd == "agent":
-        run_agent(a.task, a.arm, a.model, a.rep, a.batch)
+        run_agent(a.task, a.arm, a.model, a.rep, a.batch, a.effort)
     elif a.cmd == "matrix":
         matrix(a)
     elif a.cmd == "grade":

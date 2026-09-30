@@ -45,17 +45,18 @@ python3 dev/agent_evals/run.py matrix --arms none,main-raw,main-claude --models 
 python3 dev/agent_evals/run.py summary --batch b1
 ```
 
-Other settings (Bazel binary, shared caches, timeout) are environment variables documented in `config.py`.
-Model aliases (`haiku`, `sonnet`, `opus`) resolve to Bedrock ids when `CLAUDE_CODE_USE_BEDROCK` is set and to
-Anthropic API ids otherwise; a full model id also works.
+Other settings (Claude CLI binary, Bazel binary, shared caches, timeout) are environment variables documented in
+`config.py`. Model aliases (`haiku`, `sonnet`, `opus`) resolve to Bedrock ids when `CLAUDE_CODE_USE_BEDROCK` is set
+and to Anthropic API ids otherwise; a full model id also works. `--effort` passes Claude Code's effort level
+through. Each run records the CLI version, which decides whether `AGENTS.md` is loaded (see Arms).
 
 ## Arms
 
 | arm | repository state |
 |---|---|
 | `none` | every `AGENTS.md` and `.github/instructions/*.md` deleted |
-| `main-raw` | as checked in. Claude Code does not auto-load `AGENTS.md`, so the agent only sees it if it opens it |
-| `main-claude` | a `CLAUDE.md` containing `@AGENTS.md` next to every `AGENTS.md`, so Claude loads the hierarchy |
+| `main-raw` | as checked in. Claude Code 2.1.277+ loads `AGENTS.md` itself (nested ones when the agent works in that directory); older CLIs only show it if the agent opens it |
+| `main-claude` | a `CLAUDE.md` containing `@AGENTS.md` next to every `AGENTS.md`, so any CLI version loads the hierarchy. On 2.1.277+ it should match `main-raw` |
 
 An arm is one function in `common.py` that edits the task repo in place (another guidance revision, a placebo of
 the same length, extra tooling).

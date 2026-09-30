@@ -81,11 +81,13 @@ def arm_none(repo):
 
 
 def arm_main_raw(repo):
-    pass  # guidance present as-is; Claude Code only auto-loads CLAUDE.md, so it is read only if the agent opens it
+    # guidance present as-is. Claude Code 2.1.277+ loads AGENTS.md when there is no CLAUDE.md (nested ones once the
+    # agent touches that directory); older CLIs load it only if the agent opens the file
+    pass
 
 
 def arm_main_claude(repo):
-    # CLAUDE.md shim next to every AGENTS.md, so Claude loads the hierarchy the way Codex loads AGENTS.md
+    # CLAUDE.md shim next to every AGENTS.md, so every CLI version loads the hierarchy the way Codex loads AGENTS.md
     for p in guidance_files(repo):
         if p.name == "AGENTS.md":
             (p.parent / "CLAUDE.md").write_text("@AGENTS.md\n")
