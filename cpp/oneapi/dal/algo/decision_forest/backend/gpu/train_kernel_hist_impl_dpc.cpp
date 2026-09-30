@@ -1850,11 +1850,16 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
     if (ctx.distr_mode_) {
-        // Give every rank a disjoint substream of the engine. The row part of the
-        // stride uses `selected_row_total_count_` rather than the local count on
-        // purpose: it has the same value on all ranks and is an upper bound on what
-        // any single rank draws, so the substreams cannot overlap even though the
-        // ranks own different numbers of rows.
+        // Give every rank a substream of the engine. The row part of the stride uses
+        // `selected_row_total_count_` rather than the local count on purpose: it has the
+        // same value on all ranks and bounds the bootstrap draws of any single rank from
+        // above, so that term stays correct however unevenly the rows are shared out.
+        //
+        // The feature/threshold term does not bound its draws: `gen_feature_list()` and
+        // `gen_random_thresholds()` run once per node per tree level, not once per tree,
+        // so a rank can reach past the end of its substream. That predates this change and
+        // is fixed separately by sizing the range from the node count; this keeps the
+        // existing arithmetic so the two changes do not have to land together.
         std::int64_t skip_value =
             comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_;
         skip_value += comm_.get_rank() * ctx.selected_ftr_count_ * ctx.tree_count_ * 2;
