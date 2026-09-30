@@ -22,7 +22,7 @@ def configure_extra_toolchain_lnx(repo_ctx, compiler_id):
     patch_daal_kernel_defines_path = str(repo_ctx.path("patch_daal_kernel_defines.sh"))
     repo_ctx.template(
         "BUILD",
-        Label("@onedal//dev/bazel/toolchains:extra_toolchian_lnx.tpl.BUILD"),
+        Label("@onedal//dev/bazel/toolchains:extra_toolchain_lnx.tpl.BUILD"),
         {
             "%{patch_daal_kernel_defines}": patch_daal_kernel_defines_path,
         }

@@ -18,15 +18,12 @@ load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 
 load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "feature",
-    "feature_set",
     "flag_group",
     "flag_set",
-    "tool_path",
     "variable_with_value",
     "with_feature_set",
     "action_config",
     "tool",
-    "artifact_name_pattern",
 )
 load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
