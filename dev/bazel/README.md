@@ -832,15 +832,17 @@ there is no ESIMD, no `sycl::ext::intel`, and no hard-coded device selector.
 The only Intel-specific piece is the math library itself, so pointing the build
 at [oneMath](https://github.com/uxlfoundation/oneMath) — the open-source
 implementation of the same interface, which additionally dispatches to cuBLAS,
-cuSOLVER, cuSPARSE and cuRAND — is enough to run the same kernels on an NVIDIA
-GPU.
+cuSOLVER, cuSPARSE and cuRAND — lets the same kernels run on an NVIDIA GPU, as
+far as oneMath implements the interface the kernels use. That is currently BLAS
+and LAPACK, not the whole library; see the domain table below before expecting
+an algorithm to build.
 
 Which library is used is decided by `--dpc_math_backend`:
 
 | Value               | Library | Device support                       |
 |---------------------|---------|--------------------------------------|
 | `mkl` _(default)_   | oneMKL  | Intel GPUs. What Make builds.        |
-| `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs          |
+| `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs, BLAS and LAPACK only |
 
 This is orthogonal to `--backend_config`, which selects the *host* math library
 (`mkl` or `ref`); a DPC++ build keeps using whatever that says on the CPU side.
@@ -884,14 +886,45 @@ Two things have to be provided:
 
 `--config=nvidia-gpu` is shorthand for `--dpc_math_backend=onemath`.
 
-Known limitations:
+What builds today, measured against oneMath built from source at commit
+`3273ca2` with the `mklcpu` and `mklgpu` backends:
+
+| domain | status |
+|---|---|
+| BLAS | builds and links |
+| LAPACK | builds and links |
+| RNG | **does not build** — engines missing from oneMath |
+| sparse BLAS | **does not build** — different API |
+
+The two gaps are not a matter of naming and cannot be closed by this
+configuration alone:
+
+- **RNG.** oneMath's `oneapi::math::rng` provides `philox4x32x10` and
+  `mrg32k3a` only. `primitives/rng/device_engine.hpp` also instantiates
+  `mt2203`, `mt19937` and `mcg59`, which the interface does not declare at
+  all. Closing this means either contributing the engines upstream to oneMath
+  or giving those three a fallback — and `mt2203` in particular has no GPU
+  `skip_ahead`, so it cannot simply be mapped onto a counter-based engine.
+- **Sparse BLAS.** The two libraries expose disjoint generations of the
+  interface. oneDAL uses oneMKL's handle API (`init_matrix_handle`,
+  `set_csr_data`, `gemv`, `gemm`, `optimize_gemv`); oneMath ships the newer
+  specification (`init_csr_matrix`, `release_sparse_matrix`, and `spmv` /
+  `spmm` driven by descriptors with separate buffer-size, optimize and execute
+  stages). oneMKL 2026 does not offer the newer form, so there is no spelling
+  that satisfies both and the layer needs a per-backend implementation.
+
+Consequently only algorithms that stay within BLAS and LAPACK can run on this
+configuration, and `--dpc_math_backend=onemath` does not yet build the library
+as a whole.
+
+Other known limitations:
 
 - Make does not build this configuration; `--dpc_math_backend` is Bazel-only.
   Adding it to Make means a `dev/make/deps.onemath.mk` plus
   `compiler_definitions/*.onemath.*.mk`, which the DPC++ Make path would need to
   learn to select independently of `BACKEND_CONFIG`.
-- Not covered by CI, and no NVIDIA hardware is validated. Expect gaps in the
-  parts of the oneMKL interface oneDAL uses that a given oneMath release
-  implements differently, the sparse BLAS domain being the most likely.
+- Not covered by CI, and no NVIDIA hardware is validated. The oneMath side was
+  exercised with the `mklgpu` backend on an Intel GPU, which checks the
+  interface but none of the CUDA code paths.
 - Devices without `aspect::fp64` need `--test_disable_fp64=yes`; that covers the
   tests, not the algorithms themselves.

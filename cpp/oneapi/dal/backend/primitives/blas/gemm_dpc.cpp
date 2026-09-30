@@ -43,7 +43,7 @@ sycl::event gemm(sycl::queue& queue,
 
     constexpr bool is_c_trans = (co == ndorder::c);
     if constexpr (is_c_trans) {
-        return mkl::blas::gemm(queue,
+        return mkl::blas::column_major::gemm(queue,
                                f_order_as_transposed(bo),
                                f_order_as_transposed(ao),
                                c.get_dimension(1),
@@ -60,7 +60,7 @@ sycl::event gemm(sycl::queue& queue,
                                deps);
     }
     else {
-        return mkl::blas::gemm(queue,
+        return mkl::blas::column_major::gemm(queue,
                                c_order_as_transposed(ao),
                                c_order_as_transposed(bo),
                                c.get_dimension(0),

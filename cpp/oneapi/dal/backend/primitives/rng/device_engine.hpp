@@ -78,12 +78,12 @@ public:
 
     /// Retrieves a pointer to the underlying mt2203 generator.
     /// @return A pointer to the `mt2203` RNG.
-    oneapi::mkl::rng::mt2203* get() {
+    mkl::rng::mt2203* get() {
         return &_gen;
     }
 
 protected:
-    oneapi::mkl::rng::mt2203 _gen;
+    mkl::rng::mt2203 _gen;
 };
 
 /// Implementation of the philox4x32x10 random number generator for GPU.
@@ -112,12 +112,12 @@ public:
 
     /// Retrieves a pointer to the underlying philox4x32x10 generator.
     /// @return A pointer to the `philox4x32x10` RNG.
-    oneapi::mkl::rng::philox4x32x10* get() {
+    mkl::rng::philox4x32x10* get() {
         return &_gen;
     }
 
 protected:
-    oneapi::mkl::rng::philox4x32x10 _gen;
+    mkl::rng::philox4x32x10 _gen;
 };
 
 /// Implementation of the mrg32k3a random number generator for GPU.
@@ -146,12 +146,12 @@ public:
 
     /// Retrieves a pointer to the underlying mrg32k3a generator.
     /// @return A pointer to the `mrg32k3a` RNG.
-    oneapi::mkl::rng::mrg32k3a* get() {
+    mkl::rng::mrg32k3a* get() {
         return &_gen;
     }
 
 protected:
-    oneapi::mkl::rng::mrg32k3a _gen;
+    mkl::rng::mrg32k3a _gen;
 };
 
 /// Implementation of the mt19937 random number generator for GPU.
@@ -180,12 +180,12 @@ public:
 
     /// Retrieves a pointer to the underlying mt19937 generator.
     /// @return A pointer to the `mt19937` RNG.
-    oneapi::mkl::rng::mt19937* get() {
+    mkl::rng::mt19937* get() {
         return &_gen;
     }
 
 protected:
-    oneapi::mkl::rng::mt19937 _gen;
+    mkl::rng::mt19937 _gen;
 };
 
 /// Implementation of the mcg59 random number generator for GPU.
@@ -214,12 +214,12 @@ public:
 
     /// Retrieves a pointer to the underlying mcg59 generator.
     /// @return A pointer to the `mcg59` RNG.
-    oneapi::mkl::rng::mcg59* get() {
+    mkl::rng::mcg59* get() {
         return &_gen;
     }
 
 protected:
-    oneapi::mkl::rng::mcg59 _gen;
+    mkl::rng::mcg59 _gen;
 };
 
 /// A class that provides a unified interface for random number generation on both CPU and GPU devices.

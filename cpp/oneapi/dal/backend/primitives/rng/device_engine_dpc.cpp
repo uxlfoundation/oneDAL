@@ -34,27 +34,27 @@ sycl::event generate_rng(Distribution& distr,
     if (engine_type == engine_type_internal::philox4x32x10) {
         auto& device_engine =
             *(static_cast<gen_philox*>(engine_.get_device_engine_base_ptr().get()))->get();
-        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+        return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else if (engine_type == engine_type_internal::mt19937) {
         auto& device_engine =
             *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
-        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+        return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else if (engine_type == engine_type_internal::mrg32k3a) {
         auto& device_engine =
             *(static_cast<gen_mrg32k*>(engine_.get_device_engine_base_ptr().get()))->get();
-        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+        return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else if (engine_type == engine_type_internal::mcg59) {
         auto& device_engine =
             *(static_cast<gen_mcg59*>(engine_.get_device_engine_base_ptr().get()))->get();
-        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+        return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else if (engine_type == engine_type_internal::mt2203) {
         auto& device_engine =
             *(static_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
-        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+        return mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else {
         throw std::runtime_error("Unsupported engine type in generate_rng");
@@ -81,7 +81,7 @@ sycl::event uniform(sycl::queue& queue,
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) == sycl::usm::alloc::host) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
-    oneapi::mkl::rng::uniform<Type> distr(a, b);
+    mkl::rng::uniform<Type> distr(a, b);
     engine_.skip_ahead_cpu(count);
     auto event = generate_rng(distr, engine_, count, dst, deps);
     return event;

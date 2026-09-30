@@ -3,10 +3,17 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "headers",
-    hdrs = glob([
-        "include/**/*.h",
-        "include/**/*.hpp",
-    ]),
+    # oneMath ships `.hpp` headers plus the `.hxx` files they include; it ships
+    # no `.h` at all, so that pattern has to tolerate matching nothing rather
+    # than fail the glob.
+    hdrs = glob(
+        [
+            "include/**/*.h",
+            "include/**/*.hpp",
+            "include/**/*.hxx",
+        ],
+        allow_empty = True,
+    ),
     includes = [
         "include",
     ],

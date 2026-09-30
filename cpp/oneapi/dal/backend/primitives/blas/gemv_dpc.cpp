@@ -45,7 +45,7 @@ sycl::event gemv(sycl::queue& queue,
 
     if constexpr (ao == ndorder::c) {
         ONEDAL_ASSERT(lda >= n);
-        return mkl::blas::gemv(queue,
+        return mkl::blas::column_major::gemv(queue,
                                mkl::transpose::trans,
                                n,
                                m,
@@ -61,7 +61,7 @@ sycl::event gemv(sycl::queue& queue,
     }
     else {
         ONEDAL_ASSERT(lda >= m);
-        return mkl::blas::gemv(queue,
+        return mkl::blas::column_major::gemv(queue,
                                mkl::transpose::nontrans,
                                m,
                                n,
