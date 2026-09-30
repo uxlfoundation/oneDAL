@@ -19,59 +19,52 @@
 Installs the pinned Windows Bazelisk executable for CI.
 
 .DESCRIPTION
-This is the PowerShell counterpart of `.ci/env/bazelisk.sh`. The Windows
-nightly job cannot use that POSIX-shell helper, so this script downloads the
-Windows asset, verifies the SHA256 digest published in the GitHub release, and
-makes `bazel.exe` available to later workflow steps.
+This is the PowerShell counterpart of `.ci/env/bazelisk.sh`; keep the pinned
+version in step with it. The Windows jobs cannot use that POSIX-shell helper, so
+this script downloads the Windows asset, verifies it against the digest pinned
+below, and makes `bazel.exe` available to later steps.
 
-When GitHub Actions provides `GITHUB_PATH`, the installation directory is
-appended there for subsequent steps. Otherwise, the current process `PATH` is
-updated, which also makes the script convenient for local CI reproduction.
+The digest is pinned rather than read from the GitHub release metadata, because
+the releases API is rate limited per IP and made `install-bazel` fail on
+unauthenticated runs. When bumping $bazeliskVersion, update the digest as well;
+it is printed by
+
+  gh release view <version> -R bazelbuild/bazelisk `
+    --json assets --jq '.assets[] | "\(.name) \(.digest)"'
+
+The installation directory is appended to `GITHUB_PATH` under GitHub Actions. On
+Azure Pipelines the version and the executable path are published as pipeline
+variables instead, so that the jobs do not have to pin the version a second time
+in their own `variables:` block. Without either, the current process `PATH` is
+updated, which makes the script convenient for local CI reproduction.
 #>
 
 $ErrorActionPreference = "Stop"
 
 $bazeliskVersion = "v1.29.0"
+$bazeliskSha256 = "092a8738d5b41aae7a85c42cc961b1034e3389aba43ffc20c0fabda7b43e095b"
 $assetName = "bazelisk-windows-amd64.exe"
 $installDir = Join-Path (Get-Location) "bazel\bin"
 $bazelPath = Join-Path $installDir "bazel.exe"
 
-$headers = @{
-    Accept = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
-}
-
-if ($env:GITHUB_TOKEN) {
-    # Authentication is optional, but avoids GitHub API rate limits in CI.
-    $headers.Authorization = "Bearer $env:GITHUB_TOKEN"
-}
-
-$release = Invoke-RestMethod `
-    -Headers $headers `
-    -Uri "https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$bazeliskVersion"
-
-$asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
-if (-not $asset) {
-    throw "Could not find $assetName in Bazelisk release $bazeliskVersion"
-}
-
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $bazelPath
+Invoke-WebRequest `
+    -Uri "https://github.com/bazelbuild/bazelisk/releases/download/$bazeliskVersion/$assetName" `
+    -OutFile $bazelPath
 
-if (-not $asset.digest.StartsWith("sha256:")) {
-    # Do not install an asset that cannot be checked against release metadata.
-    throw "Unexpected Bazelisk digest format: $($asset.digest)"
-}
-
-$expectedHash = $asset.digest.Substring("sha256:".Length)
 $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bazelPath).Hash.ToLowerInvariant()
-if ($actualHash -ne $expectedHash.ToLowerInvariant()) {
-    throw "Bazelisk SHA256 mismatch. Expected $expectedHash, got $actualHash"
+if ($actualHash -ne $bazeliskSha256.ToLowerInvariant()) {
+    Remove-Item -LiteralPath $bazelPath -Force
+    throw ("Bazelisk SHA256 mismatch. Expected $bazeliskSha256, got $actualHash. " +
+           "If you bumped `$bazeliskVersion, update the digest in this script.")
 }
 
-$pathLine = $installDir
 if ($env:GITHUB_PATH) {
-    $pathLine | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    $installDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+}
+elseif ($env:TF_BUILD) {
+    Write-Host "##vso[task.setvariable variable=BAZELISK_VERSION]$bazeliskVersion"
+    Write-Host "##vso[task.setvariable variable=BAZELISK_EXE]$bazelPath"
 }
 else {
     $env:PATH = "$installDir;$env:PATH"

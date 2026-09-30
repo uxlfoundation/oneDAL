@@ -752,8 +752,6 @@ jobs:
   variables:
     release.dir: '__release_win_bazel_icx'
     platform.type : 'win32e'
-    BAZELISK_VERSION: 'v1.28.1'
-    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
@@ -762,11 +760,9 @@ jobs:
   steps:
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
-  - powershell: |
-      $ErrorActionPreference = "Stop"
-      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
-      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
-      & "$(BAZELISK_EXE)" version
+  # The script pins the version and publishes BAZELISK_VERSION and BAZELISK_EXE
+  # for the steps below, so that this job does not pin Bazelisk a second time.
+  - powershell: .ci/env/bazelisk.ps1
     displayName: 'install-bazel'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
@@ -999,8 +995,6 @@ jobs:
   timeoutInMinutes: 0
   variables:
     platform.type : 'win32e'
-    BAZELISK_VERSION: 'v1.28.1'
-    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
   pool:
@@ -1008,11 +1002,9 @@ jobs:
   steps:
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
-  - powershell: |
-      $ErrorActionPreference = "Stop"
-      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
-      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
-      & "$(BAZELISK_EXE)" version
+  # The script pins the version and publishes BAZELISK_VERSION and BAZELISK_EXE
+  # for the steps below, so that this job does not pin Bazelisk a second time.
+  - powershell: .ci/env/bazelisk.ps1
     displayName: 'install-bazel'
   - task: Cache@2
     inputs:

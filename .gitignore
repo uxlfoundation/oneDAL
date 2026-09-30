@@ -11,6 +11,8 @@ __deps*
 
 # Bazel directories
 bazel-*
+# Install directory of .ci/env/bazelisk.{sh,ps1}
+/bazel/
 
 # Visual Studio related files, e.g., ".vscode"
 .vs*

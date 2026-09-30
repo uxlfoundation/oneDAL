@@ -15,7 +15,19 @@
 # limitations under the License.
 #===============================================================================
 
+# Installs the pinned Bazelisk executable for CI. The PowerShell counterpart is
+# `.ci/env/bazelisk.ps1`; keep the pinned version in step with it.
+#
+# The digests are pinned here rather than read from the GitHub release metadata,
+# because the releases API is rate limited per IP and made `install-bazel` fail
+# on unauthenticated runs. When bumping BAZELISK_VERSION, update every digest
+# below as well; they are printed by
+#
+#   gh release view <version> -R bazelbuild/bazelisk \
+#     --json assets --jq '.assets[] | "\(.name) \(.digest)"'
 BAZELISK_VERSION=v1.29.0
+BAZELISK_SHA256_amd64=5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992
+BAZELISK_SHA256_arm64=e20e8b0f4f240091b7a55bf17b9398bd4f40ee70ae0208dff95dd4c445fb4010
 
 # Bazelisk itself always runs on the CI *exec* host (even when the build
 # cross-compiles to another target arch, e.g. the riscv64 job below), so pick
@@ -23,8 +35,8 @@ BAZELISK_VERSION=v1.29.0
 host_arch=$(uname -m)
 
 case "${host_arch}" in
-  x86_64|amd64)  arch=amd64 ;;
-  aarch64|arm64) arch=arm64 ;;
+  x86_64|amd64)  arch=amd64; sha256=${BAZELISK_SHA256_amd64} ;;
+  aarch64|arm64) arch=arm64; sha256=${BAZELISK_SHA256_arm64} ;;
   *)
     echo ":error: Unsupported host architecture for Bazelisk: ${host_arch}" >&2
     exit 1
@@ -33,37 +45,30 @@ esac
 
 BAZELISK_ASSET="bazelisk-linux-${arch}"
 
-# collect information about the bazelisk release
-BAZELISK_JSON=$(wget -qO- \
-  --header="Accept: application/vnd.github+json" \
-  ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
-  --header="X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$BAZELISK_VERSION)
-if [ $? -ne 0 ] || [ -z "$BAZELISK_JSON" ]; then
-  echo ":error: Failed to fetch Bazelisk release information from GitHub API." >&2
+if ! wget -q "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/${BAZELISK_ASSET}"; then
+  echo ":error: Failed to download ${BAZELISK_ASSET} ${BAZELISK_VERSION}." >&2
   exit 1
 fi
 
-# extract SHA256 from json
-SHA256=""
-found=""
-while IFS= read -r line; do
-  if [[ $line == *"\"name\": \"${BAZELISK_ASSET}\""* ]]; then
-    found=1
-  elif [[ $found && $line == *'"digest":'* ]]; then
-    SHA256=$(echo "$line" | sed -n 's/.*"sha256:\([^"]*\)".*/\1/p')
-    break
-  fi
-done < <(printf '%s\n' "$BAZELISK_JSON")
-SHA256+="  ${BAZELISK_ASSET}"
+# Checked explicitly: the script is sourced by most callers, so a bare
+# `sha256sum --check` would only print FAILED and let the build go on with an
+# unverified binary.
+if ! echo "${sha256}  ${BAZELISK_ASSET}" | sha256sum --check --quiet; then
+  echo ":error: SHA256 mismatch for ${BAZELISK_ASSET}. If you bumped" \
+       "BAZELISK_VERSION, update the digests in $0." >&2
+  rm -f "${BAZELISK_ASSET}"
+  exit 1
+fi
 
-# Download Bazelisk
-wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/${BAZELISK_ASSET}
-echo $SHA256
-echo ${SHA256} | sha256sum --check
 # "Install" bazelisk
 chmod +x ${BAZELISK_ASSET}
 mkdir -p bazel/bin
 mv ${BAZELISK_ASSET} bazel/bin/bazel
 export BAZEL_VERSION=$(./bazel/bin/bazel --version | awk '{print $2}')
 export PATH=$PATH:$(pwd)/bazel/bin
+
+# Callers that run this script instead of sourcing it lose the export above, so
+# hand the directory to GitHub Actions the way `bazelisk.ps1` does.
+if [ -n "${GITHUB_PATH}" ]; then
+  echo "$(pwd)/bazel/bin" >> "${GITHUB_PATH}"
+fi
