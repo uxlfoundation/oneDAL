@@ -1,0 +1,42 @@
+[
+ {
+  "id": "pr3773-t1",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 958,
+  "author": "Vika-F",
+  "kind": "convention",
+  "comment": "This code is a copy-paste of what happens at lines 883-890, but there it has a descriptive comment.\nFor the purpose of readability it would be better to create a small helper function that does this left-right swap and attach a comment to it.",
+  "addressed": false,
+  "comment_id": 4132325318
+ },
+ {
+  "id": "pr3773-t2",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 1157,
+  "author": "Vika-F",
+  "kind": "convention",
+  "comment": "Looks like this `if`, and the `if` at line 1167 are ambiguous an can be removed. They duplicate what is done at lines 1116-1117.",
+  "addressed": false,
+  "comment_id": 4132715111
+ },
+ {
+  "id": "pr3773-t3",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 1011,
+  "author": "Vika-F",
+  "kind": "convention",
+  "comment": "Main concern here is about `slotInParent`. It encodes 0/1 for left/right kids but is defined as `size_t`. Looks like an overuse of memory.\n\nThe proposal is to store the address of the item's final node instead of the pair (parentSplit + slotInParent):\n```\n// The address where this item's final node should be written once it is decided:\n// &parentSplit->kid[0|1] for a child, &baseNode for the root.\ntypename DataHelper::NodeType::Base ** parentLink;\n```",
+  "addressed": false,
+  "comment_id": 4132855709
+ },
+ {
+  "id": "pr3773-t4",
+  "file": "cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i",
+  "line": 1014,
+  "author": "Vika-F",
+  "kind": "nit",
+  "comment": "The naming is misleading here, might be confused with the `featureUnordered` above.\nIt's better to rename to something like `ownSplitUnordered`.\n",
+  "addressed": false,
+  "comment_id": 4132896362
+ }
+]
