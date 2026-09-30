@@ -932,9 +932,17 @@ configuration alone:
   stages). oneMKL 2026 does not offer the newer form, so there is no spelling
   that satisfies both and the layer needs a per-backend implementation.
 
-Consequently only algorithms that stay within BLAS and LAPACK can run on this
-configuration, and neither `--dpc_math_backend=onemath` nor
-`DPC_MATH_BACKEND=onemath` yet builds the library as a whole.
+Neither `--dpc_math_backend=onemath` nor `DPC_MATH_BACKEND=onemath` therefore
+builds the library as a whole yet. A full `make onedal_dpc
+DPC_MATH_BACKEND=onemath` links the host libraries and then stops with eight
+translation units failing: the four that hold the two gaps themselves
+(`primitives/rng/device_engine_dpc`, `primitives/sparse_blas/{gemm,gemv,set_csr_data}_dpc`),
+`detail/sparse_matrix_handle_impl`, and the three decision forest GPU training
+kernels, which instantiate the missing engines through `device_engine.hpp`. So
+`libonedal_dpc.so` does not link, and nothing that needs it — no DPC++ example,
+no DPC++ test — can be built or run against oneMath today. The host
+`libonedal.so` is unaffected, but it never used the device backend to begin
+with.
 
 Other known limitations:
 
