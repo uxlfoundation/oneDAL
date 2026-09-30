@@ -11,7 +11,7 @@ Standalone programs shipped in the release and shown in the docs, one directory 
 - Input data comes from the top-level `data/` directory via `get_data_path()`
 
 ## Rules for Changes
-- Use one interface per example; don't mix DAAL and oneAPI code in one file.
+- Each example is self-contained and runnable, and uses one interface; don't mix DAAL and oneAPI code in one file.
 - For a new algorithm directory, add it to the `algos` list of `dal_algo_example_suite` (`daal_algo_example_suite` for DAAL) in that tree's `BUILD`. Examples that don't match one algorithm library get their own `dal_example_suite`, like `graph`.
 - The docs pull in every file under `oneapi/{cpp,dpc}/source/` via `docs/rst_examples.py`, and link DAAL examples by path with `:cpp_example:`. Renaming or removing an example breaks those references, so update `docs/source/` in the same PR.
 - Reuse `example_util` / `utils` helpers instead of adding local printing or data-loading code.

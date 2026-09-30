@@ -10,6 +10,7 @@ Sphinx sources for the oneDAL documentation. Authoring conventions are in `docs/
 - `rst_examples.py`: generates `source/examples/{cpp,dpc}/*.rst` from `examples/oneapi/`; those files are gitignored, so don't edit or commit them
 
 ## Rules for Changes
+- Keep public docs in sync with the implementation: a change to a public API, command or example updates the pages that describe it in the same PR.
 - The build runs Sphinx with `-W --keep-going -n`: warnings, including broken references, fail it.
 - Cross-reference with explicit targets (`.. _my-page:` and `:ref:`), not headings.
 - Record removals and deprecations of public functionality in `source/deprecation.rst`.

@@ -6,7 +6,8 @@
 
 - **Headers**: `.hpp` files with `#pragma once`
 - **Memory**: STL RAII (`std::unique_ptr`, `std::shared_ptr`)
-- **Errors**: exceptions from `cpp/oneapi/dal/exceptions.hpp` (`dal::invalid_argument`, `dal::domain_error`, ...)
+- **Errors**: exceptions from `cpp/oneapi/dal/exceptions.hpp` (`dal::invalid_argument`, `dal::domain_error`, ...) with messages from `detail/error_messages.hpp`, e.g. `throw invalid_argument{ dal::detail::error_messages::queues_in_different_contexts() };` (`backend/common.hpp`)
+- **Naming**: `snake_case` for types, functions, variables and constants (`train_ops`, `get_data()`, `row_count`); private members take a trailing underscore (`store_`, `comm_`)
 - **GPU**: Intel SYCL with USM for CPU/GPU operations
 - **Namespace**: `oneapi::dal::v1` (stable), `preview` (experimental)
 - **Interface**: Never mix DAAL and oneAPI patterns in same file
@@ -124,4 +125,4 @@ sycl::event gpu_compute(sycl::queue& q,
 
 - **[AGENTS.md](../../AGENTS.md)** - Repository overview
 - **[cpp/daal/AGENTS.md](../daal/AGENTS.md)** - Traditional DAAL interface
-- **[.github/instructions/cpp-coding-guidelines.instructions.md](../../.github/instructions/cpp-coding-guidelines.instructions.md)** - Detailed C++ standards
+- **[cpp/AGENTS.md](../AGENTS.md)** - Interface conventions shared by both interfaces

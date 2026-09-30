@@ -1,164 +1,67 @@
+# AGENTS.md - C++ (cpp/)
 
-# oneDAL C++ Implementation - AI Agents Context
+## Purpose
+The two C++ interfaces: DAAL (`cpp/daal/`, CPU) and oneAPI (`cpp/oneapi/`, CPU and SYCL GPU, primary development focus). Interface-specific rules are in `cpp/daal/AGENTS.md` and `cpp/oneapi/AGENTS.md`.
 
-> **Purpose**: Context for AI agents working with oneDAL's dual C++ interface architecture.
+## Interface Conventions
 
-## 🏗️ C++ Architecture Overview
+| | DAAL (`cpp/daal/`) | oneAPI (`cpp/oneapi/`) |
+| --- | --- | --- |
+| Headers | `.h` with `#ifndef __FILE_NAME_H__` guards | `.hpp` with `#pragma once` |
+| Namespaces | `daal::algorithms`, `daal::data_management`, `daal::services` | `oneapi::dal`, `oneapi::dal::<algorithm>`; `detail`, `backend`, `preview` sub-namespaces |
+| Ownership | `daal::services::SharedPtr<T>` | `std::unique_ptr`, `std::shared_ptr` |
+| Errors | Kernels return `services::Status`; the interface layer converts it with `services::throwIfPossible()` | Exceptions from `cpp/oneapi/dal/exceptions.hpp` (`invalid_argument`, `domain_error`, `unimplemented`, ...) with messages from `cpp/oneapi/dal/detail/error_messages.hpp` |
+| Kernels | Template bodies in `.i` files under `cpp/daal/src/`, templated on `CpuType cpu` | `cpp/oneapi/dal/algo/<algorithm>/backend/{cpu,gpu}` |
+| Naming | Classes `CamelCase`, functions and variables `lowerCamelCase` | `snake_case` throughout; private members end in `_` |
 
-oneDAL provides **two distinct C++ interfaces**:
-
-### 1. Traditional DAAL Interface (`cpp/daal/`)
-- **Target**: CPU-focused with SIMD optimizations, backward compatible
-- **Style**: Traditional C++ with `daal::services::SharedPtr<T>`, `services::Status` return codes, highly-nested namespaces
-- **Headers**: `.h` files with `#ifndef` guards, `daal::algorithms` namespaces
-
-### 2. Modern oneAPI Interface (`cpp/oneapi/`)
-- **Target**: CPU + GPU (SYCL) + distributed computing (primary development focus)
-- **Style**: Modern C++17 with STL smart pointers, exceptions, RAII
-- **Headers**: `.hpp` files with `#pragma once`, `oneapi::dal` namespaces
-
-## 🔧 Development Standards
-
-- **C++ Standard**: C++17 (no C++20/23 features for compatibility)
-- **Architecture**: x86_64, ARM64 (SVE), RISC-V 64-bit with CPU-specific optimizations
-- **Build**: Bazel with `dal.bzl`/`daal.bzl` rules, MKL/OpenBLAS backend selection
-
-## 🎭 Key Template Patterns
-
-### Template Specialization & CPU Dispatch
-```cpp
-// DAAL - Multi-dimensional specialization for CPU optimization
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
-    virtual services::Status compute() override;
-};
-
-// oneAPI - Type-safe dispatching with perfect forwarding
-template <typename Context, typename Float, typename Method, typename Task>
-struct train_ops_dispatcher {
-    train_result<Task> operator()(const Context&, const descriptor_base<Task>&,
-                                  const train_parameters<Task>&, const train_input<Task>&) const;
-};
-```
-
-## 🏛️ Core Design Patterns
-
-### Memory Management
-```cpp
-// DAAL - Custom smart pointers
-daal::services::SharedPtr<NumericTable> data_;
-// DAAL - Custom objects collections
-daal::services::Collection<int> collection(5);
-
-// oneAPI - STL smart pointers with RAII
-std::unique_ptr<object> ptr_ = std::make_unique<object>();
-std::shared_ptr<table> table_ = std::make_shared<table>();
-// oneAPI - STL containers
-std::vector<int> vec(5);
-```
-
-### Error Handling
-- **DAAL**: `services::Status` return codes with `throwIfPossible()` conversion
-- **oneAPI**: STL exceptions (`std::invalid_argument`, `std::domain_error`)
-
-## ⚡ Platform Optimizations
-
-### Multi-Architecture CPU Support
-```cpp
-// Compile-time CPU optimization selection
-#if defined(TARGET_X86_64)
-    enum CpuType { sse2 = 0, avx2 = 4, avx512 = 6 };
-#elif defined(TARGET_ARM)
-    enum CpuType { sve = 0 };  // ARM SVE
-#elif defined(TARGET_RISCV64)
-    enum CpuType { rv64 = 0 }; // RISC-V 64-bit
-#endif
-
-// SIMD optimization
-#define PRAGMA_FORCE_SIMD _Pragma("ivdep")  // Intel compiler vectorization
-```
-
-### Runtime CPU Feature Detection
-```cpp
-enum class cpu_feature : uint64_t {
-    unknown = 0ULL,
-    sstep = 1ULL << 0,          // Intel(R) SpeedStep
-    tb = 1ULL << 1,             // Intel(R) Turbo Boost
-    avx512_bf16 = 1ULL << 2,    // AVX512 bfloat16
-    avx512_vnni = 1ULL << 3,    // AVX512 VNNI
-    tb3 = 1ULL << 4             // Intel(R) Turbo Boost Max 3.0
-};
-```
-
-## 🌐 Dependencies & Namespaces
-
-### Key Dependencies
-- **Math**: Intel MKL (primary), OpenBLAS (reference)
-- **Threading**: Intel TBB, used only through the threading layer (`cpp/oneapi/dal/detail/threading.hpp`, `cpp/daal/src/threading/threading.h`)
-- **GPU**: Intel SYCL for heterogeneous computing
-- **Distributed**: MPI via `oneapi::dal::preview::spmd`
-
-### Namespace Structure
-
-- **oneAPI**:
-  - `oneapi::dal`: Top level oneDAL namespace.
-    - `oneapi::dal::{...}::backend`: APIs for internal oneDAL use, not visible to the users.
-    - `oneapi::dal::{...}::detail`: APIs that are visible to the users, but might be a subject to change. Those APIs do not follow ABI compatibility requirements.
-    - `oneapi::dal::{...}::preview`: Functionality added into a product for users to try it out. Also might be a subject to change or removal, and does not follow the ABI compatibility requirements.
-    - `oneapi::dal::<algorithm>`, for example `oneapi::dal::kmeans`: Namespace of a respective algorithm.
-- **DAAL**:
-  - `daal`: Top level DAAL namespace.
-    - `daal::algorithms`: Algorithms and related classes like `Parameter`, `Input`, `Result`.
-    - `daal::data_management`: Numeric tables and data sources.
-    - `daal::services`: Error handling, `SharedPtr`, `Collection`.
-    - `daal::{}::internal`: APIs for internal DAAL use, not visible to the users.
-
-## 📚 Algorithm Interface Patterns
-
-### DAAL Pattern
-```cpp
-// Traditional algorithm lifecycle with explicit memory management
-using rr_train = daal::ridge_regression::training;
-rr_train::Batch<float> training(2.0 /* ridge coefficient */);
-training.input.set(rr_train::data, data_table);
-training.input.set(rr_train::dependentVariables, dependents);
-training.compute();
-auto result = training->getResult();
-auto model = result->get(rr_train::model);
-```
-
-### oneAPI Pattern
-```cpp
-// Modern fluent interface with automatic resource management
-auto desc = dal::kmeans::descriptor<float>()
-    .set_cluster_count(10)
-    .set_max_iteration_count(100);
-auto train_result = dal::train(desc, data_table);
-auto infer_result = infer(desc, train_result.get_model(), test_data);
-```
-
-## 🎯 Critical Rules
-
-### Interface Separation
-- **NEVER mix DAAL and oneAPI patterns** in same file
-- **DAAL**: `.h` headers, `#ifndef` guards, `daal::services::SharedPtr<T>`
-- **oneAPI**: `.hpp` headers, `#pragma once`, `std::unique_ptr/shared_ptr`
-
-### Memory & Error Handling
-- **DAAL**: Custom smart pointers, `services::Status` codes
-- **oneAPI**: STL RAII, C++ exceptions
-
-### Performance
-- **CPU Dispatch**: Templates specialized by `CpuType` for optimal SIMD
-- **Threading**: Parallelize through the threading layer, never TBB directly
-- **GPU**: SYCL for heterogeneous computing
-
-### ABI and Public API
+## Rules for Changes
+- Never mix the two interfaces in one file. C++17 only; no C++20/23 features.
+- Parallelize through the threading layer (`cpp/oneapi/dal/detail/threading.hpp`, `cpp/daal/src/threading/threading.h`), never TBB directly.
+- Keep CPU dispatch intact: optimized code is templated on `CpuType` and selected at runtime.
 - Removing anything from a public header needs a deprecation period and an entry in `docs/source/deprecation.rst`. Expected symbol removals go in `.github/.abignore`, which the ABI check reads.
 - Don't change copy semantics (shallow vs deep) as a side effect of another change.
 - Export macros (`DAAL_EXPORT`, `ONEDAL_EXPORT`) and symbol visibility must stay the same between the Bazel and Make builds.
 
-## 📖 Further Reading
+## Review Checklist
+- The interface contract in the table above is preserved.
+- Ownership, lifetime, error propagation, type safety and bounds handling, where the change touches them.
+- CPU dispatch is preserved and no C++20/23 features are introduced.
+- Public API or ABI changes account for compatibility.
+
+## CPU Dispatch
+
+DAAL containers and kernels are templated on `CpuType cpu` (values per architecture in `cpp/daal/src/services/cpu_type.h`). oneAPI operations go through a dispatcher templated on the context (from `cpp/oneapi/dal/algo/kmeans/detail/train_ops.hpp`):
+
+```cpp
+template <typename Context, typename Float, typename Method, typename Task, typename... Options>
+struct train_ops_dispatcher {
+    train_result<Task> operator()(const Context&,
+                                  const descriptor_base<Task>&,
+                                  const train_input<Task>&) const;
+};
+```
+
+Runtime CPU feature flags are in `cpp/oneapi/dal/detail/cpu.hpp`; see also `docs/source/contribution/cpu_features.rst`.
+
+## Dependencies
+- Math: Intel MKL (default), OpenBLAS (`BACKEND_CONFIG=ref`)
+- Threading: oneTBB, only through the threading layer
+- GPU: SYCL; distributed: `oneapi::dal::preview::spmd`
+
+## Namespace Structure
+
+- **oneAPI** (`oneapi::dal`):
+  - `backend`: internal, not visible to users.
+  - `detail`: visible to users but may change; not ABI-stable.
+  - `preview`: experimental functionality; may change or be removed, not ABI-stable.
+  - `<algorithm>`, for example `oneapi::dal::kmeans`.
+- **DAAL** (`daal`):
+  - `algorithms`: algorithms and their `Parameter`, `Input`, `Result` classes.
+  - `data_management`: numeric tables and data sources.
+  - `services`: error handling, `SharedPtr`, `Collection`.
+  - `{...}::internal`: internal, not visible to users.
+
+## Further Reading
 - **[AGENTS.md](/AGENTS.md)** - Repository overview and context
 - **[cpp/daal/AGENTS.md](/cpp/daal/AGENTS.md)** - DAAL interface specifics
 - **[cpp/oneapi/AGENTS.md](/cpp/oneapi/AGENTS.md)** - oneAPI interface specifics

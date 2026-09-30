@@ -18,6 +18,12 @@ These come from recurring maintainer review comments. Directory-specific rules a
 - ASCII only in source, comments and docs. Keep each file's existing line endings.
 - Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
 - New Bash scripts start with `set -euo pipefail`. Use `mkdir -p`, and don't silence failures with a bare `|| true`.
+- Keep to the interface you are in: DAAL uses `services::Status` and `SharedPtr`, oneAPI uses exceptions and standard smart pointers. Never mix them in one file (see `cpp/AGENTS.md`).
+- Flag any public API or ABI change; it needs a deprecation path (see `cpp/AGENTS.md`).
+
+## Reviewing
+
+Report source-confirmed problems with correctness, compatibility, ownership, CPU dispatch, error handling and test coverage. Don't report what CI already enforces (formatting, license headers, editorconfig).
 
 ## Verification Before You Push
 
@@ -71,7 +77,7 @@ Style is not gated in GitHub Actions: a green Actions run does not mean formatti
 
 ## Directory Guides
 
-Read the `AGENTS.md` nearest the files you change:
+Read the `AGENTS.md` nearest the files you change. When editing these files, every command, path and snippet must match the repository; delete what can't be verified rather than soften it.
 
 - [cpp/AGENTS.md](cpp/AGENTS.md): C++ implementation details and patterns
 - [cpp/daal/AGENTS.md](cpp/daal/AGENTS.md): Traditional DAAL interface context
@@ -84,7 +90,6 @@ Read the `AGENTS.md` nearest the files you change:
 - [deploy/AGENTS.md](deploy/AGENTS.md): Deployment and distribution context
 - [.ci/AGENTS.md](.ci/AGENTS.md): CI/CD infrastructure context
 - [.github/AGENTS.md](.github/AGENTS.md): Workflow constraints (`nightly-build.yml`)
-- [.github/instructions/AGENTS.md](.github/instructions/AGENTS.md): Copilot instruction scopes and maintenance
 
 ## Further Reading
 - `CONTRIBUTING.md`, `INSTALL.md`

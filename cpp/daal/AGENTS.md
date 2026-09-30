@@ -9,6 +9,7 @@
 - **Errors**: `services::Status` return codes with `throwIfPossible()`
 - **Threading**: the DAAL threading layer (`src/threading/threading.h`), with CPU-specific kernels
 - **Optimization**: Multi-architecture dispatch (SSE2, AVX2, AVX-512, ARM SVE, RISC-V)
+- **Naming**: classes in `CamelCase` (`BatchContainer`, `HomogenNumericTable`); functions and variables in `lowerCamelCase` (`getResult()`, `nClusters`, `nRowsTotal`); the floating-point template parameter is `algorithmFPType`
 
 ## 🚀 Essential Commands
 
@@ -86,6 +87,6 @@ auto table = dataSource.getNumericTable();
 
 - **[AGENTS.md](../../AGENTS.md)** - Repository overview
 - **[cpp/oneapi/AGENTS.md](../oneapi/AGENTS.md)** - Modern oneAPI interface
-- **[.github/instructions/cpp-coding-guidelines.instructions.md](../../.github/instructions/cpp-coding-guidelines.instructions.md)** - Detailed C++ coding guidelines
+- **[cpp/AGENTS.md](../AGENTS.md)** - Interface conventions shared by both interfaces
 
 **Note**: This interface is maintained for backward compatibility. For new development, consider the modern oneAPI interface.
