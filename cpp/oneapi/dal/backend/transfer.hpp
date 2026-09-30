@@ -47,6 +47,23 @@ inline std::tuple<array<T>, sycl::event> to_device(sycl::queue& q, const array<T
     }
 }
 
+/// Returns a host-readable view of `ary`, copying it only when it is not host-readable
+/// already.
+///
+/// The result may alias `ary` rather than be a copy of it: that is the case when `ary`
+/// carries no queue, and when it is host or shared USM. Treat the result as read-only.
+/// Writing through it is only well defined for the device-USM case, which is the one
+/// case that does copy, so a caller that mutates the result works by accident until the
+/// input's allocation kind changes.
+///
+/// It is also not a snapshot: in the aliasing cases, device work enqueued afterwards that
+/// writes the same memory is visible through the returned array.
+///
+/// @param[in] ary The array to make host-readable. Must be non-empty.
+///
+/// @return The host-readable array and, when a copy was made, the event tracking it. The
+///         event is a default-constructed (already complete) one whenever the result
+///         aliases the input.
 template <typename T>
 inline std::tuple<array<T>, sycl::event> to_host(const array<T>& ary) {
     ONEDAL_ASSERT(ary.get_count() > 0);

@@ -195,10 +195,17 @@ sycl::event scatter_host2device_blocking(sycl::queue& q,
         });
         events.push_back(scatter_event);
     }
-    // `gathered_device_unique` is freed on return and `sycl::free` does not synchronize,
-    // so every scatter kernel reading from it has to complete here, whatever the block count.
+    // `gathered_device_unique` is freed on return and `sycl::free` does not synchronize, so
+    // every scatter kernel reading from it has to complete here.
+    //
+    // This was already the case before `events` stopped being pre-sized, but only by
+    // accident: pre-sizing to the block count and then pushing the same number of events
+    // left `events.size()` at twice the block count, which cleared `wait_or_pass`'s
+    // `size() > 1` bar for any non-empty blocking. Waiting unconditionally states the
+    // requirement instead of leaning on the padding, and the padding is gone.
     sycl::event::wait_and_throw(events);
 
+    // Nothing is left in flight, so there is no event worth handing back.
     return sycl::event{};
 }
 
