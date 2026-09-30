@@ -18,7 +18,7 @@ rem ============================================================================
  
 setlocal enabledelayedexpansion
  
-set TBBVERSION=2023.0.0
+set TBBVERSION=2023.1.0
 if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     set "TBBURL=https://github.com/uxlfoundation/oneTBB/archive/refs/tags/v%TBBVERSION%.zip"
     set "TBBPACKAGE="
