@@ -137,6 +137,14 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_csr(
     // an all-zero support-vector block would produce exactly that. Store a
     // single explicit zero instead: a stored zero and an absent entry are the
     // same number, so the model this yields is the same model.
+    //
+    // Nothing downstream minds if every pair ends up here, i.e. if the whole
+    // support-vector matrix is zero. Each sub-model then evaluates its kernel
+    // against zero vectors and its decision value collapses to its own bias, so
+    // the pairwise votes are constant across rows and the multiclass predictor
+    // returns the class those biases agree on -- a degenerate model, but a
+    // well-defined one rather than an error. `svm multi-class model with all-zero
+    // csr support vectors` in the batch tests pins that down.
     const std::int64_t stored = (nnz > 0) ? nnz : std::int64_t(1);
 
     auto pair_values = array<Float>::zeros(stored);
@@ -207,14 +215,17 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_csr(
 //   (0,1), (0,2), ..., (0, class_count-1), (1,2), ..., (class_count-2, class_count-1).
 //
 // Dense and CSR support vectors are both accepted; the per-pair blocks keep the
-// layout of the aggregated table, which must be the layout the infer kernel was
-// given for the data as well, since one kernel function serves both.
+// layout of the aggregated table, which the sub-models are told about. The
+// layout of the inference data is passed in only to be compared against it: one
+// kernel function serves both operands, so a dense model cannot evaluate sparse
+// data or the other way round, and that is worth refusing here rather than
+// inside the kernel.
 template <typename Float, typename Task>
 static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     const model<Task>& trained_model,
     const std::int64_t column_count,
     const std::uint64_t class_count,
-    const daal::data_management::NumericTableIface::StorageLayout daal_layout) {
+    const daal::data_management::NumericTableIface::StorageLayout data_layout) {
     const auto sv_table = trained_model.get_support_vectors();
     const auto coeffs_table = trained_model.get_coeffs();
     const auto biases_table = trained_model.get_biases();
@@ -245,16 +256,25 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     // dense data. Reject the mixture instead of handing the kernel two layouts.
     const bool sv_is_csr = sv_table.get_kind() == dal::csr_table::kind();
     const bool data_is_csr =
-        daal_layout == daal::data_management::NumericTableIface::StorageLayout::csrArray;
+        data_layout == daal::data_management::NumericTableIface::StorageLayout::csrArray;
     if (sv_is_csr != data_is_csr) {
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
+    // What a sub-model has to be told is the layout of its own support vectors,
+    // which is this one, and not whatever the data happens to be stored as.
+    const auto sv_layout = sv_is_csr
+                               ? daal::data_management::NumericTableIface::StorageLayout::csrArray
+                               : daal::data_management::NumericTableIface::StorageLayout::aos;
 
     auto n_per_class_arr = row_accessor<const std::int32_t>{ n_per_class_table }.pull();
     const auto n_per_class = n_per_class_arr.get_data();
 
     auto coeffs_arr = row_accessor<const Float>{ coeffs_table }.pull();
+    // Biases are `double` whatever `Float` is: a daal sub-model holds its bias as
+    // a `double` scalar, and `convert_from_daal_model` pins the public table to
+    // `double` to match. A caller who sets a single-precision table of its own is
+    // still served -- the accessor converts.
     auto biases_arr = row_accessor<const double>{ biases_table }.pull();
 
     // Dense support vectors are pulled as one row-major block; CSR ones as the
@@ -365,7 +385,7 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
             auto pair_model = daal::services::SharedPtr<daal_svm::internal::ModelImpl>(
                 new daal_svm::internal::ModelImpl(Float(0),
                                                   static_cast<std::size_t>(column_count),
-                                                  daal_layout,
+                                                  sv_layout,
                                                   status));
             interop::status_to_exception(status);
             daal::data_management::NumericTablePtr pair_coeffs_nt = pair_coeffs;

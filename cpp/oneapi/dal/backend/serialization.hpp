@@ -164,13 +164,9 @@ public:
 
     // Algorithms - SVM
     //
-    // The classification and nu-classification model payloads gained a
-    // `n_support_per_class` table, so an archive written by an older oneDAL no
-    // longer matches the reader. A serialization id identifies a payload
-    // layout, not just a type, so the two affected ids are bumped to fresh
-    // values: `3010000000` and `3010300000` are retired and must not be reused.
-    // Reading an old archive now fails with `archive_content_does_not_match_type`
-    // instead of consuming the following field as a table header.
+    // Both classification payloads gained an `n_support_per_class` table, so
+    // their ids are bumped and an older archive now fails to load instead of
+    // being misread. `3010000000` and `3010300000` are retired.
     ID(3010500000, svm_classification_model_impl_id);
     ID(3010100000, svm_regression_model_impl_id);
     ID(3010200000, svm_model_interop_impl_multiclass_id);

@@ -1037,35 +1037,60 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
 // ============================================================================
 // Reconstructing a multi-class model from its public arrays.
 //
-// `move_estimator_to` (and scikit-learn-intelex, when scikit-learn does the fit
-// and oneDAL only predicts) builds an `svm::model` through the public setters
-// and never runs a oneDAL train, so the model carries no DAAL interop pointer
-// and the one-vs-one sub-models have to be rebuilt from the aggregated arrays.
-// These cases pin down that the rebuilt model infers exactly like the trained
-// one, for dense and for CSR support vectors, and that the shapes the rebuild
-// depends on are checked rather than trusted.
+// A model whose one-vs-one sub-models have to be rebuilt from the aggregated
+// arrays is any model that did not come out of a oneDAL train, so it carries no
+// DAAL interop pointer: one assembled through the public setters
+// (`move_estimator_to`, or scikit-learn-intelex handing over the arrays of a
+// scikit-learn fit), one read back from an archive, and equally a trained model
+// on which a caller has replaced one of the arrays. These cases pin down that
+// the rebuilt model infers exactly like the trained one, for dense and for CSR
+// support vectors, and that the shapes the rebuild depends on are checked rather
+// than trusted.
 // ============================================================================
 
-/// Three well-separated 2D blobs, one per class, with enough exact zeros that a
-/// CSR encoding of the support vectors is genuinely sparse.
+/// Three well-separated blobs, one per class. The first two columns carry the
+/// separation and the last two are exactly zero for most points, so a CSR
+/// encoding of the support vectors stores about half of the matrix and the
+/// number of non-zeros per row is uneven -- which is what makes the row-offset
+/// arithmetic of the sparse rebuild worth testing.
 template <typename Float>
 struct multiclass_blobs {
     static constexpr std::int64_t class_count = 3;
     static constexpr std::int64_t pair_count = class_count * (class_count - 1) / 2;
-    static constexpr std::int64_t column_count = 2;
+    static constexpr std::int64_t column_count = 4;
     static constexpr std::int64_t train_row_count = 15;
     static constexpr std::int64_t test_row_count = 6;
 
+    // clang-format off
     std::array<Float, train_row_count * column_count> x_train_data = {
-        -5.0, -5.0, -4.8, -5.2, -5.2, -4.8, -4.9, -5.1, -5.1, -4.9, 5.0, -5.0, 4.8, -5.2, 5.2,
-        -4.8, 4.9,  -5.1, 5.1,  -4.9, 0.0,  5.0,  -0.2, 4.8,  0.2,  4.8, -0.1, 5.1, 0.1,  5.1
+        -5.0, -5.0, 0.0, 0.0,
+        -4.8, -5.2, 0.3, 0.0,
+        -5.2, -4.8, 0.0, 0.2,
+        -4.9, -5.1, 0.0, 0.0,
+        -5.1, -4.9, 0.1, 0.1,
+         5.0, -5.0, 0.0, 0.0,
+         4.8, -5.2, 0.0, 0.3,
+         5.2, -4.8, 0.2, 0.0,
+         4.9, -5.1, 0.0, 0.0,
+         5.1, -4.9, 0.1, 0.1,
+         0.0,  5.0, 0.0, 0.0,
+        -0.2,  4.8, 0.0, 0.2,
+         0.2,  4.8, 0.3, 0.0,
+        -0.1,  5.1, 0.0, 0.0,
+         0.1,  5.1, 0.0, 0.0
     };
     std::array<Float, train_row_count> y_train_data = {
         0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2
     };
-    std::array<Float, test_row_count * column_count> x_test_data = { -5.0, -5.0, 5.0,  -5.0,
-                                                                     0.0,  5.0,  -4.5, -4.5,
-                                                                     4.5,  -4.5, 0.5,  4.5 };
+    std::array<Float, test_row_count * column_count> x_test_data = {
+        -5.0, -5.0, 0.0, 0.0,
+         5.0, -5.0, 0.0, 0.0,
+         0.0,  5.0, 0.0, 0.0,
+        -4.5, -4.5, 0.2, 0.0,
+         4.5, -4.5, 0.0, 0.2,
+         0.5,  4.5, 0.0, 0.0
+    };
+    // clang-format on
 
     table x_train() const {
         return homogen_table::wrap(x_train_data.data(), train_row_count, column_count);
@@ -1259,6 +1284,85 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
                              .set_biases(trained_model.get_biases())
                              .set_n_support_per_class(trained_model.get_n_support_per_class());
     REQUIRE_THROWS_AS(this->infer(svm_desc, rebuilt_dense, x_test_csr), invalid_argument);
+}
+
+TEMPLATE_LIST_TEST_M(svm_batch_test,
+                     "svm multi-class model with all-zero csr support vectors",
+                     "[svm][integration][batch][multiclass][manual-model][csr]",
+                     svm_nightly_types) {
+    SKIP_IF(this->multiclass_not_available_on_device());
+    SKIP_IF(this->get_policy().is_gpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    using kernel_t = linear::descriptor<float_t, linear::method::dense>;
+    using blobs_t = multiclass_blobs<float_t>;
+
+    const blobs_t blobs{};
+    const auto svm_desc =
+        svm::descriptor<float_t, method_t, svm::task::classification, kernel_t>{
+            kernel_t{}.set_scale(1.0).set_shift(0.0)
+        }
+            .set_class_count(blobs_t::class_count)
+            .set_c(1.0);
+
+    const auto trained_model = this->train(svm_desc, blobs.x_train(), blobs.y_train()).get_model();
+    const std::int64_t n_sv = trained_model.get_support_vectors().get_row_count();
+
+    INFO("an all-zero support-vector matrix sends the pairwise slices down the empty-block path");
+    // `csr_table` cannot hold no values at all -- `dal::array<T>::empty(0)`
+    // throws -- so the aggregated matrix keeps one explicitly stored zero in its
+    // first row. Every pair that does not contain that row has nothing to slice
+    // and takes the `nnz == 0` branch of `slice_pair_support_vectors_csr`; the
+    // pairs that do contain it slice a single stored zero, which is the same
+    // number. Either way the kernel is handed zero support vectors.
+    auto zero_values = dal::array<float_t>::zeros(1);
+    auto zero_columns = dal::array<std::int64_t>::empty(1);
+    auto zero_offsets = dal::array<std::int64_t>::empty(n_sv + 1);
+    zero_columns.get_mutable_data()[0] = 1;
+    auto offsets = zero_offsets.get_mutable_data();
+    offsets[0] = 1;
+    for (std::int64_t r = 1; r <= n_sv; ++r) {
+        offsets[r] = 2;
+    }
+    const auto sv_zero_csr = csr_table::wrap(zero_values,
+                                             zero_columns,
+                                             zero_offsets,
+                                             blobs_t::column_count,
+                                             sparse_indexing::one_based);
+
+    auto rebuilt = svm::model<svm::task::classification>{}
+                       .set_class_count(blobs_t::class_count)
+                       .set_support_vectors(sv_zero_csr)
+                       .set_coeffs(trained_model.get_coeffs())
+                       .set_biases(trained_model.get_biases())
+                       .set_n_support_per_class(trained_model.get_n_support_per_class());
+
+    const auto x_test_csr = dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
+                                                         blobs_t::test_row_count,
+                                                         blobs_t::column_count);
+    const auto df = this->infer(svm_desc, rebuilt, x_test_csr).get_decision_function();
+    REQUIRE(df.get_row_count() == blobs_t::test_row_count);
+    REQUIRE(df.get_column_count() == blobs_t::pair_count);
+
+    INFO("such a model is degenerate but well defined: every decision value is its own bias");
+    // Nothing distinguishes one test row from another once the support vectors
+    // are all zero, so each column of the decision function is constant and
+    // carries the bias of its sub-model.
+    const auto df_arr = row_accessor<const float_t>{ df }.pull();
+    const auto biases = row_accessor<const double>{ trained_model.get_biases() }.pull();
+    const double tolerance = te::get_tolerance<float_t>(1e-4, 1e-10);
+    for (std::int64_t col = 0; col < blobs_t::pair_count; ++col) {
+        const double first = static_cast<double>(df_arr[col]);
+        for (std::int64_t row = 1; row < blobs_t::test_row_count; ++row) {
+            const double value = static_cast<double>(df_arr[row * blobs_t::pair_count + col]);
+            CAPTURE(col, row, first, value);
+            REQUIRE(std::abs(value - first) < tolerance);
+        }
+        CAPTURE(col, first, biases[col]);
+        REQUIRE(std::abs(std::abs(first) - std::abs(biases[col])) < tolerance);
+    }
 }
 
 TEMPLATE_LIST_TEST_M(svm_batch_test,
