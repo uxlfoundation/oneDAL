@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "a492e703^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "source_pr": 3742,
  "hidden_from": "a492e703",
  "hidden_files": [

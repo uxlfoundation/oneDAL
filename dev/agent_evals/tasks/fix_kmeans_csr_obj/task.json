@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "cf0c0a0b^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "hidden_from": "cf0c0a0b",
  "hidden_files": [
   "cpp/oneapi/dal/algo/kmeans/test/batch.cpp"

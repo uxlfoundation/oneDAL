@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "2bed66f0^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "source_pr": 3720,
  "hidden_from": "2bed66f0",
  "hidden_files": [

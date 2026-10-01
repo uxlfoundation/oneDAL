@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "3314f3d2^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "hidden_from": "3314f3d2",
  "hidden_files": [
   "cpp/oneapi/dal/table/test/csr_accessor.cpp"

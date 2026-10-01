@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "36949e32^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "hidden_from": "36949e32",
  "hidden_files": [
   "cpp/oneapi/dal/algo/decision_forest/test/best_first_leaf_selection.cpp"

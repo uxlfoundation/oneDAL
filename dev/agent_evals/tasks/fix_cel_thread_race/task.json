@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "eddfd7497f67",
  "grader": "test_pass_files",
+ "gate": ["strict_pass"],
  "source_issue": 3820,
  "oracle_patch": "oracle.patch",
  "hidden_files": [

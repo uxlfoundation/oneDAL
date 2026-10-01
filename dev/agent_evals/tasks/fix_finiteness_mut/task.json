@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "3120d0ab",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "setup_patch": "setup.patch",
  "hidden_from": "3120d0ab",
  "hidden_files": [
