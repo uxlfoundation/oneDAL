@@ -117,6 +117,14 @@ public:
         // Designate queue, invoke computation of correlation distance, and validate results
         correlation_distance<Float> distance(this->get_queue());
         auto distance_event = distance(input1, input2, output, { output_event });
+
+        // This overload centers the inputs and computes the norms into scratch it owns itself, so
+        // it must not hand back an event that is still in flight: `sycl::free` does not
+        // synchronize, and the scratch would be released from under the running kernels.
+        const auto status =
+            distance_event.template get_info<sycl::info::event::command_execution_status>();
+        REQUIRE(status == sycl::info::event_command_status::complete);
+
         distance_event.wait_and_throw();
         groundtruth_check(output);
     }

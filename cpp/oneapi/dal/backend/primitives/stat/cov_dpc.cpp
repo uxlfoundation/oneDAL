@@ -286,6 +286,11 @@ sycl::event correlation(sycl::queue& q,
     auto tmp = ndarray<Float, 1>::empty(q, { corr.get_dimension(0) }, sycl::usm::alloc::device);
     auto prepare_event = prepare_correlation(q, row_count, sums, corr, tmp, deps);
     auto finalize_event = finalize_correlation(q, row_count, sums, tmp, corr, { prepare_event });
+    // `tmp` is scratch owned by this function and `finalize_correlation` reads it. Freeing device
+    // USM is not a synchronizing operation, so returning here would let `tmp`'s destructor pull
+    // the memory out from under the running kernel -- same reason
+    // `correlation_from_covariance` waits below.
+    finalize_event.wait_and_throw();
     return finalize_event;
 }
 

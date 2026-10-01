@@ -50,12 +50,19 @@ sycl::event distance<Float, cosine_metric<Float>>::operator()(const ndview<Float
                                                               const event_vector& deps) const {
     auto [inv_norms1_array, inv_norms1_event] = get_inversed_norms(inp1, deps);
     auto [inv_norms2_array, inv_norms2_event] = get_inversed_norms(inp2, deps);
-    return this->operator()(inp1,
-                            inp2,
-                            out,
-                            inv_norms1_array,
-                            inv_norms2_array,
-                            { inv_norms1_event, inv_norms2_event });
+    auto last_event = this->operator()(inp1,
+                                       inp2,
+                                       out,
+                                       inv_norms1_array,
+                                       inv_norms2_array,
+                                       { inv_norms1_event, inv_norms2_event });
+
+    // The inversed-norm arrays are owned by this overload, and freeing device USM is not a
+    // synchronizing operation: returning while `finalize_cosine` still reads them would let the
+    // array destructors free memory out from under the running kernel.
+    last_event.wait_and_throw();
+
+    return last_event;
 }
 
 #define INSTANTIATE(F, A, B)                                                                   \
