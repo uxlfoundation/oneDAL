@@ -132,7 +132,7 @@ def run_env(rd):
     e.pop("MKLROOT", None)  # an exported MKLROOT makes Bazel re-fetch @mkl as symlinks into it
     e["PATH"] = f"{BIN}{os.pathsep}{e['PATH']}"
     e["ONEDAL_EVAL_BAZEL"] = real_bazel()
-    e["EVAL_OB"] = str(rd / "ob")
+    e["EVAL_BAZEL_OUTPUT_BASE"] = str(rd / "ob")
     e["EVAL_RUN_DIR"] = str(rd)
     e.setdefault("ONEDAL_EVAL_REPO_CACHE", str(r / "cache" / "repos"))
     e.setdefault("ONEDAL_EVAL_DISK_CACHE", str(r / "cache" / "disk"))

@@ -22,6 +22,7 @@
   run.py agent   <task> <arm> <model> <rep> [--effort L]  prep a history-free repo for the arm, run `claude -p`, grade
   run.py matrix  [--tasks ..] [--arms ..] [--models ..] [--reps N] [-j N] [--batch NAME] [--effort L] [--force]
   run.py grade   <run_dir>...                      re-grade existing runs (deterministic; reruns the tests)
+  run.py grade   --contract <run_dir>              agent-benchmark entry point: grade.json as repo_grade.v1
   run.py static  [--tree DIR] [--out FILE]         T0: check guidance claims against the tree, $0
   run.py summary [--batch NAME]                    per-cell table of every graded run in the batch
 
@@ -125,22 +126,23 @@ def run_agent(task, arm, model, rep, batch, effort=None):
     try:
         return grade(rd)
     finally:
-        bazel(rd, "shutdown", rd / "shutdown.log")
+        bazel(rd, rd / "repo", "shutdown", rd / "shutdown.log")
 
 
 def run_inputs(rd):
     """(usage, trace) for the graders. A Claude trace.jsonl is converted first; nothing else reads it."""
     usage = traces.convert(rd) if (rd / "trace.jsonl").exists() else {}
     answer = rd / "answer.txt"
-    return usage, {**metrics(rd), "answer": answer.read_text() if answer.exists() else ""}
+    return usage, {**metrics(rd), "answer": answer.read_text() if answer.exists() else "",
+                   "base_sha": meta(rd)["base_sha"]}
 
 
 def grade(rd):
     m = meta(rd)
     t = task_spec(m["task"])
     usage, tr = run_inputs(rd)
-    g = graders.GRADERS[t["grader"]](rd, t, tr)
-    row = {**m, **usage, **{k: v for k, v in tr.items() if k != "answer"}, **g}
+    g = graders.GRADERS[t["grader"]](rd, rd / "repo", t, tr)
+    row = {**m, **usage, **{k: v for k, v in tr.items() if k not in ("answer", "base_sha")}, **g}
     (rd / "grade.json").write_text(json.dumps(row, indent=1))
     print(json.dumps({k: row.get(k) for k in HEADLINE if k in row}), flush=True)
     return row
@@ -157,7 +159,7 @@ def check(task, kind):
     try:
         return grade(rd)
     finally:
-        bazel(rd, "shutdown", rd / "shutdown.log")
+        bazel(rd, repo, "shutdown", rd / "shutdown.log")
 
 
 def check_verdict(task):
@@ -212,6 +214,7 @@ def main():
     p.add_argument("--force", action="store_true")
     p = sub.add_parser("grade")
     p.add_argument("run_dirs", nargs="+", type=Path)
+    p.add_argument("--contract", action="store_true", help="agent-benchmark layout: workspace/, task.json, ...")
     p = sub.add_parser("static")
     p.add_argument("--tree", type=Path, default=config.src())
     p.add_argument("--out", type=Path)
@@ -229,6 +232,11 @@ def main():
         run_agent(a.task, a.arm, a.model, a.rep, a.batch, a.effort)
     elif a.cmd == "matrix":
         matrix(a)
+    elif a.cmd == "grade" and a.contract:
+        import contract
+        for rd in a.run_dirs:
+            g = contract.grade(rd.resolve())
+            print(json.dumps({k: g[k] for k in ("task", "pass", "errors")}), flush=True)
     elif a.cmd == "grade":
         for rd in a.run_dirs:
             grade(rd.resolve())

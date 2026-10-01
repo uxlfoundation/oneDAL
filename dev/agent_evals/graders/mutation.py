@@ -35,7 +35,7 @@ import shutil
 from pathlib import Path
 
 import common
-from common import bazel, changed_files, clang_format_ok, diff_lines, is_test_file, last_json, meta, task_dir
+from common import bazel, changed_files, clang_format_ok, diff_lines, is_test_file, last_json, task_dir
 
 TEST_MACRO = re.compile(r"^\s*(?:TEST|TEST_M|TEST_CASE\w*|TEMPLATE_\w*TEST\w*)\s*\(", re.M)
 LABEL = re.compile(r"^//([A-Za-z0-9_/.-]+):([A-Za-z0-9_.-]+)$")
@@ -59,29 +59,29 @@ def in_base(repo, base, f):
     return common.git(repo, "cat-file", "-e", f"{base}:{f}", check=False).returncode == 0
 
 
-def authored_lines(rd, files):
+def authored_lines(ws, base, files):
     """Changed lines of tracked files plus every line of new (untracked) files."""
-    repo = rd / "repo"
+    repo = ws
     new = set(common.git(repo, "ls-files", "--others", "--exclude-standard", check=False).stdout.split())
-    n = diff_lines(rd, [f for f in files if f not in new])
+    n = diff_lines(ws, base, [f for f in files if f not in new])
     return n + sum(len((repo / f).read_text(errors="replace").splitlines()) for f in files
                    if f in new and (repo / f).is_file())
 
 
-def run_targets(rd, targets, log):
+def run_targets(rd, ws, targets, log):
     """bazel test; returns (rc, n_executed). rc 0 pass, 1 build failure, 3 test failure, 4 no tests."""
-    rc, text = bazel(rd, "test " + " ".join(targets) + " --nocache_test_results --test_output=errors", log)
+    rc, text = bazel(rd, ws, "test " + " ".join(targets) + " --nocache_test_results --test_output=errors", log)
     m = re.search(r"Executed (\d+) out of (\d+) test", text)
     return rc, int(m.group(1)) if m else 0
 
 
-def g_mutation(rd, t, tr):
-    repo = rd / "repo"
-    base = meta(rd)["base_sha"]
+def g_mutation(rd, ws, t, tr):
+    repo = ws
+    base = tr["base_sha"]
     pkgs = packages(t)
     j = last_json(tr["answer"])
     targets = j.get("targets") if isinstance(j, dict) else None
-    changed = changed_files(rd)
+    changed = changed_files(ws, base)
     src_modified = [f for f in changed if not is_test_file(f) and not is_build_file(f) and in_base(repo, base, f)]
     # the agent's work: files under the package that are not library sources, plus test files anywhere
     authored = [f for f in changed if f not in src_modified and (is_test_file(f) or any(
@@ -89,7 +89,7 @@ def g_mutation(rd, t, tr):
     out = {"pass": False, "targets": targets, "src_modified": src_modified, "authored_files": authored,
            "n_tests": sum(len(TEST_MACRO.findall((repo / f).read_text(errors="replace")))
                           for f in authored if f.endswith((".cpp", ".hpp")) and (repo / f).exists()),
-           "diff_lines": authored_lines(rd, authored), "format_ok": clang_format_ok(repo, authored)}
+           "diff_lines": authored_lines(ws, base, authored), "format_ok": clang_format_ok(repo, authored)}
 
     if not isinstance(targets, list) or not targets or not all(isinstance(x, str) for x in targets):
         return {**out, "why": "no targets reported"}
@@ -103,7 +103,7 @@ def g_mutation(rd, t, tr):
     if src_modified:
         common.git(repo, "checkout", base, "--", *src_modified)
     try:
-        rc, n_exec = run_targets(rd, targets, rd / "grade.log")
+        rc, n_exec = run_targets(rd, ws, targets, rd / "grade.log")
         out.update(baseline_rc=rc, baseline_executed=n_exec, baseline_pass=rc == 0 and n_exec > 0)
         if not out["baseline_pass"]:
             return {**out, "why": "targets do not pass on the pristine library"}
@@ -115,7 +115,7 @@ def g_mutation(rd, t, tr):
                 continue
             common.git(repo, "apply", str(p))
             try:
-                mrc, _ = run_targets(rd, targets, rd / f"mutant_{name}.log")
+                mrc, _ = run_targets(rd, ws, targets, rd / f"mutant_{name}.log")
             finally:
                 common.git(repo, "apply", "-R", str(p))
             mutants[name] = {"rc": mrc, "killed": mrc == 3, "build_error": mrc not in (0, 3)}

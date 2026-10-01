@@ -55,7 +55,7 @@ def same_file(entry, path):
     return entry["file"] == "*" or bool(path) and path == norm_path(entry["file"])
 
 
-def g_review(rd, t, tr):
+def g_review(rd, ws, t, tr):
     man = json.loads((task_dir(t["id"]) / t.get("manifest", "manifest.json")).read_text())
     seeds, decoys = man.get("seeds", []), man.get("decoys", [])
     findings = last_json(tr["answer"])

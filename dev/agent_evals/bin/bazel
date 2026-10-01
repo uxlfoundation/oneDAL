@@ -16,7 +16,7 @@
 #===============================================================================
 
 # Per-run bazel wrapper put first on the agent's PATH: isolated output_base, shared repository and disk caches.
-OB=${EVAL_OB:?EVAL_OB unset}
+OB=${EVAL_BAZEL_OUTPUT_BASE:?EVAL_BAZEL_OUTPUT_BASE unset}
 unset MKLROOT
 startup=()
 while [[ $# -gt 0 && $1 == -* ]]; do startup+=("$1"); shift; done
