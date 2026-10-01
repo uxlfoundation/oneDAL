@@ -41,8 +41,7 @@ using namespace daal::internal;
  *  \brief Kernel for Cholesky calculation
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
-Status CholeskyKernel<algorithmFPType, method, cpu>::compute(NumericTable * aTable,
-    NumericTable * r, const daal::algorithms::Parameter * par)
+Status CholeskyKernel<algorithmFPType, method, cpu>::compute(NumericTable * aTable, NumericTable * r, const daal::algorithms::Parameter * par)
 {
     const size_t dim = aTable->getNumberOfColumns(); /* Dimension of input feature vectors */
 
