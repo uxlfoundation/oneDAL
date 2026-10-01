@@ -82,19 +82,12 @@ def arm_none(repo):
 
 def arm_main_raw(repo):
     # guidance present as-is. Claude Code 2.1.277+ loads AGENTS.md when there is no CLAUDE.md (nested ones once the
-    # agent touches that directory); older CLIs load it only if the agent opens the file
+    # agent touches that directory); run.py refuses older CLIs, which load it only if the agent opens the file
     pass
 
 
-def arm_main_claude(repo):
-    # CLAUDE.md shim next to every AGENTS.md, so every CLI version loads the hierarchy the way Codex loads AGENTS.md
-    for p in guidance_files(repo):
-        if p.name == "AGENTS.md":
-            (p.parent / "CLAUDE.md").write_text("@AGENTS.md\n")
-
-
 # New arms (other guidance revisions, placebo text, tooling) are one function each: mutate the task repo in place.
-ARMS = {"none": arm_none, "main-raw": arm_main_raw, "main-claude": arm_main_claude}
+ARMS = {"none": arm_none, "main-raw": arm_main_raw}
 
 
 def prep(task, arm, rd):
