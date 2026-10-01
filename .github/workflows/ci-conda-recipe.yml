@@ -49,18 +49,22 @@ jobs:
           - cxx_compiler: "dpcpp"
             cxx_compiler_version: "2025"
     name: Linux(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 180
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # fetch tags for conda-build
       - name: System Info
         run: .ci/scripts/describe_system.sh
+      - name: Install Miniforge
+        run: |
+          .ci/env/apt.sh miniforge
+          echo "/usr/share/miniconda/bin" >> "${GITHUB_PATH}"
       - name: Conda update
         run: |
-          echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" >> ~/.condarc
+          echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" > ~/.condarc
           conda config --add channels conda-forge
           conda config --set channel_priority strict
           conda update -y -q conda python

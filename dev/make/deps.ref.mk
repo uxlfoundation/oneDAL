@@ -23,18 +23,33 @@ OPENBLASDIR:= $(if $(wildcard $(DIR)/__deps/open_blas/*),$(DIR)/__deps/open_blas
                 $(if $(wildcard $(OPENBLASROOT)/include/*),$(subst \,/,$(OPENBLASROOT)),                              \
                     $(error Can`t find OPENBLAS libs in $(DIR)/__deps/open_blas or OPENBLASROOT.)))
 OPENBLASDIR.include := $(OPENBLASDIR)/include
-OPENBLASDIR.libia := $(OPENBLASDIR)/lib
 
-daaldep.math_backend.thr := $(OPENBLASDIR.libia)/libopenblas.$a
-daaldep.math_backend.seq := $(OPENBLASDIR.libia)/libopenblas.$a
+OPENBLASDIR.libia.win := $(if $(OS_is_win),$(OPENBLASDIR)/lib,)
+OPENBLASDIR.libia.lnx := $(if $(OS_is_lnx),$(OPENBLASDIR)/lib,)
+
+OPENBLASDIR.soia.win := $(if $(OS_is_win),$(OPENBLASDIR)/bin,)
+OPENBLASDIR.soia.lnx := $(if $(OS_is_lnx),$(OPENBLASDIR)/lib,)
+
+OPENBLASDIR.libia := $(OPENBLASDIR.libia.$(_OS))
+OPENBLASDIR.soia :=  $(OPENBLASDIR.soia.$(_OS))
+
+releaseopen_blas.LIBS_A := $(OPENBLASDIR.libia)/$(plib)openblas.$(a)
+releaseopen_blas.LIBS_Y := $(OPENBLASDIR.soia)/$(plib)openblas.$(y)
+
+daaldep.math_backend.thr := $(releaseopen_blas.LIBS_A)
+daaldep.math_backend.seq := $(releaseopen_blas.LIBS_A)
 
 daaldep.math_backend.incdir := $(OPENBLASDIR.include)
 daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
 
+RELEASEDIR.open_blas       := $(RELEASEDIR)/open_blas/latest
+RELEASEDIR.open_blas.libia := $(RELEASEDIR.open_blas)/lib$(if $(OS_is_mac),,$(if $(OS_is_win),/vc_mt,/))
+RELEASEDIR.open_blas.soia  := $(if $(OS_is_win),$(RELEASEDIR.open_blas)/bin/vc_mt,$(RELEASEDIR.open_blas.libia))
+
 # List of OpenBLAS libraries to exclude from linking.
 # This list is used to generate the `--exclude-libs` linker options.
 # If you need to exclude additional libraries, extend this list by appending the library names.
-MATH_LIBS_TO_EXCLUDE := libopenblas.$a 
+MATH_LIBS_TO_EXCLUDE := $(plib)openblas.$a 
 
 ifeq ($(RNG_OPENRNG), yes)
 	OPENRNGDIR:= $(if $(wildcard $(DIR)/__deps/openrng/*),$(DIR)/__deps/openrng,                            \

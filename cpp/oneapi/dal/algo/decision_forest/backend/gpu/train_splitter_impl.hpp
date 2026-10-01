@@ -101,6 +101,7 @@ public:
     /// @param[in] ctx                          a train context for GPU backend
     /// @param[in] data                         an input data with the cast to Bin for each row_count * column_count
     /// @param[in] response                     an input array of training response values
+    /// @param[in] weights                      an input array of weights for weighted training
     /// @param[in] tree_order                   column indices map for the corresponding tree
     /// @param[in] selected_ftr_list            a subset of feature indices selected for each node
     /// @param[in] random_bins_com              random bin tresholds for each selected feature scaled at [0.0, 1.0] uniformly
@@ -116,6 +117,7 @@ public:
                                     const context_t& ctx,
                                     const pr::ndview<Bin, 2>& data,
                                     const pr::ndview<Float, 1>& response,
+                                    const pr::ndview<Float, 1>& weights,
                                     const pr::ndview<Index, 1>& tree_order,
                                     const pr::ndview<Index, 1>& selected_ftr_list,
                                     const pr::ndview<Float, 1>& random_bins_com,

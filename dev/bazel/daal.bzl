@@ -51,6 +51,8 @@ def daal_module(name, features=[], lib_tag="daal",
             "sse2":       [ "DAAL_CPU=sse2"      ],
             "avx2":       [ "DAAL_CPU=avx2"       ],
             "avx512":     [ "DAAL_CPU=avx512"     ],
+            "sve":        [ "DAAL_CPU=sve"        ],
+            "rv64":       [ "DAAL_CPU=rv64"        ],
         },
         fpt_defines = {
             "f32": [ "DAAL_FPTYPE=float"  ],
@@ -75,6 +77,16 @@ def daal_module(name, features=[], lib_tag="daal",
         }) if stdalloc else []) + select({
             "@config//:backend_ref": [
                 "DAAL_REF",
+            ],
+            "//conditions:default": [],
+        }) + select({
+            # Matches dev/make/deps.ref.mk RNG_OPENRNG: swaps the ref RNG's
+            # <random>-based shim for the OpenRNG (VSL-ABI-compatible)
+            # backend in src/externals/service_rng_ref.h. Gated on the ref
+            # backend as well, since that shim is the only consumer of this
+            # define and it is not compiled in an MKL build.
+            "@config//:rng_backend_openrng_ref": [
+                "OPENRNG_BACKEND",
             ],
             "//conditions:default": [],
         }),

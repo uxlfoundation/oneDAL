@@ -39,7 +39,12 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
     win_libs = [
         "lib/mkl_core.lib",
         "lib/mkl_intel_ilp64.lib",
-        "lib/mkl_tbb_thread.lib",
+        # Globbed so the debug-CRT threading layer (`mkl_tbb_threadd.lib`,
+        # see dev/make/deps.mkl.mk:51) is symlinked too when the MKL layout
+        # ships it. `mkl_win.tpl.BUILD` names both variants explicitly in its
+        # select(), so a debug-runtime build with the file absent fails with a
+        # plain missing-input error instead of silently linking the release one.
+        "lib/mkl_tbb_thread*.lib",
         "lib/mkl_core_dll.lib",
         "lib/mkl_intel_lp64_dll.lib",
         "lib/mkl_intel_thread_dll.lib",

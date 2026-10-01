@@ -102,14 +102,14 @@ struct TaskKMeansLloyd
     }
 
     Status addNTToTaskThreadedDense(const NumericTable * const ntData, const algorithmFPType * const catCoef, const size_t blockSizeDefault,
-                                    NumericTable * ntAssign = nullptr);
+                                    NumericTable * ntAssign = nullptr, int * pointAssignments = nullptr);
 
     Status addNTToTaskThreadedCSR(const NumericTable * const ntData, const algorithmFPType * const catCoef, const size_t blockSizeDefault,
-                                  NumericTable * ntAssign = nullptr);
+                                  NumericTable * ntAssign = nullptr, int * pointAssignments = nullptr);
 
     template <Method method>
     Status addNTToTaskThreaded(const NumericTable * const ntData, const algorithmFPType * const catCoef, const size_t blockSizeDefault,
-                               NumericTable * ntAssign = nullptr);
+                               NumericTable * ntAssign = nullptr, int * pointAssignments = nullptr);
 
     template <typename centroidsFPType>
     int kmeansUpdateCluster(int jidx, centroidsFPType * s1);
@@ -117,9 +117,9 @@ struct TaskKMeansLloyd
     template <Method method>
     void kmeansComputeCentroids(int * clusterS0, algorithmFPType * clusterS1, double * auxData);
 
-    void kmeansInsertCandidate(TlsTask<algorithmFPType, cpu> * tt, algorithmFPType value, size_t index);
+    void kmeansInsertCandidate(TlsTask<algorithmFPType, cpu> * tt, algorithmFPType value, size_t index, int srcCluster);
 
-    Status kmeansComputeCentroidsCandidates(algorithmFPType * cValues, size_t * cIndices, size_t & cNum);
+    Status kmeansComputeCentroidsCandidates(algorithmFPType * cValues, size_t * cIndices, int * cSources, size_t & cNum);
 
     void kmeansClearClusters(algorithmFPType * goalFunc);
 
@@ -135,7 +135,7 @@ struct TaskKMeansLloyd
 
 template <typename algorithmFPType, CpuType cpu>
 Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const NumericTable * const ntData, const algorithmFPType * const catCoef,
-                                                                       const size_t blockSizeDefault, NumericTable * ntAssign)
+                                                                       const size_t blockSizeDefault, NumericTable * ntAssign, int * pointAssignments)
 {
     const size_t n = ntData->getNumberOfRows();
 
@@ -228,14 +228,18 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
                 minGoalVal += data[i * p + j] * data[i * p + j];
             }
 
-            kmeansInsertCandidate(tt, minGoalVal, k * blockSizeDefault + i);
+            kmeansInsertCandidate(tt, minGoalVal, k * blockSizeDefault + i, (int)minIdx);
             cS0[minIdx]++;
 
             goal += minGoalVal;
 
+            if (pointAssignments)
+            {
+                pointAssignments[k * blockSizeDefault + i] = (int)minIdx;
+            }
+
             if (ntAssign)
             {
-                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
                 assignments[i] = (int)minIdx;
             }
         } /* for (size_t i = 0; i < blockSize; i++) */
@@ -247,7 +251,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
 
 template <typename algorithmFPType, CpuType cpu>
 Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const NumericTable * const ntData, const algorithmFPType * const catCoef,
-                                                                     const size_t blockSizeDefault, NumericTable * ntAssign)
+                                                                     const size_t blockSizeDefault, NumericTable * ntAssign, int * pointAssignments)
 {
     CSRNumericTableIface * ntDataCsr = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(ntData));
 
@@ -326,15 +330,19 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
                 csrCursor++;
             }
 
-            kmeansInsertCandidate(tt, minGoalVal, k * blockSizeDefault + i);
+            kmeansInsertCandidate(tt, minGoalVal, k * blockSizeDefault + i, (int)minIdx);
 
             goal += minGoalVal;
 
             cS0[minIdx]++;
 
+            if (pointAssignments)
+            {
+                pointAssignments[k * blockSizeDefault + i] = (int)minIdx;
+            }
+
             if (ntAssign)
             {
-                DAAL_ASSERT(minIdx <= services::internal::MaxVal<int>::get())
                 assignments[i] = (int)minIdx;
             }
         }
@@ -346,15 +354,15 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
 template <typename algorithmFPType, CpuType cpu>
 template <Method method>
 Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreaded(const NumericTable * const ntData, const algorithmFPType * const catCoef,
-                                                                  const size_t blockSizeDefault, NumericTable * ntAssign)
+                                                                  const size_t blockSizeDefault, NumericTable * ntAssign, int * pointAssignments)
 {
     if (method == lloydDense)
     {
-        return addNTToTaskThreadedDense(ntData, catCoef, blockSizeDefault, ntAssign);
+        return addNTToTaskThreadedDense(ntData, catCoef, blockSizeDefault, ntAssign, pointAssignments);
     }
     else if (method == lloydCSR)
     {
-        return addNTToTaskThreadedCSR(ntData, catCoef, blockSizeDefault, ntAssign);
+        return addNTToTaskThreadedCSR(ntData, catCoef, blockSizeDefault, ntAssign, pointAssignments);
     }
     DAAL_ASSERT(false);
     return Status();
@@ -411,7 +419,8 @@ void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansComputeCentroids(int * cluster
 }
 
 template <typename algorithmFPType, CpuType cpu>
-void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansInsertCandidate(TlsTask<algorithmFPType, cpu> * tt, algorithmFPType value, size_t index)
+void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansInsertCandidate(TlsTask<algorithmFPType, cpu> * tt, algorithmFPType value, size_t index,
+                                                                  int srcCluster)
 {
     size_t cPos = tt->cNum;
     while (cPos > 0 && tt->cValues[cPos - 1] < value)
@@ -420,6 +429,7 @@ void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansInsertCandidate(TlsTask<algori
         {
             tt->cValues[cPos]  = tt->cValues[cPos - 1];
             tt->cIndices[cPos] = tt->cIndices[cPos - 1];
+            tt->cSources[cPos] = tt->cSources[cPos - 1];
         }
         cPos--;
     }
@@ -428,6 +438,7 @@ void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansInsertCandidate(TlsTask<algori
     {
         tt->cValues[cPos]  = value;
         tt->cIndices[cPos] = index;
+        tt->cSources[cPos] = srcCluster;
         if (tt->cNum < clNum)
         {
             tt->cNum++;
@@ -436,22 +447,26 @@ void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansInsertCandidate(TlsTask<algori
 }
 
 template <typename algorithmFPType, CpuType cpu>
-Status TaskKMeansLloyd<algorithmFPType, cpu>::kmeansComputeCentroidsCandidates(algorithmFPType * cValues, size_t * cIndices, size_t & cNum)
+Status TaskKMeansLloyd<algorithmFPType, cpu>::kmeansComputeCentroidsCandidates(algorithmFPType * cValues, size_t * cIndices, int * cSources,
+                                                                               size_t & cNum)
 {
     cNum = 0;
 
     TArray<algorithmFPType, cpu> tmpValues(clNum);
     TArray<size_t, cpu> tmpIndices(clNum);
-    DAAL_CHECK_MALLOC(tmpValues.get() && tmpIndices.get());
+    TArray<int, cpu> tmpSources(clNum);
+    DAAL_CHECK_MALLOC(tmpValues.get() && tmpIndices.get() && tmpSources.get());
 
     algorithmFPType * tmpValuesPtr = tmpValues.get();
     size_t * tmpIndicesPtr         = tmpIndices.get();
+    int * tmpSourcesPtr            = tmpSources.get();
     int result                     = 0;
 
     tls_task->reduce([&](TlsTask<algorithmFPType, cpu> * tt) -> void {
         size_t lcNum               = tt->cNum;
         algorithmFPType * lcValues = tt->cValues;
         size_t * lcIndices         = tt->cIndices;
+        int * lcSources            = tt->cSources;
 
         size_t cPos  = 0;
         size_t lcPos = 0;
@@ -462,18 +477,21 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::kmeansComputeCentroidsCandidates(a
             {
                 tmpValuesPtr[cPos + lcPos]  = cValues[cPos];
                 tmpIndicesPtr[cPos + lcPos] = cIndices[cPos];
+                tmpSourcesPtr[cPos + lcPos] = cSources[cPos];
                 cPos++;
             }
             else
             {
                 tmpValuesPtr[cPos + lcPos]  = lcValues[lcPos];
                 tmpIndicesPtr[cPos + lcPos] = lcIndices[lcPos];
+                tmpSourcesPtr[cPos + lcPos] = lcSources[lcPos];
                 lcPos++;
             }
         }
         cNum = cPos + lcPos;
         result |= daal::services::internal::daal_memcpy_s(cValues, cNum * sizeof(algorithmFPType), tmpValuesPtr, cNum * sizeof(algorithmFPType));
         result |= daal::services::internal::daal_memcpy_s(cIndices, cNum * sizeof(size_t), tmpIndicesPtr, cNum * sizeof(size_t));
+        result |= daal::services::internal::daal_memcpy_s(cSources, cNum * sizeof(int), tmpSourcesPtr, cNum * sizeof(int));
     });
 
     return (!result) ? services::Status() : services::Status(services::ErrorMemoryCopyFailedInternal);

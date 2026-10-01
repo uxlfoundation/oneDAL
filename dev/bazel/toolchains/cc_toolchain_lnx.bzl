@@ -29,10 +29,12 @@ load(
 )
 load(
     "@onedal//dev/bazel/toolchains:common.bzl",
+    "ARCH_ID_TO_PLATFORM_CPU",
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
     "add_linker_option_if_supported",
     "get_cpu_specific_options",
+    "get_cross_tool_prefix",
     "get_cxx_inc_directories",
     "get_default_compiler_options",
     "get_no_canonical_prefixes_opt",
@@ -83,9 +85,14 @@ def _create_dynamic_link_wrapper(repo_ctx, prefix, cc_path):
 
 def _find_tools(repo_ctx, reqs):
     # TODO: Use full compiler path from reqs
-    ar_path, _ = _find_tool(repo_ctx, "ar", mandatory = True)
-    cc_path, _ = _find_tool(repo_ctx, reqs.compiler_id, mandatory = True)
-    strip_path, _ = _find_tool(repo_ctx, "strip", mandatory = True)
+    # A cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`) applies to
+    # binutils (`ar`, `strip`) as well as the compiler itself; without it,
+    # cross-compiling with CC=aarch64-linux-gnu-gcc would silently pick up
+    # the exec host's native `ar`/`strip`, producing wrong-arch archives.
+    cross_prefix = get_cross_tool_prefix(repo_ctx)
+    ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
+    cc_path, _ = _find_tool(repo_ctx, cross_prefix + reqs.compiler_id, mandatory = True)
+    strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
@@ -188,9 +195,12 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     tools = _find_tools(repo_ctx, reqs)
     builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools)
 
-    # Addition compile/link flags
-    bin_search_flag_cc = _get_bin_search_flag(repo_ctx, tools.cc)
-    bin_search_flag_dpcc = _get_bin_search_flag(repo_ctx, tools.dpcc)
+    # Addition compile/link flags. Do not inject the host compiler directory
+    # with -B for a GNU cross compiler: /usr/bin contains the host `ld`, which
+    # overrides GCC's configured target linker (for example riscv64-linux-gnu-ld).
+    cross_compiling = get_cross_tool_prefix(repo_ctx) != ""
+    bin_search_flag_cc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.cc)
+    bin_search_flag_dpcc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.dpcc)
 
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
@@ -208,6 +218,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{target_cpu}": reqs.target_arch_id,
             "%{host_system_name}": reqs.os_id + "-" + reqs.host_arch_id,
             "%{target_system_name}": reqs.os_id + "-" + reqs.target_arch_id,
+            "%{host_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs.host_arch_id],
+            "%{target_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs.target_arch_id],
             "%{supports_param_files}": "1",
             "%{compiler_deps}": get_starlark_list([
                 ":builtin_include_directory_paths",

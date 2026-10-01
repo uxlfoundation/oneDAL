@@ -1,7 +1,14 @@
 load("@onedal//dev/bazel:release.bzl",
     "release",
+    "release_all",
     "release_include",
     "release_extra_file",
+    "release_dep_runtime",
+)
+load("@onedal//dev/bazel/config:selects.bzl",
+    "parameters_lib_enabled",
+    "parameters_lib_separate_value",
+    "release_dpc_parameters_lib_enabled",
 )
 load("@onedal//dev/bazel:scripts.bzl",
     "generate_cmake_config",
@@ -36,17 +43,20 @@ generate_modulefile(
 generate_pkgconfig(
     name = "release_pkgconfig",
     out = "lib/pkgconfig/onedal.pc",
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_pkgconfig(
     name = "release_pkgconfig_dynamic_threading_host",
     out = "lib/pkgconfig/dal-dynamic-threading-host.pc",
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_pkgconfig(
     name = "release_pkgconfig_static_threading_host",
     out = "lib/pkgconfig/dal-static-threading-host.pc",
     static = True,
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 filegroup(
@@ -58,6 +68,7 @@ generate_cmake_config(
     name = "release_cmake_config",
     template = "cmake/templates/oneDALConfig.cmake.in",
     out = "lib/cmake/oneDAL/oneDALConfig.cmake",
+    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_cmake_config(
@@ -157,23 +168,22 @@ release(
         "@onedal//cpp/daal:thread_dynamic",
         "@onedal//cpp/oneapi/dal:static",
         "@onedal//cpp/oneapi/dal:dynamic",
-    ] + select({
-        ":windows": [],
-        "//conditions:default": [
-            "@onedal//cpp/oneapi/dal:static_parameters",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters",
-        ],
-    }) + select({
+    ] + parameters_lib_enabled([
+        "@onedal//cpp/oneapi/dal:static_parameters",
+        "@onedal//cpp/oneapi/dal:dynamic_parameters",
+    ]) + select({
         ":release_dpc_windows": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
-            "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
         ],
         "//conditions:default": [],
-    }),
+    }) + release_dpc_parameters_lib_enabled([
+        "@onedal//cpp/oneapi/dal:dynamic_parameters_dpc",
+    ]),
     data = [
+        "@config//:validate_build_parameters_lib",
         "//data:datasets",
         ":release_package_files",
         "//examples/daal/cpp:release_files",
@@ -200,4 +210,31 @@ release(
         release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
         release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
     ],
+    # libonedal_thread.so records DT_NEEDED entries for TBB, so the TBB
+    # redistributables have to travel with the package, exactly as Make stages
+    # them (`makefile:274-279`, `makefile:1101`). Windows splits them the way
+    # Make does: the DLLs the released libraries load at runtime go under
+    # `bin/vc_mt`, the import libraries a consumer links against under
+    # `lib/vc_mt`. On Linux the `.so` files serve both roles and
+    # `tbb_import_libs` is empty.
+    dep_runtime = [
+        release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
+                            windows_dst_dir = "tbb/latest/bin/vc_mt"),
+        release_dep_runtime("@tbb//:tbb_import_libs", "",
+                            windows_dst_dir = "tbb/latest/lib/vc_mt"),
+    ],
+)
+
+# Single release tree holding both Windows MSVC runtime flavours: the
+# release-CRT libraries (`onedal_core.lib`) next to the debug-CRT ones
+# (`onedal_cored.lib`). Equivalent to running the Make build twice, with
+# MSVC_RUNTIME_VERSION=release and =debug, into one RELEASEDIR.
+#
+#   bazel build //:release_all
+#
+# For a single flavour use //:release (default, `-MD`) or
+# //:release --config=mdd. On Linux/macOS this equals //:release.
+release_all(
+    name = "release_all",
+    release_target = ":release",
 )

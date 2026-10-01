@@ -126,9 +126,8 @@ sycl::event compute_kernel_csr_impl<Float>::finalize_for_distr(
 }
 
 template <typename Float>
-result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
-                                                    const descriptor_t& desc,
-                                                    const input_t& input) {
+csr_stats<Float> compute_kernel_csr_impl<Float>::compute_stats(const bk::context_gpu& ctx,
+                                                               const input_t& input) {
     auto queue = ctx.get_queue();
     const auto table = input.get_data();
     ONEDAL_ASSERT(table.get_kind() == csr_table::kind());
@@ -137,7 +136,6 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
     const bool distr_mode = comm.get_rank_count() > 1;
     const auto column_count = csr_tdata.get_column_count();
     const auto row_count = csr_tdata.get_row_count();
-    auto result_options = desc.get_result_options();
     const auto nonzero_count = csr_tdata.get_non_zero_count();
     auto [csr_data, column_indices, row_offsets] =
         csr_accessor<const Float>(csr_tdata).pull(queue,
@@ -373,7 +371,24 @@ result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
     if (distr_mode) {
         second_merge_event = finalize_for_distr(queue, comm, result_data, input, { merge_event });
     }
-    return get_result(queue, result_data, result_options, { second_merge_event });
+    // The first- and second-order kernels read `csr_data` / `column_indices` and are only
+    // enqueued here, so those arrays go back to the caller rather than dying with this
+    // frame -- see `csr_stats`.
+    return { std::move(result_data),
+             second_merge_event,
+             std::move(csr_data),
+             std::move(column_indices),
+             std::move(row_offsets) };
+}
+
+template <typename Float>
+result_t compute_kernel_csr_impl<Float>::operator()(const bk::context_gpu& ctx,
+                                                    const descriptor_t& desc,
+                                                    const input_t& input) {
+    auto queue = ctx.get_queue();
+    // `computed` stays alive across `get_result`, which is what awaits the kernels.
+    const auto computed = compute_stats(ctx, input);
+    return get_result(queue, computed.stats, desc.get_result_options(), { computed.event });
 }
 
 template class compute_kernel_csr_impl<float>;

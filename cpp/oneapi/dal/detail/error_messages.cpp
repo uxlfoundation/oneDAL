@@ -41,6 +41,7 @@ MSG(unknown_status_code, "Unknown status code")
 MSG(unsupported_data_layout, "Unsupported data layout")
 MSG(unsupported_data_type, "Requested data type is not supported")
 MSG(unsupported_device_type, "Requested device type is not supported")
+MSG(sve_not_supported, "SVE is not supported by this CPU")
 MSG(small_data_block, "Data block size is smaller than expected")
 MSG(spmd_version_of_algorithm_is_not_implemented,
     "SPMD version of the algorithm is not implemented")

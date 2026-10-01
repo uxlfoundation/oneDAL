@@ -301,6 +301,70 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The resulting release tree is under `bazel-bin/release/daal/latest`.
 
+#### Windows MSVC runtime (`-MD` / `-MDd`)
+
+On Windows the CRT flavour is selected independently of `--config=dbg`, matching
+the Makefile's split between `MSVC_RUNTIME_VERSION` and `REQDBG`. A debug-CRT
+build appends `d` to every library name — `onedal_cored.lib`,
+`onedal_cored.4.dll`, `onedal_cored_dll.lib` — exactly as the Make build does,
+so both flavours can share one release tree.
+
+```bat
+:: Release CRT (-MD), unsuffixed names. This is the default.
+bazelisk.exe build //:release
+
+:: Debug CRT (-MDd), `d`-suffixed names, `_debug` TBB variants.
+bazelisk.exe build //:release --config=mdd
+
+:: Both flavours merged into one release tree, in a single command.
+bazelisk.exe build //:release_all
+```
+
+`--config=mdd` is orthogonal to `--config=dbg`: combine them
+(`--config=mdd --config=dbg`) for a debug-CRT build that also carries debug
+info and assertions. `//:release_all` pins the runtime internally, so passing
+`--config=mdd` alongside it has no effect.
+
+Two constraints worth knowing before reaching for the debug runtime:
+
+- It is implemented for the Intel oneAPI **icx** toolchain only. The `cl`
+  fallback (`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler
+  choice](#compiler-choice)) delegates to rules_cc's MSVC auto-config, which
+  does not define the `msvc_runtime_debug` feature, so `--config=mdd` there
+  fails during analysis with an explanatory message rather than silently
+  building against the wrong CRT.
+- Always select it through `--config=mdd`. It sets two things that have to
+  agree — the `msvc_runtime_debug` toolchain feature, which selects `-MDd`,
+  and the `@config//:msvc_runtime` build setting, which dependency `select()`s
+  read. Passing either half alone (`--features=msvc_runtime_debug` or
+  `--msvc_runtime=debug`) is rejected during analysis, because it would
+  compile against one CRT while naming libraries and picking dependencies for
+  the other.
+
+`//:release_all` takes the libraries under `lib/intel64` and `redist/intel64`
+from both builds; everything else — headers, datasets, examples, env scripts,
+CMake config — comes from the release-CRT build, since those are identical
+between flavours. The pkg-config files describe the release CRT; debug-CRT
+consumers should use `oneDALConfig.cmake`, which appends its own
+`DAL_DEBUG_SUFFIX` based on `CMAKE_BUILD_TYPE`.
+
+The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries and
+MKL's `mkl_tbb_threadd` in the layouts being used; the oneAPI BaseKit ships all
+of them.
+
+CI builds `//:release` in both flavours on every pull request and checks the
+resulting names, but `//:release_all` is only analysed there
+(`--nobuild`): building it means building the whole Windows release twice,
+which does not fit alongside the two single-flavour builds in one hosted job.
+The `WindowsBazelReleaseAll` job builds it and verifies the merged tree, and it
+runs on manual or scheduled pipeline runs rather than per pull request.
+
+On non-Windows platforms both the `mdd` config and `//:release_all` are no-ops.
+Note that `//:release_all` then forwards the `//:release` tree unchanged instead
+of copying it — copying would dereference the `.so` version symlinks — so its
+output stays at `bazel-bin/release/daal/latest`, not `bazel-bin/release_all/...`.
+Scripts that need a fixed path should use `//:release` on those platforms.
+
 ### Release validation and platform helpers
 
 Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
@@ -676,10 +740,43 @@ build --linkopt=-your-link-flag
 
 ---
 
+## Parameter library layout
+
+Bazel mirrors Make's `BUILD_PARAMETERS_LIB` switch with the typed
+`--build_parameters_lib=auto|yes|no` setting:
+
+- `auto` (default) builds separate `libonedal_parameters` and
+  `libonedal_parameters_dpc` libraries on non-Windows targets, and folds those
+  objects into `onedal`/`onedal_dpc` on Windows.
+- `yes` selects the separate host and DPC parameter libraries on non-Windows
+  targets. It is unsupported on Windows and fails during analysis with a diagnostic.
+- `no` folds the host and DPC parameter modules into the corresponding main
+  libraries and omits separate parameter libraries from `//:release`.
+
+For example:
+
+```
+bazel build //:release --build_parameters_lib=no
+```
+
+Consumer metadata follows the produced package: the generated CMake config and
+pkg-config files name `onedal_parameters` only in the separate layout, and the
+prebuilt-release repository rule decides which parameter libraries to expose by
+looking for them in the package rather than by reading its metadata.
+
+CI uses `dev/bazel/tests/parameters_layout_test.sh` for analysis-only checks of
+configured release outputs, host/DPC dependency separation, folded-target
+rejection, and Windows value validation. It does not build DPC binaries.
+`dev/release_tests/parameters_layout_consumer_test.sh` separately builds and
+runs host static and dynamic consumers through packaged CMake, pkg-config, and
+Bazel metadata for the folded layout. Both take `bazel` from `PATH`; set `BAZEL`
+to run them against a specific binary, such as a downloaded `bazelisk`.
+
 ## Make → Bazel Flag Reference
 
 | Make option                    | Bazel equivalent                                             | Notes                                                                      |
 |--------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------------|
+| `BUILD_PARAMETERS_LIB=yes\|no` | `--build_parameters_lib=yes\|no`                             | `auto` keeps non-Windows `yes` / Windows `no`; Windows `yes` unsupported   |
 | `REQDBG=yes`                   | `--config=dbg`                                               | Debug symbols + assertions                                                 |
 | `REQDBG=symbols`               | `--config=dbg-symbols`                                       | Debug symbols only                                                         |
 | `REQSAN=address`               | `--config=asan`                                              | AddressSanitizer                                                           |
@@ -695,3 +792,34 @@ build --linkopt=-your-link-flag
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
 | `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
+| `MSVC_RUNTIME_VERSION=release` | `<default>`                                                  | Windows release CRT (`-MD`); unsuffixed library names                      |
+| `MSVC_RUNTIME_VERSION=debug`   | `--config=mdd`                                               | Windows debug CRT (`-MDd`); `d`-suffixed library names                     |
+| Both runtimes in one tree      | `bazel build //:release_all`                                 | Windows only; equals `//:release` elsewhere                                |
+| `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
+| `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
+| `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
+
+## Cross-compiling to ARM/RISC-V
+
+AArch64 and RISC-V64 are only supported with the `ref` backend (`--backend_config=ref`),
+matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`. Both ship a single fixed
+ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
+
+```sh
+# AArch64
+CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ \
+  bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+  //cpp/daal:core_dynamic
+
+# RISC-V64
+CC=riscv64-linux-gnu-gcc CXX=riscv64-linux-gnu-g++ \
+  bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
+  //cpp/daal:core_dynamic
+```
+
+`OPENBLASROOT` must point at an OpenBLAS install built for the target arch (see
+`.ci/env/openblas.sh`). To use the OpenRNG backend instead of the ref RNG (currently
+validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at an
+OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
+effect together with `--backend_config=ref`; it is silently ignored on the MKL
+backend, whose build never compiles the ref RNG shim that OpenRNG replaces.

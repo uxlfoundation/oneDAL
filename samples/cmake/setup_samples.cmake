@@ -87,7 +87,7 @@ function(add_samples samples_paths)
         # Detect CPU architecture
         if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "AMD64")
             set(CPU_ARCHITECTURE "intel_intel64")
-        elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "aarch64")
+        elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "ARM64")
             set(CPU_ARCHITECTURE "arm_aarch64")
         else()
             message(FATAL_ERROR "Unknown architecture ${CMAKE_HOST_SYSTEM_PROCESSOR}")

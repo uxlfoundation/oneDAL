@@ -10,8 +10,7 @@ cc_library(
     name = "openblas_core",
     #srcs = glob(["lib/libopenblas*"]),
     srcs = [
-            "lib/libopenblas.a", 
-            "lib/libgfortran.a", 
+            "lib/libopenblas.a",
            ],
     linkopts = [
         "-lpthread",

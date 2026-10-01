@@ -67,6 +67,92 @@ def detect_compiler(repo_ctx, os_id):
     elif "icpx" in compiler_path:
         return "icpx"
 
+# oneDAL's arch IDs, matching ARCH_DIR_ONEDAL in dev/make/function_definitions/*.mk.
+# Keyed by the machine name a cross-compiler triple starts with
+# (e.g. `aarch64-linux-gnu-gcc`).
+_ARCH_ID_BY_TRIPLE_PREFIX = {
+    "aarch64": "arm",
+    "riscv64": "riscv64",
+    "x86_64": "intel64",
+    "amd64": "intel64",
+}
+
+# Same arch IDs keyed by `uname -m` output. This is a superset of the triple
+# prefixes: `arm64` is not a GNU triple machine name, but some environments
+# report it from `uname -m`, and without it detect_host_arch() would silently
+# fall back to intel64 on an ARM host.
+_ARCH_ID_BY_UNAME = dict(_ARCH_ID_BY_TRIPLE_PREFIX)
+_ARCH_ID_BY_UNAME["arm64"] = "arm"
+
+def _arch_id_from_uname(value):
+    return _ARCH_ID_BY_UNAME.get(value)
+
+def _triple_prefix_to_triple(basename):
+    """Recovers the triple prefix from a cross-compiler binary name by dropping
+    its tool-name segment, tolerating a trailing `-<version>` suffix on that
+    segment (e.g. Debian's `aarch64-linux-gnu-gcc-13` package binary):
+    `aarch64-linux-gnu-gcc-13` -> `aarch64-linux-gnu-`.
+    """
+    parts = basename.split("-")
+    if parts[-1].isdigit() and len(parts) > 2:
+        parts = parts[:-2]
+    else:
+        parts = parts[:-1]
+    return "-".join(parts) + "-"
+
+def _detect_cross_compiler(repo_ctx):
+    """Inspects `CC`/`CXX` for a cross-compiler triple and returns
+    `(triple_prefix, arch_id)`, e.g. `("aarch64-linux-gnu-", "arm")`.
+
+    Returns `(None, None)` when neither variable names a known triple, which
+    means a native (non-cross) build.
+    """
+    for env_var in ["CC", "CXX"]:
+        basename = repo_ctx.os.environ.get(env_var, "").split("/")[-1]
+        for prefix, arch_id in _ARCH_ID_BY_TRIPLE_PREFIX.items():
+            if basename.startswith(prefix + "-"):
+                return _triple_prefix_to_triple(basename), arch_id
+    return None, None
+
+def get_cross_tool_prefix(repo_ctx):
+    """Returns the cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`)
+    if `CC`/`CXX` point at a cross-compiler, otherwise `""`.
+
+    Used to resolve the matching `ar`/`strip`/etc for the target arch instead
+    of picking up the exec host's native binutils.
+    """
+    triple_prefix, _ = _detect_cross_compiler(repo_ctx)
+    return triple_prefix or ""
+
+# Maps oneDAL arch IDs to @platforms//cpu constraint_value names.
+ARCH_ID_TO_PLATFORM_CPU = {
+    "intel64": "x86_64",
+    "arm": "aarch64",
+    "riscv64": "riscv64",
+}
+
+def detect_host_arch(repo_ctx, os_id):
+    """Detects the oneDAL arch ID (intel64/arm/riscv64) of the exec host,
+    matching dev/make/identify_os.sh's `uname -m` based detection.
+    """
+    if os_id != "lnx":
+        # Only Linux ships non-x86 oneDAL support today (see identify_os.sh);
+        # other OSes always target intel64.
+        return "intel64"
+    result = repo_ctx.execute(["uname", "-m"])
+    arch_id = _arch_id_from_uname(result.stdout.strip()) if result.return_code == 0 else None
+    return arch_id or "intel64"
+
+def detect_target_arch(repo_ctx, host_arch_id):
+    """Detects the oneDAL target arch ID (intel64/arm/riscv64) for the configured compiler.
+
+    A `CC`/`CXX` pointing at a cross-compiler triple (e.g. `aarch64-linux-gnu-gcc`)
+    determines the target arch; otherwise the target is assumed to match the
+    exec host (a native, non-cross build).
+    """
+    _, arch_id = _detect_cross_compiler(repo_ctx)
+    return arch_id or host_arch_id
+
 def get_starlark_dict(dictionary):
     entries = [ "\"{}\":\"{}\"".format(k, v) for k, v in dictionary.items() ]
     return ",\n    ".join(entries)
