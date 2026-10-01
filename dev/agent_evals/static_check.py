@@ -19,8 +19,11 @@
 Extracts links, paths, Bazel labels, bazel/make/cmake commands, Starlark macro calls and code identifiers from
 the guidance files (AGENTS.md, .github/instructions, CONTRIBUTING.md) and checks each against the same tree.
 Status per claim: ok / fail / unresolved. 'unresolved' is not a failure; it needs a human look.
-Usage: run.py static [--tree DIR] [--out claims.jsonl]
+Usage: static_check.py [--tree DIR] [--out FILE]   (or run.py static ...)
+  --tree  tree to check (default: the current directory, the workspace root under agent-benchmark)
+  --out   write {"files", "counts", "claims"} as one JSON document instead of the human-readable report
 """
+import argparse
 import fnmatch
 import glob as globmod
 import json
@@ -382,18 +385,26 @@ def extract():
 
 
 def main(tree, out=None):
-
     global TREE
     TREE = str(tree)
     recs.clear()
     load_facts()
     extract()
+    counts = dict(Counter(r["status"] for r in recs))
     if out:
         with open(out, "w") as o:
-            for r in recs:
-                o.write(json.dumps(r) + "\n")
-    print(len(GUIDE), "guidance files;", len(recs), "claims;", dict(Counter(r["status"] for r in recs)))
+            json.dump({"files": GUIDE, "counts": counts, "claims": recs}, o, indent=1)
+        return recs
+    print(len(GUIDE), "guidance files;", len(recs), "claims;", counts)
     for r in recs:
         if r["status"] == "fail":
             print(f"  FAIL {r['file']}:{r['line']} [{r['kind']}] {r['claim'][:90]} -- {r['why']}")
     return recs
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--tree", default=".")
+    ap.add_argument("--out")
+    a = ap.parse_args()
+    main(os.path.realpath(a.tree), a.out)
