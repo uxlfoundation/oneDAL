@@ -29,7 +29,9 @@ Everything host-specific is read from environment variables so the harness runs 
                        AGENTS.md when no CLAUDE.md is present, older CLIs do not; each run records it.
 """
 import getpass
+import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -41,7 +43,23 @@ BIN = H / "bin"
 # Snapshots are built from a commit of SRC; this directory must never be visible to the agent.
 EVAL_DIR_IN_REPO = "dev/agent_evals"
 
-GUIDANCE_GLOBS = ["**/AGENTS.md", ".github/instructions/*.md", ".github/copilot-instructions.md"]
+MANIFEST = H / "repo-eval.yaml"
+
+
+def manifest_guidance_globs(path=MANIFEST):
+    """guidance.globs of the agent-benchmark manifest, the single list of guidance files the arms change.
+
+    The harness is stdlib-only, so this reads just that line: `globs:` under `guidance:`, a one-line list of
+    double-quoted strings (JSON syntax). Anything else is an error rather than a guess.
+    """
+    m = re.search(r"^guidance:\n(?:[ \t]+.*\n)*?[ \t]+globs:[ \t]*(\[.*\])[ \t]*$", path.read_text(), re.M)
+    globs = json.loads(m.group(1)) if m else None
+    if not (isinstance(globs, list) and globs and all(isinstance(g, str) for g in globs)):
+        raise SystemExit(f"{path}: guidance.globs must be a one-line list of double-quoted strings")
+    return globs
+
+
+GUIDANCE_GLOBS = manifest_guidance_globs()
 ANCESTOR_CONTEXT = ["CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", ".claude"]
 
 # Model aliases -> (Bedrock id, Anthropic API id), budget cap per run in USD.
