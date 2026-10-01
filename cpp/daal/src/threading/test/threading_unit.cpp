@@ -14,6 +14,25 @@
 * limitations under the License.
 *******************************************************************************/
 
+/// Unit tests for the for-loop entry points of the threading layer.
+///
+/// Before this suite nothing exercised `_daal_threader_for*` except whichever algorithm happened
+/// to call it, so a change to an iteration space, to a callback convention, or to the meaning of a
+/// parameter only surfaced as a wrong number somewhere downstream -- or did not surface at all.
+/// The cases below are deliberately mechanical, because that is the class of defect they are here
+/// to catch; three concrete ones found on this branch:
+///
+/// * `threader_for_int64ptr` did not compile. It passed the `int64_t` thunk where the entry point
+///   wants the `const int64_t *` one, and a wrapper template with no caller is never instantiated,
+///   so neither it nor `threader_for_int32ptr` nor `threader_for_int64` on `main` had ever been
+///   compiled. Every wrapper therefore gets a case here, if only to instantiate it.
+/// * `threader_for_blocked` and the `_blocked_size` entry point it absorbs had divergent callback
+///   conventions, `(first, last)` against `(first, length)`. `checkTiling` tells them apart.
+/// * `conditional_threader_for` kept forwarding the legacy `threader_for(n, n, ...)`, where the
+///   second argument used to be an ignored thread-count request. As a grain size, `n` collapses
+///   the loop into one chunk, which left 21 call sites silently serial. The thread-id assertions
+///   catch that; an every-index-visited assertion on its own does not.
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -179,28 +198,23 @@ bool isParallel()
     return threader_get_threads_number() > 1;
 }
 
-TEST("threader_for visits every index exactly once", "[threading][unit]")
+/// Both plain index loops in one case, as for the `_int32` ones below. The property checked is the
+/// only one that holds whatever the backend's partitioning does: every index of the space reaches
+/// the body exactly once, for an empty space as well as a large one, and for any grain size the
+/// caller is allowed to pass.
+TEST("the 64-bit index loops visit every index exactly once", "[threading][unit]")
 {
     for (const int64_t n : { int64_t(0), int64_t(1), int64_t(17), int64_t(1024), int64_t(100000) })
     {
         for (const int64_t grainSize : { int64_t(1), int64_t(7), int64_t(4096) })
         {
-            VisitLog log(n);
-            threader_for(n, grainSize, [&](int64_t i) { log.mark(i); });
-            REQUIRE(log.visitedExactlyOnce());
-        }
-    }
-}
+            VisitLog plain(n);
+            threader_for(n, grainSize, [&](int64_t i) { plain.mark(i); });
+            REQUIRE(plain.visitedExactlyOnce());
 
-TEST("threader_for_simple visits every index exactly once", "[threading][unit]")
-{
-    for (const int64_t n : { int64_t(0), int64_t(1), int64_t(33), int64_t(10000) })
-    {
-        for (const int64_t grainSize : { int64_t(1), int64_t(16) })
-        {
-            VisitLog log(n);
-            threader_for_simple(n, grainSize, [&](int64_t i) { log.mark(i); });
-            REQUIRE(log.visitedExactlyOnce());
+            VisitLog simple(n);
+            threader_for_simple(n, grainSize, [&](int64_t i) { simple.mark(i); });
+            REQUIRE(simple.visitedExactlyOnce());
         }
     }
 }

@@ -982,9 +982,6 @@ void conditional_threader_for(const bool inParallel, const size_t n, Func func)
         // Grain size 1, not `n`: the second argument used to be an ignored thread-count request,
         // and passing `n` for it now would hand `blocked_range` a grain size as large as the whole
         // space, collapsing the loop into a single chunk that defeats `inParallel`.
-        // Grain size 1, not `n`: the second argument used to be an ignored thread-count request,
-        // and passing `n` for it now would hand `blocked_range` a grain size as large as the whole
-        // space, collapsing the loop into a single chunk that defeats `inParallel`.
         threader_for(n, 1, [&](size_t i) { func(i); });
     }
     else

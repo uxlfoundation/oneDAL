@@ -204,6 +204,20 @@ inline void threader_func_blocked(std::int64_t f, std::int64_t l, const void *a)
     lambda(f, l);
 }
 
+/// Iterates over `[0, n)` in parallel, with the threading backend's default partitioning.
+///
+/// The second parameter used to be a thread-count request that the backend ignored -- it
+/// hardcoded a chunk size of 1 -- and is now the grain size that actually reaches it, so
+/// `grain_size == 1` reproduces the previous partitioning exactly. Here the grain size is a
+/// lower bound: the backend will not hand a thread fewer than `grain_size` consecutive
+/// iterations, but it is free to hand it many more. Keep it at 1 whenever a single iteration
+/// already carries more work than a task dispatch; raise it only for loops whose body is a
+/// handful of instructions, and only with a measurement in hand.
+///
+/// @tparam F   The callable type; invoked as `lambda(std::int64_t i)`, `0 <= i < n`
+/// @param[in] n           Number of iterations in the loop
+/// @param[in] grain_size  Minimum number of iterations assigned to one thread. At least 1.
+/// @param[in] lambda      The body to run for every iteration
 template <typename F>
 inline ONEDAL_EXPORT void threader_for(std::int64_t n, std::int64_t grain_size, const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
@@ -211,6 +225,22 @@ inline ONEDAL_EXPORT void threader_for(std::int64_t n, std::int64_t grain_size, 
     _onedal_threader_for_with_grain(n, grain_size, a, threader_func<F>);
 }
 
+/// Iterates over `[0, n)` in parallel, in chunks of no more than `grain_size` iterations.
+///
+/// "Simple" names the partitioner, not a static schedule: the oneTBB backend uses
+/// `tbb::simple_partitioner`
+/// (https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html). That is
+/// also where the grain size binds differently than in `threader_for` -- the range is split until
+/// no chunk holds more than `grain_size` iterations and nothing is merged back, so the grain size
+/// is the chunk size rather than a lower bound the backend may exceed. `grain_size == 1`
+/// therefore asks for consecutive iterations on different threads. A static,
+/// one-contiguous-block-per-thread schedule is a different primitive (`tbb::static_partitioner`,
+/// reached through `daal::static_threader_for`) and is not mirrored here.
+///
+/// @tparam F   The callable type; invoked as `lambda(std::int64_t i)`, `0 <= i < n`
+/// @param[in] n           Number of iterations in the loop
+/// @param[in] grain_size  Number of iterations in one chunk. At least 1.
+/// @param[in] lambda      The body to run for every iteration
 template <typename F>
 inline ONEDAL_EXPORT void threader_for_simple(std::int64_t n,
                                               std::int64_t grain_size,
@@ -239,6 +269,12 @@ inline ONEDAL_EXPORT void threader_for_int32ptr(const std::int32_t *begin,
     _onedal_threader_for_int32ptr(begin, end, a, threader_func_int32ptr<F>);
 }
 
+/// Iterates over a range of 64-bit values addressed by pointer.
+///
+/// @tparam F      The callable type; invoked as `lambda(const std::int64_t *)`
+/// @param[in] begin   The first element of the range
+/// @param[in] end     One past the last element of the range
+/// @param[in] lambda  The body to run for every element of the range
 template <typename F>
 inline ONEDAL_EXPORT void threader_for_int64ptr(const std::int64_t *begin,
                                                 const std::int64_t *end,
@@ -248,6 +284,20 @@ inline ONEDAL_EXPORT void threader_for_int64ptr(const std::int64_t *begin,
     _onedal_threader_for_int64ptr(begin, end, a, threader_func_int64ptr<F>);
 }
 
+/// Splits `[0, count)` into blocks and runs the body once per block, in parallel.
+///
+/// The body is given the half-open bounds of its block, `(first, last)`, and is responsible for
+/// the loop over them. This replaces `_onedal_threader_for_blocked_size`, whose callback took
+/// `(first, length)` instead; the two conventions differ only in the second argument, so a call
+/// site ported from it must be re-read rather than only re-typed.
+///
+/// As in `threader_for`, `block` is a lower bound on the block size, not an exact one: the
+/// backend's default partitioning will not go below it but may hand out larger blocks.
+///
+/// @tparam F   The callable type; invoked as `lambda(std::int64_t first, std::int64_t last)`
+/// @param[in] count   Number of iterations to split into blocks
+/// @param[in] block   Minimum number of iterations in one block. At least 1.
+/// @param[in] lambda  The body to run for every block
 template <typename F>
 inline ONEDAL_EXPORT void threader_for_blocked(std::int64_t count,
                                                std::int64_t block,
