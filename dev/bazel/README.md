@@ -833,16 +833,16 @@ The only Intel-specific piece is the math library itself, so pointing the build
 at [oneMath](https://github.com/uxlfoundation/oneMath) — the open-source
 implementation of the same interface, which additionally dispatches to cuBLAS,
 cuSOLVER, cuSPARSE and cuRAND — lets the same kernels run on an NVIDIA GPU, as
-far as oneMath implements the interface the kernels use. That is currently BLAS
-and LAPACK, not the whole library; see the table below for what that leaves
-out.
+far as oneMath implements the interface the kernels use. That is BLAS, LAPACK
+and two of the five device RNG engines, but not sparse BLAS; see the table below
+for what that leaves out.
 
 Which library is used is decided by `--dpc_math_backend`:
 
 | Value               | Library | Device support                       |
 |---------------------|---------|--------------------------------------|
 | `mkl` _(default)_   | oneMKL  | Intel GPUs                           |
-| `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs, BLAS and LAPACK only |
+| `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs, without sparse BLAS  |
 
 Note that `onemath` is not an NVIDIA-only setting: oneMath's own `mklgpu`
 backend targets Intel GPUs, and a oneMath build with no CUDA backend and no
@@ -944,6 +944,13 @@ Concretely: all 45 DPC++ examples build against such a library, and 44 of them
 run and produce the same output as the oneMKL build. The one that does not is
 `kmeans_lloyd_csr_batch`, which throws `unimplemented` out of the sparse BLAS
 layer.
+
+The Bazel test suites run too, not just build. Across `primitives/{blas,lapack,
+rng,objective_function}` and `algo/{pca,kmeans,decision_forest,covariance,
+linear_regression,basic_statistics,logistic_regression}`, 67 targets pass under
+`--config=nvidia-gpu` on the same GPU, the three `sparse_blas` targets are
+skipped as incompatible, and `decision_forest:test_spmd_dpc` fails exactly as it
+does on the default backend there.
 
 Neither gap is as wide as the domain table suggests, which is worth spelling out
 so the table is not read as a list of unusable algorithms:
