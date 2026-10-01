@@ -23,6 +23,7 @@
   run.py matrix  [--tasks ..] [--arms ..] [--models ..] [--reps N] [-j N] [--batch NAME] [--effort L] [--force]
   run.py grade   <run_dir>...                      re-grade existing runs (deterministic; reruns the tests)
   run.py grade   --contract <run_dir>              agent-benchmark entry point: grade.json as repo_grade.v1
+  run.py oracle  --contract <run_dir>              agent-benchmark entry point: apply the reference solution
   run.py static  [--tree DIR] [--out FILE]         T0: check guidance claims against the tree, $0
   run.py summary [--batch NAME]                    per-cell table of every graded run in the batch
 
@@ -40,6 +41,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import config
+import contract
 import graders
 from common import ARMS, bazel, meta, prep, sh, task_spec
 import traces
@@ -153,9 +155,10 @@ def check(task, kind):
     t = task_spec(task)
     rd = config.root() / "check" / f"{task}__{kind}"
     repo = prep(task, "main-raw", rd)
-    text = graders.ORACLES[t["grader"]](rd, repo, t) if kind == "oracle" else ""
-    (rd / "answer.txt").write_text(text)
+    (rd / "answer.txt").write_text("")
     (rd / "events.jsonl").write_text("")
+    if kind == "oracle":
+        contract.oracle(rd, repo, t)
     try:
         return grade(rd)
     finally:
@@ -215,6 +218,9 @@ def main():
     p = sub.add_parser("grade")
     p.add_argument("run_dirs", nargs="+", type=Path)
     p.add_argument("--contract", action="store_true", help="agent-benchmark layout: workspace/, task.json, ...")
+    p = sub.add_parser("oracle")
+    p.add_argument("run_dir", type=Path)
+    p.add_argument("--contract", action="store_true", required=True)
     p = sub.add_parser("static")
     p.add_argument("--tree", type=Path, default=config.src())
     p.add_argument("--out", type=Path)
@@ -233,13 +239,15 @@ def main():
     elif a.cmd == "matrix":
         matrix(a)
     elif a.cmd == "grade" and a.contract:
-        import contract
         for rd in a.run_dirs:
             g = contract.grade(rd.resolve())
             print(json.dumps({k: g[k] for k in ("task", "pass", "errors")}), flush=True)
     elif a.cmd == "grade":
         for rd in a.run_dirs:
             grade(rd.resolve())
+    elif a.cmd == "oracle":
+        rd = a.run_dir.resolve()
+        contract.oracle(rd, rd / "workspace", json.loads((rd / "task.json").read_text()))
     elif a.cmd == "static":
         import static_check
         static_check.main(a.tree.resolve(), a.out)

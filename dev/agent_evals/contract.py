@@ -18,6 +18,8 @@
 
   run.py grade --contract <run_dir>    reads workspace/, task.json, answer.txt, events.jsonl, meta.json from
                                        run_dir and writes run_dir/grade.json as repo_grade.v1
+  run.py oracle --contract <run_dir>   applies the task's reference solution to run_dir/workspace and, for tasks
+                                       graded on the final answer, writes the reference answer to answer.txt
 
 The graders are the ones `run.py grade` uses; only the inputs and the output shape differ.
 """
@@ -52,6 +54,14 @@ def split_result(g):
         else:
             det[k] = v
     return mets, det
+
+
+def oracle(rd, ws, t):
+    """Reference solution in place; also what `run.py check` uses for its oracle half."""
+    text = graders.ORACLES[t["grader"]](rd, ws, t)
+    if text:
+        (rd / "answer.txt").write_text(text)
+    return text
 
 
 def grade(rd):
