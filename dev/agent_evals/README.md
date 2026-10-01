@@ -76,6 +76,7 @@ the same length, extra tooling).
 | `grader` | name registered by a module in `graders/` |
 | `setup_patch` / `setup_patches` | applied before the arm (injected bugs) |
 | `review_patch` | `git am`-ed on top as the HEAD commit under review |
+| `gate` | metrics that count as success for agent-benchmark (default `["pass"]`); `["strict_pass"]` on every `test_pass`/`test_pass_files` task, since they all have regression suites |
 | grader keys | see the docstring of the grader: `hidden_from`/`hidden_files`/`targets`/`regression_targets` for `test_pass`, `manifest.json` for `review`, ... |
 
 Rules every task follows:

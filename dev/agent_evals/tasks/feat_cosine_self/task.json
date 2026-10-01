@@ -3,6 +3,7 @@
  "family": "feature",
  "base": "52d531c4^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "source_pr": 3712,
  "hidden_from": "52d531c4",
  "hidden_files": [

@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "d44ad514^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "hidden_from": "d44ad514",
  "hidden_files": [
   "cpp/oneapi/dal/algo/basic_statistics/test/batch.cpp",

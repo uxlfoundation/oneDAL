@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "5019e745^",
  "grader": "test_pass",
+ "gate": ["strict_pass"],
  "hidden_from": "5019e745",
  "hidden_files": [
   "cpp/oneapi/dal/algo/pca/test/fixture.hpp",

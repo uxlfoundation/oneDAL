@@ -3,6 +3,7 @@
  "family": "fix",
  "base": "3120d0ab",
  "grader": "test_pass_files",
+ "gate": ["strict_pass"],
  "setup_patch": "setup.patch",
  "hidden_files": [
   "cpp/oneapi/dal/algo/subgraph_isomorphism/test/cpu_dispatch.cpp"
