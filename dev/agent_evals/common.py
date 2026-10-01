@@ -111,14 +111,14 @@ def prep(task, arm, rd):
 
 
 # ---------------------------------------------------------------- grading helpers
-def bazel(rd, args, log):
-    """Run bazel in the run's repo with the run's output_base; returns (rc, log text).
+def bazel(rd, ws, args, log):
+    """Run bazel in workspace ws with the run's output_base (rd/ob); returns (rc, log text).
 
     args is split with shlex and executed without a shell, so it cannot chain or redirect commands.
     """
     env = config.run_env(rd)
     with open(log, "w") as out:
-        rc = subprocess.run([str(config.BIN / "bazel"), *shlex.split(args)], cwd=rd / "repo", env=env,
+        rc = subprocess.run([str(config.BIN / "bazel"), *shlex.split(args)], cwd=ws, env=env,
                             stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT).returncode
     return rc, Path(log).read_text(errors="replace")
 
@@ -133,11 +133,10 @@ def last_json(text):
     return None
 
 
-def changed_files(rd):
-    repo = rd / "repo"
-    base = meta(rd)["base_sha"]
-    ch = git(repo, "diff", "--name-only", base, check=False).stdout.split()
-    ch += git(repo, "ls-files", "--others", "--exclude-standard", check=False).stdout.split()
+def changed_files(ws, base):
+    """Files the agent changed or added in workspace ws since the prepared commit base."""
+    ch = git(ws, "diff", "--name-only", base, check=False).stdout.split()
+    ch += git(ws, "ls-files", "--others", "--exclude-standard", check=False).stdout.split()
     return sorted(set(ch) - {""})
 
 
@@ -145,10 +144,10 @@ def is_test_file(f):
     return "/test/" in f or f.endswith("_test.cpp")
 
 
-def diff_lines(rd, files):
+def diff_lines(ws, base, files):
     if not files:
         return 0
-    ds = git(rd / "repo", "diff", "--shortstat", meta(rd)["base_sha"], "--", *files, check=False).stdout
+    ds = git(ws, "diff", "--shortstat", base, "--", *files, check=False).stdout
     return sum(int(x) for x in re.findall(r"(\d+) (?:insertion|deletion)", ds))
 
 

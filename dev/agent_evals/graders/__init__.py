@@ -16,9 +16,11 @@
 
 """Grader registry. Every module in this package exports
 
-  GRADERS = {name: fn(rd, task, trace) -> dict}     result dict; "pass" is True/False, or None for score-only tasks.
-                                                    trace = metrics.metrics(rd) (from events.jsonl) plus "answer",
-                                                    the agent's final message; graders never read a harness trace
+  GRADERS = {name: fn(rd, ws, task, trace) -> dict}  result dict; "pass" is True/False, or None for score-only
+                                                    tasks. rd is the run directory (logs, output base), ws the
+                                                    agent's final tree. trace = metrics.metrics(rd) (from
+                                                    events.jsonl) plus "answer", the agent's final message, and
+                                                    "base_sha", the prepared commit; graders never read a harness trace
   ORACLES = {name: fn(rd, repo, task) -> str}       reference answer text for the grader self-check (optional)
 
 A task's task.json names its grader in "grader". Oracles apply the reference fix to `repo` in place and/or

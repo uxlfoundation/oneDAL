@@ -26,9 +26,9 @@ from graders.build import g_artifact_path
 BAZEL_BUILD = re.compile(r"\bbazel(?:isk)?\s+(?:-\S+\s+)*(build|test|run)\b")
 
 
-def g_make_artifact(rd, t, tr):
+def g_make_artifact(rd, ws, t, tr):
     """g_artifact_path, plus the trace must show no `bazel build/test/run` (the task forbids Bazel)."""
-    g = g_artifact_path(rd, t, tr)
+    g = g_artifact_path(rd, ws, t, tr)
     used_bazel = any(BAZEL_BUILD.search(c) for c in tr.get("bazel_cmds", []))
     return {**g, "used_bazel": used_bazel, "pass": bool(g["pass"] and not used_bazel)}
 

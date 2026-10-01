@@ -33,9 +33,9 @@ from common import changed_files, is_test_file, show, task_dir
 from graders.fix import g_test_pass, o_test_pass
 
 
-def g_test_pass_files(rd, t, tr):
-    repo = rd / "repo"
-    agent_touched = [f for f in changed_files(rd) if is_test_file(f)]
+def g_test_pass_files(rd, ws, t, tr):
+    repo = ws
+    agent_touched = [f for f in changed_files(ws, tr["base_sha"]) if is_test_file(f)]
     for f in t["hidden_files"]:
         src = task_dir(t["id"]) / "hidden" / f
         if not src.is_file():
@@ -49,7 +49,7 @@ def g_test_pass_files(rd, t, tr):
     t2["targets"] = list(t["targets"]) + list(t.get("test_flags", []))
     if t.get("regression_targets"):
         t2["regression_targets"] = list(t["regression_targets"]) + list(t.get("regression_flags", []))
-    out = g_test_pass(rd, t2, tr)
+    out = g_test_pass(rd, ws, t2, tr)
     out["touched_tests"] = agent_touched
     if t.get("root_cause"):
         rcf = t["root_cause"]

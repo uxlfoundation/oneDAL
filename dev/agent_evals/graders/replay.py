@@ -42,7 +42,7 @@ def _ratio(a, b):
     return round(a / b, 3) if b else None
 
 
-def g_replay(rd, t, tr):
+def g_replay(rd, ws, t, tr):
     gold = json.loads((task_dir(t["id"]) / t.get("gold", "gold.json")).read_text())
     window = t.get("window", 5)
     findings = last_json(tr["answer"])

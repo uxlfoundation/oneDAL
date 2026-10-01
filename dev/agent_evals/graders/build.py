@@ -22,7 +22,7 @@ from pathlib import Path
 from common import bazel, last_json
 
 
-def g_bazel_cmd(rd, t, tr):
+def g_bazel_cmd(rd, ws, t, tr):
     """Re-run the single `bazel test` command the agent reported; the expected target must PASS."""
     j = last_json(tr["answer"]) or {}
     cmd = (j.get("command") or "").strip()
@@ -33,12 +33,12 @@ def g_bazel_cmd(rd, t, tr):
         shlex.split(cmd)
     except ValueError:
         return {**out, "pass": False, "why": "unparseable bazel test command"}
-    rc, log = bazel(rd, cmd[len("bazel"):] + " --nocache_test_results", rd / "grade.log")
+    rc, log = bazel(rd, ws, cmd[len("bazel"):] + " --nocache_test_results", rd / "grade.log")
     ok = rc == 0 and re.search(re.escape(t["expect_target"]) + r"\s+PASSED", log) is not None
     return {**out, "pass": ok, "rerun_rc": rc}
 
 
-def g_artifact_path(rd, t, tr):
+def g_artifact_path(rd, ws, t, tr):
     """Reported path must be a real ELF file named like t["artifact_re"], built inside this run's directory.
 
     t["path_must_contain"] is a substring the unresolved path must contain (the release layout directory).
@@ -57,7 +57,7 @@ def o_bazel_cmd(rd, repo, t):
 
 
 def o_release_path(rd, repo, t):
-    bazel(rd, "build //:release --release_dpc=false", rd / "oracle_build.log")
+    bazel(rd, repo, "build //:release --release_dpc=false", rd / "oracle_build.log")
     lib = next(iter(sorted((repo / "bazel-bin/release").rglob("libonedal_core.so*"))), None)
     return '```json\n{"path": "' + str(lib) + '"}\n```'
 
