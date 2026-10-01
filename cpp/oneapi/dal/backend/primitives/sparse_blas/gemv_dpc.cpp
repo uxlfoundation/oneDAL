@@ -19,6 +19,16 @@
 
 namespace oneapi::dal::backend::primitives {
 
+sycl::event optimize_gemv(sycl::queue& queue,
+                          transpose transpose_a,
+                          sparse_matrix_handle& a,
+                          const event_vector& dependencies) {
+    return mkl::sparse::optimize_gemv(queue,
+                                      transpose_to_mkl(transpose_a),
+                                      dal::detail::get_impl(a).get(),
+                                      dependencies);
+}
+
 template <typename Float>
 sycl::event gemv(sycl::queue& queue,
                  transpose transpose_a,

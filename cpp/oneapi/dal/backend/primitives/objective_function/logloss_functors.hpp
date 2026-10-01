@@ -48,6 +48,14 @@ public:
                            const event_vector& deps) final;
     ndview<Float, 1>& get_raw_hessian();
 
+    /// Handle over the CSR input, valid only when the data is a `csr_table`.
+    ///
+    /// Exposed so that `logloss_function`, which owns this object and multiplies
+    /// the very same matrix, can reuse the handle instead of building a second one
+    /// over identical data. Two handles mean the sparsity pattern is uploaded and
+    /// analyzed twice and neither copy can benefit from the other's cached plan.
+    sparse_matrix_handle& get_sparse_handle();
+
 private:
     void reserve_memory();
 
@@ -101,10 +109,12 @@ public:
 private:
     void reserve_memory();
 
+    /// The CSR handle of `hessp_`, which covers this object's own products too.
+    sparse_matrix_handle& get_sparse_handle();
+
     sycl::queue& q_;
     comm_t comm_;
     const table data_;
-    dal::detail::pimpl<sparse_matrix_handle> sp_handle_;
     const ndview<std::int32_t, 1> labels_;
     ndarray<Float, 1> probabilities_;
     ndarray<Float, 1> gradient_;
