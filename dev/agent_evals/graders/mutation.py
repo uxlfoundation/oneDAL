@@ -79,7 +79,7 @@ def g_mutation(rd, t, tr):
     repo = rd / "repo"
     base = meta(rd)["base_sha"]
     pkgs = packages(t)
-    j = last_json(tr["result_text"])
+    j = last_json(tr["answer"])
     targets = j.get("targets") if isinstance(j, dict) else None
     changed = changed_files(rd)
     src_modified = [f for f in changed if not is_test_file(f) and not is_build_file(f) and in_base(repo, base, f)]

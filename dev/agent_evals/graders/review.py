@@ -58,7 +58,7 @@ def same_file(entry, path):
 def g_review(rd, t, tr):
     man = json.loads((task_dir(t["id"]) / t.get("manifest", "manifest.json")).read_text())
     seeds, decoys = man.get("seeds", []), man.get("decoys", [])
-    findings = last_json(tr["result_text"])
+    findings = last_json(tr["answer"])
     if not isinstance(findings, list):
         return {"pass": False, "parse_error": True}
     findings = [f for f in findings if isinstance(f, dict)]

@@ -24,7 +24,7 @@ from common import bazel, last_json
 
 def g_bazel_cmd(rd, t, tr):
     """Re-run the single `bazel test` command the agent reported; the expected target must PASS."""
-    j = last_json(tr["result_text"]) or {}
+    j = last_json(tr["answer"]) or {}
     cmd = (j.get("command") or "").strip()
     out = {"reported_command": cmd}
     if not re.match(r"^bazel\s+test\b", cmd) or any(c in cmd for c in ";&|`$<>\r\n"):
@@ -43,7 +43,7 @@ def g_artifact_path(rd, t, tr):
 
     t["path_must_contain"] is a substring the unresolved path must contain (the release layout directory).
     """
-    j = last_json(tr["result_text"]) or {}
+    j = last_json(tr["answer"]) or {}
     p = Path(j.get("path") or "/nonexistent")
     real = p.resolve() if p.exists() else None
     ok = bool(real and real.is_file() and re.match(t.get("artifact_re", r"libonedal_core\.so"), real.name)
