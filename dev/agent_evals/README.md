@@ -41,22 +41,25 @@ export ONEDAL_EVAL_SRC=$PWD                     # full-history clone; mined task
 python3 dev/agent_evals/run.py list
 python3 dev/agent_evals/run.py static           # T0
 python3 dev/agent_evals/run.py check            # grader self-check for every task, no LLM
-python3 dev/agent_evals/run.py matrix --arms none,main-raw,main-claude --models haiku --reps 3 -j 6 --batch b1
+python3 dev/agent_evals/run.py matrix --arms none,main-raw --models haiku --reps 3 -j 6 --batch b1
 python3 dev/agent_evals/run.py summary --batch b1
 ```
 
 Other settings (Claude CLI binary, Bazel binary, shared caches, timeout) are environment variables documented in
 `config.py`. Model aliases (`haiku`, `sonnet`, `opus`) resolve to Bedrock ids when `CLAUDE_CODE_USE_BEDROCK` is set
 and to Anthropic API ids otherwise; a full model id also works. `--effort` passes Claude Code's effort level
-through. Each run records the CLI version, which decides whether `AGENTS.md` is loaded (see Arms).
+through. Each run records the CLI version.
 
 ## Arms
 
 | arm | repository state |
 |---|---|
 | `none` | every `AGENTS.md` and `.github/instructions/*.md` deleted |
-| `main-raw` | as checked in. Claude Code 2.1.277+ loads `AGENTS.md` itself (nested ones when the agent works in that directory); older CLIs only show it if the agent opens it |
-| `main-claude` | a `CLAUDE.md` containing `@AGENTS.md` next to every `AGENTS.md`, so any CLI version loads the hierarchy. On 2.1.277+ it should match `main-raw` |
+| `main-raw` | as checked in. Claude Code loads `AGENTS.md` itself (nested ones when the agent works in that directory) |
+
+`run.py agent` refuses Claude Code older than 2.1.277, which does not load `AGENTS.md`. Batches run before that
+(pilots on 2.1.241) also had a `main-claude` arm with a `CLAUDE.md` `@AGENTS.md` shim; their run directories still
+regrade.
 
 An arm is one function in `common.py` that edits the task repo in place (another guidance revision, a placebo of
 the same length, extra tooling).

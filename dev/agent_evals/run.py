@@ -85,7 +85,15 @@ def kill_group(proc, grace=10):
     proc.wait()
 
 
+# first Claude Code release that loads AGENTS.md itself; the main-raw arm means nothing on older CLIs
+MIN_CLI = (2, 1, 277)
+
+
 def run_agent(task, arm, model, rep, batch, effort=None):
+    cli = config.claude_version()
+    if not cli or tuple(int(x) for x in cli.split(".")[:3]) < MIN_CLI:
+        raise SystemExit(f"{config.claude_bin()} is version {cli}; AGENTS.md needs Claude Code "
+                         f"{'.'.join(map(str, MIN_CLI))}+ (set ONEDAL_EVAL_CLAUDE)")
     t = task_spec(task)
     rd = run_dir(batch, task, arm, model, rep)
     repo = prep(task, arm, rd)
@@ -109,7 +117,7 @@ def run_agent(task, arm, model, rep, batch, effort=None):
             kill_group(proc)
     m = meta(rd)
     m.update(model=model, model_id=config.model_id(model), rep=rep, batch=batch, agent_rc=rc,
-             effort=effort, cli_version=config.claude_version(),
+             effort=effort, cli_version=cli,
              wall_s=round(time.time() - t0))
     (rd / "meta.json").write_text(json.dumps(m))
     try:
