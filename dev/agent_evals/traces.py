@@ -14,54 +14,110 @@
 # limitations under the License.
 #===============================================================================
 
-"""Process metrics from a `claude -p --output-format stream-json` trace."""
+"""Claude Code `--output-format stream-json` trace -> harness-independent run files.
+
+The only module that reads the Claude format. From <run_dir>/trace.jsonl it writes
+
+  events.jsonl  one event per tool call (agent-benchmark repository-evaluation contract, section 4.1):
+                {"t", "kind": "command", "text", "rc", "denied", "output"}   Bash
+                {"t", "kind": "read", "path"}                                Read
+                {"t", "kind": "edit", "path"}                                Edit, Write, MultiEdit, NotebookEdit
+                {"t", "kind": "tool", "name", "denied"}                      anything else
+                t is seconds since the first timestamped line (null if the trace has none). Paths inside the
+                agent's cwd are made relative to it. "output" (the tool result text) is not in the contract;
+                the icpx and build-failure metrics need it.
+  answer.txt    the final message
+  usage.json    cost, turns, result subtype, and whether the CLI loaded AGENTS.md (cc-plugin-agents-md)
+
+Usage: python3 traces.py <run_dir>
+"""
 import json
+import os
 import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
+EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
 
-def parse_trace(rd):
-    res, tools, bazel_cmds, make_cmds, read_files = None, 0, [], [], []
-    build_ids, build_fail, icpx_hit = set(), 0, False
-    agents_md_loader = None  # unknown until the init event is seen
+def _seconds(ts):
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except (AttributeError, ValueError):
+        return None
+
+
+def _text(content):
+    if isinstance(content, list):
+        return "\n".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
+    return content if isinstance(content, str) else json.dumps(content)
+
+
+def _rel(path, cwd):
+    if not cwd or not path:
+        return path
+    for root, q in ((cwd, path), (os.path.realpath(cwd), os.path.realpath(path))):
+        if q.startswith(root + "/"):
+            return q[len(root) + 1:]
+    return path
+
+
+def convert(rd):
+    events, pending, result = [], {}, {}
+    cwd, t0, loader = None, None, None
     p = rd / "trace.jsonl"
     for line in p.read_text().splitlines() if p.exists() else []:
         try:
             ev = json.loads(line)
         except ValueError:
             continue
+        now = _seconds(ev.get("timestamp"))
+        t0 = now if t0 is None else t0
+        t = round(now - t0, 1) if now is not None else None
         if ev.get("type") == "result":
-            res = ev
+            result = ev
         if ev.get("type") == "system" and ev.get("subtype") == "init":
+            cwd = ev.get("cwd")
             # Claude Code 2.1.277+ loads AGENTS.md through this builtin plugin; older CLIs do not have it
-            agents_md_loader = any(pl.get("name") == "cc-plugin-agents-md" for pl in ev.get("plugins") or [])
+            loader = any(pl.get("name") == "cc-plugin-agents-md" for pl in ev.get("plugins") or [])
         content = ev.get("message", {}).get("content")
         if not isinstance(content, list):
             continue
         for c in content:
             if ev.get("type") == "assistant" and c.get("type") == "tool_use":
-                tools += 1
-                inp = c.get("input", {})
-                cmd = inp.get("command", "") if c["name"] == "Bash" else ""
-                if re.search(r"\bbazel(?:isk)?\b", cmd):
-                    bazel_cmds.append(cmd)
-                    build_ids.add(c.get("id"))
-                elif re.search(r"\bmake\b", cmd):
-                    make_cmds.append(cmd)
-                    build_ids.add(c.get("id"))
-                if c["name"] == "Read":
-                    read_files.append(inp.get("file_path", ""))
-            if ev.get("type") == "user" and c.get("type") == "tool_result" and c.get("tool_use_id") in build_ids:
-                body = json.dumps(c.get("content"))
-                if c.get("is_error") or re.search(r"FAILED TO BUILD|Build did NOT complete|\bFAILED\b|Error \d+", body):
-                    build_fail += 1
-                icpx_hit |= "icpx is not found" in body
-    guidance_read = sorted({f.split("/repo/")[-1] for f in read_files
-                            if f.endswith(("AGENTS.md", "CLAUDE.md")) or "/.github/instructions/" in f})
-    hook = rd / "hook.log"
-    return {"result_text": (res or {}).get("result", ""), "cost": (res or {}).get("total_cost_usd"),
-            "turns": (res or {}).get("num_turns"), "is_error": (res or {}).get("is_error"),
-            "subtype": (res or {}).get("subtype"), "tool_calls": tools,
-            "bazel_cmds": bazel_cmds, "n_bazel": len(bazel_cmds), "n_make": len(make_cmds),
-            "n_build_fail": build_fail, "icpx_hit": icpx_hit, "guidance_read": guidance_read,
-            "agents_md_loader": agents_md_loader,
-            "bg_denied": len(hook.read_text().splitlines()) if hook.exists() else 0}
+                name, inp = c.get("name"), c.get("input") or {}
+                if name == "Bash":
+                    e = {"t": t, "kind": "command", "text": inp.get("command", ""), "rc": None, "denied": False,
+                         "output": ""}
+                elif name == "Read":
+                    e = {"t": t, "kind": "read", "path": _rel(inp.get("file_path", ""), cwd)}
+                elif name in EDIT_TOOLS:
+                    e = {"t": t, "kind": "edit", "path": _rel(inp.get("file_path") or inp.get("notebook_path", ""),
+                                                              cwd)}
+                else:
+                    e = {"t": t, "kind": "tool", "name": name, "denied": False}
+                events.append(e)
+                pending[c.get("id")] = e
+            elif ev.get("type") == "user" and c.get("type") == "tool_result" and c.get("tool_use_id") in pending:
+                e = pending.pop(c["tool_use_id"])
+                body = _text(c.get("content"))
+                denied = bool(c.get("is_error")) and bool(re.match(r"PreToolUse:\w+ hook error", body))
+                if "denied" in e:
+                    e["denied"] = denied
+                if e["kind"] == "command":
+                    e["output"] = body
+                    if not denied:
+                        code = re.match(r"Exit code (\d+)", body) if c.get("is_error") else None
+                        e["rc"] = int(code.group(1)) if code else (1 if c.get("is_error") else 0)
+    (rd / "events.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+    (rd / "answer.txt").write_text(result.get("result") or "")
+    usage = {"cost": result.get("total_cost_usd"), "turns": result.get("num_turns"),
+             "is_error": result.get("is_error"), "subtype": result.get("subtype"), "agents_md_loader": loader}
+    (rd / "usage.json").write_text(json.dumps(usage))
+    return usage
+
+
+if __name__ == "__main__":
+    for d in sys.argv[1:]:
+        convert(Path(d))

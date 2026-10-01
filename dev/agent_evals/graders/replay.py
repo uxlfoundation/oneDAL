@@ -45,7 +45,7 @@ def _ratio(a, b):
 def g_replay(rd, t, tr):
     gold = json.loads((task_dir(t["id"]) / t.get("gold", "gold.json")).read_text())
     window = t.get("window", 5)
-    findings = last_json(tr["result_text"])
+    findings = last_json(tr["answer"])
     if not isinstance(findings, list):
         return {"pass": False, "parse_error": True}
     findings = [f for f in findings if isinstance(f, dict)]

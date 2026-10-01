@@ -94,7 +94,8 @@ self-check, `ORACLES = {name: fn(rd, repo, task)}`. The registry imports every m
 ## Run isolation
 
 - Runs live under `$ONEDAL_EVAL_ROOT/runs/<batch>/<task>__<arm>__<model>__r<rep>/` with `repo/`, `trace.jsonl`,
-  `meta.json`, `grade.json` and the grader logs. `run.py matrix` skips runs that already have `grade.json`.
+  `meta.json`, `grade.json` and the grader logs. `traces.py` converts the Claude trace into `events.jsonl` (one
+  command/read/edit/tool event per tool call), `answer.txt` and `usage.json`; graders and metrics read only those. `run.py matrix` skips runs that already have `grade.json`.
 - `CLAUDE_CONFIG_DIR` is per run, so nothing from the user's `~/.claude` (memory, settings, plugins) is loaded.
   `ONEDAL_EVAL_ROOT` is refused if a parent directory holds `CLAUDE.md`/`AGENTS.md`/`.claude`, since Claude Code
   loads those into every arm.

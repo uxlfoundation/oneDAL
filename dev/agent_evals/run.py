@@ -41,7 +41,8 @@ from pathlib import Path
 import config
 import graders
 from common import ARMS, bazel, meta, prep, sh, task_spec
-from traces import parse_trace
+import traces
+from metrics import metrics
 
 HEADLINE = ("task", "arm", "model", "rep", "pass", "strict_pass", "recall", "decoys_flagged", "cost", "turns",
             "wall_s", "bg_denied", "guidance_read")
@@ -115,6 +116,7 @@ def run_agent(task, arm, model, rep, batch, effort=None):
             rc = "timeout"
         finally:
             kill_group(proc)
+    traces.convert(rd)  # events.jsonl, answer.txt, usage.json: what grading reads
     m = meta(rd)
     m.update(model=model, model_id=config.model_id(model), rep=rep, batch=batch, agent_rc=rc,
              effort=effort, cli_version=cli,
@@ -126,12 +128,19 @@ def run_agent(task, arm, model, rep, batch, effort=None):
         bazel(rd, "shutdown", rd / "shutdown.log")
 
 
+def run_inputs(rd):
+    """(usage, trace) for the graders. A Claude trace.jsonl is converted first; nothing else reads it."""
+    usage = traces.convert(rd) if (rd / "trace.jsonl").exists() else {}
+    answer = rd / "answer.txt"
+    return usage, {**metrics(rd), "answer": answer.read_text() if answer.exists() else ""}
+
+
 def grade(rd):
     m = meta(rd)
     t = task_spec(m["task"])
-    tr = parse_trace(rd)
+    usage, tr = run_inputs(rd)
     g = graders.GRADERS[t["grader"]](rd, t, tr)
-    row = {**m, **{k: v for k, v in tr.items() if k != "result_text"}, **g}
+    row = {**m, **usage, **{k: v for k, v in tr.items() if k != "answer"}, **g}
     (rd / "grade.json").write_text(json.dumps(row, indent=1))
     print(json.dumps({k: row.get(k) for k in HEADLINE if k in row}), flush=True)
     return row
@@ -143,7 +152,8 @@ def check(task, kind):
     rd = config.root() / "check" / f"{task}__{kind}"
     repo = prep(task, "main-raw", rd)
     text = graders.ORACLES[t["grader"]](rd, repo, t) if kind == "oracle" else ""
-    (rd / "trace.jsonl").write_text(json.dumps({"type": "result", "result": text}) + "\n")
+    (rd / "answer.txt").write_text(text)
+    (rd / "events.jsonl").write_text("")
     try:
         return grade(rd)
     finally:
