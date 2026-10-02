@@ -19,7 +19,7 @@ import re
 import shlex
 from pathlib import Path
 
-from common import bazel, last_json
+from common import bazel, last_json, resolve_in_run
 
 
 def g_bazel_cmd(rd, ws, t, tr):
@@ -42,13 +42,13 @@ def g_artifact_path(rd, ws, t, tr):
     """Reported path must be a real ELF file named like t["artifact_re"], built inside this run's directory.
 
     t["path_must_contain"] is a substring the unresolved path must contain (the release layout directory).
+    The path is resolved inside rd (resolve_in_run), so a run copied or archived elsewhere grades the same.
     """
     j = last_json(tr["answer"]) or {}
     p = Path(j.get("path") or "/nonexistent")
-    real = p.resolve() if p.exists() else None
+    real = resolve_in_run(p, rd, ws)
     ok = bool(real and real.is_file() and re.match(t.get("artifact_re", r"libonedal_core\.so"), real.name)
-              and real.is_relative_to(rd.resolve()) and t.get("path_must_contain", "release") in str(p)
-              and open(real, "rb").read(4) == b"\x7fELF")
+              and t.get("path_must_contain", "release") in str(p) and open(real, "rb").read(4) == b"\x7fELF")
     return {"reported_path": str(p), "reported_command": j.get("command"), "pass": ok}
 
 
