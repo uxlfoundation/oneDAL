@@ -155,14 +155,13 @@ docker run --rm --user "$(id -u):$(id -g)" -e USER=eval \
            python3 dev/agent_evals/run.py check'
 ```
 
-After that, the same command with `--network none` passes `check` for every task except `build_make_gnu`, which
-needs network by design (its prompt offers it, and the oracle installs oneMKL/oneTBB from PyPI). Behind a proxy,
-pass `http_proxy`/`https_proxy` to both commands.
+After that, the same command with `--network none` passes `check` for every task. `build_make_gnu` builds
+against the oneMKL/oneTBB the image installs under `/opt/onedal-make-deps` (its prompt says so); outside the image
+its oracle pip-installs the same pins, with network. Behind a proxy, pass `http_proxy`/`https_proxy` to the warm-up.
 
 Gaps between this directory and the contract, still open:
 
 - `guidance:bridge` has no arm (above).
-- `build_make_gnu` needs network; `image.network` is per manifest, not per task.
 - Graders read the full oneDAL history (`ONEDAL_EVAL_SRC`: hidden tests, mined fix commits); the contract gives
   the grader only the workspace.
 - `meta.json` `base_rev`/`base_sha`/`base_date` name the upstream commit, which is not in the workspace. The
