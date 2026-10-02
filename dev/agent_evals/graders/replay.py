@@ -17,7 +17,7 @@
 """Review-replay tasks: a real merged PR replayed at the revision humans reviewed; gold = their review threads.
 
 gold.json (next to task.json, or t["gold"]):
-  [{id, file, line, author, kind, comment, addressed}]  one human thread with a line anchor on the reviewed
+  [{id, file, line, kind, comment, addressed}]          one human thread with a line anchor on the reviewed
                                                         revision. line is in that revision's new file; kind is
                                                         correctness|api|tests|convention|docs|nit; addressed says
                                                         whether the code was changed in response before merge.
