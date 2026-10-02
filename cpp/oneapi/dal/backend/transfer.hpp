@@ -47,6 +47,13 @@ inline std::tuple<array<T>, sycl::event> to_device(sycl::queue& q, const array<T
     }
 }
 
+/// Returns a host-readable view of `ary`, copying only device USM; every other input is
+/// aliased, so treat the result as read-only and not as a snapshot.
+///
+/// @param[in] ary The array to make host-readable. Must be non-empty.
+///
+/// @return The host-readable array and the event tracking the copy, or an already complete
+///         event when the result aliases the input.
 template <typename T>
 inline std::tuple<array<T>, sycl::event> to_host(const array<T>& ary) {
     ONEDAL_ASSERT(ary.get_count() > 0);
@@ -55,10 +62,16 @@ inline std::tuple<array<T>, sycl::event> to_host(const array<T>& ary) {
         return { ary, sycl::event{} };
     }
 
-    ONEDAL_ASSERT(ary.get_queue().has_value());
     auto q = ary.get_queue().value();
 
-    const auto ary_host = array<T>::empty(q, ary.get_count());
+    // The alias path submits nothing, so draining the queue is the caller's only ordering
+    // against writes still in flight; `to_host` takes no dependencies.
+    if (is_host_usm(ary) || is_shared_usm(ary)) {
+        q.wait_and_throw();
+        return { ary, sycl::event{} };
+    }
+
+    const auto ary_host = array<T>::empty(q, ary.get_count(), sycl::usm::alloc::host);
     const auto event =
         copy_usm2host<T>(q, ary_host.get_mutable_data(), ary.get_data(), ary.get_count());
     return { ary_host, event };
