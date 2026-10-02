@@ -426,10 +426,8 @@ sycl::event convert_matrix_host2device(sycl::queue& q,
     }
     auto copy_event = memcpy(q, dst_device, tmp_host_unique.get(), dst_size_in_bytes);
 
-    // `tmp_host_unique` is freed on return and `sycl::free` does not synchronize,
-    // so the copy reading from it has to complete here.
+    // `tmp_host_unique` is freed on return and `sycl::free` does not synchronize.
     copy_event.wait_and_throw();
-
     return sycl::event{};
 }
 
