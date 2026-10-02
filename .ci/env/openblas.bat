@@ -72,12 +72,25 @@ rem (cmake/system.cmake), and with a static OpenBLAS both `onedal_core` and
 rem `onedal_thread` embed the archive, so a threaded build would put two
 rem independent pools in one process on top of TBB's. `USE_LOCKING` keeps the
 rem single-threaded library safe to call from several TBB threads at once.
+rem
+rem `INTERFACE64=ON` builds the ILP64 interface -- BLAS/LAPACK integer arguments
+rem are 64-bit -- as the Linux script does by default (`.ci/env/openblas.sh
+rem --ilp64 on` -> `INTERFACE64=1`). This is not a preference but a requirement of
+rem how oneDAL calls the reference backend: `DAAL_INT` is `__int64` on
+rem `_WIN64`/`TARGET_ARM` (`cpp/daal/include/services/daal_defines.h:78-88`) and
+rem the wrappers in `cpp/daal/src/externals/service_blas_ref.h` hand
+rem `const DAAL_INT *` straight to `dgemm_`/`dsyrk_`/... with no narrowing cast.
+rem An LP64 OpenBLAS exports those same names taking 32-bit integers, so the
+rem mismatch does not break the link: the callee reads half of each argument it
+rem is passed, and the failure surfaces as wrong results or an out-of-bounds
+rem access instead.
 pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     if exist build-arm64 rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
         -DCMAKE_BUILD_TYPE=Release ^
         -DTARGET=ARMV8 ^
         -DBINARY=64 ^
+        -DINTERFACE64=ON ^
         -DCMAKE_C_COMPILER=clang-cl ^
         -DCMAKE_CXX_COMPILER=clang-cl ^
         -DNOFORTRAN=ON ^
@@ -95,6 +108,41 @@ pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     if errorlevel 1 (popd & goto Error_build)
 popd
 
+rem `INTERFACE64` also renames what gets installed: OpenBLAS's CMake build appends
+rem `_64` to the library name (`OpenBLAS_LIBNAME`, CMakeLists.txt:128-133) and puts
+rem the headers in `include/openblas64` (CMakeLists.txt:700). The Makefile build the
+rem Linux script uses does neither, so the ILP64 Linux package stays plain
+rem `libopenblas.a` + `include/`, and that is the layout both consumers expect on
+rem Windows too (`releaseopen_blas.LIBS_A` in dev/make/deps.ref.mk,
+rem `dev/bazel/deps/openblas.bzl`). Only file names change -- `SYMBOLSUFFIX` is left
+rem empty, so the exported symbols are still `dgemm_`/`dsyrk_`/... -- and the build
+rem is static, so there is no import library pointing at a DLL whose name would also
+rem have to change. Renaming here keeps the interface change out of every consumer.
+if exist "%DST%\lib\openblas_64.lib" (
+    copy /Y "%DST%\lib\openblas_64.lib" "%DST%\lib\openblas.lib" >nul
+    if errorlevel 1 goto Error_layout
+)
+if exist "%DST%\include\openblas64\openblas_config.h" (
+    xcopy /E /I /Y "%DST%\include\openblas64" "%DST%\include" >nul
+    if errorlevel 1 goto Error_layout
+)
+
+rem The interface width is what oneDAL silently depends on and nothing downstream
+rem can detect: the symbol names are identical either way, so an LP64 package links
+rem and then misbehaves. Read it back off the installed configuration header, which
+rem the CMake build fills from `config.h` (CMakeLists.txt:705-712) and therefore
+rem carries `OPENBLAS_USE64BITINT` only for an ILP64 build. A renamed or dropped
+rem CMake option is then caught here rather than in numerical results.
+findstr /C:"OPENBLAS_USE64BITINT" "%DST%\include\openblas_config.h" >nul 2>&1
+if errorlevel 1 (
+    echo openblas.bat : Error: the installed OpenBLAS is not ILP64 -- OPENBLAS_USE64BITINT is absent from "%DST%\include\openblas_config.h", while oneDAL passes 64-bit DAAL_INT arguments to it
+    exit /B 1
+)
+if not exist "%DST%\lib\openblas.lib" (
+    echo openblas.bat : Error: "%DST%\lib\openblas.lib" was not produced; oneDAL links OpenBLAS under that name
+    exit /B 1
+)
+
 echo Downloaded and unpacked OpenBlas small libraries to %DST%
 exit /B 0
 
@@ -104,6 +152,10 @@ exit /B 0
 
 :Error_unpack
     echo openblas.bat : Error: Failed to unpack %BLASSOURCEDIR%\openblas.zip to %BLASSOURCEDIR%, try unpack the archive manually
+    exit /B 1
+
+:Error_layout
+    echo openblas.bat : Error: Failed to normalize the installed OpenBLAS layout under %DST%
     exit /B 1
 
 :Error_build
