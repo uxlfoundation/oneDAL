@@ -24,8 +24,9 @@ The only module that reads the Claude format. From <run_dir>/trace.jsonl it writ
                 {"t", "kind": "edit", "path"}                                Edit, Write, MultiEdit, NotebookEdit
                 {"t", "kind": "tool", "name", "denied"}                      anything else
                 t is seconds since the first timestamped line (null if the trace has none). Paths inside the
-                agent's cwd are made relative to it. "output" (the tool result text) is not in the contract;
-                the icpx and build-failure metrics need it.
+                agent's cwd are made relative to it. "output" is the tool result text (stdout and stderr merged,
+                as Claude Code returns them); over 8 KB it keeps the first and last 4 KB around an omission line
+                and "output_truncated" is true. "rc" is 0 or 1: Claude Code reports success or failure only.
   answer.txt    the final message
   usage.json    cost, turns, result subtype, and whether the CLI loaded AGENTS.md (cc-plugin-agents-md)
 
@@ -39,6 +40,16 @@ from datetime import datetime
 from pathlib import Path
 
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+OUTPUT_MAX, OUTPUT_KEEP = 8192, 4096  # contract section 4.1
+
+
+def _clip(body):
+    """(output, truncated): over OUTPUT_MAX bytes, the first and last OUTPUT_KEEP around an omission line."""
+    b = body.encode()
+    if len(b) <= OUTPUT_MAX:
+        return body, False
+    head, tail = b[:OUTPUT_KEEP].decode(errors="ignore"), b[-OUTPUT_KEEP:].decode(errors="ignore")
+    return f"{head}\n[... {len(b) - 2 * OUTPUT_KEEP} bytes omitted ...]\n{tail}", True
 
 
 def _seconds(ts):
@@ -79,7 +90,7 @@ def convert(rd):
             result = ev
         if ev.get("type") == "system" and ev.get("subtype") == "init":
             cwd = ev.get("cwd")
-            # Claude Code 2.1.277+ loads AGENTS.md through this builtin plugin; older CLIs do not have it
+            # Claude Code loads AGENTS.md through this builtin plugin; CLIs without it never load the file
             loader = any(pl.get("name") == "cc-plugin-agents-md" for pl in ev.get("plugins") or [])
         content = ev.get("message", {}).get("content")
         if not isinstance(content, list):
@@ -89,7 +100,7 @@ def convert(rd):
                 name, inp = c.get("name"), c.get("input") or {}
                 if name == "Bash":
                     e = {"t": t, "kind": "command", "text": inp.get("command", ""), "rc": None, "denied": False,
-                         "output": ""}
+                         "output": "", "output_truncated": False}
                 elif name == "Read":
                     e = {"t": t, "kind": "read", "path": _rel(inp.get("file_path", ""), cwd)}
                 elif name in EDIT_TOOLS:
@@ -106,10 +117,9 @@ def convert(rd):
                 if "denied" in e:
                     e["denied"] = denied
                 if e["kind"] == "command":
-                    e["output"] = body
+                    e["output"], e["output_truncated"] = _clip(body)
                     if not denied:
-                        code = re.match(r"Exit code (\d+)", body) if c.get("is_error") else None
-                        e["rc"] = int(code.group(1)) if code else (1 if c.get("is_error") else 0)
+                        e["rc"] = 1 if c.get("is_error") else 0
     (rd / "events.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
     (rd / "answer.txt").write_text(result.get("result") or "")
     usage = {"cost": result.get("total_cost_usd"), "turns": result.get("num_turns"),
