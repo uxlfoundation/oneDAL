@@ -1,22 +1,24 @@
 {
- "id": "fix_kmeans_empty_reloc",
- "family": "fix",
- "base": "a492e703^",
- "grader": "test_pass",
- "gate": ["strict_pass"],
- "source_pr": 3742,
- "hidden_from": "a492e703",
- "hidden_files": [
-  "cpp/oneapi/dal/algo/kmeans/test/batch.cpp",
-  "cpp/oneapi/dal/algo/kmeans/test/fixture.hpp"
- ],
- "targets": [
-  "//cpp/oneapi/dal/algo/kmeans:test_batch_host"
- ],
- "regression_targets": [
-  "//cpp/oneapi/dal/algo/kmeans:test_badarg_host",
-  "//cpp/oneapi/dal/algo/kmeans:test_serialization_host",
-  "//cpp/oneapi/dal/algo/kmeans:test_spmd_host"
- ],
- "prompt": "Fix the following bug in this repository (oneDAL).\n\n# K-means: empty-cluster relocation gives different centroids from scikit-learn\n\nWhen Lloyd K-means (CPU, both the dense and the CSR method) meets an empty cluster, the centroids it returns do not match scikit-learn's `KMeans` for the same data and initial centroids.\n\nReproducer (1 feature, 3 clusters): `X = [-10, -9.5, -9, -8.5, -8, -1, 1, 9, 9.5, 10]`, initial centroids `[-10, -10, -10]`, `max_iteration_count = 1`, `accuracy_threshold = 0`. All ten points are assigned to cluster 0 and clusters 1 and 2 are empty, so they are re-seeded with the rows farthest from their centroid, `10` and `9.5`.\n\n| cluster | oneDAL | scikit-learn |\n|---|---|---|\n| 0 | -1.65 | -4.5 |\n| 1 | 10 | 10 |\n| 2 | 9.5 | 9.5 |\n\n`-4.5` is the mean of the eight points that actually stayed in cluster 0.\n\nExpected behaviour is scikit-learn's (`_relocate_empty_clusters`): an empty cluster is seeded with the row that is farthest from its own centroid, chosen by distance only, and that row no longer counts towards the cluster it came from. Degenerate inputs must behave like scikit-learn too: when there are fewer distinct points than clusters, a row that already sits on its own centroid is not relocated, and the clusters that are still empty get a copy of the largest cluster's centroid, so the run reaches a fixed point and converges before `max_iteration_count` with `accuracy_threshold = 0`. The dense and CSR (`lloyd_csr`) methods must give the same results. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests."
+  "id": "fix_kmeans_empty_reloc",
+  "family": "fix",
+  "base": "a492e703^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_pr": 3742,
+  "hidden_from": "a492e703",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/kmeans/test/batch.cpp",
+    "cpp/oneapi/dal/algo/kmeans/test/fixture.hpp"
+  ],
+  "targets": [
+    "//cpp/oneapi/dal/algo/kmeans:test_batch_host"
+  ],
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/kmeans:test_badarg_host",
+    "//cpp/oneapi/dal/algo/kmeans:test_serialization_host",
+    "//cpp/oneapi/dal/algo/kmeans:test_spmd_host"
+  ],
+  "prompt": "Fix the following bug in this repository (oneDAL).\n\n# K-means: empty-cluster relocation gives different centroids from scikit-learn\n\nWhen Lloyd K-means (CPU, both the dense and the CSR method) meets an empty cluster, the centroids it returns do not match scikit-learn's `KMeans` for the same data and initial centroids.\n\nReproducer (1 feature, 3 clusters): `X = [-10, -9.5, -9, -8.5, -8, -1, 1, 9, 9.5, 10]`, initial centroids `[-10, -10, -10]`, `max_iteration_count = 1`, `accuracy_threshold = 0`. All ten points are assigned to cluster 0 and clusters 1 and 2 are empty, so they are re-seeded with the rows farthest from their centroid, `10` and `9.5`.\n\n| cluster | oneDAL | scikit-learn |\n|---|---|---|\n| 0 | -1.65 | -4.5 |\n| 1 | 10 | 10 |\n| 2 | 9.5 | 9.5 |\n\n`-4.5` is the mean of the eight points that actually stayed in cluster 0.\n\nExpected behaviour is scikit-learn's (`_relocate_empty_clusters`): an empty cluster is seeded with the row that is farthest from its own centroid, chosen by distance only, and that row no longer counts towards the cluster it came from. Degenerate inputs must behave like scikit-learn too: when there are fewer distinct points than clusters, a row that already sits on its own centroid is not relocated, and the clusters that are still empty get a copy of the largest cluster's centroid, so the run reaches a fixed point and converges before `max_iteration_count` with `accuracy_threshold = 0`. The dense and CSR (`lloyd_csr`) methods must give the same results. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests."
 }
