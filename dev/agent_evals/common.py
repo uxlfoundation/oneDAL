@@ -15,6 +15,7 @@
 #===============================================================================
 
 """Shell, git, snapshot and arm helpers shared by the runner and the graders."""
+import contextlib
 import json
 import os
 import re
@@ -143,6 +144,27 @@ def changed_files(ws, base):
 
 def is_test_file(f):
     return "/test/" in f or f.endswith("_test.cpp")
+
+
+@contextlib.contextmanager
+def files_restored(repo, paths):
+    """Put `paths` back as they were on exit, so grading leaves the run as the agent left it.
+
+    Graders write hidden tests and revert library sources over the agent's tree. Without this,
+    the first grade becomes part of the run and a regrade reads the grader's own files as the
+    agent's work (`changed_files` is computed from the tree, not from a record).
+    """
+    saved = {f: ((repo / f).read_bytes() if (repo / f).is_file() else None) for f in paths}
+    try:
+        yield
+    finally:
+        for f, data in saved.items():
+            p = repo / f
+            if data is None:
+                p.unlink(missing_ok=True)
+            else:
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(data)
 
 
 def diff_lines(ws, base, files):

@@ -25,9 +25,9 @@ task.json keys:
   min_kill        pass threshold on kill_rate (default 0.6)
   oracle_targets  targets of the reference tests in tasks/<id>/oracle/<repo path> (BUILD files as BUILD.oracle)
 
-Library sources (anything that existed at base and is neither a test file nor a BUILD/.bzl file) are restored
-from base before the targets run, so tests cannot pass by editing the code under test; the agent's versions are
-put back afterwards so that regrading gives the same result.
+Library sources (anything that is neither a test file nor a BUILD/.bzl file) are restored from base -- or
+removed, if the agent added them -- before the targets run, so tests cannot pass by editing or adding the
+code under test; the agent's versions are put back afterwards so that regrading gives the same result.
 """
 import json
 import re
@@ -82,7 +82,11 @@ def g_mutation(rd, ws, t, tr):
     j = last_json(tr["answer"])
     targets = j.get("targets") if isinstance(j, dict) else None
     changed = changed_files(ws, base)
-    src_modified = [f for f in changed if not is_test_file(f) and not is_build_file(f) and in_base(repo, base, f)]
+    # Library sources, whether the agent edited one that existed at base or added a new one: a task
+    # that allows test and BUILD files only must not be passable by putting the behaviour under test
+    # into a new non-test source, so both kinds are taken out of the tree before the targets run and
+    # put back afterwards.
+    src_modified = [f for f in changed if not is_test_file(f) and not is_build_file(f)]
     # the agent's work: files under the package that are not library sources, plus test files anywhere
     authored = [f for f in changed if f not in src_modified and (is_test_file(f) or any(
         f.startswith(p + "/") for p in pkgs))]
@@ -100,8 +104,12 @@ def g_mutation(rd, ws, t, tr):
         return {**out, "why": "no test or BUILD file added/changed in the package"}
 
     saved = {f: (repo / f).read_bytes() if (repo / f).exists() else None for f in src_modified}
-    if src_modified:
-        common.git(repo, "checkout", base, "--", *src_modified)
+    in_base_modified = [f for f in src_modified if in_base(repo, base, f)]
+    if in_base_modified:
+        common.git(repo, "checkout", base, "--", *in_base_modified)
+    for f in src_modified:  # a library source the agent added has no base version to check out
+        if f not in in_base_modified:
+            (repo / f).unlink(missing_ok=True)
     try:
         rc, n_exec = run_targets(rd, ws, targets, rd / "grade.log")
         out.update(baseline_rc=rc, baseline_executed=n_exec, baseline_pass=rc == 0 and n_exec > 0)

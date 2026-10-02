@@ -16,7 +16,8 @@
 
 """Find-and-fix tasks: hidden tests restored over the agent's tree, then regression suites and hygiene."""
 import common
-from common import bazel, changed_files, clang_format_ok, diff_lines, is_test_file, show, task_dir
+from common import (bazel, changed_files, clang_format_ok, diff_lines, files_restored, is_test_file, show,
+                    task_dir)
 
 
 def g_test_pass(rd, ws, t, tr):
@@ -25,24 +26,33 @@ def g_test_pass(rd, ws, t, tr):
     Strict pass (what to report) = pass and regress_pass.
     """
     repo = ws
-    changed = changed_files(ws, tr["base_sha"])
+    # `_changed_files`: the file list as it was before the caller wrote anything of its own
+    # (graders/fix_hidden.py restores hidden files first and then delegates here, so reading
+    # the tree at this point would report the grader's files as the agent's changes).
+    changed = t.get("_changed_files") or changed_files(ws, tr["base_sha"])
     touched_tests = [f for f in changed if is_test_file(f)]
     src_changed = [f for f in changed if f not in touched_tests]
-    for f in t["hidden_files"]:  # restore hidden/pristine tests over whatever the agent did to them
-        (repo / f).parent.mkdir(parents=True, exist_ok=True)
-        (repo / f).write_text(show(t["hidden_from"], f))
-    rc, _ = bazel(rd, ws, "test " + " ".join(t["targets"]) + " --test_output=errors --nocache_test_results",
-                  rd / "grade.log")
-    out = {"pass": rc == 0, "grade_rc": rc, "changed_files": src_changed, "touched_tests": touched_tests}
-    if t.get("regression_targets"):
-        rrc, _ = bazel(rd, ws, "test " + " ".join(t["regression_targets"]) + " --test_output=errors", rd / "regress.log")
-        out["regress_pass"] = rrc == 0
-        out["strict_pass"] = out["pass"] and out["regress_pass"]
-    out["format_ok"] = clang_format_ok(repo, src_changed)
-    out["diff_lines"] = diff_lines(ws, tr["base_sha"], src_changed)
-    if t.get("root_cause"):
-        rcf = t["root_cause"]
-        out["root_cause_fixed"] = rcf["must_contain"] in (repo / rcf["file"]).read_text()
+    # The hidden tests are written over the agent's tree only for the duration of grading:
+    # left behind, they would be read back as the agent's own files on a regrade.
+    with files_restored(repo, t["hidden_files"]):
+        for f in t["hidden_files"]:  # restore hidden/pristine tests over whatever the agent did to them
+            (repo / f).parent.mkdir(parents=True, exist_ok=True)
+            (repo / f).write_text(show(t["hidden_from"], f))
+        rc, _ = bazel(rd, ws, "test " + " ".join(t["targets"]) + " --test_output=errors --nocache_test_results",
+                      rd / "grade.log")
+        out = {"pass": rc == 0, "grade_rc": rc, "changed_files": src_changed, "touched_tests": touched_tests}
+        if t.get("regression_targets"):
+            # Same flag as the hidden run: the agent shares this run's Bazel output base, so without
+            # it a result the agent itself cached would be accepted instead of an executed suite.
+            rrc, _ = bazel(rd, ws, "test " + " ".join(t["regression_targets"])
+                           + " --test_output=errors --nocache_test_results", rd / "regress.log")
+            out["regress_pass"] = rrc == 0
+            out["strict_pass"] = out["pass"] and out["regress_pass"]
+        out["format_ok"] = clang_format_ok(repo, src_changed)
+        out["diff_lines"] = diff_lines(ws, tr["base_sha"], src_changed)
+        if t.get("root_cause"):
+            rcf = t["root_cause"]
+            out["root_cause_fixed"] = rcf["must_contain"] in (repo / rcf["file"]).read_text()
     return out
 
 

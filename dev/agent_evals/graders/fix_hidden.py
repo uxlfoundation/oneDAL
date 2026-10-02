@@ -29,38 +29,44 @@ Grader `test_pass_files`: same result keys as `test_pass` (graders/fix.py), whic
 
 touched_tests reports the test files the agent changed, not the hidden files the grader wrote.
 """
-from common import changed_files, is_test_file, show, task_dir
+from common import changed_files, files_restored, is_test_file, show, task_dir
 from graders.fix import g_test_pass, o_test_pass
 
 
 def g_test_pass_files(rd, ws, t, tr):
     repo = ws
-    agent_touched = [f for f in changed_files(ws, tr["base_sha"]) if is_test_file(f)]
-    for f in t["hidden_files"]:
-        src = task_dir(t["id"]) / "hidden" / f
-        if not src.is_file():
-            # BUILD files are stored as BUILD.oracle so the eval tree itself holds no Bazel packages
-            src = src.with_name(src.name + ".oracle")
-        text = src.read_text() if src.is_file() else show(t["hidden_from"], f)
-        (repo / f).parent.mkdir(parents=True, exist_ok=True)
-        (repo / f).write_text(text)
-    t2 = {k: v for k, v in t.items() if k != "root_cause"}
-    t2["hidden_files"] = []  # already restored above
-    t2["targets"] = list(t["targets"]) + list(t.get("test_flags", []))
-    if t.get("regression_targets"):
-        t2["regression_targets"] = list(t["regression_targets"]) + list(t.get("regression_flags", []))
-    out = g_test_pass(rd, ws, t2, tr)
-    out["touched_tests"] = agent_touched
-    if t.get("root_cause"):
-        rcf = t["root_cause"]
-        p = repo / rcf["file"]
-        text = p.read_text() if p.is_file() else None
-        ok = text is not None
-        if ok and "must_contain" in rcf:
-            ok = rcf["must_contain"] in text
-        if ok and "must_not_contain" in rcf:
-            ok = rcf["must_not_contain"] not in text
-        out["root_cause_fixed"] = ok
+    changed = changed_files(ws, tr["base_sha"])  # before any grader write, see g_test_pass
+    agent_touched = [f for f in changed if is_test_file(f)]
+    # Written for the duration of grading only: these are the grader's files, and a regrade that
+    # found them in the tree would report them as the agent's changes (and, for the `.oracle` BUILD
+    # files, as source changes).
+    with files_restored(repo, t["hidden_files"]):
+        for f in t["hidden_files"]:
+            src = task_dir(t["id"]) / "hidden" / f
+            if not src.is_file():
+                # BUILD files are stored as BUILD.oracle so the eval tree itself holds no Bazel packages
+                src = src.with_name(src.name + ".oracle")
+            text = src.read_text() if src.is_file() else show(t["hidden_from"], f)
+            (repo / f).parent.mkdir(parents=True, exist_ok=True)
+            (repo / f).write_text(text)
+        t2 = {k: v for k, v in t.items() if k != "root_cause"}
+        t2["hidden_files"] = []  # already restored above
+        t2["_changed_files"] = changed
+        t2["targets"] = list(t["targets"]) + list(t.get("test_flags", []))
+        if t.get("regression_targets"):
+            t2["regression_targets"] = list(t["regression_targets"]) + list(t.get("regression_flags", []))
+        out = g_test_pass(rd, ws, t2, tr)
+        out["touched_tests"] = agent_touched
+        if t.get("root_cause"):
+            rcf = t["root_cause"]
+            p = repo / rcf["file"]
+            text = p.read_text() if p.is_file() else None
+            ok = text is not None
+            if ok and "must_contain" in rcf:
+                ok = rcf["must_contain"] in text
+            if ok and "must_not_contain" in rcf:
+                ok = rcf["must_not_contain"] not in text
+            out["root_cause_fixed"] = ok
     return out
 
 
