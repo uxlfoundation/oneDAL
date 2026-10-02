@@ -26,8 +26,9 @@ Everything host-specific is read from environment variables so the harness runs 
   ONEDAL_EVAL_BAZEL    real bazel/bazelisk binary (default: first bazelisk/bazel on PATH outside bin/).
   ONEDAL_EVAL_REPO_CACHE, ONEDAL_EVAL_DISK_CACHE   shared Bazel caches (default: under ONEDAL_EVAL_ROOT/cache).
   ONEDAL_EVAL_AGENT_TIMEOUT   seconds per agent run (default 2700).
-  ONEDAL_EVAL_CLAUDE   Claude Code CLI binary (default: `claude` on PATH). The version matters: 2.1.277+ loads
-                       AGENTS.md when no CLAUDE.md is present, older CLIs do not; each run records it.
+  ONEDAL_EVAL_CLAUDE   Claude Code CLI binary (default: `claude` on PATH). The version matters: 2.1.286 loads
+                       AGENTS.md only when no CLAUDE.md is in its start-up chain, 2.1.241/2.1.250 never do (measured);
+                       each run records it.
 """
 import getpass
 import json

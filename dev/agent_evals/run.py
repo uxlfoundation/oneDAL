@@ -89,8 +89,9 @@ def kill_group(proc, grace=10):
     proc.wait()
 
 
-# first Claude Code release that loads AGENTS.md itself; the main-raw arm means nothing on older CLIs
-MIN_CLI = (2, 1, 277)
+# oldest Claude Code measured to load AGENTS.md itself (only with no CLAUDE.md in its start-up chain); 2.1.241 and
+# 2.1.250 never do, so on them main-raw is the same as none unless the agent opens the file
+MIN_CLI = (2, 1, 286)
 
 
 def run_agent(task, arm, model, rep, batch, effort=None):

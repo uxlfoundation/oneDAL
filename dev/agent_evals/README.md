@@ -55,11 +55,12 @@ through. Each run records the CLI version.
 | arm | repository state |
 |---|---|
 | `none` | every `AGENTS.md` and `.github/instructions/*.md` deleted |
-| `main-raw` | as checked in. Claude Code loads `AGENTS.md` itself (nested ones when the agent works in that directory) |
+| `main-raw` | as checked in |
 
-`run.py agent` refuses Claude Code older than 2.1.277, which does not load `AGENTS.md`. Batches run before that
-(pilots on 2.1.241) also had a `main-claude` arm with a `CLAUDE.md` `@AGENTS.md` shim; their run directories still
-regrade.
+Whether the agent sees `AGENTS.md` without opening it depends on the CLI. Measured: Claude Code 2.1.286 loads it
+only when no `CLAUDE.md` is in its start-up chain, and 2.1.241 and 2.1.250 never load it. `run.py agent` refuses CLIs
+older than 2.1.286, and each run records `cli_version`. History: the pilots ran on 2.1.241 with a third arm,
+`main-claude` (a `CLAUDE.md` `@AGENTS.md` shim). That arm was dropped, and its run directories still regrade.
 
 An arm is one function in `common.py` that edits the task repo in place (another guidance revision, a placebo of
 the same length, extra tooling).
@@ -128,21 +129,20 @@ directory only grades:
 
 | entry point | does |
 |---|---|
-| `run.py grade --contract <run_dir>` | grades `run_dir/workspace` with the task's grader, writes `grade.json` (`repo_grade.v1`) |
-| `run.py oracle --contract <run_dir>` | applies the reference solution (and answer) for the contract's self-check |
+| `run.py grade --contract <run_dir> --source <clone>` | grades `run_dir/workspace` with the task's grader, writes `grade.json` (`repo_grade.v1`) |
+| `run.py oracle --contract <run_dir> --source <clone>` | applies the reference solution (and answer) for the contract's self-check |
 | `static_check.py --out <file>` | guidance claim check as one JSON document |
 
-Fix and feature tasks declare `"gate": ["strict_pass"]`. Arms map to agent-benchmark guidance conditions as
-`none` → `guidance:none` and `main-raw` → `guidance:raw`. `guidance:bridge` (a `CLAUDE.md` that imports
-`AGENTS.md`) has no arm here: Claude Code 2.1.277+ loads `AGENTS.md` itself, and the old `main-claude` arm was
-dropped.
+Fix and feature tasks declare `"gate": ["strict_pass"]`; score-only review tasks declare
+`"score": {"metric": "recall", "max": 1.0}`. Under agent-benchmark the arms are `guidance:none` (this `none`) and
+`guidance:raw` (this `main-raw`), both made by the framework from `guidance.globs`. A `guidance:bridge` arm is
+framework-made too, from the harness profile; this directory has none.
 
-The image is `Dockerfile`, built from a `git archive` of the repository without `tasks/`. Runs are offline; four cache directories are mounted
-from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a BCR mirror: task workspaces
-have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as `--output_user_root`, so Bazel's
-install base is shared and stays off the container layer). Fill them
-once with network access; the full `check` is the warm-up, since task bases pin different Bazel versions and
-dependency sets:
+The image is `Dockerfile`, built from a `git archive` of the repository without `tasks/`. Runs are offline; four
+cache directories are mounted from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a
+BCR mirror: task workspaces have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as
+`--output_user_root`, so Bazel's install base is shared and stays off the container layer). Fill them once with
+network access; the full `check` is the warm-up, since task bases pin different Bazel versions and dependency sets:
 
 ```sh
 mkdir ctx && git archive HEAD | tar -x -C ctx && rm -r ctx/dev/agent_evals/tasks   # as agent-benchmark builds it
@@ -163,13 +163,6 @@ its oracle pip-installs the same pins, with network. Behind a proxy, pass `http_
 
 Gaps between this directory and the contract, still open:
 
-- `guidance:bridge` has no arm (above).
-- Graders read the full oneDAL history (`ONEDAL_EVAL_SRC`: hidden tests, mined fix commits); the contract gives
-  the grader only the workspace.
 - `meta.json` `base_rev`/`base_sha`/`base_date` name the upstream commit, which is not in the workspace. The
   commit graders diff from is the standalone runner's `start_sha`, else derived from the history workspace
   preparation makes; the contract names no key for it.
-- `events.jsonl` command events carry `output` (needed for `icpx_hit` and build-failure counts); the contract's
-  event schema has no such field.
-- Build tasks grade an absolute artifact path inside the run directory, so a copied run directory does not
-  regrade.
