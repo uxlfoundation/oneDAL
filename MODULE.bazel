@@ -162,13 +162,9 @@ mkl_repo(
     name = "mkl",
     root_env_var = "MKLROOT",
     urls = [
-        # Dynamic classic MKL is used for the DPC build: the per-ISA dispatch
-        # kernels (avx512/avx2/mc3/def/vml) are symlinked next to
-        # `libmkl_core.so.2` in one `cc_library` so the dispatcher finds them
-        # (`dev/bazel/deps/mkl.tpl.BUILD`, `mkl_classic_binary`). They resolve no
-        # references, so `-Wl,--as-needed` keeps them off DT_NEEDED and no ISA
-        # variant is ever mapped besides the one the dispatcher picks -- the
-        # symbol conflict this comment used to warn about does not arise.
+        # Dynamic classic MKL is used for the DPC build, with the per-ISA dispatch
+        # kernels it `dlopen`s; see `mkl_classic_dynamic` in
+        # `dev/bazel/deps/mkl.tpl.BUILD` for why they live in that one target.
         # The host build still links static MKL:
         # Core static MKL runtime libraries (.a)
         # Includes libmkl_intel_lp64.a, libmkl_core.a, libmkl_sequential.a, etc.

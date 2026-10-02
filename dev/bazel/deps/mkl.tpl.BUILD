@@ -70,7 +70,7 @@ cc_library(
 # `sycl_blas`/`sycl_lapack`/`sycl_sparse`/`sycl_rng` domains before the classic
 # libraries), so this is a parity fix, not a Bazel-specific workaround.
 cc_library(
-    name = "mkl_classic_binary",
+    name = "mkl_classic_dynamic",
     srcs = glob([
         "lib/libmkl_core.so*",
         "lib/libmkl_intel_lp64.so*",
@@ -130,7 +130,7 @@ cc_library(
         "lib/libmkl_sycl_rng.so*",
     ]),
     deps = [
-        ":mkl_classic_binary",
+        ":mkl_classic_dynamic",
         "@openmp//:openmp_binary",
     ]
 )
