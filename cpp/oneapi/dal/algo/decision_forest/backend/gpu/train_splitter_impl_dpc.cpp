@@ -170,9 +170,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
             hist_type_t* hist_ptr =
                 local_hist_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
 
-            // `bs.left_hist` points into slm shared by the work group, but only the first work
-            // item ever reads or updates the best split, so it also owns the clean-up. Letting
-            // every work item clear the same slots would need an extra barrier here.
+            // `bs.left_hist` is in slm but only the first work item ever touches the best split,
+            // so it also owns the clear; sharing the clear would need an extra barrier.
             bs.init(hist_ptr + 0 * hist_prop_count, hist_prop_count);
             bs.clear_scalar();
             if (local_id == 0) {
@@ -186,9 +185,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                 split_scalar_t& ts_scal = ts.scalars;
                 ts_scal.ftr_id = selected_ftr_list_ptr[node_id * selected_ftr_count + ftr_idx];
 
-                // Find the range of the bins the node's rows belong to. A node can hold more
-                // rows than the work group has work items, so the rows are walked with a
-                // `local_size` stride instead of one row per work item.
+                // Bin range of the node's rows. A node can hold more rows than the work group has
+                // work items, so rows are strided by `local_size` instead of one row per item.
                 Index local_min_bin = max_bin_count_among_ftrs;
                 Index local_max_bin = 0;
                 for (Index i = local_id; i < row_count; i += local_size) {
@@ -210,11 +208,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                               random_bin_count - Index(1));
                 ts_scal.ftr_bin = min_bin + random_bin_ofs;
 
-                // Sum of the sample weights that land in the left part. Accumulated inside the
-                // strided row loops below rather than in a pass of its own, so the weighted and
-                // the unweighted path make the same number of gathers over `tree_order_ptr` and
-                // `data_ptr`. `is_weighted` is uniform over the work group, so the reduction
-                // stays inside the same `if` on every work item.
+                // Accumulated inside the row loops below instead of in a pass of its own, so the
+                // weighted path makes no extra gather over `tree_order_ptr` and `data_ptr`.
                 Float local_left_weight = Float(0);
 
                 if constexpr (std::is_same_v<Task, task::classification>) {
@@ -250,11 +245,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                     sycl::group_barrier(item.get_group());
                 }
                 else {
-                    // Each work item accumulates count / mean / sum of squared deviations for
-                    // its own rows in a single pass (Welford), then the per-item statistics are
-                    // combined over the work group. Recomputing the deviations against the group
-                    // mean would need a second gather over `tree_order_ptr` and `data_ptr`,
-                    // which costs far more than the per-element division.
+                    // Welford over the item's own rows, then combined over the group. Taking the
+                    // deviations against the group mean instead would need a second gather.
                     Index local_count = 0;
                     Float local_mean = Float(0);
                     Float local_sum2cent = Float(0);
@@ -280,8 +272,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                                                               plus<Float>());
                     const Float mean = (left_count > 0) ? sum / Float(left_count) : Float(0);
 
-                    // Combine the per-item deviations: every group contributes its own
-                    // `sum2cent` plus the shift of its mean against the group mean.
+                    // Every item contributes its own `sum2cent` plus the shift of its mean.
                     const Float mean_shift = local_mean - mean;
                     const Float sum2cent = sycl::reduce_over_group(
                         item.get_group(),
@@ -332,9 +323,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
                     }
                 }
                 if constexpr (std::is_same_v<Task, task::classification>) {
-                    // The whole work group rebuilds `ts.left_hist` for the next feature in the
-                    // same slm slot, so the clean-up must not start before the first work item
-                    // has finished reading the current one.
+                    // The next feature clears `ts.left_hist` in the same slm slot, which must not
+                    // start before the first work item has finished reading the current one.
                     sycl::group_barrier(item.get_group());
                 }
             }

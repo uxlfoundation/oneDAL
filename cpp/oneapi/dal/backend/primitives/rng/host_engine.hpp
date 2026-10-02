@@ -137,9 +137,6 @@ void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
 /// Draws `result_array.get_count()` distinct indices out of `[0, top)` on the CPU using
 /// the partial Fisher-Yates algorithm.
 ///
-/// The engine is passed by reference, so the draw advances the caller's stream: consecutive
-/// calls on the same engine return different samples and the routine can be interleaved with
-/// other draws on that stream.
 /// @tparam Type The data type of the array elements.
 /// @param[in, out] result_array The array the drawn indices are written to.
 /// @param[in] top The size of the population to draw from.
@@ -154,23 +151,13 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
     ONEDAL_ASSERT(casted_count <= casted_top);
     auto indices_ptr = result_array.get_mutable_data();
 
-    std::size_t value = 0;
     auto state = engine_.get_host_engine_state();
-    for (std::size_t i = 0; i < casted_count; i++) {
-        uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
-        for (std::size_t j = i; j > 0; j--) {
-            if (value == dal::detail::integral_cast<std::size_t>(indices_ptr[j - 1])) {
-                value = j - 1;
-            }
-        }
-        indices_ptr[i] = dal::detail::integral_cast<Type>(value);
-    }
+    partial_fisher_yates_draw(state, indices_ptr, casted_count, casted_top);
 }
 
-/// One-shot overload of `partial_fisher_yates_shuffle` that builds a throw-away engine from
-/// `seed`. Prefer the engine-reference overload when the sample has to be combined with other
-/// draws or when more than one sample is needed: this overload restarts the stream every call,
-/// so the same `seed` always yields the same sample.
+/// One-shot overload that draws from a throw-away engine, so the same `seed` always yields the
+/// same sample. Prefer the engine-reference overload when more than one sample is needed.
+///
 /// @tparam Type The data type of the array elements.
 /// @param[in, out] result_array The array the drawn indices are written to.
 /// @param[in] top The size of the population to draw from.

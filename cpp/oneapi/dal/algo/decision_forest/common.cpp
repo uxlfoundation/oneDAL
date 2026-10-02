@@ -61,11 +61,9 @@ public:
     error_metric_mode error_metric_mode_value = error_metric_mode::none;
     infer_mode infer_mode_value = infer_mode::class_responses;
 
-    // Matches the library-wide default engine (see `default_engine_type_internal` in
-    // backend/primitives/rng/rng_types.hpp); spelled out here because the public descriptor
-    // must not depend on the backend rng headers. Decision forest in particular needs a
-    // counter-based engine: it separates per-rank and per-tree streams with `skip_ahead`,
-    // which mt2203 does not support on GPU.
+    // Mirrors `default_engine_type_internal` in backend/primitives/rng/rng_types.hpp, which the
+    // public descriptor must not include. Distributed training needs a `skip_ahead`-capable
+    // engine to separate per-rank streams, and mt2203 has none on GPU.
     engine_type df_engine_type = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;

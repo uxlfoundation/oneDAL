@@ -20,8 +20,11 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <list>
+#include <utility>
+#include <vector>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
 
@@ -279,6 +282,61 @@ public:
             return true;
         });
         return node_count;
+    }
+
+    /// Checks that a random split accounts for every row of a node, including the rows past the
+    /// work group size of the GPU splitter kernel.
+    ///
+    /// @param[in] row_count The number of training rows; pick more than any work group has items.
+    void check_random_split_covers_all_rows(std::int64_t row_count) {
+        auto x_arr = array<float>::empty(row_count);
+        auto y_arr = array<float>::empty(row_count);
+        float* x_ptr = x_arr.get_mutable_data();
+        float* y_ptr = y_arr.get_mutable_data();
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            x_ptr[i] = static_cast<float>(i);
+            y_ptr[i] = static_cast<float>(i);
+        }
+        const auto x = dal::homogen_table::wrap(x_ptr, row_count, 1);
+        const auto y = dal::homogen_table::wrap(y_ptr, row_count, 1);
+
+        auto desc = this->get_default_descriptor();
+        desc.set_tree_count(1);
+        desc.set_features_per_node(1);
+        desc.set_bootstrap(false);
+        // Keeps the tree shallow, so every node that gets split holds far more rows than a work
+        // group has work items.
+        desc.set_max_tree_depth(2);
+        desc.set_min_observations_in_leaf_node(1);
+        desc.set_splitter_mode(splitter_mode::random);
+
+        struct leaf_collector {
+            std::vector<std::pair<std::int64_t, double>>* out;
+            bool operator()(const leaf_node_info<Task>& info) {
+                out->emplace_back(info.get_sample_count(), double(info.get_response()));
+                return true;
+            }
+            bool operator()(const split_node_info<Task>& info) {
+                return true;
+            }
+        };
+
+        std::vector<std::pair<std::int64_t, double>> leaves;
+        this->train(desc, x, y).get_model().traverse_depth_first(0, leaf_collector{ &leaves });
+
+        REQUIRE(leaves.size() >= 2);
+
+        // The only feature is the row index and the traversal visits leaves left to right, so leaf
+        // `k` holds the rows right after leaf `k - 1` and its response is their mean.
+        std::int64_t start = 0;
+        for (const auto& leaf : leaves) {
+            const double expected = 0.5 * double(2 * start + leaf.first - 1);
+            CAPTURE(row_count, leaves.size(), start, leaf.first, leaf.second, expected);
+            REQUIRE(leaf.first > 0);
+            REQUIRE(std::fabs(leaf.second - expected) < 1.0);
+            start += leaf.first;
+        }
+        REQUIRE(start == row_count);
     }
 
     // Trains a single fully-grown tree with and without a min_weight_fraction

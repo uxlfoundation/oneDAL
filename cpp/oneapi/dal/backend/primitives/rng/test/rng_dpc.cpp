@@ -108,6 +108,56 @@ public:
             REQUIRE(abs(val_arr_1_host_ptr[el] - val_arr_2_host_ptr[el]) < 0.01);
         }
     }
+
+    /// Checks that `tail` reproduces `full` starting at `offset`.
+    ///
+    /// @param[in] full   The reference values, at least `offset + tail.get_count()` of them.
+    /// @param[in] tail   The values drawn after the stream was skipped by `offset`.
+    /// @param[in] offset The number of values the skipped stream jumped over.
+    void check_tail_matches(const ndarray<DataType, 1>& full,
+                            const ndarray<DataType, 1>& tail,
+                            std::int64_t offset) {
+        const auto full_host = full.to_host(this->get_queue());
+        const auto tail_host = tail.to_host(this->get_queue());
+        REQUIRE(full_host.get_count() >= offset + tail_host.get_count());
+        for (std::int64_t el = 0; el < tail_host.get_count(); el++) {
+            REQUIRE(full_host.get_data()[offset + el] == tail_host.get_data()[el]);
+        }
+    }
+
+    auto allocate_indices(std::int64_t elem_count) {
+        return ndarray<std::int32_t, 1>::empty(this->get_queue(),
+                                               { elem_count },
+                                               sycl::usm::alloc::host);
+    }
+
+    /// Draws `count` values from the device stream of `engine_`.
+    ///
+    /// @param[in] count   The number of values to draw.
+    /// @param[in] engine_ The engine whose device stream is advanced.
+    /// @return A device `ndarray` holding the `count` drawn values.
+    auto draw_on_device(std::int64_t count, device_engine& engine_) {
+        auto arr = this->allocate_array_device(count);
+        uniform<DataType>(this->get_queue(),
+                          count,
+                          arr.get_mutable_data(),
+                          engine_,
+                          DataType(0),
+                          DataType(1))
+            .wait_and_throw();
+        return arr;
+    }
+
+    /// Draws `count` values from the host stream of `engine_`.
+    ///
+    /// @param[in] count   The number of values to draw.
+    /// @param[in] engine_ The engine whose host stream is advanced.
+    /// @return A host `ndarray` holding the `count` drawn values.
+    auto draw_on_host(std::int64_t count, device_engine& engine_) {
+        auto arr = this->allocate_array_host(count);
+        uniform<DataType>(count, arr.get_mutable_data(), engine_, DataType(0), DataType(1));
+        return arr;
+    }
 };
 
 using rng_types = COMBINE_TYPES((float, double), (mt2203, mt19937, mcg59, mrg32k3a, philox4x32x10));
@@ -209,6 +259,286 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahe
 
     this->check_results(arr_device_init_1, arr_device_init_2);
     this->check_results(arr_gpu, arr_host);
+}
+
+using rng_types_default_engine = COMBINE_TYPES((float), (philox4x32x10));
+
+TEMPLATE_LIST_TEST_M(rng_test, "default engine and seed", "[rng]", rng_types_default_engine) {
+    SKIP_IF(this->get_policy().is_cpu());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    auto& q = this->get_queue();
+    auto defaulted = device_engine(q);
+    auto explicit_ = device_engine(q, default_seed, default_engine_type_internal);
+
+    REQUIRE(defaulted.get_device_engine_base_ptr()->get_engine_type() ==
+            engine_type_internal::philox4x32x10);
+
+    constexpr std::int64_t count = 128;
+    auto arr_defaulted = this->allocate_array_device(count);
+    auto arr_explicit = this->allocate_array_device(count);
+    uniform<Float>(q, count, arr_defaulted.get_mutable_data(), defaulted, 0, 1).wait_and_throw();
+    uniform<Float>(q, count, arr_explicit.get_mutable_data(), explicit_, 0, 1).wait_and_throw();
+    this->check_tail_matches(arr_defaulted, arr_explicit, 0);
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "skip ahead offsets host and device streams",
+                     "[rng]",
+                     rng_types_skip_ahead_support) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t skip = GENERATE_COPY(1, 128, 10000);
+    constexpr std::int64_t count = 256;
+    CAPTURE(skip, count);
+
+    auto dev_full = this->get_device_engine(default_seed);
+    auto dev_tail = this->get_device_engine(default_seed);
+    dev_tail.skip_ahead(skip);
+    this->check_tail_matches(this->draw_on_device(skip + count, dev_full),
+                             this->draw_on_device(count, dev_tail),
+                             skip);
+
+    // A draw mirrors its own length onto the other stream, and the two draws above have different
+    // lengths, so the host check needs a pair of engines the device check has not advanced.
+    auto host_full = this->get_device_engine(default_seed);
+    auto host_tail = this->get_device_engine(default_seed);
+    host_tail.skip_ahead(skip);
+    this->check_tail_matches(this->draw_on_host(skip + count, host_full),
+                             this->draw_on_host(count, host_tail),
+                             skip);
+}
+
+using rng_types_no_skip_ahead = COMBINE_TYPES((float), (mt2203));
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "mt2203 device skip ahead is a no-op",
+                     "[rng]",
+                     rng_types_no_skip_ahead) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    constexpr std::int64_t count = 256;
+    auto eng_plain = this->get_device_engine(default_seed);
+    auto eng_skipped = this->get_device_engine(default_seed);
+    eng_skipped.skip_ahead_gpu(count);
+
+    // Documented on `gen_mt2203::skip_ahead_gpu`: oneMKL has no `skip_ahead` for mt2203, so the
+    // skip-based stream separation of distributed decision forest cannot work with this engine.
+    this->check_tail_matches(this->draw_on_device(count, eng_plain),
+                             this->draw_on_device(count, eng_skipped),
+                             0);
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "shuffle keeps host and device streams in lockstep",
+                     "[rng]",
+                     rng_types_skip_ahead_support) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t count = GENERATE_COPY(1, 10, 1000);
+    constexpr std::int64_t probe_count = 128;
+
+    auto eng_shuffled = this->get_device_engine(default_seed);
+    auto eng_drawn = this->get_device_engine(default_seed);
+
+    auto order = this->allocate_indices(count);
+    shuffle<std::int32_t>(count, order.get_mutable_data(), eng_shuffled);
+    // `shuffle` draws two values per iteration, so an equivalent plain draw is `2 * count` long.
+    auto drawn = this->allocate_indices(2 * count);
+    uniform<std::int32_t>(2 * count,
+                          drawn.get_mutable_data(),
+                          eng_drawn,
+                          0,
+                          static_cast<std::int32_t>(count));
+
+    this->check_tail_matches(this->draw_on_device(probe_count, eng_shuffled),
+                             this->draw_on_device(probe_count, eng_drawn),
+                             0);
+    this->check_tail_matches(this->draw_on_host(probe_count, eng_shuffled),
+                             this->draw_on_host(probe_count, eng_drawn),
+                             0);
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "uniform without replacement keeps host and device streams in lockstep",
+                     "[rng]",
+                     rng_types_skip_ahead_support) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t count = GENERATE_COPY(1, 10, 1000);
+    constexpr std::int32_t top = 4096;
+    constexpr std::int64_t probe_count = 128;
+
+    auto eng_sampled = this->get_device_engine(default_seed);
+    auto eng_drawn = this->get_device_engine(default_seed);
+
+    auto sample = this->allocate_indices(count);
+    uniform_without_replacement<std::int32_t>(count,
+                                              sample.get_mutable_data(),
+                                              eng_sampled,
+                                              0,
+                                              top);
+    // One value is drawn per output element, so an equivalent plain draw is `count` long.
+    auto drawn = this->allocate_indices(count);
+    uniform<std::int32_t>(count, drawn.get_mutable_data(), eng_drawn, 0, top);
+
+    this->check_tail_matches(this->draw_on_device(probe_count, eng_sampled),
+                             this->draw_on_device(probe_count, eng_drawn),
+                             0);
+    this->check_tail_matches(this->draw_on_host(probe_count, eng_sampled),
+                             this->draw_on_host(probe_count, eng_drawn),
+                             0);
+}
+
+// Decision forest picks the features of a node with this routine, so a repeated index would make
+// a node split twice on the same feature.
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "uniform without replacement draws distinct indices",
+                     "[rng]",
+                     rng_types_default_engine) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    const std::int32_t top = GENERATE_COPY(16, 1024);
+    const std::int64_t count = GENERATE_COPY(1, top / 2, top);
+
+    auto engine_ = this->get_device_engine(default_seed);
+    auto sample = this->allocate_indices(count);
+    uniform_without_replacement<std::int32_t>(count, sample.get_mutable_data(), engine_, 0, top);
+
+    std::vector<bool> seen(top, false);
+    for (std::int64_t i = 0; i < count; ++i) {
+        const std::int32_t value = sample.get_data()[i];
+        REQUIRE(value >= 0);
+        REQUIRE(value < top);
+        REQUIRE(!seen[value]);
+        seen[value] = true;
+    }
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "partial fisher yates keeps host and device streams in lockstep",
+                     "[rng]",
+                     rng_types_skip_ahead_support) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t count = GENERATE_COPY(1, 10, 1000);
+    const std::int64_t top = 4096;
+    constexpr std::int64_t probe_count = 128;
+
+    auto& q = this->get_queue();
+    auto eng_sampled = this->get_device_engine(default_seed);
+    auto eng_drawn = this->get_device_engine(default_seed);
+
+    auto sample = this->allocate_indices(count);
+    partial_fisher_yates_shuffle<std::int32_t>(q, sample, top, eng_sampled).wait_and_throw();
+    // One value is drawn per sampled index, so an equivalent plain draw is `count` long.
+    std::vector<std::size_t> drawn(count);
+    uniform<std::size_t>(count, drawn.data(), eng_drawn, 0, static_cast<std::size_t>(top));
+
+    this->check_tail_matches(this->draw_on_device(probe_count, eng_sampled),
+                             this->draw_on_device(probe_count, eng_drawn),
+                             0);
+    this->check_tail_matches(this->draw_on_host(probe_count, eng_sampled),
+                             this->draw_on_host(probe_count, eng_drawn),
+                             0);
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "partial fisher yates draws distinct indices",
+                     "[rng]",
+                     rng_types_default_engine) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    const std::int64_t top = GENERATE_COPY(16, 1024);
+    // `count == top` is a valid draw: it asks for every index of the population.
+    const std::int64_t count = GENERATE_COPY(1, top / 2, top);
+
+    auto& q = this->get_queue();
+    auto engine_ = this->get_device_engine(default_seed);
+    auto sample = this->allocate_indices(count);
+    partial_fisher_yates_shuffle<std::int32_t>(q, sample, top, engine_).wait_and_throw();
+
+    std::vector<bool> seen(top, false);
+    for (std::int64_t i = 0; i < count; ++i) {
+        const std::int32_t value = sample.get_data()[i];
+        REQUIRE(value >= 0);
+        REQUIRE(value < top);
+        REQUIRE(!seen[value]);
+        seen[value] = true;
+    }
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "host partial fisher yates draws distinct indices",
+                     "[rng]",
+                     rng_types_default_engine) {
+    const std::int64_t top = GENERATE_COPY(16, 1024);
+    const std::int64_t count = GENERATE_COPY(1, top / 2, top);
+
+    auto sample = ndarray<std::int32_t, 1>::empty({ count });
+    host_engine engine_(default_seed);
+    partial_fisher_yates_shuffle<std::int32_t>(sample, top, engine_);
+
+    std::vector<bool> seen(top, false);
+    for (std::int64_t i = 0; i < count; ++i) {
+        const std::int32_t value = sample.get_data()[i];
+        REQUIRE(value >= 0);
+        REQUIRE(value < top);
+        REQUIRE(!seen[value]);
+        seen[value] = true;
+    }
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "partial fisher yates composes on one engine",
+                     "[rng]",
+                     rng_types_default_engine) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    constexpr std::int64_t count = 64;
+    constexpr std::int64_t top = 4096;
+
+    auto& q = this->get_queue();
+    auto first = this->allocate_indices(count);
+    auto second = this->allocate_indices(count);
+
+    auto engine_ = this->get_device_engine(default_seed);
+    partial_fisher_yates_shuffle<std::int32_t>(q, first, top, engine_).wait_and_throw();
+    partial_fisher_yates_shuffle<std::int32_t>(q, second, top, engine_).wait_and_throw();
+    REQUIRE(std::vector<std::int32_t>(first.get_data(), first.get_data() + count) !=
+            std::vector<std::int32_t>(second.get_data(), second.get_data() + count));
+
+    // The one-shot overload restarts the stream, so it has to repeat itself.
+    partial_fisher_yates_shuffle<std::int32_t>(q, first, top, default_seed).wait_and_throw();
+    partial_fisher_yates_shuffle<std::int32_t>(q, second, top, default_seed).wait_and_throw();
+    REQUIRE(std::vector<std::int32_t>(first.get_data(), first.get_data() + count) ==
+            std::vector<std::int32_t>(second.get_data(), second.get_data() + count));
+}
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "host partial fisher yates composes on one engine",
+                     "[rng]",
+                     rng_types_default_engine) {
+    constexpr std::int64_t count = 64;
+    constexpr std::int64_t top = 4096;
+
+    auto first = ndarray<std::int32_t, 1>::empty({ count });
+    auto second = ndarray<std::int32_t, 1>::empty({ count });
+
+    host_engine engine_(default_seed);
+    partial_fisher_yates_shuffle<std::int32_t>(first, top, engine_);
+    partial_fisher_yates_shuffle<std::int32_t>(second, top, engine_);
+    REQUIRE(std::vector<std::int32_t>(first.get_data(), first.get_data() + count) !=
+            std::vector<std::int32_t>(second.get_data(), second.get_data() + count));
+
+    partial_fisher_yates_shuffle<std::int32_t>(first, top, default_seed);
+    partial_fisher_yates_shuffle<std::int32_t>(second, top, default_seed);
+    REQUIRE(std::vector<std::int32_t>(first.get_data(), first.get_data() + count) ==
+            std::vector<std::int32_t>(second.get_data(), second.get_data() + count));
 }
 
 //TODO: add engine collection test + separate host_engine tests

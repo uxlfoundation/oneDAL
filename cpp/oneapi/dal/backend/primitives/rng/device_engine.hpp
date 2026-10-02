@@ -63,14 +63,10 @@ public:
         return engine_type_internal::mt2203;
     }
 
-    /// No-op by design: oneMKL does not expose `skip_ahead` for `mt2203`.
+    /// No-op by design: oneMKL has no `skip_ahead` for `mt2203`, a parametrized family whose
+    /// independent streams come from `engine_idx` rather than from jumping inside one stream.
+    /// Callers that need skip-based stream separation must use a counter-based engine.
     ///
-    /// `mt2203` is a parametrized family of generators rather than a single skippable stream:
-    /// independent streams are obtained from the `engine_idx` constructor argument (oneMKL
-    /// provides 6024 of them), not by jumping inside one stream. Callers that need cheap
-    /// skip-based stream separation - per-rank offsets in distributed algorithms, per-tree
-    /// offsets in decision forest - must either pick a distinct `engine_idx` per stream or use
-    /// a counter-based engine such as `default_engine_type_internal` (`philox4x32x10`).
     /// @param[in] nSkip The number of steps to skip in the sequence. Ignored.
     void skip_ahead_gpu(std::int64_t nSkip) override {}
 
@@ -442,12 +438,9 @@ sycl::event shuffle(sycl::queue& queue,
 /// Draws `result_array.get_count()` distinct indices out of `[0, top)` using the partial
 /// Fisher-Yates algorithm.
 ///
-/// The draw itself runs on the host engine; the device mirror is advanced by the number of
-/// values consumed so that a later on-device `generate` on the same engine continues the stream
-/// instead of replaying values the host already used.
+/// The draw runs on the host engine and advances the device mirror by the number of values
+/// consumed, so a later on-device draw continues the stream instead of replaying them.
 ///
-/// The engine is passed by reference, so consecutive calls on the same engine return different
-/// samples and the routine can be interleaved with other draws on that stream.
 /// @tparam Type The data type of the array elements.
 /// @param[in] queue_ The SYCL queue for device execution.
 /// @param[in, out] result_array The array the drawn indices are written to.
@@ -461,10 +454,9 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                                          device_engine& engine_,
                                          const event_vector& deps = {});
 
-/// One-shot overload of `partial_fisher_yates_shuffle` that builds a throw-away engine from
-/// `seed`. Prefer the engine-reference overload when the sample has to be combined with other
-/// draws or when more than one sample is needed: this overload restarts the stream every call,
-/// so the same `seed` always yields the same sample.
+/// One-shot overload that draws from a throw-away engine, so the same `seed` always yields the
+/// same sample. Prefer the engine-reference overload when more than one sample is needed.
+///
 /// @tparam Type The data type of the array elements.
 /// @param[in] queue_ The SYCL queue for device execution.
 /// @param[in, out] result_array The array the drawn indices are written to.
