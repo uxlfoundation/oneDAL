@@ -83,6 +83,10 @@ struct cluster_work_ptrs {
 
     std::int32_t* nc_ptr;
 
+    // Lambda at which each point dropped out of the condensed tree. Null unless
+    // `allow_single_cluster` is set, the only case that needs it.
+    Float* plam_ptr;
+
     std::int64_t row_count;
     std::int64_t edge_count;
     std::int64_t min_cluster_size;
@@ -1219,7 +1223,12 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                                              : std::numeric_limits<std::int32_t>::max();
 
             if (w.cluster_selection == 1) {
-                for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                // Leaf mode picks the leaves of the *cluster* tree, whose nodes
+                // are the child clusters only, so the root is never a candidate
+                // -- not even when allow_single_cluster is set, which in leaf
+                // mode only relaxes the labeling threshold.
+                w.is_ptr[root_cid] = 0;
+                for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
                     w.is_ptr[c] = (w.ilc_ptr[c] && w.csz_ptr[c] >= w.min_cluster_size) ? 1 : 0;
                 }
             }
@@ -1393,12 +1402,87 @@ inline sycl::event assign_label_kernels(sycl::queue& queue,
     return k5_event;
 }
 
+/// Demote the weakest members of a root-only clustering to noise.
+///
+/// Device twin of the CPU `applySingleClusterThreshold`. When the selection
+/// collapsed to the root cluster alone, the flat clustering has no sibling to
+/// separate noise from signal, so scikit-learn's `_do_labelling` keeps a point
+/// only if its drop-out lambda reaches a threshold: `1 / epsilon` when the caller
+/// set a `cluster_selection_epsilon`, otherwise the root's own death lambda (the
+/// largest lambda over every edge leaving the root), which keeps only the points
+/// that made it to the very end.
+///
+/// Whether the selection collapsed is only known on the device, so the kernel is
+/// submitted whenever `allow_single_cluster` is set and returns immediately in
+/// every other case. It runs as a single task on the same grounds as
+/// `eom_select_clusters_kernel`: the work is `O(cond_count + row_count)` and only
+/// reached for degenerate inputs.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`);
+///                      `plam_ptr` must point at a `row_count`-long buffer
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion of the pass
+template <typename Float>
+inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
+                                                   const cluster_work_ptrs<Float>& w,
+                                                   const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.single_task([=]() {
+            const std::int32_t n_clusters = w.nc_ptr[0];
+            if (n_clusters == 0)
+                return;
+
+            const std::int32_t root_cid = static_cast<std::int32_t>(w.row_count);
+            if (!w.is_ptr[root_cid])
+                return;
+            for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
+                if (w.is_ptr[c])
+                    return;
+            }
+
+            const std::int32_t cond_count = w.cond_cnt_ptr[0];
+
+            Float threshold = Float(0);
+            if (w.cluster_selection_epsilon > Float(0)) {
+                threshold = Float(1) / w.cluster_selection_epsilon;
+            }
+            else {
+                for (std::int32_t ei = 0; ei < cond_count; ei++) {
+                    if (w.cond_p_ptr[ei] == root_cid && w.cond_l_ptr[ei] > threshold)
+                        threshold = w.cond_l_ptr[ei];
+                }
+            }
+
+            // Each point is the child of at most one condensed edge; points that
+            // never dropped out keep the -1 the buffer was filled with and are
+            // demoted, the conservative reading of "did not reach the threshold".
+            for (std::int32_t ei = 0; ei < cond_count; ei++) {
+                const std::int32_t child = w.cond_c_ptr[ei];
+                if (child < static_cast<std::int32_t>(w.row_count))
+                    w.plam_ptr[child] = w.cond_l_ptr[ei];
+            }
+
+            const std::int32_t root_label = w.clab_ptr[root_cid];
+            for (std::int64_t i = 0; i < w.row_count; i++) {
+                if (w.resp_ptr[i] == root_label && !(w.plam_ptr[i] >= threshold))
+                    w.resp_ptr[i] = -1;
+            }
+        });
+    });
+}
+
 /// Extract HDBSCAN cluster labels from a sorted MST on the GPU.
 ///
 /// Orchestrator: allocates every device-side working buffer, fills a
 /// `cluster_work_ptrs<Float>`, and chains the four extraction kernels:
 /// `build_dendrogram_kernels` -> `build_condensed_tree_kernel` ->
-/// `eom_select_clusters_kernel` -> `assign_label_kernels`. Final responses
+/// `eom_select_clusters_kernel` -> `assign_label_kernels`, followed by
+/// `single_cluster_threshold_kernel` when `allow_single_cluster` is set. Final responses
 /// are written to the caller-supplied `responses` view.
 ///
 /// @tparam Float Floating-point type used for MST weights
@@ -1513,6 +1597,15 @@ inline sycl::event extract_clusters(sycl::queue& queue,
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
+    // The drop-out lambda per point only feeds the single-cluster threshold pass,
+    // so it is left unallocated unless that pass can run at all.
+    pr::ndarray<Float, 1> point_lambda;
+    if (allow_single_cluster) {
+        point_lambda = std::get<0>(
+            pr::ndarray<Float, 1>::full(queue, row_count, Float(-1), sycl::usm::alloc::device));
+        queue.wait_and_throw();
+    }
+
     // Collect all allocation events into a single dependency vector
     bk::event_vector all_events = deps;
     all_events.insert(
@@ -1556,6 +1649,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     w.stk_cid_ptr = stack_cid.get_mutable_data();
     w.leaf_stk_ptr = leaf_stack_arr.get_mutable_data();
     w.nc_ptr = n_clusters_arr.get_mutable_data();
+    w.plam_ptr = allow_single_cluster ? point_lambda.get_mutable_data() : nullptr;
     w.row_count = row_count;
     w.edge_count = edge_count;
     w.min_cluster_size = min_cluster_size;
@@ -1577,7 +1671,16 @@ inline sycl::event extract_clusters(sycl::queue& queue,
 
     auto k4_event = assign_label_kernels<Float>(queue, w, { k3b_event });
     k4_event.wait_and_throw();
-    return k4_event;
+
+    if (!allow_single_cluster) {
+        return k4_event;
+    }
+
+    // `point_lambda` is owned by this frame and the pass dereferences it, so the
+    // event has to be awaited here: `sycl::free` does not synchronize.
+    auto k5_event = single_cluster_threshold_kernel<Float>(queue, w, { k4_event });
+    k5_event.wait_and_throw();
+    return k5_event;
 }
 
 #endif
