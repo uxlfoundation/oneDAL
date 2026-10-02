@@ -99,14 +99,9 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_dense(
 }
 
 /// Same slice as `slice_pair_support_vectors_dense`, for a CSR support-vector
-/// matrix. The two row blocks are concatenated into a fresh one-based
-/// `CSRNumericTable`; column indices are copied verbatim because both blocks
-/// live in the same column space.
-///
-/// This path exists because scikit-learn-intelex builds a oneDAL SVM model from
-/// arrays produced by scikit-learn's own sparse fit and then asks oneDAL to
-/// predict, so the support vectors arrive as CSR and never pass through the
-/// oneDAL trainer that would have left a `model_interop_cls` behind.
+/// matrix. Column indices are copied verbatim -- both blocks share a column space.
+/// CSR arrives here from a scikit-learn-intelex sparse fit, which never passes
+/// through the oneDAL trainer that would have left a `model_interop_cls` behind.
 ///
 /// @tparam Float           Floating-point type of the support-vector values.
 /// @param sv_values        Non-zero values of the aggregated CSR matrix.
@@ -133,18 +128,11 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_csr(
     const std::int64_t nnz_j = sv_row_offsets[first_j + n_j] - sv_row_offsets[first_j];
     const std::int64_t nnz = nnz_i + nnz_j;
 
-    // `CSRNumericTable` cannot be created from empty value / index arrays, and
-    // an all-zero support-vector block would produce exactly that. Store a
-    // single explicit zero instead: a stored zero and an absent entry are the
-    // same number, so the model this yields is the same model.
-    //
-    // Nothing downstream minds if every pair ends up here, i.e. if the whole
-    // support-vector matrix is zero. Each sub-model then evaluates its kernel
-    // against zero vectors and its decision value collapses to its own bias, so
-    // the pairwise votes are constant across rows and the multiclass predictor
-    // returns the class those biases agree on -- a degenerate model, but a
-    // well-defined one rather than an error. `svm multi-class model with all-zero
-    // csr support vectors` in the batch tests pins that down.
+    // `CSRNumericTable` rejects empty value / index arrays, which an all-zero
+    // block produces. Store one explicit zero instead -- same number, same model.
+    // Every pair reaching this branch is fine: each sub-model's decision value
+    // then collapses to its own bias. Pinned by `svm multi-class model with
+    // all-zero csr support vectors`.
     const std::int64_t stored = (nnz > 0) ? nnz : std::int64_t(1);
 
     auto pair_values = array<Float>::zeros(stored);
@@ -198,28 +186,16 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_csr(
         column_count) };
 }
 
-// Reconstructs a daal multi_class_classifier::Model from the aggregated public
-// arrays of a oneapi svm model. This is an internal contract between the
-// multiclass CPU trainer (which populates the aggregated arrays and
-// n_support_per_class) and this restoration path; the public model shapes
-// documented in svm/common.hpp (support_vectors: nsv x p, coeffs: nsv x
-// (class_count - 1), biases: class_count*(class_count - 1)/2 x 1) do not by
-// themselves guarantee any particular row order.
-//
-// The trainer produces support-vector rows sorted by class in increasing class
-// order; n_support_per_class holds the per-class block sizes and the aggregated
-// row count equals sum(n_support_per_class). Within the coeffs matrix, for an
-// SV of class c the coefficient for the pairwise (one-vs-one) comparison
-// against class o lives in column (o - 1) when o > c and column o when o < c.
-// Pair iteration order below matches daal getClassIndices(isSvmModel=true):
-//   (0,1), (0,2), ..., (0, class_count-1), (1,2), ..., (class_count-2, class_count-1).
-//
-// Dense and CSR support vectors are both accepted; the per-pair blocks keep the
-// layout of the aggregated table, which the sub-models are told about. The
-// layout of the inference data is passed in only to be compared against it: one
-// kernel function serves both operands, so a dense model cannot evaluate sparse
-// data or the other way round, and that is worth refusing here rather than
-// inside the kernel.
+// Rebuilds a daal multi_class_classifier::Model from the aggregated public arrays
+// of a oneapi svm model. The shapes in svm/common.hpp do not pin the row order, so
+// this is a contract with the multiclass CPU trainer:
+//   - support-vector rows sorted by class, block sizes in n_support_per_class;
+//   - for an SV of class c, the coefficient against class o is in coeffs column
+//     (o - 1) when o > c and column o when o < c;
+//   - pair order matches daal getClassIndices(isSvmModel=true):
+//     (0,1), (0,2), ..., (0, k-1), (1,2), ..., (k-2, k-1).
+// Dense and CSR support vectors are both accepted. `data_layout` is passed in only
+// to be compared against the support-vector layout.
 template <typename Float, typename Task>
 static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     const model<Task>& trained_model,
@@ -235,15 +211,14 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
-    // n_support_per_class is a 1 x class_count row of int32 counts. Both
-    // dimensions must match exactly before we index by class below.
+    // n_support_per_class is a 1 x class_count row of int32 counts, indexed by
+    // class below, so both dimensions have to match exactly.
     if (!n_per_class_table.has_data() || n_per_class_table.get_row_count() != std::int64_t(1) ||
         n_per_class_table.get_column_count() != static_cast<std::int64_t>(class_count)) {
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
-    // biases holds one scalar per pairwise sub-model. Model count is
-    // class_count * (class_count - 1) / 2 in one column.
+    // biases holds one scalar per pairwise sub-model, in one column.
     const std::int64_t expected_model_count =
         static_cast<std::int64_t>(class_count) * (static_cast<std::int64_t>(class_count) - 1) / 2;
     if (biases_table.get_row_count() != expected_model_count ||
@@ -251,9 +226,8 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
-    // One kernel function evaluates both the data and the support vectors, so a
-    // sparse model can only be used with sparse data and a dense model with
-    // dense data. Reject the mixture instead of handing the kernel two layouts.
+    // One kernel serves both operands, so a mixed-layout pair is refused here
+    // rather than handed to the kernel.
     const bool sv_is_csr = sv_table.get_kind() == dal::csr_table::kind();
     const bool data_is_csr =
         data_layout == daal::data_management::NumericTableIface::StorageLayout::csrArray;
@@ -261,8 +235,7 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
         throw invalid_argument(
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
-    // What a sub-model has to be told is the layout of its own support vectors,
-    // which is this one, and not whatever the data happens to be stored as.
+    // A sub-model is told the layout of its own support vectors, not the data's.
     const auto sv_layout = sv_is_csr
                                ? daal::data_management::NumericTableIface::StorageLayout::csrArray
                                : daal::data_management::NumericTableIface::StorageLayout::aos;
@@ -271,10 +244,9 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     const auto n_per_class = n_per_class_arr.get_data();
 
     auto coeffs_arr = row_accessor<const Float>{ coeffs_table }.pull();
-    // Biases are `double` whatever `Float` is: a daal sub-model holds its bias as
-    // a `double` scalar, and `convert_from_daal_model` pins the public table to
-    // `double` to match. A caller who sets a single-precision table of its own is
-    // still served -- the accessor converts.
+    // A trained model's biases are always `double` (a daal sub-model holds a
+    // `double` scalar), but the accessor converts rather than reinterprets, so a
+    // `float` table a caller set of its own reads back fine.
     auto biases_arr = row_accessor<const double>{ biases_table }.pull();
 
     // Dense support vectors are pulled as one row-major block; CSR ones as the
@@ -306,16 +278,12 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     auto multiclass_model = daal_multiclass::Model::create(column_count, &daal_par, &status);
     interop::status_to_exception(status);
 
-    // Cumulative per-class offsets into the aggregated SV / coeff matrices.
-    //
-    // Every count has to be checked for being positive, not only their sum: the
-    // counts come straight from a public setter, and a negative one can cancel
-    // against a too-large one to reach the right total while still turning the
-    // offsets below into out-of-bounds reads. A class with no support vectors at
-    // all is rejected too -- its every pair would have to be represented by an
-    // absent sub-model, and the daal prediction kernel then drops the class from
-    // its count without renumbering the pairs, which mixes up which pair each
-    // decision value belongs to rather than reporting an error.
+    // Cumulative per-class offsets into the aggregated SV / coeff matrices. Every
+    // count must be positive, not just their sum: a negative one can cancel a
+    // too-large one and still reach the right total while the offsets it yields
+    // read out of bounds. A zero count is rejected too -- the daal predictor then
+    // drops the class without renumbering the pairs, silently shifting which pair
+    // each decision value belongs to.
     std::vector<std::int64_t> class_offsets(class_count + 1, 0);
     for (std::uint64_t c = 0; c < class_count; ++c) {
         if (n_per_class[c] <= 0) {
@@ -524,10 +492,9 @@ static infer_result<Task> call_daal_kernel(const context_cpu& ctx,
                                            const detail::descriptor_base<Task>& desc,
                                            const model<Task>& trained_model,
                                            const table& data) {
-    // The trained model carries the authoritative class_count (>= 2 after
-    // training or an explicit setter; default = 2 otherwise). Require the
-    // descriptor to agree so a stale binary descriptor cannot silently route
-    // a multi-class model down the binary path (or vice-versa).
+    // The model carries the authoritative class_count. The descriptor has to
+    // agree, so a stale binary descriptor cannot route a multi-class model down
+    // the binary path or the other way round.
     const std::int64_t class_count = trained_model.get_class_count();
     if (desc.get_class_count() != class_count) {
         throw invalid_argument(

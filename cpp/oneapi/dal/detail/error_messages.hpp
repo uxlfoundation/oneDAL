@@ -329,6 +329,7 @@ public:
     MSG(polynomial_kernel_is_not_implemented_for_gpu);
     MSG(sigmoid_kernel_is_not_implemented_for_gpu);
     MSG(sigma_leq_zero);
+    MSG(svm_multiclass_model_not_implemented_for_gpu);
     MSG(svm_multiclass_not_implemented_for_gpu);
     MSG(svm_nu_classification_task_is_not_implemented_for_gpu);
     MSG(svm_nu_regression_task_is_not_implemented_for_gpu);
