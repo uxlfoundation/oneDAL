@@ -122,11 +122,10 @@ if exist "%DST%\lib\openblas_64.lib" (
     copy /Y "%DST%\lib\openblas_64.lib" "%DST%\lib\openblas.lib" >nul
     if errorlevel 1 goto Error_layout
 )
-rem Copied with a wildcard `copy` rather than `xcopy /E` on the directory: the
-rem source is a direct child of the destination, and in CI (2d2d8e6, job
-rem 110701130528) xcopy left `include\openblas_config.h` absent afterwards while
-rem reporting success -- the cyclic-copy case. `include\openblas64` holds only
-rem headers, so a wildcard `copy` moves all of it.
+rem Copied with a wildcard `copy` rather than `xcopy /E` on the directory: the source
+rem is a direct child of the destination, which is the case xcopy rejects as a cyclic
+rem copy. `include\openblas64` holds only headers, so a wildcard `copy` moves all of
+rem it and the question does not arise.
 if exist "%DST%\include\openblas64\openblas_config.h" (
     copy /Y "%DST%\include\openblas64\*" "%DST%\include" >nul
     if errorlevel 1 goto Error_layout
@@ -134,19 +133,25 @@ if exist "%DST%\include\openblas64\openblas_config.h" (
 
 rem The interface width is what oneDAL silently depends on and nothing downstream
 rem can detect: the symbol names are identical either way, so an LP64 package links
-rem and then misbehaves. Read it back off the installed configuration header, which
-rem the CMake build fills from `config.h` (CMakeLists.txt:705-712) and therefore
-rem carries `#define OPENBLAS_USE64BITINT` only for an ILP64 build. A renamed or
-rem dropped CMake option is then caught here rather than in numerical results.
+rem and then misbehaves. Asserted on the `_64` library name, which `SUFFIX64` derives
+rem from `INTERFACE64` alone (CMakeLists.txt:128-133): if the option is renamed or
+rem dropped, the install produces plain `openblas.lib` and this fails, instead of the
+rem mismatch surfacing as wrong numerical results.
 rem
-rem The `#define` has to be part of the pattern: `openblas_config_template.h` is
-rem appended to every generated header and contains `#ifdef OPENBLAS_USE64BITINT`
-rem unconditionally, so matching the bare name passes for an LP64 build too.
-rem Measured on 0.3.34 by configuring both ways and counting matches in the
-rem generated header: bare name 1 vs 1, `#define OPENBLAS_USE64BITINT` 0 vs 1.
-findstr /C:"#define OPENBLAS_USE64BITINT" "%DST%\include\openblas_config.h" >nul 2>&1
-if errorlevel 1 (
-    echo openblas.bat : Error: the installed OpenBLAS is not ILP64 -- "#define OPENBLAS_USE64BITINT" is absent from "%DST%\include\openblas_config.h", while oneDAL passes 64-bit DAAL_INT arguments to it
+rem Not read off the installed `openblas_config.h`, even though that is where the
+rem interface width belongs. `#define OPENBLAS_USE64BITINT` reaches the header from
+rem `USE64BITINT` in `config.h`, and `config.h` only gets it from `getarch`
+rem (`GETARCH_FLAGS` in cmake/system.cmake:103-107). Setting `CMAKE_SYSTEM_NAME` above
+rem makes CMake treat this as cross-compiling, so OpenBLAS cannot run `getarch` on the
+rem target and writes `config.h` itself "as getarch would" (cmake/prebuild.cmake:132) --
+rem a path that never emits `USE64BITINT`. The library is ILP64 regardless (the `_64`
+rem name proves `INTERFACE64` took effect), but the installed header says otherwise, so
+rem it cannot serve as the witness -- measured in CI on 2d2d8e6 and d2d6314, where an
+rem assertion on the header failed on a build whose installed library is
+rem `openblas_64.lib`. The bare name is no witness either: the `#ifdef` comes from
+rem `openblas_config_template.h`, appended verbatim to every generated header.
+if not exist "%DST%\lib\openblas_64.lib" (
+    echo openblas.bat : Error: the installed OpenBLAS is not ILP64 -- "%DST%\lib\openblas_64.lib" is absent, so INTERFACE64 did not take effect, while oneDAL passes 64-bit DAAL_INT arguments to it
     exit /B 1
 )
 if not exist "%DST%\lib\openblas.lib" (
