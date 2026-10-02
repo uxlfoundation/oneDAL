@@ -172,19 +172,43 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          # `gh cache list` reports every scope in the repository, not only the
-          # ones this run can restore from. Without `--ref` the newest matching
-          # key can belong to another pull request's scope, which `cache/restore`
-          # cannot read: the restore then misses silently and the check below
-          # compares against an empty directory. Only main-scoped entries are
-          # both restorable here and produced by a build of main.
-          CACHE_KEY=$(gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key')
-          if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
-            echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
+          # `--ref` keeps this to main's scope: `cache/restore` can only read
+          # main's, and `gh cache list` reports every scope in the repository, so
+          # an entry from another pull request's scope would miss silently.
+          #
+          # Candidates come from main's history rather than from whichever key
+          # arrived last, because any job whose GITHUB_REF is main can write into
+          # main's scope -- the fork pull request jobs in `Nightly-test` included
+          # -- and an invented key is always the newest. Keys are immutable, so a
+          # poisoned baseline now has to beat the genuine main build to a real
+          # commit's key.
+          #
+          # `STALE_AFTER` is where the baseline stops being current enough to
+          # read the diff at face value; `WINDOW` is where it stops being usable.
+          WINDOW=20
+          STALE_AFTER=5
+          AVAILABLE=$(gh cache list --ref refs/heads/main --key __release_lnx --limit 100 --json key --jq '.[].key')
+          CACHE_KEY=""
+          BEHIND=0
+          for SHA in $(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=main&per_page=${WINDOW}" --jq '.[].sha'); do
+            if grep -qxF "__release_lnx-${SHA}" <<< "${AVAILABLE}"; then
+              CACHE_KEY="__release_lnx-${SHA}"
+              break
+            fi
+            BEHIND=$((BEHIND + 1))
+          done
+          if [ -z "${CACHE_KEY}" ]; then
+            echo "::error::No __release_lnx cache on refs/heads/main for any of its last ${WINDOW} commits. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
             exit 1
           fi
+          # A stale baseline makes abidiff report changes other merged pull
+          # requests introduced, which reads as a failure of this one. Say so
+          # here rather than leaving it to be guessed from the diff.
+          if [ "${BEHIND}" -gt "${STALE_AFTER}" ]; then
+            echo "::warning::Baseline is ${BEHIND} commits behind main. Differences from pull requests merged in between will show up in this check; rerun the 'CI' workflow on main via workflow dispatch for a current baseline."
+          fi
           echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
-          echo $CACHE_KEY
+          echo "${CACHE_KEY} (${BEHIND} commits behind main)"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download oneDAL main build
