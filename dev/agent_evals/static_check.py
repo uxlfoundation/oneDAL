@@ -21,7 +21,8 @@ the guidance files (AGENTS.md, .github/instructions, CONTRIBUTING.md) and checks
 Status per claim: ok / fail / unresolved. 'unresolved' is not a failure; it needs a human look.
 Usage: static_check.py [--tree DIR] [--out FILE]   (or run.py static ...)
   --tree  tree to check (default: the current directory, the workspace root under agent-benchmark)
-  --out   write {"files", "counts", "claims"} as one JSON document instead of the human-readable report
+  --out   write {"schema": "repo_static.v1", "files", "counts", "claims"} as one JSON document instead of the
+          human-readable report
 """
 import argparse
 import fnmatch
@@ -393,7 +394,7 @@ def main(tree, out=None):
     counts = dict(Counter(r["status"] for r in recs))
     if out:
         with open(out, "w") as o:
-            json.dump({"files": GUIDE, "counts": counts, "claims": recs}, o, indent=1)
+            json.dump({"schema": "repo_static.v1", "files": GUIDE, "counts": counts, "claims": recs}, o, indent=1)
         return recs
     print(len(GUIDE), "guidance files;", len(recs), "claims;", counts)
     for r in recs:
