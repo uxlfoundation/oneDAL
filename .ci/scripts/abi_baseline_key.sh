@@ -41,20 +41,43 @@
 # tip only when that base has no cached build left, and say that the comparison
 # is no longer exact.
 
-set -eo pipefail
+set -euo pipefail
 
 BASE_SHA=${1:-}
 WINDOW=${2:-20}
 STALE_AFTER=${3:-5}
 KEY_PREFIX=__release_lnx
 
-available=$(gh cache list --ref refs/heads/main --key "${KEY_PREFIX}" --limit 100 --json key --jq '.[].key')
+# Runs "$@" up to three times, backing off in between, and echoes its output, so
+# one API hiccup does not get to decide which baseline the check uses.
+retry() {
+    local delay out
+    for delay in 0 5 10; do
+        sleep "${delay}"
+        if out=$("$@"); then
+            echo "${out}"
+            return 0
+        fi
+    done
+    return 1
+}
 
-# Echoes "<key> <commits skipped>" for the newest cached commit reachable from
-# $1, or returns 1 if none of its first ${WINDOW} commits has an entry.
-newest_cached_from() {
+# A failure to list the caches is safe to carry on from: no key can match, so
+# the job stops at the hard error below rather than comparing against nothing.
+available=$(retry gh cache list --ref refs/heads/main --key "${KEY_PREFIX}" --limit 100 --json key --jq '.[].key') || available=""
+
+# A failure here is not safe to carry on from. It yields no candidates, which is
+# indistinguishable from "no cached ancestor" and would quietly pick the inexact
+# baseline, so both callers stop the job.
+ancestors_of() {
+    retry gh api "repos/${GITHUB_REPOSITORY}/commits?sha=$1&per_page=${WINDOW}" --jq '.[].sha'
+}
+
+# Echoes "<key> <commits skipped>" for the newest commit in $1 that has an
+# entry, or returns 1 if none of them does.
+newest_cached_in() {
     local behind=0 sha
-    for sha in $(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=$1&per_page=${WINDOW}" --jq '.[].sha'); do
+    for sha in $1; do
         if grep -qxF "${KEY_PREFIX}-${sha}" <<< "${available}"; then
             echo "${KEY_PREFIX}-${sha} ${behind}"
             return 0
@@ -67,11 +90,19 @@ newest_cached_from() {
 result=""
 exact=yes
 if [ -n "${BASE_SHA}" ]; then
-    result=$(newest_cached_from "${BASE_SHA}") || result=""
+    base_commits=$(ancestors_of "${BASE_SHA}") || {
+        echo "::error::Could not list the commits reachable from ${BASE_SHA}. Rerun this job."
+        exit 1
+    }
+    result=$(newest_cached_in "${base_commits}") || result=""
 fi
 if [ -z "${result}" ]; then
     exact=no
-    result=$(newest_cached_from main) || {
+    main_commits=$(ancestors_of main) || {
+        echo "::error::Could not list the commits on refs/heads/main. Rerun this job."
+        exit 1
+    }
+    result=$(newest_cached_in "${main_commits}") || {
         echo "::error::No ${KEY_PREFIX} cache on refs/heads/main for any of its last ${WINDOW} commits. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
         exit 1
     }
