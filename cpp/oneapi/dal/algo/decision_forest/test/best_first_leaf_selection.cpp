@@ -107,4 +107,36 @@ DF_BEST_FIRST_TEST(
     }
 }
 
+// This dataset's root has 8 points: a "left" group (x=1..4, y=0,5,5,10) whose
+// own best further split has a modest improvement, and a "right" group
+// (x=5..8, y=100,100,200,200) whose own best further split -- cleanly
+// separating {100,100} from {200,200} -- has a much larger one. With
+// max_leaf_nodes=3 (budget for exactly 2 splits: the root, plus one more),
+// the correct algorithm must spend that last slot on the right group (the
+// true highest-priority pending candidate across the whole frontier),
+// leaving left unsplit; the birth-order bug always spent it on left instead
+// (evaluated first, by code order), regardless of right's higher quality
+DF_BEST_FIRST_TEST(
+    "best-first spends its leaf budget on the highest-priority pending node, not the first-born one") {
+    SKIP_IF(this->is_gpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    static const float x[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    static const float y[] = { 0, 5, 5, 10, 100, 100, 200, 200 };
+
+    const auto predictions = this->train_and_predict_all(x, y, 8, /*max_leaf_nodes*/ 3);
+
+    // The left group was correctly left unsplit: all four points fall in one
+    // leaf and get its mean.
+    for (std::int64_t i = 0; i < 4; i++) {
+        REQUIRE(predictions[i] == Catch::Approx(5.0).epsilon(1e-6));
+    }
+    // The right group was correctly split into its two natural sub-clusters.
+    REQUIRE(predictions[4] == Catch::Approx(100.0).epsilon(1e-6));
+    REQUIRE(predictions[5] == Catch::Approx(100.0).epsilon(1e-6));
+    REQUIRE(predictions[6] == Catch::Approx(200.0).epsilon(1e-6));
+    REQUIRE(predictions[7] == Catch::Approx(200.0).epsilon(1e-6));
+}
+
 } // namespace oneapi::dal::decision_forest::test
