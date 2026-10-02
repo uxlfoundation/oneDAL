@@ -189,9 +189,17 @@ def matrix(a):
                 *(["--effort", a.effort] if a.effort else [])], check=False)
         (sys.stdout if r.returncode == 0 else sys.stderr).write(r.stdout + (r.stderr if r.returncode else ""))
         sys.stdout.flush()
+        return r.returncode
 
     with ThreadPoolExecutor(a.j) as ex:
-        list(ex.map(one, todo))
+        rcs = list(ex.map(one, todo))
+    # a child that crashed in prep, the agent call or grading wrote no grade.json: the cell is missing, not failed.
+    # Report it in the exit status so a scripted matrix does not read an incomplete batch as a finished one.
+    broken = [(j, rc) for j, rc in zip(todo, rcs) if rc]
+    for j, rc in broken:
+        print(f"run failed (rc={rc}): {'__'.join(map(str, j))}", file=sys.stderr)
+    print(f"{len(todo) - len(broken)}/{len(todo)} runs graded", flush=True)
+    return 1 if broken else 0
 
 
 def main():
@@ -237,14 +245,22 @@ def main():
     elif a.cmd == "agent":
         run_agent(a.task, a.arm, a.model, a.rep, a.batch, a.effort)
     elif a.cmd == "matrix":
-        matrix(a)
+        sys.exit(matrix(a))
     elif a.cmd == "grade" and a.contract:
         for rd in a.run_dirs:
-            g = contract.grade(rd.resolve())
-            print(json.dumps({k: g[k] for k in ("task", "pass", "errors")}), flush=True)
+            rd = rd.resolve()
+            try:
+                g = contract.grade(rd)
+                print(json.dumps({k: g[k] for k in ("task", "pass", "errors")}), flush=True)
+            finally:
+                bazel(rd, rd / "workspace", "shutdown", rd / "shutdown.log")
     elif a.cmd == "grade":
         for rd in a.run_dirs:
-            grade(rd.resolve())
+            rd = rd.resolve()
+            try:
+                grade(rd)
+            finally:
+                bazel(rd, rd / "repo", "shutdown", rd / "shutdown.log")
     elif a.cmd == "oracle":
         rd = a.run_dir.resolve()
         contract.oracle(rd, rd / "workspace", json.loads((rd / "task.json").read_text()))
