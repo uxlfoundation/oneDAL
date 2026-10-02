@@ -131,11 +131,17 @@ rem The interface width is what oneDAL silently depends on and nothing downstrea
 rem can detect: the symbol names are identical either way, so an LP64 package links
 rem and then misbehaves. Read it back off the installed configuration header, which
 rem the CMake build fills from `config.h` (CMakeLists.txt:705-712) and therefore
-rem carries `OPENBLAS_USE64BITINT` only for an ILP64 build. A renamed or dropped
-rem CMake option is then caught here rather than in numerical results.
-findstr /C:"OPENBLAS_USE64BITINT" "%DST%\include\openblas_config.h" >nul 2>&1
+rem carries `#define OPENBLAS_USE64BITINT` only for an ILP64 build. A renamed or
+rem dropped CMake option is then caught here rather than in numerical results.
+rem
+rem The `#define` has to be part of the pattern: `openblas_config_template.h` is
+rem appended to every generated header and contains `#ifdef OPENBLAS_USE64BITINT`
+rem unconditionally, so matching the bare name passes for an LP64 build too.
+rem Measured on 0.3.34 by configuring both ways and counting matches in the
+rem generated header: bare name 1 vs 1, `#define OPENBLAS_USE64BITINT` 0 vs 1.
+findstr /C:"#define OPENBLAS_USE64BITINT" "%DST%\include\openblas_config.h" >nul 2>&1
 if errorlevel 1 (
-    echo openblas.bat : Error: the installed OpenBLAS is not ILP64 -- OPENBLAS_USE64BITINT is absent from "%DST%\include\openblas_config.h", while oneDAL passes 64-bit DAAL_INT arguments to it
+    echo openblas.bat : Error: the installed OpenBLAS is not ILP64 -- "#define OPENBLAS_USE64BITINT" is absent from "%DST%\include\openblas_config.h", while oneDAL passes 64-bit DAAL_INT arguments to it
     exit /B 1
 )
 if not exist "%DST%\lib\openblas.lib" (
