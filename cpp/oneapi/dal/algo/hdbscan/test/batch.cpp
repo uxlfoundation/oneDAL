@@ -50,6 +50,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                                                         result_options::core_flags,
                                                         result_options::core_observations,
                                                         result_options::core_observation_indices,
+                                                        result_options::probabilities,
                                                         res_all);
 
     this->mode_checks(compute_mode, x, min_cluster_size, min_samples);
@@ -1777,6 +1778,574 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 // =========================================================================
+// membership probability tests
+// =========================================================================
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: probabilities on two well-separated clusters",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    this->run_probability_checks(x, 5, 5);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan kd_tree: probabilities on two well-separated clusters",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_kd_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    this->run_probability_checks(x, 5, 5);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan ball_tree: probabilities on two well-separated clusters",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bt_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    this->run_probability_checks(x, 5, 5);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: noise points get zero probability",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // The last two points sit far away from the tight blob and from each other,
+    // so no assignment of theirs can survive `min_cluster_size = 5`.
+    constexpr Float data[] = {
+        0.0,    0.0, //
+        0.1,    0.1, //
+        0.2,    0.0, //
+        0.0,    0.2, //
+        0.15,   0.15, //
+        100.0,  100.0, //
+        -100.0, -100.0, //
+    };
+    const auto x = homogen_table::wrap(data, 7, 2);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(5, 5).set_result_options(
+            result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    this->check_probabilities(result, 7);
+
+    const auto responses = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    for (std::int64_t i = 5; i < 7; i++) {
+        CAPTURE(i, responses[i], probs[i]);
+        REQUIRE(static_cast<std::int32_t>(responses[i]) == -1);
+        REQUIRE(probs[i] == Float(0));
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: probabilities are all zero when everything is noise",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = { 0.0, 1.0, 2.0, 3.0, 4.0 };
+    const auto x = homogen_table::wrap(data, 5, 1);
+
+    // `min_cluster_size > n` short-circuits before the MST is built, which is the
+    // path that has to zero-fill the probability output on its own.
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(10, 2).set_result_options(
+            result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+    this->check_probabilities(result, 5);
+
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < 5; i++) {
+        CAPTURE(i, probs[i]);
+        REQUIRE(probs[i] == Float(0));
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: duplicate points get full membership",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Coincident points give zero-weight MST edges, hence an infinite-in-spirit
+    // lambda, so every member persists to the death of its cluster.
+    constexpr Float data[] = {
+        1.0, 1.0, //
+        1.0, 1.0, //
+        1.0, 1.0, //
+        1.0, 1.0, //
+        1.0, 1.0, //
+        1.0, 1.0, //
+    };
+    const auto x = homogen_table::wrap(data, 6, 2);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3).set_result_options(
+            result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    this->check_probabilities(result, 6);
+
+    const auto responses = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < 6; i++) {
+        CAPTURE(i, responses[i], probs[i]);
+        if (static_cast<std::int32_t>(responses[i]) >= 0) {
+            REQUIRE(probs[i] == Float(1));
+        }
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: probabilities on gold data",
+                     "[hdbscan][batch][probabilities][gold]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
+
+    this->run_probability_checks(x,
+                                 gold_dataset::get_min_cluster_size(),
+                                 gold_dataset::get_min_samples());
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: probabilities match the reference implementation",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Two blobs of different density, one point that only barely joins the dense
+    // blob, and one pure noise point. The expected values come from
+    // `sklearn.cluster.HDBSCAN(min_cluster_size=5, min_samples=5).probabilities_`
+    // with the same defaults (euclidean, excess of mass, alpha = 1).
+    constexpr Float data[] = {
+        0.5917,  -0.1631, //
+        0.0115,  0.1426, //
+        -0.2761, 0.0007, //
+        -0.0003, -0.6142, //
+        0.3562,  0.2102, //
+        -0.2189, -0.06, //
+        0.1769,  -0.0915, //
+        -0.085,  -0.5086, //
+        0.1941,  0.0434, //
+        6.151,   5.1604, //
+        6.9079,  6.0849, //
+        5.7871,  7.116, //
+        5.975,   5.2021, //
+        5.7771,  4.7414, //
+        6.5772,  5.7709, //
+        5.5916,  6.5899, //
+        5.0919,  6.2945, //
+        4.8646,  5.6358, //
+        3.0,     -4.0, //
+        -5.0,    7.0, //
+    };
+    constexpr std::int64_t row_count = 20;
+    const auto x = homogen_table::wrap(data, row_count, 2);
+
+    constexpr double ref_probabilities[] = {
+        0.6730265741, 1.0, 0.9348524093, 0.6549392602, 1.0,          1.0, 1.0,
+        0.8113952439, 1.0, 1.0,          0.9089429453, 0.8214639762, 1.0, 0.9828347746,
+        1.0,          1.0, 0.912268997,  1.0,          0.0915445561, 0.0,
+    };
+    // The reference assigns the two blobs and treats only the last point as noise.
+    constexpr std::int32_t ref_noise[] = { 19 };
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(5, 5).set_result_options(
+            result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 2);
+    this->check_probabilities(result, row_count);
+
+    const auto responses = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    for (const auto i : ref_noise) {
+        CAPTURE(i, responses[i]);
+        REQUIRE(static_cast<std::int32_t>(responses[i]) == -1);
+    }
+
+    // The probability is invariant under a relabeling of the clusters, so unlike
+    // the responses it can be compared against the reference entry by entry.
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-7);
+    for (std::int64_t i = 0; i < row_count; i++) {
+        CAPTURE(i, probs[i], ref_probabilities[i]);
+        REQUIRE(std::abs(double(probs[i]) - ref_probabilities[i]) < tol);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: probabilities can be requested alone",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(5, 5).set_result_options(
+            result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE_THROWS_AS(result.get_responses(), domain_error);
+    this->check_probabilities(result, 10);
+}
+
+// =========================================================================
+// single-cluster (root-only) selection tests
+// =========================================================================
+
+/// One dense blob plus a ladder of increasingly distant points. The condensed
+/// tree of this dataset never splits into two clusters of `min_cluster_size`
+/// points, so the root cluster is the only candidate and the outcome is decided
+/// entirely by `allow_single_cluster`, `cluster_selection_epsilon` and the
+/// cluster selection method. Every reference below comes from
+/// `sklearn.cluster.HDBSCAN(min_cluster_size=3, min_samples=3, ...)`.
+constexpr std::int64_t single_root_row_count = 16;
+constexpr double single_root_data[] = {
+    0.5366,  0.131, //
+    0.0289,  -0.559, //
+    -0.0832, -0.1064, //
+    -0.0248, -0.1881, //
+    -0.0131, -0.1432, //
+    -0.3942, 0.2654, //
+    0.2644,  0.5129, //
+    0.015,   -0.1214, //
+    -0.1636, -0.4639, //
+    0.2947,  -0.3303, //
+    -0.3555, -0.0617, //
+    0.4458,  0.071, //
+    1.5,     0.0, //
+    2.5,     0.0, //
+    4.0,     0.0, //
+    7.0,     0.0, //
+};
+
+/// Materialize `single_root_data` in the floating-point type under test.
+///
+/// @tparam Float Floating-point type of the test instantiation
+///
+/// @return An owning array of `2 * single_root_row_count` feature values
+template <typename Float>
+static dal::array<Float> make_single_root_data() {
+    auto arr = dal::array<Float>::empty(single_root_row_count * 2);
+    auto* const dst = arr.get_mutable_data();
+    for (std::int64_t i = 0; i < single_root_row_count * 2; i++) {
+        dst[i] = static_cast<Float>(single_root_data[i]);
+    }
+    return arr;
+}
+
+/// Compare responses against a pinned reference label vector entry by entry.
+///
+/// Unlike `check_same_partition` this is not permutation-invariant, which is
+/// exactly what a single-cluster reference needs: there is at most one label, so
+/// the only question is which points carry it.
+///
+/// @tparam Float Floating-point type of the response table
+///
+/// @param[in] responses Response table under test
+/// @param[in] ref       Reference labels, length `row_count`
+/// @param[in] row_count Number of observations
+template <typename Float>
+static void check_exact_labels(const table& responses,
+                               const std::int32_t* ref,
+                               std::int64_t row_count) {
+    const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < row_count; i++) {
+        CAPTURE(i, rows[i], ref[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) == ref[i]);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: single-cluster selection demotes weak members",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    // Without an epsilon the threshold is the root's own death lambda, so only
+    // the three points that persist to the very end of the tree stay clustered.
+    // They all drop out at that same lambda, so their membership is 1 and the
+    // comparison does not depend on how equal distances are broken.
+    constexpr std::int32_t ref_labels[] = { -1, -1, -1, 0,  0,  -1, -1, 0,
+                                            -1, -1, -1, -1, -1, -1, -1, -1 };
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+            .set_allow_single_cluster(true)
+            .set_result_options(result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    check_exact_labels<Float>(result.get_responses(), ref_labels, single_root_row_count);
+
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-7);
+    for (std::int64_t i = 0; i < single_root_row_count; i++) {
+        CAPTURE(i, probs[i], ref_labels[i]);
+        REQUIRE(std::abs(double(probs[i]) - (ref_labels[i] < 0 ? 0.0 : 1.0)) < tol);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: cluster_selection_epsilon sets the single-cluster "
+                     "threshold",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    // With an epsilon the threshold becomes `1 / epsilon`, a lambda that does not
+    // depend on the tree, so both the labels and the membership strengths are
+    // fully determined and can be pinned against scikit-learn.
+    constexpr std::int32_t ref_labels_eps1[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1
+    };
+    constexpr double ref_probabilities_eps1[] = {
+        0.16561955, 0.22151034, 0.78188754, 1.0,        1.0,        0.16023989, 0.16260124, 1.0,
+        0.25156307, 0.22210022, 0.23581156, 0.18113621, 0.07767194, 0.0,        0.0,        0.0,
+    };
+    constexpr std::int32_t ref_labels_eps3[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1 };
+    constexpr double ref_probabilities_eps3[] = {
+        0.16561955, 0.22151034, 0.78188754, 1.0,        1.0,        0.16023989, 0.16260124, 1.0,
+        0.25156307, 0.22210022, 0.23581156, 0.18113621, 0.07767194, 0.05178129, 0.03106878, 0.0,
+    };
+
+    const double epsilon = GENERATE(1.0, 3.0);
+    const std::int32_t* const ref_labels = (epsilon == 1.0) ? ref_labels_eps1 : ref_labels_eps3;
+    const double* const ref_probabilities =
+        (epsilon == 1.0) ? ref_probabilities_eps1 : ref_probabilities_eps3;
+    CAPTURE(epsilon);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+            .set_allow_single_cluster(true)
+            .set_cluster_selection_epsilon(epsilon)
+            .set_result_options(result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    check_exact_labels<Float>(result.get_responses(), ref_labels, single_root_row_count);
+
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-7);
+    for (std::int64_t i = 0; i < single_root_row_count; i++) {
+        CAPTURE(i, probs[i], ref_probabilities[i]);
+        REQUIRE(std::abs(double(probs[i]) - ref_probabilities[i]) < tol);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: a root-only tree is all noise by default",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3).set_result_options(
+            result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < single_root_row_count; i++) {
+        CAPTURE(i, rows[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) == -1);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: leaf selection never picks the root cluster",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    // Leaf selection picks the leaves of the cluster tree, and the root is not
+    // one of them; a tree that never splits has no candidate at all. This holds
+    // with `allow_single_cluster` too, which in leaf mode only relaxes the
+    // labeling threshold of an already-selected root.
+    const bool allow_single_cluster = GENERATE(false, true);
+    CAPTURE(allow_single_cluster);
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_allow_single_cluster(allow_single_cluster)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    for (std::int64_t i = 0; i < single_root_row_count; i++) {
+        CAPTURE(i, rows[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) == -1);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: leaf selection still splits a two-cluster dataset",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Guards the leaf-mode change above against over-reach: as soon as the
+    // condensed tree does split, leaf selection must still return its leaves.
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 2);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    REQUIRE(static_cast<std::int32_t>(rows[0]) >= 0);
+    REQUIRE(static_cast<std::int32_t>(rows[5]) >= 0);
+    REQUIRE(static_cast<std::int32_t>(rows[0]) != static_cast<std::int32_t>(rows[5]));
+    for (std::int64_t i = 0; i < 10; i++) {
+        CAPTURE(i, rows[i]);
+        REQUIRE(static_cast<std::int32_t>(rows[i]) ==
+                static_cast<std::int32_t>(i < 5 ? rows[0] : rows[5]));
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan kd_tree: leaf selection never picks the root cluster",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_kd_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan ball_tree: leaf selection never picks the root cluster",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bt_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x =
+        homogen_table::wrap(make_single_root_data<Float>(), single_root_row_count, std::int64_t(2));
+
+    const auto desc = hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 3)
+                          .set_cluster_selection(cluster_selection_method::leaf)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 0);
+}
+
+// =========================================================================
 // GPU tests (conditional on ONEDAL_DATA_PARALLEL)
 // =========================================================================
 
@@ -1922,6 +2491,58 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: cpu and gpu probabilities match",
+                     "[hdbscan][batch][probabilities]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    constexpr std::int64_t row_count = 10;
+    const auto x = homogen_table::wrap(data, row_count, 2);
+
+    const auto desc =
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5).set_result_options(
+            result_options::responses | result_options::probabilities);
+
+    INFO("run on CPU (no queue)");
+    const auto cpu_result = dal::compute(desc, x);
+
+    INFO("run on GPU (with queue)");
+    const auto gpu_result = dal::compute(this->get_policy().get_queue(), desc, x);
+
+    REQUIRE(cpu_result.get_cluster_count() == gpu_result.get_cluster_count());
+
+    const auto cpu_labels = row_accessor<const Float>(cpu_result.get_responses()).pull({ 0, -1 });
+    const auto gpu_labels = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
+    check_same_partition(cpu_labels, gpu_labels, row_count);
+
+    // The probability is a per-point quantity, so unlike the labels it needs no
+    // permutation matching: the two backends have to agree entry by entry.
+    const auto cpu_probs =
+        row_accessor<const Float>(cpu_result.get_probabilities()).pull({ 0, -1 });
+    const auto gpu_probs =
+        row_accessor<const Float>(gpu_result.get_probabilities()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-10);
+    for (std::int64_t i = 0; i < row_count; i++) {
+        CAPTURE(i, cpu_probs[i], gpu_probs[i]);
+        REQUIRE(std::abs(double(cpu_probs[i]) - double(gpu_probs[i])) < tol);
+    }
 }
 
 #endif // ONEDAL_DATA_PARALLEL

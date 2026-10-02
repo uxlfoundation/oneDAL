@@ -41,13 +41,16 @@ using result_t = compute_result<task::clustering>;
 /// @param[in] desc          Algorithm descriptor (carries `result_options`)
 /// @param[in] responses     Per-point cluster labels on device, length `n`
 /// @param[in] cluster_count Number of distinct clusters
+/// @param[in] probabilities Per-point membership strength on device, length `n`; empty
+///                          unless `result_options::probabilities` was requested
 ///
 /// @return oneAPI `compute_result`
 template <typename Float>
 inline result_t make_results(sycl::queue& queue,
                              const descriptor_t& desc,
                              const pr::ndarray<std::int32_t, 1>& responses,
-                             std::int64_t cluster_count) {
+                             std::int64_t cluster_count,
+                             const pr::ndarray<Float, 1>& probabilities = {}) {
     const std::int64_t row_count = responses.get_dimension(0);
     ONEDAL_ASSERT(row_count > 0);
 
@@ -56,6 +59,12 @@ inline result_t make_results(sycl::queue& queue,
 
     if (desc.get_result_options().test(result_options::responses)) {
         results.set_responses(dal::homogen_table::wrap(responses.flatten(queue), row_count, 1));
+    }
+
+    if (desc.get_result_options().test(result_options::probabilities)) {
+        ONEDAL_ASSERT(probabilities.get_count() == row_count);
+        results.set_probabilities(
+            dal::homogen_table::wrap(probabilities.flatten(queue), row_count, 1));
     }
 
     return results;
@@ -77,6 +86,8 @@ inline result_t make_results(sycl::queue& queue,
 /// @param[in] responses     Per-point cluster labels on device, length `n`
 /// @param[in] cluster_count Number of distinct clusters
 /// @param[in] data          Original input table (read for centers)
+/// @param[in] probabilities Per-point membership strength on device, length `n`; empty
+///                          unless `result_options::probabilities` was requested
 ///
 /// @return oneAPI `compute_result` with optional cluster/medoid centers
 template <typename Float>
@@ -84,8 +95,9 @@ inline result_t make_results(sycl::queue& queue,
                              const descriptor_t& desc,
                              const pr::ndarray<std::int32_t, 1>& responses,
                              std::int64_t cluster_count,
-                             const table& data) {
-    auto results = make_results<Float>(queue, desc, responses, cluster_count);
+                             const table& data,
+                             const pr::ndarray<Float, 1>& probabilities = {}) {
+    auto results = make_results<Float>(queue, desc, responses, cluster_count, probabilities);
 
     const auto store_centers = desc.get_store_centers();
     if (cluster_count > 0 && store_centers != store_centers_method::none &&

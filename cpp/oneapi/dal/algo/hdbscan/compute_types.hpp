@@ -140,6 +140,17 @@ public:
         return *this;
     }
 
+    /// An $n \\times 1$ table with the membership strength of each sample
+    /// $x_i$ in the cluster it was assigned to, in $[0, 1]$. A value of 1 means
+    /// the point persisted to the very end of its cluster, values near 0 mean
+    /// it detached almost immediately, and noise points get 0.
+    const table& get_probabilities() const;
+
+    auto& set_probabilities(const table& value) {
+        set_probabilities_impl(value);
+        return *this;
+    }
+
     /// Result options that indicates availability of the properties
     /// @remark default = default_result_options<Task>
     const result_option_id& get_result_options() const;
@@ -157,6 +168,7 @@ protected:
     void set_core_observations_impl(const table&);
     void set_cluster_centers_impl(const table&);
     void set_medoid_centers_impl(const table&);
+    void set_probabilities_impl(const table&);
     void set_result_options_impl(const result_option_id&);
 
 private:

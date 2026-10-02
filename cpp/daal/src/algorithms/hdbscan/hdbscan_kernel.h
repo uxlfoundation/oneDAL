@@ -71,6 +71,9 @@ public:
     ///                                     for each input point. -1 indicates noise; non-negative values are the
     ///                                     cluster index in `[0, C)`, where `C` is the number of clusters found
     /// @param[out] ntNClusters             Output numeric table of size `1 x 1` containing the number of clusters `C` found
+    /// @param[out] ntProbabilities         Optional output numeric table of size `N x 1` containing the membership
+    ///                                     strength of each point in the cluster it was assigned to, in `[0, 1]`.
+    ///                                     Noise points get 0. Pass `nullptr` to skip the computation
     /// @param[in]  minClusterSize          Minimum number of points required to form a cluster
     /// @param[in]  minSamples              Number of neighbors used when computing core distances
     /// @param[in]  pairwiseDistance        Distance metric used for pairwise distances (see `algorithms::internal::PairwiseDistanceType`)
@@ -87,8 +90,8 @@ public:
     /// @param[in]  leafSize                Maximum number of points per leaf in the kd-tree / ball-tree. Ignored for brute force
     ///
     /// @return Status code
-    services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, size_t minClusterSize,
-                             size_t minSamples,
+    services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities,
+                             size_t minClusterSize, size_t minSamples,
                              algorithms::internal::PairwiseDistanceType pairwiseDistance = algorithms::internal::PairwiseDistanceType::euclidean,
                              double minkowskiDegree = 2.0, int clusterSelection = 0, bool allowSingleCluster = false,
                              double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0, size_t leafSize = 40);
