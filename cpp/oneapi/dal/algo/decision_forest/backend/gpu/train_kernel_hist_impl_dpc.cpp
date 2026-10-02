@@ -1912,10 +1912,21 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
     if (ctx.distr_mode_) {
-        std::int64_t skip_value =
-            comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_;
-        skip_value += comm_.get_rank() * ctx.selected_ftr_count_ * ctx.tree_count_ * 2;
-        engine_gpu.skip_ahead(skip_value);
+        // All ranks share the seed, so each gets its own range of the sequence. The consumption
+        // per tree is not known upfront, so every term below is an upper bound: one bootstrap
+        // draw per row, at most `2 * row_count` nodes each drawing `selected_ftr_count` features
+        // and as many thresholds, and one `2 * n` shuffle per column for MDA. Under-reserving
+        // would let a rank walk into the next rank's values.
+        std::int64_t values_per_row = 1 + 4 * std::int64_t(ctx.selected_ftr_count_);
+        if (ctx.mda_required_) {
+            values_per_row += 2 * std::int64_t(ctx.column_count_);
+        }
+        de::check_mul_overflow(values_per_row, std::int64_t(ctx.selected_row_total_count_));
+        const std::int64_t values_per_tree = values_per_row * ctx.selected_row_total_count_;
+        de::check_mul_overflow(values_per_tree, std::int64_t(ctx.tree_count_));
+        const std::int64_t values_per_rank = values_per_tree * ctx.tree_count_;
+        de::check_mul_overflow(values_per_rank, comm_.get_rank() + 1);
+        engine_gpu.skip_ahead(comm_.get_rank() * values_per_rank);
     }
 
     sycl::event last_event;

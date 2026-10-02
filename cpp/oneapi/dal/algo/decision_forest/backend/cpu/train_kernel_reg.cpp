@@ -21,6 +21,7 @@
 #include <daal/src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h>
 
 #include "oneapi/dal/algo/decision_forest/backend/cpu/train_kernel.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/backend/interop/common.hpp"
@@ -40,6 +41,7 @@ using descriptor_t = detail::descriptor_base<task::regression>;
 namespace daal_df = daal::algorithms::decision_forest;
 namespace daal_df_reg_train = daal_df::regression::training;
 namespace interop = dal::backend::interop;
+namespace pr = dal::backend::primitives;
 
 template <typename Float, daal::internal::CpuType Cpu>
 using reg_dense_kernel_t = daal_df_reg_train::internal::
@@ -77,8 +79,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         dal::detail::integral_cast<std::size_t>(desc.get_max_tree_depth());
     daal_parameter.minObservationsInLeafNode =
         dal::detail::integral_cast<std::size_t>(desc.get_min_observations_in_leaf_node());
-    // TODO take engines from desc
-    daal_parameter.engine = daal::algorithms::engines::mt2203::Batch<>::create(desc.get_seed());
+    daal_parameter.engine = pr::make_daal_engine(desc.get_seed(), desc.get_engine_type());
     daal_parameter.impurityThreshold = desc.get_impurity_threshold();
     daal_parameter.memorySavingMode = desc.get_memory_saving_mode();
     daal_parameter.bootstrap = desc.get_bootstrap();
