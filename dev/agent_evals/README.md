@@ -85,6 +85,9 @@ Rules every task follows:
 - Fixes and answers cannot leak. The snapshot is `git archive` of `base` with no history, and `dev/agent_evals`
   is deleted from it.
 - Grading is deterministic: tests are rerun with `--nocache_test_results`, and regrading a run gives the same result.
+  Graders write hidden tests over the agent's tree and take library sources out of it; both are undone when
+  grading ends, so the run directory holds only what the agent did and the second grade reads the same inputs as
+  the first.
 - Targets must be runnable on a CPU-only host without oneAPI compilers (`*_host` test targets), unless the task is
   about that.
 
