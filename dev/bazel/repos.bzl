@@ -67,50 +67,45 @@ def _select_by_os(repo_ctx, name, os_id):
                 return win_value
     return getattr(repo_ctx.attr, name)
 
-def _create_download_info(repo_ctx, os_id):
-    url = _select_by_os(repo_ctx, "url", os_id)
-    urls = _select_by_os(repo_ctx, "urls", os_id)
-    sha256 = _select_by_os(repo_ctx, "sha256", os_id)
-    sha256s = _select_by_os(repo_ctx, "sha256s", os_id)
-    strip_prefix = _select_by_os(repo_ctx, "strip_prefix", os_id)
-    strip_prefixes = _select_by_os(repo_ctx, "strip_prefixes", os_id)
-    if url and urls:
-        fail("Either `url` or `urls` attribute must be set")
-    if sha256 and sha256s:
-        fail("Either `sha256` or `sha256s` attribute must be set")
-    if strip_prefix and strip_prefixes:
-        fail("Either `strip_prefix` or `strip_prefixes` attribute must be set")
-    if url:
-        return struct(
-            urls = [url],
-            sha256s = [sha256],
-            strip_prefixes = [strip_prefix],
-        )
-    else:
-        return struct(
-            urls = urls,
-            sha256s = sha256s,
-            strip_prefixes = (
-                strip_prefixes if strip_prefixes else
-                len(urls) * [strip_prefix]
-            ),
-        )
+def _archive(url, sha256, strip_prefix = ""):
+    """Describe one downloadable archive of a prebuilt dependency.
+
+    The repository rule stores the coordinates as three parallel string lists,
+    because that is the only list type a rule attribute can hold. Authors pass
+    them as a list of these structs instead, so that a URL never drifts apart
+    from its own hash and prefix when a dependency is bumped.
+
+    Args:
+        url: Location of the archive. `.conda`, `.whl` and `.zip` are unpacked
+             by `_download_and_extract`; anything else is left to Bazel.
+        sha256: Expected hash of the archive.
+        strip_prefix: Directory prefix to drop while unpacking. Empty for
+                      packages that already unpack into the required layout.
+
+    Returns:
+        A struct holding the three coordinates.
+    """
+    return struct(url = url, sha256 = sha256, strip_prefix = strip_prefix)
+
+def _unzip_archives(archives):
+    return struct(
+        urls = [a.url for a in archives],
+        sha256s = [a.sha256 for a in archives],
+        strip_prefixes = [a.strip_prefix for a in archives],
+    )
 
 def _normalize_download_info(repo_ctx, os_id):
-    info = _create_download_info(repo_ctx, os_id)
-    expected_len = len(info.urls)
-    if len(info.sha256s) != expected_len:
+    urls = _select_by_os(repo_ctx, "urls", os_id)
+    sha256s = _select_by_os(repo_ctx, "sha256s", os_id)
+    strip_prefixes = _select_by_os(repo_ctx, "strip_prefixes", os_id)
+    if len(sha256s) != len(urls):
         fail("sha256 hashes count does not match URLs count")
-    if len(info.strip_prefixes) != expected_len:
+    if len(strip_prefixes) != len(urls):
         fail("strip_prefixes count does not match URLs count")
-    result = []
-    for url, sha256, strip_prefix in zip(info.urls, info.sha256s, info.strip_prefixes):
-        result.append(struct(
-            url = url,
-            sha256 = sha256,
-            strip_prefix = strip_prefix
-        ))
-    return result
+    return [
+        struct(url = url, sha256 = sha256, strip_prefix = strip_prefix)
+        for url, sha256, strip_prefix in zip(urls, sha256s, strip_prefixes)
+    ]
 
 def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
     substitutions = substitutions or {}
@@ -192,15 +187,16 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
     if root:
+        # A local installation is used as it is, so there is no archive layout to map from.
         mapping = {}
+    elif _select_by_os(repo_ctx, "urls", os_id):
+        root = _download(repo_ctx, os_id)
+        mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
     else:
-        if _select_by_os(repo_ctx, "url", os_id) or _select_by_os(repo_ctx, "urls", os_id):
-            root = _download(repo_ctx, os_id)
-            mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
-        elif repo_ctx.attr.fallback_root:
-            root = repo_ctx.attr.fallback_root
-        else:
-            fail("Cannot locate {} dependency".format(repo_ctx.name))
+        fail("Cannot locate {} dependency: neither ${} is set nor archives are declared".format(
+            repo_ctx.name,
+            repo_ctx.attr.root_env_var,
+        ))
     substitutions = {
         "%{os}": os_id,
         "%{repo_root}": str(repo_ctx.path("")),
@@ -224,12 +220,46 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     )
 
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
-                             root_env_var="", fallback_root="",
-                             url="", sha256="", strip_prefix="",
-                             local_mapping={}, download_mapping={},
+                             root_env_var="", archives=[],
+                             download_mapping={},
                              win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
-                             win_url="", win_urls=[], win_sha256="", win_sha256s=[],
-                             win_strip_prefix="", win_strip_prefixes=[], win_download_mapping={}):
+                             win_archives=[], win_download_mapping={}):
+    """Declare a repository rule for a dependency shipped as prebuilt binaries.
+
+    Everything that describes one dependency -- the environment variable that
+    points at a local installation, the archives to fall back on, the file
+    layout and the BUILD template -- is passed here as a default, so that the
+    dependency is fully described by its own `dev/bazel/deps/<dep>.bzl` file and
+    `MODULE.bazel` only has to name it.
+
+    Args:
+        includes: Include directories to symlink into the repository, relative
+                  to the dependency root. Entries may contain `*` globs and
+                  `%{...}` substitutions.
+        libs: Libraries to symlink. Missing entries are an error.
+        build_template: BUILD file template for the repository.
+        bins: Executables and runtime libraries to symlink.
+        optional_libs: Libraries to symlink only if the dependency ships them.
+        root_env_var: Environment variable holding a local installation root.
+                      When set in the environment it wins over `archives`.
+        archives: `repos.archive()` entries to download when no local
+                  installation is pointed to. A dependency that declares none
+                  is therefore only resolvable through `root_env_var`.
+        download_mapping: Maps the layout the entries above are written in (LHS)
+                          onto the layout the downloaded archives actually have
+                          (RHS), e.g. `{"lib/intel64": "lib/"}`.
+        win_includes: Windows override for `includes`.
+        win_libs: Windows override for `libs`.
+        win_bins: Windows override for `bins`.
+        win_build_template: Windows override for `build_template`.
+        win_archives: Windows override for `archives`.
+        win_download_mapping: Windows override for `download_mapping`.
+
+    Returns:
+        The repository rule.
+    """
+    download_info = _unzip_archives(archives)
+    win_download_info = _unzip_archives(win_archives)
     return repository_rule(
         implementation = _prebuilt_libs_repo_impl,
         environ = [
@@ -239,13 +269,9 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         configure = True,
         attrs = {
             "root_env_var": attr.string(default=root_env_var),
-            "fallback_root": attr.string(default=fallback_root),
-            "url": attr.string(default=url),
-            "urls": attr.string_list(default=[]),
-            "sha256": attr.string(default=sha256),
-            "sha256s": attr.string_list(default=[]),
-            "strip_prefix": attr.string(default=strip_prefix),
-            "strip_prefixes": attr.string_list(default=[]),
+            "urls": attr.string_list(default=download_info.urls),
+            "sha256s": attr.string_list(default=download_info.sha256s),
+            "strip_prefixes": attr.string_list(default=download_info.strip_prefixes),
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "optional_libs": attr.string_list(default=optional_libs),
@@ -257,19 +283,16 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "win_bins": attr.string_list(default=win_bins),
             "win_build_template": attr.label(allow_files=True,
                                              default=Label(win_build_template or build_template)),
-            "win_url": attr.string(default=win_url),
-            "win_urls": attr.string_list(default=win_urls),
-            "win_sha256": attr.string(default=win_sha256),
-            "win_sha256s": attr.string_list(default=win_sha256s),
-            "win_strip_prefix": attr.string(default=win_strip_prefix),
-            "win_strip_prefixes": attr.string_list(default=win_strip_prefixes),
-            "_local_mapping": attr.string_dict(default=local_mapping),
+            "win_urls": attr.string_list(default=win_download_info.urls),
+            "win_sha256s": attr.string_list(default=win_download_info.sha256s),
+            "win_strip_prefixes": attr.string_list(default=win_download_info.strip_prefixes),
             "_download_mapping": attr.string_dict(default=download_mapping),
             "_win_download_mapping": attr.string_dict(default=win_download_mapping),
         }
     )
 
 repos = struct(
+    archive = _archive,
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
     prebuilt_libs_repo_impl = _prebuilt_libs_repo_impl,
     create_symlinks = _create_symlinks,
