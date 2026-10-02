@@ -1,12 +1,12 @@
 {
- "id": "review_replay_pr3718",
- "family": "review",
- "base": "d9e988904fe6",
- "grader": "review_replay",
- "review_patch": "change.patch",
- "gold": "gold.json",
- "window": 5,
- "source_pr": 3718,
- "reviewed_commit": "b05f989c0727e578d8062bc85adf64c0d343d2b8",
- "prompt": "You are reviewing a pull request to oneDAL. The change under review is the HEAD commit of this repository (inspect it with `git show HEAD`). Review it as a oneDAL maintainer would: report every problem that should be fixed before merge (correctness, the project's coding guidelines and conventions, portability, hygiene). Do not report things that are acceptable, and do not modify any files. End your answer with a fenced ```json block containing an array of findings, each an object {\"file\": \"<repo-relative path>\", \"line\": <line number in the new version of the file>, \"severity\": \"blocker|major|minor\", \"rule\": \"<short rule name>\", \"message\": \"<one sentence>\"}."
+  "id": "review_replay_pr3718",
+  "family": "review",
+  "base": "d9e988904fe6",
+  "grader": "review_replay",
+  "review_patch": "change.patch",
+  "gold": "gold.json",
+  "window": 5,
+  "source_pr": 3718,
+  "reviewed_commit": "b05f989c0727e578d8062bc85adf64c0d343d2b8",
+  "prompt": "You are reviewing a pull request to oneDAL. The change under review is the HEAD commit of this repository (inspect it with `git show HEAD`). Review it as a oneDAL maintainer would: report every problem that should be fixed before merge (correctness, the project's coding guidelines and conventions, portability, hygiene). Do not report things that are acceptable, and do not modify any files. End your answer with a fenced ```json block containing an array of findings, each an object {\"file\": \"<repo-relative path>\", \"line\": <line number in the new version of the file>, \"severity\": \"blocker|major|minor\", \"rule\": \"<short rule name>\", \"message\": \"<one sentence>\"}."
 }

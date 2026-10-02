@@ -1,28 +1,30 @@
 {
- "id": "fix_table_csr_zero_based",
- "family": "fix",
- "base": "d44ad514^",
- "grader": "test_pass",
- "gate": ["strict_pass"],
- "hidden_from": "d44ad514",
- "hidden_files": [
-  "cpp/oneapi/dal/algo/basic_statistics/test/batch.cpp",
-  "cpp/oneapi/dal/algo/basic_statistics/test/fixture.hpp",
-  "cpp/oneapi/dal/algo/kmeans/test/batch.cpp",
-  "cpp/oneapi/dal/algo/kmeans/test/fixture.hpp",
-  "cpp/oneapi/dal/test/engine/csr_table_builder.hpp"
- ],
- "targets": [
-  "//cpp/oneapi/dal/algo/kmeans:test_batch_host",
-  "//cpp/oneapi/dal/algo/basic_statistics:test_batch_host"
- ],
- "prompt": "Bug report: on CPU, K-Means training with sparse input (`kmeans::method::lloyd_csr`) and BasicStatistics `compute` with sparse input crash (segmentation fault / heap corruption; occasionally they run but produce garbage) when the input `csr_table` was created with `sparse_indexing::zero_based`. The same matrices passed as a `csr_table` with `sparse_indexing::one_based` work and give correct results. It reproduces with ordinary random sparse matrices of a few hundred rows and a handful of columns. Find and fix the root cause in the library so that zero-based CSR tables work for these algorithms. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.",
- "regression_targets": [
-  "//cpp/oneapi/dal/algo/kmeans:test_badarg_host",
-  "//cpp/oneapi/dal/algo/kmeans:test_serialization_host",
-  "//cpp/oneapi/dal/algo/basic_statistics:test_badargs_host",
-  "//cpp/oneapi/dal/algo/basic_statistics:test_online_host",
-  "//cpp/oneapi/dal/table:test_csr_host",
-  "//cpp/oneapi/dal/table:detail_test_csr_utils_host"
- ]
+  "id": "fix_table_csr_zero_based",
+  "family": "fix",
+  "base": "d44ad514^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "hidden_from": "d44ad514",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/basic_statistics/test/batch.cpp",
+    "cpp/oneapi/dal/algo/basic_statistics/test/fixture.hpp",
+    "cpp/oneapi/dal/algo/kmeans/test/batch.cpp",
+    "cpp/oneapi/dal/algo/kmeans/test/fixture.hpp",
+    "cpp/oneapi/dal/test/engine/csr_table_builder.hpp"
+  ],
+  "targets": [
+    "//cpp/oneapi/dal/algo/kmeans:test_batch_host",
+    "//cpp/oneapi/dal/algo/basic_statistics:test_batch_host"
+  ],
+  "prompt": "Bug report: on CPU, K-Means training with sparse input (`kmeans::method::lloyd_csr`) and BasicStatistics `compute` with sparse input crash (segmentation fault / heap corruption; occasionally they run but produce garbage) when the input `csr_table` was created with `sparse_indexing::zero_based`. The same matrices passed as a `csr_table` with `sparse_indexing::one_based` work and give correct results. It reproduces with ordinary random sparse matrices of a few hundred rows and a handful of columns. Find and fix the root cause in the library so that zero-based CSR tables work for these algorithms. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.",
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/kmeans:test_badarg_host",
+    "//cpp/oneapi/dal/algo/kmeans:test_serialization_host",
+    "//cpp/oneapi/dal/algo/basic_statistics:test_badargs_host",
+    "//cpp/oneapi/dal/algo/basic_statistics:test_online_host",
+    "//cpp/oneapi/dal/table:test_csr_host",
+    "//cpp/oneapi/dal/table:detail_test_csr_utils_host"
+  ]
 }
