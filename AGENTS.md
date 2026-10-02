@@ -32,10 +32,7 @@ Report source-confirmed problems with correctness, compatibility, ownership, CPU
 ```bash
 pip install pre-commit && pre-commit install   # one-time
 pre-commit run --all-files
-editorconfig-checker
 ```
-
-CI runs `.ci/scripts/clang-format.sh` with clang-format 20.1.8 (other versions format differently). It reformats files in place, so commit first: `CLANG_FORMAT_EXE=clang-format-20 .ci/scripts/clang-format.sh`.
 
 ### Tests (Bazel)
 
