@@ -133,15 +133,12 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
-      # The runner exposes no GPU, so the DPC++ examples run on an OpenCL CPU
-      # device, the same device the retired Azure `LinuxMakeIntel_MKL` job used.
-      - name: SYCL devices
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            dpkg -l 'intel-oneapi-*' | awk '/^i/ {print $2, $3}'
-            ls -l /etc/OpenCL/vendors || true
-            echo "OCL_ICD_FILENAMES=${OCL_ICD_FILENAMES}"
-            sycl-ls
+      # The runner exposes no GPU, so the DPC++ examples run on the OpenCL CPU
+      # device the compiler package itself registers: its
+      # `intel-oneapi-compiler-dpcpp-cpp-runtime` part installs
+      # /etc/OpenCL/vendors/intel64.icd and `setvars.sh` points
+      # OCL_ICD_FILENAMES at the matching libintelocl.so. That is the same
+      # device the retired Azure `LinuxMakeIntel_MKL` job used.
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh
