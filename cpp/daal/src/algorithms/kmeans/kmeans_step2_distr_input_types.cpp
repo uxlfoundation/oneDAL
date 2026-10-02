@@ -115,7 +115,7 @@ services::Status DistributedStep2MasterInput::check(const daal::algorithms::Para
     const size_t inputFeatures = firstPres->get(partialSums)->getNumberOfColumns();
 
     DAAL_CHECK_STATUS(
-        s, checkNumericTable(firstPres->get(partialCandidatesDistances).get(), partialCandidatesDistancesStr(), unexpectedLayouts, 0, 1, nClusters));
+        s, checkNumericTable(firstPres->get(partialCandidatesDistances).get(), partialCandidatesDistancesStr(), unexpectedLayouts, 0, 2, nClusters));
     DAAL_CHECK_STATUS(s, checkNumericTable(firstPres->get(partialCandidatesCentroids).get(), partialCandidatesCentroidsStr(), unexpectedLayouts, 0,
                                            inputFeatures, nClusters));
 
@@ -136,7 +136,7 @@ services::Status DistributedStep2MasterInput::check(const daal::algorithms::Para
         DAAL_CHECK_STATUS(s, checkNumericTable(pres->get(partialSums).get(), partialSumsStr(), unexpectedLayouts, 0, inputFeatures, nClusters));
         DAAL_CHECK_STATUS(s, checkNumericTable(pres->get(partialObjectiveFunction).get(), partialObjectiveFunctionStr(), unexpectedLayouts, 0, 1, 1));
         DAAL_CHECK_STATUS(s, checkNumericTable(firstPres->get(partialCandidatesDistances).get(), partialCandidatesDistancesStr(), unexpectedLayouts,
-                                               0, 1, nClusters));
+                                               0, 2, nClusters));
         DAAL_CHECK_STATUS(s, checkNumericTable(firstPres->get(partialCandidatesCentroids).get(), partialCandidatesCentroidsStr(), unexpectedLayouts,
                                                0, inputFeatures, nClusters));
 

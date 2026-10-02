@@ -41,6 +41,24 @@ filegroup(
     }),
 )
 
+# Make stages the import libraries next to the DLLs, into
+# `tbb/latest/lib/vc_mt` rather than `tbb/latest/bin/vc_mt`
+# (`releasetbb.LIBS_A`, makefile:278), because a Windows consumer needs them to
+# link against the package's oneTBB.
+filegroup(
+    name = "tbb_import_libs",
+    srcs = select({
+        "@config//:msvc_runtime_debug": [
+            "lib/tbb12_debug.lib",
+            "lib/tbbmalloc_debug.lib",
+        ],
+        "//conditions:default": [
+            "lib/tbb12.lib",
+            "lib/tbbmalloc.lib",
+        ],
+    }),
+)
+
 cc_library(
     name = "tbb_binary",
     deps = [":tbb"],

@@ -134,15 +134,19 @@ For more details, see :ref:`algorithms`.
             By default, this result is an object of the ``HomogenNumericTable`` class,
             but you can define this result as an object of any class derived from ``NumericTable`` except ``CSRNumericTable``.
    * - ``partialCandidatesDistances``
-     - Pointer to the :math:`\mathrm{nClusters} \times 1` numeric table that contains the value of the ``nClusters``
-       largest objective function for the observations processed on the local node and stored in descending order.
+     - Pointer to the :math:`\mathrm{nClusters} \times 2` numeric table that describes the ``nClusters``
+       candidate observations with the largest contribution to the objective function among those processed
+       on the local node, stored in descending order of that contribution. Column 0 holds the contribution
+       itself and column 1 holds the index of the cluster the candidate is currently assigned to on this
+       node, so that step 2 can remove the candidate from that cluster's partial sums when it relocates it
+       into an empty cluster. Rows that hold no candidate are filled with :math:`-1` in both columns.
 
        .. note::
            By default, this result if an object of the ``HomogenNumericTable`` class,
            but you can define this result as an object of any class derived from ``NumericTable``
            except ``CSRNumericTable``.
    * - ``partialCandidatesCentroids``
-     - Pointer to the :math:`\mathrm{nClusters} \times 1` numeric table that contains the observations of the ``nClusters``
+     - Pointer to the :math:`\mathrm{nClusters} \times p` numeric table that contains the observations of the ``nClusters``
        largest objective function value processed on the local node and stored in descending order of the objective function.
 
        .. note::
