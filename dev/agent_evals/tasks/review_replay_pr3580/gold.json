@@ -1,82 +1,82 @@
 [
- {
-  "id": "pr3580-t1",
-  "file": "cpp/daal/src/algorithms/svm/svm_train_boser_impl.i",
-  "line": 146,
-  "author": "avolkov-intel",
-  "kind": "correctness",
-  "comment": "Do we also need to update _nIterations before this return?\nI think we can also do this update at the beginning of the loop",
-  "addressed": true,
-  "comment_id": 3014980967
- },
- {
-  "id": "pr3580-t2",
-  "file": "cpp/daal/src/algorithms/svm/svm_model_impl.h",
-  "line": 52,
-  "author": "avolkov-intel",
-  "kind": "convention",
-  "comment": "Is there are a reason why we use dummy and not explicitly setting template parameter when using this class e.g. new ModelInternal<algorithmFPType>. It's just confusing that we have dummy parameter at first place. ",
-  "addressed": false,
-  "comment_id": 3015001455
- },
- {
-  "id": "pr3580-t3",
-  "file": "cpp/daal/src/algorithms/svm/svm_model_impl.h",
-  "line": 65,
-  "author": "avolkov-intel",
-  "kind": "convention",
-  "comment": "Same comment here",
-  "addressed": false,
-  "comment_id": 3015002246
- },
- {
-  "id": "pr3580-t4",
-  "file": "cpp/daal/include/data_management/data/homogen_numeric_table.h",
-  "line": 718,
-  "author": "avolkov-intel",
-  "kind": "convention",
-  "comment": "Why do we need this update in this PR? Was it triggered by some of the current changes?",
-  "addressed": false,
-  "comment_id": 3015013349
- },
- {
-  "id": "pr3580-t5",
-  "file": "cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_impl.i",
-  "line": 179,
-  "author": "avolkov-intel",
-  "kind": "api",
-  "comment": "Why do we use double here?",
-  "addressed": false,
-  "comment_id": 3015032599
- },
- {
-  "id": "pr3580-t6",
-  "file": "cpp/daal/src/algorithms/svm/svm_model.cpp",
-  "line": 76,
-  "author": "avolkov-intel",
-  "kind": "api",
-  "comment": "Probably it's better to use explicit integer type here, e.g. int64_t (not sure how it's done in DAAL though)",
-  "addressed": false,
-  "comment_id": 3015044348
- },
- {
-  "id": "pr3580-t7",
-  "file": "cpp/daal/src/algorithms/svm/svm_model.cpp",
-  "line": 72,
-  "author": "avolkov-intel",
-  "kind": "api",
-  "comment": "should we use algorithmFPType here instead? ",
-  "addressed": false,
-  "comment_id": 3015050867
- },
- {
-  "id": "pr3580-t8",
-  "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
-  "line": 70,
-  "author": "avolkov-intel",
-  "kind": "api",
-  "comment": "Same comment here why don't we use template parameter and use double ",
-  "addressed": false,
-  "comment_id": 3015070669
- }
+  {
+    "id": "pr3580-t1",
+    "file": "cpp/daal/src/algorithms/svm/svm_train_boser_impl.i",
+    "line": 146,
+    "author": "avolkov-intel",
+    "kind": "correctness",
+    "comment": "Do we also need to update _nIterations before this return?\nI think we can also do this update at the beginning of the loop",
+    "addressed": true,
+    "comment_id": 3014980967
+  },
+  {
+    "id": "pr3580-t2",
+    "file": "cpp/daal/src/algorithms/svm/svm_model_impl.h",
+    "line": 52,
+    "author": "avolkov-intel",
+    "kind": "convention",
+    "comment": "Is there are a reason why we use dummy and not explicitly setting template parameter when using this class e.g. new ModelInternal<algorithmFPType>. It's just confusing that we have dummy parameter at first place. ",
+    "addressed": false,
+    "comment_id": 3015001455
+  },
+  {
+    "id": "pr3580-t3",
+    "file": "cpp/daal/src/algorithms/svm/svm_model_impl.h",
+    "line": 65,
+    "author": "avolkov-intel",
+    "kind": "convention",
+    "comment": "Same comment here",
+    "addressed": false,
+    "comment_id": 3015002246
+  },
+  {
+    "id": "pr3580-t4",
+    "file": "cpp/daal/include/data_management/data/homogen_numeric_table.h",
+    "line": 718,
+    "author": "avolkov-intel",
+    "kind": "convention",
+    "comment": "Why do we need this update in this PR? Was it triggered by some of the current changes?",
+    "addressed": false,
+    "comment_id": 3015013349
+  },
+  {
+    "id": "pr3580-t5",
+    "file": "cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_impl.i",
+    "line": 179,
+    "author": "avolkov-intel",
+    "kind": "api",
+    "comment": "Why do we use double here?",
+    "addressed": false,
+    "comment_id": 3015032599
+  },
+  {
+    "id": "pr3580-t6",
+    "file": "cpp/daal/src/algorithms/svm/svm_model.cpp",
+    "line": 76,
+    "author": "avolkov-intel",
+    "kind": "api",
+    "comment": "Probably it's better to use explicit integer type here, e.g. int64_t (not sure how it's done in DAAL though)",
+    "addressed": false,
+    "comment_id": 3015044348
+  },
+  {
+    "id": "pr3580-t7",
+    "file": "cpp/daal/src/algorithms/svm/svm_model.cpp",
+    "line": 72,
+    "author": "avolkov-intel",
+    "kind": "api",
+    "comment": "should we use algorithmFPType here instead? ",
+    "addressed": false,
+    "comment_id": 3015050867
+  },
+  {
+    "id": "pr3580-t8",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 70,
+    "author": "avolkov-intel",
+    "kind": "api",
+    "comment": "Same comment here why don't we use template parameter and use double ",
+    "addressed": false,
+    "comment_id": 3015070669
+  }
 ]
