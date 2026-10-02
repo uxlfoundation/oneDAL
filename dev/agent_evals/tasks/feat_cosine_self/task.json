@@ -1,7 +1,7 @@
 {
   "id": "feat_cosine_self",
   "family": "feature",
-  "base": "52d531c4^",
+  "base": "52d531c4e32d956744e7a59377d288a99adb1c29^",
   "grader": "test_pass",
   "gate": [
     "strict_pass"

@@ -1,7 +1,7 @@
 {
   "id": "fix_table_csr_accessor",
   "family": "fix",
-  "base": "3314f3d2^",
+  "base": "3314f3d206fb26a41f84377a9cef827ba185b058^",
   "grader": "test_pass",
   "gate": [
     "strict_pass"

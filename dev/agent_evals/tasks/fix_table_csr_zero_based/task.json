@@ -1,7 +1,7 @@
 {
   "id": "fix_table_csr_zero_based",
   "family": "fix",
-  "base": "d44ad514^",
+  "base": "d44ad51477ebeb1c45108612134c10df8d0acc14^",
   "grader": "test_pass",
   "gate": [
     "strict_pass"

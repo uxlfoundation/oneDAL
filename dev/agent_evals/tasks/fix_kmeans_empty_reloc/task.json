@@ -1,7 +1,7 @@
 {
   "id": "fix_kmeans_empty_reloc",
   "family": "fix",
-  "base": "a492e703^",
+  "base": "a492e70328a0bc14b38bc796742b762cdfa1e42a^",
   "grader": "test_pass",
   "gate": [
     "strict_pass"
