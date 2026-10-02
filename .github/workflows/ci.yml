@@ -172,19 +172,10 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          # `gh cache list` reports every scope in the repository, not only the
-          # ones this run can restore from. Without `--ref` the newest matching
-          # key can belong to another pull request's scope, which `cache/restore`
-          # cannot read: the restore then misses silently and the check below
-          # compares against an empty directory. Only main-scoped entries are
-          # both restorable here and produced by a build of main.
-          CACHE_KEY=$(gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key')
-          if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
-            echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
-            exit 1
-          fi
-          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
-          echo $CACHE_KEY
+          # `checkout` leaves the pull request's merge commit at HEAD; its first
+          # parent is the main commit this build contains. That commit is the
+          # baseline, not main's tip -- the script explains why.
+          .ci/scripts/abi_baseline_key.sh "$(git log -1 --format=%P | cut -d' ' -f1)"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download oneDAL main build
