@@ -68,9 +68,10 @@ ENV ONEDAL_EVAL_BAZEL=/usr/local/bin/bazelisk \
     ONEDAL_EVAL_REPO_CACHE=/cache/bazel-repo \
     ONEDAL_EVAL_DISK_CACHE=/cache/bazel-disk \
     EVAL_BAZEL_REGISTRY=file:///cache/bazel-registry \
+    ONEDAL_EVAL_INSTALL_ROOT=/cache/bazel-install \
     HOME=/tmp/home
-RUN mkdir -p /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /tmp/home && \
-    chmod 1777 /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /tmp/home
+RUN mkdir -p /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /cache/bazel-install /tmp/home && \
+    chmod 1777 /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /cache/bazel-install /tmp/home
 
 # The Bazel server daemonizes; without an init as PID 1 nothing reaps it and `bazel shutdown` hangs then fails
 ENTRYPOINT ["/usr/bin/tini", "--"]

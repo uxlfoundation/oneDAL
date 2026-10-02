@@ -139,7 +139,8 @@ dropped.
 
 The image is `Dockerfile` (build from the repository root). Runs are offline; four cache directories are mounted
 from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a BCR mirror: task workspaces
-have no `MODULE.bazel.lock`) and, so Bazel's install base stays off the container layer, `/tmp/home`. Fill them
+have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as `--output_user_root`, so Bazel's
+install base is shared and stays off the container layer). Fill them
 once with network access; the full `check` is the warm-up, since task bases pin different Bazel versions and
 dependency sets:
 
@@ -148,7 +149,7 @@ docker build -f dev/agent_evals/Dockerfile -t onedal-agent-evals .
 docker run --rm --user "$(id -u):$(id -g)" -e USER=eval \
   -v "$PWD":/harness:ro -v <oneDAL clone or .git dir>:/src:ro -e ONEDAL_EVAL_SRC=/src \
   -v <cache>/bazel-repo:/cache/bazel-repo -v <cache>/bazel-disk:/cache/bazel-disk \
-  -v <cache>/bazel-registry:/cache/bazel-registry -v <cache>/home:/tmp/home \
+  -v <cache>/bazel-registry:/cache/bazel-registry -v <cache>/bazel-install:/cache/bazel-install \
   -v <root>:/evalroot -e ONEDAL_EVAL_ROOT=/evalroot -w /harness onedal-agent-evals \
   bash -c 'test -e /cache/bazel-registry/bazel_registry.json ||
              git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry /cache/bazel-registry
