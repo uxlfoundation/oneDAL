@@ -61,8 +61,9 @@ def _find_tools_icx(repo_ctx):
     # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
     # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
     # than going through the icx driver — mirrors makefile common.mk:125
-    # (`link.dynamic.win = link ...`) and Linux's dynamic_link_lnx.tpl.sh
-    # wrapper. Going through icx for huge link actions caused LNK1170:
+    # (`link.dynamic.win = link ...`). Linux has no equivalent: there the
+    # driver is the linker. Going through icx for huge link actions caused
+    # LNK1170:
     # icx materialised every Bazel-line arg into a single >131071-char
     # line in its own intermediate response file before invoking link.exe.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
