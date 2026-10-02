@@ -122,8 +122,13 @@ if exist "%DST%\lib\openblas_64.lib" (
     copy /Y "%DST%\lib\openblas_64.lib" "%DST%\lib\openblas.lib" >nul
     if errorlevel 1 goto Error_layout
 )
+rem Copied with a wildcard `copy` rather than `xcopy /E` on the directory: the
+rem source is a direct child of the destination, and in CI (2d2d8e6, job
+rem 110701130528) xcopy left `include\openblas_config.h` absent afterwards while
+rem reporting success -- the cyclic-copy case. `include\openblas64` holds only
+rem headers, so a wildcard `copy` moves all of it.
 if exist "%DST%\include\openblas64\openblas_config.h" (
-    xcopy /E /I /Y "%DST%\include\openblas64" "%DST%\include" >nul
+    copy /Y "%DST%\include\openblas64\*" "%DST%\include" >nul
     if errorlevel 1 goto Error_layout
 )
 
