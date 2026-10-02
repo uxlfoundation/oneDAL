@@ -116,3 +116,56 @@ clang-format 20.1.8 on the changed files and `diff_lines` is the size of the non
 seed recall by class and flagged decoys; a clean-diff control counts findings of blocker/major severity.
 Agent variance is large (haiku review recall ranged 0.375–0.75 within one cell in the pilot), so compare cells at
 8+ repeats per cell.
+
+## Running under agent-benchmark
+
+`repo-eval.yaml` is the manifest agent-benchmark reads (repository-evaluation contract, `repo_manifest.v1`). There
+agent-benchmark prepares the workspace, runs the agent and writes `events.jsonl`/`answer.txt`/`meta.json`; this
+directory only grades:
+
+| entry point | does |
+|---|---|
+| `run.py grade --contract <run_dir>` | grades `run_dir/workspace` with the task's grader, writes `grade.json` (`repo_grade.v1`) |
+| `run.py oracle --contract <run_dir>` | applies the reference solution (and answer) for the contract's self-check |
+| `static_check.py --out <file>` | guidance claim check as one JSON document |
+
+Fix and feature tasks declare `"gate": ["strict_pass"]`. Arms map to agent-benchmark guidance conditions as
+`none` → `guidance:none` and `main-raw` → `guidance:raw`. `guidance:bridge` (a `CLAUDE.md` that imports
+`AGENTS.md`) has no arm here: Claude Code 2.1.277+ loads `AGENTS.md` itself, and the old `main-claude` arm was
+dropped.
+
+The image is `Dockerfile` (build from the repository root). Runs are offline; four cache directories are mounted
+from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a BCR mirror: task workspaces
+have no `MODULE.bazel.lock`) and, so Bazel's install base stays off the container layer, `/tmp/home`. Fill them
+once with network access; the full `check` is the warm-up, since task bases pin different Bazel versions and
+dependency sets:
+
+```sh
+docker build -f dev/agent_evals/Dockerfile -t onedal-agent-evals .
+docker run --rm --user "$(id -u):$(id -g)" -e USER=eval \
+  -v "$PWD":/harness:ro -v <oneDAL clone or .git dir>:/src:ro -e ONEDAL_EVAL_SRC=/src \
+  -v <cache>/bazel-repo:/cache/bazel-repo -v <cache>/bazel-disk:/cache/bazel-disk \
+  -v <cache>/bazel-registry:/cache/bazel-registry -v <cache>/home:/tmp/home \
+  -v <root>:/evalroot -e ONEDAL_EVAL_ROOT=/evalroot -w /harness onedal-agent-evals \
+  bash -c 'test -e /cache/bazel-registry/bazel_registry.json ||
+             git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry /cache/bazel-registry
+           python3 dev/agent_evals/run.py check'
+```
+
+After that, the same command with `--network none` passes `check` for every task except `build_make_gnu`, which
+needs network by design (its prompt offers it, and the oracle installs oneMKL/oneTBB from PyPI). Behind a proxy,
+pass `http_proxy`/`https_proxy` to both commands.
+
+Gaps between this directory and the contract, still open:
+
+- `guidance:bridge` has no arm (above).
+- `build_make_gnu` needs network; `image.network` is per manifest, not per task.
+- Graders read the full oneDAL history (`ONEDAL_EVAL_SRC`: hidden tests, mined fix commits); the contract gives
+  the grader only the workspace.
+- The workspace's starting commit is `meta.json` `base_sha` if present, else derived from the workspace history;
+  the contract does not name this key.
+- `events.jsonl` command events carry `output` (needed for `icpx_hit` and build-failure counts); the contract's
+  event schema has no such field.
+- Score-only tasks (review) have no declared maximum for the oracle self-check.
+- Build tasks grade an absolute artifact path inside the run directory, so a copied run directory does not
+  regrade.
