@@ -22,6 +22,8 @@ source: {url: https://github.com/uxlfoundation/oneDAL}
 eval_dir: dev/agent_evals
 
 guidance:
+  # .github/copilot-instructions.md exists at no task base (agent-benchmark warns); kept so `none` still removes it
+  # if a later base adds one
   globs: ["**/AGENTS.md", ".github/instructions/*.md", ".github/copilot-instructions.md"]
   also_scan: ["CONTRIBUTING.md"]
 
