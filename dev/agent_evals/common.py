@@ -16,6 +16,7 @@
 
 """Shell, git, snapshot and arm helpers shared by the runner and the graders."""
 import json
+import os
 import re
 import shlex
 import shutil
@@ -152,10 +153,14 @@ def diff_lines(ws, base, files):
 
 
 def clang_format_ok(repo, files):
-    """clang-format 20.1.8 (the version CI pins) on changed C/C++ files; None if nothing to check."""
+    """clang-format 20.1.8 (the version CI pins) on changed C/C++ files; None if nothing to check.
+
+    ONEDAL_EVAL_CLANG_FORMAT names an installed clang-format of that version (the eval image sets it); else uvx.
+    """
     cxx = [f for f in files if re.search(r"\.(c|cpp|h|hpp|i|cl)$", f) and (repo / f).exists()]
     if not cxx:
         return None
-    r = sh(["uvx", "--from", "clang-format==20.1.8", "clang-format", "--dry-run", "-Werror", "--style=file", *cxx],
-           cwd=repo, check=False)
+    exe = os.environ.get("ONEDAL_EVAL_CLANG_FORMAT")
+    tool = [exe] if exe else ["uvx", "--from", "clang-format==20.1.8", "clang-format"]
+    r = sh([*tool, "--dry-run", "-Werror", "--style=file", *cxx], cwd=repo, check=False)
     return r.returncode == 0

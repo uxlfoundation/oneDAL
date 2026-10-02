@@ -30,6 +30,7 @@ image:
   caches:
     - {name: bazel-repo-cache, path: /cache/bazel-repo}
     - {name: bazel-disk-cache, path: /cache/bazel-disk}
+    - {name: bazel-registry, path: /cache/bazel-registry}
   env: {EVAL_BAZEL_OUTPUT_BASE: "{run_dir}/ob"}
   network: none
 
