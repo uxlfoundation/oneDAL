@@ -171,6 +171,5 @@ Gaps between this directory and the contract, still open:
   preparation makes; the contract names no key for it.
 - `events.jsonl` command events carry `output` (needed for `icpx_hit` and build-failure counts); the contract's
   event schema has no such field.
-- Score-only tasks (review) have no declared maximum for the oracle self-check.
 - Build tasks grade an absolute artifact path inside the run directory, so a copied run directory does not
   regrade.

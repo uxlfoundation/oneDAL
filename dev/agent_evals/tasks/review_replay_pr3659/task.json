@@ -3,6 +3,10 @@
   "family": "review",
   "base": "cf0c0a0b7f21a45434fe7cf11ffe5695c5a55afd",
   "grader": "review_replay",
+  "score": {
+    "metric": "recall",
+    "max": 1.0
+  },
   "review_patch": "change.patch",
   "gold": "gold.json",
   "window": 5,
