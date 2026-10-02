@@ -49,7 +49,11 @@ if ($archId -notin @("arm64", "amd64")) {
     throw "Unsupported Windows host architecture for CMake/Ninja: $Arch"
 }
 
-$msiName = "cmake-$CMakeVersion-windows-$archId.msi"
+# CMake names the x86-64 MSI after the ISA, not after the Windows arch id:
+# `cmake-<ver>-windows-x86_64.msi`, while `PROCESSOR_ARCHITECTURE` reports
+# `AMD64`. Only the ARM64 name coincides.
+$msiArch = if ($archId -eq "amd64") { "x86_64" } else { $archId }
+$msiName = "cmake-$CMakeVersion-windows-$msiArch.msi"
 Invoke-WebRequest "https://github.com/Kitware/CMake/releases/download/v$CMakeVersion/$msiName" -OutFile $msiName
 Start-Process msiexec.exe -ArgumentList "/i $msiName /quiet /norestart" -Wait
 

@@ -34,8 +34,15 @@ param(
 $ErrorActionPreference = "Stop"
 
 $archId = $Arch.ToLowerInvariant()
+# MSYS2 names the x86-64 installer after the ISA (`msys2-x86_64-<date>.exe`),
+# while `PROCESSOR_ARCHITECTURE` reports `AMD64`; the ARM64 name coincides.
+$assetArch = switch ($archId) {
+    "arm64" { "arm64" }
+    "amd64" { "x86_64" }
+    default { throw "Unsupported Windows host architecture for MSYS2: $Arch" }
+}
 # The installer file name spells the date without separators.
-$installerName = "msys2-$archId-$($Version -replace '-', '').exe"
+$installerName = "msys2-$assetArch-$($Version -replace '-', '').exe"
 
 if (Test-Path 'C:\msys64') {
     Remove-Item 'C:\msys64' -Recurse -Force
