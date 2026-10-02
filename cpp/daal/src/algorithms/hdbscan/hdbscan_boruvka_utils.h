@@ -181,7 +181,7 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
 template <daal::internal::CpuType cpu>
 static void refreshComponentIds(size_t nRows, const UnionFind & uf, DAAL_INT * componentOf)
 {
-    daal::threader_for(nRows, nRows, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
+    daal::threader_for(nRows, 1, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
 }
 
 } // namespace internal

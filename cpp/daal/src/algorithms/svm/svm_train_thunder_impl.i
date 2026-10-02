@@ -196,7 +196,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::classificationInit
     TlsSum<size_t, cpu> weightsCounter(1);
     TlsSum<algorithmFPType, cpu> weightsSumTls(1);
     SafeStatus safeStat;
-    daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
         const size_t startRow     = iBlock * blockSize;
         const size_t nRowsInBlock = (iBlock != nBlocks - 1) ? blockSize : nVectors - iBlock * blockSize;
 
@@ -274,7 +274,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::regressionInit(Num
     TlsSum<size_t, cpu> weightsCounter(1);
     TlsSum<algorithmFPType, cpu> cwSumTls(1);
     SafeStatus safeStat;
-    daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
         const size_t startRow     = iBlock * blockSize;
         const size_t nRowsInBlock = (iBlock != nBlocks - 1) ? blockSize : nVectors - iBlock * blockSize;
 
@@ -356,7 +356,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
         /* Gather data to local buffers */
         const size_t blockSizeWS = services::internal::min<cpu, algorithmFPType>(nWS, 16);
         const size_t nBlocks     = nWS / blockSizeWS;
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             const size_t startRow = iBlock * blockSizeWS;
 
             for (size_t i = startRow; i < startRow + blockSizeWS; ++i)
@@ -545,7 +545,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::updateGrad(algorit
     DAAL_INT incX(1);
     DAAL_INT incY(1);
 
-    daal::threader_for(nBlocksGrad, nBlocksGrad, [&](const size_t iBlockGrad) {
+    daal::threader_for(nBlocksGrad, 1, [&](const size_t iBlockGrad) {
         const size_t startRowGrad     = iBlockGrad * blockSizeGrad;
         const size_t nRowsInBlockGrad = (iBlockGrad != nBlocksGrad - 1) ? blockSizeGrad : nTrainVectors - iBlockGrad * blockSizeGrad;
         algorithmFPType * const gradi = &grad[startRowGrad];
