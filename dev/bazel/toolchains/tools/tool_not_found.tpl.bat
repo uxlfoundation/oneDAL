@@ -15,4 +15,9 @@ rem See the License for the specific language governing permissions and
 rem limitations under the License.
 rem ============================================================================
 
-echo "%{tool_name} is not found"
+rem Exit non-zero: this stands in for a tool the toolchain could not find, so
+rem every action that reaches it has to fail. Succeeding without writing the
+rem declared outputs makes Bazel report "not all outputs were created" and
+rem hides the message below.
+echo %{tool_name} is not found! Make sure it is available in PATH. 1>&2
+exit /b 1
