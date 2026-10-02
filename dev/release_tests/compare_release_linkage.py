@@ -80,51 +80,72 @@ INTEL_COMPILER_RUNTIMES = ("libimf.", "libsvml.", "libirng.", "libintlc.", "libi
 # differ. These prefixes cover 4 of them (the fifth is named below), and the 1015
 # references that survive the filter -- including all 64 `tbb::` ones -- match
 # entry for entry.
-LINUX_IGNORED_UNDEFINED_PREFIXES = (
+# Grouped by the family each prefix belongs to rather than as one flat tuple:
+# the question a maintainer asks of this list is always "is my symbol one of
+# these families", and a family is what gets added or dropped when the compiler
+# or the standard library changes. `_IGNORED_UNDEFINED_SELF_CHECK` below pins one
+# representative symbol per family, plus the near misses each family must not
+# swallow, so a careless edit fails `python dev/release_tests/compare_release_linkage.py`
+# instead of silently widening the filter.
+LINUX_IGNORED_UNDEFINED_PREFIX_FAMILIES = {
     # libstdc++ templates, their vtables and type_info, and the stream classes
-    # (`std::basic_ostream` members mangle as `_ZNSo...`, not `_ZSo...`).
-    "_ZSt",
-    "_ZNSt",
-    "_ZNKSt",
-    "_ZTVSt",
-    "_ZTISt",
-    # The `__cxx11` classes nest one level deeper, so their vtables and type_info
+    # (`std::basic_ostream` members mangle as `_ZNSo...`, not `_ZSo...`). The
+    # `__cxx11` classes nest one level deeper, so their vtables and type_info
     # mangle as `_ZTVNSt7__cxx1119basic_ostringstream...` -- `_ZTVSt` misses them.
-    "_ZTVNSt",
-    "_ZTINSt",
-    "_ZNSi",
-    "_ZNKSi",
-    "_ZNSo",
-    "_ZNKSo",
-    "_ZNSb",
-    "_ZNKSb",
+    "libstdc++": (
+        "_ZSt",
+        "_ZNSt",
+        "_ZNKSt",
+        "_ZTVSt",
+        "_ZTISt",
+        "_ZTVNSt",
+        "_ZTINSt",
+        "_ZNSi",
+        "_ZNKSi",
+        "_ZNSo",
+        "_ZNKSo",
+        "_ZNSb",
+        "_ZNKSb",
+    ),
     # `operator new` / `operator delete` in all their spellings.
-    "_Znw",
-    "_Zna",
-    "_Zdl",
-    "_Zda",
+    "operator new/delete": (
+        "_Znw",
+        "_Zna",
+        "_Zdl",
+        "_Zda",
+    ),
     # Itanium ABI runtime support: exception machinery, the `__cxxabiv1` class
     # hierarchy vtables, stack protector and TLS helpers.
-    "__cxa_",
-    "__gxx_",
-    "_Unwind_",
-    "_ZTVN10__cxxabiv1",
-    "_ZTIN10__cxxabiv1",
-    "__stack_chk_",
-    "__tls_get_addr",
+    "c++ abi runtime": (
+        "__cxa_",
+        "__gxx_",
+        "_Unwind_",
+        "_ZTVN10__cxxabiv1",
+        "_ZTIN10__cxxabiv1",
+        "__stack_chk_",
+        "__tls_get_addr",
+    ),
     # SIMD clones the vectorizer emits (`_ZGVbN4v_sin`). Spelled out per ISA and
     # masking letter rather than as a bare `_ZGV`: that would also match
     # `_ZGVZ...`/`_ZGVN...`, the guard variable of a function-local static, and a
     # cross-library reference to one of those is a genuine DT_NEEDED requirement
     # of exactly the kind this comparison exists to catch.
-    "_ZGVbN",
-    "_ZGVbM",
-    "_ZGVcN",
-    "_ZGVcM",
-    "_ZGVdN",
-    "_ZGVdM",
-    "_ZGVeN",
-    "_ZGVeM",
+    "simd clones": (
+        "_ZGVbN",
+        "_ZGVbM",
+        "_ZGVcN",
+        "_ZGVcM",
+        "_ZGVdN",
+        "_ZGVdM",
+        "_ZGVeN",
+        "_ZGVeM",
+    ),
+}
+
+LINUX_IGNORED_UNDEFINED_PREFIXES = tuple(
+    prefix
+    for prefixes in LINUX_IGNORED_UNDEFINED_PREFIX_FAMILIES.values()
+    for prefix in prefixes
 )
 
 LINUX_IGNORED_UNDEFINED = {
@@ -687,3 +708,49 @@ def compare_staged_dependencies(make_root, bazel_root, dependencies, limit):
             )
     print(f"Checked staged dependencies: {len(dependencies)}")
     return errors
+
+
+# One representative per family and the near misses the families must not
+# swallow. The negatives are the whole point: `_ZGVZ`/`_ZGVN` are guard
+# variables of function-local statics and `_ZN3tbb`/`_ZN4daal` are the oneDAL and
+# oneTBB references this comparison exists to compare, so a filter that grew wide
+# enough to cover them would report two differing releases as equal.
+_IGNORED_UNDEFINED_SELF_CHECK = {
+    "_ZSt17__throw_bad_allocv": True,
+    "_ZNSo9_M_insertIlEERSot": True,
+    "_ZTVNSt7__cxx1119basic_ostringstreamIcSt11char_traitsIcESaIcEEE": True,
+    "_Znwm": True,
+    "_ZdlPv": True,
+    "__cxa_throw": True,
+    "_Unwind_Resume": True,
+    "__stack_chk_fail": True,
+    "_ZGVbN4v_sin": True,
+    "_ZN4daal10algorithms6dtrees8internal9ModelImpl5clearEv": True,
+    "_ZGVZN4daal7testingL5stateEvE5guard": False,
+    "_ZGVN4daal7testingL5stateEvE5guard": False,
+    "_ZN3tbb6detail2r18task_group7runEv": False,
+    "_ZN4daal10algorithms6kmeans6ResultC1Ev": False,
+    "tbb_allocate_memory": False,
+    "fopen": False,
+}
+
+
+def _self_check():
+    failures = [
+        f"{symbol}: expected ignored={expected}, got {is_ignored_linux_undefined(symbol)}"
+        for symbol, expected in _IGNORED_UNDEFINED_SELF_CHECK.items()
+        if is_ignored_linux_undefined(symbol) is not expected
+    ]
+    if failures:
+        raise SystemExit(
+            "undefined-symbol filter self-check failed:\n  " + "\n  ".join(failures)
+        )
+    print(
+        f"undefined-symbol filter self-check passed on "
+        f"{len(_IGNORED_UNDEFINED_SELF_CHECK)} symbols across "
+        f"{len(LINUX_IGNORED_UNDEFINED_PREFIX_FAMILIES)} prefix families"
+    )
+
+
+if __name__ == "__main__":
+    _self_check()

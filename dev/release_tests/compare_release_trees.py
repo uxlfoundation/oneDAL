@@ -24,7 +24,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from release_linkage import (
+from compare_release_linkage import (
     compare_shared_library_linkage,
     compare_staged_dependencies,
     is_shared_library,

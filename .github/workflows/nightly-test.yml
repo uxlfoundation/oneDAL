@@ -238,6 +238,11 @@ jobs:
           ACTIONS_CACHE_URL: ""
         run: |
           source /opt/intel/oneapi/setvars.sh
+          # Cheap and hermetic: asserts the undefined-symbol filter still
+          # classifies its pinned representatives before the comparison relies
+          # on it, so a widened prefix shows up as a failure of its own rather
+          # than as a release that compares equal for the wrong reason.
+          python dev/release_tests/compare_release_linkage.py
           python dev/release_tests/compare_release_trees.py \
             --platform linux \
             --make ./__release_lnx/daal/latest \
