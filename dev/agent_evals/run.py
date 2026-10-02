@@ -170,8 +170,10 @@ def check_verdict(task):
     rows = {k: check(task, k) for k in ("null", "oracle")}
     t = task_spec(task)
     if t.get("family") == "review":
-        ok = (rows["oracle"].get("recall") in (1.0, None) and not rows["oracle"]["decoys_flagged"]
-              and rows["null"].get("parse_error"))
+        # score-only tasks: the oracle must reach score.max on score.metric, as agent-benchmark's tasks check requires
+        sc = t.get("score")
+        reached = ((rows["oracle"].get(sc["metric"]) or 0) >= sc["max"]) if sc else rows["oracle"]["pass"] is True
+        ok = reached and not rows["oracle"]["decoys_flagged"] and rows["null"].get("parse_error")
     else:
         ok = rows["null"]["pass"] is False and rows["oracle"]["pass"] is True
     print(f"{task}: {'OK' if ok else 'GRADER BROKEN'}", flush=True)
