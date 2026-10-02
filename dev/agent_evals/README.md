@@ -137,7 +137,7 @@ Fix and feature tasks declare `"gate": ["strict_pass"]`. Arms map to agent-bench
 `AGENTS.md`) has no arm here: Claude Code 2.1.277+ loads `AGENTS.md` itself, and the old `main-claude` arm was
 dropped.
 
-The image is `Dockerfile` (build from the repository root). Runs are offline; four cache directories are mounted
+The image is `Dockerfile`, built from a `git archive` of the repository without `tasks/`. Runs are offline; four cache directories are mounted
 from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a BCR mirror: task workspaces
 have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as `--output_user_root`, so Bazel's
 install base is shared and stays off the container layer). Fill them
@@ -145,7 +145,8 @@ once with network access; the full `check` is the warm-up, since task bases pin 
 dependency sets:
 
 ```sh
-docker build -f dev/agent_evals/Dockerfile -t onedal-agent-evals .
+mkdir ctx && git archive HEAD | tar -x -C ctx && rm -r ctx/dev/agent_evals/tasks   # as agent-benchmark builds it
+docker build -f ctx/dev/agent_evals/Dockerfile -t onedal-agent-evals ctx
 docker run --rm --user "$(id -u):$(id -g)" -e USER=eval \
   -v "$PWD":/harness:ro -v <oneDAL clone or .git dir>:/src:ro -e ONEDAL_EVAL_SRC=/src \
   -v <cache>/bazel-repo:/cache/bazel-repo -v <cache>/bazel-disk:/cache/bazel-disk \

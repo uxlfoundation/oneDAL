@@ -16,9 +16,12 @@
 
 # Build image for the agent evals (repo-eval.yaml image.dockerfile): the toolchain the graders and the agent's
 # CPU-only builds need, nothing else. No agent CLI (agent-benchmark brings the harness) and no oneAPI compilers
-# (tasks use *_host targets). Build from the repository root:
+# (tasks use *_host targets). The build context is the repository at the eval revision as agent-benchmark makes it:
+# `git archive` (no .git, no untracked files) with dev/agent_evals/tasks removed. Nothing here may COPY tasks/; the
+# image holds tooling only (.bazelversion and bin/bazel below), so the agent's container cannot read a task:
 #
-#   docker build -f dev/agent_evals/Dockerfile -t onedal-agent-evals .
+#   mkdir ctx && git archive HEAD | tar -x -C ctx && rm -r ctx/dev/agent_evals/tasks
+#   docker build -f ctx/dev/agent_evals/Dockerfile -t onedal-agent-evals ctx
 #
 # Runs are offline (image.network: none). External Bazel repositories come from the shared repository cache, which
 # is filled once with network access; see "Running under agent-benchmark" in README.md.
