@@ -138,6 +138,82 @@ def last_json(text):
     return None
 
 
+# agent-benchmark mounts the run directory here in every container (and the workspace at /eval/run/workspace)
+CONTRACT_RUN_DIR = Path("/eval/run")
+
+
+def rebase_run_path(p, rd, ws):
+    """Map an absolute path recorded in a run to the run directory rd it is graded in now, or None.
+
+    A run's answer and its symlinks (Bazel's convenience links point into the output base) name absolute paths
+    from where the run was recorded: the standalone run directory, or /eval/run under agent-benchmark. A copied
+    or archived run is graded somewhere else, so the prefix up to the run directory is replaced by rd, and its
+    `repo`/`workspace` child by ws. A path under no run directory maps to None.
+    """
+    p = Path(p)
+    if not p.is_absolute():
+        return ws / p
+    rest = None
+    for root in (rd, rd.resolve(), CONTRACT_RUN_DIR):
+        if p.is_relative_to(root):
+            rest = p.relative_to(root).parts
+            break
+    else:
+        # recorded under a run directory of the same name elsewhere (the original of a copied run)
+        hits = [i for i, x in enumerate(p.parts) if x == rd.name]
+        if hits:
+            rest = p.parts[hits[-1] + 1:]
+    if rest is None:
+        return None
+    if rest and rest[0] in ("repo", "workspace"):
+        return ws.joinpath(*rest[1:])
+    return rd.joinpath(*rest)
+
+
+def resolve_in_run(p, rd, ws, max_links=40):
+    """Resolve path p like Path.resolve, but inside run directory rd only; None if it leaves rd or is missing.
+
+    Absolute paths, including absolute symlink targets met on the way, go through rebase_run_path, so a
+    run graded away from where it was recorded resolves to its own files and never to the original's.
+    """
+    top = rd.resolve()
+
+    def inside(q):  # q (absolute) as parts below rd, or None
+        q = rebase_run_path(q, rd, ws)
+        for r in (rd, top):
+            if q is not None and q.is_relative_to(r):
+                return list(q.relative_to(r).parts)
+        return None
+
+    todo, stack, links = inside(Path(p)), [], 0
+    if todo is None:
+        return None
+    while todo:
+        x = todo.pop(0)
+        if x in ("", "."):
+            continue
+        if x == "..":
+            if not stack:
+                return None
+            stack.pop()
+            continue
+        nxt = top.joinpath(*stack, x)
+        if nxt.is_symlink():
+            links += 1
+            target = Path(os.readlink(nxt))
+            if target.is_absolute():
+                rest = inside(target)
+                if rest is None or links > max_links:
+                    return None
+                todo, stack = rest + todo, []
+            else:
+                todo = list(target.parts) + todo
+            continue
+        stack.append(x)
+    q = top.joinpath(*stack)
+    return q if q.exists() else None
+
+
 def changed_files(ws, base):
     """Files the agent changed or added in workspace ws since the prepared commit base."""
     ch = git(ws, "diff", "--name-only", base, check=False).stdout.split()
