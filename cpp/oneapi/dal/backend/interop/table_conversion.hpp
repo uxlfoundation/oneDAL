@@ -20,6 +20,9 @@
 
 #include "daal/src/data_management/service_numeric_table.h"
 #include "oneapi/dal/backend/memory.hpp"
+#ifdef ONEDAL_DATA_PARALLEL
+#include "oneapi/dal/backend/transfer.hpp"
+#endif
 #include "oneapi/dal/table/detail/table_builder.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/table/backend/interop/host_homogen_table_adapter.hpp"
@@ -53,6 +56,12 @@ inline auto convert_to_daal_homogen_table(array<Data>& data,
     if (!data.get_count()) {
         return daal::services::SharedPtr<daal::data_management::HomogenNumericTable<Data>>();
     }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    if (allow_copy && data.get_queue().has_value()) {
+        data = to_host_sync(data);
+    }
+#endif
 
     if (allow_copy) {
         data.need_mutable_data();
