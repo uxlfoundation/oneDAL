@@ -71,15 +71,15 @@ static result_t infer(const context_gpu& ctx, const descriptor_t& desc, const in
     const auto data_nd = pr::table2ndarray<Float>(q, data, sycl::usm::alloc::device);
     const auto trained_model = input.get_model();
 
-    // A binary GPU descriptor combined with a model whose public arrays carry
-    // multi-class structure (class_count > 2 or n_support_per_class populated
-    // with more than two entries) would silently run the binary code path on
-    // aggregated multi-class arrays. Refuse instead of producing meaningless
-    // decision values.
+    // A multi-class model's arrays are aggregated over its pairwise sub-models,
+    // which the binary kernel below would read as a single sub-model. The
+    // descriptor check above cannot see this -- a caller can set the arrays and
+    // keep a binary descriptor -- hence the separate message.
     if (trained_model.get_class_count() > 2 ||
         (trained_model.get_n_support_per_class().has_data() &&
          trained_model.get_n_support_per_class().get_column_count() > 2)) {
-        throw unimplemented(dal::detail::error_messages::svm_multiclass_not_implemented_for_gpu());
+        throw unimplemented(
+            dal::detail::error_messages::svm_multiclass_model_not_implemented_for_gpu());
     }
 
     const auto kernel_ptr = detail::get_kernel_ptr(desc);
