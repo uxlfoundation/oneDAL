@@ -95,6 +95,63 @@ win_icx_flags = {
     "pedantic": win_icx_pedantic_flags,
 }
 
+# Upstream LLVM `clang-cl` on Windows. This is the compiler Make uses for
+# `PLAT=winarm` (icx has no AArch64 target); mirrors COMPILER.win.clang in
+# dev/make/compiler_definitions/clang.ref.arm.mk.
+win_clang_common_flags = [
+    "-Werror",
+    "-Wno-empty-body",
+    "-Wreturn-type",
+    "-Wno-deprecated-declarations",
+    # C++ exception handling, `-EHsc` in the Makefile. It is selected by
+    # `OS_is_win` alone (makefile:152), not by the compiler, so the clang-cl
+    # toolchain needs it as much as the icx one: without it clang-cl rejects
+    # every `throw` in cpp/oneapi/dal/detail/common.hpp.
+    "-EHsc",
+    # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
+    # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
+    # config already emits `-MD`/`-MDd` from the `msvc_runtime_debug` feature
+    # (`--config=mdd`), and stating the CRT twice would let the two disagree.
+    #
+    # clang-cl reports every vectorization pragma it cannot honor from `-O1` up,
+    # which `-Werror` above would turn into a build failure. Matches
+    # `warn.opts.clang` in dev/make/compiler_definitions/clang.mk.
+    "-Wno-pass-failed",
+]
+
+# Bazel-only coverage: `pedantic.opts = $(pedantic.opts.$(_OS).$(COMPILER))`
+# (common.mk:92) and Make defines no `pedantic.opts.win.clang`, so winarm passes
+# no pedantic flags at all. This is `pedantic.opts.clang` from
+# dev/make/compiler_definitions/clang.mk minus `-pedantic`, which rejects the
+# Microsoft extensions in the Windows SDK headers that the cl driver has to
+# accept.
+win_clang_pedantic_flags = [
+    "-Wall",
+    "-Wextra",
+    "-Wno-unused-parameter",
+]
+
+win_clang_flags = {
+    "common": win_clang_common_flags,
+    "pedantic": win_clang_pedantic_flags,
+}
+
+# Target triples passed to clang-cl with `--target=`. Matches
+# COMPILER.win.clang.target in dev/make/compiler_definitions/clang.ref.arm.mk.
+_WIN_CLANG_TARGET_TRIPLE = {
+    "arm": "aarch64-pc-windows-msvc",
+    "intel64": "x86_64-pc-windows-msvc",
+}
+
+def get_win_clang_target_flags(arch_id):
+    """Returns the explicit `--target=` flag for a Windows clang-cl build.
+
+    clang-cl defaults to the arch of the clang binary itself, so the triple is
+    stated explicitly — that is also what makes an x86_64-host cross-compile to
+    `@config//:windows_arm64` work.
+    """
+    return ["--target={}".format(_WIN_CLANG_TARGET_TRIPLE[arch_id])]
+
 def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
     _check_flag_category(category)
     if os_id == "lnx":
@@ -168,6 +225,16 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             flags = win_icx_flags[category]
             if compiler_id == "icpx" and category == "common":
                 flags = flags + ["-fsycl"]
+            return flags
+        if compiler_id == "clang":
+            flags = win_clang_flags[category]
+            if category == "common":
+                flags = flags + get_win_clang_target_flags(arch_id)
+                if arch_id in _SINGLE_VARIANT_MARCH_FLAGS:
+                    # Same reasoning as the Linux ARM/RISC-V branch above: a
+                    # single fixed ISA variant means `-march` belongs on every
+                    # compile action, not only the `_cpu`-suffixed ones.
+                    flags = flags + _get_single_variant_march_flags(arch_id)
             return flags
         # cl / other fall through to empty; cl path uses the rules_cc
         # MSVC auto-config and does not consume these flags.
