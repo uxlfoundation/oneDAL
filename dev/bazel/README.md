@@ -54,7 +54,7 @@ validation.
 2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
    it in the repository root as `bazelisk.exe`.
    ```bat
-   set BAZELISK_VERSION=v1.28.1
+   set BAZELISK_VERSION=v1.29.0
    curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
    bazelisk.exe version
    ```
