@@ -1,0 +1,25 @@
+{
+  "id": "fix_df_extratrees_reg",
+  "family": "fix",
+  "base": "2211094b^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "hidden_from": "2211094b",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/decision_forest/test/batch.cpp",
+    "cpp/oneapi/dal/algo/decision_forest/test/fixture.hpp"
+  ],
+  "targets": [
+    "//cpp/oneapi/dal/algo/decision_forest:test_batch_host"
+  ],
+  "prompt": "Fix the following GitHub issue in this repository (oneDAL). The Python reproducer cannot be run here (no sklearn/sklearnex installed); work from the C++ library (`onedal.ensemble.ExtraTreesRegressor` is oneDAL decision_forest regression with `splitter_mode::random`). The CPU implementation is what matters here. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.\n\n# Bug: Splitting in `ExtraTreesRegressor` stops too early (CPU implem)\n\n### Describe the bug\n\n`onedal.ensemble.ExtraTreesRegressor` stops splitting too early when `max_bins` is large (for instance `max_bins=n_samples`).\n\nFor large `max_bins`, a single unlimited-depth ExtraTrees tree returns non-zero training error and far fewer unique predictions than training samples.\nWhile the equivalent `onedal.ensemble.RandomForestRegressor` and the scikit-learn `ExtraTreesRegressor` both return one unique prediction per training sample, and a 0 error.\n\nContext: I noticed this bug through `sklearnex.ensemble.ExtraTreesRegressor` because I'm working on a benchmark to compare \n`sklearnex` with `sklearn`, and I'm trying to create trees benchmarks that compare trees with similar structures,\nso for instance the same number of leaves.\n\n### To Reproduce\n\nRun:\n\n```python\nimport numpy as np\nfrom sklearn.datasets import make_regression\nfrom sklearn.metrics import mean_squared_error\nimport sklearn.ensemble\nfrom onedal.ensemble import ExtraTreesRegressor, RandomForestRegressor\n\nn_samples = 10**4\nX, y = make_regression(\n    n_samples=n_samples,\n    n_features=10,\n)\n\nfor Estimator in [ExtraTreesRegressor, RandomForestRegressor, sklearn.ensemble.ExtraTreesRegressor]:\n    kwargs = dict(n_estimators=1, bootstrap=False, max_bins=n_samples, random_state=0)\n    if Estimator is sklearn.ensemble.ExtraTreesRegressor:\n        kwargs.pop('max_bins')\n\n    est = Estimator(**kwargs).fit(X, y)\n    pred = est.predict(X)\n\n    print(Estimator)\n    print(\"  mse:\", mean_squared_error(y, pred))\n    print(\"  unique predictions:\", np.unique(pred).size)\n```\n\n### Expected behavior\n\nFor this dataset and these parameters, an unlimited-depth tree should keep splitting until singleton leaves\nand reach 10k unique predictions / 0-error.\n\n### Actual behavior\n\n```text\n<class 'onedal.ensemble.forest.ExtraTreesRegressor'>\n  mse: 11419.936730807302\n  unique predictions: 397\n<class 'onedal.ensemble.forest.RandomForestRegressor'>\n  mse: 0.0\n  unique predictions: 10000\n<class 'sklearn.ensemble._forest.ExtraTreesRegressor'>\n  mse: 0.0\n  unique predictions: 10000\n```\n",
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/decision_forest:test_badarg_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_infer_parameters_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_overflow_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_serialization_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_train_parameters_host"
+  ]
+}

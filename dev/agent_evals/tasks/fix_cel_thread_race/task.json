@@ -1,0 +1,26 @@
+{
+  "id": "fix_cel_thread_race",
+  "family": "fix",
+  "base": "eddfd7497f67",
+  "grader": "test_pass_files",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_issue": 3820,
+  "oracle_patch": "oracle.patch",
+  "hidden_files": [
+    "cpp/daal/src/algorithms/objective_function/cross_entropy_loss/test/cross_entropy_loss_threading_unit.cpp",
+    "cpp/daal/src/algorithms/objective_function/cross_entropy_loss/BUILD",
+    "cpp/daal/BUILD"
+  ],
+  "targets": [
+    "//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:test_cross_entropy_loss_threading_unit_host"
+  ],
+  "test_flags": [
+    "--runs_per_test=3"
+  ],
+  "regression_targets": [
+    "//examples/daal/cpp:logistic_regression"
+  ],
+  "prompt": "Bug report: the DAAL objective function optimization_solver::cross_entropy_loss (multinomial logistic loss, CPU) returns different values and gradients for the same X, y and beta when it runs on 4 or more threads. With 1 or 2 threads, repeated calls are bit-identical and match a NumPy reference (-log_softmax(X @ W.T + b)[range(n), y].mean() and its gradient). Example: 200000 rows, 100 features, 7 classes, interceptFlag=true, resultsToCompute=value|gradient, beta = 0.1*N(0,1). Calling compute() 20 times with 1 thread gives identical results; with 4, 8 or 14 threads the value differs from the 1-thread result by up to 1e-4 relative and the gradient by up to 7e-3 relative, and it changes from call to call. That is far above float64 reordering noise, and it makes scipy L-BFGS-B stop early in sklearnex multinomial LogisticRegression. The binary logistic_loss is not affected. Find and fix the root cause in the library so that threaded results are deterministic and equal to the 1-thread result. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests."
+}

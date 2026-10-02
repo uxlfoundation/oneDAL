@@ -1,0 +1,56 @@
+[
+  {
+    "id": "pr3659-t1",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 73,
+    "kind": "nit",
+    "comment": "@<reviewer> Are these functions meant to follow some naming pattern?",
+    "addressed": false,
+    "comment_id": 3595063714
+  },
+  {
+    "id": "pr3659-t2",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 62,
+    "kind": "docs",
+    "comment": "It mentions both 'class_count' and 'k'. Would be better to use a single naming convention.",
+    "addressed": true,
+    "comment_id": 3595108878
+  },
+  {
+    "id": "pr3659-t3",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 68,
+    "kind": "docs",
+    "comment": "Since this is solving the dual form of an optimization problem, could reword it as pairwise comparison or similar to be more clear.",
+    "addressed": true,
+    "comment_id": 3595116440
+  },
+  {
+    "id": "pr3659-t4",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 83,
+    "kind": "correctness",
+    "comment": "CC @<reviewer> - would need to be modified if SVM is fixed to not error out on empty support vectors.",
+    "addressed": false,
+    "comment_id": 3595122530
+  },
+  {
+    "id": "pr3659-t5",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 228,
+    "kind": "correctness",
+    "comment": "Shouldn't this be a dynamic cast?",
+    "addressed": true,
+    "comment_id": 3595141576
+  },
+  {
+    "id": "pr3659-t6",
+    "file": "cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp",
+    "line": 140,
+    "kind": "correctness",
+    "comment": "What happens if the support vectors are sparse?",
+    "addressed": true,
+    "comment_id": 3595160907
+  }
+]

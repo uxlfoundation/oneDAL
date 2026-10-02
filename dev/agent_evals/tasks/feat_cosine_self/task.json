@@ -1,0 +1,21 @@
+{
+  "id": "feat_cosine_self",
+  "family": "feature",
+  "base": "52d531c4^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_pr": 3712,
+  "hidden_from": "52d531c4",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/cosine_distance/test/batch.cpp"
+  ],
+  "targets": [
+    "//cpp/oneapi/dal/algo/cosine_distance:test_batch_host"
+  ],
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/correlation_distance:test_batch_host"
+  ],
+  "prompt": "Implement the following feature request in this repository (oneDAL).\n\n# cosine_distance: support self-distances with a single input table\n\nscikit-learn-intelex wants to compute `cosine_distances(X)` (all pairwise distances between the rows of one table) through oneDAL without passing the data twice. Today `oneapi::dal::compute(desc, x, y)` requires both tables, and an empty `y` is rejected.\n\nRequested:\n- `cosine_distance::compute_input` gets a constructor that takes only `x`, so `dal::compute(desc, x)` works (with the host and the device policy overloads the other algorithms have).\n- `compute(desc, x)` and `compute(desc, x, table{})` return the same n x n matrix as `compute(desc, x, x)`.\n- On CPU, the single-table case should use the DAAL cosine-distance kernel that takes one input table (it already exists and is the fast path daal4py uses) instead of treating it as a two-table call.\n- Existing two-table behaviour and its argument checks are unchanged, except that an empty `y` is no longer an error. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests."
+}

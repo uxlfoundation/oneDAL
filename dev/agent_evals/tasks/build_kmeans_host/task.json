@@ -1,0 +1,8 @@
+{
+  "id": "build_kmeans_host",
+  "family": "build",
+  "base": "3120d0ab",
+  "grader": "bazel_cmd",
+  "expect_target": "//cpp/oneapi/dal/algo/kmeans:test_batch_host",
+  "prompt": "Build and run the CPU batch tests of the oneAPI K-Means algorithm (cpp/oneapi/dal/algo/kmeans) with Bazel and make sure they pass. `bazel` is on PATH. This machine has no GPU. Do not modify any files. When done, end your answer with a fenced ```json block of the form {\"command\": \"<the exact single bazel command you ran that built and passed the tests>\"}."
+}

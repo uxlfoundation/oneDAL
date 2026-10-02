@@ -1,0 +1,44 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Manifest read by agent-benchmark (repo_manifest.v1). guidance.globs is also the harness's own list: config.py
+# reads that one line without PyYAML, so keep it a single-line list of double-quoted strings.
+schema: repo_manifest.v1
+id: onedal
+source: {url: https://github.com/uxlfoundation/oneDAL}
+eval_dir: dev/agent_evals
+
+guidance:
+  globs: ["**/AGENTS.md", ".github/instructions/*.md", ".github/copilot-instructions.md"]
+  also_scan: ["CONTRIBUTING.md"]
+
+image:
+  dockerfile: dev/agent_evals/Dockerfile
+  caches:
+    - {name: bazel-repo-cache, path: /cache/bazel-repo}
+    - {name: bazel-disk-cache, path: /cache/bazel-disk}
+    - {name: bazel-registry, path: /cache/bazel-registry}
+  env: {EVAL_BAZEL_OUTPUT_BASE: "{run_dir}/ob"}
+  network: none
+
+entry_points:
+  grade:  "python3 dev/agent_evals/run.py grade --contract {run_dir}"
+  oracle: "python3 dev/agent_evals/run.py oracle --contract {run_dir}"
+  static: "python3 dev/agent_evals/static_check.py --out {out}"
+
+tasks: dev/agent_evals/tasks
+explore_tasks: null
+build_systems: [bazel, make]

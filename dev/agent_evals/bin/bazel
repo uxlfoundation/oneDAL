@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#===============================================================================
+# Copyright Contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Per-run bazel wrapper put first on the agent's PATH: isolated output_base, shared repository and disk caches.
+# EVAL_BAZEL_REGISTRY (set in the eval image) points module resolution at a local BCR mirror: task workspaces have
+# no MODULE.bazel.lock, so offline bzlmod would otherwise fetch registry files from bcr.bazel.build.
+OB=${EVAL_BAZEL_OUTPUT_BASE:?EVAL_BAZEL_OUTPUT_BASE unset}
+unset MKLROOT
+startup=()
+while [[ $# -gt 0 && $1 == -* ]]; do startup+=("$1"); shift; done
+verb=${1-}
+[[ $# -gt 0 ]] && shift
+caches=()
+case $verb in
+  build|test|run|query|cquery|aquery|fetch|coverage)
+    caches=(--repository_cache="$ONEDAL_EVAL_REPO_CACHE" --disk_cache="$ONEDAL_EVAL_DISK_CACHE") ;;
+esac
+case $verb in
+  build|test|run|query|cquery|aquery|fetch|coverage|mod)
+    [[ -n ${EVAL_BAZEL_REGISTRY-} ]] && caches+=(--registry="$EVAL_BAZEL_REGISTRY") ;;
+esac
+exec "${ONEDAL_EVAL_BAZEL:?ONEDAL_EVAL_BAZEL unset}" --output_base="$OB" "${startup[@]}" ${verb:+"$verb"} "${caches[@]}" "$@"

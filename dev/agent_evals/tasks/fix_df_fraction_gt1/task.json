@@ -1,0 +1,26 @@
+{
+  "id": "fix_df_fraction_gt1",
+  "family": "fix",
+  "base": "2bed66f0^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_pr": 3720,
+  "hidden_from": "2bed66f0",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/decision_forest/test/batch.cpp",
+    "cpp/oneapi/dal/algo/decision_forest/test/badarg.cpp"
+  ],
+  "targets": [
+    "//cpp/oneapi/dal/algo/decision_forest:test_batch_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_badarg_host"
+  ],
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/decision_forest:test_infer_parameters_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_overflow_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_serialization_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_train_parameters_host"
+  ],
+  "prompt": "Implement the following change in this repository (oneDAL).\n\n# Decision forest: allow observations_per_tree_fraction greater than 1.0\n\nscikit-learn changed how random forests sample rows with sample weights (scikit-learn/scikit-learn#31529): rows are drawn according to their weights, and `max_samples` may now ask for more rows than the training set has. scikit-learn-intelex maps `max_samples` to oneDAL's `observations_per_tree_fraction`, which currently must be in (0, 1], so these models cannot be trained.\n\nAllow any `observations_per_tree_fraction > 0.0` for decision forest classification and regression training (values > 1.0 draw that many rows with replacement), update the documented invariants to match, and keep rejecting values <= 0.0. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests."
+}
