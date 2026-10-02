@@ -814,7 +814,7 @@ jobs:
       trap cleanup EXIT
       echo '=== disk before DPC++ coverage smoke ==='
       df -h .
-      BAZEL=bazel dev/bazel/tests/code_coverage_dpc_test.sh --cpu=avx2
+      BAZEL=bazel dev/bazel/tests/code_coverage_test.sh --dpc --cpu=avx2
     displayName: 'Bazel DPC++ code-coverage smoke build'
 
 - job: 'LinuxReleaseCompare'

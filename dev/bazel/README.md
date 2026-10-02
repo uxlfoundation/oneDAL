@@ -832,14 +832,12 @@ exactly `icx`.
 
 ### Recovering coverage data
 
-Instrumented objects are not by themselves a coverage report. `-coverage` makes
-the compiler write a `.gcno` notes file next to each object file, and that file
-is not a declared output of the compile action; a running test writes its `.gcda`
-counters to the object file's build-time path. Under Bazel's default sandboxing
-both live inside the action's sandbox and are gone when it tears down, so a
-default `--code_coverage=true` build yields instrumented binaries from which no
-report can be produced. Verified on the pinned Bazel version: after a sandboxed
-build the only `.gcno` is under `sandbox/sandbox_stash/`, never in `bazel-out`.
+Instrumented objects are not a coverage report by themselves. `-coverage` writes
+a `.gcno` notes file beside each object file, and a test writes its `.gcda`
+counters to the object's build-time path; neither is a declared action output, so
+default sandboxing discards both and a plain `--code_coverage=true` build yields
+binaries no report can be made from. Measured on the pinned Bazel version: the
+only `.gcno` left is under `sandbox/sandbox_stash/`, never in `bazel-out`.
 
 Local execution keeps both:
 
@@ -853,22 +851,24 @@ once a `.gcda` sits beside its `.gcno`. This is independent of Bazel's built-in
 `--collect_code_coverage`, which uses its own toolchain feature and is unchanged
 by this flag.
 
-Public CI uses `dev/bazel/tests/code_coverage_test.sh` on the CPU-only icx
-installation to build `//cpp/daal:core_static` and `//cpp/daal:thread_static`
-with `--code_coverage=true`. Its Bazel output tree is isolated under the agent
-temporary directory, measured before and after the smoke, then removed before
-the release build. The smoke inspects `bazel aquery` output to confirm DAAL
-core compile actions carry `-coverage`/`-DGCOV_BUILD` and the separately built
-threading module does not, and asserts that the `.gcno` notes files survive into
-the output tree.
+`dev/bazel/tests/code_coverage_test.sh` is the smoke for both halves, selected
+by `--dpc`.
 
-`dev/bazel/tests/code_coverage_dpc_test.sh` verifies the DPC++ link-specific
-`-Xscoverage` option: it builds `//cpp/oneapi/dal/table:table_dpc` and, through
-analysis only, checks the released `//cpp/oneapi/dal:dynamic_dpc` link as well.
-It needs the complete DPC++ runtime, so it is excluded from public PR CI and runs
-from the `LinuxBazelDpcCoverage` job on a manually queued pipeline. There is
-deliberately no cron for it: an Azure schedule queues the whole pipeline, which
-would re-run every other job nightly for this one check.
+Public CI runs it in the default host mode on the CPU-only icx installation: it
+builds `//cpp/daal:core_static` and `//cpp/daal:thread_static` with
+`--code_coverage=true`, inspects `bazel aquery` output to confirm DAAL core
+compile actions carry `-coverage`/`-DGCOV_BUILD` while the separately built
+threading module does not, and asserts the `.gcno` notes files survive into the
+output tree. Its Bazel output tree is isolated under the agent temporary
+directory, measured before and after, then removed before the release build.
+
+`--dpc` verifies the DPC++ link-specific `-Xscoverage` option instead: it builds
+`//cpp/oneapi/dal/table:table_dpc` and, through analysis only, checks the
+released `//cpp/oneapi/dal:dynamic_dpc` link as well. It needs the complete
+DPC++ runtime, so it is excluded from public PR CI and runs from the
+`LinuxBazelDpcCoverage` job on a manually queued pipeline. There is deliberately
+no cron for it: an Azure schedule queues the whole pipeline, which would re-run
+every other job nightly for this one check.
 
 ## Cross-compiling to ARM/RISC-V
 

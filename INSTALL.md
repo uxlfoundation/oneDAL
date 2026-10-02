@@ -271,27 +271,20 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
             bazel build //:release --code_coverage=true
 
-    Bazel coverage instrumentation is supported only on Linux when the detected
-    host compiler ID is `icx`. It applies the Make compiler options to
-    oneDAL-owned actions only: host compilations and dynamic-library links are
-    instrumented, DPC++ dynamic-library links use `-Xscoverage`, and
-    `GCOV_BUILD` is limited to DAAL core sources. Static archives receive no
-    linker option; executable and test links receive the matching host or
-    DPC++ coverage driver option so instrumented objects resolve the coverage
-    runtime.
+    It is supported only on Linux when the detected host compiler ID is `icx`,
+    and applies the Make compiler options to oneDAL-owned actions only - see
+    [Make to Bazel flag reference](https://github.com/uxlfoundation/oneDAL/blob/main/dev/bazel/README.md#make--bazel-flag-reference)
+    for the per-action list.
 
-    Producing a gcov/lcov report additionally needs local action execution:
+    Producing a gcov/lcov report additionally needs local action execution,
+    because the `.gcno` notes and `.gcda` counter files are not declared action
+    outputs and sandboxing discards them:
 
             bazel test //cpp/daal/...:all --code_coverage=true --spawn_strategy=local
 
-    The `.gcno` notes file the compiler writes beside each object file is not a
-    declared output of the compile action, and the `.gcda` counters a test writes
-    go to the object file's build-time path, so a sandboxed action discards both
-    when it tears down. With `--spawn_strategy=local` the notes files stay in
-    `bazel-out/<config>/bin/_objs/<module>/` and the counters land under the test's
-    runfiles; copy the `.gcda` files next to their `.gcno` and run `gcov` there.
-    This flag is about Make option parity, not about Bazel's own
-    `--collect_code_coverage` machinery, which is unrelated and unchanged.
+    See [Recovering coverage data](https://github.com/uxlfoundation/oneDAL/blob/main/dev/bazel/README.md#recovering-coverage-data)
+    for where those files land, and for why this flag is unrelated to Bazel's
+    own `--collect_code_coverage` machinery.
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
