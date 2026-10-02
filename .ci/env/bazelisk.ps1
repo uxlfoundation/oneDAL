@@ -32,7 +32,13 @@ updated, which also makes the script convenient for local CI reproduction.
 $ErrorActionPreference = "Stop"
 
 $bazeliskVersion = "v1.29.0"
-$assetName = "bazelisk-windows-amd64.exe"
+$hostArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$assetSuffix = switch ($hostArch.ToUpperInvariant()) {
+    "ARM64" { "arm64" }
+    "AMD64" { "amd64" }
+    default { throw "Unsupported Windows host architecture for Bazelisk: $hostArch" }
+}
+$assetName = "bazelisk-windows-$assetSuffix.exe"
 $installDir = Join-Path (Get-Location) "bazel\bin"
 $bazelPath = Join-Path $installDir "bazel.exe"
 

@@ -29,4 +29,16 @@ openblas_repo = repos.prebuilt_libs_repo_rule(
             "lib/libopenblas.a",
     ],
     build_template = "@onedal//dev/bazel/deps:openblas.tpl.BUILD",
+    # `.ci/env/openblas.bat` builds a static OpenBLAS, so `lib/openblas.lib` is
+    # the whole dependency -- the Windows counterpart of `lib/libopenblas.a`
+    # above, and the same file Make links through OPENBLASDIR.libia.win in
+    # dev/make/deps.ref.mk. No `win_bins`: nothing has to travel with the
+    # binaries at run time.
+    win_includes = [
+        "include",
+    ],
+    win_libs = [
+        "lib/openblas.lib",
+    ],
+    win_build_template = "@onedal//dev/bazel/deps:openblas_win.tpl.BUILD",
 )

@@ -51,22 +51,113 @@ if errorlevel 1 goto Error_load
 tar -xf "%BLASSOURCEDIR%\openblas.zip" -C "%BLASSOURCEDIR%"
 if errorlevel 1 goto Error_unpack
 
+rem Built static, like the Linux build (.ci/env/openblas.sh): dev/make/deps.ref.mk
+rem links `openblas.$(a)` into onedal_core, so the BLAS/LAPACK symbols travel
+rem inside oneDAL's own binaries. A shared build yields an import library
+rem instead, which leaves `onedal_core.<major>.dll` importing a DLL named
+rem `openblas.dll`; Windows resolves imports by base name against the modules
+rem already loaded in the process, so any other wheel shipping its own
+rem `openblas.dll` would satisfy that import.
+rem
+rem `NOFORTRAN` + `C_LAPACK` build LAPACK from the f2c-translated sources in
+rem `lapack-netlib/SRC`, which is what the Linux script gets from `NO_FORTRAN=1`.
+rem Fortran objects would otherwise put `/DEFAULTLIB:flang_rt.runtime.dynamic`
+rem into the archive, and every consumer of `openblas.lib` -- oneDAL's own DLLs
+rem first of all -- would then have to find the flang runtime at link time.
+rem
+rem `USE_THREAD=OFF` + `USE_LOCKING=ON`, again as on Linux: oneDAL parallelises
+rem through oneTBB, so OpenBLAS must not bring a thread pool of its own. The
+rem CMake build defaults `USE_THREAD` to 1 whenever the machine has two cores
+rem (cmake/system.cmake), and with a static OpenBLAS both `onedal_core` and
+rem `onedal_thread` embed the archive, so a threaded build would put two
+rem independent pools in one process on top of TBB's. `USE_LOCKING` keeps the
+rem single-threaded library safe to call from several TBB threads at once.
+rem
+rem `INTERFACE64=ON` builds the ILP64 interface -- BLAS/LAPACK integer arguments
+rem are 64-bit -- as the Linux script does by default (`.ci/env/openblas.sh
+rem --ilp64 on` -> `INTERFACE64=1`). This is not a preference but a requirement of
+rem how oneDAL calls the reference backend: `DAAL_INT` is `__int64` on
+rem `_WIN64`/`TARGET_ARM` (`cpp/daal/include/services/daal_defines.h:78-88`) and
+rem the wrappers in `cpp/daal/src/externals/service_blas_ref.h` hand
+rem `const DAAL_INT *` straight to `dgemm_`/`dsyrk_`/... with no narrowing cast.
+rem An LP64 OpenBLAS exports those same names taking 32-bit integers, so the
+rem mismatch does not break the link: the callee reads half of each argument it
+rem is passed, and the failure surfaces as wrong results or an out-of-bounds
+rem access instead.
 pushd "%BLASSOURCEDIR%\OpenBLAS-%BLASVERSION%"
     if exist build-arm64 rmdir /s /q build-arm64
     cmake -B build-arm64 -S . -GNinja ^
         -DCMAKE_BUILD_TYPE=Release ^
         -DTARGET=ARMV8 ^
         -DBINARY=64 ^
+        -DINTERFACE64=ON ^
         -DCMAKE_C_COMPILER=clang-cl ^
         -DCMAKE_CXX_COMPILER=clang-cl ^
-        -DCMAKE_Fortran_COMPILER=flang-new ^
-        -DBUILD_SHARED_LIBS=ON ^
+        -DNOFORTRAN=ON ^
+        -DC_LAPACK=ON ^
+        -DUSE_THREAD=OFF ^
+        -DUSE_LOCKING=ON ^
+        -DBUILD_SHARED_LIBS=OFF ^
         -DCMAKE_SYSTEM_PROCESSOR=arm64 ^
         -DCMAKE_SYSTEM_NAME=Windows ^
         -DCMAKE_INSTALL_PREFIX="%DST%"
+    if errorlevel 1 (popd & goto Error_build)
     cmake --build build-arm64
+    if errorlevel 1 (popd & goto Error_build)
     cmake --install build-arm64
+    if errorlevel 1 (popd & goto Error_build)
 popd
+
+rem `INTERFACE64` also renames what gets installed: OpenBLAS's CMake build appends
+rem `_64` to the library name (`OpenBLAS_LIBNAME`, CMakeLists.txt:128-133) and puts
+rem the headers in `include/openblas64` (CMakeLists.txt:700). The Makefile build the
+rem Linux script uses does neither, so the ILP64 Linux package stays plain
+rem `libopenblas.a` + `include/`, and that is the layout both consumers expect on
+rem Windows too (`releaseopen_blas.LIBS_A` in dev/make/deps.ref.mk,
+rem `dev/bazel/deps/openblas.bzl`). Only file names change -- `SYMBOLSUFFIX` is left
+rem empty, so the exported symbols are still `dgemm_`/`dsyrk_`/... -- and the build
+rem is static, so there is no import library pointing at a DLL whose name would also
+rem have to change. Renaming here keeps the interface change out of every consumer.
+if exist "%DST%\lib\openblas_64.lib" (
+    copy /Y "%DST%\lib\openblas_64.lib" "%DST%\lib\openblas.lib" >nul
+    if errorlevel 1 goto Error_layout
+)
+rem Copied with a wildcard `copy` rather than `xcopy /E` on the directory: the source
+rem is a direct child of the destination, which is the case xcopy rejects as a cyclic
+rem copy. `include\openblas64` holds only headers, so a wildcard `copy` moves all of
+rem it and the question does not arise.
+if exist "%DST%\include\openblas64\openblas_config.h" (
+    copy /Y "%DST%\include\openblas64\*" "%DST%\include" >nul
+    if errorlevel 1 goto Error_layout
+)
+
+rem The interface width is what oneDAL silently depends on and nothing downstream
+rem can detect: the symbol names are identical either way, so an LP64 package links
+rem and then misbehaves. Asserted on the `_64` library name, which `SUFFIX64` derives
+rem from `INTERFACE64` alone (CMakeLists.txt:128-133): if the option is renamed or
+rem dropped, the install produces plain `openblas.lib` and this fails, instead of the
+rem mismatch surfacing as wrong numerical results.
+rem
+rem Not read off the installed `openblas_config.h`, even though that is where the
+rem interface width belongs. `#define OPENBLAS_USE64BITINT` reaches the header from
+rem `USE64BITINT` in `config.h`, and `config.h` only gets it from `getarch`
+rem (`GETARCH_FLAGS` in cmake/system.cmake:103-107). Setting `CMAKE_SYSTEM_NAME` above
+rem makes CMake treat this as cross-compiling, so OpenBLAS cannot run `getarch` on the
+rem target and writes `config.h` itself "as getarch would" (cmake/prebuild.cmake:132) --
+rem a path that never emits `USE64BITINT`. The library is ILP64 regardless (the `_64`
+rem name proves `INTERFACE64` took effect), but the installed header says otherwise, so
+rem it cannot serve as the witness -- measured in CI on 2d2d8e6 and d2d6314, where an
+rem assertion on the header failed on a build whose installed library is
+rem `openblas_64.lib`. The bare name is no witness either: the `#ifdef` comes from
+rem `openblas_config_template.h`, appended verbatim to every generated header.
+if not exist "%DST%\lib\openblas_64.lib" (
+    echo openblas.bat : Error: the installed OpenBLAS is not ILP64 -- "%DST%\lib\openblas_64.lib" is absent, so INTERFACE64 did not take effect, while oneDAL passes 64-bit DAAL_INT arguments to it
+    exit /B 1
+)
+if not exist "%DST%\lib\openblas.lib" (
+    echo openblas.bat : Error: "%DST%\lib\openblas.lib" was not produced; oneDAL links OpenBLAS under that name
+    exit /B 1
+)
 
 echo Downloaded and unpacked OpenBlas small libraries to %DST%
 exit /B 0
@@ -77,4 +168,12 @@ exit /B 0
 
 :Error_unpack
     echo openblas.bat : Error: Failed to unpack %BLASSOURCEDIR%\openblas.zip to %BLASSOURCEDIR%, try unpack the archive manually
+    exit /B 1
+
+:Error_layout
+    echo openblas.bat : Error: Failed to normalize the installed OpenBLAS layout under %DST%
+    exit /B 1
+
+:Error_build
+    echo openblas.bat : Error: Failed to configure, build or install OpenBLAS from %BLASSOURCEDIR%\OpenBLAS-%BLASVERSION% into %DST%
     exit /B 1
