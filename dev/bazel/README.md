@@ -823,3 +823,247 @@ validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at a
 OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
 effect together with `--backend_config=ref`; it is silently ignored on the MKL
 backend, whose build never compiles the ref RNG shim that OpenRNG replaces.
+
+## NVIDIA GPUs through oneMath (experimental)
+
+The DPC++ device sources are written against the oneMKL DPC++ interface but use
+no Intel-specific SYCL extension: sub-group sizes are queried at run time and
+there is no ESIMD, no `sycl::ext::intel`, and no hard-coded device selector.
+The only Intel-specific piece is the math library itself, so pointing the build
+at [oneMath](https://github.com/uxlfoundation/oneMath) — the open-source
+implementation of the same interface, which additionally dispatches to cuBLAS,
+cuSOLVER, cuSPARSE and cuRAND — lets the same kernels run on an NVIDIA GPU, as
+far as oneMath implements the interface the kernels use. That is BLAS, LAPACK
+and two of the five device RNG engines, but not sparse BLAS; see the table below
+for what that leaves out.
+
+Which library is used is decided by `--dpc_math_backend`:
+
+| Value               | Library | Device support                       |
+|---------------------|---------|--------------------------------------|
+| `mkl` _(default)_   | oneMKL  | Intel GPUs                           |
+| `onemath`           | oneMath | Intel GPUs plus NVIDIA GPUs, without sparse BLAS  |
+
+Note that `onemath` is not an NVIDIA-only setting: oneMath's own `mklgpu`
+backend targets Intel GPUs, and a oneMath build with no CUDA backend and no
+`ONEDAL_SYCL_TARGETS` is a perfectly ordinary Intel GPU build. That is how this
+configuration is tested here, since the two gaps below are interface gaps rather
+than device ones and show up on any target.
+
+This is orthogonal to `--backend_config`, which selects the *host* math library
+(`mkl` or `ref`); a DPC++ build keeps using whatever that says on the CPU side.
+Only `cpp/oneapi/dal/backend/math_backend.hpp` knows the difference — it maps
+the `mkl::` namespace used by ~150 call sites onto `oneapi::mkl` or
+`oneapi::math`, driven by the `ONEDAL_MATH_BACKEND_ONEMATH` define that the
+selected dependency carries.
+
+Two things have to be provided:
+
+1. **oneMath**, built with the backends you want, pointed at by `ONEMATHROOT`.
+   There is no redistributable to download because the backend set is fixed at
+   oneMath configure time:
+
+   ```sh
+   cmake -B build -S . -GNinja \
+     -DCMAKE_CXX_COMPILER=icpx \
+     -DENABLE_MKLGPU_BACKEND=OFF \
+     -DENABLE_CUBLAS_BACKEND=ON \
+     -DENABLE_CUSOLVER_BACKEND=ON \
+     -DENABLE_CURAND_BACKEND=ON \
+     -DENABLE_CUSPARSE_BACKEND=ON \
+     -DCMAKE_INSTALL_PREFIX=$HOME/onemath
+   cmake --build build --target install
+   export ONEMATHROOT=$HOME/onemath
+   ```
+
+   oneDAL links only the run-time dispatching `libonemath.so`; the per-domain
+   backend libraries next to it are loaded by the dispatcher.
+
+2. **An NVPTX target for the compiler.** `ONEDAL_SYCL_TARGETS` is appended to
+   both the DPC++ compile and link actions as `-fsycl-targets=`; device code is
+   produced at both, so it has to reach both. Under Bazel it is an environment
+   variable rather than a build flag because the DPC++ flag sets are baked in
+   when the toolchain repository is configured, before build flags are visible;
+   changing it refetches the toolchain. Make reads the same variable, and takes
+   it as a make variable too.
+
+   ```sh
+   export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
+   export LD_LIBRARY_PATH=$ONEMATHROOT/lib:$LD_LIBRARY_PATH
+   bazel test --config=nvidia-gpu //cpp/oneapi/dal/backend/primitives/blas:tests
+   ```
+
+`--config=nvidia-gpu` is shorthand for `--dpc_math_backend=onemath`, plus
+`--test_env=LD_LIBRARY_PATH` on the test lane. That last part is needed because
+oneMath's dispatcher `dlopen`s its per-domain backends through a `$ORIGIN`
+RUNPATH: under Bazel `$ORIGIN` is the `_solib` directory the dispatcher is staged
+into, not the oneMath install, so the backends are not next to it and without a
+search path every test aborts with `oneapi::math::backend_not_found`. Hence
+`$ONEMATHROOT/lib` on `LD_LIBRARY_PATH` above. The Make build needs none of this,
+because it records the install directory as an rpath.
+
+The Make build has the same switch, spelled `DPC_MATH_BACKEND` and reading the
+same two environment variables:
+
+```sh
+export ONEMATHROOT=/path/to/onemath
+export ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda
+make -f makefile oneapi_dpc PLAT=lnx32e DPC_MATH_BACKEND=onemath
+```
+
+`DPC_MATH_BACKEND` is independent of `BACKEND_CONFIG` there too, and the
+non-default value gets its own `__work_onemath` directory: the incremental build
+only re-examines a command line when a makefile is newer than the object, so a
+shared working directory would mix objects compiled against two different math
+libraries. `$ONEMATHROOT/lib` is recorded as an rpath on `libonedal_dpc.so`, so
+consumers link and run without `LD_LIBRARY_PATH`; an absolute rpath is warranted
+here because oneMath has no redistributable and no standard prefix, and without
+it `ld` reports every oneMath symbol undefined when a consumer links against the
+result. Only `PLAT=lnx32e` is wired up; anything else is rejected rather than
+linked against a guessed library name.
+
+What works today, measured through both build systems against oneMath built from
+source at commit `3273ca2` with the `mklcpu` and `mklgpu` backends, running on an
+Intel Data Center GPU Max 1100:
+
+| domain | status |
+|---|---|
+| BLAS | works |
+| LAPACK | works |
+| RNG | `philox4x32x10` and `mrg32k3a` work; `mt2203`, `mt19937` and `mcg59` throw `unimplemented` |
+| sparse BLAS | throws `unimplemented` |
+
+The library builds and links as a whole either way — the two gaps below are
+compiled out rather than left to fail the build, so a `DPC_MATH_BACKEND=onemath`
+build produces a `libonedal_dpc.so` that examples and tests can be linked and run
+against. What is not there reports itself as `unimplemented` at the point of use
+instead of being silently substituted, which matters because the missing RNG
+engines have no numerically equivalent stand-in.
+
+Concretely: all 45 DPC++ examples build against such a library, and 44 of them
+run and produce the same output as the oneMKL build. The one that does not is
+`kmeans_lloyd_csr_batch`, which throws `unimplemented` out of the sparse BLAS
+layer.
+
+The Bazel test suites run too, not just build. Across `primitives/{blas,lapack,
+rng,objective_function}` and `algo/{pca,kmeans,decision_forest,covariance,
+linear_regression,basic_statistics,logistic_regression}`, 67 targets pass under
+`--config=nvidia-gpu` on the same GPU, the three `sparse_blas` targets are
+skipped as incompatible, and `decision_forest:test_spmd_dpc` fails exactly as it
+does on the default backend there.
+
+Neither gap is as wide as the domain table suggests, which is worth spelling out
+so the table is not read as a list of unusable algorithms:
+
+- The three absent engines are reachable only on request. `decision_forest` is
+  the only oneAPI descriptor that exposes `engine_type`, its default is
+  `philox4x32x10`, and that default is what the one device-side draw
+  (`pr::uniform` on the bootstrap indices) ends up using — so decision forest
+  runs unless the caller explicitly asks for `mt2203`, `mt19937` or `mcg59`.
+- The host-side RNG paths — `shuffle`, `uniform_without_replacement` and the
+  Fisher-Yates helper, which is how `kmeans_init` draws its random centroids —
+  take their numbers from the DAAL engines and never touch the device engine, so
+  they work with any engine type.
+- Sparse BLAS is only entered for a `csr_table` on the device, so it bites
+  exactly the CSR-input algorithms.
+
+The two gaps are not a matter of naming and cannot be closed by this
+configuration alone:
+
+- **RNG.** oneMath's `oneapi::math::rng` provides `philox4x32x10` and
+  `mrg32k3a` only. `primitives/rng/device_engine.hpp` also instantiates
+  `mt2203`, `mt19937` and `mcg59`, which the interface does not declare at
+  all. Closing this means either contributing the engines upstream to oneMath
+  or giving those three a fallback — and `mt2203` in particular has no GPU
+  `skip_ahead`, so it cannot simply be mapped onto a counter-based engine.
+- **Sparse BLAS.** The two libraries expose disjoint generations of the
+  interface. oneDAL uses oneMKL's handle API (`init_matrix_handle`,
+  `set_csr_data`, `gemv`, `gemm`, `optimize_gemv`); oneMath ships the newer
+  specification (`init_csr_matrix`, `release_sparse_matrix`, and `spmv` /
+  `spmm` driven by descriptors with separate buffer-size, optimize and execute
+  stages). oneMKL 2026 does not offer the newer form, so there is no spelling
+  that satisfies both and the layer needs a per-backend implementation.
+
+Until either is closed, `oneapi::math` is reached only for BLAS and LAPACK, and
+the `sparse_blas` primitives and three of the five device RNG engines are
+`unimplemented` under `onemath`. Both gaps live behind
+`ONEDAL_MATH_BACKEND_ONEMATH`, so the default oneMKL build compiles exactly the
+code it did before.
+
+### What the CUDA backends cover
+
+The two gaps above are interface gaps and apply to any oneMath build. On top of
+them, oneMath's CUDA backends do not implement everything oneMath declares, so a
+`--dpc_math_backend=onemath` build with CUDA backends has a second, narrower set
+of restrictions. The table is derived from reading the oneMath sources at commit
+`3273ca2` — specifically the `unimplemented` throw sites in
+`src/{blas,lapack,rng,sparse_blas}/backends/cu*` — for exactly the entry points
+oneDAL's device code calls. **It is not measured**: there is no NVIDIA hardware
+here, so treat it as what the backend source says it will do.
+
+| oneDAL uses | CUDA backend | covered? |
+|---|---|---|
+| `blas::column_major::{gemm,gemv,syrk}`, float and double | cuBLAS | yes — only `bfloat16` `gemm` and the `row_major` forms are `unimplemented` |
+| `lapack::{potrf,potrs,syevd}` and their scratchpad sizes | cuSOLVER | yes, with no restriction |
+| `lapack::gesvd` | cuSOLVER | **only for m ≥ n** |
+| `rng::uniform` over `philox4x32x10` / `mrg32k3a`, USM API, `float` / `double` / `std::int32_t` | cuRAND | yes, including scalar `skip_ahead` — but see the semantics note below |
+| `sparse::*` | cuSPARSE | n/a — blocked by the interface-generation gap above, not by the backend |
+
+Two consequences worth calling out, because they are not visible from the domain
+table:
+
+- **PCA `method::svd` cannot run on NVIDIA.** `train_kernel_svd_impl_dpc.cpp`
+  calls `pr::gesvd<somevec, novec>(queue, column_count, row_count, ...)`, i.e.
+  m = columns and n = rows, so m < n for any dataset with more rows than
+  columns — the normal case. cuSOLVER's `gesvd` throws
+  `unimplemented("lapack", "gesvd", "cusolver gesvd does not support m < n")`
+  there. PCA `method::cov` goes through `syevd` and is unaffected, so PCA as a
+  whole is usable; only the SVD method is not.
+- **Random forest works, and should be left on its default engine.**
+  `decision_forest` is the only descriptor exposing `engine_type`, its default
+  is `philox4x32x10`, and cuRAND implements everything the one device-side draw
+  needs. `mrg32k3a` is the other engine cuRAND covers, so either of those two is
+  a valid explicit choice; `mt2203`, `mt19937` and `mcg59` are not declared by
+  oneMath at all.
+
+  One caveat on repeated draws: oneDAL advances an engine with
+  `skip_ahead_gpu(count)` after each device draw, expecting oneMKL's *relative*
+  advance. cuRAND's backend implements `skip_ahead(n)` as
+  `curandSetGeneratorOffset(engine_, n)`, an *absolute* offset, so successive
+  draws from one engine would restart from the same place rather than continue.
+  Single-draw use — which is what decision forest does per tree block — is
+  unaffected, but this is a real divergence and is part of the upstream report.
+
+### Deselecting what the backend cannot run
+
+Rather than letting these paths build and then throw, the tests and examples that
+reach them are deselected, the same way the reference host backend deselects what
+it does not implement:
+
+- `te::device_sparse_blas_supported()` (in `test/engine/fixtures.hpp`) is
+  `false` under `ONEDAL_MATH_BACKEND_ONEMATH`. The CSR-only test cases in
+  `kmeans` and `objective_function` check it with `SKIP_IF`. The define is set
+  only for device translation units, so the host versions of the same tests keep
+  running.
+- Type lists that mix a dense and a sparse method — `kmeans_types`,
+  `log_reg_types` — drop the sparse method under the same define, and the device
+  RNG test's engine lists drop the three absent engines. A `COMBINE_TYPES` list
+  cannot be empty, which is why the wholly-sparse cases use `SKIP_IF` instead.
+- `//cpp/oneapi/dal/backend/primitives/sparse_blas:tests` is
+  `target_compatible_with` `@platforms//:incompatible` under
+  `--dpc_math_backend=onemath`, so Bazel skips it instead of building a test
+  whose every assertion would throw.
+- The DPC++ examples take two CMake options, mirroring `REF_BACKEND` /
+  `OPENRNG_BACKEND` on the host side: `-DONEMATH_BACKEND=ON` excludes
+  `kmeans_lloyd_csr_batch`, and adding `-DCUDA_BACKEND=ON` additionally excludes
+  `pca_svd_dense_batch` for the `gesvd` restriction above. There is no Bazel
+  equivalent of the second one: which backends a `libonemath.so` dispatches to is
+  fixed when oneMath is configured and is not visible to the build graph.
+
+Other known limitations:
+
+- Not covered by CI, and no NVIDIA hardware is validated. The oneMath side was
+  exercised with the `mklgpu` backend on an Intel GPU, which checks the
+  interface but none of the CUDA code paths.
+- Devices without `aspect::fp64` need `--test_disable_fp64=yes`; that covers the
+  tests, not the algorithms themselves.

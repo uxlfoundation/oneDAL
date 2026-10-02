@@ -35,27 +35,32 @@ sycl::event set_csr_data(sycl::queue &queue,
     ONEDAL_ASSERT(data.get_count());
     ONEDAL_ASSERT(column_indices.get_count());
     ONEDAL_ASSERT(row_offsets.get_count() == row_count + 1);
-#if INTEL_MKL_VERSION >= 20250300
-    return oneapi::mkl::sparse::set_csr_data(queue,
-                                             dal::detail::get_impl(handle).get(),
-                                             row_count,
-                                             column_count,
-                                             nnz,
-                                             sparse_indexing_to_mkl(indexing),
-                                             const_cast<std::int64_t *>(row_offsets.get_data()),
-                                             const_cast<std::int64_t *>(column_indices.get_data()),
-                                             const_cast<Float *>(data.get_data()),
-                                             deps);
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    // oneMath creates the handle from the CSR arrays in one step
+    // (`init_csr_matrix`) instead of filling an already-created one, so there is
+    // no equivalent of this call. See the note in gemv_dpc.cpp.
+    throw unimplemented(dal::detail::error_messages::sparse_blas_not_available_in_math_backend());
+#elif INTEL_MKL_VERSION >= 20250300
+    return mkl::sparse::set_csr_data(queue,
+                                     dal::detail::get_impl(handle).get(),
+                                     row_count,
+                                     column_count,
+                                     nnz,
+                                     sparse_indexing_to_mkl(indexing),
+                                     const_cast<std::int64_t *>(row_offsets.get_data()),
+                                     const_cast<std::int64_t *>(column_indices.get_data()),
+                                     const_cast<Float *>(data.get_data()),
+                                     deps);
 #else
-    return oneapi::mkl::sparse::set_csr_data(queue,
-                                             dal::detail::get_impl(handle).get(),
-                                             row_count,
-                                             column_count,
-                                             sparse_indexing_to_mkl(indexing),
-                                             const_cast<std::int64_t *>(row_offsets.get_data()),
-                                             const_cast<std::int64_t *>(column_indices.get_data()),
-                                             const_cast<Float *>(data.get_data()),
-                                             deps);
+    return mkl::sparse::set_csr_data(queue,
+                                     dal::detail::get_impl(handle).get(),
+                                     row_count,
+                                     column_count,
+                                     sparse_indexing_to_mkl(indexing),
+                                     const_cast<std::int64_t *>(row_offsets.get_data()),
+                                     const_cast<std::int64_t *>(column_indices.get_data()),
+                                     const_cast<Float *>(data.get_data()),
+                                     deps);
 #endif
 }
 
@@ -73,27 +78,29 @@ sycl::event set_csr_data(sycl::queue &queue,
     ONEDAL_ASSERT(data);
     ONEDAL_ASSERT(column_indices);
     ONEDAL_ASSERT(row_offsets);
-#if INTEL_MKL_VERSION >= 20250300
-    return oneapi::mkl::sparse::set_csr_data(queue,
-                                             dal::detail::get_impl(handle).get(),
-                                             row_count,
-                                             column_count,
-                                             nnz,
-                                             sparse_indexing_to_mkl(indexing),
-                                             const_cast<std::int64_t *>(row_offsets),
-                                             const_cast<std::int64_t *>(column_indices),
-                                             const_cast<Float *>(data),
-                                             deps);
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    throw unimplemented(dal::detail::error_messages::sparse_blas_not_available_in_math_backend());
+#elif INTEL_MKL_VERSION >= 20250300
+    return mkl::sparse::set_csr_data(queue,
+                                     dal::detail::get_impl(handle).get(),
+                                     row_count,
+                                     column_count,
+                                     nnz,
+                                     sparse_indexing_to_mkl(indexing),
+                                     const_cast<std::int64_t *>(row_offsets),
+                                     const_cast<std::int64_t *>(column_indices),
+                                     const_cast<Float *>(data),
+                                     deps);
 #else
-    return oneapi::mkl::sparse::set_csr_data(queue,
-                                             dal::detail::get_impl(handle).get(),
-                                             row_count,
-                                             column_count,
-                                             sparse_indexing_to_mkl(indexing),
-                                             const_cast<std::int64_t *>(row_offsets),
-                                             const_cast<std::int64_t *>(column_indices),
-                                             const_cast<Float *>(data),
-                                             deps);
+    return mkl::sparse::set_csr_data(queue,
+                                     dal::detail::get_impl(handle).get(),
+                                     row_count,
+                                     column_count,
+                                     sparse_indexing_to_mkl(indexing),
+                                     const_cast<std::int64_t *>(row_offsets),
+                                     const_cast<std::int64_t *>(column_indices),
+                                     const_cast<Float *>(data),
+                                     deps);
 #endif
 }
 

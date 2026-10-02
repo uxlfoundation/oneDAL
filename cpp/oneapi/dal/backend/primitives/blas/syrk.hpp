@@ -23,7 +23,7 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-namespace mkl = oneapi::mkl;
+namespace mkl = oneapi::dal::backend::math;
 
 template <mkl::uplo ul, typename Float, ndorder ao>
 sycl::event syrk(sycl::queue& queue,

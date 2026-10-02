@@ -18,7 +18,7 @@
 #include "oneapi/dal/backend/primitives/blas/gemv.hpp"
 #include "oneapi/dal/backend/primitives/blas/misc.hpp"
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
@@ -45,35 +45,35 @@ sycl::event gemv(sycl::queue& queue,
 
     if constexpr (ao == ndorder::c) {
         ONEDAL_ASSERT(lda >= n);
-        return mkl::blas::gemv(queue,
-                               mkl::transpose::trans,
-                               n,
-                               m,
-                               alpha,
-                               a.get_data(),
-                               lda,
-                               x.get_data(),
-                               std::int64_t(1),
-                               beta,
-                               y.get_mutable_data(),
-                               std::int64_t(1),
-                               deps);
+        return mkl::blas::column_major::gemv(queue,
+                                             mkl::transpose::trans,
+                                             n,
+                                             m,
+                                             alpha,
+                                             a.get_data(),
+                                             lda,
+                                             x.get_data(),
+                                             std::int64_t(1),
+                                             beta,
+                                             y.get_mutable_data(),
+                                             std::int64_t(1),
+                                             deps);
     }
     else {
         ONEDAL_ASSERT(lda >= m);
-        return mkl::blas::gemv(queue,
-                               mkl::transpose::nontrans,
-                               m,
-                               n,
-                               alpha,
-                               a.get_data(),
-                               lda,
-                               x.get_data(),
-                               std::int64_t(1),
-                               beta,
-                               y.get_mutable_data(),
-                               std::int64_t(1),
-                               deps);
+        return mkl::blas::column_major::gemv(queue,
+                                             mkl::transpose::nontrans,
+                                             m,
+                                             n,
+                                             alpha,
+                                             a.get_data(),
+                                             lda,
+                                             x.get_data(),
+                                             std::int64_t(1),
+                                             beta,
+                                             y.get_mutable_data(),
+                                             std::int64_t(1),
+                                             deps);
     }
 }
 

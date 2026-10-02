@@ -22,6 +22,20 @@ namespace v1 {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+
+// oneMath has no empty-handle-then-fill flow: its `init_csr_matrix` takes the
+// CSR arrays and produces a handle in one step, so there is nothing to create
+// here and nothing to release. The handle stays null, and every sparse entry
+// point that would use it throws -- see the `sparse_blas` primitives.
+sparse_matrix_handle_impl::sparse_matrix_handle_impl(sycl::queue& queue)
+        : handle_(nullptr),
+          queue_(queue) {}
+
+sparse_matrix_handle_impl::~sparse_matrix_handle_impl() = default;
+
+#else
+
 sparse_matrix_handle_impl::sparse_matrix_handle_impl(sycl::queue& queue) : queue_(queue) {
     mkl::sparse::init_matrix_handle(&handle_);
 }
@@ -29,6 +43,8 @@ sparse_matrix_handle_impl::sparse_matrix_handle_impl(sycl::queue& queue) : queue
 sparse_matrix_handle_impl::~sparse_matrix_handle_impl() {
     mkl::sparse::release_matrix_handle(queue_, &handle_, {}).wait();
 }
+
+#endif // ONEDAL_MATH_BACKEND_ONEMATH
 
 #endif // ONEDAL_DATA_PARALLEL
 

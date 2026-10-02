@@ -110,7 +110,16 @@ public:
     }
 };
 
+// Every test below draws on the device, and oneMath declares no `mt2203`,
+// `mt19937` or `mcg59` device engine, so under that backend those three throw
+// `unimplemented` out of `generate_rng`. Narrow the lists rather than skipping
+// the whole suite: `philox4x32x10` and `mrg32k3a` are still worth covering, and
+// they are the engines the algorithms actually default to.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using rng_types = COMBINE_TYPES((float, double), (mrg32k3a, philox4x32x10));
+#else
 using rng_types = COMBINE_TYPES((float, double), (mt2203, mt19937, mcg59, mrg32k3a, philox4x32x10));
+#endif
 
 TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     SKIP_IF(this->get_policy().is_cpu());
@@ -135,8 +144,12 @@ TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     this->check_results(arr_gpu, arr_host);
 }
 
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using rng_types_skip_ahead_support = COMBINE_TYPES((float, double), (mrg32k3a, philox4x32x10));
+#else
 using rng_types_skip_ahead_support = COMBINE_TYPES((float, double),
                                                    (mt19937, mcg59, mrg32k3a, philox4x32x10));
+#endif
 
 TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types_skip_ahead_support) {
     SKIP_IF(this->get_policy().is_cpu());

@@ -120,6 +120,27 @@ config_flag(
     ],
 )
 
+# SYCL math library behind the DPC++ device primitives (BLAS, LAPACK, sparse
+# BLAS, RNG). Orthogonal to `backend_config`, which picks the *host* math
+# library: a DPC++ build keeps using MKL or the reference backend on the CPU
+# side either way. `config_flag` auto-generates the matching
+# `:dpc_math_backend_mkl` / `:dpc_math_backend_onemath` config_setting targets.
+#
+#  * "mkl"     — oneMKL, Intel GPUs only. The default, and what Make builds.
+#  * "onemath" — oneMath (https://github.com/uxlfoundation/oneMath), the
+#    open-source implementation of the same DPC++ interface. Adds cuBLAS,
+#    cuSOLVER, cuSPARSE and cuRAND backends, so the same sources run on NVIDIA
+#    GPUs. Requires ONEMATHROOT and a compiler asked for an NVPTX target via
+#    ONEDAL_SYCL_TARGETS; see `--config=nvidia-gpu` in .bazelrc.
+config_flag(
+    name = "dpc_math_backend",
+    build_setting_default = "mkl",
+    allowed_build_setting_values = [
+        "mkl",
+        "onemath",
+    ],
+)
+
 # Use this, not the bare `:rng_backend_openrng`, to gate the OpenRNG define and
 # dependency: RNG_OPENRNG lives in dev/make/deps.ref.mk, so Make can only reach
 # it on the ref backend, and .ci/scripts/build.sh guards `--use-openrng yes`
