@@ -53,6 +53,12 @@ RUN for v in $(cat /tmp/.bazelversion) ${TASK_BAZEL_VERSIONS}; do USE_BAZEL_VERS
 RUN python3 -m venv /opt/clang-format && /opt/clang-format/bin/pip install --no-cache-dir clang-format==20.1.8
 ENV ONEDAL_EVAL_CLANG_FORMAT=/opt/clang-format/bin/clang-format
 
+# build_make_gnu: oneMKL and oneTBB for the make build, which the task prompt says are here; the task has no
+# network. Pins as in graders/make.py MAKE_DEPS. Not on any default path, and MKLROOT stays unset (see below).
+RUN python3 -m venv /opt/onedal-make-deps && \
+    /opt/onedal-make-deps/bin/pip install --no-cache-dir mkl-static==2026.1.0 mkl-include==2026.1.0 tbb-devel==2023.1.0
+ENV ONEDAL_EVAL_MAKE_DEPS=/opt/onedal-make-deps
+
 # `bazel` is the eval wrapper: output base from EVAL_BAZEL_OUTPUT_BASE (per run), repository and disk caches shared
 # across runs (repo-eval.yaml image.caches), MKLROOT always unset. Never set MKLROOT in this image: Bazel would
 # re-fetch @mkl as symlinks into it.

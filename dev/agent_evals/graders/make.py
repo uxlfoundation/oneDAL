@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 from common import sh
 from graders.build import g_artifact_path
@@ -36,12 +37,16 @@ def g_make_artifact(rd, ws, t, tr):
 # Measured recipe (build_make_gnu): oneMKL static libs + headers and oneTBB from PyPI into a venv
 # outside the repo, then the CI target `daal` with GCC for one ISA (sse2 is always added).
 MAKE_CMD = ["make", "-f", "makefile", "daal", "PLAT=lnx32e", "COMPILER=gnu", "REQCPU=avx2"]
+# The image bakes these into /opt/onedal-make-deps (ONEDAL_EVAL_MAKE_DEPS), so the task runs offline; keep the
+# pins in step with the Dockerfile.
+MAKE_DEPS = ["mkl-static==2026.1.0", "mkl-include==2026.1.0", "tbb-devel==2023.1.0"]
 
 
 def o_make(rd, repo, t):
-    deps = rd / "deps"
-    sh([sys.executable, "-m", "venv", str(deps)])
-    sh([str(deps / "bin" / "pip"), "install", "-q", "mkl-static", "mkl-include", "tbb-devel"], timeout=1800)
+    deps = Path(os.environ.get("ONEDAL_EVAL_MAKE_DEPS") or rd / "deps")
+    if not (deps / "include" / "mkl.h").is_file():  # standalone, outside the image: same pins, needs network
+        sh([sys.executable, "-m", "venv", str(deps)])
+        sh([str(deps / "bin" / "pip"), "install", "-q", *MAKE_DEPS], timeout=1800)
     env = dict(os.environ, MKLROOT=str(deps), TBBROOT=str(deps),
                LD_LIBRARY_PATH=f"{deps}/lib:{os.environ.get('LD_LIBRARY_PATH', '')}")
     cmd = [*MAKE_CMD, f"-j{os.cpu_count()}"]
