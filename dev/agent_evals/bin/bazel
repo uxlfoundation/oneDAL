@@ -18,9 +18,12 @@
 # Per-run bazel wrapper put first on the agent's PATH: isolated output_base, shared repository and disk caches.
 # EVAL_BAZEL_REGISTRY (set in the eval image) points module resolution at a local BCR mirror: task workspaces have
 # no MODULE.bazel.lock, so offline bzlmod would otherwise fetch registry files from bcr.bazel.build.
+# ONEDAL_EVAL_INSTALL_ROOT (set in the eval image) is the shared --output_user_root, which holds Bazel's install
+# base (about 1 GB per version); the output base stays per run.
 OB=${EVAL_BAZEL_OUTPUT_BASE:?EVAL_BAZEL_OUTPUT_BASE unset}
 unset MKLROOT
 startup=()
+[[ -n ${ONEDAL_EVAL_INSTALL_ROOT-} ]] && startup+=(--output_user_root="$ONEDAL_EVAL_INSTALL_ROOT")
 while [[ $# -gt 0 && $1 == -* ]]; do startup+=("$1"); shift; done
 verb=${1-}
 [[ $# -gt 0 ]] && shift
