@@ -59,10 +59,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup MSYS2
-        shell: pwsh
-        run: .\.ci\env\msys2.ps1 -Arch ${{ matrix.os.arch }}
-
       - name: Install LLVM for Win-${{ matrix.os.arch }}
         shell: pwsh
         run: .\.ci\env\llvm.ps1 -Arch ${{ matrix.os.arch }}
@@ -159,13 +155,6 @@ jobs:
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@v6
-
-      # Bazel needs a Bourne shell on Windows for shell-based actions; the
-      # nightly x86 Bazel lane uses Git bash, MSYS2 is what the Make lane above
-      # already installs on this runner image.
-      - name: Setup MSYS2
-        shell: pwsh
-        run: .\.ci\env\msys2.ps1 -Arch arm64
 
       # clang-cl / lld-link / llvm-lib are the toolchain oneDAL uses for
       # Windows ARM64, in both build systems
