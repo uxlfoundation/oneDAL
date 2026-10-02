@@ -22,8 +22,8 @@
   run.py agent   <task> <arm> <model> <rep> [--effort L]  prep a history-free repo for the arm, run `claude -p`, grade
   run.py matrix  [--tasks ..] [--arms ..] [--models ..] [--reps N] [-j N] [--batch NAME] [--effort L] [--force]
   run.py grade   <run_dir>...                      re-grade existing runs (deterministic; reruns the tests)
-  run.py grade   --contract <run_dir>              agent-benchmark entry point: grade.json as repo_grade.v1
-  run.py oracle  --contract <run_dir>              agent-benchmark entry point: apply the reference solution
+  run.py grade   --contract <run_dir> [--source DIR]   agent-benchmark entry point: grade.json as repo_grade.v1
+  run.py oracle  --contract <run_dir> [--source DIR]   agent-benchmark entry point: apply the reference solution
   run.py static  [--tree DIR] [--out FILE]         T0: check guidance claims against the tree, $0
   run.py summary [--batch NAME]                    per-cell table of every graded run in the batch
 
@@ -226,15 +226,21 @@ def main():
     p = sub.add_parser("grade")
     p.add_argument("run_dirs", nargs="+", type=Path)
     p.add_argument("--contract", action="store_true", help="agent-benchmark layout: workspace/, task.json, ...")
+    p.add_argument("--source", type=Path, help="full-history oneDAL clone; overrides ONEDAL_EVAL_SRC")
     p = sub.add_parser("oracle")
     p.add_argument("run_dir", type=Path)
     p.add_argument("--contract", action="store_true", required=True)
+    p.add_argument("--source", type=Path, help="full-history oneDAL clone; overrides ONEDAL_EVAL_SRC")
     p = sub.add_parser("static")
     p.add_argument("--tree", type=Path, default=config.src())
     p.add_argument("--out", type=Path)
     p = sub.add_parser("summary")
     p.add_argument("--batch", default="default")
     a = ap.parse_args()
+    if getattr(a, "source", None):
+        if not (a.source / ".git").exists() and not (a.source / "HEAD").is_file():
+            raise SystemExit(f"--source {a.source}: not a git repository")
+        config.SRC_OVERRIDE = a.source
 
     if a.cmd == "list":
         for t in all_tasks():

@@ -19,7 +19,8 @@
 Everything host-specific is read from environment variables so the harness runs from any oneDAL checkout:
 
   ONEDAL_EVAL_SRC      oneDAL git clone with full history (default: the checkout this file lives in).
-                       Mined tasks read fix commits from it, so it must contain them.
+                       Mined tasks read fix commits from it, so it must contain them. `run.py grade|oracle
+                       --source DIR` overrides it (agent-benchmark passes {source_dir}). Never passed to the agent.
   ONEDAL_EVAL_ROOT     where run directories go (default: $TMPDIR/onedal-agent-evals-$USER). Must have no
                        CLAUDE.md / AGENTS.md / .claude in any ancestor directory, or those files leak into every arm.
   ONEDAL_EVAL_BAZEL    real bazel/bazelisk binary (default: first bazelisk/bazel on PATH outside bin/).
@@ -81,7 +82,13 @@ def model_budget(alias):
     return MODELS.get(alias, (None, None, 5.0))[2]
 
 
+# set by `run.py grade|oracle --source`; takes precedence over ONEDAL_EVAL_SRC
+SRC_OVERRIDE = None
+
+
 def src():
+    if SRC_OVERRIDE:
+        return Path(SRC_OVERRIDE).resolve()
     if os.environ.get("ONEDAL_EVAL_SRC"):
         return Path(os.environ["ONEDAL_EVAL_SRC"]).resolve()
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=H, text=True, capture_output=True)
@@ -130,6 +137,7 @@ def run_env(rd):
     r = root()
     e = dict(os.environ)
     e.pop("MKLROOT", None)  # an exported MKLROOT makes Bazel re-fetch @mkl as symlinks into it
+    e.pop("ONEDAL_EVAL_SRC", None)  # full history holds every fix; graders read it in-process, the agent never
     e["PATH"] = f"{BIN}{os.pathsep}{e['PATH']}"
     e["ONEDAL_EVAL_BAZEL"] = real_bazel()
     e["EVAL_BAZEL_OUTPUT_BASE"] = str(rd / "ob")

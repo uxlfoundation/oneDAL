@@ -37,8 +37,8 @@ image:
 # cwd is {run_dir}/workspace, where eval_dir has been deleted; {eval_dir} is the framework's read-only copy, and the
 # scripts find their tasks, graders and bin/ from __file__.
 entry_points:
-  grade:  "python3 {eval_dir}/run.py grade --contract {run_dir}"
-  oracle: "python3 {eval_dir}/run.py oracle --contract {run_dir}"
+  grade:  "python3 {eval_dir}/run.py grade --contract {run_dir} --source {source_dir}"
+  oracle: "python3 {eval_dir}/run.py oracle --contract {run_dir} --source {source_dir}"
   static: "python3 {eval_dir}/static_check.py --out {out}"
 
 tasks: dev/agent_evals/tasks
