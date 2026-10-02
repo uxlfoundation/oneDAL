@@ -369,7 +369,12 @@ Scripts that need a fixed path should use `//:release` on those platforms.
 
 Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
 `dev/release_tests/compare_release_trees.py` at check level 4 to compare their
-package trees, metadata, and exported symbols. Linux invokes the comparator
+package trees, metadata, and exported symbols. On Linux level 4 additionally
+compares each shared library's `DT_NEEDED` list and undefined dynamic symbols,
+and checks that a runtime the Make release stages in a sibling component tree
+(such as `<release>/tbb/latest/lib`) is shipped by the Bazel release as well: a
+library whose exports match but whose recorded dependencies do not cannot be
+loaded by a consumer. Linux invokes the comparator
 directly; Windows uses `.ci/scripts/compare_windows_release.ps1`. Windows also
 runs `.ci/scripts/test_bazel_release_cmake_example.ps1` to verify that a CMake
 consumer can build and run against the Bazel package.
