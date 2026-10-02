@@ -20,7 +20,6 @@ load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
     "paths",
-    "sets",
 )
 
 load("@onedal//dev/bazel/toolchains:action_names.bzl",
