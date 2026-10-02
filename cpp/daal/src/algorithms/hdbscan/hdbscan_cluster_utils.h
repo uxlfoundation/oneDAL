@@ -18,6 +18,8 @@
 #ifndef __HDBSCAN_CLUSTER_UTILS_H__
 #define __HDBSCAN_CLUSTER_UTILS_H__
 
+#include <algorithm>
+
 #include "services/daal_defines.h"
 #include "src/algorithms/service_sort.h"
 #include "src/externals/service_memory.h"
@@ -58,11 +60,37 @@ struct CondensedEdge
     DAAL_INT childSize; ///< Number of original points in the child subtree (1 for fallen leaves)
 };
 
-/// Sort MST edges in ascending order of weight, keeping endpoint arrays aligned.
+/// Strict total order over MST edges: ascending weight, ties broken by the edge's original
+/// position, NaN weights last.
 ///
-/// Uses the shared three-array qSort: mstWeights is the key, mstFrom/mstTo are
-/// permuted in lock-step. Required by buildDendrogramFromSortedMst, whose
-/// union-find merge order assumes ascending weights.
+/// The composite key is what makes one unstable sort stable. Grouping NaNs keeps the relation a
+/// strict weak ordering, which a bare `wa < wb` would not be for a NaN input.
+///
+/// @tparam algorithmFPType Floating-point type used for edge weights
+///
+/// @param[in] wa First edge's weight
+/// @param[in] ia First edge's original position
+/// @param[in] wb Second edge's weight
+/// @param[in] ib Second edge's original position
+///
+/// @return True iff edge `a` must sort before edge `b`
+template <typename algorithmFPType>
+static inline bool mstEdgeLess(algorithmFPType wa, DAAL_INT ia, algorithmFPType wb, DAAL_INT ib)
+{
+    const bool aNan = !(wa == wa);
+    const bool bNan = !(wb == wb);
+    if (aNan != bNan) return bNan;
+    if (!aNan && wa != wb) return wa < wb;
+    return ia < ib;
+}
+
+/// Stably sort MST edges in ascending order of weight, keeping endpoint arrays aligned.
+///
+/// Required by buildDendrogramFromSortedMst, which folds the edges in this order, so among tied
+/// edges the order decides tie-degenerate splits -- and equal weights are the norm under MRD. The
+/// sort is therefore an index permutation on `(weight, position)`, matching the GPU backend's
+/// stable radix sort, with a fallback to the in-place `qSort` if the permutation buffers cannot be
+/// allocated, which preserves ascending weights and leaves only the tie order unspecified.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -74,7 +102,39 @@ struct CondensedEdge
 template <typename algorithmFPType, CpuType cpu>
 static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t edgeCount)
 {
-    daal::algorithms::internal::qSort<algorithmFPType, DAAL_INT, DAAL_INT, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
+    TArray<DAAL_INT, cpu> orderArr(edgeCount);
+    TArray<DAAL_INT, cpu> fromArr(edgeCount);
+    TArray<DAAL_INT, cpu> toArr(edgeCount);
+    TArray<algorithmFPType, cpu> weightArr(edgeCount);
+    DAAL_INT * order            = orderArr.get();
+    DAAL_INT * sortedFrom       = fromArr.get();
+    DAAL_INT * sortedTo         = toArr.get();
+    algorithmFPType * sortedWgt = weightArr.get();
+
+    if (order == nullptr || sortedFrom == nullptr || sortedTo == nullptr || sortedWgt == nullptr)
+    {
+        daal::algorithms::internal::qSort<algorithmFPType, DAAL_INT, DAAL_INT, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
+        return;
+    }
+
+    for (size_t i = 0; i < edgeCount; i++) order[i] = static_cast<DAAL_INT>(i);
+
+    const algorithmFPType * weights = mstWeights;
+    std::sort(order, order + edgeCount, [weights](DAAL_INT a, DAAL_INT b) { return mstEdgeLess<algorithmFPType>(weights[a], a, weights[b], b); });
+
+    for (size_t i = 0; i < edgeCount; i++)
+    {
+        const DAAL_INT src = order[i];
+        sortedFrom[i]      = mstFrom[src];
+        sortedTo[i]        = mstTo[src];
+        sortedWgt[i]       = mstWeights[src];
+    }
+
+    const size_t idxBytes = edgeCount * sizeof(DAAL_INT);
+    const size_t wgtBytes = edgeCount * sizeof(algorithmFPType);
+    daal::services::internal::daal_memcpy_s(mstFrom, idxBytes, sortedFrom, idxBytes);
+    daal::services::internal::daal_memcpy_s(mstTo, idxBytes, sortedTo, idxBytes);
+    daal::services::internal::daal_memcpy_s(mstWeights, wgtBytes, sortedWgt, wgtBytes);
 }
 
 /// Build the single-linkage dendrogram from sorted MST edges via union-find.
@@ -403,7 +463,7 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 /// grandparent sees the propagated score). If the parent wins, every
 /// descendant is unselected via an explicit stack walk over
 /// `childOffset`/`childList`. Oversized clusters (size > `mcsMax`) are forced
-/// onto the children-win branch unconditionally.
+/// onto the children-win branch unconditionally, leaf clusters included.
 ///
 /// `treeTop` controls whether the root cluster participates. When the caller
 /// allows a single-cluster outcome, `treeTop == rootCid` and the root may win
@@ -431,7 +491,17 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 {
     for (DAAL_INT c = nClusters - 1; c >= treeTop; c--)
     {
-        if (isLeafCluster[c]) continue;
+        if (isLeafCluster[c])
+        {
+            // No children to compare against, so only the size cap can unselect a leaf; its
+            // propagated stability is the empty child sum, as on the children-win branch.
+            if (clusterSz[c] > mcsMax)
+            {
+                isSelected[c] = false;
+                stability[c]  = algorithmFPType(0);
+            }
+            continue;
+        }
 
         algorithmFPType childSum       = algorithmFPType(0);
         const DAAL_INT childOffsetC    = childOffset[c];
@@ -841,11 +911,17 @@ static int labelPoints(const CondensedEdge * condensed, size_t nCondensed, size_
 /// @param[in]     maxClusterSize          Maximum cluster size cap (0 == uncapped)
 ///
 /// @return Number of distinct labels emitted (== `labelCounter`); 0 if the MST is empty
+///         or there are no points at all
 template <typename algorithmFPType, CpuType cpu>
 int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize,
                               int * assignments, int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
                               size_t maxClusterSize = 0)
 {
+    // `edgeCount` and `totalNodes` below wrap for `nRows == 0` and then become allocation lengths.
+    if (nRows == 0)
+    {
+        return 0;
+    }
     const size_t edgeCount  = nRows - 1;
     const size_t totalNodes = 2 * nRows - 1;
 

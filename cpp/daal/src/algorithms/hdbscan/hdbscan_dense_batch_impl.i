@@ -20,13 +20,15 @@
  *
  * The approach:
  *   1. Compute full pairwise distance matrix via GEMM
- *   2. Compute core distances (k-th nearest neighbor distance per point)
+ *   2. Compute core distances (k-th nearest neighbor distance per point) with a
+ *      bounded selection heap over each row -- no row copy, O(minSamples) scratch
  *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm,
  *      applying 1/alpha only to the dist term inside MRD = max(coreI, coreJ, dist/alpha)
  *   4. Sort MST + extract clusters via condensed tree + EOM/leaf (shared code)
  *
- * Complexity: O(N^2) for distance matrix, O(N^2 * log N) worst case for Boruvka's MST.
- * Memory:     O(N^2) for the distance matrix.
+ * Complexity: O(N^2) for the distance matrix, O(N^2 * log N) worst case for
+ *             Boruvka's MST.
+ * Memory:     O(N^2) for the distance matrix, O(N) working arrays.
  */
 
 #include <cstdint>
@@ -130,8 +132,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     {
         // We need real (not squared) L2 here. Distances flow into three
         // downstream steps as actual distance values, not squared:
-        //   - Core distances (Step 2) are read from this matrix directly via
-        //     nth_element and become MST edge weights via
+        //   - Core distances (Step 2) are selected from this matrix directly and
+        //     become MST edge weights via
         //     MRD(a,b) = max(core(a), core(b), dist(a,b) / alpha).
         //   - `alpha` divides the pairwise dist term inside MRD; that scaling
         //     is only meaningful on real distances.
@@ -208,25 +210,17 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const size_t t      = (target >= nRows) ? nRows - 1 : target;
 
     {
-        daal::TlsMem<algorithmFPType, cpu> tlsBuf(nRows);
+        // The core distance is the `t + 1`-th smallest entry of row `i`, so a bounded heap of that
+        // capacity is enough -- no row copy and no `nThreads * nRows` of scratch.
+        const size_t heapSize = t + 1;
+        daal::TlsMem<algorithmFPType, cpu> tlsHeap(heapSize);
         SafeStatus safeStat;
 
         daal::threader_for(nRows, nRows, [&](size_t i) {
-            algorithmFPType * dists = tlsBuf.local();
-            DAAL_CHECK_MALLOC_THR(dists);
+            algorithmFPType * heapBuf = tlsHeap.local();
+            DAAL_CHECK_MALLOC_THR(heapBuf);
 
-            const algorithmFPType * row = distMatrix + i * nRows;
-            // `distMatrix` is `TArrayScalable`-backed and `dists` is the current
-            // thread's `TlsMem` slot; both allocations start on a
-            // `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary. `row` = distMatrix + i*nRows
-            // may still be unaligned inside that allocation, so use daal_memcpy_s
-            // (which the codebase uses for contiguous row copies of arbitrary
-            // start alignment) rather than a hand-rolled vectorized loop.
-            const size_t rowBytes = nRows * sizeof(algorithmFPType);
-            daal::services::internal::daal_memcpy_s(dists, rowBytes, row, rowBytes);
-
-            std::nth_element(dists, dists + t, dists + nRows);
-            coreDistances[i] = dists[t];
+            coreDistances[i] = kthSmallestBounded<algorithmFPType, cpu>(distMatrix + i * nRows, nRows, heapSize, heapBuf);
         });
 
         DAAL_CHECK_SAFE_STATUS();
@@ -234,6 +228,9 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // =========================================================================
     // Step 3: Build MST using Boruvka's algorithm with MRD
+    //
+    // Prim's was tried and reverted: it does less total work on a complete graph, but its N
+    // sequential barriers cannot fill a wide machine and it measured 20-25% slower than Boruvka.
     // =========================================================================
 
     TArray<DAAL_INT, cpu> mstFromVec(edgeCount);
@@ -290,7 +287,10 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         // (canonical HDBSCAN), not the full distance matrix or core distances.
         // MRD(a, b) = max(core(a), core(b), dist(a, b) / alpha)
         const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
+        const algorithmFPType inf      = daal::services::internal::MaxVal<algorithmFPType>::get();
 
+        // A per-point cache of the `k` smallest MRD neighbours was tried here and reverted: it is
+        // label-preserving, but Boruvka converges in so few rounds that it only measured 1.03x.
         while (numComponents > 1)
         {
             // Phase 1: For each point, find nearest different-component neighbor under MRD.
@@ -300,7 +300,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
                 const DAAL_INT myComp          = componentOf[i];
                 const algorithmFPType * mrdRow = distMatrix + i * nRows;
                 const algorithmFPType coreI    = coreDistances[i];
-                algorithmFPType bestMrd        = daal::services::internal::MaxVal<algorithmFPType>::get();
+                algorithmFPType bestMrd        = inf;
                 DAAL_INT bestIdx               = -1;
 
                 for (size_t j = 0; j < nRows; j++)
@@ -328,6 +328,10 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
             refreshComponentIds<cpu>(nRows, uf, componentOf);
         }
+
+        // The MRD graph is complete, so a round only fails to find a candidate on non-finite input.
+        // A truncated MST leaves tail entries uninitialized, which are then read as tree nodes.
+        if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
     }
 
     // =========================================================================

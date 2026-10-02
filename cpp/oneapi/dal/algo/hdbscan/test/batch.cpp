@@ -16,8 +16,13 @@
 
 #include "oneapi/dal/algo/hdbscan/test/fixture.hpp"
 
+#ifdef ONEDAL_DATA_PARALLEL
+#include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
+#endif
+
 #include <map>
 #include <set>
+#include <vector>
 
 namespace oneapi::dal::hdbscan::test {
 
@@ -29,6 +34,7 @@ class hdbscan_batch_test : public hdbscan_test<TestType, hdbscan_batch_test<Test
 // =========================================================================
 
 using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
+using hdbscan_bf_only = COMBINE_TYPES((double), (hdbscan::method::brute_force));
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: compute mode check",
@@ -946,6 +952,140 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 // =========================================================================
+// Larger-scale brute_force MST tests
+//
+// The literal-array cases above are below every threaded threshold in the backend. These are
+// sized so the parallel Boruvka scan is the path under test.
+// =========================================================================
+
+/// Deterministic well-separated blobs. The fixed LCG only has to be reproducible and free of
+/// exact coordinate ties, not statistically sound.
+template <typename Float>
+static std::vector<Float> make_blobs(std::int64_t per_cluster,
+                                     std::int64_t cluster_count,
+                                     std::int64_t column_count,
+                                     Float separation,
+                                     Float spread) {
+    std::vector<Float> data(per_cluster * cluster_count * column_count);
+
+    std::uint32_t state = 777u;
+    const auto next_unit = [&]() {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<Float>(state >> 8) / static_cast<Float>(1u << 24);
+    };
+
+    std::int64_t pos = 0;
+    for (std::int64_t c = 0; c < cluster_count; c++) {
+        for (std::int64_t i = 0; i < per_cluster; i++) {
+            for (std::int64_t j = 0; j < column_count; j++) {
+                const Float center = separation * static_cast<Float>(c + 1) *
+                                     static_cast<Float>(j % 2 == 0 ? 1 : -1);
+                data[pos++] = center + spread * (next_unit() - Float(0.5));
+            }
+        }
+    }
+    return data;
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force vs tree methods: same partition at thousands of rows",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // 4 x 1000 points: enough rows for a genuinely threaded Boruvka round.
+    constexpr std::int64_t per_cluster = 1000;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 3;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+
+    const auto data = make_blobs<Float>(per_cluster,
+                                        cluster_count,
+                                        column_count,
+                                        /*separation=*/Float(20.0),
+                                        /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    constexpr std::int64_t min_cluster_size = 25;
+    const std::int64_t min_samples = GENERATE(5, 50);
+    CAPTURE(min_samples);
+
+    const auto bf_desc =
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
+    const auto kd_desc =
+        hdbscan::descriptor<Float, hdbscan::method::kd_tree>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
+    const auto bt_desc =
+        hdbscan::descriptor<Float, hdbscan::method::ball_tree>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
+
+    INFO("run brute_force");
+    const auto bf_result = dal::compute(bf_desc, x);
+
+    INFO("run kd_tree");
+    const auto kd_result = dal::compute(kd_desc, x);
+
+    INFO("run ball_tree");
+    const auto bt_result = dal::compute(bt_desc, x);
+
+    INFO("the blobs are separated by 20x their spread, so all methods must recover them");
+    REQUIRE(bf_result.get_cluster_count() == cluster_count);
+
+    INFO("compare cluster counts");
+    REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
+    REQUIRE(bf_result.get_cluster_count() == bt_result.get_cluster_count());
+
+    const auto bf_rows = row_accessor<const Float>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const Float>(kd_result.get_responses()).pull({ 0, -1 });
+    const auto bt_rows = row_accessor<const Float>(bt_result.get_responses()).pull({ 0, -1 });
+
+    INFO("compare partitions (permutation-invariant)");
+    check_same_partition(bf_rows, kd_rows, row_count);
+    check_same_partition(bf_rows, bt_rows, row_count);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: threaded MST is stable across runs",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // A single diffuse blob: no density gap, so the labels are decided by the MST edge order
+    // alone, and the input is dense in exact weight ties for the sort to break reproducibly.
+    constexpr std::int64_t row_count = 3000;
+    constexpr std::int64_t column_count = 2;
+
+    const auto data = make_blobs<Float>(row_count,
+                                        /*cluster_count=*/1,
+                                        column_count,
+                                        /*separation=*/Float(0.0),
+                                        /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto desc =
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(15, 5).set_result_options(
+            result_options::responses);
+
+    const auto first = dal::compute(desc, x);
+    const auto first_rows = row_accessor<const Float>(first.get_responses()).pull({ 0, -1 });
+
+    for (int run = 1; run < 3; run++) {
+        CAPTURE(run);
+        const auto again = dal::compute(desc, x);
+        REQUIRE(again.get_cluster_count() == first.get_cluster_count());
+
+        const auto again_rows = row_accessor<const Float>(again.get_responses()).pull({ 0, -1 });
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i);
+            REQUIRE(again_rows[i] == first_rows[i]);
+        }
+    }
+}
+
+// =========================================================================
 // cluster_selection_epsilon tests
 // =========================================================================
 
@@ -1260,13 +1400,42 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
         10.0,  10.2, //
         10.15, 10.15, //
     };
-    const auto x = homogen_table::wrap(data, 10, 2);
+    const std::int64_t row_count = 10;
+    const auto x = homogen_table::wrap(data, row_count, 2);
 
-    // max_cluster_size should run without error (functional check)
-    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5)
-                          .set_result_options(result_options::responses)
-                          .set_max_cluster_size(3);
-    REQUIRE_NOTHROW(dal::compute(desc, x));
+    // Sizes of every reported (non-noise) cluster, keyed by label.
+    const auto cluster_sizes = [&](std::int64_t max_cluster_size) {
+        const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(5, 5)
+                              .set_result_options(result_options::responses)
+                              .set_max_cluster_size(max_cluster_size);
+        const auto responses = dal::compute(desc, x).get_responses();
+        const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
+
+        std::map<std::int64_t, std::int64_t> sizes;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const auto label = static_cast<std::int64_t>(rows[i]);
+            if (label >= 0) {
+                sizes[label]++;
+            }
+        }
+        return sizes;
+    };
+
+    // Uncapped: two clusters of 5 points. Both are condensed-tree leaves, so only the size cap
+    // can unselect them.
+    const auto uncapped = cluster_sizes(0);
+    REQUIRE(uncapped.size() == 2);
+    for (const auto& [label, size] : uncapped) {
+        INFO("label = " << label);
+        REQUIRE(size == 5);
+    }
+
+    // Capped below the blob size: neither blob may be reported as a cluster.
+    constexpr std::int64_t max_cluster_size = 3;
+    for (const auto& [label, size] : cluster_sizes(max_cluster_size)) {
+        INFO("label = " << label);
+        REQUIRE(size <= max_cluster_size);
+    }
 }
 
 // =========================================================================
@@ -1922,6 +2091,64 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto gpu_rows = row_accessor<const Float>(gpu_result.get_responses()).pull({ 0, -1 });
 
     check_same_partition(cpu_rows, gpu_rows, row_count);
+}
+
+// The two sizing helpers below guard row counts whose n x n matrix is several
+// gigabytes, so they cannot be reached through `dal::compute` in a test. Drive
+// them directly instead.
+
+TEST("hdbscan gpu: the square launches stay inside the int32 range limit",
+     "[hdbscan][batch][gpu]") {
+    constexpr std::int64_t int32_max = 2147483647;
+
+    // Below the limit a single launch still covers the whole matrix.
+    REQUIRE(dal::backend::max_range_2d_rows(1) >= 1);
+    REQUIRE(dal::backend::max_range_2d_rows(46340) * 46340 <= int32_max);
+    REQUIRE(dal::backend::max_range_2d_rows(46340) >= 46340);
+
+    // 46341^2 is the first square past int32, so blocking must kick in there.
+    REQUIRE(dal::backend::max_range_2d_rows(46341) < 46341);
+
+    for (const std::int64_t n : { std::int64_t(46341),
+                                  std::int64_t(50000),
+                                  std::int64_t(100000),
+                                  std::int64_t(1000000),
+                                  int32_max }) {
+        const std::int64_t rows = dal::backend::max_range_2d_rows(n);
+        REQUIRE(rows >= 1);
+        REQUIRE(rows * n <= int32_max);
+    }
+}
+
+TEST("hdbscan gpu: brute_force rejects a matrix larger than device memory",
+     "[hdbscan][batch][gpu]") {
+    constexpr std::int64_t gib = 1024 * 1024 * 1024;
+    constexpr std::int64_t f64 = 8;
+
+    // 16 GiB global, 4 GiB per allocation: 10k rows need 800 MB and fit.
+    REQUIRE(backend::mrd_matrix_fits_on_device(10000, 8, f64, 4 * gib, 16 * gib));
+
+    // 30k rows need 7.2 GB, past the single-allocation limit.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(30000, 8, f64, 4 * gib, 16 * gib));
+
+    // A 32k x 32k matrix is 7.63 GiB and fits both one allocation and the 9 GiB
+    // budget, but the input table pushes the total over once it gets wide.
+    REQUIRE(backend::mrd_matrix_fits_on_device(32000, 8, f64, 16 * gib, 18 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(32000, 8000, f64, 16 * gib, 18 * gib));
+
+    // The reported 100k-row `std::bad_alloc`: 80 GB in float64 on a 48 GB card.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(100000, 8, f64, 48 * gib, 48 * gib));
+
+    // Only part of global memory is usable: a 32.5 GiB matrix allocates on a
+    // 48 GiB card and then faults on first access, so it has to be rejected
+    // even though it is under the 45 GiB single-allocation limit.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(66000, 8, f64, 45 * gib, 48 * gib));
+    REQUIRE(backend::mrd_matrix_fits_on_device(50000, 8, f64, 45 * gib, 48 * gib));
+
+    // Halving the element size halves the footprint, so float32 is checked
+    // against its own size rather than the widest one.
+    REQUIRE(backend::mrd_matrix_fits_on_device(20000, 8, 4, 4 * gib, 16 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(20000, 8, f64, 2 * gib, 16 * gib));
 }
 
 #endif // ONEDAL_DATA_PARALLEL

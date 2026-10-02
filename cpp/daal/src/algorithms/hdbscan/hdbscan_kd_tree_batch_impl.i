@@ -28,7 +28,8 @@
  *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
  *
  * Key advantage over brute_force: O(N * k * log N) for core distances,
- * O(N * log^2 N) for MST via Boruvka (vs O(N^2) Prim's in brute_force).
+ * O(N * log^2 N) for MST via tree-pruned Boruvka (vs O(N^2) Prim's over the
+ * materialized distance matrix in brute_force).
  * Memory: O(N * D * tree_nodes) for bounding boxes + O(N) working arrays.
  */
 
@@ -315,12 +316,15 @@ static DAAL_INT updateNodeComponents(KdNode<algorithmFPType> * nodes, const DAAL
 
 /// Find the query's nearest point in a different component under MRD on the kd-tree.
 ///
-/// Three-level pruning:
+/// Pruning:
 ///   1. skip subtrees whose `componentId` matches the query's component;
 ///   2. skip subtrees whose `max(coreQ, minCoreDistNode, bboxMinDist * invAlpha)`
 ///      is not smaller than the current best MRD;
-///   3. visit the nearer child first to tighten `bestMrd`, then the far child
-///      only if its plane distance still permits an improvement.
+///   3. visit the nearer child first so that `bestMrd` is already tight when the
+///      far child is reached.
+///
+/// Both children are always descended into: the far child is rejected by test 2 at its own node,
+/// not by a split-plane test at the parent, which would only save a constant factor.
 ///
 /// Alpha is applied only to the dist(q,p) term inside MRD (canonical HDBSCAN
 /// robust single linkage); core distances are left unscaled.

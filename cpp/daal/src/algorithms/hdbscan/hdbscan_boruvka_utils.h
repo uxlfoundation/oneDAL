@@ -43,12 +43,27 @@ struct UnionFind
     DAAL_INT * parent; ///< `parent[i]` is the parent index; roots satisfy `parent[i] == i`
     DAAL_INT * rank;   ///< Rank per root; ties broken by union-by-rank
 
-    /// Path-halving find.
+    /// Find that only reads the forest: phase 4 of a Boruvka round resolves every point against
+    /// one shared instance in parallel, where compressing `parent` would be a data race.
     ///
     /// @param[in] x Element id
     ///
     /// @return Root id of the set containing `x`
     DAAL_INT find(DAAL_INT x) const
+    {
+        while (parent[x] != x)
+        {
+            x = parent[x];
+        }
+        return x;
+    }
+
+    /// Path-halving find. Not safe to call concurrently on a shared instance -- see `find`.
+    ///
+    /// @param[in] x Element id
+    ///
+    /// @return Root id of the set containing `x`
+    DAAL_INT findCompress(DAAL_INT x)
     {
         while (parent[x] != x)
         {
@@ -152,8 +167,8 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
         if (compBestFrom[c] < 0) continue;
         const DAAL_INT u  = compBestFrom[c];
         const DAAL_INT v  = compBestTo[c];
-        const DAAL_INT ru = uf.find(u);
-        const DAAL_INT rv = uf.find(v);
+        const DAAL_INT ru = uf.findCompress(u);
+        const DAAL_INT rv = uf.findCompress(v);
         if (ru == rv) continue;
 
         mstFrom[edgesAdded]    = u;
@@ -170,18 +185,21 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
 
 /// Refresh per-point component ids after phase 3 unified some roots.
 ///
-/// Phase 4 of a Boruvka round. Parallelized because the map is O(N) with
-/// independent entries.
+/// Phase 4 of a Boruvka round. The first pass only reads the forest; the second flattens it from
+/// that result, each thread writing its own index only, so the next round finds a root in one
+/// indirection without the racy path halving.
 ///
 /// @tparam cpu CPU dispatch tag
 ///
-/// @param[in]  nRows       Number of points
-/// @param[in]  uf          Union-find state
-/// @param[out] componentOf Per-point component id (written for every entry)
+/// @param[in]     nRows       Number of points
+/// @param[in,out] uf          Union-find state; its forest is left fully flattened
+/// @param[out]    componentOf Per-point component id (written for every entry)
 template <daal::internal::CpuType cpu>
-static void refreshComponentIds(size_t nRows, const UnionFind & uf, DAAL_INT * componentOf)
+static void refreshComponentIds(size_t nRows, UnionFind & uf, DAAL_INT * componentOf)
 {
     daal::threader_for(nRows, nRows, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
+    DAAL_INT * const parent = uf.parent;
+    daal::threader_for(nRows, nRows, [&](size_t i) { parent[i] = componentOf[i]; });
 }
 
 } // namespace internal

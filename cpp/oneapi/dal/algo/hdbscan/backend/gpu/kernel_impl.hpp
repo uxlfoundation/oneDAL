@@ -17,7 +17,9 @@
 #pragma once
 
 #include "oneapi/dal/algo/hdbscan/common.hpp"
+#include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/exceptions.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
@@ -94,6 +96,77 @@ struct cluster_work_ptrs {
     Float cluster_selection_epsilon;
     std::int64_t max_cluster_size;
 };
+
+/// Fraction of device global memory the brute-force path is allowed to occupy.
+///
+/// A `malloc_device` past the physically available memory succeeds and then
+/// faults on first access, which aborts the process instead of raising, so the
+/// budget has to stop short of the reported size. On a 48 GiB card an n x n
+/// matrix still ran at 28.6 GiB and faulted at 32.5 GiB; half the global memory
+/// stays clear of that edge and leaves room for the GEMM scratch, the driver's
+/// own reservations and anything else the process holds.
+constexpr std::int64_t mrd_global_mem_divisor = 2;
+
+/// Decide whether the brute-force path's device buffers fit within given limits.
+///
+/// Split out of `check_mrd_matrix_fits_on_device` so the sizing arithmetic can
+/// be exercised against synthetic limits instead of whatever GPU is attached.
+///
+/// @param[in] row_count        Number of input rows `n`
+/// @param[in] column_count     Number of input columns `d`
+/// @param[in] element_size     Size in bytes of one distance-matrix element
+/// @param[in] max_alloc_bytes  Device limit on a single allocation
+/// @param[in] global_mem_bytes Device global memory size
+///
+/// @return `true` if the `n × n` matrix fits one allocation and the pipeline's
+///         peak footprint stays inside the global-memory budget
+inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
+                                      std::int64_t column_count,
+                                      std::int64_t element_size,
+                                      std::int64_t max_alloc_bytes,
+                                      std::int64_t global_mem_bytes) {
+    const std::int64_t matrix_bytes = element_size * row_count * row_count;
+    if (matrix_bytes > max_alloc_bytes) {
+        return false;
+    }
+
+    // Live alongside the matrix while the MST is built: the input table, the
+    // core distances and the three MST edge arrays.
+    const std::int64_t peak_bytes =
+        matrix_bytes + element_size * row_count * (column_count + 1) +
+        (2 * static_cast<std::int64_t>(sizeof(std::int32_t)) + element_size) * row_count;
+    return peak_bytes <= global_mem_bytes / mrd_global_mem_divisor;
+}
+
+/// Reject up front the row counts whose `n × n` MRD matrix cannot be allocated.
+///
+/// The brute-force path materializes the whole matrix, so its device footprint
+/// grows quadratically and a 100k-row fit already asks for 80 GB in `double`.
+/// Without this check the failure surfaces as a bare `std::bad_alloc` from deep
+/// inside the allocator, which tells the caller neither what was too large nor
+/// that `kd_tree`/`ball_tree` would have worked.
+///
+/// @tparam Float Floating-point type of the distance matrix
+///
+/// @param[in] queue        The SYCL queue whose device has to hold the matrix
+/// @param[in] row_count    Number of input rows `n`
+/// @param[in] column_count Number of input columns `d`
+///
+/// @throws domain_error if the matrix exceeds the single-allocation limit or if
+///         the pipeline's peak footprint exceeds device global memory
+template <typename Float>
+inline void check_mrd_matrix_fits_on_device(sycl::queue& queue,
+                                            std::int64_t row_count,
+                                            std::int64_t column_count) {
+    if (!mrd_matrix_fits_on_device(row_count,
+                                   column_count,
+                                   static_cast<std::int64_t>(sizeof(Float)),
+                                   bk::device_max_mem_alloc_size(queue),
+                                   bk::device_global_mem_size(queue))) {
+        throw domain_error(
+            dal::detail::error_messages::hdbscan_brute_force_matrix_does_not_fit_on_device());
+    }
+}
 
 /// Compute the full pairwise distance matrix on the GPU using the requested metric.
 ///
@@ -264,22 +337,38 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
     const bool needs_sqrt = (metric == distance_metric::euclidean);
     const Float inv_alpha = static_cast<Float>(1.0 / alpha);
 
-    auto mrd_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(sycl::range<2>(n, n), [=](sycl::id<2> idx) {
-            const std::int64_t i = idx[0];
-            const std::int64_t j = idx[1];
-            // For euclidean: mrd_matrix has squared L2, need sqrt first
-            // For other metrics: mrd_matrix has actual distances
-            const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
-                                       : mrd_ptr[i * n + j];
-            const Float cd_i = core_ptr[i];
-            const Float cd_j = core_ptr[j];
-            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
-        });
-    });
+    // `n * n` work items can leave int32, which the runtime rejects, so walk the
+    // matrix in row blocks. Each block writes only its own rows and depends on
+    // `deps` alone, so the launches are free to overlap.
+    const std::int64_t block_rows = bk::max_range_2d_rows(n);
 
-    return mrd_event;
+    bk::event_vector block_events;
+    for (std::int64_t row_start = 0; row_start < n; row_start += block_rows) {
+        const std::int64_t rows = std::min(block_rows, n - row_start);
+
+        block_events.push_back(queue.submit([&](sycl::handler& h) {
+            h.depends_on(deps);
+            h.parallel_for(bk::make_range_2d(rows, n), [=](sycl::id<2> idx) {
+                const std::int64_t i = row_start + static_cast<std::int64_t>(idx[0]);
+                const std::int64_t j = idx[1];
+                // For euclidean: mrd_matrix has squared L2, need sqrt first
+                // For other metrics: mrd_matrix has actual distances
+                const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
+                                           : mrd_ptr[i * n + j];
+                const Float cd_i = core_ptr[i];
+                const Float cd_j = core_ptr[j];
+                mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
+            });
+        }));
+    }
+
+    if (block_events.size() == 1u) {
+        return block_events.front();
+    }
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(block_events);
+        h.single_task([]() {});
+    });
 }
 
 /// Find the nearest different-component neighbor per point by scanning a precomputed MRD matrix.
@@ -1226,8 +1315,15 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
             else {
                 const std::int32_t tree_top = w.allow_single_cluster ? root_cid : (root_cid + 1);
                 for (std::int32_t c = n_clusters - 1; c >= tree_top; c--) {
-                    if (w.ilc_ptr[c])
+                    if (w.ilc_ptr[c]) {
+                        // No children to compare against, so only the size cap can unselect a
+                        // leaf; its propagated stability is the empty child sum.
+                        if (w.csz_ptr[c] > mcs_max) {
+                            w.is_ptr[c] = 0;
+                            w.stab_ptr[c] = Float(0);
+                        }
                         continue;
+                    }
 
                     Float child_sum = Float(0);
                     if (w.cc0_ptr[c] >= 0)

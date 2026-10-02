@@ -520,6 +520,23 @@ inline sycl::range<2> make_range_2d(std::int64_t size1, std::int64_t size2) {
              dal::detail::integral_cast<std::size_t>(size2) };
 }
 
+/// Largest first dimension a single `range<2>(rows, size2)` launch may use.
+///
+/// Under the default `-fsycl-id-queries-fit-in-int` the runtime rejects any
+/// range whose linearized size leaves int32, so a full `size1 x size2` grid
+/// throws once the product passes 2^31 - 1. Splitting the launch along the
+/// first dimension keeps the 2D shape, and with it the coalescing, while
+/// staying inside the limit.
+///
+/// @param[in] size2 Extent of the second range dimension; must be positive
+///
+/// @return Row block size, at least 1
+inline std::int64_t max_range_2d_rows(std::int64_t size2) {
+    ONEDAL_ASSERT(size2 > 0);
+    constexpr std::int64_t max_items = std::numeric_limits<std::int32_t>::max();
+    return std::max<std::int64_t>(1, max_items / size2);
+}
+
 /// Creates `nd_range`, where global size is multiple of local size
 inline sycl::nd_range<1> make_multiple_nd_range_1d(std::int64_t global_size,
                                                    std::int64_t local_size) {

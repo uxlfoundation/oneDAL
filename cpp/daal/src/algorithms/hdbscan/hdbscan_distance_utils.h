@@ -611,6 +611,65 @@ struct ChebyshevDist
     }
 };
 
+/// Restore the max-heap property at `root` of a max-heap stored in `heap[0, size)`.
+///
+/// @tparam FPType Floating-point type stored in the heap
+///
+/// @param[in,out] heap Heap storage, a valid max-heap except possibly at `root`
+/// @param[in]     size Number of live heap slots
+/// @param[in]     root Index whose subtree needs restoring
+template <typename FPType>
+static inline void siftDownMaxHeap(FPType * heap, size_t size, size_t root)
+{
+    for (;;)
+    {
+        const size_t left  = 2 * root + 1;
+        const size_t right = left + 1;
+        size_t largest     = root;
+        if (left < size && heap[left] > heap[largest]) largest = left;
+        if (right < size && heap[right] > heap[largest]) largest = right;
+        if (largest == root) break;
+
+        const FPType tmp = heap[root];
+        heap[root]       = heap[largest];
+        heap[largest]    = tmp;
+        root             = largest;
+    }
+}
+
+/// Return the `k`-th smallest entry of `values[0, n)` without modifying or copying the input.
+///
+/// A bounded max-heap of the `k` smallest entries seen so far, so the row is streamed once and the
+/// scratch is `k` elements instead of the mutable `n`-element copy `std::nth_element` needs.
+///
+/// @tparam FPType Floating-point type
+/// @tparam cpu    CPU dispatch tag
+///
+/// @param[in]  values  Input values, length `n`, left untouched
+/// @param[in]  n       Number of input values
+/// @param[in]  k       Rank to select, `1 <= k <= n`
+/// @param[out] heapBuf Caller-owned scratch of at least `k` elements; holds the `k` smallest
+///                     values in heap order on return
+///
+/// @return The `k`-th smallest value of `values[0, n)`
+template <typename FPType, daal::internal::CpuType cpu>
+static FPType kthSmallestBounded(const FPType * values, size_t n, size_t k, FPType * heapBuf)
+{
+    for (size_t i = 0; i < k; i++) heapBuf[i] = values[i];
+    // Bottom-up heapify: sift every internal node in reverse index order.
+    for (size_t node = k / 2; node-- > 0;) siftDownMaxHeap<FPType>(heapBuf, k, node);
+
+    for (size_t i = k; i < n; i++)
+    {
+        if (values[i] < heapBuf[0])
+        {
+            heapBuf[0] = values[i];
+            siftDownMaxHeap<FPType>(heapBuf, k, 0);
+        }
+    }
+    return heapBuf[0];
+}
+
 /// Bounded max-heap of the k nearest neighbors seen so far.
 ///
 /// Ordering invariant: `dists_[0]` is the largest distance currently in the
