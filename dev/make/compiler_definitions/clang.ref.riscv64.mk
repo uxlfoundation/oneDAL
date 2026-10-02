@@ -21,14 +21,6 @@
 
 include dev/make/compiler_definitions/clang.mk
 
-LINKERS_SUPPORTED := bfd gold lld
-
-ifneq ($(LINKER),)
-    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
-        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
-    endif
-endif
-
 PLATs.clang = lnxriscv64
 
 COMPILER.lnx.clang.target = $(if $(filter yes,$(COMPILER_is_cross)),--target=riscv64-linux-gnu)
@@ -41,7 +33,6 @@ COMPILER.lnx.clang= clang++ \
                      $(COMPILER.sysroot)
 
 # Linker flags
-linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.clang = clang++ \
                         $(linker.ld.flag) \
                         $(COMPILER.lnx.clang.target) \

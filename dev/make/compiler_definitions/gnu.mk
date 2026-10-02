@@ -27,9 +27,6 @@ CORE.SERV.COMPILER.gnu = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
-
-LINKERS_SUPPORTED := bfd gold lld
-
 ifneq ($(LINKER),)
     ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
         $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
@@ -41,13 +38,17 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
+# Ofast maps to -O3 -ffast-math rather than to -Ofast itself: gcc also links
+# crtfastmath.o for -Ofast, which sets FTZ/DAZ for the whole process that loads
+# the library. -U_FORTIFY_SOURCE comes first because some gcc builds predefine it.
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.gnu = -$(OPTFLAG)
+else ifeq ($(OPTFLAG),Ofast)
+    -optlevel.gnu = -O3 -ffast-math -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 else
-    -optlevel.gnu = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    -optlevel.gnu = -$(OPTFLAG) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 endif
 
-linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.all.gnu = ${CXX} $(linker.ld.flag)
 
 -Zl.gnu =
