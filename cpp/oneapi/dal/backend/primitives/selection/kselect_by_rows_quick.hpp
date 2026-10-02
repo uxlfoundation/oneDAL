@@ -40,9 +40,8 @@ class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
 public:
     kselect_by_rows_quick() = delete;
     kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape) {
-        // Quick select picks its pivots from a short, cyclically reused sequence of uniform
-        // values in `[0, 1)`. A fixed seed keeps the selection deterministic across runs, and
-        // the sequence is generated once here instead of per `operator()` call.
+        // Pivots come from a short sequence of uniform values in `[0, 1)` that the kernel reuses
+        // cyclically. The seed is fixed so that selection stays deterministic across runs.
         const std::int64_t rnd_seq_count = std::min(shape[1], max_rnd_seq_size_);
         rnd_seq_ = ndarray<Float, 1>::empty(queue, { rnd_seq_count }, sycl::usm::alloc::shared);
         host_engine engine(default_seed);

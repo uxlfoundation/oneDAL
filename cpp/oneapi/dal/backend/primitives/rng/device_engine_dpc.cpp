@@ -171,17 +171,8 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
     ONEDAL_ASSERT(casted_count <= casted_top);
     auto indices_ptr = result_array.get_mutable_data();
 
-    std::size_t value = 0;
     auto state = engine_.get_host_engine_state();
-    for (std::size_t i = 0; i < casted_count; i++) {
-        uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
-        for (std::size_t j = i; j > 0; j--) {
-            if (value == dal::detail::integral_cast<std::size_t>(indices_ptr[j - 1])) {
-                value = j - 1;
-            }
-        }
-        indices_ptr[i] = dal::detail::integral_cast<Type>(value);
-    }
+    partial_fisher_yates_draw(state, indices_ptr, casted_count, casted_top);
     // One value is drawn per iteration, so the device mirror has to advance by `count` to stay
     // at the same position in the stream as the host engine.
     engine_.skip_ahead_gpu(count);

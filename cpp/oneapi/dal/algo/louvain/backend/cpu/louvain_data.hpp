@@ -123,10 +123,6 @@ struct louvain_data {
     // Total link weight in the network
     value_type m;
 
-    // Louvain draws a random vertex visit order, and that order decides which local optimum the
-    // modularity optimization settles in. Nothing here is engine specific beyond that: louvain
-    // only calls `uniform` on the host and never needs `skip_ahead`, so it takes the library
-    // default like every other algorithm.
     host_engine eng{ default_seed };
 
     const std::int64_t vertex_count;
