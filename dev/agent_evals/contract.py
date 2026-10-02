@@ -31,13 +31,19 @@ from common import git
 from metrics import metrics
 
 
-def prepared_commit(ws, t, m):
-    """The commit the agent started from: meta.json base_sha if given, else derived from the workspace history.
+def start_commit(ws, t, m):
+    """The workspace commit the agent started from, the base of every diff a grader takes.
 
-    Workspace preparation makes one root commit (snapshot + setup patches + arm) and, for review tasks, one
-    `git am` commit on top; whatever follows is the agent's.
+    meta.json `base_rev` / `base_sha` / `base_date` name the upstream commit the workspace was snapshotted from.
+    That commit is not in the workspace (its history is gone), so it cannot be diffed against. The starting
+    commit is `start_sha` when the standalone runner recorded it; runs from before that recorded it as
+    `base_sha` with no `base_rev`. Otherwise it is derived from the history workspace preparation makes: one
+    root commit (snapshot + setup patches + arm) and, for review tasks, one `git am` commit on top; whatever
+    follows is the agent's.
     """
-    if m.get("base_sha"):
+    if m.get("start_sha"):
+        return m["start_sha"]
+    if m.get("base_sha") and not m.get("base_rev"):
         return m["base_sha"]
     revs = git(ws, "rev-list", "--reverse", "--first-parent", "HEAD").stdout.split()
     return revs[1 if t.get("review_patch") else 0]
@@ -73,9 +79,9 @@ def grade(rd):
         m = json.loads((rd / "meta.json").read_text()) if (rd / "meta.json").exists() else {}
         answer = rd / "answer.txt"
         tr = {**metrics(rd), "answer": answer.read_text() if answer.exists() else "",
-              "base_sha": prepared_commit(ws, t, m)}
+              "start_sha": start_commit(ws, t, m)}
         g = graders.GRADERS[t["grader"]](rd, ws, t, tr)
-        process = {k: v for k, v in tr.items() if k not in ("answer", "base_sha")}
+        process = {k: v for k, v in tr.items() if k not in ("answer", "start_sha")}
         out["metrics"], out["details"] = split_result({**process, **g})
         for k in t.get("gate", []):  # a gate metric the grader did not reach is unmeasured, not failed
             out["metrics"].setdefault(k, None)

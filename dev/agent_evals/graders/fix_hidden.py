@@ -35,7 +35,7 @@ from graders.fix import g_test_pass, o_test_pass
 
 def g_test_pass_files(rd, ws, t, tr):
     repo = ws
-    changed = changed_files(ws, tr["base_sha"])  # before any grader write, see g_test_pass
+    changed = changed_files(ws, tr["start_sha"])  # before any grader write, see g_test_pass
     agent_touched = [f for f in changed if is_test_file(f)]
     # Written for the duration of grading only: these are the grader's files, and a regrade that
     # found them in the tree would report them as the agent's changes (and, for the `.oracle` BUILD

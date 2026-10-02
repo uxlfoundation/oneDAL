@@ -77,7 +77,7 @@ def run_targets(rd, ws, targets, log):
 
 def g_mutation(rd, ws, t, tr):
     repo = ws
-    base = tr["base_sha"]
+    base = tr["start_sha"]
     pkgs = packages(t)
     j = last_json(tr["answer"])
     targets = j.get("targets") if isinstance(j, dict) else None
