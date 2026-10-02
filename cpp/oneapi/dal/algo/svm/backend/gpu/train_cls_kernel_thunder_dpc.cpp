@@ -220,7 +220,8 @@ static result_t train(const context_gpu& ctx, const descriptor_t& desc, const in
             .set_iteration_counts(homogen_table::wrap(iter_counts_nd.flatten(q), 1, 1))
             .set_biases(homogen_table::wrap(biases_nd.flatten(q), 1, 1))
             .set_first_class_response(old_unique_responses.first)
-            .set_second_class_response(old_unique_responses.second);
+            .set_second_class_response(old_unique_responses.second)
+            .set_class_count(2);
 
     de::get_impl(model).bias = bias;
 
