@@ -1,94 +1,94 @@
 [
- {
-  "id": "pr3665-t1",
-  "file": "cpp/oneapi/dal/algo/linear_kernel/test/batch.cpp",
-  "line": 38,
-  "author": "Alexandr-Solovev",
-  "kind": "nit",
-  "comment": "Not sure that \"parallel\" mode is proper name here",
-  "addressed": false,
-  "comment_id": 3539045258
- },
- {
-  "id": "pr3665-t2",
-  "file": "cpp/oneapi/dal/algo/linear_regression/backend/gpu/train_kernel_norm_eq_dpc.cpp",
-  "line": 189,
-  "author": "Alexandr-Solovev",
-  "kind": "nit",
-  "comment": "Probably makes sense to \n`auto data_table = homogen_table::wrap(queue, data_nd.get_data(), data_nd.get_dimension(0), data_nd.get_dimension(1));`\ninstead of introducing extra variables, unless they are reused elsewhere.",
-  "addressed": true,
-  "comment_id": 3539062085
- },
- {
-  "id": "pr3665-t3",
-  "file": "cpp/oneapi/dal/algo/logistic_regression/backend/gpu/train_kernel_dense_batch_dpc.cpp",
-  "line": 60,
-  "author": "Alexandr-Solovev",
-  "kind": "nit",
-  "comment": "same comment",
-  "addressed": true,
-  "comment_id": 3539063354
- },
- {
-  "id": "pr3665-t4",
-  "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
-  "line": 77,
-  "author": "Vika-F",
-  "kind": "convention",
-  "comment": "Looks like this function is not used. Maybe you forgot to call it somewhere?",
-  "addressed": true,
-  "comment_id": 3543182886
- },
- {
-  "id": "pr3665-t5",
-  "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
-  "line": 301,
-  "author": "Vika-F",
-  "kind": "api",
-  "comment": "It is not clear how this change affects the performance of the algorithms where `table2ndarray_1d` is used.\nThe semantics of `table2ndarray_1d` was changed here. I am not sure that in all the cases where this function is  it is more beneficial to convert column-major data to row-major.\n\nMaybe it would be better just to replace `table2ndarray_1d` with `table2ndarray_rm` + `ndarray::wrap` where need ...",
-  "addressed": false,
-  "comment_id": 3543625279
- },
- {
-  "id": "pr3665-t6",
-  "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
-  "line": 267,
-  "author": "Vika-F",
-  "kind": "correctness",
-  "comment": "Can you please comment on this change?",
-  "addressed": false,
-  "comment_id": 3543633731,
-  "note": "LEFT-side comment on base line 184; mapped to the new-file line at the same hunk position"
- },
- {
-  "id": "pr3665-t7",
-  "file": "cpp/oneapi/dal/algo/correlation_distance/test/batch.cpp",
-  "line": 38,
-  "author": "Vika-F",
-  "kind": "tests",
-  "comment": "This function is duplicated here and in `linear_kernel/test/batch.cpp`. Please move it into common `dal/test/engine` directory.",
-  "addressed": true,
-  "comment_id": 3543707339
- },
- {
-  "id": "pr3665-t8",
-  "file": "cpp/oneapi/dal/backend/memory.hpp",
-  "line": 209,
-  "author": "Vika-F",
-  "kind": "correctness",
-  "comment": "Please add the assertions for null-pointers checking:\n```\nONEDAL_ASSERT(dest != nullptr)\n```\nis_known_usm checks also for null-pointers.",
-  "addressed": true,
-  "comment_id": 3543744562,
-  "note": "LEFT-side comment on base line 209; mapped to the new-file line at the same hunk position"
- },
- {
-  "id": "pr3665-t9",
-  "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
-  "line": 336,
-  "author": "Vika-F",
-  "kind": "convention",
-  "comment": "The naming is a bit out if line. Other functions are named 'table2ndarray...'.\nRenaming proposals: 'table2ndarray_1d_save_layout', 'table2ndarray_1d_tm' (\"table major\", analogy with NumPy 'A' order, where it means column-major in case input is column-major, and row-major otherwise)",
-  "addressed": true,
-  "comment_id": 3543827930
- }
+  {
+    "id": "pr3665-t1",
+    "file": "cpp/oneapi/dal/algo/linear_kernel/test/batch.cpp",
+    "line": 38,
+    "author": "Alexandr-Solovev",
+    "kind": "nit",
+    "comment": "Not sure that \"parallel\" mode is proper name here",
+    "addressed": false,
+    "comment_id": 3539045258
+  },
+  {
+    "id": "pr3665-t2",
+    "file": "cpp/oneapi/dal/algo/linear_regression/backend/gpu/train_kernel_norm_eq_dpc.cpp",
+    "line": 189,
+    "author": "Alexandr-Solovev",
+    "kind": "nit",
+    "comment": "Probably makes sense to \n`auto data_table = homogen_table::wrap(queue, data_nd.get_data(), data_nd.get_dimension(0), data_nd.get_dimension(1));`\ninstead of introducing extra variables, unless they are reused elsewhere.",
+    "addressed": true,
+    "comment_id": 3539062085
+  },
+  {
+    "id": "pr3665-t3",
+    "file": "cpp/oneapi/dal/algo/logistic_regression/backend/gpu/train_kernel_dense_batch_dpc.cpp",
+    "line": 60,
+    "author": "Alexandr-Solovev",
+    "kind": "nit",
+    "comment": "same comment",
+    "addressed": true,
+    "comment_id": 3539063354
+  },
+  {
+    "id": "pr3665-t4",
+    "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
+    "line": 77,
+    "author": "Vika-F",
+    "kind": "convention",
+    "comment": "Looks like this function is not used. Maybe you forgot to call it somewhere?",
+    "addressed": true,
+    "comment_id": 3543182886
+  },
+  {
+    "id": "pr3665-t5",
+    "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
+    "line": 301,
+    "author": "Vika-F",
+    "kind": "api",
+    "comment": "It is not clear how this change affects the performance of the algorithms where `table2ndarray_1d` is used.\nThe semantics of `table2ndarray_1d` was changed here. I am not sure that in all the cases where this function is  it is more beneficial to convert column-major data to row-major.\n\nMaybe it would be better just to replace `table2ndarray_1d` with `table2ndarray_rm` + `ndarray::wrap` where need ...",
+    "addressed": false,
+    "comment_id": 3543625279
+  },
+  {
+    "id": "pr3665-t6",
+    "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
+    "line": 267,
+    "author": "Vika-F",
+    "kind": "correctness",
+    "comment": "Can you please comment on this change?",
+    "addressed": false,
+    "comment_id": 3543633731,
+    "note": "LEFT-side comment on base line 184; mapped to the new-file line at the same hunk position"
+  },
+  {
+    "id": "pr3665-t7",
+    "file": "cpp/oneapi/dal/algo/correlation_distance/test/batch.cpp",
+    "line": 38,
+    "author": "Vika-F",
+    "kind": "tests",
+    "comment": "This function is duplicated here and in `linear_kernel/test/batch.cpp`. Please move it into common `dal/test/engine` directory.",
+    "addressed": true,
+    "comment_id": 3543707339
+  },
+  {
+    "id": "pr3665-t8",
+    "file": "cpp/oneapi/dal/backend/memory.hpp",
+    "line": 209,
+    "author": "Vika-F",
+    "kind": "correctness",
+    "comment": "Please add the assertions for null-pointers checking:\n```\nONEDAL_ASSERT(dest != nullptr)\n```\nis_known_usm checks also for null-pointers.",
+    "addressed": true,
+    "comment_id": 3543744562,
+    "note": "LEFT-side comment on base line 209; mapped to the new-file line at the same hunk position"
+  },
+  {
+    "id": "pr3665-t9",
+    "file": "cpp/oneapi/dal/backend/primitives/utils.hpp",
+    "line": 336,
+    "author": "Vika-F",
+    "kind": "convention",
+    "comment": "The naming is a bit out if line. Other functions are named 'table2ndarray...'.\nRenaming proposals: 'table2ndarray_1d_save_layout', 'table2ndarray_1d_tm' (\"table major\", analogy with NumPy 'A' order, where it means column-major in case input is column-major, and row-major otherwise)",
+    "addressed": true,
+    "comment_id": 3543827930
+  }
 ]

@@ -1,58 +1,58 @@
 [
- {
-  "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
-  "line": 1,
-  "severity": "major",
-  "rule": "missing include guard (#pragma once)",
-  "message": "missing include guard (#pragma once)"
- },
- {
-  "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
-  "line": 1,
-  "severity": "major",
-  "rule": "missing copyright/license header",
-  "message": "missing copyright/license header"
- },
- {
-  "file": "cpp/oneapi/dal/algo/finiteness_checker/backend/cpu/compute_kernel_dense.cpp",
-  "line": 46,
-  "severity": "major",
-  "rule": "raw new[]/delete[] owning pointer, use RAII",
-  "message": "raw new[]/delete[] owning pointer, use RAII"
- },
- {
-  "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
-  "line": 62,
-  "severity": "major",
-  "rule": "DAAL code must not throw; return services::Status",
-  "message": "DAAL code must not throw; return services::Status"
- },
- {
-  "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
-  "line": 1,
-  "severity": "major",
-  "rule": "std::span is C++20; oneDAL is C++17",
-  "message": "std::span is C++20; oneDAL is C++17"
- },
- {
-  "file": "cpp/daal/include/data_management/data/internal/finiteness_checker.h",
-  "line": 3,
-  "severity": "major",
-  "rule": "copyright-year-only edit to an otherwise untouched file",
-  "message": "copyright-year-only edit to an otherwise untouched file"
- },
- {
-  "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
-  "line": 29,
-  "severity": "major",
-  "rule": "debug std::cout / iostream left in library code",
-  "message": "debug std::cout / iostream left in library code"
- },
- {
-  "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
-  "line": 64,
-  "severity": "major",
-  "rule": "loop uses <= n, off-by-one read past the end",
-  "message": "loop uses <= n, off-by-one read past the end"
- }
+  {
+    "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
+    "line": 1,
+    "severity": "major",
+    "rule": "missing include guard (#pragma once)",
+    "message": "missing include guard (#pragma once)"
+  },
+  {
+    "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
+    "line": 1,
+    "severity": "major",
+    "rule": "missing copyright/license header",
+    "message": "missing copyright/license header"
+  },
+  {
+    "file": "cpp/oneapi/dal/algo/finiteness_checker/backend/cpu/compute_kernel_dense.cpp",
+    "line": 46,
+    "severity": "major",
+    "rule": "raw new[]/delete[] owning pointer, use RAII",
+    "message": "raw new[]/delete[] owning pointer, use RAII"
+  },
+  {
+    "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+    "line": 62,
+    "severity": "major",
+    "rule": "DAAL code must not throw; return services::Status",
+    "message": "DAAL code must not throw; return services::Status"
+  },
+  {
+    "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
+    "line": 1,
+    "severity": "major",
+    "rule": "std::span is C++20; oneDAL is C++17",
+    "message": "std::span is C++20; oneDAL is C++17"
+  },
+  {
+    "file": "cpp/daal/include/data_management/data/internal/finiteness_checker.h",
+    "line": 3,
+    "severity": "major",
+    "rule": "copyright-year-only edit to an otherwise untouched file",
+    "message": "copyright-year-only edit to an otherwise untouched file"
+  },
+  {
+    "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+    "line": 29,
+    "severity": "major",
+    "rule": "debug std::cout / iostream left in library code",
+    "message": "debug std::cout / iostream left in library code"
+  },
+  {
+    "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+    "line": 64,
+    "severity": "major",
+    "rule": "loop uses <= n, off-by-one read past the end",
+    "message": "loop uses <= n, off-by-one read past the end"
+  }
 ]
