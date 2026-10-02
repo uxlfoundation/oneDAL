@@ -206,14 +206,14 @@ The most used Bazel commands are `build`, `test` and `run`.
     dispatch baseline, which is always included on x86.
   - `modern` Compiles for `sse2`, `avx2`, `avx512`.
   - `all` Compiles for all instruction sets listed below.
-  - Any comma-separated combination of the following values:
+  - Any space-separated combination of the following values:
     - `sse2`
     - `avx2`
     - `avx512`
 
    Example:
    ```sh
-   bazel test --cpu="avx2,avx512" //cpp/oneapi/dal:tests
+   bazel test --cpu="avx2 avx512" //cpp/oneapi/dal:tests
    ```
 
 - `--test_external_datasets` A switch that enables
