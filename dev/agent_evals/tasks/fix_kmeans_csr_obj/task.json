@@ -1,7 +1,7 @@
 {
   "id": "fix_kmeans_csr_obj",
   "family": "fix",
-  "base": "cf0c0a0b^",
+  "base": "cf0c0a0b7f21a45434fe7cf11ffe5695c5a55afd^",
   "grader": "test_pass",
   "gate": [
     "strict_pass"

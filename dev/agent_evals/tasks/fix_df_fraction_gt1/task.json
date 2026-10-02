@@ -1,7 +1,7 @@
 {
   "id": "fix_df_fraction_gt1",
   "family": "fix",
-  "base": "2bed66f0^",
+  "base": "2bed66f06be41518d5527e6de89333e31635e46d^",
   "grader": "test_pass",
   "gate": [
     "strict_pass"

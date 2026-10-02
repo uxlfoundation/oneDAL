@@ -1,7 +1,7 @@
 {
   "id": "build_release_host",
   "family": "build",
-  "base": "3120d0ab",
+  "base": "3120d0ab00a2f4b20b3ce1e9fb3929b969a6f417",
   "grader": "release_path",
   "prompt": "Build the oneDAL release package for CPU with Bazel (the host libraries are enough; this machine has no GPU). `bazel` is on PATH. Do not modify any files. When done, end your answer with a fenced ```json block of the form {\"path\": \"<absolute path of the built libonedal_core shared library inside the release package>\", \"command\": \"<the exact bazel command that produced it>\"}."
 }

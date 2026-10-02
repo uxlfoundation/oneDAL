@@ -1,7 +1,7 @@
 {
   "id": "test_add_minkowski",
   "family": "test",
-  "base": "3120d0ab",
+  "base": "3120d0ab00a2f4b20b3ce1e9fb3929b969a6f417",
   "grader": "mutation",
   "package": "cpp/oneapi/dal/algo/minkowski_distance",
   "min_kill": 0.6,
