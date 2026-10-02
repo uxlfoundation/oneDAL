@@ -323,7 +323,19 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     "-pass-exit-codes",
                 ) +
                 (
-                    ["-static-intel"] if reqs.compiler_id in ["icx", "icpx"] else []
+                    # `-static-intel` is not enough: the icx releases measured
+                    # here still add `-limf` to a shared library link, so
+                    # `libonedal.so` and `libonedal_core.so` end up recording
+                    # DT_NEEDED `libimf.so`. Neither release stages the Intel
+                    # compiler runtimes, so such a library fails to load on a
+                    # host without oneAPI installed. The objects are already
+                    # compiled with `-no-intel-lib` (dev/bazel/flags.bzl), so
+                    # repeating it on the link line drops the dependency
+                    # instead of satisfying it statically -- and it is what
+                    # Make does: `link.dynamic.lnx.icx` in
+                    # dev/make/compiler_definitions/icx.mkl.32e.mk passes
+                    # `-no-intel-lib` and its libraries record no `libimf.so`.
+                    ["-no-intel-lib", "-static-intel"] if reqs.compiler_id in ["icx", "icpx"] else []
                 ) +
                 bin_search_flag_cc + link_opts,
             ),
