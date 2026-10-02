@@ -172,10 +172,9 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          # `checkout` leaves the pull request's merge commit at HEAD, and its
-          # first parent is the main commit this build contains. That commit, not
-          # main's tip, is the baseline the comparison has to start from; see the
-          # script for why.
+          # `checkout` leaves the pull request's merge commit at HEAD; its first
+          # parent is the main commit this build contains. That commit is the
+          # baseline, not main's tip -- the script explains why.
           .ci/scripts/abi_baseline_key.sh "$(git log -1 --format=%P | cut -d' ' -f1)"
         env:
           GH_TOKEN: ${{ github.token }}

@@ -20,27 +20,26 @@
 #
 # Usage: abi_baseline_key.sh <base-commit> [window] [stale-after]
 #
-# Three things the baseline has to satisfy that "newest entry in main's cache
-# scope" does not:
+# Taking the newest entry in main's cache scope is wrong for three reasons.
 #
-# Scope. `gh cache list` reports every scope in the repository while
-# `cache/restore` can only read main's, so an entry belonging to another pull
-# request's scope would miss and the comparison would run against an empty
+# Scope. `gh cache list` shows every scope in the repository, but
+# `cache/restore` can only read main's. An entry from another pull request's
+# scope would miss, and the comparison would then run against an empty
 # directory.
 #
 # Provenance. Any job whose GITHUB_REF is main can write into main's cache
 # scope, the fork pull request jobs in Nightly-test included, and a key that did
-# not exist before is always the newest. So candidates are derived from commits
-# rather than read off the cache listing. Keys are immutable, which leaves only
-# a race against the genuine main build for a real commit's key.
+# not exist before is always the newest one. So candidates come from commits
+# rather than from the cache listing. Keys are immutable, so the only race left
+# is against the real main build for a real commit's key.
 #
-# Ancestry. abidiff reports the difference between two trees, not what one pull
-# request changed. A baseline that is not an ancestor of the build under test
-# puts main's own changes into the report inverted -- and puts a change the pull
-# request shares with one of them into the report as no change at all, which is
-# how a real break passes. So start from the base commit the build contains, not
-# from main's tip, and fall back to the tip only when that base has no cached
-# build left, with a warning that the comparison is no longer exact.
+# Ancestry. abidiff compares two trees; it does not report what a pull request
+# changed. When the baseline is not an ancestor of the build under test, main's
+# own changes show up in the report inverted, and a change the pull request
+# shares with one of them does not show up at all -- that is how a real break
+# passes. So start from the base commit the build contains. Fall back to main's
+# tip only when that base has no cached build left, and say that the comparison
+# is no longer exact.
 
 set -eo pipefail
 
@@ -52,7 +51,7 @@ KEY_PREFIX=__release_lnx
 available=$(gh cache list --ref refs/heads/main --key "${KEY_PREFIX}" --limit 100 --json key --jq '.[].key')
 
 # Echoes "<key> <commits skipped>" for the newest cached commit reachable from
-# $1, or returns 1 if none of the first ${WINDOW} of them has an entry.
+# $1, or returns 1 if none of its first ${WINDOW} commits has an entry.
 newest_cached_from() {
     local behind=0 sha
     for sha in $(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=$1&per_page=${WINDOW}" --jq '.[].sha'); do
