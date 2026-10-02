@@ -165,8 +165,9 @@ Gaps between this directory and the contract, still open:
 - `build_make_gnu` needs network; `image.network` is per manifest, not per task.
 - Graders read the full oneDAL history (`ONEDAL_EVAL_SRC`: hidden tests, mined fix commits); the contract gives
   the grader only the workspace.
-- The workspace's starting commit is `meta.json` `base_sha` if present, else derived from the workspace history;
-  the contract does not name this key.
+- `meta.json` `base_rev`/`base_sha`/`base_date` name the upstream commit, which is not in the workspace. The
+  commit graders diff from is the standalone runner's `start_sha`, else derived from the history workspace
+  preparation makes; the contract names no key for it.
 - `events.jsonl` command events carry `output` (needed for `icpx_hit` and build-failure counts); the contract's
   event schema has no such field.
 - Score-only tasks (review) have no declared maximum for the oracle self-check.

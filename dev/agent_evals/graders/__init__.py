@@ -20,7 +20,7 @@
                                                     tasks. rd is the run directory (logs, output base), ws the
                                                     agent's final tree. trace = metrics.metrics(rd) (from
                                                     events.jsonl) plus "answer", the agent's final message, and
-                                                    "base_sha", the prepared commit; graders never read a harness trace
+                                                    "start_sha", the prepared commit; graders never read a harness trace
   ORACLES = {name: fn(rd, repo, task) -> str}       reference answer text for the grader self-check (optional)
 
 A task's task.json names its grader in "grader". Oracles apply the reference fix to `repo` in place and/or

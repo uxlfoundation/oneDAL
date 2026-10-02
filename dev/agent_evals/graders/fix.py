@@ -29,7 +29,7 @@ def g_test_pass(rd, ws, t, tr):
     # `_changed_files`: the file list as it was before the caller wrote anything of its own
     # (graders/fix_hidden.py restores hidden files first and then delegates here, so reading
     # the tree at this point would report the grader's files as the agent's changes).
-    changed = t.get("_changed_files") or changed_files(ws, tr["base_sha"])
+    changed = t.get("_changed_files") or changed_files(ws, tr["start_sha"])
     touched_tests = [f for f in changed if is_test_file(f)]
     src_changed = [f for f in changed if f not in touched_tests]
     # The hidden tests are written over the agent's tree only for the duration of grading:
@@ -49,7 +49,7 @@ def g_test_pass(rd, ws, t, tr):
             out["regress_pass"] = rrc == 0
             out["strict_pass"] = out["pass"] and out["regress_pass"]
         out["format_ok"] = clang_format_ok(repo, src_changed)
-        out["diff_lines"] = diff_lines(ws, tr["base_sha"], src_changed)
+        out["diff_lines"] = diff_lines(ws, tr["start_sha"], src_changed)
         if t.get("root_cause"):
             rcf = t["root_cause"]
             out["root_cause_fixed"] = rcf["must_contain"] in (repo / rcf["file"]).read_text()

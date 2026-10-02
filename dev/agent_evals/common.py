@@ -107,8 +107,11 @@ def prep(task, arm, rd):
     if t.get("review_patch"):
         sh(["git", "-c", "user.name=Dev Contributor", "-c", "user.email=dev@example.com", "am", "-q",
             str(task_dir(task) / t["review_patch"])], cwd=repo)
-    base = git(repo, "rev-parse", "HEAD").stdout.strip()
-    (rd / "meta.json").write_text(json.dumps({"task": task, "arm": arm, "base_sha": base}))
+    # base_* as agent-benchmark writes them (the upstream commit); start_sha is the workspace commit graders diff from
+    up = sh(["git", "log", "-1", "--format=%H %cI", f"{t['base']}^{{commit}}"], cwd=config.src()).stdout.split()
+    start = git(repo, "rev-parse", "HEAD").stdout.strip()
+    (rd / "meta.json").write_text(json.dumps({"task": task, "arm": arm, "base_rev": t["base"], "base_sha": up[0],
+                                              "base_date": up[1], "start_sha": start}))
     return repo
 
 

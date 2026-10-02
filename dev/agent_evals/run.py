@@ -135,8 +135,9 @@ def run_inputs(rd):
     """(usage, trace) for the graders. A Claude trace.jsonl is converted first; nothing else reads it."""
     usage = traces.convert(rd) if (rd / "trace.jsonl").exists() else {}
     answer = rd / "answer.txt"
+    m = meta(rd)
     return usage, {**metrics(rd), "answer": answer.read_text() if answer.exists() else "",
-                   "base_sha": meta(rd)["base_sha"]}
+                   "start_sha": contract.start_commit(rd / "repo", task_spec(m["task"]), m)}
 
 
 def grade(rd):
@@ -144,7 +145,7 @@ def grade(rd):
     t = task_spec(m["task"])
     usage, tr = run_inputs(rd)
     g = graders.GRADERS[t["grader"]](rd, rd / "repo", t, tr)
-    row = {**m, **usage, **{k: v for k, v in tr.items() if k not in ("answer", "base_sha")}, **g}
+    row = {**m, **usage, **{k: v for k, v in tr.items() if k not in ("answer", "start_sha")}, **g}
     (rd / "grade.json").write_text(json.dumps(row, indent=1))
     print(json.dumps({k: row.get(k) for k in HEADLINE if k in row}), flush=True)
     return row
