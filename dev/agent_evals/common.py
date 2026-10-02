@@ -83,8 +83,8 @@ def arm_none(repo):
 
 
 def arm_main_raw(repo):
-    # guidance present as-is. Claude Code 2.1.277+ loads AGENTS.md when there is no CLAUDE.md (nested ones once the
-    # agent touches that directory); run.py refuses older CLIs, which load it only if the agent opens the file
+    # guidance present as-is. Claude Code 2.1.286 loads AGENTS.md only when no CLAUDE.md is in its start-up chain;
+    # 2.1.241/2.1.250 never do, so the agent sees it only if it opens the file. run.py refuses CLIs before 2.1.286
     pass
 
 
