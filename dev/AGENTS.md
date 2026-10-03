@@ -1,127 +1,49 @@
+# AGENTS.md - Development Tools and Build Systems (dev/)
 
-# Development Tools and Build Systems - AI Agents Context
+## Purpose
+Build systems and developer tooling. Make (root `makefile`) produces releases; Bazel builds and runs tests; CMake only builds the examples against an installed release.
 
-> **Purpose**: Context for AI agents working with oneDAL's sophisticated build systems, Bazel rules, and development tools.
+## Layout
+- `bazel/`: Bazel macros and dependency rules; see `dev/bazel/AGENTS.md`
+- `make/`: fragments included by the root `makefile`; see `dev/make/AGENTS.md`
+- `release_tests/`: checks run against a built release tree (`compare_release_trees.py`, package metadata)
+- `l0_tools/`: Level Zero GPU utilities
+- `docker/`: development container (`onedal-dev.Dockerfile`)
 
-## 🏗️ Build System Architecture
+## Rules for Changes
+- A build change usually has to land in both Make and Bazel. Library versions, exports and symbol visibility must match between them.
+- BUILD files use the `dal_module`, `dal_test_suite` and `daal_module` macros, never bare `cc_library` / `cc_test`.
+- The Bazel version is pinned in `.bazelversion`; don't hardcode it elsewhere.
+- Toolchain and dependency setup (oneAPI compilers, oneMKL, oneTBB) is in `INSTALL.md`; don't restate it here.
 
-oneDAL uses **dual build systems** optimized for different workflows:
+## Make
 
-### Build Systems
-- **Bazel**: Modern development build system with sophisticated C++ template instantiation
-- **Make**: Production build system with platform-specific optimizations
-
-### Development Tools
-- **Level Zero (L0) Tools**: GPU development utilities (`dev/l0_tools/`)
-- **Docker**: Containerized development environment (`dev/docker/`)
-- **Dependency Management**: Automated TBB, MKL, SYCL integration
-
-## 📁 Structure
-```
-dev/
-├── bazel/                  # Bazel build system with custom rules
-│   ├── dal.bzl            # oneAPI interface build rules
-│   ├── daal.bzl           # DAAL interface build rules  
-│   ├── cc/                # C++ compilation rules
-│   ├── deps/              # External dependency management
-│   └── config/            # Build configuration
-├── make/                   # Make-based build system
-│   ├── common.mk          # Common make patterns
-│   ├── deps.mk            # Dependency resolution
-│   └── compiler_definitions/ # Compiler-specific settings
-├── l0_tools/              # Level Zero GPU development tools
-└── docker/                # Development containers
-```
-
-## 🔧 Bazel Build System
-
-### Key Characteristics
-- **Development Build System**: Used for development and CI/CD
-- **Dependency Management**: Automatic dependency resolution
-- **Multi-platform**: Supports Linux
-- **Incremental Builds**: Fast incremental compilation
-
-### Configuration Files
-- **[MODULE.bazel](MODULE.bazel)** - Root module configuration
-- **[.bazelrc](.bazelrc)** - Bazel configuration options
-- **[dev/bazel/BUILD](bazel/BUILD)** - Root build configuration
-
-### Common Commands
 ```bash
-# Build entire project
-bazel build //...
-
-# Run tests
-bazel test //...
-
-# Clean build
-bazel clean --expunge
+make -f makefile daal oneapi_c PLAT=lnx32e -j$(nproc)
 ```
 
+- Targets: `daal`, `daal_c`, `oneapi` (`oneapi_c` + `oneapi_dpc`), `onedal`, `onedal_c`, `onedal_dpc`. `make -f makefile help` lists all targets and variables.
+- `PLAT`: `lnx32e`, `win32e`, `mac32e`, `lnxarm`, `winarm`, `lnxriscv64`.
+- `COMPILER`: `icx` (x86-64 default), `gnu`, `clang`, `vc`; the allowed set per platform is in `make/function_definitions/`.
+- `REQCPU`: subset of `sse2 avx2 avx512` on x86-64, `sve` on ARM, `rv64` on RISC-V.
+- `BACKEND_CONFIG`: `mkl` (default on x86-64) or `ref` (OpenBLAS; default on ARM and RISC-V).
 
-## 🔧 Make Build System
+## Bazel
 
-### Key Characteristics
-- **Production Build System**: Main build system for production builds
-- **Platform Specific**: Different configurations per platform
-- **Dependency Management**: Manual dependency specification
-
-### Configuration Files
-- **[makefile](makefile)** - Root makefile
-- **[dev/make/common.mk](make/common.mk)** - Common make rules
-- **[dev/make/deps.mk](make/deps.mk)** - Dependency management
-
-
-
-## 🔍 Build System Patterns
-
-### Bazel Pattern
-```python
-cc_library(
-    name = "library_name",
-    srcs = glob(["src/**/*.cpp"]),
-    hdrs = glob(["include/**/*.h"]),
-    deps = ["//path/to:dependency"],
-    visibility = ["//visibility:public"],
-)
-
-cc_test(
-    name = "library_test",
-    srcs = glob(["test/**/*.cpp"]),
-    deps = [":library_name", "//dev/bazel/deps:gtest"],
-)
+```bash
+bazel test --config=host //cpp/oneapi/dal/algo/pca:tests      # one algorithm, CPU only
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests   # DPC++ on GPU
 ```
 
-### Make Pattern
-```makefile
-LIBRARY_OBJS = $(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
+See `dev/bazel/README.md` and `dev/bazel/AGENTS.md`.
 
-library_name: $(LIBRARY_OBJS)
-    $(CXX) $(LDFLAGS) -o $@ $^
+## CMake
 
-%.o: %.cpp
-    $(CXX) $(CXXFLAGS) -c $< -o $@
+There is no root `CMakeLists.txt`. Build the examples against a release tree:
+
+```bash
+source __release_lnx/daal/latest/env/vars.sh
+cd examples/oneapi/cpp
+cmake -B build -S . -DONEDAL_LINK=dynamic
+cmake --build build --parallel
 ```
-
-## 🚫 Common Pitfalls
-- **Build System Mixing**: Don't mix build systems, use consistent approach per project
-- **Dependency Management**: Don't hardcode paths, use proper dependency tools
-- **Configuration**: Don't assume defaults, test on target platforms
-
-## 🧪 Testing and Validation
-- **Build Validation**: Ensure all build systems work
-- **Dependencies**: Validate dependency resolution
-- **Platforms**: Test on supported platforms
-
-## 🔧 Required Tools
-- **Bazel**: 5.0+ for Bazel builds
-- **Make**: GNU Make 3.81+ for Make builds  
-- **Compilers**: GCC 7+, Clang 6+, MSVC 2017+
-- **Intel oneAPI**: For SYCL development
-- **Intel MKL**: For optimized math operations
-- **Intel TBB**: For threading support
-
-## 📖 Further Reading
-- **[dev/bazel/AGENTS.md](bazel/AGENTS.md)** - Bazel build system details
-- **[cpp/AGENTS.md](../cpp/AGENTS.md)** - C++ implementation context
-- **[docs/AGENTS.md](../docs/AGENTS.md)** - Documentation guidelines

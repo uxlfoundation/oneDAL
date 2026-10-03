@@ -186,7 +186,7 @@ services::Status PredictKernel<algorithmFPType, defaultDense, cpu>::compute_impl
     SafeStatus safeStat;
     TlsMem<algorithmFPType, cpu> tlsData(blockSizeRows * blockSizeColumns);
 
-    daal::threader_for(numBlocks, numBlocks, [&](int iBlock) {
+    daal::threader_for(numBlocks, 1, [&](int iBlock) {
         const size_t startRow       = iBlock * blockSizeRows;
         const size_t numRowsInBlock = (iBlock == numBlocks - 1) ? numVectors - startRow : blockSizeRows;
 

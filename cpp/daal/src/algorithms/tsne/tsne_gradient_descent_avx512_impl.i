@@ -60,7 +60,7 @@ struct AttractiveKernel<DivComp, IdxType, float, avx512>
         const IdxType sizeOfBlock = services::internal::min<avx512, size_t>(256, N / nThreads + 1);
         const IdxType nBlocks     = N / sizeOfBlock + bool(N % sizeOfBlock);
 
-        daal::threader_for(nBlocks, nBlocks, [&](IdxType iBlock) {
+        daal::threader_for(nBlocks, 1, [&](IdxType iBlock) {
             const IdxType iStart = iBlock * sizeOfBlock;
             const IdxType iEnd   = services::internal::min<avx512, IdxType>(N, iStart + sizeOfBlock);
             float * logLocal     = logTlsData.local();
@@ -209,7 +209,7 @@ struct AttractiveKernel<DivComp, IdxType, double, avx512>
         const IdxType sizeOfBlock = services::internal::min<avx512, size_t>(256, N / nThreads + 1);
         const IdxType nBlocks     = N / sizeOfBlock + bool(N % sizeOfBlock);
 
-        daal::threader_for(nBlocks, nBlocks, [&](IdxType iBlock) {
+        daal::threader_for(nBlocks, 1, [&](IdxType iBlock) {
             const IdxType iStart = iBlock * sizeOfBlock;
             const IdxType iEnd   = services::internal::min<avx512, IdxType>(N, iStart + sizeOfBlock);
             double * logLocal    = logTlsData.local();
