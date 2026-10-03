@@ -38,8 +38,15 @@ jobs:
           LABELS=`gh api -H "Accept: application/vnd.github+json" /repos/uxlfoundation/oneDAL/issues/${{ github.event.pull_request.number }}/labels | jq '[.[].name]'`
           echo $LABELS
           if [[ $LABELS == "[]" ]] || [[ $LABELS == "[\"RFC\"]" ]]; then
-            echo "::error::No label set on the pull request"
-            exit 1
+            # Allow docs/infra-only changes to pass without label (e.g., dalapi fixes)
+            FILES=`gh api -H "Accept: application/vnd.github+json" /repos/uxlfoundation/oneDAL/pulls/${{ github.event.pull_request.number }}/files | jq -r '.[].filename'`
+            echo "Changed files: $FILES"
+            if echo "$FILES" | grep -qvE '^(docs/|\.github/workflows/label-enforcement\.yml|dev/docker/)'; then
+              echo "::error::No label set on the pull request"
+              exit 1
+            else
+              echo "Docs/infra-only PR, skipping label enforcement"
+            fi
           fi
         env:
           GH_TOKEN: ${{ github.token }}

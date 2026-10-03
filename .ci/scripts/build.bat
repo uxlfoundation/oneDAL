@@ -26,8 +26,8 @@ echo CPUCOUNT=%NUMBER_OF_PROCESSORS%
 echo "PATH=%ProgramFiles%\LLVM\bin;C:\msys64\usr\bin;%PATH%"
 set "PATH=%ProgramFiles%\LLVM\bin;C:\msys64\usr\bin;%PATH%"
 
-echo pacman -S --noconfirm msys/make
-pacman -S --noconfirm msys/make
+echo pacman -Syy --noconfirm msys/make
+pacman -Syy --noconfirm msys/make || (sleep 5 && pacman -Syy --noconfirm msys/make) || (sleep 5 && pacman -Syy --noconfirm msys/make)
 
 IF "%VS_VER%"=="2017_build_tools" (
     @call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
