@@ -14,7 +14,10 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <daal/src/services/service_defines.h>
+
 #include "oneapi/dal/detail/common.hpp"
+#include "oneapi/dal/detail/parameters/system_parameters.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/backend/dispatcher.hpp"
@@ -60,6 +63,87 @@ std::int64_t propose_block_size(const context_cpu& ctx, const std::int64_t row_c
         }
     }
     return block_size;
+}
+
+/// Proposes the number of rows in the data block used in variance-covariance matrix computations on CPU.
+///
+/// @tparam Float   The type of elements that is used in computations in covariance algorithm.
+///                 The :literal:`Float` type should be at least :expr:`float` or :expr:`double`.
+///
+/// @param[in] ctx       Context that stores the information about the available CPU extensions
+///                      and available data communication mechanisms, parallel or distributed.
+/// @param[in] sys_params System parameters that provide the sizes of the CPU caches
+///                        and the maximal number of threads.
+/// @param[in] row_count Number of rows in the input dataset.
+///
+/// @return Number of rows in the data block used in variance-covariance matrix computations on CPU.
+template <typename Float>
+std::int64_t propose_block_size(const context_cpu& ctx,
+                                const dal::detail::system_parameters& sys_params,
+                                const std::int64_t row_count,
+                                const std::int64_t column_count) {
+    if (!daal_check_is_intel_cpu()) {
+        /// The constants are defined as the values that show the best performance results
+        /// in the series of performance measurements with the varying block sizes and dataset sizes.
+        std::int64_t block_size = 140l;
+        if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
+            /// Here if AVX512 extensions are available on CPU
+            if (5000l < row_count && row_count <= 50000l) {
+                block_size = 1024l;
+            }
+        }
+        return block_size;
+    }
+
+    const std::int64_t thread_count = sys_params.get_max_number_of_threads();
+
+    /// block_size tree fitted on measured kernel times, chosen among trees with various hyperparameters:
+    /// 1 <= max_depth <= 5; min_leaf \in {1, 3}.
+    ///
+    /// max_depth=4, min_leaf=3, 15 leaves.
+    if (column_count <= 70) {
+        if (column_count <= 31) {
+            if (row_count <= 547722) {
+                if (column_count <= 14) {
+                    return 2048;
+                }
+                return 8192;
+            }
+            if (row_count <= 1732050) {
+                return 4096;
+            }
+            return 8192;
+        }
+        if (thread_count <= 5) {
+            return 8192;
+        }
+        if (row_count <= 547722) {
+            return 512;
+        }
+        return 8192;
+    }
+    if (column_count <= 141) {
+        if (row_count <= 173205) {
+            if (thread_count <= 5) {
+                return 8192;
+            }
+            return 512;
+        }
+        if (thread_count <= 22) {
+            return 8192;
+        }
+        return 1024;
+    }
+    if (column_count <= 505) {
+        if (column_count <= 357) {
+            return 512;
+        }
+        return 128;
+    }
+    if (column_count <= 633) {
+        return 256;
+    }
+    return 64;
 }
 
 template <typename Float>
@@ -112,15 +196,16 @@ struct train_parameters_cpu<Float, method::cov, task::dim_reduction> {
         const auto& x_train = input.get_data();
 
         const auto r_count = x_train.get_row_count();
+        const auto c_count = x_train.get_column_count();
 
-        const std::int64_t block = propose_block_size<Float>(ctx, r_count);
+        params_t out{};
+        const std::int64_t block = propose_block_size<Float>(ctx, out, r_count, c_count);
         const std::int64_t grain_size = propose_grain_size<Float>(ctx, r_count);
         const std::int64_t max_cols_batched = propose_max_cols_batched<Float>(ctx, r_count);
         const std::int64_t small_rows_threshold = propose_small_rows_threshold<Float>(ctx, r_count);
         const std::int64_t small_rows_max_cols_batched =
             propose_small_rows_max_cols_batched<Float>(ctx, r_count);
 
-        params_t out{};
         out.set_cpu_macro_block(block);
         out.set_cpu_grain_size(grain_size);
         out.set_cpu_max_cols_batched(max_cols_batched);

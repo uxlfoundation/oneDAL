@@ -29,7 +29,8 @@ namespace detail {
 /// Those parameters can differ from the `get_global_context().get_cpu_info()`.
 ///
 /// `cpu_info` reports the parameters available in hardware, where `system_parameters`
-/// are the software-enabled parameters that can differ from `cpu_info`.
+/// are the software-enabled parameters that can differ from `cpu_info`, together with
+/// the hardware characteristics, like cache sizes, that the algorithms use for tuning.
 class ONEDAL_EXPORT system_parameters : public base {
 public:
     /// Creates a new default `system_parameters` instance.
@@ -42,6 +43,15 @@ public:
 
     /// Maximal number of threads available to the algorithm.
     std::uint32_t get_max_number_of_threads() const;
+
+    /// Size of the L1 data cache in bytes.
+    std::uint64_t get_l1_cache_size() const;
+
+    /// Size of the L2 cache in bytes.
+    std::uint64_t get_l2_cache_size() const;
+
+    /// Size of the last level cache in bytes.
+    std::uint64_t get_ll_cache_size() const;
 
 #ifdef ONEDAL_DATA_PARALLEL
     /// Device related parameters.
