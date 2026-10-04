@@ -52,6 +52,9 @@ if ($env:GITHUB_TOKEN) {
 # exponential backoff, as `.ci/env/bazelisk.sh` does.
 $fetchAttempts = if ($env:BAZELISK_FETCH_ATTEMPTS) { [int]$env:BAZELISK_FETCH_ATTEMPTS } else { 5 }
 $fetchDelay = if ($env:BAZELISK_FETCH_DELAY) { [int]$env:BAZELISK_FETCH_DELAY } else { 5 }
+if ($fetchAttempts -lt 1 -or $fetchDelay -lt 0) {
+    throw "BAZELISK_FETCH_ATTEMPTS must be at least 1 and BAZELISK_FETCH_DELAY non-negative"
+}
 
 function Invoke-WithRetry {
     param(
@@ -77,9 +80,14 @@ function Invoke-WithRetry {
 }
 
 $release = Invoke-WithRetry -Description "fetch Bazelisk $bazeliskVersion release metadata" -Action {
-    Invoke-RestMethod `
+    $response = Invoke-RestMethod `
         -Headers $headers `
         -Uri "https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$bazeliskVersion"
+    # An empty body is a failure too, as in `.ci/env/bazelisk.sh`.
+    if ($null -eq $response -or -not $response.assets) {
+        throw "Empty Bazelisk release metadata response"
+    }
+    $response
 }
 
 $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1

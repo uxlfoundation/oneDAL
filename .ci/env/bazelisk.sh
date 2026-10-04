@@ -40,6 +40,11 @@ BAZELISK_ASSET="bazelisk-linux-${arch}"
 # next attempt, so retry with exponential backoff before giving up.
 BAZELISK_FETCH_ATTEMPTS=${BAZELISK_FETCH_ATTEMPTS:-5}
 BAZELISK_FETCH_DELAY=${BAZELISK_FETCH_DELAY:-5}
+# A non-numeric attempt count would make the loop's test fail forever.
+if ! [[ "${BAZELISK_FETCH_ATTEMPTS}" =~ ^[1-9][0-9]*$ && "${BAZELISK_FETCH_DELAY}" =~ ^[0-9]+$ ]]; then
+  echo ":error: BAZELISK_FETCH_ATTEMPTS must be a positive integer and BAZELISK_FETCH_DELAY a non-negative integer." >&2
+  exit 1
+fi
 
 function retry {
   local attempt=1
