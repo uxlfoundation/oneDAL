@@ -76,5 +76,6 @@ ENV ONEDAL_EVAL_BAZEL=/usr/local/bin/bazelisk \
 RUN mkdir -p /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /cache/bazel-install /tmp/home && \
     chmod 1777 /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /cache/bazel-install /tmp/home
 
-# The Bazel server daemonizes; without an init as PID 1 nothing reaps it and `bazel shutdown` hangs then fails
-ENTRYPOINT ["/usr/bin/tini", "--"]
+# The Bazel server daemonizes; without an init as PID 1 nothing reaps it and `bazel shutdown` hangs then fails.
+# -s: under `docker run --init` (as agent-benchmark runs every container) tini is not PID 1 and reaps as a subreaper
+ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
