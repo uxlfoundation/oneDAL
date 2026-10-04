@@ -93,10 +93,15 @@ print('error_handling.cpp compile action carries -coverage and -DGCOV_BUILD')
 import json, sys
 with open('${work}/thread_actions.json') as f:
     data = json.load(f)
-for action in data.get('actions', []):
+actions = data.get('actions', [])
+if not actions:
+    sys.exit('ERROR: no compile action found for //cpp/daal:thread_static')
+for action in actions:
+    if '-coverage' not in action.get('arguments', []):
+        sys.exit('ERROR: -coverage missing from threading_tbb compile arguments')
     if '-DGCOV_BUILD' in action.get('arguments', []):
         sys.exit('ERROR: threading_tbb compile action unexpectedly defines GCOV_BUILD')
-print('threading_tbb compile actions do not define GCOV_BUILD')
+print('threading_tbb compile actions carry -coverage and do not define GCOV_BUILD')
 "
 
     echo "code-coverage icx smoke checks passed"
