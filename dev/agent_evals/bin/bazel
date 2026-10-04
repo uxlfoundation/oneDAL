@@ -22,6 +22,8 @@
 # base (about 1 GB per version); the output base stays per run.
 OB=${EVAL_BAZEL_OUTPUT_BASE:?EVAL_BAZEL_OUTPUT_BASE unset}
 unset MKLROOT
+# Bazel exits when $USER is unset and the uid has no passwd entry, which is how containers run (docker run --user)
+export USER=${USER:-eval}
 startup=()
 [[ -n ${ONEDAL_EVAL_INSTALL_ROOT-} ]] && startup+=(--output_user_root="$ONEDAL_EVAL_INSTALL_ROOT")
 while [[ $# -gt 0 && $1 == -* ]]; do startup+=("$1"); shift; done
