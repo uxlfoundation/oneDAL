@@ -18,6 +18,7 @@
 """oneDAL agent-eval runner.
 
   run.py list                                      tasks and their grader
+  run.py validate                                  every task.json is well formed and its base and patches exist, no build
   run.py check   <task>...                         grader self-check, no LLM: untouched repo must fail, reference passes
   run.py agent   <task> <arm> <model> <rep> [--effort L]  prep a history-free repo for the arm, run `claude -p`, grade
   run.py matrix  [--tasks ..] [--arms ..] [--models ..] [--reps N] [-j N] [--batch NAME] [--effort L] [--force]
@@ -181,6 +182,36 @@ def check_verdict(task):
     return ok
 
 
+CORE_KEYS = ("id", "family", "base", "prompt", "grader")
+
+
+def validate():
+    """Cheap structural check of every task (no build, no LLM): what CI runs on every change to this directory."""
+    errs = []
+    for task in all_tasks():
+        t, d = task_spec(task), config.TASKS / task
+        errs += [f"{task}: missing key {k}" for k in CORE_KEYS if k not in t]
+        if t.get("id") != task:
+            errs.append(f"{task}: id {t.get('id')!r} differs from the directory name")
+        base = t.get("base", "")
+        if len(base.rstrip("^")) != 40:
+            errs.append(f"{task}: base {base!r} is not a full 40-character SHA")
+        if sh(["git", "cat-file", "-e", base + "^{commit}"], cwd=config.src(), check=False).returncode:
+            errs.append(f"{task}: base {base!r} does not resolve in {config.src()}")
+        if t.get("grader") not in graders.GRADERS:
+            errs.append(f"{task}: unknown grader {t.get('grader')!r}")
+        for f in [*t.get("setup_patches", []), t.get("setup_patch"), t.get("review_patch"), t.get("oracle_patch")]:
+            if f and not (d / f).is_file():
+                errs.append(f"{task}: {f} not found")
+        for g in t.get("gate", []):
+            if not (isinstance(g, str) or (isinstance(g, dict) and {"metric", "min"} <= g.keys())):
+                errs.append(f"{task}: bad gate entry {g!r}")
+    for e in errs:
+        print(e, file=sys.stderr)
+    print(f"{len(all_tasks())} tasks, {len(errs)} problems", flush=True)
+    return 0 if not errs else 1
+
+
 def matrix(a):
     tasks = a.tasks.split(",") if a.tasks else all_tasks()
     jobs = [(t, arm, mdl, r) for t, arm, mdl, r in
@@ -210,6 +241,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
+    sub.add_parser("validate")
     p = sub.add_parser("check")
     p.add_argument("tasks", nargs="*")
     p = sub.add_parser("agent")
@@ -250,6 +282,8 @@ def main():
         for t in all_tasks():
             s = task_spec(t)
             print(f"{t:28} {s.get('family', ''):8} {s['grader']}")
+    elif a.cmd == "validate":
+        sys.exit(validate())
     elif a.cmd == "check":
         sys.exit(0 if all([check_verdict(t) for t in a.tasks or all_tasks()]) else 1)
     elif a.cmd == "agent":
