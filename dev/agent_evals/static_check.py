@@ -182,7 +182,9 @@ def check_local_label(f, i, lab, pkg, tgt, ctx):
         add(f, i, "bazel_label", lab, "fail", f"no BUILD in package '{pkg}'", ctx)
         return
     t = tgt or os.path.basename(pkg)
-    if t in names:
+    if tgt in ("all", "*", "all-targets"):  # Bazel target-pattern wildcards, not rule names
+        add(f, i, "bazel_label", lab, "ok", f"wildcard over {pkg}/BUILD", ctx)
+    elif t in names:
         add(f, i, "bazel_label", lab, "ok", f"name=\"{t}\" in {pkg}/BUILD", ctx)
     elif t.endswith(".bzl") or t.endswith(".BUILD") or ex(os.path.join(pkg, t)):
         add(f, i, "bazel_label", lab, "ok" if ex(os.path.join(pkg, t)) else "fail", "file label", ctx)
