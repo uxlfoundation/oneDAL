@@ -39,6 +39,7 @@ graded by rebuilding and rerunning tests. No LLM judges the result.
 export ONEDAL_EVAL_ROOT=/scratch/onedal-evals   # no CLAUDE.md / AGENTS.md / .claude in any parent directory
 export ONEDAL_EVAL_SRC=$PWD                     # full-history clone; mined tasks read fix commits from it
 python3 dev/agent_evals/run.py list
+python3 dev/agent_evals/run.py validate         # task.json shape, bases resolve, patches exist; no build
 python3 dev/agent_evals/run.py static           # T0
 python3 dev/agent_evals/run.py check            # grader self-check for every task, no LLM
 python3 dev/agent_evals/run.py matrix --arms none,main-raw --models haiku --reps 3 -j 6 --batch b1
@@ -49,6 +50,20 @@ Other settings (Claude CLI binary, Bazel binary, shared caches, timeout) are env
 `config.py`. Model aliases (`haiku`, `sonnet`, `opus`) resolve to Bedrock ids when `CLAUDE_CODE_USE_BEDROCK` is set
 and to Anthropic API ids otherwise; a full model id also works. `--effort` passes Claude Code's effort level
 through. Each run records the CLI version.
+
+## Continuous integration
+
+`.github/workflows/agent-evals.yml` runs the checks that need no model and no token:
+
+- on every pull request that touches this directory or the agent guidance (`AGENTS.md`, `.github/instructions`,
+  `.github/copilot-instructions.md`, `CONTRIBUTING.md`): `run.py validate` (a gate) and `run.py static` (report only,
+  as a job summary and an artifact);
+- `run.py check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one task per
+  grader when the harness or a grader changes; weekly, and on demand (`workflow_dispatch`), for every task.
+
+Agent runs (`run.py matrix`) stay manual: they cost tokens and depend on the agent being measured. Rerun them after
+a large change to guidance, tooling, build system or layout. A change that breaks `run.py check` for a task updates
+that task in the same pull request.
 
 ## Arms
 
