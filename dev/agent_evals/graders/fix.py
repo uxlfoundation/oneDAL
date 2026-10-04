@@ -29,7 +29,8 @@ def g_test_pass(rd, ws, t, tr):
     # `_changed_files`: the file list as it was before the caller wrote anything of its own
     # (graders/fix_hidden.py restores hidden files first and then delegates here, so reading
     # the tree at this point would report the grader's files as the agent's changes).
-    changed = t.get("_changed_files") or changed_files(ws, tr["start_sha"])
+    # Tested for presence, not truthiness: an agent that changed nothing passes [] here.
+    changed = t["_changed_files"] if "_changed_files" in t else changed_files(ws, tr["start_sha"])
     touched_tests = [f for f in changed if is_test_file(f)]
     src_changed = [f for f in changed if f not in touched_tests]
     # The hidden tests are written over the agent's tree only for the duration of grading:
