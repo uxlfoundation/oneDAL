@@ -96,9 +96,17 @@ def src():
     return Path(top.stdout.strip())
 
 
+def _user():
+    # containers run as an arbitrary uid (`docker run --user`) with no passwd entry and no $USER
+    try:
+        return getpass.getuser()
+    except (KeyError, OSError):
+        return str(os.getuid())
+
+
 def root():
     r = Path(os.environ.get("ONEDAL_EVAL_ROOT")
-             or Path(tempfile.gettempdir()) / f"onedal-agent-evals-{getpass.getuser()}").resolve()
+             or Path(tempfile.gettempdir()) / f"onedal-agent-evals-{_user()}").resolve()
     if not os.environ.get("ONEDAL_EVAL_ALLOW_ANCESTOR_CONTEXT"):
         for d in [r, *r.parents]:
             hits = [n for n in ANCESTOR_CONTEXT if (d / n).exists()]
