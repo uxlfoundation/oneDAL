@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-"""Process metrics from <run_dir>/events.jsonl (written by traces.py, or by agent-benchmark for any harness)."""
+"""Process metrics from <run_dir>/events.jsonl, the harness-independent trace agent-benchmark writes."""
 import json
 import re
 
