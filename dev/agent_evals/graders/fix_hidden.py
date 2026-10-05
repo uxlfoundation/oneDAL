@@ -26,7 +26,8 @@ Grader `test_pass_files`: same result keys as `test_pass` (graders/fix.py), whic
   regression_flags    extra bazel flags for the `regression_targets` run
   root_cause          {"file", "must_contain"} and/or {"file", "must_not_contain"}; root_cause_fixed is True
                       only if every given condition holds (a missing file counts as not fixed)
-  min_cpus, cpu_flags host the hidden test needs to see the bug at all, e.g. a race that does not happen on
+  min_cpus, cpu_vendors, cpu_flags
+                      host the hidden test needs to see the bug at all, e.g. a race that does not happen on
                       fewer cores or another CPU. Elsewhere grading raises HostUnsupported instead of
                       passing the unfixed tree
 
