@@ -129,7 +129,9 @@ step (4) is reported as well, before it is condensed: an
 order, holding ``[left, right, distance, size]``. An id below :math:`n` is an
 original observation and id :math:`n + k` is the cluster formed by row
 :math:`k`, so row :math:`n - 2` is the root and spans all :math:`n`
-observations. The table is empty when :math:`n < 2`.
+observations. The table is empty when :math:`n < 2`. The ids share the table's
+floating-point type, so they are exact as long as :math:`2n` fits the mantissa:
+always in double precision, and up to :math:`n = 2^{23}` in single precision.
 
 The dendrogram is the full hierarchy the flat clustering was cut out of, so a
 caller can re-cut it at any distance :math:`\varepsilon` and obtain the
