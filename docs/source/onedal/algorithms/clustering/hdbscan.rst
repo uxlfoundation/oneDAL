@@ -122,6 +122,21 @@ right after the cluster is born get a value close to :math:`0`. Noise observatio
 get :math:`0`. A cluster that never loses an observation has
 :math:`\lambda_C^{\max} = 0`; all of its members then get :math:`1`.
 
+**(7) Single linkage tree (optional):**
+When the ``single_linkage_tree`` result option is requested, the dendrogram of
+step (4) is reported as well, before it is condensed: an
+:math:`(n - 1) \times 4` table with one row per merge in ascending distance
+order, holding ``[left, right, distance, size]``. An id below :math:`n` is an
+original observation and id :math:`n + k` is the cluster formed by row
+:math:`k`, so row :math:`n - 2` is the root and spans all :math:`n`
+observations. The table is empty when :math:`n < 2`.
+
+The dendrogram is the full hierarchy the flat clustering was cut out of, so a
+caller can re-cut it at any distance :math:`\varepsilon` and obtain the
+clustering DBSCAN would produce at that :math:`\varepsilon` -- keeping the
+merges below the cut and labelling the resulting components -- without running
+the algorithm again.
+
 
 .. _hdbscan_c_math_brute_force:
 

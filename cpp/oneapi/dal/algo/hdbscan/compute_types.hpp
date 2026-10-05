@@ -151,6 +151,18 @@ public:
         return *this;
     }
 
+    /// An $(n - 1) \\times 4$ table with the single-linkage dendrogram the flat
+    /// clustering was cut out of, one row per merge in ascending distance order:
+    /// ``[left, right, distance, size]``. Ids below $n$ are original
+    /// observations, id $n + k$ is the cluster formed by row $k$. Empty when
+    /// $n < 2$.
+    const table& get_single_linkage_tree() const;
+
+    auto& set_single_linkage_tree(const table& value) {
+        set_single_linkage_tree_impl(value);
+        return *this;
+    }
+
     /// Result options that indicates availability of the properties
     /// @remark default = default_result_options<Task>
     const result_option_id& get_result_options() const;
@@ -169,6 +181,7 @@ protected:
     void set_cluster_centers_impl(const table&);
     void set_medoid_centers_impl(const table&);
     void set_probabilities_impl(const table&);
+    void set_single_linkage_tree_impl(const table&);
     void set_result_options_impl(const result_option_id&);
 
 private:

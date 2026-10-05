@@ -244,6 +244,44 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
     return root;
 }
 
+/// Dump the single-linkage dendrogram as a row-major `(nRows - 1) x 4` matrix.
+///
+/// Row `e` describes the merge that created internal node `nRows + e`:
+/// `[leftChild, rightChild, mergeDistance, subtreeSize]`. This is the layout
+/// scipy's `linkage` and scikit-learn's `_single_linkage_tree_` use, so a caller
+/// can re-cut the hierarchy at an arbitrary distance -- what
+/// `HDBSCAN.dbscan_clustering` does -- without rebuilding it.
+///
+/// Node ids need no remapping: `buildDendrogramFromSortedMst` keys internal node
+/// `e` off the MST edge index, and every MST edge joins two distinct components
+/// (the edge set is a forest, so no edge is ever redundant whatever order it is
+/// processed in), which makes ids `[nRows, nRows + edgeCount)` dense.
+///
+/// @tparam algorithmFPType Floating-point type used for merge distances
+/// @tparam cpu             CPU dispatch tag
+///
+/// @param[in]  nRows      Number of original points
+/// @param[in]  edgeCount  Number of merges (`nRows - 1`)
+/// @param[in]  nodeSize   Subtree size per node, length `2*nRows - 1`
+/// @param[in]  leftChild  Left child id per node, length `2*nRows - 1`
+/// @param[in]  rightChild Right child id per node, length `2*nRows - 1`
+/// @param[in]  nodeWeight Merge distance per node, length `2*nRows - 1`
+/// @param[out] tree       Output matrix, length `4 * edgeCount`
+template <typename algorithmFPType, CpuType cpu>
+static void dumpSingleLinkageTree(size_t nRows, size_t edgeCount, const DAAL_INT * nodeSize, const DAAL_INT * leftChild, const DAAL_INT * rightChild,
+                                  const algorithmFPType * nodeWeight, algorithmFPType * tree)
+{
+    for (size_t e = 0; e < edgeCount; e++)
+    {
+        const size_t nid    = nRows + e;
+        algorithmFPType * r = tree + 4 * e;
+        r[0]                = static_cast<algorithmFPType>(leftChild[nid]);
+        r[1]                = static_cast<algorithmFPType>(rightChild[nid]);
+        r[2]                = nodeWeight[nid];
+        r[3]                = static_cast<algorithmFPType>(nodeSize[nid]);
+    }
+}
+
 /// Build the condensed cluster tree from a single-linkage dendrogram.
 ///
 /// Walks the dendrogram top-down. At each internal node, sides whose subtree
@@ -1132,13 +1170,16 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
 /// @param[in]     maxClusterSize          Maximum cluster size cap (0 == uncapped)
 /// @param[out]    probabilities           Optional membership strength per point in `[0, 1]`,
 ///                                        length `nRows`. Pass `nullptr` to skip it
+/// @param[out]    singleLinkageTree       Optional row-major `(nRows - 1) x 4` dendrogram dump,
+///                                        `[left, right, distance, size]` per merge. Pass `nullptr`
+///                                        to skip it
 ///
 /// @return Number of distinct labels emitted (== `labelCounter`); 0 if there are no points at
 ///         all, if the MST is empty, or if every point ended up as noise
 template <typename algorithmFPType, CpuType cpu>
 int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize,
                               int * assignments, int clusterSelection = 0, bool allowSingleCluster = false, double clusterSelectionEpsilon = 0.0,
-                              size_t maxClusterSize = 0, algorithmFPType * probabilities = nullptr)
+                              size_t maxClusterSize = 0, algorithmFPType * probabilities = nullptr, algorithmFPType * singleLinkageTree = nullptr)
 {
     // `edgeCount` and `totalNodes` below wrap for `nRows == 0` and then become allocation lengths.
     if (nRows == 0)
@@ -1169,7 +1210,16 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
         {
             for (size_t i = 0; i < nRows; i++) probabilities[i] = algorithmFPType(0);
         }
+        if (singleLinkageTree != nullptr)
+        {
+            for (size_t i = 0; i < 4 * edgeCount; i++) singleLinkageTree[i] = algorithmFPType(0);
+        }
         return 0;
+    }
+
+    if (singleLinkageTree != nullptr)
+    {
+        dumpSingleLinkageTree<algorithmFPType, cpu>(nRows, edgeCount, nodeSize, leftChild, rightChild, nodeWeight, singleLinkageTree);
     }
 
     DAAL_INT nextCid = static_cast<DAAL_INT>(nRows);

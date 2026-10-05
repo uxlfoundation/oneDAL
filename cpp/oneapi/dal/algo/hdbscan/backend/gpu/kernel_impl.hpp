@@ -95,6 +95,10 @@ struct cluster_work_ptrs {
     Float* ldeath_ptr;
     Float* plam_ptr;
 
+    // Single-linkage dendrogram output, a row-major `(row_count - 1) x 4` dump of
+    // the node arrays above. Null unless the caller requested it.
+    Float* slt_ptr;
+
     std::int64_t row_count;
     std::int64_t edge_count;
     std::int64_t min_cluster_size;
@@ -1106,6 +1110,47 @@ inline sycl::event build_dendrogram_kernels(sycl::queue& queue,
     });
 }
 
+/// Dump the single-linkage dendrogram as a row-major `(row_count - 1) x 4` matrix.
+///
+/// Device twin of the CPU `dumpSingleLinkageTree`. Row `e` describes the merge
+/// that created internal node `row_count + e`: `[left, right, distance, size]`,
+/// the layout scipy's `linkage` and scikit-learn's `_single_linkage_tree_` use,
+/// so a caller can re-cut the hierarchy at an arbitrary distance -- what
+/// `HDBSCAN.dbscan_clustering` does -- without rebuilding it.
+///
+/// Node ids need no remapping: `build_dendrogram_kernels` keys internal node `e`
+/// off the MST edge index, and every MST edge joins two distinct components (the
+/// edge set is a forest, so no edge is ever redundant whatever order it is
+/// processed in), which makes ids `[row_count, row_count + edge_count)` dense.
+/// Unlike the kernels around it this one is a plain `parallel_for`: each row is
+/// an independent gather.
+///
+/// @tparam Float Floating-point type used for merge distances
+///
+/// @param[in] queue The SYCL queue
+/// @param[in] w     Working pointers and constants (see `cluster_work_ptrs`);
+///                  `slt_ptr` must point at a `4 * edge_count`-long buffer
+/// @param[in] deps  Events that must complete before submission
+///
+/// @return Event signaling completion
+template <typename Float>
+inline sycl::event dump_single_linkage_tree_kernel(sycl::queue& queue,
+                                                   const cluster_work_ptrs<Float>& w,
+                                                   const bk::event_vector& deps) {
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(w.edge_count), [=](sycl::id<1> idx) {
+            const std::int64_t e = idx[0];
+            const std::int64_t nid = w.row_count + e;
+            Float* r = w.slt_ptr + 4 * e;
+            r[0] = static_cast<Float>(w.lc_ptr[nid]);
+            r[1] = static_cast<Float>(w.rc_ptr[nid]);
+            r[2] = w.nw_ptr[nid];
+            r[3] = static_cast<Float>(w.ns_ptr[nid]);
+        });
+    });
+}
+
 /// Cluster extraction kernel 2: build the condensed tree from the dendrogram.
 ///
 /// Walks the dendrogram top-down: for each internal node, sides whose subtree
@@ -1696,6 +1741,9 @@ inline sycl::event membership_probability_kernels(sycl::queue& queue,
 /// @param[out] probabilities             Optional device buffer of length `row_count` receiving the
 ///                                       membership strength of each point in `[0, 1]`. Pass
 ///                                       `nullptr` to skip the three extra kernels
+/// @param[out] single_linkage_tree       Optional device buffer of length `4 * (row_count - 1)`
+///                                       receiving the dendrogram as `[left, right, distance, size]`
+///                                       rows. Pass `nullptr` to skip the extra kernel
 ///
 /// @return Event signaling completion of the labeling phase
 template <typename Float>
@@ -1711,7 +1759,8 @@ inline sycl::event extract_clusters(sycl::queue& queue,
                                     bool allow_single_cluster = false,
                                     Float cluster_selection_epsilon = Float(0),
                                     std::int64_t max_cluster_size = 0,
-                                    Float* probabilities = nullptr) {
+                                    Float* probabilities = nullptr,
+                                    Float* single_linkage_tree = nullptr) {
     ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 
     ONEDAL_ASSERT(row_count > 0);
@@ -1854,6 +1903,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     w.cdeath_ptr = (probabilities != nullptr) ? cluster_death.get_mutable_data() : nullptr;
     w.ldeath_ptr = (probabilities != nullptr) ? label_death.get_mutable_data() : nullptr;
     w.plam_ptr = need_point_lambda ? point_lambda.get_mutable_data() : nullptr;
+    w.slt_ptr = single_linkage_tree;
     w.pff_ptr = point_fell_from.get_mutable_data();
     w.dp_ptr = dendro_parent.get_mutable_data();
     w.stk_ptr = stack_arr.get_mutable_data();
@@ -1872,6 +1922,14 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     // Submit kernels via helpers
     auto k2_event = build_dendrogram_kernels<Float>(queue, w, all_events);
     k2_event.wait_and_throw();
+
+    // Dumped here rather than at the end: the node arrays it reads are owned by
+    // this frame, and the kernels below only read them, so the dendrogram is
+    // final from this point on.
+    if (single_linkage_tree != nullptr && edge_count > 0) {
+        auto slt_event = dump_single_linkage_tree_kernel<Float>(queue, w, { k2_event });
+        slt_event.wait_and_throw();
+    }
 
     auto k3a_event = build_condensed_tree_kernel<Float>(queue, w, { k2_event });
     k3a_event.wait_and_throw();

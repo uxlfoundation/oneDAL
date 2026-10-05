@@ -91,12 +91,26 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
     auto daal_probabilities =
         interop::convert_to_daal_homogen_table(arr_probabilities, row_count, 1);
 
+    // Same null-table-to-skip contract as the probabilities array above. The
+    // dendrogram has one row per merge, so there is nothing to ask for when the
+    // input holds fewer than two observations.
+    const std::int64_t edge_count = row_count - 1;
+    const bool need_single_linkage_tree =
+        desc.get_result_options().test(result_options::single_linkage_tree) && edge_count > 0;
+    array<Float> arr_single_linkage_tree;
+    if (need_single_linkage_tree) {
+        arr_single_linkage_tree = array<Float>::empty(edge_count * 4);
+    }
+    auto daal_single_linkage_tree =
+        interop::convert_to_daal_homogen_table(arr_single_linkage_tree, edge_count, 4);
+
     interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_kd_tree_t>(
         ctx,
         daal_data.get(),
         daal_assignments.get(),
         daal_nclusters.get(),
         daal_probabilities.get(),
+        daal_single_linkage_tree.get(),
         static_cast<size_t>(min_cluster_size),
         static_cast<size_t>(min_samples),
         daal_metric,
@@ -197,6 +211,11 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
 
     if (need_probabilities) {
         results.set_probabilities(dal::homogen_table::wrap(arr_probabilities, row_count, 1));
+    }
+
+    if (need_single_linkage_tree) {
+        results.set_single_linkage_tree(
+            dal::homogen_table::wrap(arr_single_linkage_tree, edge_count, 4));
     }
 
     return results;
