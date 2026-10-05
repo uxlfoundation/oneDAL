@@ -17,7 +17,7 @@
     "//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:test_cross_entropy_loss_threading_unit_host"
   ],
   "test_flags": [
-    "--runs_per_test=3"
+    "--runs_per_test=10"
   ],
   "min_cpus": 4,
   "cpu_flags": [

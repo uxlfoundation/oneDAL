@@ -201,9 +201,31 @@ class HostUnsupported(RuntimeError):
     """The task cannot be graded meaningfully on this host (see require_host); not a grader bug."""
 
 
+def cgroup_cpu_limit():
+    """CPUs allowed by the cgroup quota (docker --cpus), or None. oneTBB sizes its default arena by it."""
+    for path, parse in (("/sys/fs/cgroup/cpu.max", lambda s: s.split()),
+                        ("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", None)):
+        try:
+            if parse:
+                quota, period = parse(Path(path).read_text())
+            else:
+                quota = Path(path).read_text().strip()
+                period = Path("/sys/fs/cgroup/cpu/cpu.cfs_period_us").read_text().strip()
+        except (OSError, ValueError):
+            continue
+        if quota in ("max", "-1"):
+            return None
+        return max(1, -(-int(quota) // int(period)))
+    return None
+
+
 def host_info():
-    """CPU facts a task's result can depend on (thread races, ISA dispatch)."""
-    info = {"cpus": len(os.sched_getaffinity(0)), "cpu_model": None, "cpu_flags": []}
+    """CPU facts a task's result can depend on (thread races, ISA dispatch).
+
+    cpus counts what a threaded library can use: the affinity mask, capped by the cgroup CPU quota.
+    """
+    cpus, limit = len(os.sched_getaffinity(0)), cgroup_cpu_limit()
+    info = {"cpus": min(cpus, limit) if limit else cpus, "cpu_model": None, "cpu_flags": []}
     try:
         text = Path("/proc/cpuinfo").read_text()
     except OSError:
