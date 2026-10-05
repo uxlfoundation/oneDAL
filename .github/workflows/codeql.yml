@@ -19,10 +19,6 @@
 # from forks -- so findings only surfaced after merge. The languages, query
 # suite and categories match what default setup used, so existing alerts keep
 # their history.
-#
-# Default setup blocks uploads from this workflow while it is enabled. Switch
-# it off (Settings > Code security > CodeQL analysis > Switch to advanced) when
-# this file lands.
 
 name: CodeQL
 
@@ -33,8 +29,9 @@ on:
   pull_request:
     branches:
       - main
+  # Same weekly slot default setup used: Thursdays, 08:10 UTC.
   schedule:
-    - cron: '17 4 * * 1'
+    - cron: '10 8 * * 4'
 
 permissions:
   contents: read
