@@ -20,8 +20,8 @@
     "--runs_per_test=10"
   ],
   "min_cpus": 4,
-  "cpu_flags": [
-    "avx512f"
+  "cpu_vendors": [
+    "GenuineIntel"
   ],
   "regression_targets": [
     "//examples/daal/cpp:logistic_regression"

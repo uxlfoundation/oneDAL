@@ -141,8 +141,8 @@ def main():
     elif a.cmd == "validate":
         sys.exit(validate())
     elif a.cmd == "check":
-        h = host_info()  # results of some tasks depend on it (min_cpus, cpu_flags)
-        print(json.dumps({"host": {"cpus": h["cpus"], "cpu_model": h["cpu_model"],
+        h = host_info()  # results of some tasks depend on it (min_cpus, cpu_vendors, cpu_flags)
+        print(json.dumps({"host": {"cpus": h["cpus"], "cpu_vendor": h["cpu_vendor"], "cpu_model": h["cpu_model"],
                                    "avx512f": "avx512f" in h["cpu_flags"]}}), flush=True)
         sys.exit(0 if all([check_verdict(t) for t in a.tasks or all_tasks()]) else 1)
     elif a.cmd == "grade":

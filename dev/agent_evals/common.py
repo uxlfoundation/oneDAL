@@ -225,28 +225,32 @@ def host_info():
     cpus counts what a threaded library can use: the affinity mask, capped by the cgroup CPU quota.
     """
     cpus, limit = len(os.sched_getaffinity(0)), cgroup_cpu_limit()
-    info = {"cpus": min(cpus, limit) if limit else cpus, "cpu_model": None, "cpu_flags": []}
+    info = {"cpus": min(cpus, limit) if limit else cpus, "cpu_vendor": None, "cpu_model": None, "cpu_flags": []}
     try:
         text = Path("/proc/cpuinfo").read_text()
     except OSError:
         return info
+    v = re.search(r"^vendor_id\s*:\s*(.+)$", text, re.M)
     m = re.search(r"^model name\s*:\s*(.+)$", text, re.M)
     f = re.search(r"^flags\s*:\s*(.+)$", text, re.M)
-    info.update(cpu_model=m.group(1).strip() if m else None, cpu_flags=f.group(1).split() if f else [])
+    info.update(cpu_vendor=v.group(1).strip() if v else None, cpu_model=m.group(1).strip() if m else None,
+                cpu_flags=f.group(1).split() if f else [])
     return info
 
 
 def require_host(t):
-    """Raise HostUnsupported unless the host has the task's min_cpus and cpu_flags (/proc/cpuinfo names).
+    """Raise HostUnsupported unless the host meets the task's min_cpus, cpu_vendors and cpu_flags.
 
     For a hidden test that can only see the bug on some hardware: elsewhere the unfixed tree passes, so a grade
-    there would be a false pass.
+    there would be a false pass. cpu_vendors and cpu_flags use /proc/cpuinfo names (GenuineIntel, avx512f).
     """
     h = host_info()
-    missing = [f for f in t.get("cpu_flags", []) if f not in h["cpu_flags"]]
-    if h["cpus"] < t.get("min_cpus", 1) or missing:
-        raise HostUnsupported(f"{t['id']} needs {t.get('min_cpus', 1)} CPUs and {t.get('cpu_flags', [])} to "
-                              f"detect the bug; this host has {h['cpus']} x {h['cpu_model']}, missing {missing}")
+    need = {"min_cpus": t.get("min_cpus", 1), "cpu_vendors": t.get("cpu_vendors"), "cpu_flags": t.get("cpu_flags", [])}
+    missing = [f for f in need["cpu_flags"] if f not in h["cpu_flags"]]
+    if h["cpus"] < need["min_cpus"] or missing or (need["cpu_vendors"] and h["cpu_vendor"] not in need["cpu_vendors"]):
+        want = {k: v for k, v in need.items() if v}
+        raise HostUnsupported(f"{t['id']} needs {want} to detect the bug; this host has {h['cpus']} x "
+                              f"{h['cpu_model']} ({h['cpu_vendor']})" + (f", missing {missing}" if missing else ""))
 
 
 def changed_files(ws, base):
