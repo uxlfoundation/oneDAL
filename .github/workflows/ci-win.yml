@@ -21,6 +21,34 @@ on:
     branches:
       - main
       - 'feature/**'
+    # Skip PR builds for changes that cannot affect the library build or tests.
+    # Pushes to main are not filtered.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'dev/agent_evals/**'
+      - 'conda-recipe/**'
+      - 'third-party-programs.txt'
+      - '.ci/pipeline/docs.yml'
+      - '.github/CODEOWNERS'
+      - '.github/renovate.json'
+      - '.github/.licenserc.yaml'
+      - '.github/.mergify.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/instructions/**'
+      - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-nightly.yml'
+      - '.github/workflows/docs-release.yml'
+      - '.github/workflows/label-enforcement.yml'
+      - '.github/workflows/nightly-build.yml'
+      - '.github/workflows/nightly-test.yml'
+      - '.github/workflows/openssf-scorecard.yml'
+      - '.github/workflows/pr-checklist.yml'
+      - '.github/workflows/renovate-validation.yml'
+      - '.github/workflows/skywalking-eyes.yml'
+      - '.github/workflows/slack-pr-notification.yml'
   push:
     branches:
       - main

@@ -26,10 +26,18 @@
 #endif
 
 namespace oneapi::dal::preview {
+/// Callback types of the frozen 32-bit entry points below. They are not used by any call site
+/// in the tree any more -- the 64-bit loops are the default -- but they are still part of the
+/// signatures that `libonedal` exports, so they must keep their current definitions.
 typedef void (*functype)(std::int32_t i, const void *a);
-typedef void (*functype_int64)(std::int64_t i, const void *a);
 typedef void (*functype_int32ptr)(const std::int32_t *i, const void *a);
 typedef void (*functype_blocked_size)(std::size_t, std::size_t, const void *);
+
+/// Callback types of the 64-bit loops.
+typedef void (*functype_int64)(std::int64_t i, const void *a);
+typedef void (*functype_int64ptr)(const std::int64_t *i, const void *a);
+typedef void (*functype_blocked)(std::int64_t first, std::int64_t last, const void *a);
+
 typedef void *(*tls_functype)(const void *a);
 typedef void (*tls_reduce_functype)(void *p, const void *a);
 
@@ -55,8 +63,24 @@ ONEDAL_EXPORT int _onedal_threader_get_max_threads();
 
 ONEDAL_EXPORT int _onedal_threader_get_current_thread_index();
 
+/* The five entry points in this block are frozen. `libonedal` exports them, and a public
+ * header instantiates a template that calls one of them in the *user's* translation unit
+ * (`decision_forest::model::traverse_{depth,breadth}_first(T&&)` in
+ * `algo/decision_forest/common.hpp` calls `detail::threader_for`), so an application built
+ * against an earlier oneDAL carries a reference to these symbols with these signatures.
+ *
+ * They have C linkage, so a widened parameter would not even change the symbol name: the old
+ * caller would keep passing 32-bit values in the low halves of the argument registers and the
+ * new callee would read the full 64 bits. That break is invisible to `abidiff`, which reports
+ * these as "function symbols not referenced by debug info" and can only see whether a name
+ * appears or disappears. Neither the name nor the signature may change here.
+ *
+ * `grain_size` is deliberately absent: the second parameter of the 32-bit loops was documented
+ * as reserved and was ignored by the backend, and their implementations pass a grain size of 1
+ * so that the frozen entry points keep behaving exactly as before.
+ */
 ONEDAL_EXPORT void _onedal_threader_for(std::int32_t n,
-                                        std::int32_t threads_request,
+                                        std::int32_t reserved,
                                         const void *a,
                                         oneapi::dal::preview::functype func);
 
@@ -65,7 +89,7 @@ ONEDAL_EXPORT void _onedal_threader_for_int64(std::int64_t n,
                                               oneapi::dal::preview::functype_int64 func);
 
 ONEDAL_EXPORT void _onedal_threader_for_simple(std::int32_t n,
-                                               std::int32_t threads_request,
+                                               std::int32_t reserved,
                                                const void *a,
                                                oneapi::dal::preview::functype func);
 
@@ -79,6 +103,32 @@ ONEDAL_EXPORT void _onedal_threader_for_blocked_size(
     std::size_t block,
     const void *a,
     oneapi::dal::preview::functype_blocked_size func);
+
+/* The 64-bit loops. These are what `oneapi::dal::detail::threader_for*` below binds to, and
+ * what every call site in the tree goes through. They are new names rather than widened
+ * versions of the entry points above, which keeps the change purely additive at the symbol
+ * level.
+ */
+ONEDAL_EXPORT void _onedal_threader_for_with_grain(std::int64_t n,
+                                                   std::int64_t grain_size,
+                                                   const void *a,
+                                                   oneapi::dal::preview::functype_int64 func);
+
+ONEDAL_EXPORT void _onedal_threader_for_simple_with_grain(
+    std::int64_t n,
+    std::int64_t grain_size,
+    const void *a,
+    oneapi::dal::preview::functype_int64 func);
+
+ONEDAL_EXPORT void _onedal_threader_for_int64ptr(const std::int64_t *begin,
+                                                 const std::int64_t *end,
+                                                 const void *a,
+                                                 oneapi::dal::preview::functype_int64ptr func);
+
+ONEDAL_EXPORT void _onedal_threader_for_blocked(std::int64_t count,
+                                                std::int64_t block,
+                                                const void *a,
+                                                oneapi::dal::preview::functype_blocked func);
 
 ONEDAL_EXPORT std::int64_t _onedal_parallel_reduce_int32_int64(
     std::int32_t n,
@@ -131,13 +181,7 @@ inline int threader_get_current_thread_index() {
 }
 
 template <typename F>
-inline void threader_func(std::int32_t i, const void *a) {
-    const F &lambda = *static_cast<const F *>(a);
-    lambda(i);
-}
-
-template <typename F>
-inline void threader_func_int64(std::int64_t i, const void *a) {
+inline void threader_func(std::int64_t i, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
     lambda(i);
 }
@@ -149,36 +193,73 @@ inline void threader_func_int32ptr(const std::int32_t *i, const void *a) {
 }
 
 template <typename F>
-inline void threader_func_blocked_size(std::size_t f, std::size_t l, const void *a) {
+inline void threader_func_int64ptr(const std::int64_t *i, const void *a) {
+    const F &lambda = *static_cast<const F *>(a);
+    lambda(i);
+}
+
+template <typename F>
+inline void threader_func_blocked(std::int64_t f, std::int64_t l, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
     lambda(f, l);
 }
 
+/// Iterates over `[0, n)` in parallel, with the threading backend's default partitioning.
+///
+/// The second parameter used to be a thread-count request that the backend ignored -- it
+/// hardcoded a chunk size of 1 -- and is now the grain size that actually reaches it, so
+/// `grain_size == 1` reproduces the previous partitioning exactly. Here the grain size is a
+/// lower bound: the backend will not hand a thread fewer than `grain_size` consecutive
+/// iterations, but it is free to hand it many more. Keep it at 1 whenever a single iteration
+/// already carries more work than a task dispatch; raise it only for loops whose body is a
+/// handful of instructions, and only with a measurement in hand.
+///
+/// @tparam F   The callable type; invoked as `lambda(std::int64_t i)`, `0 <= i < n`
+/// @param[in] n           Number of iterations in the loop
+/// @param[in] grain_size  Minimum number of iterations assigned to one thread. At least 1.
+/// @param[in] lambda      The body to run for every iteration
 template <typename F>
-inline ONEDAL_EXPORT void threader_for(std::int32_t n,
-                                       std::int32_t threads_request,
-                                       const F &lambda) {
+inline ONEDAL_EXPORT void threader_for(std::int64_t n, std::int64_t grain_size, const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for(n, threads_request, a, threader_func<F>);
+    _onedal_threader_for_with_grain(n, grain_size, a, threader_func<F>);
 }
 
+/// Iterates over `[0, n)` in parallel, in chunks of no more than `grain_size` iterations.
+///
+/// "Simple" names the partitioner, not a static schedule: the oneTBB backend uses
+/// `tbb::simple_partitioner`
+/// (https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html). That is
+/// also where the grain size binds differently than in `threader_for` -- the range is split until
+/// no chunk holds more than `grain_size` iterations and nothing is merged back, so the grain size
+/// is the chunk size rather than a lower bound the backend may exceed. `grain_size == 1`
+/// therefore asks for consecutive iterations on different threads. A static,
+/// one-contiguous-block-per-thread schedule is a different primitive (`tbb::static_partitioner`,
+/// reached through `daal::static_threader_for`) and is not mirrored here.
+///
+/// @tparam F   The callable type; invoked as `lambda(std::int64_t i)`, `0 <= i < n`
+/// @param[in] n           Number of iterations in the loop
+/// @param[in] grain_size  Number of iterations in one chunk. At least 1.
+/// @param[in] lambda      The body to run for every iteration
 template <typename F>
-inline ONEDAL_EXPORT void threader_for_int64(std::int64_t n, const F &lambda) {
-    const void *a = static_cast<const void *>(&lambda);
-
-    _onedal_threader_for_int64(n, a, threader_func_int64<F>);
-}
-
-template <typename F>
-inline ONEDAL_EXPORT void threader_for_simple(std::int32_t n,
-                                              std::int32_t threads_request,
+inline ONEDAL_EXPORT void threader_for_simple(std::int64_t n,
+                                              std::int64_t grain_size,
                                               const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for_simple(n, threads_request, a, threader_func<F>);
+    _onedal_threader_for_simple_with_grain(n, grain_size, a, threader_func<F>);
 }
 
+/// Iterates over a range of 32-bit indices addressed by pointer.
+///
+/// This one keeps a 32-bit element type on purpose: it walks the neighbor lists of
+/// `preview::topology<std::int32_t>`, which stores vertex ids as `std::int32_t`, so there
+/// is no `std::int64_t` range to iterate over. Only the loop index type became 64-bit.
+///
+/// @tparam F      The callable type; invoked as `lambda(const std::int32_t *)`
+/// @param[in] begin   The first element of the range
+/// @param[in] end     One past the last element of the range
+/// @param[in] lambda  The body to run for every element of the range
 template <typename F>
 inline ONEDAL_EXPORT void threader_for_int32ptr(const std::int32_t *begin,
                                                 const std::int32_t *end,
@@ -188,13 +269,42 @@ inline ONEDAL_EXPORT void threader_for_int32ptr(const std::int32_t *begin,
     _onedal_threader_for_int32ptr(begin, end, a, threader_func_int32ptr<F>);
 }
 
+/// Iterates over a range of 64-bit values addressed by pointer.
+///
+/// @tparam F      The callable type; invoked as `lambda(const std::int64_t *)`
+/// @param[in] begin   The first element of the range
+/// @param[in] end     One past the last element of the range
+/// @param[in] lambda  The body to run for every element of the range
 template <typename F>
-inline ONEDAL_EXPORT void threader_for_blocked_size(std::size_t count,
-                                                    std::size_t block,
-                                                    const F &lambda) {
+inline ONEDAL_EXPORT void threader_for_int64ptr(const std::int64_t *begin,
+                                                const std::int64_t *end,
+                                                const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for_blocked_size(count, block, a, threader_func_blocked_size<F>);
+    _onedal_threader_for_int64ptr(begin, end, a, threader_func_int64ptr<F>);
+}
+
+/// Splits `[0, count)` into blocks and runs the body once per block, in parallel.
+///
+/// The body is given the half-open bounds of its block, `(first, last)`, and is responsible for
+/// the loop over them. This replaces `_onedal_threader_for_blocked_size`, whose callback took
+/// `(first, length)` instead; the two conventions differ only in the second argument, so a call
+/// site ported from it must be re-read rather than only re-typed.
+///
+/// As in `threader_for`, `block` is a lower bound on the block size, not an exact one: the
+/// backend's default partitioning will not go below it but may hand out larger blocks.
+///
+/// @tparam F   The callable type; invoked as `lambda(std::int64_t first, std::int64_t last)`
+/// @param[in] count   Number of iterations to split into blocks
+/// @param[in] block   Minimum number of iterations in one block. At least 1.
+/// @param[in] lambda  The body to run for every block
+template <typename F>
+inline ONEDAL_EXPORT void threader_for_blocked(std::int64_t count,
+                                               std::int64_t block,
+                                               const F &lambda) {
+    const void *a = static_cast<const void *>(&lambda);
+
+    _onedal_threader_for_blocked(count, block, a, threader_func_blocked<F>);
 }
 
 template <typename F>

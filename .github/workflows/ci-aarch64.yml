@@ -20,6 +20,34 @@ on:
   pull_request:
     branches:
       - main
+    # Skip PR builds for changes that cannot affect the library build or tests.
+    # Pushes to main are not filtered.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'dev/agent_evals/**'
+      - 'conda-recipe/**'
+      - 'third-party-programs.txt'
+      - '.ci/pipeline/docs.yml'
+      - '.github/CODEOWNERS'
+      - '.github/renovate.json'
+      - '.github/.licenserc.yaml'
+      - '.github/.mergify.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/instructions/**'
+      - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-nightly.yml'
+      - '.github/workflows/docs-release.yml'
+      - '.github/workflows/label-enforcement.yml'
+      - '.github/workflows/nightly-build.yml'
+      - '.github/workflows/nightly-test.yml'
+      - '.github/workflows/openssf-scorecard.yml'
+      - '.github/workflows/pr-checklist.yml'
+      - '.github/workflows/renovate-validation.yml'
+      - '.github/workflows/skywalking-eyes.yml'
+      - '.github/workflows/slack-pr-notification.yml'
   push:
     branches:
       - main
@@ -58,7 +86,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
+        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -135,7 +163,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
+        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0

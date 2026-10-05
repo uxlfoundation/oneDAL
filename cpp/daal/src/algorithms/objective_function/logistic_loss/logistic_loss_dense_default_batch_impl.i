@@ -221,7 +221,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
         TlsMem<algorithmFPType, cpu, services::internal::ScalableCalloc<algorithmFPType, cpu> > tlsData(lipschitzConstant->getNumberOfRows());
 
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             algorithmFPType & _maxNorm = *tlsData.local();
             const size_t startRow      = iBlock * blockSize;
             const size_t finishRow     = (iBlock + 1 == nBlocks ? n : (iBlock + 1) * blockSize);
@@ -331,7 +331,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             DAAL_CHECK_MALLOC(interceptGrad.get());
         }
 
-        daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
+        daal::threader_for(nDataBlocks, 1, [&](size_t iBlock) {
             const size_t iStartRow      = iBlock * nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == nDataBlocks - 1) ? n - iBlock * nRowsInBlock : nRowsInBlock;
 

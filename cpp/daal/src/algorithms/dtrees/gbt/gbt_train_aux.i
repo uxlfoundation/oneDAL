@@ -500,7 +500,7 @@ struct LoopHelper
     {
         if (inParallel)
         {
-            daal::threader_for(nBlocks, nBlocks, [&](size_t i) { func(i); });
+            daal::threader_for(nBlocks, 1, [&](size_t i) { func(i); });
         }
         else
         {
