@@ -3110,31 +3110,83 @@ TEST("hdbscan gpu: brute_force rejects a matrix larger than device memory",
      "[hdbscan][batch][gpu]") {
     constexpr std::int64_t gib = 1024 * 1024 * 1024;
     constexpr std::int64_t f64 = 8;
+    // The simd k-selection path, which keeps no device scratch of its own.
+    constexpr std::int64_t k = 5;
+    constexpr std::int64_t no_scratch = 0;
 
     // 16 GiB global, 4 GiB per allocation: 10k rows need 800 MB and fit.
-    REQUIRE(backend::mrd_matrix_fits_on_device(10000, 8, f64, 4 * gib, 16 * gib));
+    REQUIRE(backend::mrd_matrix_fits_on_device(10000, 8, f64, 4 * gib, 16 * gib, k, no_scratch));
 
     // 30k rows need 7.2 GB, past the single-allocation limit.
-    REQUIRE(!backend::mrd_matrix_fits_on_device(30000, 8, f64, 4 * gib, 16 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(30000, 8, f64, 4 * gib, 16 * gib, k, no_scratch));
 
     // A 32k x 32k matrix is 7.63 GiB and fits both one allocation and the 9 GiB
     // budget, but the input table pushes the total over once it gets wide.
-    REQUIRE(backend::mrd_matrix_fits_on_device(32000, 8, f64, 16 * gib, 18 * gib));
-    REQUIRE(!backend::mrd_matrix_fits_on_device(32000, 8000, f64, 16 * gib, 18 * gib));
+    REQUIRE(backend::mrd_matrix_fits_on_device(32000, 8, f64, 16 * gib, 18 * gib, k, no_scratch));
+    REQUIRE(
+        !backend::mrd_matrix_fits_on_device(32000, 8000, f64, 16 * gib, 18 * gib, k, no_scratch));
 
     // The reported 100k-row `std::bad_alloc`: 80 GB in float64 on a 48 GB card.
-    REQUIRE(!backend::mrd_matrix_fits_on_device(100000, 8, f64, 48 * gib, 48 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(100000, 8, f64, 48 * gib, 48 * gib, k, no_scratch));
 
     // Only part of global memory is usable: a 32.5 GiB matrix allocates on a
     // 48 GiB card and then faults on first access, so it has to be rejected
     // even though it is under the 45 GiB single-allocation limit.
-    REQUIRE(!backend::mrd_matrix_fits_on_device(66000, 8, f64, 45 * gib, 48 * gib));
-    REQUIRE(backend::mrd_matrix_fits_on_device(50000, 8, f64, 45 * gib, 48 * gib));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(66000, 8, f64, 45 * gib, 48 * gib, k, no_scratch));
+    REQUIRE(backend::mrd_matrix_fits_on_device(50000, 8, f64, 45 * gib, 48 * gib, k, no_scratch));
 
     // Halving the element size halves the footprint, so float32 is checked
     // against its own size rather than the widest one.
-    REQUIRE(backend::mrd_matrix_fits_on_device(20000, 8, 4, 4 * gib, 16 * gib));
-    REQUIRE(!backend::mrd_matrix_fits_on_device(20000, 8, f64, 2 * gib, 16 * gib));
+    REQUIRE(backend::mrd_matrix_fits_on_device(20000, 8, 4, 4 * gib, 16 * gib, k, no_scratch));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(20000, 8, f64, 2 * gib, 16 * gib, k, no_scratch));
+
+    // A footprint that leaves int64 saturates instead of wrapping negative:
+    // `8 * 2^30 * 2^30` is exactly 2^63, which used to compare as "fits".
+    constexpr std::int64_t pow30 = std::int64_t(1) << 30;
+    REQUIRE(!backend::mrd_matrix_fits_on_device(pow30, 8, f64, 45 * gib, 48 * gib, k, no_scratch));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(std::int64_t(1) << 40,
+                                                8,
+                                                f64,
+                                                45 * gib,
+                                                48 * gib,
+                                                k,
+                                                no_scratch));
+    // The column count, `min_samples` and the reported scratch each overflow on
+    // their own.
+    REQUIRE(!backend::mrd_matrix_fits_on_device(1000,
+                                                std::int64_t(1) << 50,
+                                                f64,
+                                                45 * gib,
+                                                48 * gib,
+                                                k,
+                                                no_scratch));
+    REQUIRE(
+        !backend::mrd_matrix_fits_on_device(50000, 8, f64, 45 * gib, 48 * gib, pow30, no_scratch));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(50000,
+                                                8,
+                                                f64,
+                                                45 * gib,
+                                                48 * gib,
+                                                k,
+                                                backend::mrd_bytes_saturated));
+
+    // 55k float64 rows fit the matrix and the budget on a 48 GiB card, but not
+    // once quick select's two n x n scratch matrices are counted.
+    constexpr std::int64_t quick_rows = 55000;
+    constexpr std::int64_t quick_scratch = quick_rows * quick_rows * (f64 + 4) + 1024 * f64;
+    REQUIRE(
+        backend::mrd_matrix_fits_on_device(quick_rows, 8, f64, 45 * gib, 48 * gib, k, no_scratch));
+    REQUIRE(!backend::mrd_matrix_fits_on_device(quick_rows,
+                                                8,
+                                                f64,
+                                                45 * gib,
+                                                48 * gib,
+                                                1023,
+                                                quick_scratch));
+
+    // The `n x min_samples` selection output counts on every path, quick or not.
+    REQUIRE(
+        !backend::mrd_matrix_fits_on_device(50000, 8, f64, 45 * gib, 48 * gib, 20000, no_scratch));
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,

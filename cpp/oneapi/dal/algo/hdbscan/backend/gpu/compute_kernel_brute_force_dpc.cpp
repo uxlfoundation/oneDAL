@@ -71,7 +71,10 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     const std::int64_t max_cluster_size = desc.get_max_cluster_size();
     const double alpha = desc.get_alpha();
 
-    check_mrd_matrix_fits_on_device<Float>(queue, row_count, local_data.get_column_count());
+    check_mrd_matrix_fits_on_device<Float>(queue,
+                                           row_count,
+                                           local_data.get_column_count(),
+                                           min_samples);
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
     queue.wait_and_throw();

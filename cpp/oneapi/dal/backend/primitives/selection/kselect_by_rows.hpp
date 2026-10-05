@@ -107,6 +107,27 @@ private:
     detail::unique<kselect_by_rows_base<Float>> base_;
 };
 
+/// Device memory `kselect_by_rows<Float>` allocates at construction
+///
+/// The constructor dispatches on `k` and on device limits, and only the
+/// quick-select implementation keeps device buffers of its own. Callers that
+/// have to size a device budget before building the selector ask here instead
+/// of repeating the dispatch thresholds.
+///
+/// @tparam Float Floating-point type of the values being selected
+///
+/// @param[in] queue The queue the selector would be constructed on
+/// @param[in] shape Shape of the matrix the selector would be given
+/// @param[in] k     Number of smallest values selected per row
+///
+/// @return Device bytes the constructor allocates, `0` for the implementations
+///         that keep no device scratch, saturated at the largest `std::int64_t`
+///         when the exact value does not fit
+template <typename Float>
+std::int64_t kselect_by_rows_scratch_size(const sycl::queue& queue,
+                                          const ndshape<2>& shape,
+                                          std::int64_t k);
+
 #endif
 
 } // namespace oneapi::dal::backend::primitives

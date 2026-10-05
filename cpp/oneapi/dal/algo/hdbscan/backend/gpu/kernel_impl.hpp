@@ -121,16 +121,60 @@ struct cluster_work_ptrs {
 /// own reservations and anything else the process holds.
 constexpr std::int64_t mrd_global_mem_divisor = 2;
 
+/// Byte total the sizing helpers return when the exact value leaves `std::int64_t`.
+///
+/// Larger than any device limit, so a saturated total always compares as "does
+/// not fit" instead of wrapping negative and passing the guard.
+constexpr std::int64_t mrd_bytes_saturated = dal::detail::limits<std::int64_t>::max();
+
+/// Multiply two non-negative byte counts without signed overflow.
+///
+/// @param[in] lhs First factor
+/// @param[in] rhs Second factor
+///
+/// @return `lhs * rhs`, or `mrd_bytes_saturated` when that product would not fit
+inline std::int64_t mrd_mul_bytes(std::int64_t lhs, std::int64_t rhs) {
+    ONEDAL_ASSERT(lhs >= 0);
+    ONEDAL_ASSERT(rhs >= 0);
+    if (lhs == 0 || rhs == 0) {
+        return 0;
+    }
+    return (lhs > mrd_bytes_saturated / rhs) ? mrd_bytes_saturated : lhs * rhs;
+}
+
+/// Add two non-negative byte counts without signed overflow.
+///
+/// @param[in] lhs First summand
+/// @param[in] rhs Second summand
+///
+/// @return `lhs + rhs`, or `mrd_bytes_saturated` when that sum would not fit
+inline std::int64_t mrd_add_bytes(std::int64_t lhs, std::int64_t rhs) {
+    ONEDAL_ASSERT(lhs >= 0);
+    ONEDAL_ASSERT(rhs >= 0);
+    return (lhs > mrd_bytes_saturated - rhs) ? mrd_bytes_saturated : lhs + rhs;
+}
+
 /// Decide whether the brute-force path's device buffers fit within given limits.
 ///
 /// Split out of `check_mrd_matrix_fits_on_device` so the sizing arithmetic can
 /// be exercised against synthetic limits instead of whatever GPU is attached.
+/// Every product goes through `mrd_mul_bytes`/`mrd_add_bytes`: a dimension whose
+/// footprint leaves `std::int64_t` saturates and is rejected, rather than
+/// wrapping into a small total that passes.
 ///
-/// @param[in] row_count        Number of input rows `n`
-/// @param[in] column_count     Number of input columns `d`
-/// @param[in] element_size     Size in bytes of one distance-matrix element
-/// @param[in] max_alloc_bytes  Device limit on a single allocation
-/// @param[in] global_mem_bytes Device global memory size
+/// The peak is taken over the two phases that hold the matrix. The k-selection
+/// output and scratch are freed when `compute_core_distances` returns, so they
+/// are never live at the same time as the MST edge arrays.
+///
+/// @param[in] row_count             Number of input rows `n`
+/// @param[in] column_count          Number of input columns `d`
+/// @param[in] element_size          Size in bytes of one distance-matrix element
+/// @param[in] max_alloc_bytes       Device limit on a single allocation
+/// @param[in] global_mem_bytes      Device global memory size
+/// @param[in] min_samples           `k` of the core-distance k-selection
+/// @param[in] kselect_scratch_bytes Device scratch the selected `kselect_by_rows`
+///                                  implementation allocates, from
+///                                  `pr::kselect_by_rows_scratch_size`
 ///
 /// @return `true` if the `n × n` matrix fits one allocation and the pipeline's
 ///         peak footprint stays inside the global-memory budget
@@ -138,17 +182,31 @@ inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
                                       std::int64_t column_count,
                                       std::int64_t element_size,
                                       std::int64_t max_alloc_bytes,
-                                      std::int64_t global_mem_bytes) {
-    const std::int64_t matrix_bytes = element_size * row_count * row_count;
+                                      std::int64_t global_mem_bytes,
+                                      std::int64_t min_samples,
+                                      std::int64_t kselect_scratch_bytes) {
+    const std::int64_t row_bytes = mrd_mul_bytes(element_size, row_count);
+    const std::int64_t matrix_bytes = mrd_mul_bytes(row_bytes, row_count);
     if (matrix_bytes > max_alloc_bytes) {
         return false;
     }
 
-    // Live alongside the matrix while the MST is built: the input table, the
-    // core distances and the three MST edge arrays.
-    const std::int64_t peak_bytes =
-        matrix_bytes + element_size * row_count * (column_count + 1) +
-        (2 * static_cast<std::int64_t>(sizeof(std::int32_t)) + element_size) * row_count;
+    // Live alongside the matrix on every path: the input table and the core
+    // distances.
+    const std::int64_t resident_bytes = mrd_mul_bytes(row_bytes, column_count + 1);
+
+    // The `n x min_samples` k-selection output plus whatever the selected
+    // k-selection implementation allocates for itself.
+    const std::int64_t selection_bytes =
+        mrd_add_bytes(mrd_mul_bytes(row_bytes, min_samples), kselect_scratch_bytes);
+
+    // The three MST edge arrays.
+    const std::int64_t mst_bytes =
+        mrd_mul_bytes(2 * static_cast<std::int64_t>(sizeof(std::int32_t)) + element_size,
+                      row_count);
+
+    const std::int64_t peak_bytes = mrd_add_bytes(mrd_add_bytes(matrix_bytes, resident_bytes),
+                                                  std::max(selection_bytes, mst_bytes));
     return peak_bytes <= global_mem_bytes / mrd_global_mem_divisor;
 }
 
@@ -165,18 +223,40 @@ inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
 /// @param[in] queue        The SYCL queue whose device has to hold the matrix
 /// @param[in] row_count    Number of input rows `n`
 /// @param[in] column_count Number of input columns `d`
+/// @param[in] min_samples  `k` of the core-distance k-selection
 ///
 /// @throws domain_error if the matrix exceeds the single-allocation limit or if
 ///         the pipeline's peak footprint exceeds device global memory
 template <typename Float>
 inline void check_mrd_matrix_fits_on_device(sycl::queue& queue,
                                             std::int64_t row_count,
-                                            std::int64_t column_count) {
-    if (!mrd_matrix_fits_on_device(row_count,
-                                   column_count,
-                                   static_cast<std::int64_t>(sizeof(Float)),
-                                   bk::device_max_mem_alloc_size(queue),
-                                   bk::device_global_mem_size(queue))) {
+                                            std::int64_t column_count,
+                                            std::int64_t min_samples) {
+    constexpr std::int64_t element_size = static_cast<std::int64_t>(sizeof(Float));
+    const std::int64_t max_alloc_bytes = bk::device_max_mem_alloc_size(queue);
+    const std::int64_t global_mem_bytes = bk::device_global_mem_size(queue);
+
+    // The scratch query needs an `n x n` shape, and `ndshape` asserts that
+    // `n * n` is representable, so the matrix is sized first with no scratch
+    // accounted for. A row count that already fails that is rejected either way.
+    const bool matrix_fits = mrd_matrix_fits_on_device(row_count,
+                                                       column_count,
+                                                       element_size,
+                                                       max_alloc_bytes,
+                                                       global_mem_bytes,
+                                                       min_samples,
+                                                       0);
+    const std::int64_t kselect_scratch_bytes =
+        matrix_fits
+            ? pr::kselect_by_rows_scratch_size<Float>(queue, { row_count, row_count }, min_samples)
+            : 0;
+    if (!matrix_fits || !mrd_matrix_fits_on_device(row_count,
+                                                   column_count,
+                                                   element_size,
+                                                   max_alloc_bytes,
+                                                   global_mem_bytes,
+                                                   min_samples,
+                                                   kselect_scratch_bytes)) {
         throw domain_error(
             dal::detail::error_messages::hdbscan_brute_force_matrix_does_not_fit_on_device());
     }

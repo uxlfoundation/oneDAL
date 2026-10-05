@@ -42,9 +42,12 @@ class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
     using naive_dp_t = data_provider_t<Float, false>;
 
 public:
+    /// Upper bound on the random pivot sequence the kernel draws from
+    static constexpr std::int64_t max_rnd_seq_size = 1024;
+
     kselect_by_rows_quick() = delete;
     kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape)
-            : rnd_seq_(queue, std::min(shape[1], max_rnd_seq_size_)) {
+            : rnd_seq_(queue, std::min(shape[1], max_rnd_seq_size)) {
         data_ = ndarray<Float, 2>::empty(queue, shape, sycl::usm::alloc::device);
         indices_ = ndarray<std::int32_t, 2>::empty(queue, shape, sycl::usm::alloc::device);
     }
@@ -304,8 +307,6 @@ private:
         }
     }
     static constexpr std::uint32_t preffered_sg_size = 16;
-    static constexpr std::int64_t max_rnd_seq_size_ = 1024;
-    std::int64_t rnd_seq_size_ = max_rnd_seq_size_;
     rnd_seq<Float> rnd_seq_;
     ndarray<Float, 2> data_;
     ndarray<std::int32_t, 2> indices_;
