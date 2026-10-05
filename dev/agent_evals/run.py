@@ -83,7 +83,8 @@ def check(task, kind):
     finally:
         bazel(rd, ws, "shutdown", rd / "shutdown.log")
     row = {"pass": g["pass"], **g["metrics"], **g["details"], "errors": g["errors"]}
-    print(json.dumps({"task": task, "kind": kind, "pass": row["pass"], "errors": len(row["errors"])}), flush=True)
+    print(json.dumps({"task": task, "kind": kind, "pass": row["pass"], "errors": len(row["errors"]),
+                      **({"error": row["errors"][0]} if row["errors"] else {})}), flush=True)
     return row
 
 
