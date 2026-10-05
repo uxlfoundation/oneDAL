@@ -1527,4 +1527,44 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     REQUIRE_THROWS_AS(this->infer(binary_desc, wide_counts, blobs.x_test()), unimplemented);
 }
 
+TEMPLATE_LIST_TEST_M(svm_batch_test,
+                     "svm refuses csr data on gpu for two classes",
+                     "[svm][integration][batch][manual-model][csr]",
+                     svm_nightly_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    using kernel_t = linear::descriptor<float_t, linear::method::dense>;
+    using blobs_t = multiclass_blobs<float_t>;
+    using desc_t = svm::descriptor<float_t, method_t, svm::task::classification, kernel_t>;
+
+    const blobs_t blobs{};
+    const auto binary_desc = desc_t{ kernel_t{}.set_scale(1.0).set_shift(0.0) }.set_c(1.0);
+
+    const auto binary_model =
+        this->train(binary_desc, blobs.x_train_binary(), blobs.y_train_binary()).get_model();
+    REQUIRE_NOTHROW(this->infer(binary_desc, binary_model, blobs.x_test()));
+
+    INFO("csr test data is refused, binary descriptor and dense model or not");
+    const auto x_test_csr = dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
+                                                         blobs_t::test_row_count,
+                                                         blobs_t::column_count);
+    REQUIRE_THROWS_AS(this->infer(binary_desc, binary_model, x_test_csr), unimplemented);
+
+    INFO("so are csr support vectors reaching the kernel on dense test data");
+    constexpr std::int64_t sv_count = 2;
+    const auto sv_csr =
+        dense_to_sparse_csr<float_t>(blobs.x_train_data.data(), sv_count, blobs_t::column_count);
+    const std::array<float_t, sv_count> sv_coeffs = { 1.0, -1.0 };
+    const std::array<float_t, 1> sv_bias = { 0.0 };
+    auto csr_sv_model = svm::model<svm::task::classification>{}
+                            .set_support_vectors(sv_csr)
+                            .set_coeffs(homogen_table::wrap(sv_coeffs.data(), sv_count, 1))
+                            .set_biases(homogen_table::wrap(sv_bias.data(), 1, 1));
+    REQUIRE_THROWS_AS(this->infer(binary_desc, csr_sv_model, blobs.x_test()), unimplemented);
+}
+
 } // namespace oneapi::dal::svm::test
