@@ -1325,7 +1325,11 @@ inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
                 const std::int32_t ls = w.ns_ptr[lc_node];
                 const std::int32_t rs = w.ns_ptr[rc_node];
                 const Float wt = w.nw_ptr[nid];
-                const Float lambda = (wt > Float(0)) ? Float(1) / wt : Float(1e30);
+                // scikit-learn stores an infinite lambda for a zero-distance
+                // merge. The largest finite value stands in for it, as on the
+                // CPU, so no reciprocal of a representable distance outranks it.
+                const Float lambda =
+                    (wt > Float(0)) ? Float(1) / wt : dal::detail::limits<Float>::max();
 
                 const bool l_big = ls >= w.min_cluster_size;
                 const bool r_big = rs >= w.min_cluster_size;
@@ -1676,9 +1680,16 @@ inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
 
             const std::int32_t cond_count = w.cond_cnt_ptr[0];
 
+            const Float inf_lambda = dal::detail::limits<Float>::max();
+
             Float threshold = Float(0);
             if (w.cluster_selection_epsilon > Float(0)) {
-                threshold = Float(1) / w.cluster_selection_epsilon;
+                // Below `1 / inf_lambda` the reciprocal overflows, which would
+                // put the threshold above the zero-distance lambda and demote
+                // the coincident points an infinite lambda keeps.
+                threshold = (w.cluster_selection_epsilon > Float(1) / inf_lambda)
+                                ? Float(1) / w.cluster_selection_epsilon
+                                : inf_lambda;
             }
             else {
                 for (std::int32_t ei = 0; ei < cond_count; ei++) {

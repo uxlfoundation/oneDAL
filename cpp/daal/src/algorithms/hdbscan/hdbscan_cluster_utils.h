@@ -850,7 +850,7 @@ static void resolveSelectedAncestors(DAAL_INT rootCid, DAAL_INT nClusters, const
 ///   - the point's own lambda is not finite, which happens for duplicate points
 ///     at zero mutual reachability distance (sklearn's `not isfinite` branch --
 ///     this implementation substitutes the largest finite value instead of an
-///     infinity, which the `min()` below handles identically);
+///     infinity, which the clamp below handles identically);
 ///   - the point never dropped out before its cluster died, i.e. it is one of
 ///     the points that labelPoints has to resolve through the dendrogram; such
 ///     a point outlived the cluster by definition.
@@ -956,10 +956,16 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
                                         DAAL_INT rootCid, int rootLabel, const algorithmFPType * pointLambda, double clusterSelectionEpsilon,
                                         int * assignments)
 {
+    const algorithmFPType infLambda = MaxVal<algorithmFPType>::get();
+
     algorithmFPType threshold = algorithmFPType(0);
     if (clusterSelectionEpsilon > 0.0)
     {
-        threshold = static_cast<algorithmFPType>(1.0 / clusterSelectionEpsilon);
+        // Below `1 / infLambda` the reciprocal overflows, in double or in the
+        // narrowing, which would put the threshold above the zero-distance
+        // lambda and demote the coincident points an infinite lambda keeps.
+        const double minEpsilon = 1.0 / static_cast<double>(infLambda);
+        threshold               = (clusterSelectionEpsilon > minEpsilon) ? static_cast<algorithmFPType>(1.0 / clusterSelectionEpsilon) : infLambda;
     }
     else
     {

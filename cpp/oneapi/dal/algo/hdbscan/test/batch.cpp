@@ -22,6 +22,7 @@
 
 #include <map>
 #include <set>
+#include <type_traits>
 #include <vector>
 
 namespace oneapi::dal::hdbscan::test {
@@ -2929,6 +2930,122 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     SKIP_IF(this->not_float64_friendly());
     check_unstructured_single_cluster<std::tuple_element_t<1, TestType>,
                                       std::tuple_element_t<0, TestType>>(this->get_policy());
+}
+
+/// Coincident points, so every condensed-tree edge carries the zero-distance
+/// lambda scikit-learn stores as infinity, and the same set with one point a
+/// hair away, so one edge carries a finite 1e31 instead. References from
+/// `sklearn.cluster.HDBSCAN(min_cluster_size=3, min_samples=2,
+/// allow_single_cluster=True)`.
+constexpr std::int64_t zero_lambda_row_count = 4;
+constexpr double zero_lambda_data[] = {
+    0.0, 0.0, //
+    0.0, 0.0, //
+    0.0, 0.0, //
+    0.0, 0.0, //
+};
+constexpr double split_lambda_data[] = {
+    0.0,     0.0, //
+    0.0,     0.0, //
+    0.0,     0.0, //
+    1.0e-31, 0.0, //
+};
+
+/// Materialize a row-major double literal in the floating-point type under test.
+///
+/// @tparam Float Floating-point type of the test instantiation
+///
+/// @param[in] src   Source values
+/// @param[in] count Number of values
+///
+/// @return An owning array of `count` feature values
+template <typename Float>
+static dal::array<Float> make_feature_array(const double* src, std::int64_t count) {
+    auto arr = dal::array<Float>::empty(count);
+    auto* const dst = arr.get_mutable_data();
+    for (std::int64_t i = 0; i < count; i++) {
+        dst[i] = static_cast<Float>(src[i]);
+    }
+    return arr;
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: a zero-distance lambda outranks every epsilon",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x = homogen_table::wrap(make_feature_array<Float>(zero_lambda_data, 8),
+                                       zero_lambda_row_count,
+                                       std::int64_t(2));
+
+    constexpr std::int32_t ref_labels[] = { 0, 0, 0, 0 };
+
+    const double epsilon = GENERATE(0.0, 1e-30, 1e-31, 1e-40, 1e-310);
+    CAPTURE(epsilon);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 2)
+            .set_allow_single_cluster(true)
+            .set_cluster_selection_epsilon(epsilon)
+            .set_result_options(result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    check_exact_labels<Float>(result.get_responses(), ref_labels, zero_lambda_row_count);
+
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-7);
+    for (std::int64_t i = 0; i < zero_lambda_row_count; i++) {
+        CAPTURE(i, probs[i]);
+        REQUIRE(std::abs(double(probs[i]) - 1.0) < tol);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: coincident points outlive a finite-lambda outlier",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    // 1e-31 squares to zero in float32, which makes all four points coincident
+    // and removes the finite lambda this case is about.
+    SKIP_IF(!std::is_same_v<Float, double>);
+
+    const auto x = homogen_table::wrap(make_feature_array<Float>(split_lambda_data, 8),
+                                       zero_lambda_row_count,
+                                       std::int64_t(2));
+
+    // The coincident points drop out at the zero-distance lambda, the fourth at
+    // 1e31. Without an epsilon the threshold is the root's death lambda, which
+    // only the coincident points reach; an epsilon of 1e-31 lowers it to 1e31
+    // and admits the outlier, whose membership stays 0 against an infinite
+    // maximum.
+    constexpr std::int32_t ref_labels_no_eps[] = { 0, 0, 0, -1 };
+    constexpr std::int32_t ref_labels_eps[] = { 0, 0, 0, 0 };
+    constexpr double ref_probabilities[] = { 1.0, 1.0, 1.0, 0.0 };
+
+    const double epsilon = GENERATE(0.0, 1e-31, 1e-30);
+    const std::int32_t* const ref_labels = (epsilon > 0.0) ? ref_labels_eps : ref_labels_no_eps;
+    CAPTURE(epsilon);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(3, 2)
+            .set_allow_single_cluster(true)
+            .set_cluster_selection_epsilon(epsilon)
+            .set_result_options(result_options::responses | result_options::probabilities);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    check_exact_labels<Float>(result.get_responses(), ref_labels, zero_lambda_row_count);
+
+    const auto probs = row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-7);
+    for (std::int64_t i = 0; i < zero_lambda_row_count; i++) {
+        CAPTURE(i, probs[i], ref_probabilities[i]);
+        REQUIRE(std::abs(double(probs[i]) - ref_probabilities[i]) < tol);
+    }
 }
 
 // =========================================================================
