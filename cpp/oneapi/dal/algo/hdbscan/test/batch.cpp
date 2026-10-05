@@ -3011,7 +3011,7 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     using Float = std::tuple_element_t<0, TestType>;
     // 1e-31 squares to zero in float32, which makes all four points coincident
     // and removes the finite lambda this case is about.
-    SKIP_IF(!std::is_same_v<Float, double>);
+    SKIP_IF((!std::is_same_v<Float, double>));
 
     const auto x = homogen_table::wrap(make_feature_array<Float>(split_lambda_data, 8),
                                        zero_lambda_row_count,
