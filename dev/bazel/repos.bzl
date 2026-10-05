@@ -112,6 +112,37 @@ def _normalize_download_info(repo_ctx, os_id):
         ))
     return result
 
+def _split_glob_entry(root, entry_fmt, mapping):
+    """Split a globbed entry into the directory to scan and the basename pattern."""
+    pattern = entry_fmt.split("/")[-1]
+    dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
+    root_with_dir = utils.substitute(
+        paths.join(root, dir_part) if dir_part else root,
+        mapping
+    )
+    return struct(pattern = pattern, dir_part = dir_part, root_with_dir = root_with_dir)
+
+def _glob_dir_entries(repo_ctx, glob):
+    """List the directory a globbed entry scans, or nothing if it is absent.
+
+    `readdir()` on a path that does not exist is an error, not an empty list, so
+    a pattern under a directory the package does not ship has to be answered
+    before the directory is enumerated. Callers that require a match still
+    report it themselves; the optional ones treat it as "not present", which is
+    their contract.
+    """
+    dir_path = repo_ctx.path(glob.root_with_dir)
+    if not dir_path.exists or not dir_path.is_dir:
+        return []
+    return dir_path.readdir()
+
+def _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
+    glob = _split_glob_entry(root, entry_fmt, mapping)
+    for fs_entry in _glob_dir_entries(repo_ctx, glob):
+        if _matches_glob(fs_entry.basename, glob.pattern):
+            return True
+    return False
+
 def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
     substitutions = substitutions or {}
     mapping = mapping or {}
@@ -119,22 +150,17 @@ def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
         if "*" in entry_fmt:
-            pattern = entry_fmt.split("/")[-1]
-            dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
-            root_with_dir = utils.substitute(
-                paths.join(root, dir_part) if dir_part else root,
-                mapping
-            )
+            glob = _split_glob_entry(root, entry_fmt, mapping)
             matched = False
-            for fs_entry in repo_ctx.path(root_with_dir).readdir():
-                if _matches_glob(fs_entry.basename, pattern):
+            for fs_entry in _glob_dir_entries(repo_ctx, glob):
+                if _matches_glob(fs_entry.basename, glob.pattern):
                     matched = True
-                    dst = (paths.join(dir_part, fs_entry.basename)
-                           if dir_part else fs_entry.basename)
+                    dst = (paths.join(glob.dir_part, fs_entry.basename)
+                           if glob.dir_part else fs_entry.basename)
                     repo_ctx.symlink(str(fs_entry), dst)
             if not matched:
                 fail("No files matched pattern '%s' in directory '%s' while creating symlinks for entry '%s'" %
-                     (pattern, root_with_dir, entry_fmt))
+                     (glob.pattern, glob.root_with_dir, entry_fmt))
         else:
             src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
             dst_entry_path = entry_fmt
@@ -148,15 +174,53 @@ def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mappi
     rather than out of package metadata, so the result cannot disagree with the
     package, and OS-specific naming needs no separate attribute: entries that do
     not exist for the host OS are simply not there.
+
+    Globbed entries are kept when the pattern matches at least one file, and
+    dropped otherwise. Testing `exists` on the raw entry would never be true for
+    a pattern, so a globbed entry would always be dropped silently.
     """
     substitutions = substitutions or {}
     mapping = mapping or {}
     present = []
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
+        if "*" in entry_fmt:
+            if _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
+                present.append(entry)
+            continue
         src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
         if repo_ctx.path(src_entry_path).exists:
             present.append(entry)
+    _create_symlinks(repo_ctx, root, present, substitutions, mapping)
+
+def _create_required_any_symlinks(repo_ctx, root, entries, what, substitutions=None, mapping=None):
+    """Symlink whichever of `entries` the package ships, requiring at least one.
+
+    For a set of files that are individually optional but collectively required:
+    the MKL CPU dispatch kernels, where which ISA families a release ships
+    changes between versions but a layout with the classic libraries and no
+    kernel at all is broken -- `libmkl_core.so.2` is only the dispatcher, so the
+    first classic-MKL call dies with `Cannot load libmkl_avx512.so.2 or
+    libmkl_def.so.2`. Failing in the repository rule names the package; failing
+    at run time names a kernel the user never asked for.
+    """
+    if not entries:
+        return
+    substitutions = substitutions or {}
+    mapping = mapping or {}
+    present = []
+    for entry in entries:
+        entry_fmt = utils.substitute(entry, substitutions)
+        if "*" in entry_fmt:
+            if _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
+                present.append(entry)
+            continue
+        if repo_ctx.path(utils.substitute(paths.join(root, entry_fmt), mapping)).exists:
+            present.append(entry)
+    if not present:
+        fail(("None of {} matched in '{}', and at least one is required: {}. " +
+              "Point {} at a package that ships them.").format(
+            entries, root, what, repo_ctx.name))
     _create_symlinks(repo_ctx, root, present, substitutions, mapping)
 
 def _matches_glob(name, pattern):
@@ -216,6 +280,16 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     # package resolve to a template without parameter libraries -- no template
     # substitution and no package metadata are involved.
     _create_optional_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping)
+    # Read without `_select_by_os`, which falls back to the Linux value when the
+    # `win_` one is empty. That is right for a list of files to symlink and wrong
+    # for a requirement: Linux patterns can never match a Windows layout, so the
+    # fallback would turn an empty Windows group into a guaranteed failure.
+    _create_required_any_symlinks(
+        repo_ctx, root,
+        repo_ctx.attr.win_required_any_libs if os_id == "win" else repo_ctx.attr.required_any_libs,
+        repo_ctx.attr.required_any_libs_description,
+        substitutions, mapping,
+    )
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping)
     repo_ctx.template(
         "BUILD",
@@ -224,6 +298,8 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     )
 
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
+                             required_any_libs=[], required_any_libs_description="",
+                             win_required_any_libs=[],
                              root_env_var="", fallback_root="",
                              url="", sha256="", strip_prefix="",
                              local_mapping={}, download_mapping={},
@@ -249,6 +325,9 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "optional_libs": attr.string_list(default=optional_libs),
+            "required_any_libs": attr.string_list(default=required_any_libs),
+            "required_any_libs_description": attr.string(default=required_any_libs_description),
+            "win_required_any_libs": attr.string_list(default=win_required_any_libs),
             "bins": attr.string_list(default=bins),
             "build_template": attr.label(allow_files=True,
                                          default=Label(build_template)),

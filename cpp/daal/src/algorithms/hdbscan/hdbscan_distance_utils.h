@@ -182,7 +182,7 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
     constexpr size_t blockSize = 256;
     const size_t nBlocks       = (nRows + blockSize - 1) / blockSize;
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         const size_t i_begin = iBlock * blockSize;
         const size_t i_end   = (i_begin + blockSize > nRows) ? nRows : i_begin + blockSize;
         for (size_t i = i_begin; i < i_end; i++)

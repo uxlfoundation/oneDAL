@@ -180,7 +180,7 @@ daal_module(
 
 daal_module(
     name = "threading_tbb",
-    srcs = glob(["src/threading/**/*.cpp"]),
+    srcs = glob(["src/threading/**/*.cpp"], exclude = ["src/threading/test/*.cpp"]),
     # Match Make STDALLOC=yes: separately built threading objects keep TBB
     # scalable allocation while core objects switch away from MKL allocation.
     stdalloc = False,
@@ -373,6 +373,9 @@ dal_collect_test_suites(
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
         "dtrees/gbt/regression"
+    ],
+    tests = [
+        "@onedal//cpp/daal/src/threading/test:tests",
     ],
 )
 

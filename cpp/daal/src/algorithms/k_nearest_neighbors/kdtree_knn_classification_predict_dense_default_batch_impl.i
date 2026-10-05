@@ -209,7 +209,7 @@ Status KNNClassificationPredictKernel<algorithmFpType, defaultDense, cpu>::compu
     services::internal::TArrayScalable<algorithmFpType *, cpu> soa_arrays;
     bool isHomogenSOA = checkHomogenSOA<algorithmFpType, cpu>(data, soa_arrays);
 
-    daal::threader_for(blockCount, blockCount, [&](int iBlock) {
+    daal::threader_for(blockCount, 1, [&](int iBlock) {
         Local * const local = localTLS.local();
         if (local)
         {

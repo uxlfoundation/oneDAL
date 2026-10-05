@@ -130,7 +130,7 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
     DAAL_CHECK_MALLOC(originalIndicesMap.get());
     size_t * const originalIndicesMapData = originalIndicesMap.get();
 
-    daal::threader_for(nModels, nModels, [&](size_t imodel) {
+    daal::threader_for(nModels, 1, [&](size_t imodel) {
         const size_t iClass = classIndicesData[imodel];
         const size_t jClass = classIndicesData[imodel + nModels];
 
@@ -250,7 +250,7 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
         algorithmFPType * const coefficientsOut = mtCoefficientsOut.get();
         services::internal::service_memset<algorithmFPType, cpu>(coefficientsOut, algorithmFPType(0),
                                                                  coeffOutTable->getNumberOfRows() * coeffOutTable->getNumberOfColumns());
-        daal::threader_for(nModels, nModels, [&](size_t imodel) {
+        daal::threader_for(nModels, 1, [&](size_t imodel) {
             const size_t iClass = classIndicesData[imodel];
             const size_t jClass = classIndicesData[imodel + nModels];
 

@@ -100,11 +100,12 @@ class Index(object):
         model = self._index[parent_name].model
         attrs_to_check = [ 'functions', 'typedefs', 'enum_classes' ]
         try:
+            result = []
             for attr in attrs_to_check:
-                result = []
                 for inner in getattr(model, attr):
                     if inner.name == name:
                         result.append(inner)
+            if result:
                 return result
         except AttributeError:
             pass
