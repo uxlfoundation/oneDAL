@@ -787,6 +787,7 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
 | `STDALLOC=yes`                  | `--stdalloc=true`                                            | Allocator-selection equivalent for Linux DAAL core objects; threading objects unchanged. Make ICX also adds `-static-libstdc++` |
+| `CODE_COVERAGE=yes`            | `--code_coverage=true`                                       | Linux with host compiler ID `icx`; Make-equivalent action-local flags      |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
@@ -798,6 +799,76 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
 | `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
 | `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
+
+With `--code_coverage=true`, Bazel keeps instrumentation on oneDAL-owned
+actions instead of forwarding global `--copt`/`--linkopt` values into external
+dependencies. The action-level parity with `makefile` and the compiler
+definitions under `dev/make/compiler_definitions/` is:
+
+| oneDAL action | Added options |
+|---------------|---------------|
+| ICX compile | `-coverage` |
+| DAAL core compile (the Bazel counterpart of Make `CORE.objs_a/y`) | `-DGCOV_BUILD` in addition to `-coverage` |
+| DPC++ compile | None |
+| ICX dynamic-library/module link | `-coverage` |
+| DPC++ dynamic-library/module link | `-Xscoverage` |
+| Static-library archive | None |
+| ICX executable/test link | `-coverage` |
+| DPC++ executable/test link | `-Xscoverage` |
+
+`GCOV_BUILD` is deliberately independent of compiler instrumentation: it is
+opted in by `daal_module`, and explicitly excluded from separately built DAAL
+threading modules. oneAPI DAL, DPC++, tests, examples, and tools use the default
+off setting. This mirrors the Make target-specific assignment on
+`CORE.objs_a/y`; Make's compiler-level coverage option still applies to other
+host compilations.
+
+Make's compiler drivers add the coverage runtime on dynamic links. Bazel
+applies the corresponding driver option to dynamic-library, module, executable,
+and test link actions; executable/test links need it to resolve the coverage
+runtime from instrumented objects. Static archives remain flag-free. The flag
+is rejected on non-Linux platforms and unless the detected host compiler ID is
+exactly `icx`.
+
+### Recovering coverage data
+
+Instrumented objects are not a coverage report by themselves. `-coverage` writes
+a `.gcno` notes file beside each object file, and a test writes its `.gcda`
+counters to the object's build-time path; neither is a declared action output, so
+default sandboxing discards both and a plain `--code_coverage=true` build yields
+binaries no report can be made from. Measured on the pinned Bazel version: the
+only `.gcno` left is under `sandbox/sandbox_stash/`, never in `bazel-out`.
+
+Local execution keeps both:
+
+```bash
+bazel test //cpp/daal/...:all --code_coverage=true --spawn_strategy=local
+```
+
+The notes files then sit in `bazel-out/<config>/bin/_objs/<module>/`, the counters
+under the test's runfiles at the mirrored `_objs` path; `gcov` produces a report
+once a `.gcda` sits beside its `.gcno`. This is independent of Bazel's built-in
+`--collect_code_coverage`, which uses its own toolchain feature and is unchanged
+by this flag.
+
+`dev/bazel/tests/code_coverage_test.sh` is the smoke for both halves, selected
+by `--dpc`.
+
+Public CI runs it in the default host mode on the CPU-only icx installation: it
+builds `//cpp/daal:core_static` and `//cpp/daal:thread_static` with
+`--code_coverage=true`, inspects `bazel aquery` output to confirm DAAL core
+compile actions carry `-coverage`/`-DGCOV_BUILD` while the separately built
+threading module does not, and asserts the `.gcno` notes files survive into the
+output tree. Its Bazel output tree is isolated under the agent temporary
+directory, measured before and after, then removed before the release build.
+
+`--dpc` verifies the DPC++ link-specific `-Xscoverage` option instead: it builds
+`//cpp/oneapi/dal/table:table_dpc` and, through analysis only, checks the
+released `//cpp/oneapi/dal:dynamic_dpc` link as well. It needs the complete
+DPC++ runtime, so it is excluded from public PR CI and runs from the
+`LinuxBazelDpcCoverage` job on a manually queued pipeline. There is deliberately
+no cron for it: an Azure schedule queues the whole pipeline, which would re-run
+every other job nightly for this one check.
 
 ## Cross-compiling to ARM/RISC-V
 
