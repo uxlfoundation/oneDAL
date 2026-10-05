@@ -45,6 +45,23 @@ config_setting(
     },
 )
 
+# Windows + ref backend. A Windows DLL has to resolve every symbol at link
+# time, so `onedal_core.<major>.dll` needs the math backend linked in directly
+# instead of relying on the loader to bind BLAS/LAPACK calls to
+# `onedal_thread.<major>.dll` the way ELF does. Matches the top-level makefile
+# rule for `$(WORKDIR.lib)/$(core_y)`, which lists
+# `daaldep.math_backend.shared_link_deps` (dev/make/deps.ref.mk) as a
+# dependency of the core shared library on every OS.
+config_setting(
+    name = "backend_ref_windows",
+    flag_values = {
+        ":backend_config": "ref",
+    },
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+)
+
 config_setting(
     name = "backend_config_mkl_linux",
     flag_values = {
@@ -153,6 +170,21 @@ platform(
     constraint_values = [
         "@platforms//cpu:riscv64",
         "@platforms//os:linux",
+    ],
+)
+
+# Windows on ARM64 target platform, matching Make's `PLAT=winarm`. The
+# toolchain generated for it from cc_toolchain_win_llvm.tpl.BUILD is clang-cl
+# based
+# (icx has no AArch64 target), so pass this together with clang-cl on PATH.
+# On an ARM64 Windows host it is also the auto-detected default; naming it
+# explicitly is what makes an x86_64-host cross-compile
+# (`CC=clang-cl --target=aarch64-pc-windows-msvc`) resolve.
+platform(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
     ],
 )
 

@@ -121,6 +121,10 @@ _WINDOWS_IMPORT_LIBRARIES = [
     "tbb12_debug.lib",
     "tbbmalloc.lib",
     "tbbmalloc_debug.lib",
+    # `openblas.lib` deliberately does not belong here: `.ci/env/openblas.bat`
+    # builds OpenBLAS statically, so it is a real archive and Make merges its
+    # symbols into `onedal_core` as well
+    # (`daaldep.math_backend.static_link_deps` in dev/make/deps.ref.mk).
 ]
 
 def _unpack_linking_contexts(linking_contexts):
