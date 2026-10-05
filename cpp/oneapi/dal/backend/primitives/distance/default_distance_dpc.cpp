@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
 #include <utility>
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -118,18 +119,36 @@ sycl::event distance<Float, Metric>::operator()(const ndview<Float, 2, order1>& 
     const auto n_samples2 = inp2.get_dimension(0);
     // Getting info about strides
     const auto out_stride = out.get_leading_stride();
-    // Constructing correct range of size m x n
-    const auto out_range = make_range_2d(n_samples1, n_samples2);
     // Metric instance
     const auto& metric = this->m_;
+
+    // `n_samples1 * n_samples2` can leave int32 for a large square output, so
+    // walk the output in row blocks instead of one grid. Each block writes its
+    // own rows and only depends on `deps`, so the launches are free to overlap.
+    const auto block_rows = max_range_2d_rows(n_samples2);
+
+    event_vector block_events;
+    for (std::int64_t row_start = 0; row_start < n_samples1; row_start += block_rows) {
+        const auto rows = std::min(block_rows, n_samples1 - row_start);
+        block_events.push_back(q_.submit([&](sycl::handler& h) {
+            h.depends_on(deps);
+
+            h.parallel_for(make_range_2d(rows, n_samples2), [=](sycl::id<2> idx) {
+                const auto row = row_start + static_cast<std::int64_t>(idx[0]);
+                auto [f1, l1] = dkeeper1.get_row_bound_iterators(row);
+                auto [f2, l2] = dkeeper2.get_row_bound_iterators(idx[1]);
+                auto& out_place = *(out_ptr + out_stride * row + idx[1]);
+                out_place = metric(f1, l1, f2);
+            });
+        }));
+    }
+
+    if (block_events.size() == 1u) {
+        return block_events.front();
+    }
     return q_.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(out_range, [=](sycl::id<2> idx) {
-            auto [f1, l1] = dkeeper1.get_row_bound_iterators(idx[0]);
-            auto [f2, l2] = dkeeper2.get_row_bound_iterators(idx[1]);
-            auto& out_place = *(out_ptr + out_stride * idx[0] + idx[1]);
-            out_place = metric(f1, l1, f2);
-        });
+        h.depends_on(block_events);
+        h.single_task([]() {});
     });
 }
 
