@@ -26,14 +26,21 @@ Grader `test_pass_files`: same result keys as `test_pass` (graders/fix.py), whic
   regression_flags    extra bazel flags for the `regression_targets` run
   root_cause          {"file", "must_contain"} and/or {"file", "must_not_contain"}; root_cause_fixed is True
                       only if every given condition holds (a missing file counts as not fixed)
+  min_cpus            CPUs the hidden test needs to see the bug at all (a race that cannot happen on fewer
+                      cores). With fewer, grading is an error, not a pass: the unfixed tree would pass
 
 touched_tests reports the test files the agent changed, not the hidden files the grader wrote.
 """
+import os
+
 from common import changed_files, files_restored, is_test_file, show, task_dir
 from graders.fix import g_test_pass, o_test_pass
 
 
 def g_test_pass_files(rd, ws, t, tr):
+    cpus = len(os.sched_getaffinity(0))
+    if cpus < t.get("min_cpus", 1):
+        raise RuntimeError(f"{t['id']} needs {t['min_cpus']} CPUs to detect the bug, this host gives {cpus}")
     repo = ws
     changed = changed_files(ws, tr["start_sha"])  # before any grader write, see g_test_pass
     agent_touched = [f for f in changed if is_test_file(f)]
