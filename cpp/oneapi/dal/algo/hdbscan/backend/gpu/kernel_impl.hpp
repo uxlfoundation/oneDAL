@@ -1358,9 +1358,11 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                     w.is_ptr[c] = 0;
             }
 
-            const std::int32_t mcs_max = (w.max_cluster_size > 0)
-                                             ? static_cast<std::int32_t>(w.max_cluster_size)
-                                             : std::numeric_limits<std::int32_t>::max();
+            // Stays 64-bit: the descriptor takes the cap as int64_t, and narrowing it
+            // would turn a large, non-restrictive cap negative and unselect every cluster.
+            const std::int64_t mcs_max = (w.max_cluster_size > 0)
+                                             ? w.max_cluster_size
+                                             : std::numeric_limits<std::int64_t>::max();
 
             if (w.cluster_selection == 1) {
                 // Leaf mode picks the leaves of the *cluster* tree, whose nodes
