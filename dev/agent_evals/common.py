@@ -197,6 +197,36 @@ def resolve_in_run(p, rd, ws, max_links=40):
     return q if q.exists() else None
 
 
+class HostUnsupported(RuntimeError):
+    """The task cannot be graded meaningfully on this host (see require_host); not a grader bug."""
+
+
+def host_info():
+    """CPU facts a task's result can depend on (thread races, ISA dispatch)."""
+    info = {"cpus": len(os.sched_getaffinity(0)), "cpu_model": None, "cpu_flags": []}
+    try:
+        text = Path("/proc/cpuinfo").read_text()
+    except OSError:
+        return info
+    m = re.search(r"^model name\s*:\s*(.+)$", text, re.M)
+    f = re.search(r"^flags\s*:\s*(.+)$", text, re.M)
+    info.update(cpu_model=m.group(1).strip() if m else None, cpu_flags=f.group(1).split() if f else [])
+    return info
+
+
+def require_host(t):
+    """Raise HostUnsupported unless the host has the task's min_cpus and cpu_flags (/proc/cpuinfo names).
+
+    For a hidden test that can only see the bug on some hardware: elsewhere the unfixed tree passes, so a grade
+    there would be a false pass.
+    """
+    h = host_info()
+    missing = [f for f in t.get("cpu_flags", []) if f not in h["cpu_flags"]]
+    if h["cpus"] < t.get("min_cpus", 1) or missing:
+        raise HostUnsupported(f"{t['id']} needs {t.get('min_cpus', 1)} CPUs and {t.get('cpu_flags', [])} to "
+                              f"detect the bug; this host has {h['cpus']} x {h['cpu_model']}, missing {missing}")
+
+
 def changed_files(ws, base):
     """Files the agent changed or added in workspace ws since the prepared commit base."""
     ch = git(ws, "diff", "--name-only", base, check=False).stdout.split()
