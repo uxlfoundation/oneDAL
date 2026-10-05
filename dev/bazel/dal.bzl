@@ -378,6 +378,15 @@ def _test_runtime_data():
             "@tbb//:tbb_runtime",
             "@mkl//:mkl_runtime",
         ],
+    }) + _select({
+        # OpenBLAS is linked statically on both OSes, so this filegroup is empty
+        # today; it stays named here so a future shared ref backend only has to
+        # fill it in (dev/bazel/deps/openblas*.tpl.BUILD), the way
+        # `@tbb//:tbb_runtime` above works.
+        "@config//:backend_ref": [
+            "@openblas//:openblas_runtime",
+        ],
+        "//conditions:default": [],
     })
 
 def _test_device_args():

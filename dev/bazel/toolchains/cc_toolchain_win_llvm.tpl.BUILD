@@ -54,6 +54,8 @@ cc_toolchain_config(
     cc_link_path = "%{cc_link_path}",
     dpcc_link_path = "%{dpcc_link_path}",
     ar_path = "%{ar_path}",
+    cxx_std_flag_prefix = "%{cxx_std_flag_prefix}",
+    openmp_simd_flags = [%{openmp_simd_flags}],
     cxx_builtin_include_directories = [%{cxx_builtin_include_directories}],
     compile_flags_cc = [%{compile_flags_cc}],
     compile_flags_dpcc = [%{compile_flags_dpcc}],
@@ -97,11 +99,11 @@ alias(
 toolchain(
     name = "cc_toolchain_win",
     exec_compatible_with = [
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:%{host_cpu_constraint}",
         "@platforms//os:windows",
     ],
     target_compatible_with = [
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:%{target_cpu_constraint}",
         "@platforms//os:windows",
     ],
     toolchain = ":%{cc_toolchain_identifier}",
