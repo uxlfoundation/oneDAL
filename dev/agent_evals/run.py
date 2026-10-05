@@ -28,6 +28,8 @@ Agent runs are driven by agent-benchmark (README.md). Configuration is by enviro
 """
 import argparse
 import json
+import os
+import re
 import sys
 from pathlib import Path
 
@@ -88,6 +90,19 @@ def check(task, kind):
     return row
 
 
+def host_info():
+    """CPU facts a task's result can depend on (thread races, ISA dispatch); printed with every check."""
+    info = {"cpus": len(os.sched_getaffinity(0)), "cpu_model": None, "avx512f": None}
+    try:
+        text = Path("/proc/cpuinfo").read_text()
+    except OSError:
+        return info
+    m = re.search(r"^model name\s*:\s*(.+)$", text, re.M)
+    f = re.search(r"^flags\s*:\s*(.+)$", text, re.M)
+    info.update(cpu_model=m.group(1).strip() if m else None, avx512f=("avx512f" in f.group(1).split()) if f else None)
+    return info
+
+
 def check_verdict(task):
     rows = {k: check(task, k) for k in ("null", "oracle")}
     t = task_spec(task)
@@ -136,6 +151,7 @@ def main():
     elif a.cmd == "validate":
         sys.exit(validate())
     elif a.cmd == "check":
+        print(json.dumps({"host": host_info()}), flush=True)
         sys.exit(0 if all([check_verdict(t) for t in a.tasks or all_tasks()]) else 1)
     elif a.cmd == "grade":
         for rd in a.run_dirs:
