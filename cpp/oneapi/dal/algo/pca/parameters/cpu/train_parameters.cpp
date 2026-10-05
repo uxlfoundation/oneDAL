@@ -95,55 +95,16 @@ std::int64_t propose_block_size(const context_cpu& ctx,
         return block_size;
     }
 
+    const std::int64_t l2_size = sys_params.get_l2_cache_size();
     const std::int64_t thread_count = sys_params.get_max_number_of_threads();
 
-    /// block_size tree fitted on measured kernel times, chosen among trees with various hyperparameters:
-    /// 1 <= max_depth <= 5; min_leaf \in {1, 3}.
-    ///
-    /// max_depth=4, min_leaf=3, 15 leaves.
-    if (column_count <= 70) {
-        if (column_count <= 31) {
-            if (row_count <= 547722) {
-                if (column_count <= 14) {
-                    return 2048;
-                }
-                return 8192;
-            }
-            if (row_count <= 1732050) {
-                return 4096;
-            }
-            return 8192;
-        }
-        if (thread_count <= 5) {
-            return 8192;
-        }
-        if (row_count <= 547722) {
-            return 512;
-        }
-        return 8192;
-    }
-    if (column_count <= 141) {
-        if (row_count <= 173205) {
-            if (thread_count <= 5) {
-                return 8192;
-            }
-            return 512;
-        }
-        if (thread_count <= 22) {
-            return 8192;
-        }
-        return 1024;
-    }
-    if (column_count <= 505) {
-        if (column_count <= 357) {
-            return 512;
-        }
-        return 128;
-    }
-    if (column_count <= 633) {
-        return 256;
-    }
-    return 64;
+    /// Half of the L2 cache is reserved for a block of the data
+    const double h1 = 0.5 * l2_size / (column_count * sizeof(Float));
+    /// At least one block per thread
+    const double h2 = double(row_count) / thread_count;
+
+    const auto block_size = static_cast<std::int64_t>(std::clamp(std::min(h1, h2), 64.0, 8192.0));
+    return dal::backend::down_pow2(block_size);
 }
 
 template <typename Float>
