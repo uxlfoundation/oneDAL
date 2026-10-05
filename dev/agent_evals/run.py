@@ -28,15 +28,13 @@ Agent runs are driven by agent-benchmark (README.md). Configuration is by enviro
 """
 import argparse
 import json
-import os
-import re
 import sys
 from pathlib import Path
 
 import config
 import contract
 import graders
-from common import bazel, prep, sh, task_spec
+from common import bazel, host_info, prep, sh, task_spec
 
 
 def all_tasks():
@@ -90,22 +88,14 @@ def check(task, kind):
     return row
 
 
-def host_info():
-    """CPU facts a task's result can depend on (thread races, ISA dispatch); printed with every check."""
-    info = {"cpus": len(os.sched_getaffinity(0)), "cpu_model": None, "avx512f": None}
-    try:
-        text = Path("/proc/cpuinfo").read_text()
-    except OSError:
-        return info
-    m = re.search(r"^model name\s*:\s*(.+)$", text, re.M)
-    f = re.search(r"^flags\s*:\s*(.+)$", text, re.M)
-    info.update(cpu_model=m.group(1).strip() if m else None, avx512f=("avx512f" in f.group(1).split()) if f else None)
-    return info
-
-
 def check_verdict(task):
     rows = {k: check(task, k) for k in ("null", "oracle")}
     t = task_spec(task)
+    host = [r["errors"][0] for r in rows.values() if r["errors"] and r["errors"][0].startswith("HostUnsupported:")]
+    if len(host) == len(rows):
+        # the hidden test cannot see the bug on this hardware: not checkable here, and not a broken grader
+        print(f"{task}: SKIPPED ({host[0].split(':', 1)[1].strip()})", flush=True)
+        return True
     if any(r["errors"] for r in rows.values()):
         ok = False  # a grader that crashes on the null or oracle workspace is a grader bug
     elif t.get("family") == "review":
@@ -151,7 +141,9 @@ def main():
     elif a.cmd == "validate":
         sys.exit(validate())
     elif a.cmd == "check":
-        print(json.dumps({"host": host_info()}), flush=True)
+        h = host_info()  # results of some tasks depend on it (min_cpus, cpu_flags)
+        print(json.dumps({"host": {"cpus": h["cpus"], "cpu_model": h["cpu_model"],
+                                   "avx512f": "avx512f" in h["cpu_flags"]}}), flush=True)
         sys.exit(0 if all([check_verdict(t) for t in a.tasks or all_tasks()]) else 1)
     elif a.cmd == "grade":
         for rd in a.run_dirs:
