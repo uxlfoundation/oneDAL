@@ -49,10 +49,6 @@ def task_spec(task):
     return t
 
 
-def meta(rd):
-    return json.loads((rd / "meta.json").read_text())
-
-
 def show(rev, path):
     """File content at rev in the source clone (hidden tests, mined fixes)."""
     return sh(["git", "show", f"{rev}:{path}"], cwd=config.src()).stdout
@@ -72,47 +68,34 @@ def snapshot(commit, dest):
     git(dest, "commit", "-qm", f"snapshot {commit}")
 
 
-# ---------------------------------------------------------------- arms
-def guidance_files(repo):
-    return sorted({p for g in config.GUIDANCE_GLOBS for p in repo.glob(g)})
+def prep(task, rd):
+    """Workspace for the self-check, laid out as agent-benchmark prepares one (contract §3, guidance as checked in).
 
-
-def arm_none(repo):
-    for p in guidance_files(repo):
-        p.unlink()
-
-
-def arm_main_raw(repo):
-    # guidance present as-is. Claude Code 2.1.286 loads AGENTS.md only when no CLAUDE.md is in its start-up chain;
-    # 2.1.241/2.1.250 never do, so the agent sees it only if it opens the file. run.py refuses CLIs before 2.1.286
-    pass
-
-
-# New arms (other guidance revisions, placebo text, tooling) are one function each: mutate the task repo in place.
-ARMS = {"none": arm_none, "main-raw": arm_main_raw}
-
-
-def prep(task, arm, rd):
+    rd/workspace is a history-free tree at the task base with the setup patches committed and, for review tasks,
+    the change under review as its HEAD commit; rd also gets task.json, meta.json and an empty answer and trace.
+    """
     t = task_spec(task)
-    repo = rd / "repo"
+    ws = rd / "workspace"
     if rd.exists():
         shutil.rmtree(rd)
     rd.mkdir(parents=True)
-    snapshot(t["base"], repo)
+    snapshot(t["base"], ws)
     for p in t.get("setup_patches", [t["setup_patch"]] if t.get("setup_patch") else []):
-        git(repo, "apply", str(task_dir(task) / p))
-    ARMS[arm](repo)
-    git(repo, "add", "-A")
-    git(repo, "commit", "-q", "--amend", "-m", "snapshot")
+        git(ws, "apply", str(task_dir(task) / p))
+    git(ws, "add", "-A")
+    git(ws, "commit", "-q", "--amend", "-m", "snapshot")
     if t.get("review_patch"):
         sh(["git", "-c", "user.name=Dev Contributor", "-c", "user.email=dev@example.com", "am", "-q",
-            str(task_dir(task) / t["review_patch"])], cwd=repo)
+            str(task_dir(task) / t["review_patch"])], cwd=ws)
     # base_* as agent-benchmark writes them (the upstream commit); start_sha is the workspace commit graders diff from
     up = sh(["git", "log", "-1", "--format=%H %cI", f"{t['base']}^{{commit}}"], cwd=config.src()).stdout.split()
-    start = git(repo, "rev-parse", "HEAD").stdout.strip()
-    (rd / "meta.json").write_text(json.dumps({"task": task, "arm": arm, "base_rev": t["base"], "base_sha": up[0],
-                                              "base_date": up[1], "start_sha": start}))
-    return repo
+    start = git(ws, "rev-parse", "HEAD").stdout.strip()
+    (rd / "meta.json").write_text(json.dumps({"task": task, "arm": "guidance:raw", "base_rev": t["base"],
+                                              "base_sha": up[0], "base_date": up[1], "start_sha": start}))
+    (rd / "task.json").write_text(json.dumps(t, indent=1))
+    (rd / "answer.txt").write_text("")
+    (rd / "events.jsonl").write_text("")
+    return ws
 
 
 # ---------------------------------------------------------------- grading helpers

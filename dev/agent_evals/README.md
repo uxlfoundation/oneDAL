@@ -16,40 +16,35 @@
 
 # oneDAL agent evals
 
-A harness for measuring how coding agents do on real oneDAL work: building, fixing bugs, writing tests and
-reviewing changes. It compares *arms* (variants of the repository's agent guidance) on the same tasks, so that a
-change to `AGENTS.md`, `.github/instructions`, tooling or repo layout can be judged by the agent behaviour it
-produces rather than by reading it.
+Tasks and graders for measuring how coding agents do on real oneDAL work: building, fixing bugs, writing tests and
+reviewing changes. Comparing *arms* (variants of the repository's agent guidance, tooling or layout) on the same
+tasks lets a change to `AGENTS.md`, `.github/instructions`, the build system or the repo layout be judged by the
+agent behaviour it produces rather than by reading it.
 
-The harness drives [Claude Code](https://docs.claude.com/en/docs/claude-code) headless (`claude -p`). Every run
-gets a fresh, history-free copy of the tree, its own Bazel output base and its own Claude config directory, and is
-graded by rebuilding and rerunning tests. No LLM judges the result.
-
-## Tiers
+This directory holds only what is specific to oneDAL: the tasks, the graders that rebuild and rerun oneDAL tests,
+the eval image and the oneDAL rules of the guidance claim check. Running agents (workspace preparation, the
+harness, isolation, traces, reports) is done by agent-benchmark, which reads `repo-eval.yaml` (the
+repository-evaluation contract). No LLM judges a result: graders rebuild and rerun tests.
 
 | tier | what | cost |
 |---|---|---|
 | T0 static | `run.py static`: every link, path, Bazel label, bazel/make command, Starlark macro and identifier named in the guidance is checked against the tree | $0, seconds |
-| T1 tasks | `run.py matrix`: an agent solves each task under each arm; graders rebuild and rerun tests | LLM cost + CPU |
+| self-check | `run.py check`: for every task the untouched workspace fails its grader and the reference solution passes | $0, CPU |
+| T1 tasks | agent-benchmark `repo run`: an agent solves each task under each arm; these graders score it | LLM cost + CPU |
 
 ## Quick start
 
 ```sh
-# Python 3.9+, git, bazelisk, uv (for the pinned clang-format), Claude Code CLI with credentials
-export ONEDAL_EVAL_ROOT=/scratch/onedal-evals   # no CLAUDE.md / AGENTS.md / .claude in any parent directory
+# Python 3.9+, git, bazelisk, uv (for the pinned clang-format)
 export ONEDAL_EVAL_SRC=$PWD                     # full-history clone; mined tasks read fix commits from it
 python3 dev/agent_evals/run.py list
 python3 dev/agent_evals/run.py validate         # task.json shape, bases resolve, patches exist; no build
 python3 dev/agent_evals/run.py static           # T0
 python3 dev/agent_evals/run.py check            # grader self-check for every task, no LLM
-python3 dev/agent_evals/run.py matrix --arms none,main-raw --models haiku --reps 3 -j 6 --batch b1
-python3 dev/agent_evals/run.py summary --batch b1
 ```
 
-Other settings (Claude CLI binary, Bazel binary, shared caches, timeout) are environment variables documented in
-`config.py`. Model aliases (`haiku`, `sonnet`, `opus`) resolve to Bedrock ids when `CLAUDE_CODE_USE_BEDROCK` is set
-and to Anthropic API ids otherwise; a full model id also works. `--effort` passes Claude Code's effort level
-through. Each run records the CLI version.
+Other settings (Bazel binary, shared caches, where `check` writes) are environment variables documented in
+`config.py`.
 
 ## Continuous integration
 
@@ -61,24 +56,33 @@ through. Each run records the CLI version.
 - `run.py check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one task per
   grader when the harness or a grader changes; weekly, and on demand (`workflow_dispatch`), for every task.
 
-Agent runs (`run.py matrix`) stay manual: they cost tokens and depend on the agent being measured. Rerun them after
+Agent runs stay manual: they cost tokens and depend on the agent being measured. Rerun them after
 a large change to guidance, tooling, build system or layout. A change that breaks `run.py check` for a task updates
 that task in the same pull request.
+## Running agents
 
-## Arms
+With agent-benchmark (see its `docs/repo-evaluation-contract.md`, "Running"):
 
-| arm | repository state |
+```sh
+python cli.py repo tasks check <oneDAL>@<sha> --manifest dev/agent_evals/repo-eval.yaml       # self-check in the image
+python cli.py repo run <oneDAL>@<sha> --manifest dev/agent_evals/repo-eval.yaml \
+    --arm guidance:none,guidance:raw --model <model id> --reps 3 --batch b1
+python cli.py repo report repo-runs/b1
+```
+
+The framework prepares each workspace (history-free `git archive` of the task base without this directory, setup
+patches, the arm, the review patch), runs the agent in its own container, writes `events.jsonl`, `answer.txt` and
+`meta.json`, and then calls the entry points below in a separate container:
+
+| entry point | does |
 |---|---|
-| `none` | every `AGENTS.md` and `.github/instructions/*.md` deleted |
-| `main-raw` | as checked in |
+| `run.py grade --contract <run_dir> --source <clone>` | grades `run_dir/workspace` with the task's grader, writes `grade.json` (`repo_grade.v1`) |
+| `run.py oracle --contract <run_dir> --source <clone>` | applies the reference solution (and answer) for the self-check |
+| `run.py static --out <file>` | guidance claim check as one JSON document (`repo_static.v1`) |
 
-Whether the agent sees `AGENTS.md` without opening it depends on the CLI. Measured: Claude Code 2.1.286 loads it
-only when no `CLAUDE.md` is in its start-up chain, and 2.1.241 and 2.1.250 never load it. `run.py agent` refuses CLIs
-older than 2.1.286, and each run records `cli_version`. History: the pilots ran on 2.1.241 with a third arm,
-`main-claude` (a `CLAUDE.md` `@AGENTS.md` shim). That arm was dropped, and its run directories still regrade.
-
-An arm is one function in `common.py` that edits the task repo in place (another guidance revision, a placebo of
-the same length, extra tooling).
+Arms are `guidance:none` (every file matched by `guidance.globs` deleted) and `guidance:raw` (as checked in), both
+made by the framework from `repo-eval.yaml`. Fix and feature tasks declare `"gate": ["strict_pass"]`; score-only
+review tasks declare `"score": {"metric": "recall", "max": 1.0}`.
 
 ## Tasks
 
@@ -90,14 +94,14 @@ the same length, extra tooling).
 | `family` | `build`, `fix`, `test`, `review` |
 | `prompt` | what the agent is told; a final ```` ```json ```` block is requested when the grader needs a structured answer |
 | `grader` | name registered by a module in `graders/` |
-| `setup_patch` / `setup_patches` | applied before the arm (injected bugs) |
+| `setup_patch` / `setup_patches` | applied to the snapshot before the arm (injected bugs) |
 | `review_patch` | `git am`-ed on top as the HEAD commit under review |
 | `gate` | metrics that count as success for agent-benchmark (default `["pass"]`); `["strict_pass"]` on every `test_pass`/`test_pass_files` task, since they all have regression suites |
 | grader keys | see the docstring of the grader: `hidden_from`/`hidden_files`/`targets`/`regression_targets` for `test_pass`, `manifest.json` for `review`, ... |
 
 Rules every task follows:
 
-- `run.py check <task>` passes: the untouched task repo fails the grader and the reference solution passes it.
+- `run.py check <task>` passes: the untouched workspace fails the grader and the reference solution passes it.
 - Fixes and answers cannot leak. The snapshot is `git archive` of `base` with no history, and `dev/agent_evals`
   is deleted from it.
 - Grading is deterministic: tests are rerun with `--nocache_test_results`, and regrading a run gives the same result.
@@ -107,28 +111,13 @@ Rules every task follows:
 - Targets must be runnable on a CPU-only host without oneAPI compilers (`*_host` test targets), unless the task is
   about that.
 
-Adding a grader: a new module in `graders/` exporting `GRADERS = {name: fn(rd, task, trace)}` and, for the
-self-check, `ORACLES = {name: fn(rd, repo, task)}`. The registry imports every module in the package.
-
-## Run isolation
-
-- Runs live under `$ONEDAL_EVAL_ROOT/runs/<batch>/<task>__<arm>__<model>__r<rep>/` with `repo/`, `trace.jsonl`,
-  `meta.json`, `grade.json` and the grader logs. `traces.py` converts the Claude trace into `events.jsonl` (one
-  command/read/edit/tool event per tool call), `answer.txt` and `usage.json`; graders and metrics read only those. `run.py matrix` skips runs that already have `grade.json`.
-- `CLAUDE_CONFIG_DIR` is per run, so nothing from the user's `~/.claude` (memory, settings, plugins) is loaded.
-  `ONEDAL_EVAL_ROOT` is refused if a parent directory holds `CLAUDE.md`/`AGENTS.md`/`.claude`, since Claude Code
-  loads those into every arm.
-- Background commands are disabled (`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` and a `PreToolUse` hook,
-  `bin/no_background.py`). `claude -p` ends when the model ends its turn, so a backgrounded build would be killed
-  and graded as a task failure.
-- `bin/bazel` is first on the agent's `PATH`: it pins the run's `--output_base` and adds the shared repository and
-  disk caches. `MKLROOT` is removed from the environment.
-
+Adding a grader: a new module in `graders/` exporting `GRADERS = {name: fn(rd, ws, task, trace)}` and, for the
+self-check, `ORACLES = {name: fn(rd, ws, task)}`. The registry imports every module in the package.
 ## Reading results
 
-`grade.json` holds the grader result plus process metrics from the trace: cost, turns, tool calls, bazel/make
-invocations and failures, whether the agent hit `icpx is not found`, which guidance files it opened, and how many
-background commands the hook refused.
+`grade.json` holds the grader result plus process metrics from `events.jsonl` (`metrics.py`): tool calls,
+bazel/make invocations and failures, whether the agent hit `icpx is not found`, which guidance files it opened,
+and how many commands were refused.
 
 For fix tasks report `strict_pass` (hidden tests and regression suites), not `pass`. `format_ok` is
 clang-format 20.1.8 on the changed files and `diff_lines` is the size of the non-test diff. Review tasks report
@@ -136,22 +125,7 @@ seed recall by class and flagged decoys; a clean-diff control counts findings of
 Agent variance is large (haiku review recall ranged 0.375–0.75 within one cell in the pilot), so compare cells at
 8+ repeats per cell.
 
-## Running under agent-benchmark
-
-`repo-eval.yaml` is the manifest agent-benchmark reads (repository-evaluation contract, `repo_manifest.v1`). There
-agent-benchmark prepares the workspace, runs the agent and writes `events.jsonl`/`answer.txt`/`meta.json`; this
-directory only grades:
-
-| entry point | does |
-|---|---|
-| `run.py grade --contract <run_dir> --source <clone>` | grades `run_dir/workspace` with the task's grader, writes `grade.json` (`repo_grade.v1`) |
-| `run.py oracle --contract <run_dir> --source <clone>` | applies the reference solution (and answer) for the contract's self-check |
-| `static_check.py --out <file>` | guidance claim check as one JSON document |
-
-Fix and feature tasks declare `"gate": ["strict_pass"]`; score-only review tasks declare
-`"score": {"metric": "recall", "max": 1.0}`. Under agent-benchmark the arms are `guidance:none` (this `none`) and
-`guidance:raw` (this `main-raw`), both made by the framework from `guidance.globs`. A `guidance:bridge` arm is
-framework-made too, from the harness profile; this directory has none.
+## Eval image
 
 The image is `Dockerfile`, built from a `git archive` of the repository without `tasks/`. Runs are offline; four
 cache directories are mounted from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a
@@ -175,9 +149,3 @@ docker run --rm --user "$(id -u):$(id -g)" -e USER=eval \
 After that, the same command with `--network none` passes `check` for every task. `build_make_gnu` builds
 against the oneMKL/oneTBB the image installs under `/opt/onedal-make-deps` (its prompt says so); outside the image
 its oracle pip-installs the same pins, with network. Behind a proxy, pass `http_proxy`/`https_proxy` to the warm-up.
-
-Gaps between this directory and the contract, still open:
-
-- `meta.json` `base_rev`/`base_sha`/`base_date` name the upstream commit, which is not in the workspace. The
-  commit graders diff from is the standalone runner's `start_sha`, else derived from the history workspace
-  preparation makes; the contract names no key for it.
