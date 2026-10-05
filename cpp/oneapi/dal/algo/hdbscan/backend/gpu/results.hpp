@@ -43,6 +43,8 @@ using result_t = compute_result<task::clustering>;
 /// @param[in] cluster_count Number of distinct clusters
 /// @param[in] probabilities Per-point membership strength on device, length `n`; empty
 ///                          unless `result_options::probabilities` was requested
+/// @param[in] single_linkage_tree Dendrogram on device, length `4 * (n - 1)`; empty unless
+///                          `result_options::single_linkage_tree` was requested
 ///
 /// @return oneAPI `compute_result`
 template <typename Float>
@@ -50,7 +52,8 @@ inline result_t make_results(sycl::queue& queue,
                              const descriptor_t& desc,
                              const pr::ndarray<std::int32_t, 1>& responses,
                              std::int64_t cluster_count,
-                             const pr::ndarray<Float, 1>& probabilities = {}) {
+                             const pr::ndarray<Float, 1>& probabilities = {},
+                             const pr::ndarray<Float, 1>& single_linkage_tree = {}) {
     const std::int64_t row_count = responses.get_dimension(0);
     ONEDAL_ASSERT(row_count > 0);
 
@@ -65,6 +68,15 @@ inline result_t make_results(sycl::queue& queue,
         ONEDAL_ASSERT(probabilities.get_count() == row_count);
         results.set_probabilities(
             dal::homogen_table::wrap(probabilities.flatten(queue), row_count, 1));
+    }
+
+    // Left empty for a single observation, which has no merge to report.
+    if (desc.get_result_options().test(result_options::single_linkage_tree) &&
+        single_linkage_tree.get_count() > 0) {
+        const std::int64_t edge_count = row_count - 1;
+        ONEDAL_ASSERT(single_linkage_tree.get_count() == 4 * edge_count);
+        results.set_single_linkage_tree(
+            dal::homogen_table::wrap(single_linkage_tree.flatten(queue), edge_count, 4));
     }
 
     return results;
@@ -88,6 +100,8 @@ inline result_t make_results(sycl::queue& queue,
 /// @param[in] data          Original input table (read for centers)
 /// @param[in] probabilities Per-point membership strength on device, length `n`; empty
 ///                          unless `result_options::probabilities` was requested
+/// @param[in] single_linkage_tree Dendrogram on device, length `4 * (n - 1)`; empty unless
+///                          `result_options::single_linkage_tree` was requested
 ///
 /// @return oneAPI `compute_result` with optional cluster/medoid centers
 template <typename Float>
@@ -96,8 +110,14 @@ inline result_t make_results(sycl::queue& queue,
                              const pr::ndarray<std::int32_t, 1>& responses,
                              std::int64_t cluster_count,
                              const table& data,
-                             const pr::ndarray<Float, 1>& probabilities = {}) {
-    auto results = make_results<Float>(queue, desc, responses, cluster_count, probabilities);
+                             const pr::ndarray<Float, 1>& probabilities = {},
+                             const pr::ndarray<Float, 1>& single_linkage_tree = {}) {
+    auto results = make_results<Float>(queue,
+                                       desc,
+                                       responses,
+                                       cluster_count,
+                                       probabilities,
+                                       single_linkage_tree);
 
     const auto store_centers = desc.get_store_centers();
     if (cluster_count > 0 && store_centers != store_centers_method::none &&

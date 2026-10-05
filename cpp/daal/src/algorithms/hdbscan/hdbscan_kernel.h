@@ -74,6 +74,11 @@ public:
     /// @param[out] ntProbabilities         Optional output numeric table of size `N x 1` containing the membership
     ///                                     strength of each point in the cluster it was assigned to, in `[0, 1]`.
     ///                                     Noise points get 0. Pass `nullptr` to skip the computation
+    /// @param[out] ntSingleLinkageTree     Optional output numeric table of size `(N - 1) x 4` receiving the
+    ///                                     single-linkage dendrogram, one row per merge in ascending distance
+    ///                                     order: `[left, right, distance, size]`. Ids below `N` are original
+    ///                                     points, id `N + k` is the cluster formed by row `k`. Pass `nullptr`
+    ///                                     to skip it. Left untouched when `N < 2`, where there is no merge
     /// @param[in]  minClusterSize          Minimum number of points required to form a cluster
     /// @param[in]  minSamples              Number of neighbors used when computing core distances
     /// @param[in]  pairwiseDistance        Distance metric used for pairwise distances (see `algorithms::internal::PairwiseDistanceType`)
@@ -91,7 +96,7 @@ public:
     ///
     /// @return Status code
     services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities,
-                             size_t minClusterSize, size_t minSamples,
+                             NumericTable * ntSingleLinkageTree, size_t minClusterSize, size_t minSamples,
                              algorithms::internal::PairwiseDistanceType pairwiseDistance = algorithms::internal::PairwiseDistanceType::euclidean,
                              double minkowskiDegree = 2.0, int clusterSelection = 0, bool allowSingleCluster = false,
                              double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0, size_t leafSize = 40);

@@ -62,9 +62,10 @@ using daal::services::internal::TArrayScalable;
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
-    const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities, size_t minClusterSize,
-    size_t minSamples, algorithms::internal::PairwiseDistanceType pairwiseDistance, double minkowskiDegree, int clusterSelection,
-    bool allowSingleCluster, double clusterSelectionEpsilon, size_t maxClusterSize, double alpha, size_t leafSize)
+    const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities,
+    NumericTable * ntSingleLinkageTree, size_t minClusterSize, size_t minSamples, algorithms::internal::PairwiseDistanceType pairwiseDistance,
+    double minkowskiDegree, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
+    size_t leafSize)
 {
     const size_t nRows = ntData->getNumberOfRows();
     const size_t nCols = ntData->getNumberOfColumns();
@@ -348,9 +349,13 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(probBlock);
 
-    int labelCounter =
-        sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments, clusterSelection,
-                                                        allowSingleCluster, clusterSelectionEpsilon, maxClusterSize, probabilities);
+    WriteOnlyRows<algorithmFPType, cpu> sltBlock;
+    algorithmFPType * singleLinkageTree = sltBlock.set(ntSingleLinkageTree, 0, edgeCount);
+    DAAL_CHECK_BLOCK_STATUS(sltBlock);
+
+    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
+                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize,
+                                                                       probabilities, singleLinkageTree);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

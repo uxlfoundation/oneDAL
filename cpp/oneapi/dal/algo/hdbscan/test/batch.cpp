@@ -2064,6 +2064,230 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 // =========================================================================
+// single linkage tree tests
+// =========================================================================
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: single linkage tree on gold data",
+                     "[hdbscan][batch][single_linkage_tree][gold]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
+
+    this->run_single_linkage_tree_checks(x,
+                                         gold_dataset::get_min_cluster_size(),
+                                         gold_dataset::get_min_samples());
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan kd_tree: single linkage tree on gold data",
+                     "[hdbscan][batch][single_linkage_tree][gold]",
+                     hdbscan_kd_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
+
+    this->run_single_linkage_tree_checks(x,
+                                         gold_dataset::get_min_cluster_size(),
+                                         gold_dataset::get_min_samples());
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan ball_tree: single linkage tree on gold data",
+                     "[hdbscan][batch][single_linkage_tree][gold]",
+                     hdbscan_bt_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
+
+    this->run_single_linkage_tree_checks(x,
+                                         gold_dataset::get_min_cluster_size(),
+                                         gold_dataset::get_min_samples());
+}
+
+TEMPLATE_LIST_TEST_M(
+    hdbscan_batch_test,
+    "hdbscan brute_force: single linkage tree matches the reference implementation",
+    "[hdbscan][batch][single_linkage_tree]",
+    hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Same data as the probabilities reference test above. The expected rows come
+    // from `sklearn.cluster.HDBSCAN(min_cluster_size=5,
+    // min_samples=5)._single_linkage_tree_` with the same defaults.
+    constexpr Float data[] = {
+        0.5917,  -0.1631, //
+        0.0115,  0.1426, //
+        -0.2761, 0.0007, //
+        -0.0003, -0.6142, //
+        0.3562,  0.2102, //
+        -0.2189, -0.06, //
+        0.1769,  -0.0915, //
+        -0.085,  -0.5086, //
+        0.1941,  0.0434, //
+        6.151,   5.1604, //
+        6.9079,  6.0849, //
+        5.7871,  7.116, //
+        5.975,   5.2021, //
+        5.7771,  4.7414, //
+        6.5772,  5.7709, //
+        5.5916,  6.5899, //
+        5.0919,  6.2945, //
+        4.8646,  5.6358, //
+        3.0,     -4.0, //
+        -5.0,    7.0, //
+    };
+    constexpr std::int64_t row_count = 20;
+    const auto x = homogen_table::wrap(data, row_count, 2);
+
+    constexpr double ref_tree[] = {
+        1,  6,  0.3970514954, 2, //
+        20, 5,  0.4257470611, 3, //
+        21, 8,  0.4257470611, 4, //
+        22, 4,  0.4413764153, 5, //
+        23, 2,  0.4721348642, 6, //
+        24, 7,  0.5439721500, 7, //
+        0,  25, 0.6558083028, 8, //
+        26, 3,  0.6739196169, 9, //
+        12, 9,  1.1948212670, 2, //
+        17, 28, 1.2777353443, 3, //
+        29, 15, 1.2814711702, 4, //
+        30, 14, 1.2814711702, 5, //
+        31, 13, 1.3038520852, 6, //
+        32, 16, 1.4047075746, 7, //
+        33, 10, 1.4098477542, 8, //
+        34, 11, 1.5599846217, 9, //
+        27, 18, 4.8214381527, 10, //
+        36, 35, 7.0542757190, 19, //
+        37, 19, 8.6481363588, 20, //
+    };
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(5, 5).set_result_options(
+            result_options::responses | result_options::single_linkage_tree);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    this->check_single_linkage_tree(result, row_count);
+
+    const auto tree = row_accessor<const Float>(result.get_single_linkage_tree()).pull({ 0, -1 });
+    const auto ref_table = homogen_table::wrap(ref_tree, row_count - 1, 4);
+    const auto ref_rows = row_accessor<const double>(ref_table).pull({ 0, -1 });
+
+    check_same_hierarchy(tree, ref_rows, row_count, te::get_tolerance<Float>(1e-4, 1e-7));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: single linkage tree re-cuts like dbscan_clustering",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // This is the feature the dendrogram is exported for: a caller cuts it at an
+    // arbitrary distance and gets the DBSCAN clustering at that epsilon without
+    // recomputing anything. The references come from
+    // `sklearn.cluster.HDBSCAN(min_cluster_size=5, min_samples=5)
+    //     .dbscan_clustering(cut_distance=cut)` on the same data.
+    constexpr Float data[] = {
+        0.5917,  -0.1631, //
+        0.0115,  0.1426, //
+        -0.2761, 0.0007, //
+        -0.0003, -0.6142, //
+        0.3562,  0.2102, //
+        -0.2189, -0.06, //
+        0.1769,  -0.0915, //
+        -0.085,  -0.5086, //
+        0.1941,  0.0434, //
+        6.151,   5.1604, //
+        6.9079,  6.0849, //
+        5.7871,  7.116, //
+        5.975,   5.2021, //
+        5.7771,  4.7414, //
+        6.5772,  5.7709, //
+        5.5916,  6.5899, //
+        5.0919,  6.2945, //
+        4.8646,  5.6358, //
+        3.0,     -4.0, //
+        -5.0,    7.0, //
+    };
+    constexpr std::int64_t row_count = 20;
+    const auto x = homogen_table::wrap(data, row_count, 2);
+
+    // One row per cut distance: only the dense blob survives at 1.0, both blobs at
+    // 2.0, the far-away point joins the dense blob at 5.0, and everything is one
+    // cluster at 10.0.
+    constexpr double cut_distances[] = { 1.0, 2.0, 5.0, 10.0 };
+    constexpr std::int32_t ref_labels[][row_count] = {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    };
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(5, 5).set_result_options(
+            result_options::single_linkage_tree);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    this->check_single_linkage_tree(result, row_count);
+    const auto tree = row_accessor<const Float>(result.get_single_linkage_tree()).pull({ 0, -1 });
+
+    for (std::int64_t c = 0; c < 4; c++) {
+        const double cut = cut_distances[c];
+        CAPTURE(c, cut);
+
+        const auto labels = labelling_at_cut(tree, row_count, cut, 5);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i, labels[i], ref_labels[c][i]);
+            REQUIRE(labels[i] == ref_labels[c][i]);
+        }
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: single linkage tree can be requested alone",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr Float data[] = {
+        0.0,   0.0, //
+        0.1,   0.1, //
+        0.2,   0.0, //
+        0.0,   0.2, //
+        0.15,  0.15, //
+        10.0,  10.0, //
+        10.1,  10.1, //
+        10.2,  10.0, //
+        10.0,  10.2, //
+        10.15, 10.15, //
+    };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    const auto desc =
+        hdbscan::descriptor<Float, std::tuple_element_t<1, TestType>>(5, 5).set_result_options(
+            result_options::single_linkage_tree);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE_THROWS_AS(result.get_responses(), domain_error);
+    this->check_single_linkage_tree(result, 10);
+
+    // The two tight blobs are ten units apart, so every merge but the last one is
+    // within a blob and a cut below ten has to split them.
+    const auto tree = row_accessor<const Float>(result.get_single_linkage_tree()).pull({ 0, -1 });
+    const auto labels = labelling_at_cut(tree, 10, 1.0, 5);
+    REQUIRE(labels[0] != labels[5]);
+    for (std::int64_t i = 0; i < 10; i++) {
+        CAPTURE(i, labels[i]);
+        REQUIRE(labels[i] >= 0);
+        REQUIRE(labels[i] == labels[(i < 5) ? 0 : 5]);
+    }
+}
+
+// =========================================================================
 // single-cluster (root-only) selection tests
 // =========================================================================
 
@@ -2543,6 +2767,43 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
         CAPTURE(i, cpu_probs[i], gpu_probs[i]);
         REQUIRE(std::abs(double(cpu_probs[i]) - double(gpu_probs[i])) < tol);
     }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: cpu and gpu single linkage trees match",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x = gold_dataset::get_data().get_table(this->get_homogen_table_id());
+    const std::int64_t row_count = gold_dataset::get_row_count();
+
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(
+                          gold_dataset::get_min_cluster_size(),
+                          gold_dataset::get_min_samples())
+                          .set_result_options(result_options::single_linkage_tree);
+
+    INFO("run on CPU (no queue)");
+    const auto cpu_result = dal::compute(desc, x);
+
+    INFO("run on GPU (with queue)");
+    const auto gpu_result = dal::compute(this->get_policy().get_queue(), desc, x);
+
+    this->check_single_linkage_tree(cpu_result, row_count);
+    this->check_single_linkage_tree(gpu_result, row_count);
+
+    // The dendrogram is built from the same sorted MST on both backends, so the
+    // hierarchy has to agree. The gold data has two merges at an equal distance,
+    // which the two backends take in the opposite order, so the rows themselves
+    // do not line up -- see `check_same_hierarchy`.
+    const auto cpu_tree =
+        row_accessor<const Float>(cpu_result.get_single_linkage_tree()).pull({ 0, -1 });
+    const auto gpu_tree =
+        row_accessor<const Float>(gpu_result.get_single_linkage_tree()).pull({ 0, -1 });
+
+    check_same_hierarchy(gpu_tree, cpu_tree, row_count, te::get_tolerance<Float>(1e-4, 1e-10));
 }
 
 #endif // ONEDAL_DATA_PARALLEL

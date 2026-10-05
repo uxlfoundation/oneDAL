@@ -754,6 +754,9 @@ static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows
 /// @param[out] ntNClusters             Output `1 x 1` table holding the cluster count `C`
 /// @param[out] ntProbabilities         Optional output `N x 1` table holding the membership strength of
 ///                                     each point in `[0, 1]`; `nullptr` skips the computation
+/// @param[out] ntSingleLinkageTree     Optional output `(N - 1) x 4` table holding the single-linkage
+///                                     dendrogram, `[left, right, distance, size]` per merge;
+///                                     `nullptr` skips it
 /// @param[in]  minClusterSize          Minimum cluster size threshold (mcs)
 /// @param[in]  minSamples              Number of neighbors used for core distances (k)
 /// @param[in]  pairwiseDistance        Distance metric tag
@@ -768,9 +771,10 @@ static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows
 /// @return Status code
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
-    const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities, size_t minClusterSize,
-    size_t minSamples, algorithms::internal::PairwiseDistanceType pairwiseDistance, double minkowskiDegree, int clusterSelection,
-    bool allowSingleCluster, double clusterSelectionEpsilon, size_t maxClusterSize, double alpha, size_t leafSize)
+    const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities,
+    NumericTable * ntSingleLinkageTree, size_t minClusterSize, size_t minSamples, algorithms::internal::PairwiseDistanceType pairwiseDistance,
+    double minkowskiDegree, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
+    size_t leafSize)
 {
     const size_t nRows = ntData->getNumberOfRows();
     const size_t nCols = ntData->getNumberOfColumns();
@@ -898,9 +902,13 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(probBlock);
 
-    int labelCounter =
-        sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments, clusterSelection,
-                                                        allowSingleCluster, clusterSelectionEpsilon, maxClusterSize, probabilities);
+    WriteOnlyRows<algorithmFPType, cpu> sltBlock;
+    algorithmFPType * singleLinkageTree = sltBlock.set(ntSingleLinkageTree, 0, edgeCount);
+    DAAL_CHECK_BLOCK_STATUS(sltBlock);
+
+    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
+                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize,
+                                                                       probabilities, singleLinkageTree);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

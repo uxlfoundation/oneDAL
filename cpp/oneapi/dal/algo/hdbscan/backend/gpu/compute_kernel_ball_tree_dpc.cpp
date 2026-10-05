@@ -246,6 +246,18 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
         queue.wait_and_throw();
     }
 
+    // Same empty-unless-requested contract as the probabilities buffer. The
+    // dendrogram has one row per merge, so there is nothing to ask for when the
+    // input holds fewer than two observations.
+    const bool need_single_linkage_tree =
+        desc.get_result_options().test(result_options::single_linkage_tree) && edge_count > 0;
+    pr::ndarray<Float, 1> arr_single_linkage_tree;
+    if (need_single_linkage_tree) {
+        arr_single_linkage_tree = std::get<0>(
+            pr::ndarray<Float, 1>::zeros(queue, 4 * edge_count, sycl::usm::alloc::device));
+        queue.wait_and_throw();
+    }
+
     auto cluster_event = extract_clusters<Float>(
         queue,
         mst_from,
@@ -259,7 +271,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
         allow_single_cluster,
         cluster_selection_epsilon,
         max_cluster_size,
-        need_probabilities ? arr_probabilities.get_mutable_data() : nullptr);
+        need_probabilities ? arr_probabilities.get_mutable_data() : nullptr,
+        need_single_linkage_tree ? arr_single_linkage_tree.get_mutable_data() : nullptr);
     cluster_event.wait_and_throw();
 
     // Count clusters via GPU reduction
@@ -289,7 +302,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
                                arr_responses,
                                cluster_count,
                                local_data,
-                               arr_probabilities);
+                               arr_probabilities,
+                               arr_single_linkage_tree);
 }
 
 template <typename Float>
