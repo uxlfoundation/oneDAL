@@ -86,7 +86,8 @@ review tasks declare `"score": {"metric": "recall", "max": 1.0}`.
 
 ## Tasks
 
-`tasks/<id>/task.json`, plus any patches, manifests and hidden files it names.
+`tasks/<id>/task.json`, plus any patches, manifests and hidden files it names. What each task asks, where it comes
+from and why it is built that way: [`tasks/README.md`](tasks/README.md).
 
 | key | meaning |
 |---|---|
