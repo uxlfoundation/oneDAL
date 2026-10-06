@@ -264,6 +264,52 @@ inline void check_mrd_matrix_fits_on_device(sycl::queue& queue,
     }
 }
 
+/// Match scikit-learn on zero-norm rows of a square cosine distance matrix.
+///
+/// The cosine primitive divides by the row norms, so a zero row yields NaN. scikit-learn
+/// normalizes it to the zero vector instead, which puts it at distance 1 from every other row.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in]     data  Input data of size `n x d`
+/// @param[in,out] dist  Cosine distance matrix of size `n x n`
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion; already complete on return
+template <typename Float>
+inline sycl::event fix_zero_norm_cosine(sycl::queue& queue,
+                                        const pr::ndview<Float, 2>& data,
+                                        pr::ndview<Float, 2>& dist,
+                                        const bk::event_vector& deps) {
+    const std::int64_t n = data.get_dimension(0);
+    pr::ndarray<Float, 1> norms;
+    sycl::event norms_event;
+    std::tie(norms, norms_event) = pr::compute_squared_l2_norms(queue, data, deps);
+    const Float* const norms_ptr = norms.get_data();
+    Float* const dist_ptr = dist.get_mutable_data();
+    const std::int64_t stride = dist.get_leading_stride();
+
+    const std::int64_t block_rows = bk::max_range_2d_rows(n);
+    bk::event_vector block_events;
+    for (std::int64_t row_start = 0; row_start < n; row_start += block_rows) {
+        const std::int64_t rows = std::min(block_rows, n - row_start);
+        block_events.push_back(queue.submit([&](sycl::handler& h) {
+            h.depends_on(norms_event);
+            h.parallel_for(bk::make_range_2d(rows, n), [=](sycl::id<2> idx) {
+                const std::int64_t i = row_start + std::int64_t(idx[0]);
+                const std::int64_t j = std::int64_t(idx[1]);
+                if (norms_ptr[i] == Float(0) || norms_ptr[j] == Float(0)) {
+                    dist_ptr[i * stride + j] = (i == j) ? Float(0) : Float(1);
+                }
+            });
+        }));
+    }
+    // `norms` is freed on return and `sycl::free` does not wait.
+    sycl::event::wait_and_throw(block_events);
+    return block_events.back();
+}
+
 /// Compute the full pairwise distance matrix on the GPU using the requested metric.
 ///
 /// Routes to the matching primitive in `dal::backend::primitives::distance`.
@@ -299,7 +345,8 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
     switch (metric) {
         case distance_metric::cosine: {
             pr::cosine_distance<Float> dist_op(queue);
-            return dist_op(data, data, dist, deps);
+            const auto dist_event = dist_op(data, data, dist, deps);
+            return fix_zero_norm_cosine<Float>(queue, data, dist, { dist_event });
         }
         case distance_metric::manhattan: {
             pr::distance<Float, pr::lp_metric<Float>> dist_op(queue,

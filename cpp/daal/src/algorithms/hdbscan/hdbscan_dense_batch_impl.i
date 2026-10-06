@@ -168,8 +168,23 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         CosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
-        // Zero-norm rows make 1 - dot/(aa*bb) divide by zero; FP round-off can
-        // also push the diagonal away from a clean zero. Defensive cleanup.
+        // A zero-norm row makes 1 - dot/(aa*bb) divide by zero. scikit-learn
+        // normalizes it to the zero vector instead, which puts it at distance 1
+        // from every other row; round-off can also move the diagonal off zero.
+        for (size_t i = 0; i < nRows; i++)
+        {
+            const algorithmFPType * row = data + i * nCols;
+            bool isZero                 = true;
+            for (size_t d = 0; d < nCols && isZero; d++) isZero = (row[d] == algorithmFPType(0));
+            if (isZero)
+            {
+                for (size_t j = 0; j < nRows; j++)
+                {
+                    distMatrix[i * nRows + j] = algorithmFPType(1);
+                    distMatrix[j * nRows + i] = algorithmFPType(1);
+                }
+            }
+        }
         for (size_t i = 0; i < nRows; i++) distMatrix[i * nRows + i] = algorithmFPType(0);
     }
     else if (pairwiseDistance == PairwiseDistanceType::manhattan)

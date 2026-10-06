@@ -3080,6 +3080,32 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                       domain_error);
 }
 
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: a zero row is at cosine distance 1 like in scikit-learn",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Two direction clusters plus two all-zero rows, whose norm used to turn their cosine
+    // distances into NaN. The reference is sklearn.cluster.HDBSCAN(3, 3, metric="cosine").
+    constexpr std::int64_t row_count = 14;
+    constexpr Float data[] = { 1.0,  0.05, 1.0,  0.1, 1.0, 0.0, 1.0, 0.08, 1.0,  0.03,
+                               1.0,  0.12, 0.05, 1.0, 0.1, 1.0, 0.0, 1.0,  0.08, 1.0,
+                               0.03, 1.0,  0.12, 1.0, 0.0, 0.0, 0.0, 0.0 };
+    constexpr Float expected[] = { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, -1, -1 };
+    const auto x = homogen_table::wrap(data, row_count, 2);
+
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(3, 3)
+                          .set_metric(distance_metric::cosine)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 2);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    check_same_partition(rows, dal::array<Float>::wrap(expected, row_count), row_count);
+}
+
 using hdbscan_tree_types = COMBINE_TYPES((float, double),
                                          (hdbscan::method::kd_tree, hdbscan::method::ball_tree));
 
