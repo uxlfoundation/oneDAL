@@ -111,92 +111,15 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     // `[k - 1]` is the answer.
     const std::int64_t block_size =
         choose_block_size(row_count, sizeof(Float), desc.get_distance_block_size());
-    const std::int64_t k = min_samples;
-    const bool needs_sqrt = (metric == distance_metric::euclidean);
 
-    auto [core_distances, core_dist_event] =
-        pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
-    core_dist_event.wait_and_throw();
-
-    Float* core_ptr = core_distances.get_mutable_data();
-    sycl::event prev_block_event = core_dist_event;
-
-    for (std::int64_t b_start = 0; b_start < row_count; b_start += block_size) {
-        const std::int64_t b_end = std::min(b_start + block_size, row_count);
-        const std::int64_t b_rows = b_end - b_start;
-
-        auto block_view = pr::ndview<Float, 2>::wrap(data_nd.get_data() + b_start * col_count,
-                                                     { b_rows, col_count });
-
-        auto [dist_block, dist_block_event] =
-            pr::ndarray<Float, 2>::zeros(queue, { b_rows, row_count }, sycl::usm::alloc::device);
-        dist_block_event.wait_and_throw();
-
-        sycl::event dist_event;
-        switch (metric) {
-            case distance_metric::manhattan: {
-                pr::distance<Float, pr::lp_metric<Float>> dist_op(queue,
-                                                                  pr::lp_metric<Float>(Float(1)));
-                dist_event = dist_op(block_view,
-                                     data_nd,
-                                     dist_block,
-                                     { dist_block_event, prev_block_event });
-                break;
-            }
-            case distance_metric::minkowski: {
-                pr::distance<Float, pr::lp_metric<Float>> dist_op(
-                    queue,
-                    pr::lp_metric<Float>(static_cast<Float>(degree)));
-                dist_event = dist_op(block_view,
-                                     data_nd,
-                                     dist_block,
-                                     { dist_block_event, prev_block_event });
-                break;
-            }
-            case distance_metric::chebyshev: {
-                pr::chebyshev_distance<Float> dist_op(queue);
-                dist_event = dist_op(block_view,
-                                     data_nd,
-                                     dist_block,
-                                     { dist_block_event, prev_block_event });
-                break;
-            }
-            default: {
-                pr::squared_l2_distance<Float> dist_op(queue);
-                dist_event = dist_op(block_view,
-                                     data_nd,
-                                     dist_block,
-                                     { dist_block_event, prev_block_event });
-                break;
-            }
-        }
-        dist_event.wait_and_throw();
-
-        auto [ksel_vals, ksel_vals_event] =
-            pr::ndarray<Float, 2>::zeros(queue, { b_rows, k }, sycl::usm::alloc::device);
-        ksel_vals_event.wait_and_throw();
-
-        pr::kselect_by_rows<Float> ksel(queue, { b_rows, row_count }, k);
-        auto ksel_event = ksel(queue, dist_block, k, ksel_vals, { dist_event, ksel_vals_event });
-        ksel_event.wait_and_throw();
-
-        const Float* ksel_ptr = ksel_vals.get_data();
-        const std::int64_t kk = k;
-        const std::int64_t offset = b_start;
-
-        auto extract_event = queue.submit([&](sycl::handler& h) {
-            h.depends_on({ ksel_event });
-            h.parallel_for(sycl::range<1>(b_rows), [=](sycl::id<1> idx) {
-                const std::int64_t i = idx[0];
-                const Float val = ksel_ptr[i * kk + (kk - 1)];
-                core_ptr[offset + i] = needs_sqrt ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
-            });
-        });
-
-        // Wait before temporaries (dist_block, ksel_vals) go out of scope
-        extract_event.wait_and_throw();
-        prev_block_event = extract_event;
-    }
+    auto core_distances = pr::ndarray<Float, 1>::empty(queue, row_count, sycl::usm::alloc::device);
+    const auto prev_block_event = compute_core_distances_blocked<Float>(queue,
+                                                                        data_nd,
+                                                                        core_distances,
+                                                                        min_samples,
+                                                                        block_size,
+                                                                        metric,
+                                                                        degree);
 
     // Step 2: GPU Boruvka MST with on-the-fly distance computation
     auto [mst_from, mst_from_event] =

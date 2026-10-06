@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
@@ -393,6 +395,118 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     return extract_event;
 }
 
+/// Compute per-point core distances in `B x N` row blocks, so the `N x N` matrix is never held.
+///
+/// The block buffers, the selectors and the squared-L2 norms are set up once and reused, and the
+/// blocks are chained by events, so the only host wait is the final one.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue          The SYCL queue
+/// @param[in]  data           Input data of size `n x d`, device USM
+/// @param[out] core_distances Per-point core distances, length `n`
+/// @param[in]  min_samples    `k` used for the k-NN core-distance definition
+/// @param[in]  block_size     Rows per block `B`, in `[1, n]`
+/// @param[in]  metric         Distance metric tag; cosine is not supported
+/// @param[in]  degree         Minkowski degree
+/// @param[in]  deps           Events that must complete before submission
+///
+/// @return Event signaling completion; already complete on return
+template <typename Float>
+inline sycl::event compute_core_distances_blocked(sycl::queue& queue,
+                                                  const pr::ndview<Float, 2>& data,
+                                                  pr::ndview<Float, 1>& core_distances,
+                                                  std::int64_t min_samples,
+                                                  std::int64_t block_size,
+                                                  distance_metric metric,
+                                                  double degree,
+                                                  const bk::event_vector& deps = {}) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances_blocked, queue);
+
+    const std::int64_t n = data.get_dimension(0);
+    const std::int64_t k = min_samples;
+    ONEDAL_ASSERT(n > 0);
+    ONEDAL_ASSERT(block_size >= 1 && block_size <= n);
+    ONEDAL_ASSERT(k >= 1 && k <= n);
+    ONEDAL_ASSERT(metric != distance_metric::cosine);
+
+    const bool is_euclidean = (metric == distance_metric::euclidean);
+    auto dist_buf =
+        pr::ndarray<Float, 2>::empty(queue, { block_size, n }, sycl::usm::alloc::device);
+    auto ksel_buf =
+        pr::ndarray<Float, 2>::empty(queue, { block_size, k }, sycl::usm::alloc::device);
+
+    pr::ndarray<Float, 1> norms;
+    sycl::event norms_event;
+    if (is_euclidean) {
+        std::tie(norms, norms_event) = pr::compute_squared_l2_norms(queue, data, deps);
+    }
+
+    const std::int64_t tail_rows = n % block_size;
+    pr::kselect_by_rows<Float> ksel_full(queue, { block_size, n }, k);
+    std::optional<pr::kselect_by_rows<Float>> ksel_tail;
+    if (tail_rows > 0) {
+        ksel_tail.emplace(queue, pr::ndshape<2>{ tail_rows, n }, k);
+    }
+
+    const pr::squared_l2_distance<Float> l2_op(queue);
+    const pr::distance<Float, pr::lp_metric<Float>> lp_op(
+        queue,
+        pr::lp_metric<Float>(metric == distance_metric::manhattan ? Float(1)
+                                                                  : static_cast<Float>(degree)));
+    const pr::chebyshev_distance<Float> cheb_op(queue);
+
+    Float* const core_ptr = core_distances.get_mutable_data();
+    bk::event_vector block_deps = deps;
+    block_deps.push_back(norms_event);
+    sycl::event last_event;
+
+    for (std::int64_t b_start = 0; b_start < n; b_start += block_size) {
+        const std::int64_t b_rows = std::min(block_size, n - b_start);
+        const auto block = data.get_row_slice(b_start, b_start + b_rows);
+        auto dist_block = dist_buf.get_row_slice(0, b_rows);
+        auto ksel_block = ksel_buf.get_row_slice(0, b_rows);
+
+        sycl::event dist_event;
+        switch (metric) {
+            case distance_metric::manhattan:
+            case distance_metric::minkowski:
+                dist_event = lp_op(block, data, dist_block, block_deps);
+                break;
+            case distance_metric::chebyshev:
+                dist_event = cheb_op(block, data, dist_block, block_deps);
+                break;
+            default:
+                dist_event = l2_op(block,
+                                   data,
+                                   dist_block,
+                                   norms.get_slice(b_start, b_start + b_rows),
+                                   norms,
+                                   block_deps);
+                break;
+        }
+
+        auto& ksel = (b_rows == block_size) ? ksel_full : *ksel_tail;
+        const auto ksel_event = ksel(queue, dist_block, k, ksel_block, { dist_event });
+
+        const Float* const ksel_ptr = ksel_block.get_data();
+        last_event = queue.submit([&](sycl::handler& h) {
+            h.depends_on(ksel_event);
+            h.parallel_for(sycl::range<1>(b_rows), [=](sycl::id<1> idx) {
+                const std::int64_t i = idx[0];
+                const Float val = ksel_ptr[i * k + (k - 1)];
+                core_ptr[b_start + i] = is_euclidean ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
+            });
+        });
+        // The next block overwrites `dist_buf` and `ksel_buf`.
+        block_deps = { last_event };
+    }
+
+    // The block buffers and norms are freed on return and `sycl::free` does not wait.
+    last_event.wait_and_throw();
+    return last_event;
+}
+
 /// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
 ///
 /// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j) / alpha)`.
@@ -611,9 +725,8 @@ inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
 
 /// Reduce per-point bests to per-component bests, then merge via union-find.
 ///
-/// Runs as a single SYCL task because the union-find step has serial data
-/// dependencies, but every array involved is `O(n)` (not the `O(n²)` distance
-/// matrix), so single-task is acceptable. Appends accepted edges to
+/// The reduction runs in parallel; only the union-find step, which has serial
+/// data dependencies, stays a single task. Appends accepted edges to
 /// `mst_from_ptr` / `mst_to_ptr` / `mst_weight_ptr` and decrements
 /// `num_comp_ptr` accordingly.
 ///
@@ -627,7 +740,6 @@ inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
 /// @param[in]     pt_best_idx_ptr    Per-point best different-component index from the find phase
 /// @param[out]    comp_best_mrd_ptr  Scratch: per-component best MRD, length `n`
 /// @param[out]    comp_best_from_ptr Scratch: per-component best `from` index, length `n`
-/// @param[out]    comp_best_to_ptr   Scratch: per-component best `to` index, length `n`
 /// @param[out]    mst_from_ptr       Output MST `from` endpoints
 /// @param[out]    mst_to_ptr         Output MST `to` endpoints
 /// @param[out]    mst_weight_ptr     Output MST weights
@@ -646,7 +758,6 @@ inline sycl::event boruvka_merge_components(sycl::queue& queue,
                                             const std::int32_t* pt_best_idx_ptr,
                                             Float* comp_best_mrd_ptr,
                                             std::int32_t* comp_best_from_ptr,
-                                            std::int32_t* comp_best_to_ptr,
                                             std::int32_t* mst_from_ptr,
                                             std::int32_t* mst_to_ptr,
                                             Float* mst_weight_ptr,
@@ -654,30 +765,44 @@ inline sycl::event boruvka_merge_components(sycl::queue& queue,
                                             std::int32_t* num_comp_ptr,
                                             std::int64_t n,
                                             const bk::event_vector& deps) {
-    return queue.submit([&](sycl::handler& h) {
+    const Float inf = std::numeric_limits<Float>::max();
+    constexpr std::int32_t no_point = std::numeric_limits<std::int32_t>::max();
+    const auto range = sycl::range<1>(n);
+
+    auto reset_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
+        h.parallel_for(range, [=](sycl::id<1> c) {
+            comp_best_mrd_ptr[c] = inf;
+            comp_best_from_ptr[c] = no_point;
+        });
+    });
+
+    // Two atomic passes reproduce the serial reduction exactly: the smallest MRD per component,
+    // then the smallest point index among the points that reach it.
+    auto min_mrd_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(reset_event);
+        h.parallel_for(range, [=](sycl::id<1> i) {
+            if (pt_best_idx_ptr[i] >= 0) {
+                bk::atomic_global_min(comp_best_mrd_ptr + comp_ptr[i], pt_best_mrd_ptr[i]);
+            }
+        });
+    });
+
+    auto min_idx_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(min_mrd_event);
+        h.parallel_for(range, [=](sycl::id<1> idx) {
+            const std::int32_t i = static_cast<std::int32_t>(idx[0]);
+            const std::int32_t c = comp_ptr[i];
+            const Float mrd = pt_best_mrd_ptr[i];
+            if (pt_best_idx_ptr[i] >= 0 && mrd < inf && mrd == comp_best_mrd_ptr[c]) {
+                bk::atomic_global_min(comp_best_from_ptr + c, i);
+            }
+        });
+    });
+
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(min_idx_event);
         h.single_task([=]() {
-            const Float inf = std::numeric_limits<Float>::max();
-
-            // Reset per-component best
-            for (std::int64_t c = 0; c < n; c++) {
-                comp_best_mrd_ptr[c] = inf;
-                comp_best_from_ptr[c] = -1;
-                comp_best_to_ptr[c] = -1;
-            }
-
-            // Reduce per-point bests to per-component bests
-            for (std::int64_t i = 0; i < n; i++) {
-                if (pt_best_idx_ptr[i] < 0)
-                    continue;
-                const std::int32_t c = comp_ptr[i];
-                if (pt_best_mrd_ptr[i] < comp_best_mrd_ptr[c]) {
-                    comp_best_mrd_ptr[c] = pt_best_mrd_ptr[i];
-                    comp_best_from_ptr[c] = static_cast<std::int32_t>(i);
-                    comp_best_to_ptr[c] = pt_best_idx_ptr[i];
-                }
-            }
-
             auto uf_find = [&](std::int32_t x) -> std::int32_t {
                 while (uf_parent_ptr[x] != x) {
                     uf_parent_ptr[x] = uf_parent_ptr[uf_parent_ptr[x]];
@@ -699,10 +824,10 @@ inline sycl::event boruvka_merge_components(sycl::queue& queue,
             std::int32_t ea = edges_added_ptr[0];
             std::int32_t added = 0;
             for (std::int64_t c = 0; c < n; c++) {
-                if (comp_best_from_ptr[c] < 0)
-                    continue;
                 const std::int32_t u = comp_best_from_ptr[c];
-                const std::int32_t v = comp_best_to_ptr[c];
+                if (u == no_point)
+                    continue;
+                const std::int32_t v = pt_best_idx_ptr[u];
                 const std::int32_t ru = uf_find(u), rv = uf_find(v);
                 if (ru == rv)
                     continue;
@@ -799,8 +924,6 @@ inline sycl::event build_mst(sycl::queue& queue,
     auto [comp_best_mrd, cbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [comp_best_from, cbf_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_to, cbt_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [edges_added_arr, ea_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     auto [num_comp_arr, nc_ev] =
@@ -812,9 +935,8 @@ inline sycl::event build_mst(sycl::queue& queue,
     std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
 
     bk::event_vector init_deps = deps;
-    init_deps.insert(
-        init_deps.end(),
-        { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev, nc_ev });
+    init_deps.insert(init_deps.end(),
+                     { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, ea_ev, nc_ev });
 
     // Initialize comp[i] = i, uf_parent[i] = i, num_comp = n
     auto init_event = queue.submit([&](sycl::handler& h) {
@@ -854,7 +976,6 @@ inline sycl::event build_mst(sycl::queue& queue,
                                                            pt_best_idx.get_data(),
                                                            comp_best_mrd.get_mutable_data(),
                                                            comp_best_from.get_mutable_data(),
-                                                           comp_best_to.get_mutable_data(),
                                                            mst_from.get_mutable_data(),
                                                            mst_to.get_mutable_data(),
                                                            mst_weights.get_mutable_data(),
@@ -951,8 +1072,6 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
     auto [comp_best_mrd, cbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [comp_best_from, cbf_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_to, cbt_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
     auto [edges_added_arr, ea_ev] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     auto [num_comp_arr, nc_ev] =
@@ -964,9 +1083,8 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
     std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
 
     bk::event_vector init_deps = deps;
-    init_deps.insert(
-        init_deps.end(),
-        { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev, nc_ev });
+    init_deps.insert(init_deps.end(),
+                     { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, ea_ev, nc_ev });
 
     auto init_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(init_deps);
@@ -1011,7 +1129,6 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
                                                            pt_best_idx.get_data(),
                                                            comp_best_mrd.get_mutable_data(),
                                                            comp_best_from.get_mutable_data(),
-                                                           comp_best_to.get_mutable_data(),
                                                            mst_from.get_mutable_data(),
                                                            mst_to.get_mutable_data(),
                                                            mst_weights.get_mutable_data(),

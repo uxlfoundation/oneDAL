@@ -3232,6 +3232,48 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 // gigabytes, so they cannot be reached through `dal::compute` in a test. Drive
 // them directly instead.
 
+using hdbscan_gpu_otf_types = COMBINE_TYPES((float, double),
+                                            (hdbscan::method::kd_tree, hdbscan::method::ball_tree));
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan gpu: the blocked core distances do not depend on the block size",
+                     "[hdbscan][batch][gpu]",
+                     hdbscan_gpu_otf_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // Three blobs on a fixed grid. 64 rows with blocks of 7 leave a 1-row tail block.
+    constexpr std::int64_t row_count = 64;
+    std::vector<Float> data(row_count * 2);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        const Float center = Float(10 * (i % 3));
+        data[2 * i] = center + Float(0.01) * Float(i % 11);
+        data[2 * i + 1] = center + Float(0.013) * Float(i % 7);
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, 2);
+
+    const auto compute_with_block = [&](std::int64_t block_size) {
+        const auto desc = hdbscan::descriptor<Float, Method>(5, 4)
+                              .set_distance_block_size(block_size)
+                              .set_result_options(result_options::responses);
+        return oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+    };
+
+    const auto reference = compute_with_block(row_count);
+    REQUIRE(reference.get_cluster_count() == 3);
+    const auto reference_rows =
+        row_accessor<const Float>(reference.get_responses()).pull({ 0, -1 });
+
+    const std::int64_t block_size = GENERATE(1, 7, 63);
+    CAPTURE(block_size);
+    const auto result = compute_with_block(block_size);
+    REQUIRE(result.get_cluster_count() == reference.get_cluster_count());
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    check_same_partition(reference_rows, rows, row_count);
+}
+
 TEST("hdbscan gpu: the square launches stay inside the int32 range limit",
      "[hdbscan][batch][gpu]") {
     constexpr std::int64_t int32_max = 2147483647;
