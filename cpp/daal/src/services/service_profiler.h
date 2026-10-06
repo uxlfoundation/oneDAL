@@ -140,8 +140,9 @@ namespace internal
 {
 
 // Reads ONEDAL_VERBOSE once per process; the C++17 function-local static gives thread-safe
-// single initialization and a single storage instance across all TUs (fixes the previous
-// namespace-scope `static volatile int` that gave every TU its own copy).
+// single initialization and a single storage instance across all translation units, i.e.
+// .cpp files (fixes the previous namespace-scope `static volatile int`, which gave every
+// translation unit its own copy).
 inline static int daal_verbose_mode()
 {
     static const int cached = [] {
@@ -319,7 +320,7 @@ private:
 // and different .so boundaries can end up owning different TLS instances for the same OS thread,
 // which corrupts the push/pop invariant. The map avoids that entirely — all threads share one
 // well-defined instance in the singleton, and mutex-guarded access makes it thread-safe.
-using per_thread_stack_map = std::unordered_map<std::thread::id, std::vector<std::int64_t>>;
+using per_thread_stack_map = std::unordered_map<std::thread::id, std::vector<std::int64_t> >;
 
 class profiler
 {
@@ -330,10 +331,8 @@ public:
     {
         if (is_analyzer_enabled())
         {
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             try
             {
-#endif
                 merge_tasks();
                 const auto & tasks_info  = get_instance()->get_task();
                 std::uint64_t total_time = 0;
@@ -357,14 +356,13 @@ public:
                 }
                 std::cerr << "|--(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
-
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             }
             catch (std::exception & e)
             {
                 std::cerr << e.what() << std::endl;
             }
-#endif
+            catch (...)
+            {}
         }
     }
 
@@ -470,9 +468,9 @@ public:
         auto & tasks_info = inst.get_task();
         if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
 
-        auto & entry           = tasks_info.kernels[idx_];
-        const auto duration    = ns_end - entry.duration;
-        entry.duration         = duration;
+        auto & entry        = tasks_info.kernels[idx_];
+        const auto duration = ns_end - entry.duration;
+        entry.duration      = duration;
 
         auto & rstack = inst.regular_stacks_[std::this_thread::get_id()];
         if (!rstack.empty() && rstack.back() == idx_)
@@ -599,11 +597,11 @@ public:
             }
             else
             {
-                task_entry ne  = e;
-                ne.parent_idx  = k.parent;
-                ne.idx         = static_cast<std::int64_t>(merged.size());
-                remap[i]       = static_cast<std::int64_t>(merged.size());
-                canonical[k]   = static_cast<std::int64_t>(merged.size());
+                task_entry ne = e;
+                ne.parent_idx = k.parent;
+                ne.idx        = static_cast<std::int64_t>(merged.size());
+                remap[i]      = static_cast<std::int64_t>(merged.size());
+                canonical[k]  = static_cast<std::int64_t>(merged.size());
                 merged.push_back(std::move(ne));
             }
         }
@@ -644,21 +642,19 @@ inline profiler_task::~profiler_task()
 {
     if (task_name_)
     {
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         try
         {
-#endif
             if (is_thread_)
                 profiler::end_threading_task(task_name_, idx_);
             else
                 profiler::end_task(task_name_, idx_);
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         }
         catch (std::exception & e)
         {
             std::cerr << e.what() << std::endl;
         }
-#endif
+        catch (...)
+        {}
     }
 }
 

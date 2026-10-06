@@ -47,26 +47,25 @@ public:
 
     ~queue_sync_guard() {
         if (queue_) {
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+            // A destructor must not throw, and DAAL_NOTHROW_EXCEPTIONS is defined in every
+            // release build, so catch unconditionally.
             try {
-#endif
                 queue_->wait_and_throw();
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
-            } catch (std::exception& e) {
-                // Match existing profiler policy: swallow so a stray SYCL error during shutdown
-                // does not terminate the process.
-                std::cerr << e.what() << std::endl;
-            } catch (...) {
             }
-#endif
+            catch (std::exception& e) {
+                std::cerr << e.what() << std::endl;
+            }
+            catch (...) {
+            }
         }
     }
 
-    queue_sync_guard(const queue_sync_guard&)            = delete;
+    queue_sync_guard(const queue_sync_guard&) = delete;
     queue_sync_guard& operator=(const queue_sync_guard&) = delete;
 
     queue_sync_guard(queue_sync_guard&& other) noexcept
-        : queue_(other.queue_), task_(std::move(other.task_)) {
+            : queue_(other.queue_),
+              task_(std::move(other.task_)) {
         other.queue_ = nullptr;
     }
 
@@ -74,7 +73,8 @@ public:
 
 private:
     queue_sync_guard(sycl::queue* q, daal::internal::profiler_task&& task)
-        : queue_(q), task_(std::move(task)) {}
+            : queue_(q),
+              task_(std::move(task)) {}
 
     sycl::queue* queue_ = nullptr;
     daal::internal::profiler_task task_;
@@ -98,18 +98,19 @@ private:
 // return the same type, so `auto` at the call site picks up whichever type the arg count
 // selected. When profiler is off, `start_task(nullptr)` returns a null profiler_task, and the
 // queue variant leaves `queue_` null so no SYCL wait is ever issued.
-#define ONEDAL_PROFILER_START_TASK(name)                                                            \
-    (daal::internal::is_profiler_enabled() ? daal::internal::profiler::start_task(#name)            \
+#define ONEDAL_PROFILER_START_TASK(name)                                                 \
+    (daal::internal::is_profiler_enabled() ? daal::internal::profiler::start_task(#name) \
                                            : daal::internal::profiler::start_task(nullptr))
 
 #ifdef ONEDAL_DATA_PARALLEL
-    #define ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue)                                      \
-        ::oneapi::dal::detail::queue_sync_guard::make((queue), #name,                               \
-                                                      daal::internal::is_profiler_enabled())
+#define ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue) \
+    ::oneapi::dal::detail::queue_sync_guard::make((queue), \
+                                                  #name,   \
+                                                  daal::internal::is_profiler_enabled())
 #else
-    // Non-SYCL translation unit that happens to include this header — fall back to plain
-    // host-side timing. Semantically the same as the no-queue variant.
-    #define ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue) ONEDAL_PROFILER_START_TASK(name)
+// Non-SYCL translation unit that happens to include this header — fall back to plain
+// host-side timing. Semantically the same as the no-queue variant.
+#define ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue) ONEDAL_PROFILER_START_TASK(name)
 #endif
 
 #define ONEDAL_PROFILER_START_NULL_TASK() daal::internal::profiler::start_task(nullptr)
@@ -120,81 +121,84 @@ private:
 // on which START_TASK* macro the arg count selects. The logger side-effect body is guarded by
 // `is_logger_enabled()`; both is_logger_enabled and is_profiler_enabled are cached-bool functions
 // initialized once per process so calling them per macro is cheap.
-#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                              \
-    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() {             \
-        if (daal::internal::is_logger_enabled()) {                                                  \
-            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                         \
-        }                                                                                           \
-        return ONEDAL_PROFILER_START_TASK(task_name);                                               \
+#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                  \
+    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() { \
+        if (daal::internal::is_logger_enabled()) {                                      \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                             \
+        }                                                                               \
+        return ONEDAL_PROFILER_START_TASK(task_name);                                   \
     }()
 
-#define ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)                                 \
-    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() {             \
-        if (daal::internal::is_logger_enabled()) {                                                  \
-            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                         \
-        }                                                                                           \
-        return ONEDAL_PROFILER_START_TASK_WITH_QUEUE(task_name, queue);                             \
+#define ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)                     \
+    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() { \
+        if (daal::internal::is_logger_enabled()) {                                      \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                             \
+        }                                                                               \
+        return ONEDAL_PROFILER_START_TASK_WITH_QUEUE(task_name, queue);                 \
     }()
 
-#define ONEDAL_PROFILER_TASK(...)                                                                   \
-    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() {             \
-        if (daal::internal::is_logger_enabled()) {                                                  \
-            DAAL_PROFILER_PRINT_HEADER();                                                           \
-            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n';                            \
-        }                                                                                           \
-        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                               \
-                                         ONEDAL_PROFILER_MACRO_2,                                   \
-                                         ONEDAL_PROFILER_MACRO_1,                                   \
-                                         FICTIVE)(__VA_ARGS__);                                     \
+#define ONEDAL_PROFILER_TASK(...)                                                       \
+    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() { \
+        if (daal::internal::is_logger_enabled()) {                                      \
+            DAAL_PROFILER_PRINT_HEADER();                                               \
+            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n';                \
+        }                                                                               \
+        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                   \
+                                         ONEDAL_PROFILER_MACRO_2,                       \
+                                         ONEDAL_PROFILER_MACRO_1,                       \
+                                         FICTIVE)(__VA_ARGS__);                         \
     }()
 
 // SERVICE TASK variants gate on `is_service_debug_enabled()`. Structurally identical to the
 // non-service TASK macros; the only difference is the enable predicate applied inside each
 // START_TASK*. To keep behavior consistent we define parallel service variants of the START_TASK
 // macros too.
-#define ONEDAL_PROFILER_SERVICE_START_TASK(name)                                                    \
-    (daal::internal::is_service_debug_enabled() ? daal::internal::profiler::start_task(#name)       \
+#define ONEDAL_PROFILER_SERVICE_START_TASK(name)                                              \
+    (daal::internal::is_service_debug_enabled() ? daal::internal::profiler::start_task(#name) \
                                                 : daal::internal::profiler::start_task(nullptr))
 
 #ifdef ONEDAL_DATA_PARALLEL
-    #define ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(name, queue)                              \
-        ::oneapi::dal::detail::queue_sync_guard::make((queue), #name,                               \
-                                                      daal::internal::is_service_debug_enabled())
+#define ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(name, queue) \
+    ::oneapi::dal::detail::queue_sync_guard::make((queue),         \
+                                                  #name,           \
+                                                  daal::internal::is_service_debug_enabled())
 #else
-    #define ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(name, queue) ONEDAL_PROFILER_SERVICE_START_TASK(name)
+#define ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(name, queue) \
+    ONEDAL_PROFILER_SERVICE_START_TASK(name)
 #endif
 
-#define ONEDAL_PROFILER_SERVICE_MACRO_1(name)        ONEDAL_PROFILER_SERVICE_START_TASK(name)
-#define ONEDAL_PROFILER_SERVICE_MACRO_2(name, queue) ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(name, queue)
+#define ONEDAL_PROFILER_SERVICE_MACRO_1(name) ONEDAL_PROFILER_SERVICE_START_TASK(name)
+#define ONEDAL_PROFILER_SERVICE_MACRO_2(name, queue) \
+    ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(name, queue)
 
 // SERVICE variants gate the logger side-effect on `is_service_debug_enabled()`, not the plain
 // `is_logger_enabled()` used by the non-service TASK macros. Service tasks fire in hot paths
 // (e.g. every table2ndarray conversion), so allowing them to print under ONEDAL_VERBOSE=1/4 would
 // swamp the output; only DEBUG mode (5) prints service task args, matching the pre-refactor gate.
-#define ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS(task_name, ...)                                      \
-    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() {             \
-        if (daal::internal::is_service_debug_enabled()) {                                           \
-            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                         \
-        }                                                                                           \
-        return ONEDAL_PROFILER_SERVICE_START_TASK(task_name);                                       \
+#define ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS(task_name, ...)                          \
+    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() { \
+        if (daal::internal::is_service_debug_enabled()) {                               \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                             \
+        }                                                                               \
+        return ONEDAL_PROFILER_SERVICE_START_TASK(task_name);                           \
     }()
 
-#define ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)                         \
-    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() {             \
-        if (daal::internal::is_service_debug_enabled()) {                                           \
-            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                         \
-        }                                                                                           \
-        return ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(task_name, queue);                     \
+#define ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)             \
+    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() { \
+        if (daal::internal::is_service_debug_enabled()) {                               \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                             \
+        }                                                                               \
+        return ONEDAL_PROFILER_SERVICE_START_TASK_WITH_QUEUE(task_name, queue);         \
     }()
 
-#define ONEDAL_PROFILER_SERVICE_TASK(...)                                                           \
-    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() {             \
-        if (daal::internal::is_service_debug_enabled()) {                                           \
-            DAAL_PROFILER_PRINT_HEADER();                                                           \
-            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n';                            \
-        }                                                                                           \
-        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                               \
-                                         ONEDAL_PROFILER_SERVICE_MACRO_2,                           \
-                                         ONEDAL_PROFILER_SERVICE_MACRO_1,                           \
-                                         FICTIVE)(__VA_ARGS__);                                     \
+#define ONEDAL_PROFILER_SERVICE_TASK(...)                                               \
+    auto ONEDAL_PROFILER_CONCAT(__profiler_task__, ONEDAL_PROFILER_UNIQUE_ID) = [&]() { \
+        if (daal::internal::is_service_debug_enabled()) {                               \
+            DAAL_PROFILER_PRINT_HEADER();                                               \
+            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n';                \
+        }                                                                               \
+        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                   \
+                                         ONEDAL_PROFILER_SERVICE_MACRO_2,               \
+                                         ONEDAL_PROFILER_SERVICE_MACRO_1,               \
+                                         FICTIVE)(__VA_ARGS__);                         \
     }()
