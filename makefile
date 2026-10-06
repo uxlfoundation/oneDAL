@@ -138,7 +138,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -visibility    := $(if $(OS_is_win),,-fvisibility=hidden -fvisibility-inlines-hidden)
 # Per-symbol sections so that the linker below can drop whatever the exported
 # entry points do not reach. Everything non-exported is already hidden.
--sections      := $(if $(OS_is_win),,-ffunction-sections -fdata-sections)
+-sections      := $(if $(OS_is_lnx),-ffunction-sections -fdata-sections,)
 -lsections     := $(if $(OS_is_lnx),-Wl$(comma)--gc-sections,)
 -DMKL_ILP64    := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
 -DMKL_LP64     := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_LP64)

@@ -38,9 +38,9 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
-# Ofast maps to -O3 -ffast-math rather than to -Ofast itself: gcc also links
-# crtfastmath.o for -Ofast, which sets FTZ/DAZ for the whole process that loads
-# the library. -U_FORTIFY_SOURCE comes first because some gcc builds predefine it.
+# Ofast maps to -O3 -ffast-math rather than to -Ofast itself, because -Ofast
+# also implies -fallow-store-data-races, which is unsafe in threaded kernels.
+# -U_FORTIFY_SOURCE comes first because some gcc builds predefine it.
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.gnu = -$(OPTFLAG)
 else ifeq ($(OPTFLAG),Ofast)
