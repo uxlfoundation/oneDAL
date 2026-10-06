@@ -1003,7 +1003,7 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
 /// A third pass runs only when the clustering ends up being the root cluster
 /// alone, see applySingleClusterThreshold.
 ///
-/// @tparam algorithmFPType Floating-point type (unused; kept for cpu dispatch)
+/// @tparam algorithmFPType Floating-point type of the lambdas and probabilities
 /// @tparam cpu             CPU dispatch tag
 ///
 /// @param[in]  condensed       Condensed-tree edges, length `nCondensed`
