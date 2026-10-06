@@ -50,30 +50,33 @@ inline std::tuple<array<T>, sycl::event> to_device(sycl::queue& q, const array<T
 /// Returns a host-readable view of `ary`, copying only device USM; every other input is
 /// aliased, so treat the result as read-only and not as a snapshot.
 ///
-/// @param[in] ary The array to make host-readable. Must be non-empty.
+/// @param[in] ary  The array to make host-readable. Must be non-empty.
+/// @param[in] deps The events that write `ary` and must complete before it is read.
 ///
-/// @return The host-readable array and the event tracking the copy, or an already complete
-///         event when the result aliases the input.
+/// @return The host-readable array and the event after which it may be read: the copy, or
+///         an empty command group over `deps` when the result aliases the input.
 template <typename T>
-inline std::tuple<array<T>, sycl::event> to_host(const array<T>& ary) {
+inline std::tuple<array<T>, sycl::event> to_host(const array<T>& ary,
+                                                 const event_vector& deps = {}) {
     ONEDAL_ASSERT(ary.get_count() > 0);
 
     if (!ary.get_queue().has_value()) {
+        sycl::event::wait_and_throw(deps);
         return { ary, sycl::event{} };
     }
 
     auto q = ary.get_queue().value();
 
-    // The alias path submits nothing, so draining the queue is the caller's only ordering
-    // against writes still in flight; `to_host` takes no dependencies.
     if (is_host_usm(ary) || is_shared_usm(ary)) {
-        q.wait_and_throw();
-        return { ary, sycl::event{} };
+        auto event = q.submit([&](sycl::handler& cgh) {
+            cgh.depends_on(deps);
+        });
+        return { ary, event };
     }
 
     const auto ary_host = array<T>::empty(q, ary.get_count(), sycl::usm::alloc::host);
     const auto event =
-        copy_usm2host<T>(q, ary_host.get_mutable_data(), ary.get_data(), ary.get_count());
+        copy_usm2host<T>(q, ary_host.get_mutable_data(), ary.get_data(), ary.get_count(), deps);
     return { ary_host, event };
 }
 
@@ -85,8 +88,8 @@ inline array<T> to_device_sync(sycl::queue& q, const array<T>& ary) {
 }
 
 template <typename T>
-inline array<T> to_host_sync(const array<T>& ary) {
-    auto [ary_host, event] = to_host(ary);
+inline array<T> to_host_sync(const array<T>& ary, const event_vector& deps = {}) {
+    auto [ary_host, event] = to_host(ary, deps);
     event.wait_and_throw();
     return ary_host;
 }
