@@ -58,7 +58,7 @@ inline auto convert_to_daal_homogen_table(array<Data>& data,
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
-    if (allow_copy && data.get_queue().has_value()) {
+    if (data.get_queue().has_value()) {
         data = to_host_sync(data);
     }
 #endif
@@ -132,8 +132,13 @@ inline daal::data_management::NumericTablePtr wrap_by_host_soa_adapter(const hom
 template <typename Data>
 inline daal::data_management::NumericTablePtr convert_to_daal_table(const homogen_table& table,
                                                                     bool need_copy = false) {
+#ifdef ONEDAL_DATA_PARALLEL
+    if (need_copy || table.get_queue().has_value()) {
+#else
     if (need_copy) {
-        return copy_to_daal_homogen_table<Data>(table);
+
+#endif
+    	    return copy_to_daal_homogen_table<Data>(table);
     }
     if (table.get_data_layout() == data_layout::row_major) {
         if (auto wrapper = wrap_by_host_homogen_adapter(table)) {
