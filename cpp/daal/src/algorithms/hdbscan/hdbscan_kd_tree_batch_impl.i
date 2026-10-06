@@ -28,8 +28,8 @@
  *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
  *
  * Key advantage over brute_force: O(N * k * log N) for core distances,
- * O(N * log^2 N) for MST via tree-pruned Boruvka (vs O(N^2) Prim's over the
- * materialized distance matrix in brute_force).
+ * O(N * log^2 N) for MST via tree-pruned Boruvka (vs Boruvka over the
+ * materialized O(N^2) distance matrix in brute_force).
  * Memory: O(N * D * tree_nodes) for bounding boxes + O(N) working arrays.
  */
 
@@ -447,11 +447,13 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, size_t nCols, c
 ///                                only to dist(q,p) inside MRD (not to k-NN
 ///                                core distances or to the metric used for tree
 ///                                queries)
+///
+/// @return Number of MST edges emitted; fewer than `nRows - 1` only on non-finite input
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
-                                  DAAL_INT * pointIndices, DAAL_INT totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,
-                                  algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
-                                  const DistFunc & distFunc, double alpha)
+static size_t computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
+                                    DAAL_INT * pointIndices, DAAL_INT totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,
+                                    algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
+                                    const DistFunc & distFunc, double alpha)
 {
     const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
     // Canonical HDBSCAN core distance (Campello 2013): the distance to the
@@ -475,7 +477,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     // Step 2b: Per-node minimum core distances
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
     algorithmFPType * minCoreDistNode = minCoreDistNodeVec.get();
-    if (!minCoreDistNode) return;
+    if (!minCoreDistNode) return 0;
     computeMinCoreDists<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
@@ -486,13 +488,13 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     DAAL_INT * ufParent    = ufParentVec.get();
     DAAL_INT * ufRank      = ufRankVec.get();
     DAAL_INT * componentOf = componentOfVec.get();
-    if (!ufParent || !ufRank || !componentOf) return;
+    if (!ufParent || !ufRank || !componentOf) return 0;
 
     TArrayScalable<algorithmFPType, cpu> pointBestMrdVec(nRows);
     TArray<DAAL_INT, cpu> pointBestIdxVec(nRows);
     algorithmFPType * pointBestMrd = pointBestMrdVec.get();
     DAAL_INT * pointBestIdx        = pointBestIdxVec.get();
-    if (!pointBestMrd || !pointBestIdx) return;
+    if (!pointBestMrd || !pointBestIdx) return 0;
 
     TArrayScalable<algorithmFPType, cpu> compBestMrdVec(nRows);
     TArray<DAAL_INT, cpu> compBestFromVec(nRows);
@@ -500,7 +502,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     algorithmFPType * compBestMrd = compBestMrdVec.get();
     DAAL_INT * compBestFrom       = compBestFromVec.get();
     DAAL_INT * compBestTo         = compBestToVec.get();
-    if (!compBestMrd || !compBestFrom || !compBestTo) return;
+    if (!compBestMrd || !compBestFrom || !compBestTo) return 0;
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -546,6 +548,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 
         updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
+    return edgesAdded;
 }
 
 // =========================================================================
@@ -664,28 +667,33 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     // (e.g. via a future direct-DAAL entry point that bypasses the oneAPI
     // check), we fail loudly with ErrorMethodNotSupported rather than
     // silently routing to euclidean via a `default:` fall-through.
+    size_t edgesAdded = 0;
     switch (pairwiseDistance)
     {
     case PairwiseDistanceType::euclidean:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
+        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                                 coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
         break;
     case PairwiseDistanceType::manhattan:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {}, alpha);
+        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                                 coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {}, alpha);
         break;
     case PairwiseDistanceType::minkowski:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(minkowskiDegree),
-                                                    alpha);
+        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                                 coreDistances, mstFrom, mstTo, mstWeights,
+                                                                 MinkowskiDist<algorithmFPType>(minkowskiDegree), alpha);
         break;
     case PairwiseDistanceType::chebyshev:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {}, alpha);
+        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                                 coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {}, alpha);
         break;
     case PairwiseDistanceType::cosine:
     default: return services::Status(services::ErrorMethodNotSupported);
     }
+
+    // A Boruvka round only finds no candidate on non-finite input, which would leave the MST tail
+    // uninitialized.
+    if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
 
     // =========================================================================
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force)

@@ -245,6 +245,7 @@ public:
     MSG(hdbscan_leaf_size_lt_one);
     MSG(hdbscan_distance_block_size_lt_zero);
     MSG(hdbscan_brute_force_matrix_does_not_fit_on_device);
+    MSG(hdbscan_input_data_is_not_finite);
 
     /* k-NN */
     MSG(knn_kd_tree_method_is_not_implemented_for_gpu);

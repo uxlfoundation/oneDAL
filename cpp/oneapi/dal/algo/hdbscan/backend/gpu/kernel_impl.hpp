@@ -338,7 +338,7 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
 /// @param[in]  metric         Distance metric tag (controls the sqrt finalize)
 /// @param[in]  deps           Events that must complete before submission
 ///
-/// @return Event signaling completion
+/// @return Event signaling completion; already complete on return
 template <typename Float>
 inline sycl::event compute_core_distances(sycl::queue& queue,
                                           const pr::ndview<Float, 2>& dist,
@@ -388,6 +388,8 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
         });
     });
 
+    // `ksel_vals` is freed on return and `sycl::free` does not wait for its readers.
+    extract_event.wait_and_throw();
     return extract_event;
 }
 
@@ -768,6 +770,8 @@ inline sycl::event boruvka_compress_components(sycl::queue& queue,
 /// @param[in]  deps        Events that must complete before submission
 ///
 /// @return Event signaling completion of the final Boruvka round
+///
+/// @throws domain_error if non-finite input leaves the graph disconnected
 template <typename Float>
 inline sycl::event build_mst(sycl::queue& queue,
                              const pr::ndview<Float, 2>& mrd_matrix,
@@ -829,6 +833,7 @@ inline sycl::event build_mst(sycl::queue& queue,
     sycl::event last_event = init_event;
     init_event.wait_and_throw();
 
+    bool connected = (n <= 1);
     for (std::int32_t round = 0; round < max_rounds; round++) {
         // Step A: parallel find nearest different-component neighbor
         auto find_event = boruvka_find_nearest_mrd<Float>(queue,
@@ -867,14 +872,18 @@ inline sycl::event build_mst(sycl::queue& queue,
         // Check termination
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
         const std::int32_t nc = num_comp_host.get_data()[0];
+        last_event = compress_event;
         if (nc <= 1) {
-            last_event = compress_event;
+            connected = true;
             break;
         }
-
-        last_event = compress_event;
     }
 
+    // Only non-finite input leaves components that no round can join; the MST tail would stay
+    // zero-filled and be read as self-merges.
+    if (!connected) {
+        throw domain_error(dal::detail::error_messages::hdbscan_input_data_is_not_finite());
+    }
     return last_event;
 }
 
@@ -902,6 +911,8 @@ inline sycl::event build_mst(sycl::queue& queue,
 /// @param[in]  deps           Events that must complete before submission
 ///
 /// @return Event signaling completion of the final Boruvka round
+///
+/// @throws domain_error if non-finite input leaves the graph disconnected
 template <typename Float>
 inline sycl::event build_mst_otf(sycl::queue& queue,
                                  const pr::ndview<Float, 2>& data,
@@ -976,6 +987,7 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
     sycl::event last_event = init_event;
     init_event.wait_and_throw();
 
+    bool connected = (n <= 1);
     for (std::int32_t round = 0; round < max_rounds; round++) {
         auto find_event = boruvka_find_nearest_otf<Float>(queue,
                                                           data_ptr,
@@ -1015,14 +1027,18 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
 
         auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
         const std::int32_t nc = num_comp_host.get_data()[0];
+        last_event = compress_event;
         if (nc <= 1) {
-            last_event = compress_event;
+            connected = true;
             break;
         }
-
-        last_event = compress_event;
     }
 
+    // Only non-finite input leaves components that no round can join; the MST tail would stay
+    // zero-filled and be read as self-merges.
+    if (!connected) {
+        throw domain_error(dal::detail::error_messages::hdbscan_input_data_is_not_finite());
+    }
     return last_event;
 }
 

@@ -220,6 +220,8 @@ MSG(hdbscan_distance_block_size_lt_zero,
 MSG(hdbscan_brute_force_matrix_does_not_fit_on_device,
     "HDBSCAN brute_force needs an n x n distance matrix that does not fit in device memory, "
     "use the kd_tree or ball_tree method instead")
+MSG(hdbscan_input_data_is_not_finite,
+    "Input data contains NaN or infinite values, so the minimum spanning tree is incomplete")
 
 /* k-NN */
 MSG(knn_kd_tree_method_is_not_implemented_for_gpu,

@@ -592,11 +592,13 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t 
 ///                               only to dist(q,p) inside MRD (not to k-NN
 ///                               core distances or to the metric used for tree
 ///                               queries)
+///
+/// @return Number of MST edges emitted; fewer than `nRows - 1` only on non-finite input
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples,
-                                          BallNode<algorithmFPType> * nodes, DAAL_INT * pointIndices, DAAL_INT totalTreeNodes,
-                                          algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
-                                          const DistFunc & distFunc, double alpha)
+static size_t computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples,
+                                            BallNode<algorithmFPType> * nodes, DAAL_INT * pointIndices, DAAL_INT totalTreeNodes,
+                                            algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
+                                            const DistFunc & distFunc, double alpha)
 {
     const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
     // Canonical HDBSCAN core distance (Campello 2013): the distance to the
@@ -630,7 +632,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     // Per-node minimum core distances
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
     algorithmFPType * minCoreDistNode = minCoreDistNodeVec.get();
-    if (!minCoreDistNode) return;
+    if (!minCoreDistNode) return 0;
     computeMinCoreDistsBallTree<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
@@ -640,13 +642,13 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     DAAL_INT * ufParent    = ufParentVec.get();
     DAAL_INT * ufRank      = ufRankVec.get();
     DAAL_INT * componentOf = componentOfVec.get();
-    if (!ufParent || !ufRank || !componentOf) return;
+    if (!ufParent || !ufRank || !componentOf) return 0;
 
     TArrayScalable<algorithmFPType, cpu> pointBestMrdVec(nRows);
     TArray<DAAL_INT, cpu> pointBestIdxVec(nRows);
     algorithmFPType * pointBestMrd = pointBestMrdVec.get();
     DAAL_INT * pointBestIdx        = pointBestIdxVec.get();
-    if (!pointBestMrd || !pointBestIdx) return;
+    if (!pointBestMrd || !pointBestIdx) return 0;
 
     TArrayScalable<algorithmFPType, cpu> compBestMrdVec(nRows);
     TArray<DAAL_INT, cpu> compBestFromVec(nRows);
@@ -654,7 +656,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
     algorithmFPType * compBestMrd = compBestMrdVec.get();
     DAAL_INT * compBestFrom       = compBestFromVec.get();
     DAAL_INT * compBestTo         = compBestToVec.get();
-    if (!compBestMrd || !compBestFrom || !compBestTo) return;
+    if (!compBestMrd || !compBestFrom || !compBestTo) return 0;
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -700,6 +702,7 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 
         updateNodeComponentsBallTree<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
+    return edgesAdded;
 }
 
 /// Build the ball tree then compute core distances + Boruvka MST under MRD.
@@ -727,16 +730,18 @@ static void computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t n
 /// @param[in]     distFunc      Metric functor instance (unscaled metric)
 /// @param[in]     alpha         Robust single-linkage scaling factor; applied
 ///                              only to dist(q,p) inside MRD
+///
+/// @return Number of MST edges emitted, see computeCoreDistAndMstBallTree
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, DAAL_INT maxLeafSize,
-                                      BallNode<algorithmFPType> * nodes, DAAL_INT * pointIndices, algorithmFPType * coreDistances, DAAL_INT * mstFrom,
-                                      DAAL_INT * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
+static size_t runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, DAAL_INT maxLeafSize,
+                                        BallNode<algorithmFPType> * nodes, DAAL_INT * pointIndices, algorithmFPType * coreDistances,
+                                        DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, const DistFunc & distFunc, double alpha)
 {
     DAAL_INT nextNode = 0;
     buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), nCols, nodes, nextNode, maxLeafSize, distFunc);
     const DAAL_INT totalTreeNodes = nextNode;
-    computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, distFunc, alpha);
+    return computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances,
+                                                               mstFrom, mstTo, mstWeights, distFunc, alpha);
 }
 
 /// Compute HDBSCAN clustering using the ball-tree based batch implementation.
@@ -871,27 +876,32 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     // kernel is ever reached with cosine + ball_tree we fail loudly with
     // ErrorMethodNotSupported rather than silently routing to euclidean
     // via a `default:` fall-through.
+    size_t edgesAdded = 0;
     switch (pairwiseDistance)
     {
     case PairwiseDistanceType::euclidean:
-        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, Eucl(), alpha);
+        edgesAdded = runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances,
+                                                                     mstFrom, mstTo, mstWeights, Eucl(), alpha);
         break;
     case PairwiseDistanceType::manhattan:
-        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, Manh(), alpha);
+        edgesAdded = runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances,
+                                                                     mstFrom, mstTo, mstWeights, Manh(), alpha);
         break;
     case PairwiseDistanceType::minkowski:
-        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, Mink(minkowskiDegree), alpha);
+        edgesAdded = runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances,
+                                                                     mstFrom, mstTo, mstWeights, Mink(minkowskiDegree), alpha);
         break;
     case PairwiseDistanceType::chebyshev:
-        runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances, mstFrom,
-                                                        mstTo, mstWeights, Cheb(), alpha);
+        edgesAdded = runBallTreeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, maxLeafSize, nodes, pointIndices, coreDistances,
+                                                                     mstFrom, mstTo, mstWeights, Cheb(), alpha);
         break;
     case PairwiseDistanceType::cosine:
     default: return services::Status(services::ErrorMethodNotSupported);
     }
+
+    // A Boruvka round only finds no candidate on non-finite input, which would leave the MST tail
+    // uninitialized.
+    if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
 
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force/kd_tree)
     WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);

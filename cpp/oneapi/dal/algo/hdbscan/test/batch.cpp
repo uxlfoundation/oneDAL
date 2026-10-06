@@ -3048,6 +3048,38 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     }
 }
 
+using hdbscan_tree_methods_f64 = COMBINE_TYPES((double),
+                                               (hdbscan::method::kd_tree,
+                                                hdbscan::method::ball_tree));
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan trees: non-finite input is rejected instead of truncating the MST",
+                     "[hdbscan][batch]",
+                     hdbscan_tree_methods_f64) {
+    // The GPU kernels take the MRD with `sycl::fmax`, which drops a NaN operand, so the graph
+    // stays connected there and the CPU is the only place the truncation can occur.
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    const Float bad =
+        GENERATE(std::numeric_limits<Float>::quiet_NaN(), std::numeric_limits<Float>::infinity());
+    CAPTURE(bad);
+
+    // One poisoned row: no MRD comparison against it holds, so no Boruvka round can join it.
+    // Finiteness is the caller's to check, as for every algorithm; this only pins that the
+    // tree methods fail instead of reading an incomplete MST.
+    Float data[] = { 0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 0.0, 0.2, 0.15, 0.15,
+                     5.0, 5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2, bad,  5.15 };
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    const auto desc =
+        hdbscan::descriptor<Float, Method>(3, 3).set_result_options(result_options::responses);
+    REQUIRE_THROWS_AS(oneapi::dal::test::engine::compute(this->get_policy(), desc, x),
+                      domain_error);
+}
+
 // =========================================================================
 // GPU tests (conditional on ONEDAL_DATA_PARALLEL)
 // =========================================================================
@@ -3393,6 +3425,35 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
         row_accessor<const Float>(gpu_result.get_single_linkage_tree()).pull({ 0, -1 });
 
     check_same_hierarchy(gpu_tree, cpu_tree, row_count, te::get_tolerance<Float>(1e-4, 1e-10));
+}
+
+TEST("hdbscan gpu: compute_core_distances returns a completed event", "[hdbscan][batch][gpu]") {
+    namespace pr = dal::backend::primitives;
+    DECLARE_TEST_POLICY(policy);
+    auto& q = policy.get_queue();
+    constexpr std::int64_t n = 64;
+    constexpr std::int64_t min_samples = 5;
+
+    auto [dist, dist_event] =
+        pr::ndarray<float, 2>::full(q, { n, n }, 1.0f, sycl::usm::alloc::device);
+    auto [core, core_event] = pr::ndarray<float, 1>::zeros(q, n, sycl::usm::alloc::device);
+
+    pr::ndview<float, 1> core_view = core;
+    const auto event = backend::compute_core_distances<float>(q,
+                                                              dist,
+                                                              core_view,
+                                                              min_samples,
+                                                              n,
+                                                              distance_metric::manhattan,
+                                                              { dist_event, core_event });
+    // The k-selection scratch the kernel reads is freed on return, so the event must be done.
+    const auto status = event.get_info<sycl::info::event::command_execution_status>();
+    REQUIRE(status == sycl::info::event_command_status::complete);
+
+    const auto core_host = core.to_host(q);
+    for (std::int64_t i = 0; i < n; ++i) {
+        REQUIRE(core_host.get_data()[i] == 1.0f);
+    }
 }
 
 #endif // ONEDAL_DATA_PARALLEL
