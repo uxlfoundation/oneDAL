@@ -148,13 +148,20 @@ private:
 
         auto* data_tmp_ptr = data_.get_mutable_data();
         const auto data_tmp_str = data_.get_leading_stride();
-        auto cpy_event = queue.submit([&](sycl::handler& cgh) {
-            cgh.depends_on(deps);
-            const auto range = make_range_2d(row_count, col_count);
-            cgh.parallel_for(range, [=](sycl::id<2> idx) {
-                *(data_tmp_ptr + idx[0] * data_tmp_str + idx[1]) = dp.at(idx[0], idx[1]);
-            });
-        });
+        // A square input of more than 46340 rows leaves int32 as one `range<2>`, so copy it
+        // in row blocks, as the distance primitives do.
+        const auto block_rows = max_range_2d_rows(col_count);
+        event_vector cpy_events;
+        for (std::int64_t row_start = 0; row_start < row_count; row_start += block_rows) {
+            const auto rows = std::min(block_rows, row_count - row_start);
+            cpy_events.push_back(queue.submit([&](sycl::handler& cgh) {
+                cgh.depends_on(deps);
+                cgh.parallel_for(make_range_2d(rows, col_count), [=](sycl::id<2> idx) {
+                    const auto row = row_start + static_cast<std::int64_t>(idx[0]);
+                    *(data_tmp_ptr + row * data_tmp_str + idx[1]) = dp.at(row, idx[1]);
+                });
+            }));
+        }
 
         auto indices_tmp_ptr = indices_.get_mutable_data();
 
@@ -168,7 +175,7 @@ private:
 
         auto event = queue.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
-            cgh.depends_on(cpy_event);
+            cgh.depends_on(cpy_events);
             cgh.parallel_for(make_multiple_nd_range_2d({ preffered_sg_size, row_count },
                                                        { preffered_sg_size, 1 }),
                              [=](sycl::nd_item<2> item) {
@@ -244,9 +251,9 @@ private:
                               std::int32_t rnd_period,
                               std::int32_t row_count,
                               std::int32_t k,
-                              std::int32_t inp_stride,
-                              std::int32_t out_ids_stride,
-                              std::int32_t out_dst_stride) {
+                              std::int64_t inp_stride,
+                              std::int64_t out_ids_stride,
+                              std::int64_t out_dst_stride) {
         auto sg = item.get_sub_group();
         const std::int32_t row_id =
             item.get_global_id(1) * sg.get_group_range()[0] + sg.get_group_id()[0];
@@ -255,9 +262,9 @@ private:
         if (row_id >= num_rows)
             return;
 
-        const std::int32_t offset_in = row_id * inp_stride;
-        [[maybe_unused]] const std::int32_t offset_ids_out = row_id * out_ids_stride;
-        [[maybe_unused]] const std::int32_t offset_dst_out = row_id * out_dst_stride;
+        const std::int64_t offset_in = row_id * inp_stride;
+        [[maybe_unused]] const std::int64_t offset_ids_out = row_id * out_ids_stride;
+        [[maybe_unused]] const std::int64_t offset_dst_out = row_id * out_dst_stride;
         std::int32_t partition_start = 0;
         std::int32_t partition_end = row_count;
         std::int32_t rnd_count = 0;
