@@ -148,12 +148,6 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # -gz at compile time only compresses the objects: ld writes the library's debug
 # sections uncompressed unless told otherwise.
 -DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,$(if $(OS_is_lnx),-Wl$(comma)--compress-debug-sections=zlib)))
-# Device-code (SPIR-V) compression for the embedded fat binary in DPC libs.
-# Enabled only with REQDBG, where the SPIR-V section dominates the .so size.
-# Level 9 is a deliberate fixed default: ABI-safe (decompressed at JIT, host
-# symbols unchanged), big shrink vs uncompressed, and compress time stays sane
-# (zstd's ratio curve flattens hard past ~12).
--offloadcompress := $(if $(REQDBG),--offload-compress --offload-compression-level=9,)
 -DGCOV_BUILD   := $(if $(filter yes,$(GCOV_ENABLED)),-DGCOV_BUILD)
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
@@ -824,7 +818,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
 ifndef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize.dpc)
 endif
@@ -847,7 +841,7 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
 ifndef OS_is_win
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize.dpc)
 endif
