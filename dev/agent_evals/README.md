@@ -26,6 +26,18 @@ the eval image and the oneDAL rules of the guidance claim check. Running agents 
 harness, isolation, traces, reports) is done by agent-benchmark, which reads `repo-eval.yaml` (the
 repository-evaluation contract). No LLM judges a result: graders rebuild and rerun tests.
 
+Terms used below:
+
+- **task**: one job for an agent on a copy of oneDAL at a fixed commit (build X, fix bug Y, review change Z).
+- **arm**: one variant of the repository the same tasks run against, e.g. with the agent guidance files (`raw`)
+  and without them (`none`).
+- **grader**: the code that decides whether a run succeeded, by rebuilding and rerunning oneDAL tests.
+- **oracle**: the reference solution of a task, used to prove the grader accepts a correct answer.
+- **hidden test**: a test the agent never sees; the grader adds it only while grading.
+- **strict pass**: the hidden tests pass and the component's existing tests still pass.
+- **contract**: the file layout and commands (`repo-eval.yaml`, `run.py grade|oracle --contract`) through which an
+  external runner uses this directory.
+
 | tier | what | cost |
 |---|---|---|
 | T0 static | `run.py static`: every link, path, Bazel label, bazel/make command, Starlark macro and identifier named in the guidance is checked against the tree | $0, seconds |
