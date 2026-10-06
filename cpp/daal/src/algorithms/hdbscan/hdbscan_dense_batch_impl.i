@@ -23,7 +23,7 @@
  *   2. Compute core distances (k-th nearest neighbor distance per point) with a
  *      bounded selection heap over each row -- no row copy, O(minSamples) scratch
  *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm,
- *      applying 1/alpha only to the dist term inside MRD = max(coreI, coreJ, dist/alpha)
+ *      MRD = max(coreI, coreJ, dist) / alpha, as in scikit-learn's brute path
  *   4. Sort MST + extract clusters via condensed tree + EOM/leaf (shared code)
  *
  * Complexity: O(N^2) for the distance matrix, O(N^2 * log N) worst case for
@@ -141,7 +141,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         // downstream steps as actual distance values, not squared:
         //   - Core distances (Step 2) are selected from this matrix directly and
         //     become MST edge weights via
-        //     MRD(a,b) = max(core(a), core(b), dist(a,b) / alpha).
+        //     MRD(a,b) = max(core(a), core(b), dist(a,b)) / alpha.
         //   - `alpha` divides the pairwise dist term inside MRD; that scaling
         //     is only meaningful on real distances.
         //   - `clusterSelectionEpsilon` in sortMstAndExtractClusters is an
@@ -212,7 +212,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     // =========================================================================
     // Step 2: Compute core distances (k-th nearest neighbor distance per point)
     //
-    // Note: alpha scaling is applied later, only to dist(a,b) inside MRD
+    // Note: alpha scaling is applied later, to the whole MRD
     // (Step 3). Per the canonical HDBSCAN definition, core distances must be
     // derived from the unscaled pairwise distance matrix.
     // =========================================================================
@@ -305,11 +305,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         size_t edgesAdded    = 0;
         size_t numComponents = nRows;
 
-        // Robust single linkage: scale only the pairwise dist term inside MRD
-        // (canonical HDBSCAN), not the full distance matrix or core distances.
-        // MRD(a, b) = max(core(a), core(b), dist(a, b) / alpha)
+        // scikit-learn's brute path divides the whole distance matrix by alpha before taking core
+        // distances, so here MRD(a, b) = max(core(a), core(b), dist(a, b)) / alpha. Its tree
+        // paths, and the kd_tree/ball_tree kernels, scale the dist term only.
         const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
         const algorithmFPType inf      = daal::services::internal::MaxVal<algorithmFPType>::get();
+        if (alpha != 1.0)
+        {
+            for (size_t i = 0; i < nRows; i++) coreDistances[i] *= invAlpha;
+        }
 
         // A per-point cache of the `k` smallest MRD neighbours was tried here and reverted: it is
         // label-preserving, but Boruvka converges in so few rounds that it only measured 1.03x.

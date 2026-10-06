@@ -54,9 +54,9 @@ enum class cluster_selection_method {
 enum class store_centers_method {
     /// Do not compute cluster centers (default).
     none,
-    /// Compute centroids (weighted mean of member points).
+    /// Compute centroids (probability-weighted mean of member points).
     centroid,
-    /// Compute medoids (member point minimizing intra-cluster distance).
+    /// Compute medoids (member point minimizing the probability-weighted distance sum).
     medoid,
     /// Compute both centroids and medoids.
     both

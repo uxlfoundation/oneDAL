@@ -20,6 +20,7 @@
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
 #endif
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <type_traits>
@@ -3102,6 +3103,127 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
 
     REQUIRE(result.get_cluster_count() == 2);
+    const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    check_same_partition(rows, dal::array<Float>::wrap(expected, row_count), row_count);
+}
+
+// Two blobs with fringe points, so membership probabilities vary. The references are
+// sklearn.cluster.HDBSCAN(4, 3, store_centers="both") with the metric below.
+static constexpr std::int64_t centers_row_count = 20;
+static constexpr double centers_data[] = { 0.845,  -0.233, 0.016, 0.204,  -0.394, 0.001,  -0.0,
+                                           -0.877, 0.509,  0.3,   -0.313, -0.086, 0.253,  -0.131,
+                                           -0.121, -0.727, 0.277, 0.062,  0.137,  -0.763, 7.321,
+                                           6.123,  5.69,   7.623, 5.964,  4.839,  5.676,  4.169,
+                                           6.84,   5.667,  5.406, 6.858,  4.679,  6.428,  4.348,
+                                           5.47,   5.037,  7.17,  7.413,  5.736 };
+
+using hdbscan_center_types = COMBINE_TYPES((float, double),
+                                           (hdbscan::method::brute_force,
+                                            hdbscan::method::kd_tree,
+                                            hdbscan::method::ball_tree));
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: centers are probability-weighted like scikit-learn's",
+                     "[hdbscan][batch]",
+                     hdbscan_center_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    const bool manhattan = GENERATE(false, true);
+    CAPTURE(manhattan);
+    // A plain mean gives (0.1209, -0.225) for the first cluster, and the point nearest to it
+    // in squared L2 is not sklearn's medoid either.
+    const double expected_centroids[2][4] = {
+        { 0.1048961814, -0.1708402313, 5.8384860213, 6.0206762016 },
+        { 0.1074746881, -0.1861634668, 5.8397797591, 6.0354195229 },
+    };
+    const double expected_medoids[] = { 0.253, -0.131, 5.406, 6.858 };
+
+    std::vector<Float> data(centers_data, centers_data + 2 * centers_row_count);
+    const auto x = homogen_table::wrap(data.data(), centers_row_count, 2);
+    const auto desc =
+        hdbscan::descriptor<Float, Method>(4, 3)
+            .set_metric(manhattan ? distance_metric::manhattan : distance_metric::euclidean)
+            .set_store_centers(store_centers_method::both)
+            .set_result_options(result_options::responses | result_options::cluster_centers |
+                                result_options::medoid_centers);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+    REQUIRE(result.get_cluster_count() == 2);
+
+    // Cluster ids follow first appearance, and the first rows belong to the blob at the origin.
+    const auto centroids = row_accessor<const Float>(result.get_cluster_centers()).pull({ 0, -1 });
+    const auto medoids = row_accessor<const Float>(result.get_medoid_centers()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-8);
+    for (std::int64_t i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        REQUIRE(std::abs(double(centroids[i]) - expected_centroids[manhattan][i]) < tol);
+        REQUIRE(std::abs(double(medoids[i]) - expected_medoids[i]) < tol);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: alpha divides the core distances too, like scikit-learn",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // scikit-learn's brute path divides the whole distance matrix by alpha before taking the core
+    // distances. Reference: sklearn.cluster.HDBSCAN(4, 3, algorithm="brute", alpha=2.0).
+    const double expected[] = { 0.1302497601, 0.1302497601, 0.20517919,   0.20517919,
+                                0.2192834923, 0.2287515027, 0.2506476611, 0.3150337284,
+                                0.3212786952, 0.33139742,   0.33139742,   0.4080076592,
+                                0.4080076592, 0.4223236318, 0.6026939522, 0.8674123875,
+                                0.8674123875, 0.9295408813, 3.2197368293 };
+
+    std::vector<Float> data(centers_data, centers_data + 2 * centers_row_count);
+    const auto x = homogen_table::wrap(data.data(), centers_row_count, 2);
+    const auto desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(4, 3)
+                          .set_alpha(2.0)
+                          .set_result_options(result_options::single_linkage_tree);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+    const auto tree = row_accessor<const Float>(result.get_single_linkage_tree()).pull({ 0, -1 });
+
+    std::vector<double> merges;
+    for (std::int64_t e = 0; e < centers_row_count - 1; ++e)
+        merges.push_back(double(tree[4 * e + 2]));
+    std::sort(merges.begin(), merges.end());
+    for (std::int64_t e = 0; e < centers_row_count - 1; ++e) {
+        CAPTURE(e);
+        REQUIRE(std::abs(merges[e] - expected[e]) < te::get_tolerance<Float>(1e-5, 1e-9));
+    }
+}
+
+TEMPLATE_LIST_TEST_M(
+    hdbscan_batch_test,
+    "hdbscan: max_cluster_size caps the root by its child clusters like scikit-learn",
+    "[hdbscan][batch]",
+    hdbscan_center_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // With allow_single_cluster, scikit-learn sizes the root as the points its child clusters
+    // hold, not every point, so a cap of 7 on 17 points still lets the root win here. Reference:
+    // sklearn.cluster.HDBSCAN(3, 3, allow_single_cluster=True, max_cluster_size=7).
+    constexpr std::int64_t row_count = 17;
+    constexpr double source[] = { 0.118,  0.114,  0.37,   1.041,  -1.517, -0.866, -0.055,
+                                  -0.107, 1.365,  -0.098, -2.426, -0.453, -0.471, 0.973,
+                                  -1.278, 1.437,  -0.078, 1.09,   0.097,  1.419,  1.168,
+                                  0.947,  1.085,  2.382,  -0.406, 0.266,  -0.422, -5.019,
+                                  3.791,  -4.535, -5.837, -2.814, -5.605, -4.443 };
+    constexpr Float expected[] = { 0, 0, -1, 0, -1, -1, 0, -1, 0, 0, -1, -1, 0, -1, -1, -1, -1 };
+
+    std::vector<Float> data(source, source + 2 * row_count);
+    const auto x = homogen_table::wrap(data.data(), row_count, 2);
+    const auto desc = hdbscan::descriptor<Float, Method>(3, 3)
+                          .set_allow_single_cluster(true)
+                          .set_max_cluster_size(7)
+                          .set_result_options(result_options::responses);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
     const auto rows = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
     check_same_partition(rows, dal::array<Float>::wrap(expected, row_count), row_count);
 }

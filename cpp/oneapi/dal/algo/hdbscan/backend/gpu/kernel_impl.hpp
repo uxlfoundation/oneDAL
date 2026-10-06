@@ -556,9 +556,8 @@ inline sycl::event compute_core_distances_blocked(sycl::queue& queue,
 
 /// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
 ///
-/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j) / alpha)`.
-/// Per the canonical HDBSCAN robust single-linkage definition, alpha scales
-/// only the pairwise dist term inside the `max`, not the core distances. For
+/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j)) / alpha`, as in
+/// scikit-learn's brute path, which divides the whole distance matrix by alpha. For
 /// `euclidean`, the input matrix holds squared L2 values so a `sqrt(max(·, 0))`
 /// is applied per entry before the alpha scale and the `max`. For other
 /// metrics the values are already final distances.
@@ -569,8 +568,7 @@ inline sycl::event compute_core_distances_blocked(sycl::queue& queue,
 /// @param[in]     core_distances Per-point core distances, length `n` (unscaled)
 /// @param[in,out] mrd_matrix     Distance matrix `n × n`, overwritten with MRD values
 /// @param[in]     metric         Distance metric tag (controls the sqrt finalize)
-/// @param[in]     alpha          Robust single-linkage scaling factor; applied
-///                               only to dist(i,j) inside MRD
+/// @param[in]     alpha          Robust single-linkage scaling factor; divides the whole MRD
 /// @param[in]     deps           Events that must complete before submission
 ///
 /// @return Event signaling completion
@@ -612,8 +610,9 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
                 // For other metrics: mrd_matrix has actual distances
                 const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
                                            : mrd_ptr[i * n + j];
-                const Float cd_i = core_ptr[i];
-                const Float cd_j = core_ptr[j];
+                // scikit-learn's brute path scales the core distances by 1/alpha as well.
+                const Float cd_i = core_ptr[i] * inv_alpha;
+                const Float cd_j = core_ptr[j] * inv_alpha;
                 mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
             });
         }));
@@ -1640,6 +1639,15 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
             }
             else {
                 const std::int32_t tree_top = w.allow_single_cluster ? root_cid : (root_cid + 1);
+                if (w.allow_single_cluster) {
+                    // scikit-learn caps the root by the points its child clusters hold.
+                    std::int32_t root_size = 0;
+                    if (w.cc0_ptr[root_cid] >= 0)
+                        root_size += w.csz_ptr[w.cc0_ptr[root_cid]];
+                    if (w.cc1_ptr[root_cid] >= 0)
+                        root_size += w.csz_ptr[w.cc1_ptr[root_cid]];
+                    w.csz_ptr[root_cid] = root_size;
+                }
                 for (std::int32_t c = n_clusters - 1; c >= tree_top; c--) {
                     if (w.ilc_ptr[c]) {
                         // No children to compare against, so only the size cap can unselect a
@@ -1686,29 +1694,50 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                     w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
             }
 
-            if (w.cluster_selection_epsilon > Float(0)) {
+            // Same port of scikit-learn's epsilon_search as the CPU kernel. Bit 0 of `is_ptr` is
+            // the EOM selection, bit 1 the final pick and bit 2 marks an epsilon target.
+            if (w.cluster_selection_epsilon > Float(0) && !w.is_ptr[root_cid]) {
                 const Float eps = w.cluster_selection_epsilon;
-                bool changed = true;
-                while (changed) {
-                    changed = false;
-                    for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
-                        if (!w.is_ptr[c])
-                            continue;
-                        const Float birth_dist =
-                            (w.lb_ptr[c] > Float(0)) ? Float(1) / w.lb_ptr[c] : Float(0);
-                        if (birth_dist < eps) {
-                            const std::int32_t parent = w.cprt_ptr[c];
-                            if (parent < root_cid || parent >= n_clusters)
-                                continue;
-                            // Refuse to promote into the root when the caller
-                            // forbids a single-cluster outcome.
-                            if (parent == root_cid && !w.allow_single_cluster)
-                                continue;
-                            w.is_ptr[c] = 0;
-                            w.is_ptr[parent] = 1;
-                            changed = true;
-                        }
+                auto birth_dist = [&](std::int32_t c) {
+                    return (w.lb_ptr[c] > Float(0)) ? Float(1) / w.lb_ptr[c] : Float(0);
+                };
+                for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
+                    if (!(w.is_ptr[c] & 1))
+                        continue;
+                    if (!(birth_dist(c) < eps)) {
+                        w.is_ptr[c] |= 2;
+                        continue;
                     }
+                    bool processed = false;
+                    for (std::int32_t a = w.cprt_ptr[c]; a >= root_cid && a < n_clusters;
+                         a = w.cprt_ptr[a]) {
+                        if (w.is_ptr[a] & 4) {
+                            processed = true;
+                            break;
+                        }
+                        if (a == root_cid)
+                            break;
+                    }
+                    if (processed)
+                        continue;
+                    std::int32_t target = c;
+                    while (true) {
+                        const std::int32_t parent = w.cprt_ptr[target];
+                        if (parent < root_cid || parent >= n_clusters)
+                            break;
+                        if (parent == root_cid) {
+                            if (w.allow_single_cluster)
+                                target = root_cid;
+                            break;
+                        }
+                        target = parent;
+                        if (birth_dist(parent) > eps)
+                            break;
+                    }
+                    w.is_ptr[target] |= 6;
+                }
+                for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                    w.is_ptr[c] = (w.is_ptr[c] & 2) ? 1 : 0;
                 }
             }
 

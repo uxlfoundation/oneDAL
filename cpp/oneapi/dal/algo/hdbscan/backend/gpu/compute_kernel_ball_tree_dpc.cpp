@@ -161,7 +161,10 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
 
     // Left empty unless requested, which is what tells `extract_clusters` to skip
     // the probability kernels and `make_results` that there is nothing to wrap.
-    const bool need_probabilities = desc.get_result_options().test(result_options::probabilities);
+    // The centers are weighted by membership probability, so they need it too.
+    const bool need_probabilities = desc.get_result_options().test(result_options::probabilities) ||
+                                    (desc.get_store_centers() != store_centers_method::none &&
+                                     desc.get_result_options().test(result_options::responses));
     pr::ndarray<Float, 1> arr_probabilities;
     if (need_probabilities) {
         arr_probabilities =

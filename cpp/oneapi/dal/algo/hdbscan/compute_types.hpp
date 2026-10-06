@@ -122,8 +122,8 @@ public:
         return *this;
     }
 
-    /// A $k \\times p$ table with cluster centroids (mean of member points).
-    /// $k$ is the number of clusters.
+    /// A $k \\times p$ table with cluster centroids: the mean of the member points weighted by
+    /// their membership probability. $k$ is the number of clusters.
     const table& get_cluster_centers() const;
 
     auto& set_cluster_centers(const table& value) {
@@ -131,8 +131,9 @@ public:
         return *this;
     }
 
-    /// A $k \\times p$ table with cluster medoids (member point minimizing
-    /// intra-cluster distance). $k$ is the number of clusters.
+    /// A $k \\times p$ table with cluster medoids: the member point minimizing the sum of its
+    /// distances, in the fitted metric, to the other members weighted by their membership
+    /// probability. $k$ is the number of clusters.
     const table& get_medoid_centers() const;
 
     auto& set_medoid_centers(const table& value) {

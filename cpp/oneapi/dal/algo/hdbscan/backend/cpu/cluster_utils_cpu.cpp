@@ -14,54 +14,101 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <cmath>
 #include <limits>
 
 #include "oneapi/dal/algo/hdbscan/backend/cpu/cluster_utils.hpp"
 #include "oneapi/dal/array.hpp"
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
+#include "oneapi/dal/detail/threading.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
+
+template <typename Float>
+static Float pair_distance(const Float* a,
+                           const Float* b,
+                           std::int64_t col_count,
+                           distance_metric metric,
+                           double degree) {
+    switch (metric) {
+        case distance_metric::manhattan: {
+            Float sum = 0;
+            for (std::int64_t d = 0; d < col_count; d++)
+                sum += std::abs(a[d] - b[d]);
+            return sum;
+        }
+        case distance_metric::chebyshev: {
+            Float max = 0;
+            for (std::int64_t d = 0; d < col_count; d++)
+                max = std::max(max, Float(std::abs(a[d] - b[d])));
+            return max;
+        }
+        case distance_metric::minkowski: {
+            double sum = 0;
+            for (std::int64_t d = 0; d < col_count; d++)
+                sum += std::pow(std::abs(double(a[d]) - double(b[d])), degree);
+            return Float(std::pow(sum, 1.0 / degree));
+        }
+        case distance_metric::cosine: {
+            // scikit-learn normalizes a zero row to the zero vector, i.e. distance 1.
+            double dot = 0, aa = 0, bb = 0;
+            for (std::int64_t d = 0; d < col_count; d++) {
+                dot += double(a[d]) * b[d];
+                aa += double(a[d]) * a[d];
+                bb += double(b[d]) * b[d];
+            }
+            if (a == b)
+                return Float(0);
+            if (aa == 0 || bb == 0)
+                return Float(1);
+            return Float(std::max(0.0, 1.0 - dot / (std::sqrt(aa) * std::sqrt(bb))));
+        }
+        default: {
+            Float sum = 0;
+            for (std::int64_t d = 0; d < col_count; d++) {
+                const Float diff = a[d] - b[d];
+                sum += diff * diff;
+            }
+            return std::sqrt(sum);
+        }
+    }
+}
 
 template <typename Cpu, typename Float>
 void compute_centroids(const Float* data,
                        const std::int32_t* labels,
+                       const Float* weights,
                        std::int64_t row_count,
                        std::int64_t col_count,
                        std::int64_t cluster_count,
                        Float* centroids) {
     ONEDAL_ASSERT(cluster_count > 0);
 
-    auto counts_arr = dal::array<std::int64_t>::zeros(cluster_count);
-    std::int64_t* counts = counts_arr.get_mutable_data();
-    const std::int64_t centroids_size = cluster_count * col_count;
-    PRAGMA_OMP_SIMD
-    for (std::int64_t i = 0; i < centroids_size; i++) {
-        centroids[i] = Float(0);
-    }
+    auto weight_sums_arr = dal::array<double>::zeros(cluster_count);
+    double* weight_sums = weight_sums_arr.get_mutable_data();
+    auto sums_arr = dal::array<double>::zeros(cluster_count * col_count);
+    double* sums = sums_arr.get_mutable_data();
 
     for (std::int64_t i = 0; i < row_count; i++) {
         const std::int32_t label = labels[i];
         if (label < 0 || label >= cluster_count)
             continue;
-        counts[label]++;
-        Float* row_out = centroids + label * col_count;
+        const double w = weights[i];
+        weight_sums[label] += w;
+        double* row_out = sums + label * col_count;
         const Float* row_in = data + i * col_count;
         PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
-            row_out[d] += row_in[d];
+            row_out[d] += w * row_in[d];
         }
     }
 
     for (std::int64_t k = 0; k < cluster_count; k++) {
-        if (counts[k] == 0)
-            continue;
-        Float* row = centroids + k * col_count;
-        const Float inv = Float(1) / static_cast<Float>(counts[k]);
-        // TODO: consider `mkl::blas::scal(col_count, inv, row, 1)`.
+        const double inv = (weight_sums[k] > 0) ? 1.0 / weight_sums[k] : 0.0;
         PRAGMA_OMP_SIMD
         for (std::int64_t d = 0; d < col_count; d++) {
-            row[d] *= inv;
+            centroids[k * col_count + d] = Float(sums[k * col_count + d] * inv);
         }
     }
 }
@@ -69,54 +116,65 @@ void compute_centroids(const Float* data,
 template <typename Cpu, typename Float>
 void compute_medoids(const Float* data,
                      const std::int32_t* labels,
+                     const Float* weights,
                      std::int64_t row_count,
                      std::int64_t col_count,
                      std::int64_t cluster_count,
-                     const Float* centroids,
+                     distance_metric metric,
+                     double degree,
                      Float* medoids) {
     ONEDAL_ASSERT(cluster_count > 0);
 
-    auto best_dist_arr = dal::array<Float>::empty(cluster_count);
-    auto best_idx_arr = dal::array<std::int64_t>::empty(cluster_count);
-    Float* best_dist = best_dist_arr.get_mutable_data();
-    std::int64_t* best_idx = best_idx_arr.get_mutable_data();
-    for (std::int64_t k = 0; k < cluster_count; k++) {
-        best_dist[k] = std::numeric_limits<Float>::max();
-        best_idx[k] = -1;
+    // Members of each cluster in row order, CSR style.
+    auto offsets_arr = dal::array<std::int64_t>::zeros(cluster_count + 1);
+    std::int64_t* offsets = offsets_arr.get_mutable_data();
+    for (std::int64_t i = 0; i < row_count; i++) {
+        if (labels[i] >= 0 && labels[i] < cluster_count)
+            offsets[labels[i] + 1]++;
+    }
+    for (std::int64_t k = 0; k < cluster_count; k++)
+        offsets[k + 1] += offsets[k];
+    const std::int64_t member_count = offsets[cluster_count];
+    auto members_arr = dal::array<std::int64_t>::empty(member_count > 0 ? member_count : 1);
+    std::int64_t* members = members_arr.get_mutable_data();
+    {
+        auto fill_arr = dal::array<std::int64_t>::empty(cluster_count);
+        std::int64_t* fill = fill_arr.get_mutable_data();
+        for (std::int64_t k = 0; k < cluster_count; k++)
+            fill[k] = offsets[k];
+        for (std::int64_t i = 0; i < row_count; i++) {
+            if (labels[i] >= 0 && labels[i] < cluster_count)
+                members[fill[labels[i]]++] = i;
+        }
     }
 
-    for (std::int64_t i = 0; i < row_count; i++) {
-        const std::int32_t label = labels[i];
-        if (label < 0 || label >= cluster_count)
-            continue;
-        const Float* pt = data + i * col_count;
-        const Float* center = centroids + label * col_count;
-        Float dist = Float(0);
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : dist))
-        for (std::int64_t d = 0; d < col_count; d++) {
-            const Float diff = pt[d] - center[d];
-            dist += diff * diff;
+    auto scores_arr = dal::array<double>::empty(member_count > 0 ? member_count : 1);
+    double* scores = scores_arr.get_mutable_data();
+    dal::detail::threader_for(member_count, 1, [&](std::int64_t m) {
+        const std::int64_t i = members[m];
+        const std::int32_t k = labels[i];
+        double score = 0;
+        for (std::int64_t q = offsets[k]; q < offsets[k + 1]; q++) {
+            const std::int64_t j = members[q];
+            score += double(pair_distance(data + i * col_count,
+                                          data + j * col_count,
+                                          col_count,
+                                          metric,
+                                          degree)) *
+                     weights[j];
         }
-        if (dist < best_dist[label]) {
-            best_dist[label] = dist;
-            best_idx[label] = i;
-        }
-    }
+        scores[m] = score;
+    });
 
     for (std::int64_t k = 0; k < cluster_count; k++) {
         Float* row = medoids + k * col_count;
-        if (best_idx[k] >= 0) {
-            const Float* src = data + best_idx[k] * col_count;
-            PRAGMA_OMP_SIMD
-            for (std::int64_t d = 0; d < col_count; d++) {
-                row[d] = src[d];
-            }
+        std::int64_t best = -1;
+        for (std::int64_t q = offsets[k]; q < offsets[k + 1]; q++) {
+            if (best < 0 || scores[q] < scores[best])
+                best = q;
         }
-        else {
-            PRAGMA_OMP_SIMD
-            for (std::int64_t d = 0; d < col_count; d++) {
-                row[d] = Float(0);
-            }
+        for (std::int64_t d = 0; d < col_count; d++) {
+            row[d] = (best >= 0) ? data[members[best] * col_count + d] : Float(0);
         }
     }
 }
@@ -124,16 +182,19 @@ void compute_medoids(const Float* data,
 #define INSTANTIATE(F)                                                   \
     template void compute_centroids<__CPU_TAG__, F>(const F*,            \
                                                     const std::int32_t*, \
+                                                    const F*,            \
                                                     std::int64_t,        \
                                                     std::int64_t,        \
                                                     std::int64_t,        \
                                                     F*);                 \
     template void compute_medoids<__CPU_TAG__, F>(const F*,              \
                                                   const std::int32_t*,   \
-                                                  std::int64_t,          \
-                                                  std::int64_t,          \
-                                                  std::int64_t,          \
                                                   const F*,              \
+                                                  std::int64_t,          \
+                                                  std::int64_t,          \
+                                                  std::int64_t,          \
+                                                  distance_metric,       \
+                                                  double,                \
                                                   F*);
 
 INSTANTIATE(float)

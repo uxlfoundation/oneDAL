@@ -38,7 +38,7 @@ using input_t = compute_input<task::clustering>;
 /// Run the brute-force HDBSCAN GPU pipeline for a single floating-point type.
 ///
 /// Pipeline: pairwise distance matrix -> core distances via k-select ->
-/// in-place MRD matrix (alpha is applied only to dist inside MRD) -> GPU
+/// in-place MRD matrix (`max(core_i, core_j, dist) / alpha`, as scikit-learn's brute path) -> GPU
 /// Boruvka MST (`build_mst`) -> radix sort by weight -> `extract_clusters`.
 /// Outputs per-point responses and the cluster count.
 ///
@@ -90,9 +90,8 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         compute_distance_matrix<Float>(queue, data_nd, dist_matrix, metric, degree, {});
     dist_event.wait_and_throw();
 
-    // Step 2: Compute core distances from the unscaled distance matrix.
-    // Per the canonical HDBSCAN definition, alpha must NOT touch the k-NN
-    // core distance -- it scales only the dist term inside MRD (Step 3).
+    // Step 2: Compute core distances from the unscaled distance matrix; Step 3
+    // applies alpha to the whole MRD.
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
     core_dist_event.wait_and_throw();
@@ -106,8 +105,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                     { dist_event, core_dist_event });
     core_event.wait_and_throw();
 
-    // Step 3: Transform distances into MRD matrix in-place, applying 1/alpha
-    // only to the dist(i,j) term inside the max with core_i, core_j.
+    // Step 3: Transform distances into the MRD matrix in place, scaled by 1/alpha.
     auto& mrd_matrix = dist_matrix;
 
     auto mrd_compute_event =
@@ -154,7 +152,10 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
     // Left empty unless requested, which is what tells `extract_clusters` to skip
     // the probability kernels and `make_results` that there is nothing to wrap.
-    const bool need_probabilities = desc.get_result_options().test(result_options::probabilities);
+    // The centers are weighted by membership probability, so they need it too.
+    const bool need_probabilities = desc.get_result_options().test(result_options::probabilities) ||
+                                    (desc.get_store_centers() != store_centers_method::none &&
+                                     desc.get_result_options().test(result_options::responses));
     pr::ndarray<Float, 1> arr_probabilities;
     if (need_probabilities) {
         arr_probabilities =

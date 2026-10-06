@@ -84,8 +84,11 @@ static result_t compute_kernel_ball_tree_impl(const context_cpu& ctx,
     // skips the extra pass when the table is null, which an unallocated array
     // produces through `convert_to_daal_homogen_table`'s empty-input branch.
     const bool need_probabilities = desc.get_result_options().test(result_options::probabilities);
+    // The centers are weighted by membership probability, as in scikit-learn.
+    const bool need_centers = store_centers != store_centers_method::none &&
+                              desc.get_result_options().test(result_options::responses);
     array<Float> arr_probabilities;
-    if (need_probabilities) {
+    if (need_probabilities || need_centers) {
         arr_probabilities = array<Float>::empty(row_count);
     }
     auto daal_probabilities =
@@ -153,63 +156,17 @@ static result_t compute_kernel_ball_tree_impl(const context_cpu& ctx,
         results.set_responses(dal::homogen_table::wrap(arr_responses, row_count, 1));
 
         if (cluster_count > 0 && store_centers != store_centers_method::none) {
-            const bool need_centroids = (store_centers == store_centers_method::centroid ||
-                                         store_centers == store_centers_method::both);
-            const bool need_medoids = (store_centers == store_centers_method::medoid ||
-                                       store_centers == store_centers_method::both);
-
             daal::data_management::BlockDescriptor<Float> data_block;
             daal_data->getBlockOfRows(0, row_count, daal::data_management::readOnly, data_block);
-            const Float* data_ptr = data_block.getBlockPtr();
-
-            if (need_centroids) {
-                auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-                compute_centroids(ctx,
-                                  data_ptr,
-                                  resp_ptr,
-                                  row_count,
-                                  col_count,
-                                  cluster_count,
-                                  arr_centroids.get_mutable_data());
-                results.set_cluster_centers(
-                    dal::homogen_table::wrap(arr_centroids, cluster_count, col_count));
-
-                if (need_medoids) {
-                    auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                    compute_medoids(ctx,
-                                    data_ptr,
-                                    resp_ptr,
-                                    row_count,
-                                    col_count,
-                                    cluster_count,
-                                    arr_centroids.get_data(),
-                                    arr_medoids.get_mutable_data());
-                    results.set_medoid_centers(
-                        dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
-                }
-            }
-            else if (need_medoids) {
-                auto arr_centroids = array<Float>::empty(cluster_count * col_count);
-                compute_centroids(ctx,
-                                  data_ptr,
-                                  resp_ptr,
-                                  row_count,
-                                  col_count,
-                                  cluster_count,
-                                  arr_centroids.get_mutable_data());
-                auto arr_medoids = array<Float>::empty(cluster_count * col_count);
-                compute_medoids(ctx,
-                                data_ptr,
+            set_cluster_centers(ctx,
+                                desc,
+                                data_block.getBlockPtr(),
                                 resp_ptr,
+                                arr_probabilities.get_data(),
                                 row_count,
                                 col_count,
                                 cluster_count,
-                                arr_centroids.get_data(),
-                                arr_medoids.get_mutable_data());
-                results.set_medoid_centers(
-                    dal::homogen_table::wrap(arr_medoids, cluster_count, col_count));
-            }
-
+                                results);
             daal_data->releaseBlockOfRows(data_block);
         }
     }

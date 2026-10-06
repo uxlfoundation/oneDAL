@@ -15,63 +15,66 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/backend/cpu/cluster_utils.hpp"
+#include "oneapi/dal/table/homogen.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
 template <typename Float>
-void compute_centroids(const dal::backend::context_cpu& ctx,
-                       const Float* data,
-                       const std::int32_t* labels,
-                       std::int64_t row_count,
-                       std::int64_t col_count,
-                       std::int64_t cluster_count,
-                       Float* centroids) {
-    return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        return compute_centroids<decltype(cpu), Float>(data,
-                                                       labels,
-                                                       row_count,
-                                                       col_count,
-                                                       cluster_count,
-                                                       centroids);
-    });
+void set_cluster_centers(const dal::backend::context_cpu& ctx,
+                         const detail::descriptor_base<task::clustering>& desc,
+                         const Float* data,
+                         const std::int32_t* labels,
+                         const Float* weights,
+                         std::int64_t row_count,
+                         std::int64_t col_count,
+                         std::int64_t cluster_count,
+                         compute_result<task::clustering>& result) {
+    const auto store_centers = desc.get_store_centers();
+    if (cluster_count <= 0 || store_centers == store_centers_method::none) {
+        return;
+    }
+    if (store_centers == store_centers_method::centroid ||
+        store_centers == store_centers_method::both) {
+        auto centroids = array<Float>::empty(cluster_count * col_count);
+        dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            compute_centroids<decltype(cpu), Float>(data,
+                                                    labels,
+                                                    weights,
+                                                    row_count,
+                                                    col_count,
+                                                    cluster_count,
+                                                    centroids.get_mutable_data());
+        });
+        result.set_cluster_centers(homogen_table::wrap(centroids, cluster_count, col_count));
+    }
+    if (store_centers == store_centers_method::medoid ||
+        store_centers == store_centers_method::both) {
+        auto medoids = array<Float>::empty(cluster_count * col_count);
+        dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            compute_medoids<decltype(cpu), Float>(data,
+                                                  labels,
+                                                  weights,
+                                                  row_count,
+                                                  col_count,
+                                                  cluster_count,
+                                                  desc.get_metric(),
+                                                  desc.get_degree(),
+                                                  medoids.get_mutable_data());
+        });
+        result.set_medoid_centers(homogen_table::wrap(medoids, cluster_count, col_count));
+    }
 }
 
-template <typename Float>
-void compute_medoids(const dal::backend::context_cpu& ctx,
-                     const Float* data,
-                     const std::int32_t* labels,
-                     std::int64_t row_count,
-                     std::int64_t col_count,
-                     std::int64_t cluster_count,
-                     const Float* centroids,
-                     Float* medoids) {
-    return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        return compute_medoids<decltype(cpu), Float>(data,
-                                                     labels,
-                                                     row_count,
-                                                     col_count,
-                                                     cluster_count,
-                                                     centroids,
-                                                     medoids);
-    });
-}
-
-#define INSTANTIATE(F)                                                \
-    template void compute_centroids(const dal::backend::context_cpu&, \
-                                    const F*,                         \
-                                    const std::int32_t*,              \
-                                    std::int64_t,                     \
-                                    std::int64_t,                     \
-                                    std::int64_t,                     \
-                                    F*);                              \
-    template void compute_medoids(const dal::backend::context_cpu&,   \
-                                  const F*,                           \
-                                  const std::int32_t*,                \
-                                  std::int64_t,                       \
-                                  std::int64_t,                       \
-                                  std::int64_t,                       \
-                                  const F*,                           \
-                                  F*);
+#define INSTANTIATE(F)                                                                  \
+    template void set_cluster_centers(const dal::backend::context_cpu&,                 \
+                                      const detail::descriptor_base<task::clustering>&, \
+                                      const F*,                                         \
+                                      const std::int32_t*,                              \
+                                      const F*,                                         \
+                                      std::int64_t,                                     \
+                                      std::int64_t,                                     \
+                                      std::int64_t,                                     \
+                                      compute_result<task::clustering>&);
 
 INSTANTIATE(float)
 INSTANTIATE(double)

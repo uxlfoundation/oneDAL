@@ -570,14 +570,10 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 
 /// Promote selected clusters that are too dense (birth distance < epsilon) to their parent.
 ///
-/// Implements the cluster_selection_epsilon refinement: any selected cluster
-/// whose birth distance `1 / lambdaBirth[c]` is below `clusterSelectionEpsilon`
-/// is unselected and its parent is selected instead. Repeats until no further
-/// changes (the parent itself may then be too dense and get promoted again).
-///
-/// When the parent is the root cluster and `allowSingleCluster=false`, the
-/// promotion is skipped -- promoting up to the root would silently override the
-/// caller's request that single-cluster outcomes be rejected.
+/// Implements the cluster_selection_epsilon refinement exactly as scikit-learn's
+/// `epsilon_search`: a selected cluster born below `clusterSelectionEpsilon` is
+/// replaced by its first ancestor born above it, or by the root when
+/// `allowSingleCluster` is set, or kept when only the root lies above.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas
 /// @tparam cpu             CPU dispatch tag
@@ -607,27 +603,62 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
         if (e.child >= static_cast<DAAL_INT>(nRows)) clusterParent[e.child] = e.parent;
     }
 
-    bool changed = true;
-    while (changed)
+    // A literal port of scikit-learn's epsilon_search / traverse_upwards. A selected cluster born
+    // below epsilon climbs while its parent was born at or below epsilon, stopping at the first
+    // parent born above it; the root is reached only with allowSingleCluster. Clusters under an
+    // earlier target are skipped, while those born at or above epsilon stay selected as they are.
+    if (isSelected[rootCid]) return;
+    auto birthDist = [&](DAAL_INT c) -> algorithmFPType {
+        return (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
+    };
+    TArray<bool, cpu> pickedArr(nClusters);
+    TArray<bool, cpu> isTargetArr(nClusters);
+    bool * picked   = pickedArr.get();
+    bool * isTarget = isTargetArr.get();
+    if (!picked || !isTarget) return;
+    for (DAAL_INT c = 0; c < nClusters; c++)
     {
-        changed = false;
-        for (DAAL_INT c = rootCid + 1; c < nClusters; c++)
-        {
-            if (!isSelected[c]) continue;
-            const algorithmFPType birthDist = (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
-            if (birthDist < clusterSelectionEpsilon)
-            {
-                const DAAL_INT parent = clusterParent[c];
-                if (parent < rootCid || parent >= nClusters) continue;
-                // Refuse to promote into the root when the caller forbids a
-                // single-cluster outcome; keep the current cluster instead.
-                if (parent == rootCid && !allowSingleCluster) continue;
-                isSelected[c]      = false;
-                isSelected[parent] = true;
-                changed            = true;
-            }
-        }
+        picked[c]   = false;
+        isTarget[c] = false;
     }
+
+    for (DAAL_INT c = rootCid + 1; c < nClusters; c++)
+    {
+        if (!isSelected[c]) continue;
+        if (!(birthDist(c) < clusterSelectionEpsilon))
+        {
+            picked[c] = true;
+            continue;
+        }
+        bool processed = false;
+        for (DAAL_INT a = clusterParent[c]; a >= rootCid && a < nClusters; a = clusterParent[a])
+        {
+            if (isTarget[a])
+            {
+                processed = true;
+                break;
+            }
+            if (a == rootCid) break;
+        }
+        if (processed) continue;
+
+        DAAL_INT target = c;
+        while (true)
+        {
+            const DAAL_INT parent = clusterParent[target];
+            if (parent < rootCid || parent >= nClusters) break;
+            if (parent == rootCid)
+            {
+                if (allowSingleCluster) target = rootCid;
+                break;
+            }
+            target = parent;
+            if (birthDist(parent) > clusterSelectionEpsilon) break;
+        }
+        picked[target]   = true;
+        isTarget[target] = true;
+    }
+    for (DAAL_INT c = 0; c < nClusters; c++) isSelected[c] = picked[c];
 }
 
 /// Build CSR-style child offsets via prefix-sum over per-cluster child counts.
@@ -763,6 +794,13 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
     else
     {
         const DAAL_INT treeTop = allowSingleCluster ? rootCid : (rootCid + 1);
+        if (allowSingleCluster)
+        {
+            // scikit-learn caps the root by the points its child clusters hold, not by every point.
+            DAAL_INT rootSize = 0;
+            for (DAAL_INT k = childOffset[rootCid]; k < childOffset[rootCid] + childCount[rootCid]; k++) rootSize += clusterSz[childList[k]];
+            clusterSz[rootCid] = rootSize;
+        }
         TArray<DAAL_INT, cpu> descStackArr(nClusters);
         DAAL_INT * descStack = descStackArr.get();
         runEomSelection<algorithmFPType, cpu>(nClusters, treeTop, mcsMax, stability, clusterSz, isLeafCluster, childOffset, childCount, childList,
