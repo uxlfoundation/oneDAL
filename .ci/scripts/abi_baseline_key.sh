@@ -18,7 +18,7 @@
 # Chooses the cached main build that the ABI check compares against and writes
 # its cache key to GITHUB_OUTPUT.
 #
-# Usage: abi_baseline_key.sh <base-commit> [window] [stale-after]
+# Usage: abi_baseline_key.sh <base-commit> [window]
 #
 # Taking the newest entry in main's cache scope is wrong for three reasons.
 #
@@ -27,26 +27,36 @@
 # scope would miss, and the comparison would then run against an empty
 # directory.
 #
-# Provenance. Any job whose GITHUB_REF is main can write into main's cache
-# scope, the fork pull request jobs in Nightly-test included, and a key that did
-# not exist before is always the newest one. So candidates come from commits
-# rather than from the cache listing. Keys are immutable, so the only race left
-# is against the real main build for a real commit's key.
+# Provenance. Candidates come from commits, not from the cache listing, so the
+# newest key in the listing does not decide anything. Only trusted triggers
+# (push, schedule, workflow_dispatch) can write to main's cache scope; runs from
+# workflow_run, pull_request_target and issue_comment get read-only access. Even
+# so, a key for a real main commit whose entry has expired could be re-created
+# by anything that can write there, and the walk below would pick it if nothing
+# newer is cached. The restored tree is only ever read by abidiff.
 #
 # Ancestry. abidiff compares two trees; it does not report what a pull request
-# changed. When the baseline is not an ancestor of the build under test, main's
-# own changes show up in the report inverted, and a change the pull request
-# shares with one of them does not show up at all -- that is how a real break
-# passes. So start from the base commit the build contains. Fall back to main's
-# tip only when that base has no cached build left, and say that the comparison
-# is no longer exact.
+# changed. So start from the base commit the build contains: when that commit is
+# cached, the report holds the pull request's own changes and nothing else. When
+# it is not (its main CI run has not finished saving the cache yet), the newest
+# cached ancestor is used and the main commits in between show up in the report
+# as if the pull request had made them. A change that undoes one of them -- such
+# as removing a symbol main just added -- then cancels out and is not reported.
+# Every inexact comparison says so in a warning.
 
 set -euo pipefail
 
 BASE_SHA=${1:-}
 WINDOW=${2:-20}
-STALE_AFTER=${3:-5}
 KEY_PREFIX=__release_lnx
+
+# An empty base is always a wiring bug in the caller (for example reading the
+# parents of a shallow clone's HEAD, which git reports as having none), never a
+# cache gap, so do not let it fall through to the inexact baseline.
+if [ -z "${BASE_SHA}" ]; then
+    echo "::error::No base commit was passed. The caller must pass the first parent of the merge commit under test."
+    exit 1
+fi
 
 # Runs "$@" up to three times, backing off in between, and echoes its output, so
 # one API hiccup does not get to decide which baseline the check uses.
@@ -62,9 +72,10 @@ retry() {
     return 1
 }
 
-# A failure to list the caches is safe to carry on from: no key can match, so
-# the job stops at the hard error below rather than comparing against nothing.
-available=$(retry gh cache list --ref refs/heads/main --key "${KEY_PREFIX}" --limit 100 --json key --jq '.[].key') || available=""
+available=$(retry gh cache list --repo "${GITHUB_REPOSITORY}" --ref refs/heads/main --key "${KEY_PREFIX}" --limit 100 --json key --jq '.[].key') || {
+    echo "::error::Could not list the caches on refs/heads/main. Rerun this job."
+    exit 1
+}
 
 # A failure here is not safe to carry on from. It yields no candidates, which is
 # indistinguishable from "no cached ancestor" and would quietly pick the inexact
@@ -87,15 +98,12 @@ newest_cached_in() {
     return 1
 }
 
-result=""
+base_commits=$(ancestors_of "${BASE_SHA}") || {
+    echo "::error::Could not list the commits reachable from ${BASE_SHA}. Rerun this job."
+    exit 1
+}
 exact=yes
-if [ -n "${BASE_SHA}" ]; then
-    base_commits=$(ancestors_of "${BASE_SHA}") || {
-        echo "::error::Could not list the commits reachable from ${BASE_SHA}. Rerun this job."
-        exit 1
-    }
-    result=$(newest_cached_in "${base_commits}") || result=""
-fi
+result=$(newest_cached_in "${base_commits}") || result=""
 if [ -z "${result}" ]; then
     exact=no
     main_commits=$(ancestors_of main) || {
@@ -111,8 +119,9 @@ read -r cache_key behind <<< "${result}"
 
 if [ "${exact}" = no ]; then
     echo "::warning::No cached main build for this pull request's base or its last ${WINDOW} ancestors, so the baseline is main's tip. Changes merged into main since the base will show up in this check, and a change this pull request shares with one of them will not show up at all. Rebase onto main for an exact comparison."
-elif [ "${behind}" -gt "${STALE_AFTER}" ]; then
-    echo "::warning::Baseline is ${behind} commits behind this pull request's base. Changes merged into main in between will show up in this check."
+elif [ "${behind}" -gt 0 ]; then
+    exact=no
+    echo "::warning::The base commit's main build is not cached yet, so the baseline is ${behind} commit(s) behind it. Those commits' ABI changes show up in this check, and a change in this pull request that undoes one of them is not reported. Rerun this job once the 'CI' run on main for the base commit has finished."
 fi
 
 echo "${cache_key} (exact: ${exact}, ${behind} commits back)"

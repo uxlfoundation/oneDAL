@@ -174,8 +174,10 @@ jobs:
         run: |
           # `checkout` leaves the pull request's merge commit at HEAD; its first
           # parent is the main commit this build contains. That commit is the
-          # baseline, not main's tip -- the script explains why.
-          .ci/scripts/abi_baseline_key.sh "$(git log -1 --format=%P | cut -d' ' -f1)"
+          # baseline, not main's tip -- the script explains why. The clone is
+          # shallow, so `git log --format=%P` and `HEAD^1` see no parents; the
+          # commit object still records them.
+          .ci/scripts/abi_baseline_key.sh "$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download oneDAL main build
