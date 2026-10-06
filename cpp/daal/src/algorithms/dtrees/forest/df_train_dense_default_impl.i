@@ -1191,6 +1191,8 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
     RNGsInst<IndexType, cpu> rng;
     /* index for swapping samples in Fisher-Yates sampling */
     IndexType swapIdx;
+    /* aIdx is still ordered by the feature of the best non-indexed split */
+    bool aIdxHoldsBestSplit = false;
 
     for (size_t i = 0; i < maxFeatures && nVisitedFeature < _nFeaturesPerNode; ++i)
     {
@@ -1263,6 +1265,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
         {
             algorithmFPType * featBuf = featureBufFPType() + iStart; //single thread
             featureValuesToBuf(iFeature, featBuf, aIdx, n);
+            aIdxHoldsBestSplit = false;
             if (featBuf[n - 1] - featBuf[0] <= _accuracy) //all values of the feature are the same
                 continue;
 #ifdef DEBUG_CHECK_IMPURITY
@@ -1274,10 +1277,14 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
                 continue;
             idxFeatureValueBestSplit = -1;
             iBestSplit               = i;
+            aIdxHoldsBestSplit       = true;
             split.copyTo(bestSplit);
             DAAL_ASSERT(bestSplit.iStart < n);
             DAAL_ASSERT(bestSplit.iStart + bestSplit.nLeft <= n);
-            if (i + 1 < _nFeaturesPerNode || split.featureUnordered) services::internal::tmemcpy<IndexType, cpu>(bestSplitIdx, aIdx, n);
+            // Skipped constant features do not count as visited, so the loop can run past
+            // i == _nFeaturesPerNode - 1 and re-sort aIdx; save the order unless this is the last pass.
+            const bool lastPass = (nVisitedFeature >= _nFeaturesPerNode) || (i + 1 >= maxFeatures);
+            if (!lastPass || split.featureUnordered) services::internal::tmemcpy<IndexType, cpu>(bestSplitIdx, aIdx, n);
 #ifdef DEBUG_CHECK_IMPURITY
             _helper.checkImpurity(aIdx, bestSplit.nLeft, bestSplit.left);
 #endif
@@ -1326,8 +1333,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
         }
     }
     else
-        bCopyToIdx = (iBestSplit + 1 < _nFeaturesPerNode); //if iBestSplit is the last considered feature
-                                                           //then aIdx already contains the best split, no need to copy
+        bCopyToIdx = !aIdxHoldsBestSplit; //restore the saved order only if a later feature re-sorted aIdx
     if (bCopyToIdx) services::internal::tmemcpy<IndexType, cpu>(aIdx, bestSplitIdx, n);
     return { st, true };
 }
