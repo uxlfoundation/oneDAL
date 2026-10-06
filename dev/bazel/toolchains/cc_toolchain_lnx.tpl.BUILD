@@ -20,11 +20,6 @@ load("@onedal//dev/bazel/toolchains:cc_toolchain_config_lnx.bzl", "cc_toolchain_
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 filegroup(
-    name = "empty",
-    srcs = [],
-)
-
-filegroup(
     name = "compiler_deps",
     srcs = [%{compiler_deps}],
 )
@@ -69,13 +64,8 @@ cc_toolchain(
     toolchain_identifier = "%{cc_toolchain_identifier}",
     toolchain_config = ":%{cc_toolchain_identifier}_config",
     all_files = ":compiler_deps",
-    ar_files = ":empty",
     as_files = ":compiler_deps",
     compiler_files = ":compiler_deps",
-    dwp_files = ":empty",
-    linker_files = ":empty",
-    objcopy_files = ":empty",
-    strip_files = ":empty",
     supports_param_files = %{supports_param_files},
 )
 
