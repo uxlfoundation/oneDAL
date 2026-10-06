@@ -136,7 +136,6 @@ inline daal::data_management::NumericTablePtr convert_to_daal_table(const homoge
     if (need_copy || table.get_queue().has_value()) {
 #else
     if (need_copy) {
-
 #endif
     	    return copy_to_daal_homogen_table<Data>(table);
     }
