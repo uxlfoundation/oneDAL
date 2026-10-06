@@ -343,7 +343,7 @@ public:
             return services::Status();
         }
 
-        daal::threader_for(static_cast<int>(nTasks), static_cast<int>(nTasks), [&](int iTask) {
+        daal::threader_for(static_cast<int>(nTasks), 1, [&](int iTask) {
             const size_t firstBlock = static_cast<size_t>(iTask) * blocksPerTask;
             const size_t lastBlock  = services::internal::min<cpu, size_t>(firstBlock + blocksPerTask, nBlocks);
             for (size_t iBlock = firstBlock; iBlock < lastBlock; ++iBlock)
