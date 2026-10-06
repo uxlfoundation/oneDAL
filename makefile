@@ -145,7 +145,9 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # they are always enabled when the REQDBG flag is set.
 -DEBC          := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 -DEBC_DPCPP    := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
--DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+# -gz at compile time only compresses the objects: ld writes the library's debug
+# sections uncompressed unless told otherwise.
+-DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,$(if $(OS_is_lnx),-Wl$(comma)--compress-debug-sections=zlib)))
 # Device-code (SPIR-V) compression for the embedded fat binary in DPC libs.
 # Enabled only with REQDBG, where the SPIR-V section dominates the .so size.
 # Level 9 is a deliberate fixed default: ABI-safe (decompressed at JIT, host
@@ -161,7 +163,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # runtime (libclang_rt.asan-x86_64.so) in its NEEDED list so the loader pulls it in
 # *before* libsycl.so / Level-Zero have a chance to allocate during their init
 # constructors. `-fsanitize=address` is wrapped under -Xarch_host (the device link
-# rejects it), but `-shared-libasan` is passed plain — icpx accepts it on the host
+# rejects it), but `-shared-libasan` is passed plain - icpx accepts it on the host
 # link and it forces the dynamic ASan runtime into NEEDED. Without -shared-libasan,
 # icpx defaults to the static archive on shared libraries, leaving the runtime
 # undiscoverable from the example binary and triggering the
