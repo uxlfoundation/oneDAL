@@ -3080,6 +3080,48 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                       domain_error);
 }
 
+using hdbscan_tree_types = COMBINE_TYPES((float, double),
+                                         (hdbscan::method::kd_tree, hdbscan::method::ball_tree));
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan trees: small leaves keep the exact core distances",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_tree_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // The k-NN heap used to report its partial maximum as the pruning radius before it held
+    // `min_samples` points, so a query could skip the subtrees holding its true neighbours and
+    // return a core distance that was too small. Leaves smaller than `min_samples` exposed it.
+    constexpr std::int64_t row_count = 20;
+    const bool on_line = GENERATE(true, false);
+    CAPTURE(on_line);
+    std::vector<Float> data(row_count * 2);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        // Growing gaps, so no two merge distances tie.
+        data[2 * i] = Float(i * i);
+        data[2 * i + 1] = on_line ? Float(0) : Float(0.37) * Float(i % 3);
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, 2);
+
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto ref_desc =
+        hdbscan::descriptor<Float, hdbscan::method::brute_force>(3, 5).set_result_options(options);
+    const auto ref = oneapi::dal::test::engine::compute(this->get_policy(), ref_desc, x);
+    const auto ref_tree = row_accessor<const Float>(ref.get_single_linkage_tree()).pull({ 0, -1 });
+
+    const std::int64_t leaf_size = GENERATE(1, 2, 3);
+    CAPTURE(leaf_size);
+    const auto desc =
+        hdbscan::descriptor<Float, Method>(3, 5).set_leaf_size(leaf_size).set_result_options(
+            options);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+    const auto tree = row_accessor<const Float>(result.get_single_linkage_tree()).pull({ 0, -1 });
+
+    check_same_hierarchy(tree, ref_tree, row_count, te::get_tolerance<Float>(1e-4, 1e-9));
+}
+
 // =========================================================================
 // GPU tests (conditional on ONEDAL_DATA_PARALLEL)
 // =========================================================================

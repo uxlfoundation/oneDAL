@@ -709,7 +709,7 @@ struct KnnHeap
     /// Return the current k-th nearest distance, or `+inf` if the heap isn't full.
     ///
     /// Useful as a pruning radius for tree traversals.
-    FPType maxDist() const { return (size_ > 0) ? dists_[0] : daal::services::internal::MaxVal<FPType>::get(); }
+    FPType maxDist() const { return (size_ == capacity_) ? dists_[0] : daal::services::internal::MaxVal<FPType>::get(); }
 
     /// Insert a candidate `(dist, idx)`; ignored if the heap is full and the
     /// distance is not strictly smaller than the current top.
