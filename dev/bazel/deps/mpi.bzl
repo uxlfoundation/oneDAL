@@ -16,7 +16,22 @@
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
+_VERSION = "2021.16.1"
+
 mpi_repo = repos.prebuilt_libs_repo_rule(
+    root_env_var = "MPIROOT",
+    archives = [
+        repos.archive(
+            url = "https://files.pythonhosted.org/packages/e5/44/6867aebd60d8b8bcf8f7e3b1fa781debd4fc3df16bfb1525e732570ea214/impi_rt-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
+            sha256 = "0f70499bc42eab6923c0ae8fa6dd409c047d93626d686ac21d04e295b120bb95",
+            strip_prefix = "impi_rt-{}.data/data".format(_VERSION),
+        ),
+        repos.archive(
+            url = "https://files.pythonhosted.org/packages/41/75/46b81412f336dde770a56960c7b10af6860efa4dd3aa9796d5eb2645644a/impi_devel-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
+            sha256 = "d1081a1647a4de521e2680983629d627704364a07f16c60aaec0bb85535e25bd",
+            strip_prefix = "impi_devel-{}.data/data".format(_VERSION),
+        ),
+    ],
     bins = [
         "bin",
     ],

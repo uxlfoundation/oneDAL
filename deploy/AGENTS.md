@@ -121,4 +121,4 @@ deploy/local/vars_win.bat
 ## 📖 Further Reading
 - **[AGENTS.md](../AGENTS.md)** - Main repository context
 - **[dev/AGENTS.md](../dev/AGENTS.md)** - Development tools context
-- **[ci/AGENTS.md](../ci/AGENTS.md)** - CI infrastructure context
+- **[ci/AGENTS.md](../.ci/AGENTS.md)** - CI infrastructure context

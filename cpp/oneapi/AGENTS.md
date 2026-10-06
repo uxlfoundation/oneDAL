@@ -6,22 +6,24 @@
 
 - **Headers**: `.hpp` files with `#pragma once`
 - **Memory**: STL RAII (`std::unique_ptr`, `std::shared_ptr`)
-- **Errors**: C++ exceptions (`std::invalid_argument`, `std::domain_error`)
+- **Errors**: exceptions from `cpp/oneapi/dal/exceptions.hpp` (`dal::invalid_argument`, `dal::domain_error`, ...) with messages from `detail/error_messages.hpp`, e.g. `throw invalid_argument{ dal::detail::error_messages::queues_in_different_contexts() };` (`backend/common.hpp`)
+- **Naming**: `snake_case` for types, functions, variables and constants (`train_ops`, `get_data()`, `row_count`); private members take a trailing underscore (`store_`, `comm_`)
 - **GPU**: Intel SYCL with USM for CPU/GPU operations
 - **Namespace**: `oneapi::dal::v1` (stable), `preview` (experimental)
+- **Interface**: Never mix DAAL and oneAPI patterns in same file
 
 ## 🚀 Essential Commands
 
 ### Bazel build and test
 ```bash
 # Build oneAPI interface
-`bazel build //cpp/oneapi/dal:core`
+bazel build //cpp/oneapi/dal:core
 
-# Run CPU tests
-`bazel test //cpp/oneapi/dal:tests`
+# Run CPU (host) tests
+bazel test --config=host //cpp/oneapi/dal:tests
 
-# Run GPU tests
-`bazel test --config=dpc //cpp/oneapi/dal:tests`
+# Run DPC++ tests on GPU
+bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests
 ```
 
 ### Make and CMake build
@@ -33,11 +35,11 @@ make onedal_c
 # Build oneAPI interface with CPU and GPU support
 make onedal_dpc
 
-# Build dynamic link version of examples
-export CC=icx
-export CXX=icpx
-cmake -G "Unix Makefiles" -DONEDAL_LINK=dynamic
-make
+# Build the examples against the release tree (there is no root CMakeLists.txt)
+source __release_lnx/daal/latest/env/vars.sh
+cd examples/oneapi/cpp
+cmake -B build -S . -DONEDAL_LINK=dynamic
+cmake --build build --parallel
 ```
 
 ## 🛠️ Core Patterns
@@ -58,9 +60,9 @@ auto result = train(desc, data);
 sycl::queue gpu_q(sycl::gpu_selector_v);
 auto gpu_result = train(gpu_q, desc, data);
 
-// Distributed execution
-auto comm = spmd::make_communicator();
-auto dist_result = train(comm, desc, data);
+// Distributed execution (samples/oneapi/cpp/ccl)
+auto comm = preview::spmd::make_communicator<preview::spmd::backend::ccl>();
+auto dist_result = preview::train(comm, desc, data);
 ```
 
 ### Data Tables
@@ -78,12 +80,12 @@ auto table = homogen_table::wrap(data, rows, cols);
 // Access data
 auto accessor = row_accessor<const float>(table);
 auto subset = accessor.pull({0, 10}); // Rows 0-9
-const float * data_block subset.get_data();
+const float * data_block = subset.get_data();
 
 // Pull memory with device access
-auto subset_gpu = accessor.pull({0, 10}, sycl::usm::alloc::device);
+auto subset_gpu = accessor.pull(gpu_q, {0, 10}, sycl::usm::alloc::device);
 // SYCL USM pointer
-const float * gpu_data_block subset_gpu.get_data();
+const float * gpu_data_block = subset_gpu.get_data();
 ```
 
 ### Exception Handling
@@ -97,20 +99,6 @@ try {
 }
 ```
 
-### Memory Management (RAII)
-```cpp
-class DataProcessor {
-private:
-    std::unique_ptr<float[]> buffer_;
-    std::shared_ptr<homogen_table> table_;
-
-public:
-    DataProcessor(size_t size)
-        : buffer_(std::make_unique<float[]>(size))
-        , table_(std::make_shared<homogen_table>(buffer_.get(), rows, cols)) {}
-};
-```
-
 ### SYCL GPU Kernels
 ```cpp
 template <typename Float>
@@ -119,9 +107,8 @@ sycl::event gpu_compute(sycl::queue& q,
                        std::int64_t n,
                        const std::vector<sycl::event>& deps) {
     return q.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
         cgh.parallel_for(sycl::nd_range<1>(n, 256), [=](sycl::nd_item<1> item) {
-            // Dependencies handling
-            cgh.depends_on(deps);
             const auto idx = item.get_global_id(0);
             // GPU computation
         });
@@ -129,16 +116,13 @@ sycl::event gpu_compute(sycl::queue& q,
 }
 ```
 
-## 🎯 Critical Rules
+## 📝 Rules for Changes
 
-- **Memory**: Always use STL smart pointers, never raw pointers for ownership
-- **Headers**: Use `.hpp` with `#pragma once`, `oneapi::dal` namespace
-- **GPU**: SYCL integration with USM for zero-copy operations
-- **Type Safety**: Template metaprogramming with compile-time dispatch
-- **Interface**: Never mix DAAL and oneAPI patterns in same file
+- Public types are declared in a versioned namespace and re-exported: `namespace v1 { struct x {}; }` followed by `using v1::x;`. The namespace is not `inline`, so a type without the `using` line is unreachable as `oneapi::dal::...::x`. Reference: `cpp/oneapi/dal/algo/pca/common.hpp`.
+- Use `nullptr`, never `0` or `NULL`. Write `override` directly, not through a macro. No `using namespace` in headers.
 
 ## 🔗 References
 
 - **[AGENTS.md](../../AGENTS.md)** - Repository overview
 - **[cpp/daal/AGENTS.md](../daal/AGENTS.md)** - Traditional DAAL interface
-- **[.github/instructions/cpp-coding-guidelines.instructions.md](../../.github/instructions/cpp-coding-guidelines.instructions.md)** - Detailed C++ standards
+- **[cpp/AGENTS.md](../AGENTS.md)** - Interface conventions shared by both interfaces

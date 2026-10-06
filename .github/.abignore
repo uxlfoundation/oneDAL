@@ -31,6 +31,25 @@ drop = yes
 symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; DAAL THREADING LAYER DESELECTIONS ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; deselect the loop entry points of the threading layer
+;
+; These are exported from libonedal_thread only, with C linkage, and no installed header
+; declares them: nothing outside the libraries that ship alongside libonedal_thread can hold a
+; reference to them, so their signatures and their set of names are not part of the product ABI.
+; The oneDAL-level wrappers in oneapi/dal/detail/threading.hpp -- the _onedal_threader_* family,
+; which an application's own object files *can* reference -- are deliberately not deselected
+; here.
+;
+; A regexp rather than one entry per symbol, so that adding a loop entry point does not also
+; mean editing this file.
+
+[suppress_function]
+symbol_name_regexp = ^_daal_(static_)?threader_for.*
+drop = yes
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL 2026.0 REMOVALS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

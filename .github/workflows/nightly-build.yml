@@ -69,6 +69,17 @@ jobs:
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # On pull requests build the pull request's head commit rather than
+          # the merge commit checkout defaults to. Nightly-test consumes these
+          # artifacts through `workflow_run`, where the only commit it can
+          # check out is `workflow_run.head_sha` — the head. With the default
+          # ref the Make tree here contains the base branch's commits and the
+          # Bazel tree built there does not, and `Compare make and Bazel
+          # releases` reports that skew as a parity failure of the pull
+          # request. Empty on schedule and workflow_dispatch, where checkout
+          # falls back to the triggering ref.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -108,6 +119,9 @@ jobs:
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Pull request head, not the merge commit: see `build_lnx`.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install DPC++
         shell: cmd
         run: |
