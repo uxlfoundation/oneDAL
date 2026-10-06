@@ -1483,15 +1483,18 @@ inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
                     }
                 };
 
+            // A FIFO queue: breadth-first, left before right, like scikit-learn's _condense_tree,
+            // which is what numbers the clusters. Each node is enqueued at most once.
+            std::int32_t ct_head = 0;
             std::int32_t ct_sp = 0;
             w.stk_ptr[ct_sp] = root;
             w.stk_cid_ptr[ct_sp] = w.dtc_ptr[root];
             ct_sp++;
 
-            while (ct_sp > 0) {
-                ct_sp--;
-                const std::int32_t nid = w.stk_ptr[ct_sp];
-                const std::int32_t parent_cid = w.stk_cid_ptr[ct_sp];
+            while (ct_head < ct_sp) {
+                const std::int32_t nid = w.stk_ptr[ct_head];
+                const std::int32_t parent_cid = w.stk_cid_ptr[ct_head];
+                ct_head++;
 
                 if (nid < w.row_count)
                     continue;

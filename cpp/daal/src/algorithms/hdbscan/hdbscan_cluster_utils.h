@@ -340,10 +340,12 @@ static size_t buildCondensedTree(DAAL_INT root, size_t nRows, DAAL_INT mcs, cons
         DAAL_INT node;
         DAAL_INT cluster;
     };
-    // Worst-case stack depth: every survivor rebuilds itself on the stack,
-    // so a 2*nRows budget covers the patho cases without bounds checks.
+    // A FIFO queue, so the nodes are visited breadth-first, left before right, as
+    // scikit-learn's _condense_tree does; that order is what numbers the clusters.
+    // Each dendrogram node is enqueued at most once, so 2*nRows slots suffice.
     TArray<StackItem, cpu> mainStackArr(2 * nRows);
     StackItem * mainStack     = mainStackArr.get();
+    size_t mainStackHead      = 0;
     size_t mainStackTop       = 0;
     mainStack[mainStackTop++] = { root, dendroToCluster[root] };
 
@@ -360,9 +362,9 @@ static size_t buildCondensedTree(DAAL_INT root, size_t nRows, DAAL_INT mcs, cons
         }
     };
 
-    while (mainStackTop > 0)
+    while (mainStackHead < mainStackTop)
     {
-        const StackItem item     = mainStack[--mainStackTop];
+        const StackItem item     = mainStack[mainStackHead++];
         const DAAL_INT nid       = item.node;
         const DAAL_INT parentCid = item.cluster;
 
