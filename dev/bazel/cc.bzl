@@ -329,7 +329,7 @@ def _copy_windows_release_file(ctx, src, out_name, extra_inputs = []):
         src: the file produced by the link action.
         out_name: base name of the copy, declared in the current package.
         extra_inputs: further link outputs to declare as inputs, so that the
-                      copy cannot run before the whole link action completed.
+                      copy cannot run before the whole link action has completed.
 
     Returns:
         The declared copy.
