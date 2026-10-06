@@ -19,8 +19,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect daal::internal namespaces
 ;
-; A note on the shape of these patterns. In Itanium mangling a nested name is a
-; run of length-prefixed components: daal::internal::f is N4daal8internal1fE.
+; A note on the shape of these patterns. In the Itanium C++ ABI mangling, which
+; gcc and clang use on every Linux target (the ABI is named after its original
+; platform, it is not about that CPU), a nested name is a run of length-prefixed
+; components: daal::internal::f is N4daal8internal1fE.
 ; The digit in front of `internal` is that component's own length prefix, so
 ; there is nothing between `4daal` and `8internal` for a nested-namespace symbol
 ; directly under `daal`. A pattern that requires a digit there --

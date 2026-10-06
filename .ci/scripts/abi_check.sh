@@ -18,11 +18,6 @@
 ci_dir=$(dirname $(dirname $(dirname "${BASH_SOURCE[0]}")))
 cd $ci_dir
 
-# Symbol names are ASCII, and the symbol-set comparison below relies on `sort`
-# and `comm` agreeing on collation order. Pinning the locale makes that
-# agreement independent of the runner image.
-export LC_ALL=C
-
 # relative paths must be made from the oneDAL repo root
 main_release_dir=$1
 release_dir=$2
@@ -32,17 +27,18 @@ RETURN_CODE=0
 # need nm; both are used unconditionally, so a missing binutils would otherwise
 # surface as a wrong answer rather than as a failure.
 for tool in nm objcopy readelf; do
-    if ! command -v "$tool" >/dev/null 2>&1; then
+    if [ -z "$(command -v "$tool")" ]; then
         echo "::error:: ${tool} not found (binutils is required, see .ci/env/apt.sh abigail)"
         exit 1
     fi
 done
 
 has_dwarf () {
+    # $1: path to a shared library. Succeeds if it has a .debug_info section.
     # libabigail builds a type-aware corpus from .debug_info and an
     # ELF-symbol-only one without it, so this decides which kind of comparison
     # a given library can take part in.
-    readelf -SW "$1" 2>/dev/null | grep -q '[[:space:]]\.debug_info[[:space:]]'
+    readelf -SW "$1" | grep -q '[[:space:]]\.debug_info[[:space:]]'
 }
 
 strip_dir=$(mktemp -d)
@@ -70,9 +66,13 @@ do
     # a weaker check than the log claims, and nothing says so. Say so, and strip
     # both sides so the comparison is the same in either direction no matter how
     # libabigail chooses to mix a DWARF corpus with a symbols-only one.
-    dwarf_old=no; has_dwarf "$old" && dwarf_old=yes
-    dwarf_new=no; has_dwarf "$new" && dwarf_new=yes
-    if [ "$dwarf_old" != "$dwarf_new" ] && [ -f "$new" ]; then
+    # A missing $new is reported by abidiff below; readelf only needs to see files.
+    dwarf_old=no; dwarf_new=no
+    if [ -f "$new" ]; then
+        has_dwarf "$old" && dwarf_old=yes
+        has_dwarf "$new" && dwarf_new=yes
+    fi
+    if [ "$dwarf_old" != "$dwarf_new" ]; then
         echo "::warning:: ${name}: debug info present in only one build" \
              "(main: ${dwarf_old}, this branch: ${dwarf_new}). Comparing stripped" \
              "copies, so this library is checked for symbol addition and removal" \
