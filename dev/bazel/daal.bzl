@@ -189,9 +189,11 @@ def _daal_patch_kernel_defines_impl(ctx):
     that substitution, without a helper script: it rewrites the file at
     execution time, so nothing has to read its contents during analysis.
 
-    The substitution is literal, not anchored like sed's `^...\\b`, which is
-    equivalent here because the header holds one bare `#define DAAL_KERNEL_*`
-    per line and mentions those macros nowhere else.
+    The key spans the whole line, newlines included, so that it matches only a
+    bare `#define DAAL_KERNEL_<ISA>` like sed's `^...\\b` and never a longer
+    macro name or a comment. The header is `eol=lf` (see `.gitattributes`) and
+    no define sits on its first line. Each substitution keeps the trailing
+    newline, so adjacent disabled defines still match one after another.
     """
     disabled_cpus = sets.to_list(_get_disabled_cpus(ctx))
     kernel_defines = _declare_patched_kernel_defines(ctx)
@@ -202,7 +204,7 @@ def _daal_patch_kernel_defines_impl(ctx):
         template = ctx.file.src,
         output = kernel_defines,
         substitutions = {
-            "#define DAAL_KERNEL_{}".format(cpu.upper()): "\r" if is_windows else ""
+            "\n#define DAAL_KERNEL_{}\n".format(cpu.upper()): "\n\r\n" if is_windows else "\n\n"
             for cpu in disabled_cpus
         },
     )
