@@ -21,8 +21,8 @@ cc_library(
 
 cc_library(
     name = "onemath_dpc",
-    # Only the run-time dispatching library is linked; the per-domain backend
-    # libraries listed in `onemath_runtime` are loaded by the dispatcher.
+    # Only the run-time dispatching library is linked; the dispatcher loads the
+    # per-domain backend libraries itself (see onemath.bzl).
     srcs = glob([
         "lib/libonemath.so*",
     ]),
@@ -42,11 +42,4 @@ cc_library(
     defines = [
         "ONEDAL_MATH_BACKEND_ONEMATH",
     ],
-)
-
-filegroup(
-    name = "onemath_runtime",
-    srcs = glob([
-        "lib/libonemath*.so*",
-    ], allow_empty = True),
 )

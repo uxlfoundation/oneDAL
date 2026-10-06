@@ -28,10 +28,10 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # `--dpc_math_backend=onemath`.
 #
 # oneDAL links only the run-time dispatching library, `libonemath.so`. The
-# per-backend shared objects are `dlopen`ed by the dispatcher, so they are
-# staged as optional libraries: they must sit next to `libonemath.so` at run
-# time but are never link inputs, and which of them exist depends on how
-# oneMath was configured.
+# per-backend shared objects are `dlopen`ed by the dispatcher through a
+# `$ORIGIN` RUNPATH, which under Bazel is the `_solib` directory and not the
+# oneMath install, so they are found through `LD_LIBRARY_PATH` (see
+# `--config=nvidia-gpu` in dev/bazel/README.md) and are not staged here.
 #
 # Every pattern is globbed the way `mkl.bzl` globs its shared objects, because
 # oneMath installs `libonemath.so` as a symlink to the SONAME'd
@@ -46,15 +46,6 @@ onemath_repo = repos.prebuilt_libs_repo_rule(
     ],
     libs = [
         "lib/libonemath.so*",
-    ],
-    optional_libs = [
-        "lib/libonemath_blas_cublas.so*",
-        "lib/libonemath_lapack_cusolver.so*",
-        "lib/libonemath_rng_curand.so*",
-        "lib/libonemath_sparse_blas_cusparse.so*",
-        "lib/libonemath_blas_mklgpu.so*",
-        "lib/libonemath_lapack_mklgpu.so*",
-        "lib/libonemath_rng_mklgpu.so*",
     ],
     build_template = "@onedal//dev/bazel/deps:onemath.tpl.BUILD",
 )
