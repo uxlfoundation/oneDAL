@@ -111,7 +111,7 @@ void descriptor_base<Task>::set_metric_impl(distance_metric value) {
 
 template <typename Task>
 void descriptor_base<Task>::set_degree_impl(double value) {
-    if (value <= 0.0) {
+    if (!(value > 0.0)) {
         throw domain_error(dal::detail::error_messages::invalid_minkowski_degree());
     }
     impl_->degree = value;

@@ -503,9 +503,9 @@ struct CosinePoweredDistance
             bb += b[i] * b[i];
         }
         const FPType norm = MathInst<FPType, cpu>::sSqrt(aa) * MathInst<FPType, cpu>::sSqrt(bb);
-        // A zero row has no direction, so there is no angle between it and
-        // anything else. Report maximum separation instead of dividing by zero.
-        return norm > FPType(0) ? FPType(1) - dot / norm : FPType(1);
+        if (norm > FPType(0)) return FPType(1) - dot / norm;
+        // As in scikit-learn, a zero row is at distance 1 from non-zero rows; two zero rows coincide.
+        return (aa == FPType(0) && bb == FPType(0)) ? FPType(0) : FPType(1);
     }
 };
 
@@ -610,6 +610,50 @@ public:
     }
 
 private:
+    /// Replaces the 0/0 entries `CosineDistances` produces for zero rows with the values
+    /// `CosinePoweredDistance` uses.
+    ///
+    /// @param inData   Input        `iSize x dim` row-major block of the inner table
+    /// @param iSize    Input        Number of rows in `inData`, at most 128
+    /// @param dim      Input        Number of columns compared
+    /// @param outData  Input        `jSize x outDim` row-major block of the outer table
+    /// @param jSize    Input        Number of rows in `outData`, at most 128
+    /// @param outDim   Input        Row stride of `outData`
+    /// @param dist     Output/Input `iSize x jSize` row-major block of cosine distances
+    static void setZeroRowCosineDistances(const FPType * inData, size_t iSize, size_t dim, const FPType * outData, size_t jSize, size_t outDim,
+                                          FPType * dist)
+    {
+        DAAL_ASSERT(iSize <= 128 && jSize <= 128);
+        bool inZero[128];
+        bool outZero[128];
+        bool anyZero         = false;
+        const auto isZeroRow = [dim](const FPType * row) {
+            for (size_t k = 0; k < dim; ++k)
+            {
+                if (row[k] != FPType(0)) return false;
+            }
+            return true;
+        };
+        for (size_t i = 0; i < iSize; ++i)
+        {
+            inZero[i] = isZeroRow(inData + i * dim);
+            anyZero |= inZero[i];
+        }
+        for (size_t j = 0; j < jSize; ++j)
+        {
+            outZero[j] = isZeroRow(outData + j * outDim);
+            anyZero |= outZero[j];
+        }
+        if (!anyZero) return;
+        for (size_t i = 0; i < iSize; ++i)
+        {
+            for (size_t j = 0; j < jSize; ++j)
+            {
+                if (inZero[i] || outZero[j]) dist[i * jSize + j] = (inZero[i] && outZero[j]) ? FPType(0) : FPType(1);
+            }
+        }
+    }
+
     template <typename Metric>
     services::Status queryFullImpl(Metric & metric, Neighborhood<FPType, cpu> * neighs, bool doReset)
     {
@@ -688,6 +732,10 @@ private:
                 const FPType * const weights = weightsRows.get() ? weightsRows.get() : onesWeights;
 
                 metric.computeBatch(inData, outData, i1, iSize, j1, jSize, local);
+                if (_metric == PairwiseDistanceType::cosine)
+                {
+                    setZeroRowCosineDistances(inData, iSize, dim, outData, jSize, outDim, local);
+                }
 
                 for (size_t i = 0; i < iSize; i++)
                 {

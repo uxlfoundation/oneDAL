@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <array>
+#include <limits>
 
 #include "oneapi/dal/algo/dbscan/compute.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -86,6 +87,8 @@ DBSCAN_BADARG_TEST("accepts positive epsilon") {
 DBSCAN_BADARG_TEST("throws if minkowski degree is not positive") {
     REQUIRE_THROWS_AS(this->get_descriptor().set_degree(0.0), domain_error);
     REQUIRE_THROWS_AS(this->get_descriptor().set_degree(-1.0), domain_error);
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(std::numeric_limits<double>::quiet_NaN()),
+                      domain_error);
 }
 
 DBSCAN_BADARG_TEST("accepts positive minkowski degree") {
