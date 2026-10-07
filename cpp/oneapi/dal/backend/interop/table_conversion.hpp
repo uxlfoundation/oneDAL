@@ -167,6 +167,14 @@ inline auto convert_to_daal_csr_table(array<T>& data,
         return daal::services::SharedPtr<daal::data_management::CSRNumericTable>();
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
+    if (data.get_queue().has_value()) {
+        data = to_host_sync(data);
+        column_indices = to_host_sync(column_indices);
+        row_indices = to_host_sync(row_indices);
+    }
+#endif
+
     if (allow_copy) {
         data.need_mutable_data();
         column_indices.need_mutable_data();
@@ -246,7 +254,11 @@ inline daal::data_management::CSRNumericTablePtr wrap_by_host_csr_adapter(const 
 template <typename Float>
 inline daal::data_management::CSRNumericTablePtr convert_to_daal_table(const csr_table& table,
                                                                        bool need_copy = false) {
-    if (need_copy)
+#ifdef ONEDAL_DATA_PARALLEL
+    if (need_copy || table.get_queue().has_value()) {
+#else
+    if (need_copy) {
+#endif
         // Always copy the table, and do not try to wrap it, if need_copy is specified by the caller.
         // Because the table's data can be allocated on device and it will lead to crash in wrap_by_host_csr_adapter
         return copy_to_daal_csr_table<Float>(table);
