@@ -49,6 +49,22 @@ inline auto empty_daal_homogen_table(std::int64_t column_count) {
 }
 
 template <typename Data>
+/// Puts a DAAL `HomogenNumericTable<Data>` view over an existing `dal::array`,
+/// without copying the data.
+/// The data ownership becomes shared between the newly created `HomogenNumericTable<Data>`
+/// and the input ``dal::array``: The memory is freed when the last owner on either side lets go.
+///
+/// @tparam Data Element type of the array and the resulting table.
+///
+/// @param[in,out] data      Array of size `row_count x column_count` with the table data in row-major order.
+///                          Must be mutable unless `allow_copy` is true.
+/// @param[in] row_count     Number of rows in the resulting table.
+/// @param[in] column_count  Number of columns in the resulting table.
+/// @param[in] allow_copy    If true, the array is copied when its data is read-only as DAAL tables need
+///                           a writable data pointer.
+///
+/// @return DAAL table that uses the array's memory, or an empty pointer if the array is empty.
+template <typename Data>.
 inline auto convert_to_daal_homogen_table(array<Data>& data,
                                           std::int64_t row_count,
                                           std::int64_t column_count,
@@ -129,6 +145,21 @@ inline daal::data_management::NumericTablePtr wrap_by_host_soa_adapter(const hom
     }
 }
 
+/// Converts `dal::homogen_table` into a shared pointer to a DAAL NumericTable.
+/// The data of the resulting table always resides in host memory.
+///
+/// Row-major and column-major tables of `float`, `double` or `int32_t` are wrapped by read-only adapters;
+/// other tables are copied into a new DAAL `HomogenNumericTable<Data>`.
+///
+/// @note The resulting DAAL table may share memory with the input table if it is of a compatible type and layout.
+///
+/// @tparam Data          Element type of the DAAL table when a copy is made. Wrapped tables keep the
+///                       data type of the source table.
+///
+/// @param[in] table      Table to convert. Its data must be accessible on the host unless `need_copy` is true.
+/// @param[in] need_copy  If true, the data is always copied to host memory instead of being wrapped.
+///
+/// @return A shared pointer to a DAAL NumericTable that either references the data of `table` or holds a copy of it.
 template <typename Data>
 inline daal::data_management::NumericTablePtr convert_to_daal_table(const homogen_table& table,
                                                                     bool need_copy = false) {
