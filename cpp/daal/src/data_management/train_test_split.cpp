@@ -119,7 +119,7 @@ services::Status generateShuffledIndicesImpl(const NumericTablePtr & idxTable, c
 
     if (nThreads > 1 && nRandomUInts > THREADING_BORDER / 16)
     {
-        daal::threader_for(nRngBlocks, nRngBlocks, [&](size_t iBlock) {
+        daal::threader_for(nRngBlocks, 1, [&](size_t iBlock) {
             const size_t start = iBlock * rngBlockSize;
             const size_t end   = daal::services::internal::min<cpu, size_t>(start + rngBlockSize, nRandomUInts);
 
@@ -190,7 +190,7 @@ services::Status assignColumnSubset(const DataType * origDataPtr, const NumericT
         daal::SafeStatus s;
         const size_t nBlocks = nRows / BLOCK_CONST + !!(nRows % BLOCK_CONST);
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             const size_t start = iBlock * BLOCK_CONST;
             const size_t end   = daal::services::internal::min<cpu, size_t>(start + BLOCK_CONST, nRows);
 
@@ -253,7 +253,7 @@ services::Status assignRowsSubset(const DataType * origDataPtr, const NumericTab
         daal::SafeStatus s;
         const size_t nBlocks = nRows / blockSize + !!(nRows % blockSize);
 
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             const size_t start = iBlock * blockSize;
             const size_t end   = daal::services::internal::min<cpu, size_t>(start + blockSize, nRows);
 

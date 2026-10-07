@@ -17,6 +17,7 @@
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
 onedal_repo = repos.prebuilt_libs_repo_rule(
+    root_env_var = "DALROOT",
     includes = [
         "include",
     ],

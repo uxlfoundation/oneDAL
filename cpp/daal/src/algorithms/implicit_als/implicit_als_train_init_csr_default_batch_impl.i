@@ -59,7 +59,7 @@ services::Status ImplicitALSInitKernel<algorithmFPType, fastCSR, cpu>::computeSu
     algorithmFPType ** arrSum = itemsSumB.get();
     DAAL_CHECK_MALLOC(arrSum);
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t i) {
+    daal::threader_for(nBlocks, 1, [&](size_t i) {
         algorithmFPType * s = itemsFactors + nItems * i;
         arrSum[i]           = s;
         services::internal::service_memset_seq<algorithmFPType, cpu>(s, algorithmFPType(0.0), nItems);
@@ -76,7 +76,7 @@ services::Status ImplicitALSInitKernel<algorithmFPType, fastCSR, cpu>::computeSu
 
     services::Status st = reduceSumByColumns(arrSum, nItems, nBlocks, itemsSum);
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t i) {
+    daal::threader_for(nBlocks, 1, [&](size_t i) {
         algorithmFPType * s = arrSum[i];
         services::internal::service_memset_seq<algorithmFPType, cpu>(s, algorithmFPType(0.0), nItems);
 
@@ -105,7 +105,7 @@ services::Status ImplicitALSInitKernel<algorithmFPType, fastCSR, cpu>::reduceSum
     const size_t nBlocksForReduction   = nThreads;
     const size_t blockSizeForReduction = nItems / nBlocksForReduction;
 
-    daal::threader_for(nBlocksForReduction, nBlocksForReduction, [&](size_t iBlock) {
+    daal::threader_for(nBlocksForReduction, 1, [&](size_t iBlock) {
         const size_t start = blockSizeForReduction * iBlock;
         const size_t end   = ((iBlock != nBlocksForReduction - 1) ? blockSizeForReduction * (iBlock + 1) : nItems);
 

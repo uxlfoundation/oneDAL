@@ -45,7 +45,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
     SafeStatus safeStat;
 
     /* compute major diagonal blocks of the distance matrix */
-    daal::threader_for(nBlocks, nBlocks, [=, &safeStat](size_t k1) {
+    daal::threader_for(nBlocks, 1, [=, &safeStat](size_t k1) {
         DAAL_INT blockSize1 = blockSizeDefault;
         if (k1 == nBlocks - 1)
         {
@@ -85,7 +85,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
     DAAL_CHECK_SAFE_STATUS()
 
     /* compute off-diagonal blocks of the distance matrix */
-    daal::threader_for(nBlocks, nBlocks, [=, &safeStat](size_t k1) {
+    daal::threader_for(nBlocks, 1, [=, &safeStat](size_t k1) {
         DAAL_INT blockSize1 = blockSizeDefault;
         if (k1 == nBlocks - 1)
         {
@@ -104,7 +104,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
         /* compute sums for elements in each row of the block x1 */
         sumByRows<algorithmFPType, cpu>(blockSize1, p, x1, sum1);
 
-        daal::threader_for(nBlocks - k1 - 1, nBlocks - k1 - 1, [=, &safeStat, &sum1](size_t k3) {
+        daal::threader_for(nBlocks - k1 - 1, 1, [=, &safeStat, &sum1](size_t k3) {
             DAAL_INT blockSize2 = blockSizeDefault;
             size_t k2           = k3 + k1 + 1;
             size_t nl = n, pl = p;
@@ -190,7 +190,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
     DAAL_CHECK_SAFE_STATUS()
 
     // copy upper triangular of r into lower triangular and unit diagonal
-    daal::threader_for(nBlocks, nBlocks, [=, &safeStat](size_t k1) {
+    daal::threader_for(nBlocks, 1, [=, &safeStat](size_t k1) {
         size_t blockSize1 = blockSizeDefault;
         if (k1 == nBlocks - 1)
         {
@@ -214,7 +214,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
             }
         }
 
-        daal::threader_for(nBlocks - k1 - 1, nBlocks - k1 - 1, [=, &safeStat](size_t k3) {
+        daal::threader_for(nBlocks - k1 - 1, 1, [=, &safeStat](size_t k3) {
             size_t k2 = k3 + k1 + 1;
             size_t nl = n;
             algorithmFPType *rr1, *rr2;
@@ -294,7 +294,7 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
     }
 
     /* compute results for blocks of the distance matrix */
-    daal::threader_for(nBlocks1, nBlocks1, [=, &safeStat](size_t k1) {
+    daal::threader_for(nBlocks1, 1, [=, &safeStat](size_t k1) {
         DAAL_INT blockSize1 = blockSizeDefault;
         if (k1 == nBlocks1 - 1)
         {
