@@ -184,7 +184,7 @@ public:
                 updateMinDistForITrials(pDistSq, iTrials, nRowsToProcess, pData, pAddedCenter, weights, pDistSqBest);
         }
         minDistAccTrials[iBestTrial * nBlock + iBlock] =
-            updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, pLastAddedCenter, weights, pDistSqBest);
+            updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, &pLastAddedCenter[iBestTrial * dim], weights, pDistSqBest);
 
         return Status();
     }
@@ -280,8 +280,8 @@ public:
             minDistAccTrials[iTrials * nBlock + iBlock] =
                 updateMinDistForITrials(pDistSq, iTrials, nRowsToProcess, pData, colIdx, rowIdx, pAddedCenter, weights, pDistSqBest);
         }
-        minDistAccTrials[iBestTrial * nBlock + iBlock] =
-            updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, colIdx, rowIdx, pLastAddedCenter, weights, pDistSqBest);
+        minDistAccTrials[iBestTrial * nBlock + iBlock] = updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, colIdx, rowIdx,
+                                                                                 &pLastAddedCenter[iBestTrial * dim], weights, pDistSqBest);
 
         return _csr->releaseSparseBlock(block);
     }

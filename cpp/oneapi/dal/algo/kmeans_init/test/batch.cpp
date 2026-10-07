@@ -14,12 +14,17 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <limits>
+#include <random>
 #include <unordered_set>
+#include <vector>
 
 #include "oneapi/dal/algo/kmeans_init/compute.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 #include "oneapi/dal/algo/kmeans_init/test/fixture.hpp"
 
@@ -52,6 +57,129 @@ TEMPLATE_LIST_TEST_M(kmeans_init_batch_test,
     const auto data_table = homogen_table::wrap(data, row_count, column_count);
 
     this->dense_checks(cluster_count, data_table);
+}
+
+/// Reference k-means++ with local trials that replays the kernel's random draws.
+///
+/// @tparam Float        Floating-point type of the draws and distances
+/// @param data          Input  `row_count x column_count` row-major buffer
+/// @param row_count     Input  Number of rows in `data`
+/// @param column_count  Input  Number of columns in `data`
+/// @param cluster_count Input  Number of centers to pick
+/// @param trial_count   Input  Number of candidates scored per center, at least 2
+/// @param seed          Input  Seed of the mt19937 engine the kernel uses
+/// @return              Row indices of the picked centers, in pick order
+template <typename Float>
+static std::vector<std::int64_t> reference_plus_plus_rows(const std::vector<Float>& data,
+                                                          std::int64_t row_count,
+                                                          std::int64_t column_count,
+                                                          std::int64_t cluster_count,
+                                                          std::int64_t trial_count,
+                                                          std::int64_t seed) {
+    namespace pr = dal::backend::primitives;
+    pr::host_engine engine(seed, pr::engine_type_internal::mt19937);
+    std::vector<Float> probabilities(cluster_count * trial_count);
+    pr::uniform<Float>(probabilities.size(), probabilities.data(), engine, Float(0), Float(1));
+
+    const auto sq_dist = [&](std::int64_t a, std::int64_t b) {
+        Float d = 0;
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            const Float diff = data[a * column_count + j] - data[b * column_count + j];
+            d += diff * diff;
+        }
+        return d;
+    };
+
+    const std::int64_t first =
+        std::min<std::int64_t>(std::int64_t(probabilities[0] * Float(row_count)), row_count - 1);
+    std::vector<std::int64_t> rows = { first };
+    std::vector<Float> min_dist(row_count);
+    Float potential = 0;
+    for (std::int64_t r = 0; r < row_count; ++r) {
+        min_dist[r] = sq_dist(r, first);
+        potential += min_dist[r];
+    }
+
+    for (std::int64_t c = 1; c < cluster_count; ++c) {
+        std::int64_t best_row = -1;
+        Float best_potential = std::numeric_limits<Float>::max();
+        std::vector<Float> best_dist;
+        for (std::int64_t t = 0; t < trial_count; ++t) {
+            Float sample = potential * probabilities[t * cluster_count + c];
+            std::int64_t candidate = 0;
+            for (; candidate + 1 < row_count && sample >= min_dist[candidate]; ++candidate) {
+                sample -= min_dist[candidate];
+            }
+            std::vector<Float> dist(row_count);
+            Float trial_potential = 0;
+            for (std::int64_t r = 0; r < row_count; ++r) {
+                dist[r] = std::min(min_dist[r], sq_dist(r, candidate));
+                trial_potential += dist[r];
+            }
+            if (trial_potential < best_potential) {
+                best_potential = trial_potential;
+                best_row = candidate;
+                best_dist = std::move(dist);
+            }
+        }
+        rows.push_back(best_row);
+        min_dist = std::move(best_dist);
+        potential = best_potential;
+    }
+    return rows;
+}
+
+using kmeans_init_plus_plus_types = _TE_COMBINE_TYPES_2((float, double),
+                                                        (kmeans_init::method::plus_plus_dense,
+                                                         kmeans_init::method::plus_plus_csr));
+
+// Integer coordinates keep every distance and potential exact, so the kernel must pick the
+// same rows as the reference whatever its summation order.
+TEMPLATE_LIST_TEST_M(kmeans_init_batch_test,
+                     "kmeans init plus plus scores every local trial",
+                     "[kmeans_init][batch][plus_plus]",
+                     kmeans_init_plus_plus_types) {
+    SKIP_IF(this->get_policy().is_gpu());
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+    constexpr std::int64_t row_count = 60;
+    constexpr std::int64_t column_count = 2;
+    constexpr std::int64_t cluster_count = 5;
+    constexpr std::int64_t trial_count = 3;
+
+    std::mt19937 gen(42);
+    std::vector<float_t> data(row_count * column_count);
+    for (auto& v : data) {
+        v = float_t(gen() % 16);
+    }
+    const table data_table =
+        std::is_same_v<method_t, kmeans_init::method::plus_plus_csr>
+            ? table{ te::dense_to_explicit_csr(data.data(),
+                                               row_count,
+                                               column_count,
+                                               sparse_indexing::one_based) }
+            : table{ homogen_table::wrap(data.data(), row_count, column_count) };
+
+    for (std::int64_t seed = 0; seed < 20; ++seed) {
+        CAPTURE(seed);
+        const auto desc =
+            this->get_descriptor(cluster_count).set_local_trials_count(trial_count).set_seed(seed);
+        const auto centroids = this->compute(desc, data_table).get_centroids();
+        const auto actual = row_accessor<const float_t>(centroids).pull();
+        const auto expected = reference_plus_plus_rows(data,
+                                                       row_count,
+                                                       column_count,
+                                                       cluster_count,
+                                                       trial_count,
+                                                       seed);
+        for (std::int64_t c = 0; c < cluster_count; ++c) {
+            CAPTURE(c, expected[c]);
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                REQUIRE(actual[c * column_count + j] == data[expected[c] * column_count + j]);
+            }
+        }
+    }
 }
 
 } // namespace oneapi::dal::kmeans_init::test
