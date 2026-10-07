@@ -1281,8 +1281,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
             split.copyTo(bestSplit);
             DAAL_ASSERT(bestSplit.iStart < n);
             DAAL_ASSERT(bestSplit.iStart + bestSplit.nLeft <= n);
-            // Skipped constant features do not count as visited, so the loop can run past
-            // i == _nFeaturesPerNode - 1 and re-sort aIdx; save the order unless this is the last pass.
+            // Constant features do not count as visited, so a later feature may re-sort aIdx.
             const bool lastPass = (nVisitedFeature >= _nFeaturesPerNode) || (i + 1 >= maxFeatures);
             if (!lastPass || split.featureUnordered) services::internal::tmemcpy<IndexType, cpu>(bestSplitIdx, aIdx, n);
 #ifdef DEBUG_CHECK_IMPURITY

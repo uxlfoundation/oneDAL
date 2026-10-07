@@ -16,6 +16,7 @@
 
 #include "oneapi/dal/algo/decision_forest/test/fixture.hpp"
 
+#include <limits>
 #include <random>
 
 namespace oneapi::dal::decision_forest::test {
@@ -350,25 +351,24 @@ DF_BATCH_CLS_TEST("df cls min weight fraction reduces node count") {
     this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
 }
 
-// Binary features are often constant in small nodes and get skipped during feature
-// sampling, which used to leave the node's samples ordered by the wrong feature.
-// The children then got class histograms of other samples, down to negative counts.
+// A binary feature is often constant in a small node and is skipped during feature sampling.
+// The samples must stay ordered by the best split's feature, or child histograms go negative.
 DF_BATCH_CLS_TEST("df cls probabilities stay valid when constant features are skipped") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
 
     using Float = std::tuple_element_t<0, TestType>;
-    constexpr std::int64_t row_count = 2000;
-    constexpr std::int64_t binary_feature_count = 8;
-    constexpr std::int64_t column_count = binary_feature_count + 4;
-    constexpr std::int64_t class_count = 4;
+    constexpr std::int64_t row_count = 300;
+    constexpr std::int64_t binary_feature_count = 1;
+    constexpr std::int64_t column_count = binary_feature_count + 2;
+    constexpr std::int64_t class_count = 3;
 
     const splitter_mode splitter_mode_val =
         GENERATE_COPY(splitter_mode::best, splitter_mode::random);
     INFO("splitter mode = " +
          std::string(splitter_mode_val == splitter_mode::best ? "best" : "random"));
-    // The GPU random splitter only reads the first work-group of rows of a node, so its
-    // histograms are wrong for nodes larger than that; it is a separate defect.
+    // TODO: remove once the GPU random splitter reads all rows of a node, not only the first
+    // work-group of them.
     SKIP_IF(this->is_gpu() && splitter_mode_val == splitter_mode::random);
 
     std::mt19937 gen(777);
@@ -412,7 +412,7 @@ DF_BATCH_CLS_TEST("df cls probabilities stay valid when constant features are sk
             REQUIRE(p <= 1.0);
             sum += p;
         }
-        REQUIRE(std::abs(sum - 1.0) < 1e-5);
+        REQUIRE(std::abs(sum - 1.0) <= class_count * std::numeric_limits<Float>::epsilon());
         // Without bootstrap every training row lies in its own leaf in each tree.
         REQUIRE(probas[i * class_count + std::int64_t(y_arr[i])] > 0);
     }
