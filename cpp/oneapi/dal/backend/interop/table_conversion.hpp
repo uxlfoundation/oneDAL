@@ -137,7 +137,7 @@ inline daal::data_management::NumericTablePtr convert_to_daal_table(const homoge
 #else
     if (need_copy) {
 #endif
-    	    return copy_to_daal_homogen_table<Data>(table);
+        return copy_to_daal_homogen_table<Data>(table);
     }
     if (table.get_data_layout() == data_layout::row_major) {
         if (auto wrapper = wrap_by_host_homogen_adapter(table)) {
