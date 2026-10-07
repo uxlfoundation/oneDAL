@@ -163,10 +163,14 @@ public:
     ID(2050000000, heterogen_table_id);
 
     // Algorithms - SVM
-    ID(3010000000, svm_classification_model_impl_id);
+    //
+    // Both classification payloads gained an `n_support_per_class` table, so
+    // their ids are bumped and an older archive now fails to load instead of
+    // being misread. `3010000000` and `3010300000` are retired.
+    ID(3010500000, svm_classification_model_impl_id);
     ID(3010100000, svm_regression_model_impl_id);
     ID(3010200000, svm_model_interop_impl_multiclass_id);
-    ID(3010300000, svm_nu_classification_model_impl_id);
+    ID(3010600000, svm_nu_classification_model_impl_id);
     ID(3010400000, svm_nu_regression_model_impl_id);
 
     // Algorithms - PCA
