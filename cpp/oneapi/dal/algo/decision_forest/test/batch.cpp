@@ -352,7 +352,7 @@ DF_BATCH_CLS_TEST("df cls min weight fraction reduces node count") {
 }
 
 // A binary feature is often constant in a small node and is skipped during feature sampling.
-// The samples must stay ordered by the best split's feature, or child histograms go negative.
+// The samples must stay ordered by the best split's feature.
 DF_BATCH_CLS_TEST("df cls probabilities stay valid when constant features are skipped") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
