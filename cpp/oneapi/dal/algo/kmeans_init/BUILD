@@ -32,6 +32,7 @@ dal_test_suite(
     ]),
     dal_deps = [
         ":kmeans_init",
+        "@onedal//cpp/oneapi/dal/backend/primitives:rng",
     ],
 )
 
