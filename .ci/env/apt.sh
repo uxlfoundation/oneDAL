@@ -32,7 +32,7 @@ function add_repo {
 
 function install_dpcpp {
     # DPC++ compiler version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.1-325 intel-oneapi-runtime-libs
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.1-325
 }
 
 function install_tbb {
@@ -129,6 +129,7 @@ function install_miniforge {
     fi
 
     sudo bash "${installer}" -b -p /usr/share/miniconda
+    sudo chown -R "$(id -u):$(id -g)" /usr/share/miniconda
     source /usr/share/miniconda/etc/profile.d/conda.sh
 }
 

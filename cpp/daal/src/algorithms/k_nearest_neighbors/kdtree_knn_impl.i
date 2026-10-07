@@ -24,7 +24,7 @@
 #ifndef __KDTREE_KNN_IMPL_I__
 #define __KDTREE_KNN_IMPL_I__
 
-#if defined(_MSC_VER) || defined(DAAL_INTEL_CPP_COMPILER)
+#if (defined(_MSC_VER) || defined(DAAL_INTEL_CPP_COMPILER)) && defined(TARGET_X86_64)
     #include <immintrin.h>
 #endif
 

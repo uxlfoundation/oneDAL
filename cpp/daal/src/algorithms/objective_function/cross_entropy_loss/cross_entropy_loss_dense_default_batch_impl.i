@@ -96,9 +96,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         const algorithmFPType * const pArg = arg + iRow * nCols;
         algorithmFPType * const pRes       = res + iRow * nCols;
         algorithmFPType maxArg             = pArg[0];
-#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
-#endif
         for (size_t i = 1; i < nCols; ++i)
         {
             maxArg = pArg[i] > maxArg ? pArg[i] : maxArg;
@@ -170,7 +168,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmaxThreaded(const
     const size_t nRowsInBlock        = services::internal::getNumElementsFitInMemory(services::internal::getL1CacheSize() * 0.8,
                                                                                      nCols * sizeof(algorithmFPType), nRowsInBlockDefault);
     const size_t nDataBlocks         = nRows / nRowsInBlock + !!(nRows % nRowsInBlock);
-    daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
+    daal::threader_for(nDataBlocks, 1, [&](size_t iBlock) {
         const size_t iStartRow       = iBlock * nRowsInBlock;
         const size_t nRowsToProcess  = (iBlock == nDataBlocks - 1) ? nRows - iBlock * nRowsInBlock : nRowsInBlock;
         const algorithmFPType * pArg = arg + iStartRow * nCols;
@@ -279,7 +277,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
 
         TlsMem<algorithmFPType, cpu, services::internal::ScalableCalloc<algorithmFPType, cpu> > tlsData(lipschitzConstant->getNumberOfRows());
         SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](const size_t iBlock) {
             algorithmFPType & _maxNorm = *tlsData.local();
             const size_t startRow      = iBlock * blockSize;
             const size_t finishRow     = (iBlock + 1 == nBlocks ? n : (iBlock + 1) * blockSize);
@@ -344,7 +342,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
     if (valueNT || gradientNT || hessianNT)
     {
         SafeStatus safeStat;
-        daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
+        daal::threader_for(nDataBlocks, 1, [&](size_t iBlock) {
             const size_t iStartRow      = iBlock * nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == nDataBlocks - 1) ? n - iBlock * nRowsInBlock : nRowsInBlock;
 
@@ -541,7 +539,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
             const auto hSize                      = nBeta * nBeta;
             TlsSum<algorithmFPType, cpu> tlsData(hSize);
             SafeStatus safeStat;
-            daal::threader_for(n, n, [&](size_t i) {
+            daal::threader_for(n, 1, [&](size_t i) {
                 ReadRows<algorithmFPType, cpu> xr(const_cast<NumericTable *>(dataNT), i, 1);
                 DAAL_CHECK_BLOCK_STATUS_THR(xr);
                 const algorithmFPType * const x = xr.get();

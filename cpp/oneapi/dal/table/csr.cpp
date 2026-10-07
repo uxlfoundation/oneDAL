@@ -79,6 +79,10 @@ void csr_table::init_impl(const dal::array<byte_t>& data,
                           sparse_indexing indexing) {
 #ifdef ONEDAL_DATA_PARALLEL
     if (data.get_queue().has_value()) {
+        if (column_indices.get_queue() != data.get_queue() ||
+            row_offsets.get_queue() != data.get_queue()) {
+            throw invalid_argument{ dal::detail::error_messages::queues_of_arrays_do_not_match() };
+        }
         table::init_impl(
             new backend::csr_table_impl{ detail::data_parallel_policy{ data.get_queue().value() },
                                          data,

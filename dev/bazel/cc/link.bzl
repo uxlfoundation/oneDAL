@@ -233,7 +233,7 @@ def _static(owner, name, actions, cc_toolchain,
 def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
           def_file=None, is_executable=False, user_link_flags=[],
-          is_windows=False, additional_inputs=[], is_dpc=False):
+          is_windows=False, additional_inputs=[]):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
@@ -259,8 +259,10 @@ def _link(owner, name, actions, cc_toolchain,
             pic_static_library = object_archive,
         )
         libraries_to_link = [object_archive_to_link] + libraries_to_link
-        if is_dpc:
-            object_archive_link_flags.append("/link")
+        # No `/link` separator here, even for DPC++ links: the toolchain's
+        # `dpc_linker_mode` feature already emits exactly one, and it is
+        # ordered ahead of `user_link_flags`. A second `/link` reaches the
+        # linker itself, which reports `LNK4044: unrecognized option '/link'`.
         # Windows DLL exports are discovered from dllexport directives inside
         # object files. A normal static library is searched only for unresolved
         # references, so these objects are otherwise not pulled into leaf DLLs
@@ -290,6 +292,14 @@ def _link(owner, name, actions, cc_toolchain,
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([linker_input]),
     )
+    def_file_link_flags = []
+    if def_file:
+        # MSVC link.exe consumes module-definition files through /DEF:. The
+        # @file spelling is a response file, not a DEF file, and causes the
+        # Windows linker to export symbols discovered from whole archives
+        # instead of the explicit Make-compatible export surface.
+        def_file_link_flags = (["/DEF:" + def_file.path] if is_windows else
+                               ["@" + def_file.path])
     linking_outputs = cc_common.link(
         name = name,
         actions = actions,
@@ -299,15 +309,55 @@ def _link(owner, name, actions, cc_toolchain,
         linking_contexts = [linking_context],
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
-        user_link_flags = ["@" + def_file.path] if def_file else [],
+        user_link_flags = def_file_link_flags,
         additional_inputs = ([def_file] if def_file else []) + additional_link_inputs,
     )
     return unpacked_linking_context, linking_outputs
 
+def _make_implib_for_dll(actions, dll_file, implib_name, dll_to_implib_tool):
+    """Derive `dll_file`'s Windows import library as a tracked action output.
+
+    The custom icx/lld-link toolchain config does not register
+    `supports_interface_shared_libraries`, so `cc_common.link()` returns no
+    `interface_library` and the `-IMPLIB:` side-effect file cannot be declared
+    as an action output. Without an import library, a DLL that links against
+    another oneDAL DLL has nothing to resolve its imports against and
+    lld-link reports every cross-DLL symbol as undefined.
+
+    Reuses the same dumpbin + `lib /def:` helper the release rule already
+    relies on, so both paths derive the import library identically.
+    """
+    implib = actions.declare_file(implib_name)
+    # `lib /def:` also writes an .exp next to the .lib. It is a build
+    # intermediate, not a release artifact, so keep it out of any staged tree.
+    exp_file = actions.declare_file(paths.join(
+        "_link_intermediates",
+        implib.basename[:-len(".lib")] + ".exp",
+    ))
+    actions.run(
+        executable = "cmd.exe",
+        inputs = [dll_file, dll_to_implib_tool],
+        outputs = [implib, exp_file],
+        arguments = [
+            "/d", "/c",
+            "{} {} {} {}".format(
+                dll_to_implib_tool.path.replace("/", "\\"),
+                dll_file.path.replace("/", "\\"),
+                implib.path.replace("/", "\\"),
+                exp_file.path.replace("/", "\\"),
+            ),
+        ],
+        use_default_shell_env = True,
+        mnemonic = "DllToImplib",
+        progress_message = "Generating import lib %s" % implib.short_path,
+    )
+    return implib
+
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
              def_file=None, user_link_flags=[], is_windows=False,
-             additional_inputs=[], is_dpc=False):
+             additional_inputs=[],
+             dll_to_implib_tool=None):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
@@ -315,7 +365,6 @@ def _dynamic(owner, name, actions, cc_toolchain,
         user_link_flags=user_link_flags,
         is_windows=is_windows,
         additional_inputs=additional_inputs,
-        is_dpc=is_dpc,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None
@@ -329,6 +378,16 @@ def _dynamic(owner, name, actions, cc_toolchain,
             files = [],
             dynamic_library = None,
             interface_library = None,
+        )
+    # On Windows, derive the import library ourselves when the toolchain did
+    # not emit one, so downstream DLL links resolve imports against it instead
+    # of failing with undefined externals.
+    if is_windows and not interface_lib and dll_to_implib_tool:
+        interface_lib = _make_implib_for_dll(
+            actions, dynamic_lib,
+            "{}_dll.lib".format(utils.remove_substring(
+                dynamic_lib.basename, ".dll")),
+            dll_to_implib_tool,
         )
     dynamic_files = [dynamic_lib]
     if interface_lib:

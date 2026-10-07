@@ -29,66 +29,6 @@ namespace pr = dal::backend::primitives;
 
 // Common
 
-///  A wrapper that computes 1d array of sums of the columns from 2d data array
-///
-/// @tparam Float Floating-point type used to perform computations
-///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input data of size `row_count` x `column_count`
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
-///
-/// @return A tuple of two elements, where the first element is the resulting 1d array of sums
-/// of size `column_count` and the second element is a SYCL event indicating the availability
-/// of the sums array for reading and writing
-template <typename Float>
-auto compute_sums(sycl::queue& q,
-                  const pr::ndview<Float, 2>& data,
-                  bool assume_centered = false,
-                  const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(compute_sums, q, data.get_dimension(1));
-    ONEDAL_ASSERT(data.has_data());
-    ONEDAL_ASSERT(data.get_dimension(1) > 0);
-
-    const std::int64_t column_count = data.get_dimension(1);
-    if (assume_centered) {
-        return pr::ndarray<Float, 1>::zeros(q, { column_count }, alloc::device);
-    }
-    else {
-        auto sums = pr::ndarray<Float, 1>::empty(q, { column_count }, alloc::device);
-        constexpr pr::sum<Float> binary{};
-        constexpr pr::identity<Float> unary{};
-        auto sums_event = pr::reduce_by_columns(q, data, sums, binary, unary, deps);
-        return std::make_tuple(sums, sums_event);
-    }
-}
-
-///  A wrapper that computes 1d array of means of the columns from precomputed sums
-///
-/// @tparam Float Floating-point type used to perform computations
-///
-/// @param[in]  queue      The SYCL queue
-/// @param[in]  sums       The input sums of size `column_count`
-/// @param[in]  row_count  The number of `row_count` of the input data
-/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
-///
-/// @return A tuple of two elements, where the first element is the resulting 1d array of means
-/// of size `column_count` and the second element is a SYCL event indicating the availability
-/// of the means array for reading and writing
-template <typename Float>
-auto compute_means(sycl::queue& q,
-                   const pr::ndview<Float, 1>& sums,
-                   std::int64_t row_count,
-                   const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_means, q);
-    ONEDAL_ASSERT(sums.has_data());
-    ONEDAL_ASSERT(sums.get_dimension(0) > 0);
-
-    const std::int64_t column_count = sums.get_dimension(0);
-    auto means = pr::ndarray<Float, 1>::empty(q, { column_count }, alloc::device);
-    auto means_event = pr::means(q, row_count, sums, means, deps);
-    return std::make_tuple(means, means_event);
-}
-
 ///  A wrapper that computes 2d array of covariance matrix from 2d xtx array
 ///
 /// @tparam Float Floating-point type used to perform computations

@@ -97,6 +97,7 @@ dal_algo_example_suite(
         "covariance",
         "dbscan",
         "decision_forest",
+        "hdbscan",
         "kmeans",
         "knn",
         "linear_kernel",

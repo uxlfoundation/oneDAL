@@ -135,7 +135,11 @@ struct train_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
 
         Float prev_objective_function = de::limits<Float>::max();
         std::int64_t iter;
-        sycl::event centroids_event;
+        // Seed `arr_centroids` with the initial centroids: `update_centroids` only overwrites the
+        // rows it recomputes, and an empty cluster whose candidate row already sits on its own
+        // centroid keeps the previous one (see `fill_empty_clusters`) - the initial one on
+        // iteration 0.
+        sycl::event centroids_event = arr_centroids.assign(queue, arr_initial);
 
         auto updater = cluster_updater<Float>{ queue, comm }
                            .set_cluster_count(cluster_count)
@@ -159,8 +163,12 @@ struct train_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
                                arr_responses,
                                { centroids_event, data_squares_event, centroid_squares_event });
             centroids_event = update_clusters_event;
-            if (accuracy_threshold > 0 &&
-                objective_function + accuracy_threshold > prev_objective_function) {
+            // Both comparisons are inclusive, as in the CPU kernel. A threshold of exactly
+            // zero asks to stop as soon as the objective function stops improving; with a
+            // strict `>` it meant "run all `max_iteration_count` iterations", since a
+            // converged iteration leaves the objective function unchanged rather than larger.
+            if (accuracy_threshold >= 0 &&
+                objective_function + accuracy_threshold >= prev_objective_function) {
                 iter++;
                 break;
             }

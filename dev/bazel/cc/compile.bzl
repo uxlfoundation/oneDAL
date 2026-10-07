@@ -228,10 +228,14 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
             cpu_to_file_dict = _normalize_cpu_files(sources_by_category.cpu_files,
                                                     sources_by_category.special_cpu_files)
         for cpu in cpus:
+            # `cpu_to_file_dict` only ever has entries for the x86 ISA IDs
+            # that `_CPU_SUFFIX_TO_ISA_MAP` knows about (_nrh/_hsw/_skx); on
+            # ARM/RISC-V (cpu == "sve"/"rv64") there is no such per-ISA
+            # source-file split, so fall back to the general `_cpu` files.
+            srcs = cpu_to_file_dict.get(cpu, sources_by_category.cpu_files) if cpu_to_file_dict else sources_by_category.cpu_files
             compilation_context, compulation_output = _compile_wrapper(
                 name + "_" + cpu, ctx, toolchain, cpu_feature_configs[cpu],
-                srcs = (cpu_to_file_dict[cpu] if cpu_to_file_dict else
-                        sources_by_category.cpu_files),
+                srcs = srcs,
                 local_defines = local_defines + cpu_defines[cpu],
                 compilation_contexts = dep_compilation_contexts,
                 **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),

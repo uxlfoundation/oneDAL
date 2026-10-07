@@ -1,4 +1,3 @@
-#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,27 +14,20 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.11.1
-UNPACKED=ec-linux-amd64
-ASSET=$UNPACKED.tar.gz
-CHECKSUMS=checksums.txt
-BASE_LINK=https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION
+load("@onedal//dev/bazel:repos.bzl", "repos")
 
-# Download asset
-wget $BASE_LINK/$ASSET
-
-# Download checksum file
-wget $BASE_LINK/$CHECKSUMS
-
-# Verify checksum file
-if ! grep -E "$ASSET$" $CHECKSUMS | sha256sum --check; then
-    echo "Checksum verification failed"
-    exit 1
-fi
-
-# Install
-mkdir $UNPACKED && tar -xzf "$ASSET" -C $UNPACKED
-mv $UNPACKED/bin/$UNPACKED /usr/local/bin/editorconfig-checker
-
-# Clean up the downloaded files
-rm -rf "$UNPACKED" "$ASSET" "$CHECKSUMS"
+# OpenRNG (https://git.gitlab.arm.com/libraries/openrng) is a VSL-ABI-compatible
+# RNG library used as an alternative to OpenBLAS's reference RNG on ARM (see
+# dev/make/deps.ref.mk RNG_OPENRNG / .ci/env/openrng.sh). Like OpenBLAS, it is
+# expected to be prebuilt and pointed to via OPENRNGROOT; Bazel does not build
+# it from source.
+openrng_repo = repos.prebuilt_libs_repo_rule(
+    root_env_var = "OPENRNGROOT",
+    includes = [
+        "include",
+    ],
+    libs = [
+        "lib/libopenrng.a",
+    ],
+    build_template = "@onedal//dev/bazel/deps:openrng.tpl.BUILD",
+)

@@ -24,6 +24,9 @@ namespace v1 {
 ONEDAL_EXPORT csr_table_iface* get_csr_table_iface_impl(table_iface* table);
 ONEDAL_EXPORT homogen_table_iface* get_homogen_table_iface_impl(table_iface* table);
 ONEDAL_EXPORT heterogen_table_iface* get_heterogen_table_iface_impl(table_iface* table);
+#ifdef ONEDAL_DATA_PARALLEL
+ONEDAL_EXPORT queue_provider_iface* get_queue_provider_iface_impl(table_iface* table);
+#endif // ONEDAL_DATA_PARALLEL
 ONEDAL_EXPORT pull_rows_iface* get_pull_rows_iface_impl(table_iface* table);
 ONEDAL_EXPORT pull_column_iface* get_pull_column_iface_impl(table_iface* table);
 ONEDAL_EXPORT pull_csr_block_iface* get_pull_csr_block_iface_impl(table_iface* table);
@@ -53,6 +56,17 @@ inline std::shared_ptr<heterogen_table_iface> get_heterogen_table_iface(Object&&
     auto heterogen_iface_ptr = get_heterogen_table_iface_impl(pimpl.get());
     return std::shared_ptr<heterogen_table_iface>{ pimpl, heterogen_iface_ptr };
 }
+
+#ifdef ONEDAL_DATA_PARALLEL
+/// Returns the queue access interface of the table, or an empty pointer if the
+/// table implementation does not provide access to a queue.
+template <typename Object>
+inline std::shared_ptr<queue_provider_iface> get_queue_provider_iface(Object&& obj) {
+    const auto pimpl = pimpl_accessor{}.get_pimpl(std::forward<Object>(obj));
+    auto queue_iface_ptr = get_queue_provider_iface_impl(pimpl.get());
+    return std::shared_ptr<queue_provider_iface>{ pimpl, queue_iface_ptr };
+}
+#endif // ONEDAL_DATA_PARALLEL
 
 template <typename Object>
 inline std::shared_ptr<pull_rows_iface> get_pull_rows_iface(Object&& obj) {
@@ -90,6 +104,9 @@ inline std::shared_ptr<pull_csr_block_iface> get_pull_csr_block_iface(Object&& o
 using v1::get_csr_table_iface;
 using v1::get_homogen_table_iface;
 using v1::get_heterogen_table_iface;
+#ifdef ONEDAL_DATA_PARALLEL
+using v1::get_queue_provider_iface;
+#endif // ONEDAL_DATA_PARALLEL
 using v1::get_pull_column_iface;
 using v1::get_push_column_iface;
 using v1::get_pull_rows_iface;

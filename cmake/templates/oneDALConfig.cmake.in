@@ -40,11 +40,18 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type not specified, defaulting to Release" FORCE)
 endif()
 
-if(WIN32)
-    message(STATUS "Optimization library is not enabled on Windows")
-    set(ONEDAL_USE_PARAMETERS_LIBRARY no)
-else()
-    set(ONEDAL_USE_PARAMETERS_LIBRARY yes)
+set(ONEDAL_USE_PARAMETERS_LIBRARY "@ONEDAL_USE_PARAMETERS_LIBRARY@")
+if(ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "")
+    # A config generated without -DONEDAL_USE_PARAMETERS_LIBRARY carries no
+    # layout; fall back to the platform default the layout switch preserves.
+    if(WIN32)
+        set(ONEDAL_USE_PARAMETERS_LIBRARY "no")
+    else()
+        set(ONEDAL_USE_PARAMETERS_LIBRARY "yes")
+    endif()
+endif()
+if(WIN32 AND ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "yes")
+    message(FATAL_ERROR "This package advertises unsupported separate parameter libraries on Windows")
 endif()
 
 #Backward compatibility section to be removed with next major version
@@ -165,6 +172,21 @@ if(MKL_DEPENDENCY STREQUAL "yes")
     endif()
     find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
 
+    # The SYCL domain libraries reference ~660 classic MKL entry points, so they
+    # have to precede the classic libraries in the link line: with
+    # `-Wl,--as-needed` (a common hardening default) a classic library listed
+    # first resolves nothing yet and is dropped, and the link fails with those
+    # ~660 undefined references. Make uses the same order
+    # (dev/make/deps.mkl.mk:91-95). On Windows the order is immaterial -- MKL is
+    # linked through import libraries and nothing prunes them -- so one order is
+    # used for all platforms.
+    if(ONEDAL_USE_DPCPP STREQUAL "yes")
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_blas${DAL_DEBUG_SUFFIX})
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_lapack${DAL_DEBUG_SUFFIX})
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_sparse${DAL_DEBUG_SUFFIX})
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_rng${DAL_DEBUG_SUFFIX})
+    endif()
+
     if(ONEDAL_LINK STREQUAL "static")
         list(APPEND oneDAL_IMPORTED_TARGETS
             MKL::mkl_core
@@ -181,27 +203,32 @@ if(MKL_DEPENDENCY STREQUAL "yes")
                 MKL::mkl_core
                 MKL::mkl_intel_lp64
                 MKL::mkl_gnu_thread${DAL_DEBUG_SUFFIX})
+            # The oneMKL `gnu_thread` layer needs a GNU OpenMP runtime. MKLConfig.cmake
+            # only attaches it (through MKL_SUPP_LINK) to the aggregate `MKL::MKL`
+            # target, while the lines above link the individual component targets, so
+            # the runtime has to be requested explicitly.
+            if(MKL_THREADING STREQUAL "gnu_thread")
+                find_package(OpenMP COMPONENTS CXX)
+                if(TARGET OpenMP::OpenMP_CXX)
+                    list(APPEND oneDAL_IMPORTED_TARGETS OpenMP::OpenMP_CXX)
+                else()
+                    list(APPEND oneDAL_IMPORTED_TARGETS -lgomp)
+                endif()
+            endif()
         endif()
     endif()
 
 endif()
 
-if(ONEDAL_USE_DPCPP STREQUAL "yes" AND MKL_DEPENDENCY STREQUAL "yes")
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_blas${DAL_DEBUG_SUFFIX})
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_lapack${DAL_DEBUG_SUFFIX})
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_sparse${DAL_DEBUG_SUFFIX})
-    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl_rng${DAL_DEBUG_SUFFIX})
-endif()
-
 if (ONEDAL_INTERFACE STREQUAL "yes")
     if (ONEDAL_USE_DPCPP STREQUAL "yes")
         list(APPEND DAL_LIBS onedal_dpc${DAL_DEBUG_SUFFIX})
-        if(ONEDAL_USE_PARAMETERS_LIBRARY)
+        if(ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "yes")
             list(APPEND DAL_LIBS onedal_parameters_dpc${DAL_DEBUG_SUFFIX})
         endif()
     else()
         list(APPEND DAL_LIBS onedal${DAL_DEBUG_SUFFIX})
-        if(ONEDAL_USE_PARAMETERS_LIBRARY)
+        if(ONEDAL_USE_PARAMETERS_LIBRARY STREQUAL "yes")
             list(APPEND DAL_LIBS onedal_parameters${DAL_DEBUG_SUFFIX})
         endif()
     endif()

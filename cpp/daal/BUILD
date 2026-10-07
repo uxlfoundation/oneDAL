@@ -35,11 +35,20 @@ daal_module(
         "@config//:backend_ref": False,
         "//conditions:default": True,
     }),
+    # Matches dev/make/deps.ref.mk: RNG_OPENRNG links libopenrng.a alongside
+    # OpenBLAS. (The OPENRNG_BACKEND compile define is set for every
+    # daal_module in daal.bzl, since service_rng_ref.h is consumed by many
+    # compiled modules, not just this one.) Both are gated on
+    # rng_backend=openrng *and* backend_config=ref, matching where RNG_OPENRNG
+    # lives in Make.
     deps = select({
         "@config//:backend_ref": [ "@openblas//:openblas",
                                  ],
         "//conditions:default": [ "@mkl//:mkl_core",
                                 ],
+        }) + select({
+            "@config//:rng_backend_openrng_ref": [ "@openrng//:openrng" ],
+            "//conditions:default": [],
         }),
 )
 
@@ -57,6 +66,19 @@ daal_module(
         "**/daal_win.h",
     ]),
     includes = [ "include" ],
+)
+
+# Headers that ship under their generic name on one OS only. Make selects them
+# via `release.HEADERS.OSSPEC` and stages each one with the `_<os>` suffix
+# stripped, dropping the generic file from that platform's package. They stay
+# out of `public_includes` because the in-tree build always compiles against the
+# generic header; only the released copy differs.
+filegroup(
+    name = "os_specific_includes",
+    srcs = select({
+        "@platforms//os:windows": [ "include/daal_win.h" ],
+        "//conditions:default": [ ],
+    }),
 )
 
 daal_module(
@@ -77,6 +99,9 @@ daal_module(
                                   ":public_includes",
                                   "@mkl//:headers",
                                 ],
+        }) + select({
+            "@config//:rng_backend_openrng_ref": [ "@openrng//:headers" ],
+            "//conditions:default": [],
         }),
 )
 
@@ -155,7 +180,7 @@ daal_module(
 
 daal_module(
     name = "threading_tbb",
-    srcs = glob(["src/threading/**/*.cpp"]),
+    srcs = glob(["src/threading/**/*.cpp"], exclude = ["src/threading/test/*.cpp"]),
     # Match Make STDALLOC=yes: separately built threading objects keep TBB
     # scalable allocation while core objects switch away from MKL allocation.
     stdalloc = False,
@@ -213,6 +238,7 @@ daal_algorithms(
         "dtrees/gbt/regression",
         "dtrees/gbt/classification",
         "elastic_net",
+        "hdbscan",
         "em",
         "engines",
         "implicit_als",
@@ -347,6 +373,9 @@ dal_collect_test_suites(
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
         "dtrees/gbt/regression"
+    ],
+    tests = [
+        "@onedal//cpp/daal/src/threading/test:tests",
     ],
 )
 

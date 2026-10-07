@@ -445,7 +445,13 @@ public:
         DAAL_DEFAULT_CREATE_IMPL_EX(CSRNumericTable, ptr, colIndices, rowOffsets, nColumns, nRows, indexing);
     }
 
-    virtual ~CSRNumericTable() { freeDataMemoryImpl(); }
+    /**
+     *  The call below is qualified on purpose. During the execution of this destructor the dynamic
+     *  type of the object is already CSRNumericTable ([class.cdtor]/4), so an unqualified call
+     *  would resolve to the very same function; spelling it out only keeps the destructor free of
+     *  virtual calls, which GCC 13 mis-analyzes under -O3 -flto. See setArraysImpl() for details.
+     */
+    virtual ~CSRNumericTable() { CSRNumericTable::freeDataMemoryImpl(); }
 
     services::Status resize(size_t nrows) override { return setNumberOfRowsImpl(nrows); }
 
@@ -509,19 +515,7 @@ public:
     services::Status setArrays(DataType * const ptr, size_t * colIndices, size_t * rowOffsets, CSRIndexing indexing = oneBased)
     {
         freeDataMemoryImpl();
-
-        //if( ptr == 0 || colIndices == 0 || rowOffsets == 0 ) return services::Status(services::ErrorEmptyCSRNumericTable);
-
-        _ptr        = services::SharedPtr<byte>((byte *)ptr, services::EmptyDeleter());
-        _colIndices = services::SharedPtr<size_t>(colIndices, services::EmptyDeleter());
-        _rowOffsets = services::SharedPtr<size_t>(rowOffsets, services::EmptyDeleter());
-        _indexing   = indexing;
-
-        if (ptr != 0 && colIndices != 0 && rowOffsets != 0)
-        {
-            _memStatus = userAllocated;
-        }
-        return services::Status();
+        return setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
     }
 
     /**
@@ -536,19 +530,7 @@ public:
                                const services::SharedPtr<size_t> & rowOffsets, CSRIndexing indexing = oneBased)
     {
         freeDataMemoryImpl();
-
-        //if( ptr == 0 || colIndices == 0 || rowOffsets == 0 ) return services::Status(services::ErrorEmptyCSRNumericTable);
-
-        _ptr        = services::reinterpretPointerCast<byte, DataType>(ptr);
-        _colIndices = colIndices;
-        _rowOffsets = rowOffsets;
-        _indexing   = indexing;
-
-        if (ptr && colIndices && rowOffsets)
-        {
-            _memStatus = userAllocated;
-        }
-        return services::Status();
+        return setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
     }
 
     services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) override
@@ -668,13 +650,65 @@ protected:
     services::SharedPtr<size_t> _colIndices;
     services::SharedPtr<size_t> _rowOffsets;
 
+    /**
+     *  Stores the pointers to a CSR data set without releasing the previously stored ones.
+     *  Non-virtual and safe to call from a constructor body, unlike setArrays(), which starts
+     *  with a virtual freeDataMemoryImpl() call. The constructors below have nothing to release
+     *  (all three arrays are default-constructed and _memStatus is notAllocated at that point),
+     *  so they use this method directly.
+     *
+     *  This also keeps the constructors free of virtual calls, which GCC 13 mis-analyzes under
+     *  -O3 -flto: walking back from the call it takes the dynamic type from the inlined
+     *  NumericTable base constructor, concludes that a CSRNumericTable vtable slot has no
+     *  possible target, and replaces the call with __builtin_unreachable, deleting the rest of
+     *  the construction.
+     */
+    template <typename DataType>
+    services::Status setArraysImpl(DataType * const ptr, size_t * colIndices, size_t * rowOffsets, CSRIndexing indexing)
+    {
+        //if( ptr == 0 || colIndices == 0 || rowOffsets == 0 ) return services::Status(services::ErrorEmptyCSRNumericTable);
+
+        _ptr        = services::SharedPtr<byte>((byte *)ptr, services::EmptyDeleter());
+        _colIndices = services::SharedPtr<size_t>(colIndices, services::EmptyDeleter());
+        _rowOffsets = services::SharedPtr<size_t>(rowOffsets, services::EmptyDeleter());
+        _indexing   = indexing;
+
+        if (ptr != 0 && colIndices != 0 && rowOffsets != 0)
+        {
+            _memStatus = userAllocated;
+        }
+        return services::Status();
+    }
+
+    /**
+     *  Stores the pointers to a CSR data set without releasing the previously stored ones.
+     *  See the overload above.
+     */
+    template <typename DataType>
+    services::Status setArraysImpl(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
+                                   const services::SharedPtr<size_t> & rowOffsets, CSRIndexing indexing)
+    {
+        //if( ptr == 0 || colIndices == 0 || rowOffsets == 0 ) return services::Status(services::ErrorEmptyCSRNumericTable);
+
+        _ptr        = services::reinterpretPointerCast<byte, DataType>(ptr);
+        _colIndices = colIndices;
+        _rowOffsets = rowOffsets;
+        _indexing   = indexing;
+
+        if (ptr && colIndices && rowOffsets)
+        {
+            _memStatus = userAllocated;
+        }
+        return services::Status();
+    }
+
     template <typename DataType>
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                     const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing, services::Status & st)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal, st), _indexing(indexing)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal, st)
     {
         _layout = csrArray;
-        st |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+        st |= setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
 
         _defaultFeature.setType<DataType>();
         st |= _ddict->setAllFeatures(_defaultFeature);
@@ -695,10 +729,10 @@ protected:
     template <typename DataType>
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                     const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal)
     {
         _layout = csrArray;
-        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+        this->_status |= setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
 
         _defaultFeature.setType<DataType>();
         this->_status |= _ddict->setAllFeatures(_defaultFeature);
@@ -707,10 +741,10 @@ protected:
     /**
      *  Constructor for an empty CSR Numeric Table
      */
-    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
+    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal)
     {
         _layout = csrArray;
-        this->_status |= setArrays<double>(0, 0, 0); //data type doesn't matter
+        this->_status |= setArraysImpl<double>(0, 0, 0, oneBased); //data type doesn't matter
     }
 
     /**
@@ -728,10 +762,10 @@ protected:
     template <typename DataType>
     CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
                     CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal)
     {
         _layout = csrArray;
-        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+        this->_status |= setArraysImpl<DataType>(ptr, colIndices, rowOffsets, indexing);
 
         _defaultFeature.setType<DataType>();
         this->_status |= _ddict->setAllFeatures(_defaultFeature);

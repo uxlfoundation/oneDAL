@@ -1,3 +1,8 @@
+# Precedence: the last matching pattern wins and fully replaces the owners of
+# every earlier match -- rules never accumulate. So a narrow override must sit
+# below the broad rule it refines, and any owner who should still review the
+# overridden path has to be repeated in the override.
+
 # Documentation owners and reviewers
 /docs/         @Vika-F @maria-Petrova @david-cortes-intel @yuejiaointel
 *.md           @Vika-F @maria-Petrova @david-cortes-intel @syakov-intel
@@ -13,7 +18,6 @@ examples/      @maria-Petrova @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @d
 .ci/           @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 .github/       @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 .bazelversion  @napetrov @homksei @ahuber21 @ethanglaser @icfaust
-WORKSPACE      @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 
 # Build & dev infrastructure
 make*          @Alexandr-Solovev
@@ -21,27 +25,26 @@ cmake/         @Alexandr-Solovev
 deploy/        @homksei @ahuber21 @ethanglaser
 dev/           @homksei @ahuber21 @ethanglaser
 dev/bazel/     @Alexandr-Solovev
-MODULE.bazel*  @Alexandr-Solovev
-# Platform-specific build scripts
-dev/make/function_definitions/arm*        @rakshithgb-fujitsu
-dev/make/function_definitions/lnxarm*     @rakshithgb-fujitsu
-dev/make/function_definitions/riscv64*    @keeranroth
-dev/make/function_definitions/lnxriscv64* @keeranroth
-.ci/env/arm-*                              @rakshithgb-fujitsu
-.ci/env/*riscv*.cmake                      @keeranroth
-.github/workflows/ci-aarch64.yml           @rakshithgb-fujitsu
-.github/workflows/*                        @icfaust
+MODULE.bazel*  @Alexandr-Solovev @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 
 # C++ code
 cpp/           @Alexandr-Solovev @avolkov-intel @icfaust @ethanglaser @david-cortes-intel
 
-# Platform-specific code owners
-cpp/**/*arm*       @rakshithgb-fujitsu
-cpp/**/*aarch64*   @rakshithgb-fujitsu
-cpp/**/*riscv64*   @keeranroth
-
 # Tree based methods
 dtrees         @razdoburdin @ahuber21 @avolkov-intel @icfaust @david-cortes-intel
+
+# Platform-specific code and build scripts.
+# Keep this block last so it is not shadowed by the broader rules above.
+cpp/**/*arm*                              @uxlfoundation/onedal-cpu-aarch64
+cpp/**/*aarch64*                          @uxlfoundation/onedal-cpu-aarch64
+cpp/**/*riscv64*                          @uxlfoundation/onedal-cpu-risc-v
+dev/make/function_definitions/arm*        @uxlfoundation/onedal-cpu-aarch64
+dev/make/function_definitions/lnxarm*     @uxlfoundation/onedal-cpu-aarch64
+dev/make/function_definitions/riscv64*    @uxlfoundation/onedal-cpu-risc-v
+dev/make/function_definitions/lnxriscv64* @uxlfoundation/onedal-cpu-risc-v
+.ci/env/*arm*                             @uxlfoundation/onedal-cpu-aarch64
+.ci/env/*riscv*                           @uxlfoundation/onedal-cpu-risc-v
+.github/workflows/ci-aarch64.yml          @uxlfoundation/onedal-cpu-aarch64
 
 # Governance and process
 /.github/CODEOWNERS @uxlfoundation/oneDAL-maintain

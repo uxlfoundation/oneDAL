@@ -16,6 +16,7 @@
 
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/detail/table_kinds.hpp"
+#include "oneapi/dal/table/detail/table_utils.hpp"
 #include "oneapi/dal/table/backend/empty_table_impl.hpp"
 #include "oneapi/dal/backend/serialization.hpp"
 
@@ -235,6 +236,19 @@ int64_t table::get_kind() const {
 data_layout table::get_data_layout() const {
     return impl_->get_data_layout();
 }
+
+#ifdef ONEDAL_DATA_PARALLEL
+std::optional<sycl::queue> table::get_queue() const {
+    // Access to the queue is provided by a separate interface that the table
+    // implementations are not required to implement. Implementations that do not
+    // provide it are reported as not associated with a queue.
+    const auto queue_iface = detail::get_queue_provider_iface(*this);
+    if (!queue_iface) {
+        return {};
+    }
+    return queue_iface->get_queue();
+}
+#endif
 
 void table::serialize(detail::output_archive& ar) const {
     detail::serialize_polymorphic_shared(impl_, ar);

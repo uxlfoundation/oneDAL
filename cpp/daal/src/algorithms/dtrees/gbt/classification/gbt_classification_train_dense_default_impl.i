@@ -135,7 +135,7 @@ public:
         static const size_t s_cMaxClassesBufSize = 12;
         const bool bUseTLS(_nClasses > s_cMaxClassesBufSize);
         daal::TlsMem<algorithmFPType, cpu> lsData(_nClasses);
-        daal::threader_for(n, n, [&](size_t i) {
+        daal::threader_for(n, 1, [&](size_t i) {
             constexpr algorithmFPType one(1.0);
             constexpr algorithmFPType two(2.0);
             algorithmFPType buf[s_cMaxClassesBufSize];
@@ -161,9 +161,7 @@ protected:
     {
         const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
         algorithmFPType maxArg             = arg[0];
-#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
-#endif
         for (size_t i = 1; i < _nClasses; ++i)
         {
             maxArg = arg[i] > maxArg ? arg[i] : maxArg;
@@ -263,7 +261,7 @@ protected:
         {
             this->_nParallelNodes.set(this->_nTrees); //highest level parallelization first
             daal::SafeStatus safeStat;
-            daal::threader_for(this->_nTrees, this->_nTrees, [&](size_t i) {
+            daal::threader_for(this->_nTrees, 1, [&](size_t i) {
                 if (safeStat)
                     safeStat |= buildTreeThreadLocal(aTbl[i], aTblImp[i], aTblSmplCnt[i], i, GH_SUMS_BUF);
                 else

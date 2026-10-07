@@ -73,7 +73,7 @@ Status CholeskyKernel<algorithmFPType, method, cpu>::copyMatrix(const algorithmF
         nBlocks++;
     }
 
-    threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+    threader_for(nBlocks, 1, [&](const size_t iBlock) {
         size_t endBlock = (iBlock + 1) * blockSize;
         endBlock        = endBlock > n ? n : endBlock;
 

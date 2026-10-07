@@ -16,7 +16,17 @@
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
+_VERSION = "2021.16.2"
+
 ccl_repo = repos.prebuilt_libs_repo_rule(
+    root_env_var = "CCL_ROOT",
+    archives = [
+        repos.archive(
+            url = "https://files.pythonhosted.org/packages/20/84/80906846a15a688214479b30c5a25044f3356216f6ee473b5f33010d7db0/oneccl-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
+            sha256 = "83fa5c0ac8e7c06569480fd27eb5f26a3bb383902277e2d22c93212b6cf26e9e",
+            strip_prefix = "oneccl-{}.data/data".format(_VERSION),
+        ),
+    ],
     includes = [
         "include/cpu_gpu_dpcpp/oneapi/",
     ],

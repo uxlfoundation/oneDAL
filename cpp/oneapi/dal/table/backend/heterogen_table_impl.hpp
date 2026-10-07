@@ -29,7 +29,12 @@
 namespace oneapi::dal::backend {
 
 class heterogen_table_impl : public detail::heterogen_table_template<heterogen_table_impl>,
-                             public ONEDAL_SERIALIZABLE(heterogen_table_id) {
+                             public ONEDAL_SERIALIZABLE(heterogen_table_id)
+#ifdef ONEDAL_DATA_PARALLEL
+        ,
+                             public detail::queue_provider_iface
+#endif
+{
     using data_t = dal::array<detail::chunked_array_base>;
 
 public:
@@ -197,6 +202,22 @@ public:
                               sycl::usm::alloc alloc) const {
         const alloc_kind req_alloc = alloc_kind_from_sycl(alloc);
         heterogen_pull_column(policy, meta_, data_, block, column_index, rows, req_alloc);
+    }
+#endif
+
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Returns the queue the table data is associated with. All the columns share
+    /// the same queue by construction, so the first one is representative. Returns
+    /// an empty optional when the table holds no column or when the data is not
+    /// associated with a queue.
+    std::optional<sycl::queue> get_queue() const override {
+        // The number of stored columns is used rather than the feature count: the
+        // two may disagree before the metadata is assigned.
+        if (data_.get_count() == 0l) {
+            return {};
+        }
+
+        return data_[0].get_queue();
     }
 #endif
 

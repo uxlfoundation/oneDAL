@@ -16,6 +16,9 @@
 
 #include "oneapi/dal/algo/decision_forest/test/fixture.hpp"
 
+#include <limits>
+#include <random>
+
 namespace oneapi::dal::decision_forest::test {
 
 template <typename TestType>
@@ -338,6 +341,83 @@ DF_BATCH_CLS_TEST("df cls base check with default params and train weights") {
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
+// min_weight_fraction_in_leaf_node enforcement (classification).
+DF_BATCH_CLS_TEST("df cls min weight fraction reduces node count") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const splitter_mode splitter_mode_val =
+        GENERATE_COPY(splitter_mode::best, splitter_mode::random);
+    this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
+}
+
+// A binary feature is often constant in a small node and is skipped during feature sampling.
+// The samples must stay ordered by the best split's feature.
+DF_BATCH_CLS_TEST("df cls probabilities stay valid when constant features are skipped") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    using Float = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 300;
+    constexpr std::int64_t binary_feature_count = 1;
+    constexpr std::int64_t column_count = binary_feature_count + 2;
+    constexpr std::int64_t class_count = 3;
+
+    const splitter_mode splitter_mode_val =
+        GENERATE_COPY(splitter_mode::best, splitter_mode::random);
+    INFO("splitter mode = " +
+         std::string(splitter_mode_val == splitter_mode::best ? "best" : "random"));
+    // TODO: remove once the GPU random splitter reads all rows of a node, not only the first
+    // work-group of them.
+    SKIP_IF(this->is_gpu() && splitter_mode_val == splitter_mode::random);
+
+    std::mt19937 gen(777);
+    std::uniform_real_distribution<double> uniform(0.0, 1.0);
+    std::vector<Float> x_arr(row_count * column_count);
+    std::vector<Float> y_arr(row_count);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            x_arr[i * column_count + j] =
+                j < binary_feature_count ? Float(gen() % 2) : Float(uniform(gen));
+        }
+        y_arr[i] = Float(gen() % class_count);
+    }
+    const auto x = dal::homogen_table::wrap(x_arr.data(), row_count, column_count);
+    const auto y = dal::homogen_table::wrap(y_arr.data(), row_count, 1);
+
+    auto desc = this->get_default_descriptor();
+    desc.set_class_count(class_count);
+    desc.set_tree_count(10);
+    desc.set_features_per_node(2);
+    desc.set_bootstrap(false);
+    desc.set_min_observations_in_leaf_node(1);
+    desc.set_max_bins(256);
+    desc.set_min_bin_size(1);
+    desc.set_seed(1);
+    desc.set_splitter_mode(splitter_mode_val);
+    desc.set_voting_mode(voting_mode::weighted);
+    desc.set_infer_mode(infer_mode::class_probabilities);
+
+    const auto model = this->train(desc, x, y).get_model();
+    const auto result = this->infer(desc, model, x);
+    const auto probas = row_accessor<const Float>(result.get_probabilities()).pull();
+
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        CAPTURE(i);
+        double sum = 0.0;
+        for (std::int64_t c = 0; c < class_count; ++c) {
+            const double p = probas[i * class_count + c];
+            CAPTURE(c, p);
+            REQUIRE(p >= 0.0);
+            REQUIRE(p <= 1.0);
+            sum += p;
+        }
+        REQUIRE(std::abs(sum - 1.0) <= class_count * std::numeric_limits<Float>::epsilon());
+        // Without bootstrap every training row lies in its own leaf in each tree.
+        REQUIRE(probas[i * class_count + std::int64_t(y_arr[i])] > 0);
+    }
+}
+
 DF_BATCH_CLS_TEST("df cls base check with non default params") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
@@ -425,6 +505,16 @@ DF_BATCH_REG_TEST("df reg base check with default params and train weights") {
         this->train_weighted_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
+// min_weight_fraction_in_leaf_node enforcement (regression).
+DF_BATCH_REG_TEST("df reg min weight fraction reduces node count") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const splitter_mode splitter_mode_val =
+        GENERATE_COPY(splitter_mode::best, splitter_mode::random);
+    this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
 }
 
 DF_BATCH_REG_TEST("df reg base check with non default params") {

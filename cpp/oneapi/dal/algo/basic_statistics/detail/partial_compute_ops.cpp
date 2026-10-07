@@ -37,6 +37,8 @@ struct partial_compute_ops_dispatcher<Policy, Float, Method, Task> {
 
 INSTANTIATE(float, method::dense, task::compute)
 INSTANTIATE(double, method::dense, task::compute)
+INSTANTIATE(float, method::sparse, task::compute)
+INSTANTIATE(double, method::sparse, task::compute)
 
 } // namespace v1
 } // namespace oneapi::dal::basic_statistics::detail

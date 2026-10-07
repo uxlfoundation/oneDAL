@@ -66,9 +66,7 @@ services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights,
     const algorithmFPType * src = srcBlock.get();
 
     algorithmFPType maxWeight = 0;
-#ifndef __clang__ // TODO: Temporary workaround. Clang fails to vectoize this simple loop
     PRAGMA_OMP_SIMD_ARGS(reduction(max : maxWeight))
-#endif
     for (size_t i = 0; i < nRows; ++i)
     {
         maxWeight = src[i] > maxWeight ? src[i] : maxWeight;
@@ -404,7 +402,7 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
     const size_t nBlocks     = ((nThreads < nRows) ? nThreads : 1);
     const size_t sizeOfBlock = nRows / nBlocks + !!(nRows % nBlocks);
 
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         const size_t iStart = iBlock * sizeOfBlock;
         const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > nRows) ? nRows : iStart + sizeOfBlock);
 
@@ -482,7 +480,7 @@ services::Status computeImpl(const NumericTable * x, const NumericTable * y, con
     services::internal::TArray<size_t, cpu> numElems(par.nTrees);
 
     daal::SafeStatus safeStat;
-    daal::threader_for(par.nTrees, par.nTrees, [&](size_t i) {
+    daal::threader_for(par.nTrees, 1, [&](size_t i) {
         if (!safeStat.ok()) return;
         TaskType * task = tlsTask.local();
         DAAL_CHECK_MALLOC_THR(task);
@@ -947,11 +945,18 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     DAAL_ASSERT(split_result.status.ok());
     if (split_result.bSplitSucceeded)
     {
-        const intermSummFPType imp     = impurity.var;
-        const intermSummFPType impLeft = split.left.var;
+        const intermSummFPType imp                     = impurity.var;
+        const intermSummFPType impLeft                 = split.left.var;
+        const size_t nLeft                             = split.nLeft;
+        const intermSummFPType leftWeights             = split.leftWeights;
+        const intermSummFPType rightWeights            = item.totalWeights - leftWeights;
+        typename DataHelper::ImpurityData impurityLeft = split.left;
+
+        _helper.convertLeftImpToRight(item.n, impurity, split);
+        const intermSummFPType impRight = split.left.var;
 
         // check impurity decrease
-        intermSummFPType improve = imp * item.totalWeights - impLeft * item.leftWeights - (item.totalWeights - item.leftWeights) * (imp - impLeft);
+        intermSummFPType improve = imp * item.totalWeights - impLeft * leftWeights - impRight * rightWeights;
         if (improve < _minImpurityDecrease)
         {
             return makeLeaf(_aSample.get() + item.start, item.n, impurity, nClasses);
@@ -963,11 +968,10 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
                 addImpurityDecrease(iFeature, item.n, impurity, split);
             }
 
-            item.nLeft        = split.nLeft;
-            item.leftWeights  = split.leftWeights;
-            item.improvement  = improve;
-            item.impurityLeft = split.left;
-            _helper.convertLeftImpToRight(item.n, impurity, split);
+            item.nLeft         = nLeft;
+            item.leftWeights   = leftWeights;
+            item.improvement   = improve;
+            item.impurityLeft  = impurityLeft;
             item.impurityRight = split.left;
 
             if (!(item.node = makeSplit(iFeature, split.featureValue, split.featureUnordered, nullptr, nullptr, impurity.var)))
@@ -1187,6 +1191,8 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
     RNGsInst<IndexType, cpu> rng;
     /* index for swapping samples in Fisher-Yates sampling */
     IndexType swapIdx;
+    /* aIdx is still ordered by the feature of the best non-indexed split */
+    bool aIdxHoldsBestSplit = false;
 
     for (size_t i = 0; i < maxFeatures && nVisitedFeature < _nFeaturesPerNode; ++i)
     {
@@ -1259,6 +1265,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
         {
             algorithmFPType * featBuf = featureBufFPType() + iStart; //single thread
             featureValuesToBuf(iFeature, featBuf, aIdx, n);
+            aIdxHoldsBestSplit = false;
             if (featBuf[n - 1] - featBuf[0] <= _accuracy) //all values of the feature are the same
                 continue;
 #ifdef DEBUG_CHECK_IMPURITY
@@ -1270,10 +1277,13 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
                 continue;
             idxFeatureValueBestSplit = -1;
             iBestSplit               = i;
+            aIdxHoldsBestSplit       = true;
             split.copyTo(bestSplit);
             DAAL_ASSERT(bestSplit.iStart < n);
             DAAL_ASSERT(bestSplit.iStart + bestSplit.nLeft <= n);
-            if (i + 1 < _nFeaturesPerNode || split.featureUnordered) services::internal::tmemcpy<IndexType, cpu>(bestSplitIdx, aIdx, n);
+            // Constant features do not count as visited, so a later feature may re-sort aIdx.
+            const bool lastPass = (nVisitedFeature >= _nFeaturesPerNode) || (i + 1 >= maxFeatures);
+            if (!lastPass || split.featureUnordered) services::internal::tmemcpy<IndexType, cpu>(bestSplitIdx, aIdx, n);
 #ifdef DEBUG_CHECK_IMPURITY
             _helper.checkImpurity(aIdx, bestSplit.nLeft, bestSplit.left);
 #endif
@@ -1322,8 +1332,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
         }
     }
     else
-        bCopyToIdx = (iBestSplit + 1 < _nFeaturesPerNode); //if iBestSplit is the last considered feature
-                                                           //then aIdx already contains the best split, no need to copy
+        bCopyToIdx = !aIdxHoldsBestSplit; //restore the saved order only if a later feature re-sorted aIdx
     if (bCopyToIdx) services::internal::tmemcpy<IndexType, cpu>(aIdx, bestSplitIdx, n);
     return { st, true };
 }

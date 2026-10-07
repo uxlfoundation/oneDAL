@@ -22,7 +22,12 @@
 namespace oneapi::dal::backend {
 
 class empty_table_impl : public detail::generic_table_template<empty_table_impl>,
-                         public ONEDAL_SERIALIZABLE(empty_table_id) {
+                         public ONEDAL_SERIALIZABLE(empty_table_id)
+#ifdef ONEDAL_DATA_PARALLEL
+        ,
+                         public detail::queue_provider_iface
+#endif
+{
 public:
     static constexpr std::int64_t pure_empty_table_kind = 0;
 
@@ -92,6 +97,12 @@ public:
                                  const sparse_indexing& indexing,
                                  const range& row_range,
                                  sycl::usm::alloc alloc) const {}
+#endif
+
+#ifdef ONEDAL_DATA_PARALLEL
+    std::optional<sycl::queue> get_queue() const override {
+        return {};
+    }
 #endif
 
     void serialize(detail::output_archive& ar) const override {

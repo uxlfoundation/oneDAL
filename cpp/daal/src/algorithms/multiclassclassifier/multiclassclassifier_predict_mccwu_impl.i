@@ -101,7 +101,7 @@ services::Status MultiClassClassifierPredictKernel<multiClassClassifierWu, train
     });
 
     daal::SafeStatus safeStat;
-    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
         const size_t startRow = iBlock * nRowsInBlock;
         size_t nRows          = nRowsInBlock;
         if (startRow + nRows > nVectors) nRows = nVectors - startRow;

@@ -71,24 +71,11 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
 
     const auto data_nd = pr::table2ndarray<Float>(q_, data, alloc::device);
 
-    auto [sums, sums_event] = compute_sums(q_, data_nd, assume_centered, {});
+    auto [sums, sums_event] = pr::compute_sums(q_, data_nd, assume_centered, {});
 
     {
         ONEDAL_PROFILER_TASK(allreduce_sums, q_);
         comm_.allreduce(sums.flatten(q_, { sums_event }), spmd::reduce_op::sum).wait();
-    }
-
-    auto xtx = pr::ndarray<Float, 2>::empty(q_, { column_count, column_count }, alloc::device);
-
-    sycl::event gemm_event;
-    {
-        ONEDAL_PROFILER_TASK(gemm, q_);
-        gemm_event = gemm(q_, data_nd.t(), data_nd, xtx, Float(1.0), Float(0.0));
-    }
-
-    {
-        ONEDAL_PROFILER_TASK(allreduce_xtx, q_);
-        comm_.allreduce(xtx.flatten(q_, { gemm_event }), spmd::reduce_op::sum).wait();
     }
 
     {
@@ -96,35 +83,65 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
         comm_.allreduce(rows_count_global, spmd::reduce_op::sum).wait();
     }
 
-    if (desc.get_result_options().test(result_options::cov_matrix)) {
-        auto [cov, cov_event] = compute_covariance(q_,
-                                                   rows_count_global,
-                                                   xtx,
-                                                   sums,
-                                                   bias,
-                                                   assume_centered,
-                                                   { gemm_event });
-        result.set_cov_matrix(
-            (homogen_table::wrap(cov.flatten(q_, { cov_event }), column_count, column_count)));
+    auto [means, means_event] =
+        (assume_centered
+             ? pr::ndarray<Float, 1>::zeros(q_, { column_count }, sycl::usm::alloc::device)
+             : pr::compute_means(q_, sums, rows_count_global, { sums_event }));
+
+    // The local rows are centered with the global means, so that the local
+    // cross-products stay additive across the ranks.
+    auto x_centered = data_nd;
+    sycl::event center_event = means_event;
+    if (!assume_centered) {
+        x_centered = pr::ndarray<Float, 2>::empty(q_, { row_count, column_count }, alloc::device);
+        auto copy_event = pr::copy(q_, x_centered, data_nd);
+        center_event = pr::get_centered(q_, x_centered, means, { copy_event, means_event });
     }
-    if (desc.get_result_options().test(result_options::cor_matrix)) {
-        auto [corr, corr_event] =
-            compute_correlation(q_, rows_count_global, xtx, sums, { gemm_event });
-        result.set_cor_matrix(
-            (homogen_table::wrap(corr.flatten(q_, { corr_event }), column_count, column_count)));
+
+    auto cross_product =
+        pr::ndarray<Float, 2>::empty(q_, { column_count, column_count }, alloc::device);
+
+    sycl::event gemm_event;
+    {
+        ONEDAL_PROFILER_TASK(gemm, q_);
+        gemm_event = gemm(q_,
+                          x_centered.t(),
+                          x_centered,
+                          cross_product,
+                          Float(1.0),
+                          Float(0.0),
+                          { center_event });
+    }
+
+    {
+        ONEDAL_PROFILER_TASK(cross_product, q_);
+        comm_.allreduce(cross_product.flatten(q_, { gemm_event }), spmd::reduce_op::sum).wait();
+    }
+
+    const bool has_cov = desc.get_result_options().test(result_options::cov_matrix);
+    const bool has_cor = desc.get_result_options().test(result_options::cor_matrix);
+
+    if (has_cov || has_cor) {
+        // Compute covariance matrix from the cross-product matrix.
+        auto cov = pr::ndarray<Float, 2>::empty(q_, { column_count, column_count }, alloc::device);
+        auto copy_event = pr::copy(q_, cov, cross_product);
+        auto cov_event =
+            pr::compute_covariance_centered(q_, rows_count_global, cov, bias, { copy_event });
+
+        if (has_cov) {
+            result.set_cov_matrix(
+                (homogen_table::wrap(cov.flatten(q_, { cov_event }), column_count, column_count)));
+        }
+        if (has_cor) {
+            auto corr =
+                pr::ndarray<Float, 2>::empty(q_, { column_count, column_count }, alloc::device);
+            auto corr_event = pr::correlation_from_covariance(q_, cov, corr, bias, { cov_event });
+            result.set_cor_matrix((
+                homogen_table::wrap(corr.flatten(q_, { corr_event }), column_count, column_count)));
+        }
     }
     if (desc.get_result_options().test(result_options::means)) {
-        if (!assume_centered) {
-            auto [means, means_event] = compute_means(q_, sums, rows_count_global, { gemm_event });
-            result.set_means(
-                homogen_table::wrap(means.flatten(q_, { means_event }), 1, column_count));
-        }
-        else {
-            auto [zero_means, zeros_event] =
-                pr::ndarray<Float, 1>::zeros(q_, { column_count }, sycl::usm::alloc::device);
-            result.set_means(
-                homogen_table::wrap(zero_means.flatten(q_, { zeros_event }), 1, column_count));
-        }
+        result.set_means(homogen_table::wrap(means.flatten(q_, { means_event }), 1, column_count));
     }
     return result;
 }

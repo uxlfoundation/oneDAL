@@ -435,22 +435,6 @@ TEST("Can get column slice from heterogen to shared") {
     }
 }
 
-TEST("Cannot build chunked array from chunks with different alloc kinds") {
-    DECLARE_TEST_POLICY(policy);
-    auto& q = policy.get_queue();
-
-    constexpr auto device = sycl::usm::alloc::device;
-    constexpr auto shared = sycl::usm::alloc::shared;
-
-    auto arr0 = array<float>::empty(q, 4l, shared);
-    std::iota(begin(arr0), end(arr0), float(0));
-    auto arr1 = array<float>::empty(q, 4l, device);
-
-    chunked_array<float> chunked(2);
-    chunked.set_chunk(0l, arr0);
-    REQUIRE_THROWS_AS(chunked.set_chunk(1l, arr1), invalid_argument);
-}
-
 #endif // ONEDAL_DATA_PARALLEL
 
 } // namespace oneapi::dal::test
