@@ -1108,29 +1108,6 @@ struct multiclass_blobs {
     }
 };
 
-/// Largest absolute difference between two tables of equal element count.
-///
-/// @tparam Float Floating-point type to read both tables as
-/// @param left   First table
-/// @param right  Second table, same shape as `left`
-/// @return       `max |left[i] - right[i]|` as a double
-template <typename Float>
-static double max_abs_diff(const table& left, const table& right) {
-    const auto left_arr = row_accessor<const Float>{ left }.pull();
-    const auto right_arr = row_accessor<const Float>{ right }.pull();
-    REQUIRE(left_arr.get_count() == right_arr.get_count());
-
-    double worst = 0.0;
-    for (std::int64_t i = 0; i < left_arr.get_count(); ++i) {
-        const double d =
-            std::abs(static_cast<double>(left_arr[i]) - static_cast<double>(right_arr[i]));
-        if (d > worst) {
-            worst = d;
-        }
-    }
-    return worst;
-}
-
 TEMPLATE_LIST_TEST_M(svm_batch_test,
                      "svm multi-class model can be reconstructed via public setters",
                      "[svm][integration][batch][multiclass][manual-model]",
@@ -1178,7 +1155,7 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     REQUIRE(rebuilt_df.get_column_count() == blobs_t::pair_count);
 
     INFO("rebuilt decision values must match the trained-model output");
-    const double worst = max_abs_diff<float_t>(reference, rebuilt_df);
+    const double worst = te::abs_error(reference, rebuilt_df);
     CAPTURE(worst);
     REQUIRE(worst < te::get_tolerance<float_t>(1e-4, 1e-10));
 
@@ -1200,7 +1177,7 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
 
     const auto float_biases_df =
         this->infer(svm_desc, float_biases, blobs.x_test()).get_decision_function();
-    const double worst_float_biases = max_abs_diff<float_t>(reference, float_biases_df);
+    const double worst_float_biases = te::abs_error(reference, float_biases_df);
     CAPTURE(worst_float_biases);
     REQUIRE(worst_float_biases < te::get_tolerance<float_t>(1e-4, 1e-6));
 }
@@ -1257,7 +1234,7 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     REQUIRE(rebuilt_df.get_row_count() == blobs_t::test_row_count);
     REQUIRE(rebuilt_df.get_column_count() == blobs_t::pair_count);
 
-    const double worst = max_abs_diff<float_t>(reference, rebuilt_df);
+    const double worst = te::abs_error(reference, rebuilt_df);
     CAPTURE(worst);
     REQUIRE(worst < te::get_tolerance<float_t>(1e-4, 1e-10));
 

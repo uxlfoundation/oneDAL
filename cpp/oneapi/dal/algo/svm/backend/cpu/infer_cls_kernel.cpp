@@ -84,16 +84,15 @@ static daal::data_management::NumericTablePtr slice_pair_support_vectors_dense(
         &status);
     interop::status_to_exception(status);
 
-    daal::data_management::BlockDescriptor<Float> blk;
-    pair_sv->getBlockOfRows(0, n_i + n_j, daal::data_management::writeOnly, blk);
+    daal::internal::WriteOnlyRows<Float, DAAL_BASE_CPU> rows(pair_sv.get(), 0, n_i + n_j);
+    interop::status_to_exception(rows.status());
     // Each class block is a contiguous row range of a row-major matrix, so one
     // copy per block is enough -- there is nothing to do per row.
-    Float* dst = blk.getBlockPtr();
+    Float* dst = rows.get();
     const Float* src_i = sv_data + first_i * column_count;
     const Float* src_j = sv_data + first_j * column_count;
     dal::backend::copy(dst, src_i, n_i * column_count);
     dal::backend::copy(dst + n_i * column_count, src_j, n_j * column_count);
-    pair_sv->releaseBlockOfRows(blk);
 
     return daal::data_management::NumericTablePtr{ pair_sv };
 }
@@ -278,12 +277,8 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
     auto multiclass_model = daal_multiclass::Model::create(column_count, &daal_par, &status);
     interop::status_to_exception(status);
 
-    // Cumulative per-class offsets into the aggregated SV / coeff matrices. Every
-    // count must be positive, not just their sum: a negative one can cancel a
-    // too-large one and still reach the right total while the offsets it yields
-    // read out of bounds. A zero count is rejected too -- the daal predictor then
-    // drops the class without renumbering the pairs, silently shifting which pair
-    // each decision value belongs to.
+    // Cumulative per-class offsets into the aggregated SV / coeff matrices.
+    // Every count must be positive. Counts should sum up to the number of support vectors.
     std::vector<std::int64_t> class_offsets(class_count + 1, 0);
     for (std::uint64_t c = 0; c < class_count; ++c) {
         if (n_per_class[c] <= 0) {
@@ -333,9 +328,11 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
                 &status);
             interop::status_to_exception(status);
             {
-                daal::data_management::BlockDescriptor<Float> blk;
-                pair_coeffs->getBlockOfRows(0, pair_n_sv, daal::data_management::writeOnly, blk);
-                Float* dst = blk.getBlockPtr();
+                daal::internal::WriteOnlyRows<Float, DAAL_BASE_CPU> rows(pair_coeffs.get(),
+                                                                         0,
+                                                                         pair_n_sv);
+                interop::status_to_exception(rows.status());
+                Float* dst = rows.get();
                 // Class-i SVs: pairwise (i, j) with j > i -> coeff column (j - 1).
                 const std::int64_t col_for_i = static_cast<std::int64_t>(j) - 1;
                 for (std::int64_t r = 0; r < n_i; ++r) {
@@ -346,7 +343,6 @@ static daal_multiclass::ModelPtr convert_to_daal_multiclass_model(
                 for (std::int64_t r = 0; r < n_j; ++r) {
                     dst[n_i + r] = coeffs_data[(class_offsets[j] + r) * coeff_stride + col_for_j];
                 }
-                pair_coeffs->releaseBlockOfRows(blk);
             }
 
             // Per-pair binary svm sub-model.

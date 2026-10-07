@@ -45,11 +45,12 @@ public:
     std::int64_t class_count = 2;
     table iteration_counts;
     /// A `1 x class_count` int32 row with the number of support vectors held by
-    /// each class, in increasing class order. It is the missing piece of the
-    /// layout description for the aggregated `support_vectors` / `coeffs`
-    /// arrays: without it a model rebuilt through the public setters cannot be
-    /// sliced back into the one-vs-one sub-models the multi-class infer kernel
-    /// needs. Empty for binary models and for `task::regression`.
+    /// each class, in increasing class order. Required for restoring a multi-class one-vs-one
+    /// model through public setters: `support_vectors` and `coeffs` in the aggregated
+    /// multi-class model are stored in row-blocks grouped by class in the same order as this
+    /// table. Every count must be at least one and they must sum to the row count of
+    /// `support_vectors`. Used with `task::classification` and `task::nu_classification`.
+    /// Empty for binary models and for `task::regression`.
     table n_support_per_class;
 
     model_impl() = default;
