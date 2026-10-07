@@ -90,7 +90,7 @@ jobs:
       BUILD_FOLDER: "builds"
     steps:
       - name: Download oneDAL build artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
@@ -196,7 +196,7 @@ jobs:
           # builds it.
           allow-unsafe-pr-checkout: true
       - name: Download oneDAL Linux build artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: __release_lnx
           github-token: ${{ github.token }}
@@ -274,14 +274,14 @@ jobs:
           # credentials and no cache access in the steps that run this checkout.
           allow-unsafe-pr-checkout: true
       - name: Download oneDAL Windows build artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: __release_win
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
           path: ./__release_win_vc
       - name: Download Intel BaseKit artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: intel_oneapi_basekit
           github-token: ${{ github.token }}
