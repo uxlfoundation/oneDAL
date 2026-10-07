@@ -420,7 +420,7 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
 
     // The first two rows are collinear, so the cosine distance between them is
     // zero however far apart they are in the euclidean sense. The third row is
-    // orthogonal to both, at the maximum cosine distance of one.
+    // orthogonal to both, at cosine distance one.
     constexpr float_t narrow_data[] = { 1.0, 0.0, 2.0, 0.0, 0.0, 1.0 };
     const auto x_narrow = homogen_table::wrap(narrow_data, 3, 2);
     this->run_metric_checks(x_narrow, epsilon, min_observations, distance_metric::cosine, 2.0, r);
@@ -438,16 +438,22 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
 
-    // A zero row has no direction, so it must not be a neighbour of anything,
-    // not even of itself, and it must not produce a NaN either.
+    // As in scikit-learn, the zero row is at distance 1 from the other rows and 0 from itself.
     constexpr float_t data[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
                                  1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0 };
     const auto x = homogen_table::wrap(data, 3, 5);
 
-    constexpr std::int32_t responses[] = { -1, 0, 0 };
-    const auto r = homogen_table::wrap(responses, 3, 1);
+    constexpr std::int32_t noise_responses[] = { -1, 0, 0 };
+    const auto r_noise = homogen_table::wrap(noise_responses, 3, 1);
+    this->run_metric_checks(x, 0.1, 2, distance_metric::cosine, 2.0, r_noise);
 
-    this->run_metric_checks(x, 0.1, 2, distance_metric::cosine, 2.0, r);
+    constexpr std::int32_t own_cluster_responses[] = { 0, 1, 1 };
+    const auto r_own_cluster = homogen_table::wrap(own_cluster_responses, 3, 1);
+    this->run_metric_checks(x, 0.1, 1, distance_metric::cosine, 2.0, r_own_cluster);
+
+    constexpr std::int32_t joined_responses[] = { 0, 0, 0 };
+    const auto r_joined = homogen_table::wrap(joined_responses, 3, 1);
+    this->run_metric_checks(x, 1.0, 3, distance_metric::cosine, 2.0, r_joined);
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,

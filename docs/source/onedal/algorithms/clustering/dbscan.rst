@@ -65,8 +65,9 @@ modes.
 ``epsilon`` is always interpreted in the units of the selected metric, so the
 same radius describes a different neighborhood for each metric and generally has
 to be re-tuned after changing it. Under the Cosine distance, ``epsilon`` ranges
-over :math:`[0, 2]`, and an all-zero observation has no direction and is
-therefore treated as maximally distant from every observation, including itself.
+over :math:`[0, 2]`. As in scikit-learn, an all-zero observation is at distance
+:math:`1` from every non-zero observation; two all-zero observations are at
+distance :math:`0`.
 
 ---------------------
 Programming Interface

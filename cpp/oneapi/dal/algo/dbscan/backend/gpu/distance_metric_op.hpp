@@ -159,9 +159,11 @@ struct cosine_metric_op {
 
     Float finish(const metric_accumulator<Float>& acc) const {
         const Float norm = sycl::sqrt(acc.lhs_norm) * sycl::sqrt(acc.rhs_norm);
-        // A zero row has no direction, so there is no angle between it and
-        // anything else. Report maximum separation instead of dividing by zero.
-        return norm > Float(0) ? Float(1) - acc.sum / norm : Float(1);
+        if (norm > Float(0)) {
+            return Float(1) - acc.sum / norm;
+        }
+        // As in scikit-learn, a zero row is at distance 1 from non-zero rows; two zero rows coincide.
+        return (acc.lhs_norm == Float(0) && acc.rhs_norm == Float(0)) ? Float(0) : Float(1);
     }
 };
 
