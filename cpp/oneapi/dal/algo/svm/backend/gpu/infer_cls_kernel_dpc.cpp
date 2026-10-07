@@ -19,6 +19,7 @@
 
 #include "oneapi/dal/backend/primitives/blas.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
+#include "oneapi/dal/table/csr.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
 
@@ -68,8 +69,29 @@ static result_t infer(const context_gpu& ctx, const descriptor_t& desc, const in
     }
 
     const auto data = input.get_data();
-    const auto data_nd = pr::table2ndarray<Float>(q, data, sycl::usm::alloc::device);
     const auto trained_model = input.get_model();
+
+    // A multi-class model's arrays are aggregated over its pairwise sub-models,
+    // which the binary kernel below would read as a single sub-model. The
+    // descriptor check above cannot see this -- a caller can set the arrays and
+    // keep a binary descriptor -- hence the separate message.
+    if (trained_model.get_class_count() > 2 ||
+        (trained_model.get_n_support_per_class().has_data() &&
+         trained_model.get_n_support_per_class().get_column_count() > 2)) {
+        throw unimplemented(
+            dal::detail::error_messages::svm_multiclass_model_not_implemented_for_gpu());
+    }
+
+    // Unlike the cpu kernel this one is dense-only, for any class count. Say so
+    // here, because the conversions below reach for row access that a
+    // `csr_table` does not provide and would fail as a generic access error.
+    if (data.get_kind() == dal::csr_table::kind() ||
+        trained_model.get_support_vectors().get_kind() == dal::csr_table::kind()) {
+        throw unimplemented(
+            dal::detail::error_messages::svm_csr_table_is_not_implemented_for_gpu());
+    }
+
+    const auto data_nd = pr::table2ndarray<Float>(q, data, sycl::usm::alloc::device);
 
     const auto kernel_ptr = detail::get_kernel_ptr(desc);
     if (!kernel_ptr) {
