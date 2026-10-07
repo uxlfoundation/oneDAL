@@ -24,6 +24,8 @@
 #include "services/daal_defines.h"
 
 // 4 levels of cache can be detected: L1, L2, LLC, and eDRAM
+// eDRAM size is not used in the current implementation as it is not available
+// on modern CPUs
 #define MAX_CACHE_LEVELS      4
 #define DEFAULT_L1_CACHE_SIZE 32 * 1024
 #define DEFAULT_L2_CACHE_SIZE 256 * 1024
