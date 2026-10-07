@@ -48,7 +48,6 @@ inline auto empty_daal_homogen_table(std::int64_t column_count) {
         daal::data_management::NumericTable::notAllocate);
 }
 
-template <typename Data>
 /// Puts a DAAL `HomogenNumericTable<Data>` view over an existing `dal::array`,
 /// without copying the data.
 /// The data ownership becomes shared between the newly created `HomogenNumericTable<Data>`
@@ -64,7 +63,7 @@ template <typename Data>
 ///                           a writable data pointer.
 ///
 /// @return DAAL table that uses the array's memory, or an empty pointer if the array is empty.
-template <typename Data>.
+template <typename Data>
 inline auto convert_to_daal_homogen_table(array<Data>& data,
                                           std::int64_t row_count,
                                           std::int64_t column_count,
