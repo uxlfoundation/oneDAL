@@ -140,6 +140,9 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # entry points do not reach. Everything non-exported is already hidden.
 -sections      := $(if $(OS_is_lnx),-ffunction-sections -fdata-sections,)
 -lsections     := $(if $(OS_is_lnx),-Wl$(comma)--gc-sections,)
+# --gc-sections drops the GCC 13+ <iostream> reference that pins GLIBCXX_3.4.32;
+# keep it. An older libstdc++ lacks the symbol, and the linker then ignores -u.
+-lkeepios      := $(if $(OS_is_lnx),-Wl$(comma)-u$(comma)_ZSt21ios_base_library_initv,)
 -DMKL_ILP64    := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
 -DMKL_LP64     := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_LP64)
 -Zl            := $(-Zl.$(COMPILER))
@@ -526,7 +529,7 @@ $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_lin
 $(WORKDIR.lib)/$(core_a):                   LOPT:=
 $(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
 
-$(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC) $(-lsections) $(-lkeepios)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(core_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
@@ -780,7 +783,7 @@ $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): \
 $(WORKDIR.lib)/$(oneapi_y): \
     $(daaldep.math_backend.shared_link_deps) \
     $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC) $(-lsections) $(-lkeepios)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
@@ -795,7 +798,7 @@ $(ONEAPI.tmpdir_y)/$(parameters_y:%.$y=%_link.txt): \
 $(WORKDIR.lib)/$(parameters_y): \
     $(WORKDIR.lib)/$(oneapi_y) $(daaldep.ipp) $(daaldep.vml) $(daaldep.mkl) \
     $(ONEAPI.tmpdir_y)/$(parameters_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(parameters_y): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(parameters_y): LOPT += $(-fPIC) $(-lsections) $(-lkeepios)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
@@ -814,7 +817,7 @@ $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC) $(-lsections) $(-lkeepios)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
@@ -837,7 +840,7 @@ $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt): \
 $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(WORKDIR.lib)/$(oneapi_y.dpc) \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections) $(-lkeepios)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
