@@ -27,6 +27,7 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
 #include "oneapi/dal/test/engine/metrics/classification.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 #include "oneapi/dal/table/csr.hpp"
 #include "oneapi/dal/table/homogen.hpp"
@@ -1107,47 +1108,6 @@ struct multiclass_blobs {
     }
 };
 
-/// Encodes a dense host buffer as CSR, storing only the non-zero values. Unlike
-/// `te::dense_to_explicit_csr` this leaves the per-row non-zero counts uneven,
-/// which is what exercises the row-offset arithmetic of the sparse rebuild.
-///
-/// @tparam Float        Floating-point type of the values
-/// @param dense         Row-major buffer of `row_count x column_count` values
-/// @param row_count     Number of rows in `dense`
-/// @param column_count  Number of columns in `dense`
-/// @return              A one-based CSR table holding the non-zeros of `dense`
-template <typename Float>
-static csr_table dense_to_sparse_csr(const Float* dense,
-                                     std::int64_t row_count,
-                                     std::int64_t column_count) {
-    std::vector<Float> values;
-    std::vector<std::int64_t> column_indices;
-    std::vector<std::int64_t> row_offsets;
-    row_offsets.push_back(1);
-    for (std::int64_t r = 0; r < row_count; ++r) {
-        for (std::int64_t c = 0; c < column_count; ++c) {
-            const Float v = dense[r * column_count + c];
-            if (v != Float(0)) {
-                values.push_back(v);
-                column_indices.push_back(c + 1);
-            }
-        }
-        row_offsets.push_back(std::int64_t(values.size()) + 1);
-    }
-    // `dal::array<T>::empty(0)` throws, so an all-zero input cannot be encoded
-    // here. No caller passes one.
-    REQUIRE(!values.empty());
-
-    auto data_arr = dal::array<Float>::empty(std::int64_t(values.size()));
-    auto cols_arr = dal::array<std::int64_t>::empty(std::int64_t(column_indices.size()));
-    auto offs_arr = dal::array<std::int64_t>::empty(row_count + 1);
-    std::copy(values.begin(), values.end(), data_arr.get_mutable_data());
-    std::copy(column_indices.begin(), column_indices.end(), cols_arr.get_mutable_data());
-    std::copy(row_offsets.begin(), row_offsets.end(), offs_arr.get_mutable_data());
-
-    return csr_table::wrap(data_arr, cols_arr, offs_arr, column_count, sparse_indexing::one_based);
-}
-
 /// Largest absolute difference between two tables of equal element count.
 ///
 /// @tparam Float Floating-point type to read both tables as
@@ -1274,9 +1234,10 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     INFO("re-encode the support vectors as csr, as a sklearn sparse fit would hand them over");
     const auto sv_dense = trained_model.get_support_vectors();
     const auto sv_arr = row_accessor<const float_t>{ sv_dense }.pull();
-    const auto sv_csr = dense_to_sparse_csr<float_t>(sv_arr.get_data(),
-                                                     sv_dense.get_row_count(),
-                                                     sv_dense.get_column_count());
+    const auto sv_csr = te::dense_to_sparse_csr<float_t>(sv_arr.get_data(),
+                                                         sv_dense.get_row_count(),
+                                                         sv_dense.get_column_count(),
+                                                         sparse_indexing::one_based);
     REQUIRE(sv_csr.get_row_count() == sv_dense.get_row_count());
     REQUIRE(sv_csr.get_column_count() == sv_dense.get_column_count());
 
@@ -1288,9 +1249,10 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
                        .set_n_support_per_class(trained_model.get_n_support_per_class());
 
     INFO("a csr model infers csr data and reproduces the dense decision values");
-    const auto x_test_csr = dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
-                                                         blobs_t::test_row_count,
-                                                         blobs_t::column_count);
+    const auto x_test_csr = te::dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
+                                                             blobs_t::test_row_count,
+                                                             blobs_t::column_count,
+                                                             sparse_indexing::one_based);
     const auto rebuilt_df = this->infer(svm_desc, rebuilt, x_test_csr).get_decision_function();
     REQUIRE(rebuilt_df.get_row_count() == blobs_t::test_row_count);
     REQUIRE(rebuilt_df.get_column_count() == blobs_t::pair_count);
@@ -1362,9 +1324,10 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
                        .set_biases(trained_model.get_biases())
                        .set_n_support_per_class(trained_model.get_n_support_per_class());
 
-    const auto x_test_csr = dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
-                                                         blobs_t::test_row_count,
-                                                         blobs_t::column_count);
+    const auto x_test_csr = te::dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
+                                                             blobs_t::test_row_count,
+                                                             blobs_t::column_count,
+                                                             sparse_indexing::one_based);
     const auto df = this->infer(svm_desc, rebuilt, x_test_csr).get_decision_function();
     REQUIRE(df.get_row_count() == blobs_t::test_row_count);
     REQUIRE(df.get_column_count() == blobs_t::pair_count);
@@ -1549,15 +1512,18 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     REQUIRE_NOTHROW(this->infer(binary_desc, binary_model, blobs.x_test()));
 
     INFO("csr test data is refused, binary descriptor and dense model or not");
-    const auto x_test_csr = dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
-                                                         blobs_t::test_row_count,
-                                                         blobs_t::column_count);
+    const auto x_test_csr = te::dense_to_sparse_csr<float_t>(blobs.x_test_data.data(),
+                                                             blobs_t::test_row_count,
+                                                             blobs_t::column_count,
+                                                             sparse_indexing::one_based);
     REQUIRE_THROWS_AS(this->infer(binary_desc, binary_model, x_test_csr), unimplemented);
 
     INFO("so are csr support vectors reaching the kernel on dense test data");
     constexpr std::int64_t sv_count = 2;
-    const auto sv_csr =
-        dense_to_sparse_csr<float_t>(blobs.x_train_data.data(), sv_count, blobs_t::column_count);
+    const auto sv_csr = te::dense_to_sparse_csr<float_t>(blobs.x_train_data.data(),
+                                                         sv_count,
+                                                         blobs_t::column_count,
+                                                         sparse_indexing::one_based);
     const std::array<float_t, sv_count> sv_coeffs = { 1.0, -1.0 };
     const std::array<float_t, 1> sv_bias = { 0.0 };
     auto csr_sv_model = svm::model<svm::task::classification>{}
