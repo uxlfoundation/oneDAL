@@ -145,6 +145,9 @@ TEST("can retrieve system-related parameters") {
     detail::compute_parameters hp{};
     REQUIRE(static_cast<uint64_t>(hp.get_top_enabled_cpu_extension()) >= 0);
     REQUIRE(hp.get_max_number_of_threads() > 0);
+    REQUIRE(hp.get_l1_cache_size() > 0);
+    REQUIRE(hp.get_l2_cache_size() > 0);
+    REQUIRE(hp.get_ll_cache_size() > 0);
 #ifdef ONEDAL_DATA_PARALLEL
     DECLARE_TEST_POLICY(policy);
     auto& q = policy.get_queue();
