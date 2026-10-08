@@ -183,7 +183,7 @@ void compute_medoids(const Float* data,
     auto scores_arr = dal::array<double>::zeros(member_count);
     double* scores = scores_arr.get_mutable_data();
     const bool is_cosine = metric == distance_metric::cosine;
-    dal::detail::tls<Float*> tile_tls([]() {
+    dal::detail::tls<Float*> tile_tls([=]() {
         return new (std::nothrow) Float[row_block * col_block];
     });
     std::atomic<bool> alloc_failed{ false };

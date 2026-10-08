@@ -84,9 +84,9 @@ enum Float32MatmulPrecision
 } // namespace daal
 
 /* Hardware capability -- constant for the process lifetime. */
-bool daal_has_amx_bf16();
+DAAL_EXPORT bool daal_has_amx_bf16();
 /* Precision getter/setter -- no HW queries; operate on the stored hint only. */
-daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision();
+DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision();
 void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p);
 inline bool daal_allow_amx_bf16_matmul()
 {
