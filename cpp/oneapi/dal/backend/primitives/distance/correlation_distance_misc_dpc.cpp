@@ -50,14 +50,21 @@ sycl::event compute_deviation(sycl::queue& q,
     auto means_event = means(q, p, inp_sum, inp_mean, { sums_event });
     auto inp_mean_ptr = inp_mean.get_data();
 
-    // Return event that updates output matrix with centered values (input(x) - input_mean(x))
-    return q.submit([&](sycl::handler& h) {
+    // Update the output matrix with centered values (input(x) - input_mean(x))
+    auto center_event = q.submit([&](sycl::handler& h) {
         h.depends_on({ means_event });
         h.parallel_for(out_range, [=](sycl::id<2> idx) {
             const auto offset = idx[0] * out_stride + idx[1];
             out_ptr[offset] = inp_ptr[offset] - inp_mean_ptr[idx[0]];
         });
     });
+
+    // `inp_sum` and `inp_mean` are scratch owned by this function, and freeing device USM is
+    // not a synchronizing operation: returning `center_event` while it still reads `inp_mean`
+    // would let the array destructors free memory out from under the running kernels.
+    center_event.wait_and_throw();
+
+    return center_event;
 }
 
 template <typename Float, ndorder order>

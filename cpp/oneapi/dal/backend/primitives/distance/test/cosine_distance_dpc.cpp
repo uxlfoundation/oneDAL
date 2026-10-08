@@ -96,6 +96,14 @@ public:
         auto [output, output_event] = this->output();
         cosine_distance<Float> distance(this->get_queue());
         auto distance_event = distance(input1, input2, output, { output_event });
+
+        // This overload computes the inversed norms into scratch it owns itself, so it must not
+        // hand back an event that is still in flight: `sycl::free` does not synchronize, and the
+        // norms would be released from under the running kernel.
+        const auto status =
+            distance_event.template get_info<sycl::info::event::command_execution_status>();
+        REQUIRE(status == sycl::info::event_command_status::complete);
+
         distance_event.wait_and_throw();
         groundtruth_check(output);
     }

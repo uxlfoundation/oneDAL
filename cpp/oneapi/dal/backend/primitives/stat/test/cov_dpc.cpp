@@ -258,8 +258,17 @@ TEMPLATE_LIST_TEST_M(cov_test, "correlation on diagonal data", "[cor]", cov_type
                                     assume_centered,
                                     { gemm_event_corr });
     pr::variances(this->get_queue(), cov, vars, { cov_event }).wait_and_throw();
-    correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr })
-        .wait_and_throw();
+    auto corr_event =
+        correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr });
+
+    // `correlation` holds its own device scratch for the intermediate diagonal, so it must not
+    // hand back an event that is still in flight: `sycl::free` does not synchronize, and the
+    // scratch would be released from under the finalize kernel.
+    const auto corr_status =
+        corr_event.template get_info<sycl::info::event::command_execution_status>();
+    REQUIRE(corr_status == sycl::info::event_command_status::complete);
+
+    corr_event.wait_and_throw();
 
     // The upper part of data matrix is diagonal. In diagonal matrix each column
     // contains only one non-zero element (`diag_element`), so mean and
