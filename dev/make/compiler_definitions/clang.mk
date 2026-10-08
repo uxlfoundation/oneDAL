@@ -28,17 +28,24 @@ CORE.SERV.COMPILER.clang = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
-ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
-else
-    $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+    endif
 endif
 
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+# -U_FORTIFY_SOURCE comes first because some toolchain builds predefine it.
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.clang = -$(OPTFLAG)
 else ifeq ($(OPTFLAG),Ofast)
-    -optlevel.clang = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+    -optlevel.clang = -O3 -ffast-math -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 else
-    -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    -optlevel.clang = -$(OPTFLAG) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 endif
 
 -Zl.clang =
