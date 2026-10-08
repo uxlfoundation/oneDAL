@@ -89,21 +89,34 @@ sycl::event gesvd(sycl::queue& queue,
     auto scratchpad =
         ndarray<Float, 1>::empty(queue, { scratchpad_size }, sycl::usm::alloc::device);
     auto scratchpad_ptr = scratchpad.get_mutable_data();
-    return gesvd_wrapper(queue,
-                         job_u,
-                         job_vt,
-                         row_count,
-                         column_count,
-                         a.get_mutable_data(),
-                         lda,
-                         s.get_mutable_data(),
-                         u.get_mutable_data(),
-                         ldu,
-                         vt.get_mutable_data(),
-                         ldvt,
-                         scratchpad_ptr,
-                         scratchpad_size,
-                         deps);
+    auto gesvd_event = gesvd_wrapper(queue,
+                                     job_u,
+                                     job_vt,
+                                     row_count,
+                                     column_count,
+                                     a.get_mutable_data(),
+                                     lda,
+                                     s.get_mutable_data(),
+                                     u.get_mutable_data(),
+                                     ldu,
+                                     vt.get_mutable_data(),
+                                     ldvt,
+                                     scratchpad_ptr,
+                                     scratchpad_size,
+                                     deps);
+
+    // The scratchpad is owned by this function and LAPACK keeps writing to it for the whole
+    // decomposition. Freeing device USM is not a synchronizing operation, so returning here would
+    // let `scratchpad`'s destructor release the buffer out from under the running kernels.
+    //
+    // `potrf`/`potrs` next door solve the same problem without blocking, by taking the scratchpad
+    // as an `opt_array<Float>&` the caller keeps alive. That is the better shape, but it moves the
+    // lifetime onto every caller. It is not worth it here: this runs once per PCA fit, from a
+    // single call site, so the host block costs one synchronization per fit rather than one per
+    // iteration. Switch to the `opt_array` form if `gesvd` ever grows a caller in a loop.
+    gesvd_event.wait_and_throw();
+
+    return gesvd_event;
 }
 
 #define INSTANTIATE(jobu, jobvt, F)                                               \
