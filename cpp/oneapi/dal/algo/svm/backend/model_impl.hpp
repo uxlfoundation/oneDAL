@@ -44,6 +44,14 @@ public:
     double second_class_response;
     std::int64_t class_count = 2;
     table iteration_counts;
+    /// A `1 x class_count` int32 row with the number of support vectors held by
+    /// each class, in increasing class order. Required for restoring a multi-class one-vs-one
+    /// model through public setters: `support_vectors` and `coeffs` in the aggregated
+    /// multi-class model are stored in row-blocks grouped by class in the same order as this
+    /// table. Every count must be at least one and they must sum to the row count of
+    /// `support_vectors`. Used with `task::classification` and `task::nu_classification`.
+    /// Empty for binary models and for `task::regression`.
+    table n_support_per_class;
 
     model_impl() = default;
     model_impl(const model_impl&) = delete;
@@ -63,7 +71,7 @@ public:
 
         if constexpr (std::is_same_v<Task, task::classification> ||
                       std::is_same_v<Task, task::nu_classification>) {
-            ar(first_class_response, second_class_response, class_count);
+            ar(first_class_response, second_class_response, class_count, n_support_per_class);
         }
 
         dal::detail::serialize_polymorphic(interop_, ar);
@@ -74,7 +82,7 @@ public:
 
         if constexpr (std::is_same_v<Task, task::classification> ||
                       std::is_same_v<Task, task::nu_classification>) {
-            ar(first_class_response, second_class_response, class_count);
+            ar(first_class_response, second_class_response, class_count, n_support_per_class);
         }
 
         interop_ = dal::detail::deserialize_polymorphic<backend::model_interop>(ar);
