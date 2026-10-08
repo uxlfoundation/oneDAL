@@ -171,20 +171,20 @@ public:
         DAAL_CHECK_BLOCK_STATUS(ntDataBD);
         const algorithmFPType * const pData = ntDataBD.get();
 
-        algorithmFPType * const pDistSqBest   = &aMinDist[iBestTrial * nRows + iStartRow];
-        const algorithmFPType * const weights = aWeights ? &aWeights[iStartRow] : nullptr;
+        algorithmFPType * const pDistSqBest   = aMinDist + iBestTrial * nRows + iStartRow;
+        const algorithmFPType * const weights = aWeights ? aWeights + iStartRow : nullptr;
         for (size_t iTrials = 0u; iTrials < nTrials; iTrials++)
         {
             if (iTrials == iBestTrial) continue;
 
-            algorithmFPType * const pDistSq            = &aMinDist[iTrials * nRows + iStartRow];
-            const algorithmFPType * const pAddedCenter = &pLastAddedCenter[iTrials * dim];
+            algorithmFPType * const pDistSq            = aMinDist + iTrials * nRows + iStartRow;
+            const algorithmFPType * const pAddedCenter = pLastAddedCenter + iTrials * dim;
 
             minDistAccTrials[iTrials * nBlock + iBlock] =
                 updateMinDistForITrials(pDistSq, iTrials, nRowsToProcess, pData, pAddedCenter, weights, pDistSqBest);
         }
         minDistAccTrials[iBestTrial * nBlock + iBlock] =
-            updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, pLastAddedCenter, weights, pDistSqBest);
+            updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, pLastAddedCenter + iBestTrial * dim, weights, pDistSqBest);
 
         return Status();
     }
@@ -268,20 +268,20 @@ public:
         const auto colIdx = block.getBlockColumnIndicesPtr();
         const auto rowIdx = block.getBlockRowIndicesPtr();
 
-        algorithmFPType * const pDistSqBest   = &aMinDist[iBestTrial * nRows + iStartRow];
-        const algorithmFPType * const weights = aWeights ? &aWeights[iStartRow] : nullptr;
+        algorithmFPType * const pDistSqBest   = aMinDist + iBestTrial * nRows + iStartRow;
+        const algorithmFPType * const weights = aWeights ? aWeights + iStartRow : nullptr;
         for (size_t iTrials = 0u; iTrials < nTrials; iTrials++)
         {
             if (iTrials == iBestTrial) continue;
 
-            algorithmFPType * const pDistSq            = &aMinDist[iTrials * nRows + iStartRow];
-            const algorithmFPType * const pAddedCenter = &pLastAddedCenter[iTrials * dim];
+            algorithmFPType * const pDistSq            = aMinDist + iTrials * nRows + iStartRow;
+            const algorithmFPType * const pAddedCenter = pLastAddedCenter + iTrials * dim;
 
             minDistAccTrials[iTrials * nBlock + iBlock] =
                 updateMinDistForITrials(pDistSq, iTrials, nRowsToProcess, pData, colIdx, rowIdx, pAddedCenter, weights, pDistSqBest);
         }
-        minDistAccTrials[iBestTrial * nBlock + iBlock] =
-            updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, colIdx, rowIdx, pLastAddedCenter, weights, pDistSqBest);
+        minDistAccTrials[iBestTrial * nBlock + iBlock] = updateMinDistForITrials(pDistSqBest, iBestTrial, nRowsToProcess, pData, colIdx, rowIdx,
+                                                                                 pLastAddedCenter + iBestTrial * dim, weights, pDistSqBest);
 
         return _csr->releaseSparseBlock(block);
     }
