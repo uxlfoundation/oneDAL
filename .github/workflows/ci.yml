@@ -307,3 +307,63 @@ jobs:
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+
+  # Builds and runs the Bazel examples with the compilers, MKL, TBB and oneDPL
+  # from conda-forge instead of the apt oneAPI packages used by LinuxBazel.
+  LinuxBazel_MKL_Conda:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 300
+    env:
+      CONDA_ENV: onedal_env
+      CONDA_SH: /usr/share/miniconda/etc/profile.d/conda.sh
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Miniforge
+        run: .ci/env/apt.sh miniforge
+      # Package list from the "Conda Development Environment Setup" section of INSTALL.md.
+      - name: Create conda environment
+        run: |
+          source "${CONDA_SH}"
+          conda create -y -n "${CONDA_ENV}"
+          conda activate "${CONDA_ENV}"
+          conda install -y -c conda-forge \
+              make \
+              dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+              tbb tbb-devel \
+              onedpl-devel \
+              mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp \
+              cmake \
+              impi-devel impi_rt
+      - name: Install Bazel
+        run: |
+          source .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: System Info
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          .ci/scripts/describe_system.sh
+      - name: bazel-configure
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          # Minimal CPU instruction set on the runners is AVX2
+          echo "build --cpu=avx2" > ~/.bazelrc
+          bazel build @config//:dump
+          cat bazel-bin/external/+declare_onedal_config+config/config.json
+      - name: daal-cpp-examples-thread-dev
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          bazel test //examples/daal/cpp:all --test_link_mode=dev --test_thread_mode=par
+      - name: cpp-examples-thread-dev
+        run: |
+          source "${CONDA_SH}"
+          conda activate "${CONDA_ENV}"
+          export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          bazel test //examples/oneapi/cpp:all --test_link_mode=dev --test_thread_mode=par

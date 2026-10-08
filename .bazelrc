@@ -48,6 +48,11 @@ build --action_env=INCLUDE
 build --action_env=LIB
 build --action_env=PATH
 
+# Config files the Intel compilers read instead of the default `icx.cfg`;
+# conda-forge points them at its sysroot, which the toolchain probe has already seen.
+build --action_env=ICXCFG
+build --action_env=ICPXCFG
+
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
 # the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
