@@ -3163,6 +3163,100 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: medoids use the fitted metric, like scikit-learn's",
+                     "[hdbscan][batch]",
+                     hdbscan_center_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // sklearn.cluster.HDBSCAN(4, 3, store_centers="medoid", metric=...), minkowski with p=3.
+    // Chebyshev picks a different medoid for the second blob than the L_p metrics.
+    struct metric_case {
+        distance_metric metric;
+        double expected[4];
+    };
+    const metric_case c =
+        GENERATE(metric_case{ distance_metric::chebyshev, { 0.253, -0.131, 6.84, 5.667 } },
+                 metric_case{ distance_metric::minkowski, { 0.253, -0.131, 5.406, 6.858 } },
+                 metric_case{ distance_metric::cosine, { 5.964, 4.839, 5.69, 7.623 } });
+    CAPTURE(int(c.metric));
+    // The trees need an L_p metric.
+    SKIP_IF((c.metric == distance_metric::cosine &&
+             !std::is_same_v<Method, hdbscan::method::brute_force>));
+
+    std::vector<Float> data(centers_data, centers_data + 2 * centers_row_count);
+    const auto x = homogen_table::wrap(data.data(), centers_row_count, 2);
+    const auto desc =
+        hdbscan::descriptor<Float, Method>(4, 3)
+            .set_metric(c.metric)
+            .set_degree(3.0)
+            .set_store_centers(store_centers_method::medoid)
+            .set_result_options(result_options::responses | result_options::medoid_centers);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+    REQUIRE(result.get_cluster_count() == 2);
+
+    const auto medoids = row_accessor<const Float>(result.get_medoid_centers()).pull({ 0, -1 });
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-8);
+    for (std::int64_t i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        REQUIRE(std::abs(double(medoids[i]) - c.expected[i]) < tol);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: medoids of clusters larger than one distance tile",
+                     "[hdbscan][batch]",
+                     hdbscan_center_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    const distance_metric metric = GENERATE(distance_metric::euclidean,
+                                            distance_metric::manhattan,
+                                            distance_metric::minkowski,
+                                            distance_metric::chebyshev);
+    CAPTURE(int(metric));
+
+    // Two 21 x 21 integer lattices, 441 rows each, so every cluster spans several 128 x 256
+    // distance tiles. By symmetry the lattice center is the medoid, as scikit-learn agrees.
+    constexpr std::int64_t side = 21;
+    constexpr std::int64_t row_count = 2 * side * side;
+    std::vector<Float> data;
+    data.reserve(row_count * 2);
+    for (const Float shift : { Float(0), Float(100) }) {
+        for (std::int64_t i = 0; i < side; ++i) {
+            for (std::int64_t j = 0; j < side; ++j) {
+                data.push_back(Float(i - side / 2) + shift);
+                data.push_back(Float(j - side / 2));
+            }
+        }
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, 2);
+    const auto desc =
+        hdbscan::descriptor<Float, Method>(50, 5)
+            .set_metric(metric)
+            .set_degree(3.0)
+            .set_store_centers(store_centers_method::medoid)
+            .set_result_options(result_options::responses | result_options::medoid_centers);
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+    REQUIRE(result.get_cluster_count() == 2);
+
+    // The two lattices tie at every merge, so which one gets id 0 is not pinned down.
+    const auto labels = row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    const std::int64_t origin = std::int64_t(labels[0]);
+    REQUIRE(labels[row_count - 1] == Float(1 - origin));
+    const auto medoids = row_accessor<const Float>(result.get_medoid_centers()).pull({ 0, -1 });
+    const Float expected[2][2] = { { 0, 0 }, { 100, 0 } };
+    for (std::int64_t k = 0; k < 2; ++k) {
+        const std::int64_t blob = (k == origin) ? 0 : 1;
+        CAPTURE(k, blob);
+        REQUIRE(medoids[2 * k] == expected[blob][0]);
+        REQUIRE(medoids[2 * k + 1] == expected[blob][1]);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: alpha divides the core distances too, like scikit-learn",
                      "[hdbscan][batch][single_linkage_tree]",
                      hdbscan_bf_types) {
