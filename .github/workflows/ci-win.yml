@@ -54,6 +54,9 @@ on:
       - main
       - 'feature/**'
   
+permissions:
+  contents: read
+
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
   TBB_VERSION: v2023.1.0
