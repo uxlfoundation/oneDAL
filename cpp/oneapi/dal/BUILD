@@ -267,7 +267,18 @@ dal_test_suite(
         "test/*.cpp",
     ], exclude=[
         "test/mpi_*.cpp",
-        "test/ccl_*.cpp"
+        "test/ccl_*.cpp",
+        "test/*_dpc.cpp",
+    ]),
+    dal_deps = [ ":common" ],
+)
+
+dal_test_suite(
+    name = "dpc_tests",
+    framework = "catch2",
+    compile_as = [ "dpc++" ],
+    srcs = glob([
+        "test/*_dpc.cpp",
     ]),
     dal_deps = [ ":common" ],
 )
@@ -311,6 +322,7 @@ dal_collect_test_suites(
     ],
     tests = [
         ":common_tests",
+        ":dpc_tests",
         # TODO: Temporary disabled due to
         #       unexpectedly high build time
         # "@onedal//cpp/oneapi:dal_hpp_test",
