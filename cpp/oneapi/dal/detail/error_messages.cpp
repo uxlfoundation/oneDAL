@@ -318,6 +318,10 @@ MSG(nu_svm_thunder_method_is_not_implemented_for_gpu,
 MSG(polynomial_kernel_is_not_implemented_for_gpu, "Polynomial kernel is not implemented for GPU")
 MSG(sigmoid_kernel_is_not_implemented_for_gpu, "Sigmoid kernel is not implemented for GPU")
 MSG(sigma_leq_zero, "Sigma lower than or equal to zero")
+MSG(svm_csr_table_is_not_implemented_for_gpu,
+    "SVM with sparse (CSR) data is not implemented for GPU")
+MSG(svm_multiclass_model_not_implemented_for_gpu,
+    "Input model carries multi-class support vectors, which is not implemented for GPU")
 MSG(svm_multiclass_not_implemented_for_gpu,
     "SVM with multiclass support is not implemented for GPU")
 MSG(svm_nu_classification_task_is_not_implemented_for_gpu,
