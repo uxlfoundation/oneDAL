@@ -679,6 +679,14 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         }
     }
 
+    // On the last iteration the block is popped without being queued back and the
+    // `sendrecv_replace` below is skipped, so `current_block` and `current_tresps` go out of scope
+    // here while the search kernels above still read them. Freeing device USM is not a
+    // synchronizing operation, so returning without waiting would release the training block out
+    // from under those kernels. Every earlier iteration is already covered by the blocking
+    // `array::wrap(queue, ..., { next_event })` in the send path.
+    next_event.wait_and_throw();
+
     return next_event;
 }
 #define INSTANTIATE_DISTR(T, I, R, F, A)                                                    \
