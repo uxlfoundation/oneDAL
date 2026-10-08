@@ -46,9 +46,49 @@ if ($env:GITHUB_TOKEN) {
     $headers.Authorization = "Bearer $env:GITHUB_TOKEN"
 }
 
-$release = Invoke-RestMethod `
-    -Headers $headers `
-    -Uri "https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$bazeliskVersion"
+# Both the GitHub API and the release CDN fail transiently in CI: the API
+# rate-limits unauthenticated callers per runner IP, and either endpoint can
+# drop a connection. One failure used to take the whole job down, so retry with
+# exponential backoff, as `.ci/env/bazelisk.sh` does.
+$fetchAttempts = if ($env:BAZELISK_FETCH_ATTEMPTS) { [int]$env:BAZELISK_FETCH_ATTEMPTS } else { 5 }
+$fetchDelay = if ($env:BAZELISK_FETCH_DELAY) { [int]$env:BAZELISK_FETCH_DELAY } else { 5 }
+if ($fetchAttempts -lt 1 -or $fetchDelay -lt 0) {
+    throw "BAZELISK_FETCH_ATTEMPTS must be at least 1 and BAZELISK_FETCH_DELAY non-negative"
+}
+
+function Invoke-WithRetry {
+    param(
+        [Parameter(Mandatory = $true)][scriptblock] $Action,
+        [Parameter(Mandatory = $true)][string] $Description
+    )
+
+    $delay = $fetchDelay
+    for ($attempt = 1; $attempt -le $fetchAttempts; $attempt++) {
+        try {
+            return & $Action
+        }
+        catch {
+            if ($attempt -ge $fetchAttempts) {
+                throw "Giving up after $attempt attempts: $Description. Last error: $($_.Exception.Message)"
+            }
+            Write-Host "Attempt $attempt of $fetchAttempts failed ($Description): $($_.Exception.Message)"
+            Write-Host "Retrying in $delay s"
+            Start-Sleep -Seconds $delay
+            $delay = $delay * 2
+        }
+    }
+}
+
+$release = Invoke-WithRetry -Description "fetch Bazelisk $bazeliskVersion release metadata" -Action {
+    $response = Invoke-RestMethod `
+        -Headers $headers `
+        -Uri "https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$bazeliskVersion"
+    # An empty body is a failure too, as in `.ci/env/bazelisk.sh`.
+    if ($null -eq $response -or -not $response.assets) {
+        throw "Empty Bazelisk release metadata response"
+    }
+    $response
+}
 
 $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
 if (-not $asset) {
@@ -56,7 +96,9 @@ if (-not $asset) {
 }
 
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $bazelPath
+Invoke-WithRetry -Description "download $assetName" -Action {
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $bazelPath
+} | Out-Null
 
 if (-not $asset.digest.StartsWith("sha256:")) {
     # Do not install an asset that cannot be checked against release metadata.

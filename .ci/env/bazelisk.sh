@@ -33,12 +33,49 @@ esac
 
 BAZELISK_ASSET="bazelisk-linux-${arch}"
 
+# Both the GitHub API and the release CDN fail transiently in CI: the API
+# rate-limits unauthenticated callers per runner IP (the Azure jobs send no
+# token), and either endpoint can drop a connection. A single failure took the
+# whole job down, which is a lost build hour for a condition that clears on the
+# next attempt, so retry with exponential backoff before giving up.
+BAZELISK_FETCH_ATTEMPTS=${BAZELISK_FETCH_ATTEMPTS:-5}
+BAZELISK_FETCH_DELAY=${BAZELISK_FETCH_DELAY:-5}
+# A non-numeric attempt count would make the loop's test fail forever.
+if ! [[ "${BAZELISK_FETCH_ATTEMPTS}" =~ ^[1-9][0-9]*$ && "${BAZELISK_FETCH_DELAY}" =~ ^[0-9]+$ ]]; then
+  echo ":error: BAZELISK_FETCH_ATTEMPTS must be a positive integer and BAZELISK_FETCH_DELAY a non-negative integer." >&2
+  exit 1
+fi
+
+function retry {
+  local attempt=1
+  local delay=${BAZELISK_FETCH_DELAY}
+  until "$@"; do
+    if [ "${attempt}" -ge "${BAZELISK_FETCH_ATTEMPTS}" ]; then
+      echo "giving up after ${attempt} attempts: $*" >&2
+      return 1
+    fi
+    echo "attempt ${attempt} of ${BAZELISK_FETCH_ATTEMPTS} failed, retrying in ${delay}s: $*" >&2
+    sleep "${delay}"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
+function fetch_release_json {
+  # `wget -O-` writes to stdout, so the caller captures the body; an empty body
+  # with a zero exit status is a failure too, and must not end the retry loop.
+  local body
+  body=$(wget -qO- \
+    --header="Accept: application/vnd.github+json" \
+    ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
+    --header="X-GitHub-Api-Version: 2022-11-28" \
+    "https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/${BAZELISK_VERSION}") || return 1
+  [ -n "${body}" ] || return 1
+  printf '%s' "${body}"
+}
+
 # collect information about the bazelisk release
-BAZELISK_JSON=$(wget -qO- \
-  --header="Accept: application/vnd.github+json" \
-  ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
-  --header="X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$BAZELISK_VERSION)
+BAZELISK_JSON=$(retry fetch_release_json)
 if [ $? -ne 0 ] || [ -z "$BAZELISK_JSON" ]; then
   echo ":error: Failed to fetch Bazelisk release information from GitHub API." >&2
   exit 1
@@ -58,7 +95,11 @@ done < <(printf '%s\n' "$BAZELISK_JSON")
 SHA256+="  ${BAZELISK_ASSET}"
 
 # Download Bazelisk
-wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/${BAZELISK_ASSET}
+if ! retry wget -O "${BAZELISK_ASSET}" \
+  "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/${BAZELISK_ASSET}"; then
+  echo ":error: Failed to download ${BAZELISK_ASSET} from the Bazelisk release." >&2
+  exit 1
+fi
 echo $SHA256
 echo ${SHA256} | sha256sum --check
 # "Install" bazelisk
