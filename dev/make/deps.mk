@@ -84,7 +84,9 @@ cmd-enhanced-with-dep-gen = $(or $(dep-gen-enhanced.$(call get-command-name,$($(
 
 $(call .inject.dep.gen, C.COMPILE,     $$(cmd-enhanced-with-dep-gen))
 $(call .inject.dep.gen, DPC.COMPILE,   $$(cmd-enhanced-with-dep-gen))
-$(call .inject.dep.gen, LINK.STATIC)  # TODO: md5 removed because buggy
+# The trigger must not expand LINK.STATIC itself: its `rm` runs at expansion time and would delete
+# an up-to-date archive whose rebuild is then skipped.
+$(call .inject.dep.gen, LINK.STATIC,   ,$$(link.static.cmd))
 $(call .inject.dep.gen, LINK.DYNAMIC,  ,$$(call md5,$$(link.dynamic.cmd)))
 
 #

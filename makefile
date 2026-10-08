@@ -476,7 +476,6 @@ $(info CORE.incdirs: $(CORE.incdirs))
 containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
 notcontaining = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
 cpy = cp -fp "$<" "$@"
-mov = mv -f "$<" "$@"
 CORE.tmpdir_a := $(WORKDIR)/core_static
 CORE.tmpdir_y := $(WORKDIR)/core_dynamic
 CORE.srcs     := $(notdir $(wildcard $(CORE.srcdirs:%=%/*.cpp)))
@@ -953,7 +952,6 @@ _release_oneapi_dpc: _release_oneapi_c
 # Populating RELEASEDIR
 #-------------------------------------------------------------------------------
 upd = $(cpy)
-mv = $(mov)
 _release: info.building.release
 
 #----- releasing static and dynamic libraries
@@ -981,7 +979,7 @@ endef
 define .release.a
 $3: $2/$1
 $(if $(phony-upd),$(eval .PHONY: $2/$1))
-$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mv)
+$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value cpy)
 endef
 
 ifeq ($(if $(or $(OS_is_lnx),$(OS_is_mac)),yes,),yes)
