@@ -297,7 +297,7 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::run(const NumericT
 
     SafeStatus safeStat;
 
-    daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
+    daal::threader_for(nDataBlocks, 1, [&](size_t iBlock) {
         const size_t iStartRow      = iBlock * nRowsInBlock;
         const size_t nRowsToProcess = (iBlock == nDataBlocks - 1) ? nRowsTotal - iBlock * nRowsInBlock : nRowsInBlock;
 

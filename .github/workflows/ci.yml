@@ -20,6 +20,34 @@ on:
   pull_request:
     branches:
       - main
+    # Skip PR builds for changes that cannot affect the library build or tests.
+    # Pushes to main are not filtered.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'dev/agent_evals/**'
+      - 'conda-recipe/**'
+      - 'third-party-programs.txt'
+      - '.ci/pipeline/docs.yml'
+      - '.github/CODEOWNERS'
+      - '.github/renovate.json'
+      - '.github/.licenserc.yaml'
+      - '.github/.mergify.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/instructions/**'
+      - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-nightly.yml'
+      - '.github/workflows/docs-release.yml'
+      - '.github/workflows/label-enforcement.yml'
+      - '.github/workflows/nightly-build.yml'
+      - '.github/workflows/nightly-test.yml'
+      - '.github/workflows/openssf-scorecard.yml'
+      - '.github/workflows/pr-checklist.yml'
+      - '.github/workflows/renovate-validation.yml'
+      - '.github/workflows/skywalking-eyes.yml'
+      - '.github/workflows/slack-pr-notification.yml'
   push:
     branches:
       - main
@@ -93,7 +121,7 @@ jobs:
         run: rm -rf __release_lnx_main
       - name: Archive build
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: __release_lnx
           path: ./__release_lnx
@@ -106,8 +134,11 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
       # The runner exposes no GPU, so the DPC++ examples run on the OpenCL CPU
-      # device that `apt.sh dpcpp` installs with `intel-oneapi-runtime-libs`.
-      # That is the same device the retired Azure `LinuxMakeIntel_MKL` job used.
+      # device the compiler package itself registers: its
+      # `intel-oneapi-compiler-dpcpp-cpp-runtime` part installs
+      # /etc/OpenCL/vendors/intel64.icd and `setvars.sh` points
+      # OCL_ICD_FILENAMES at the matching libintelocl.so. That is the same
+      # device the retired Azure `LinuxMakeIntel_MKL` job used.
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh

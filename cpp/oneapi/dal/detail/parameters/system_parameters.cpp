@@ -32,6 +32,18 @@ std::uint32_t system_parameters::get_max_number_of_threads() const {
     return impl_->get_max_number_of_threads();
 }
 
+std::uint64_t system_parameters::get_l1_cache_size() const {
+    return impl_->get_l1_cache_size();
+}
+
+std::uint64_t system_parameters::get_l2_cache_size() const {
+    return impl_->get_l2_cache_size();
+}
+
+std::uint64_t system_parameters::get_ll_cache_size() const {
+    return impl_->get_ll_cache_size();
+}
+
 std::string system_parameters::dump() const {
     return impl_->dump();
 }

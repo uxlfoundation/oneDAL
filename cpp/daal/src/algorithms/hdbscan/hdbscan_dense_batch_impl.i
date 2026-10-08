@@ -211,7 +211,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         daal::TlsMem<algorithmFPType, cpu> tlsBuf(nRows);
         SafeStatus safeStat;
 
-        daal::threader_for(nRows, nRows, [&](size_t i) {
+        daal::threader_for(nRows, 1, [&](size_t i) {
             algorithmFPType * dists = tlsBuf.local();
             DAAL_CHECK_MALLOC_THR(dists);
 
@@ -296,7 +296,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             // Phase 1: For each point, find nearest different-component neighbor under MRD.
             // Only phase 1 is method-specific; phases 2-4 route through the shared
             // helpers in hdbscan_boruvka_utils.h.
-            daal::threader_for(nRows, nRows, [&](size_t i) {
+            daal::threader_for(nRows, 1, [&](size_t i) {
                 const DAAL_INT myComp          = componentOf[i];
                 const algorithmFPType * mrdRow = distMatrix + i * nRows;
                 const algorithmFPType coreI    = coreDistances[i];
