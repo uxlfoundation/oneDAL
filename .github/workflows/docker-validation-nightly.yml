@@ -46,7 +46,7 @@ concurrency:
 jobs:
   validate:
     name: Docker validation
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

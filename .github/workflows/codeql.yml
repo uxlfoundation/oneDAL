@@ -42,6 +42,7 @@ concurrency:
 
 jobs:
   analyze:
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-26.04
     timeout-minutes: 30

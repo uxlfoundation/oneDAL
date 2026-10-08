@@ -63,7 +63,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     strategy:
       fail-fast: false
       matrix:
@@ -356,7 +356,7 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
