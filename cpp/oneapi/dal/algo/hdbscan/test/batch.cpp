@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <map>
+#include <random>
 #include <set>
 #include <type_traits>
 #include <vector>
@@ -961,8 +962,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 // sized so the parallel Boruvka scan is the path under test.
 // =========================================================================
 
-/// Deterministic well-separated blobs. The fixed LCG only has to be reproducible and free of
-/// exact coordinate ties, not statistically sound.
+/// Deterministic well-separated blobs. Coordinates sit on a 2^-24 grid of `std::mt19937` output,
+/// whose sequence the standard fixes, so the data is the same everywhere and has exact ties.
 template <typename Float>
 static std::vector<Float> make_blobs(std::int64_t per_cluster,
                                      std::int64_t cluster_count,
@@ -971,10 +972,9 @@ static std::vector<Float> make_blobs(std::int64_t per_cluster,
                                      Float spread) {
     std::vector<Float> data(per_cluster * cluster_count * column_count);
 
-    std::uint32_t state = 777u;
+    std::mt19937 rng(777u);
     const auto next_unit = [&]() {
-        state = state * 1664525u + 1013904223u;
-        return static_cast<Float>(state >> 8) / static_cast<Float>(1u << 24);
+        return static_cast<Float>(rng() >> 8) / static_cast<Float>(1u << 24);
     };
 
     std::int64_t pos = 0;
