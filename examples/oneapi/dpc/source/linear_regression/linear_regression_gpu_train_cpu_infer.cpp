@@ -20,6 +20,8 @@
 
 #include "oneapi/dal/algo/linear_regression.hpp"
 #include "oneapi/dal/io/csv.hpp"
+#include "oneapi/dal/table/homogen.hpp"
+#include "oneapi/dal/table/row_accessor.hpp"
 
 #include "oneapi/dal/exceptions.hpp"
 #include "example_util/utils.hpp"
@@ -27,9 +29,9 @@
 namespace dal = oneapi::dal;
 namespace result_options = dal::linear_regression::result_options;
 
-// Trains a model on the GPU and runs inference with it on the host CPU.
-// The trained model holds device-resident tables, which are copied to the
-// host when the CPU inference converts them.
+// Trains a model on the GPU and runs inference with it on the host CPU, first
+// with host test data and then with test data in device memory. The model
+// tables and the device test data are copied to the host by the CPU inference.
 void run(sycl::queue& q) {
     const auto train_data_file_name = get_data_path("data/linear_regression_train_data.csv");
     const auto train_response_file_name =
@@ -55,7 +57,17 @@ void run(sycl::queue& q) {
     // No queue is passed, so inference runs on the host CPU
     const auto test_result = dal::infer(lr_desc, x_test, lr_model);
 
-    std::cout << "Test results:\n" << test_result.get_responses() << std::endl;
+    std::cout << "Test results (host data):\n" << test_result.get_responses() << std::endl;
+
+    const auto x_test_device_data =
+        dal::row_accessor<const float>{ x_test }.pull(q, { 0, -1 }, sycl::usm::alloc::device);
+    const auto x_test_device = dal::homogen_table::wrap(x_test_device_data,
+                                                        x_test.get_row_count(),
+                                                        x_test.get_column_count());
+
+    const auto test_result_device = dal::infer(lr_desc, x_test_device, lr_model);
+
+    std::cout << "Test results (device data):\n" << test_result_device.get_responses() << std::endl;
     std::cout << "True responses:\n" << y_test << std::endl;
 }
 
