@@ -25,11 +25,8 @@
 
 namespace oneapi::dal::hdbscan::backend {
 
-/// Fill the centroid and/or medoid tables `store_centers` asks for into `result`, computed by
-/// the DAAL `HDBSCANCentersKernel` in scikit-learn's definitions.
-///
-/// Shared by the CPU backends and, on host, the GPU backend. Does nothing when there are no
-/// clusters.
+/// Fill the centroid and/or medoid tables `store_centers` asks for into `result`, as
+/// scikit-learn defines them. Does nothing when there are no clusters.
 ///
 /// @tparam Float Floating-point type
 ///

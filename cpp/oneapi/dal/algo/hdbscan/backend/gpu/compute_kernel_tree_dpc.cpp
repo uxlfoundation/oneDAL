@@ -38,12 +38,8 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-/// Pick the query block size of the core-distance search.
-///
-/// If `user_hint > 0`, the caller-supplied value from
-/// `desc.get_distance_block_size()` is used verbatim (clamped to `row_count`).
-/// Otherwise falls back to a heuristic that targets a `B x N` distance block
-/// of about 256 MB, clamped to `[256, row_count]`.
+/// Pick the query block size of the core-distance search: `distance_block_size` if set, else
+/// about 256 MB of `B x N` distances, within `[256, row_count]`.
 ///
 /// @param[in] row_count  Number of points `N`
 /// @param[in] float_size `sizeof(Float)`
@@ -65,11 +61,8 @@ static std::int64_t choose_block_size(std::int64_t row_count,
     return bs;
 }
 
-/// Run the kd_tree / ball_tree HDBSCAN GPU pipeline for a single floating-point type.
-///
-/// Core distances come from the k-NN search primitive, then the MST is built directly with
-/// `build_mst_otf` (on-the-fly distances), so the full `N x N` MRD matrix is never materialized.
-/// After sort + extract_clusters the responses are assembled into the oneAPI result.
+/// Run the kd_tree / ball_tree HDBSCAN GPU pipeline without the `n x n` MRD matrix: k-NN core
+/// distances, Boruvka MST with on-the-fly distances, sort and cluster extraction.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -104,8 +97,7 @@ static result_t compute_kernel_tree_impl(const context_gpu& ctx,
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
-    // Step 1: core distances. Canonical HDBSCAN (Campello 2013) takes the `min_samples`-th
-    // nearest neighbor counting the query point itself, i.e. element `[k - 1]` of its k-NN.
+    // Step 1: core distances.
     const std::int64_t block_size =
         choose_block_size(row_count, sizeof(Float), desc.get_distance_block_size());
 
@@ -118,7 +110,7 @@ static result_t compute_kernel_tree_impl(const context_gpu& ctx,
                                                                         metric,
                                                                         degree);
 
-    // Step 2: GPU Boruvka MST with on-the-fly distance computation
+    // Step 2: Boruvka MST.
     auto [mst_from, mst_from_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_to, mst_to_event] =
@@ -129,8 +121,7 @@ static result_t compute_kernel_tree_impl(const context_gpu& ctx,
     mst_to_event.wait_and_throw();
     mst_weights_event.wait_and_throw();
 
-    // Robust single linkage: alpha is applied only to dist(i,j) inside MRD
-    // by build_mst_otf (canonical HDBSCAN). Core distances stay unscaled.
+    // Alpha scales only `dist(i, j)` inside MRD; core distances stay unscaled.
     auto mst_event =
         build_mst_otf<Float>(queue,
                              data_nd,
@@ -146,19 +137,17 @@ static result_t compute_kernel_tree_impl(const context_gpu& ctx,
                              { prev_block_event, mst_from_event, mst_to_event, mst_weights_event });
     mst_event.wait_and_throw();
 
-    // Step 3: Sort MST edges by weight
+    // Step 3: sort the MST edges by weight.
     auto sort_event =
         sort_mst_by_weight<Float>(queue, mst_from, mst_to, mst_weights, edge_count, { mst_event });
     sort_event.wait_and_throw();
 
-    // Step 4: Extract flat clusters
+    // Step 4: extract the flat clusters.
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
     responses_event.wait_and_throw();
 
-    // Left empty unless requested, which is what tells `extract_clusters` to skip
-    // the probability kernels and `make_results` that there is nothing to wrap.
-    // The centers are weighted by membership probability, so they need it too.
+    // Empty unless requested, which skips the probability kernels; the centers need them too.
     const bool need_probabilities = desc.get_result_options().test(result_options::probabilities) ||
                                     (desc.get_store_centers() != store_centers_method::none &&
                                      desc.get_result_options().test(result_options::responses));
@@ -169,9 +158,7 @@ static result_t compute_kernel_tree_impl(const context_gpu& ctx,
         queue.wait_and_throw();
     }
 
-    // Same empty-unless-requested contract as the probabilities buffer. The
-    // dendrogram has one row per merge, so there is nothing to ask for when the
-    // input holds fewer than two observations.
+    // Empty unless requested; there is no merge below two rows.
     const bool need_single_linkage_tree =
         desc.get_result_options().test(result_options::single_linkage_tree) && edge_count > 0;
     pr::ndarray<Float, 1> arr_single_linkage_tree;
@@ -198,7 +185,7 @@ static result_t compute_kernel_tree_impl(const context_gpu& ctx,
         need_single_linkage_tree ? arr_single_linkage_tree.get_mutable_data() : nullptr);
     cluster_event.wait_and_throw();
 
-    // Count clusters via GPU reduction
+    // The cluster count is the largest label plus one.
     auto [max_label_arr, ml_ev] =
         pr::ndarray<std::int32_t, 1>::full(queue, 1, -1, sycl::usm::alloc::device);
     sycl::event ml_alloc_ev = ml_ev;

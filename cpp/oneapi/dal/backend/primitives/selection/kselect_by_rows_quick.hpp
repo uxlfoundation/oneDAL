@@ -148,7 +148,6 @@ private:
 
         auto* data_tmp_ptr = data_.get_mutable_data();
         const auto data_tmp_str = data_.get_leading_stride();
-        // A square input of more than 46340 rows leaves int32 as one `range<2>`.
         const auto cpy_event = parallel_for_2d_by_row_blocks(
             queue,
             row_count,

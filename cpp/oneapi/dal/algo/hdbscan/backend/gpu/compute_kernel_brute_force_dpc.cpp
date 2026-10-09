@@ -35,12 +35,8 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-/// Run the brute-force HDBSCAN GPU pipeline for a single floating-point type.
-///
-/// Pipeline: pairwise distance matrix -> core distances via k-select ->
-/// in-place MRD matrix (`max(core_i, core_j, dist) / alpha`, as scikit-learn's brute path) -> GPU
-/// Boruvka MST (`build_mst`) -> radix sort by weight -> `extract_clusters`.
-/// Outputs per-point responses and the cluster count.
+/// Run the brute-force HDBSCAN GPU pipeline: distance matrix, core distances, MRD matrix, Boruvka
+/// MST, sort and cluster extraction.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -79,10 +75,8 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
-    // Step 1: Compute pairwise distance matrix.
-    // Left uninitialized on purpose: `compute_distance_matrix` writes every
-    // entry, and an n x n zero fill is both wasted bandwidth and a `cgh.fill`
-    // of n^2 elements, which the runtime rejects once n^2 leaves int32.
+    // Step 1: pairwise distance matrix. Not zero-filled: every entry is written, and a fill of
+    // more than 2^31 elements is rejected.
     auto dist_matrix =
         pr::ndarray<Float, 2>::empty(queue, { row_count, row_count }, sycl::usm::alloc::device);
 
@@ -90,8 +84,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         compute_distance_matrix<Float>(queue, data_nd, dist_matrix, metric, degree, {});
     dist_event.wait_and_throw();
 
-    // Step 2: Compute core distances from the unscaled distance matrix; Step 3
-    // applies alpha to the whole MRD.
+    // Step 2: core distances, unscaled; step 3 applies alpha.
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
     core_dist_event.wait_and_throw();
@@ -105,14 +98,14 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                     { dist_event, core_dist_event });
     core_event.wait_and_throw();
 
-    // Step 3: Transform distances into the MRD matrix in place, scaled by 1/alpha.
+    // Step 3: MRD matrix in place.
     auto& mrd_matrix = dist_matrix;
 
     auto mrd_compute_event =
         compute_mrd_matrix<Float>(queue, core_distances, mrd_matrix, metric, alpha, { core_event });
     mrd_compute_event.wait_and_throw();
 
-    // Step 4: Build MST using GPU Boruvka's algorithm with precomputed MRD matrix
+    // Step 4: Boruvka MST.
     auto [mst_from, mst_from_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_to, mst_to_event] =
@@ -133,26 +126,21 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                          { mrd_compute_event, mst_from_event, mst_to_event, mst_weights_event });
     mst_event.wait_and_throw();
 
-    // Free the n x n distance / MRD matrix before sort + extract_clusters.
-    // For row_count = 10500, float, this releases ~440 MB of device USM that
-    // is otherwise live until function exit and can push small Windows GPU
-    // runners past the TDR / OOM threshold.
+    // Free the `n x n` matrix before the remaining steps.
     dist_matrix = pr::ndarray<Float, 2>{};
     queue.wait_and_throw();
 
-    // Step 5: Sort MST edges by weight using radix sort primitive
+    // Step 5: sort the MST edges by weight.
     auto sort_event =
         sort_mst_by_weight<Float>(queue, mst_from, mst_to, mst_weights, edge_count, { mst_event });
     sort_event.wait_and_throw();
 
-    // Step 6: Extract flat clusters using EOM on device
+    // Step 6: extract the flat clusters.
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
     responses_event.wait_and_throw();
 
-    // Left empty unless requested, which is what tells `extract_clusters` to skip
-    // the probability kernels and `make_results` that there is nothing to wrap.
-    // The centers are weighted by membership probability, so they need it too.
+    // Empty unless requested, which skips the probability kernels; the centers need them too.
     const bool need_probabilities = desc.get_result_options().test(result_options::probabilities) ||
                                     (desc.get_store_centers() != store_centers_method::none &&
                                      desc.get_result_options().test(result_options::responses));
@@ -163,9 +151,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         queue.wait_and_throw();
     }
 
-    // Same empty-unless-requested contract as the probabilities buffer. The
-    // dendrogram has one row per merge, so there is nothing to ask for when the
-    // input holds fewer than two observations.
+    // Empty unless requested; there is no merge below two rows.
     const bool need_single_linkage_tree =
         desc.get_result_options().test(result_options::single_linkage_tree) && edge_count > 0;
     pr::ndarray<Float, 1> arr_single_linkage_tree;
@@ -192,7 +178,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         need_single_linkage_tree ? arr_single_linkage_tree.get_mutable_data() : nullptr);
     cluster_event.wait_and_throw();
 
-    // Count clusters via GPU max reduction
+    // The cluster count is the largest label plus one.
     auto [max_label_arr, ml_ev] =
         pr::ndarray<std::int32_t, 1>::full(queue, 1, -1, sycl::usm::alloc::device);
     sycl::event ml_alloc_ev = ml_ev;

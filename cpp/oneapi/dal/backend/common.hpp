@@ -520,13 +520,8 @@ inline sycl::range<2> make_range_2d(std::int64_t size1, std::int64_t size2) {
              dal::detail::integral_cast<std::size_t>(size2) };
 }
 
-/// Largest first dimension a single `range<2>(rows, size2)` launch may use.
-///
-/// Under the default `-fsycl-id-queries-fit-in-int` the runtime rejects any
-/// range whose linearized size leaves int32, so a full `size1 x size2` grid
-/// throws once the product passes 2^31 - 1. Splitting the launch along the
-/// first dimension keeps the 2D shape, and with it the coalescing, while
-/// staying inside the limit.
+/// Largest first dimension of a `range<2>(rows, size2)` whose size stays within int32, which
+/// `-fsycl-id-queries-fit-in-int` requires.
 ///
 /// @param[in] size2 Extent of the second range dimension; must be positive
 ///
@@ -538,9 +533,7 @@ inline std::int64_t max_range_2d_rows(std::int64_t size2) {
 }
 
 /// Run `kernel(row, col)` over a `row_count x col_count` grid in row blocks of at most
-/// `max_range_2d_rows(col_count)` rows, so no single `range<2>` leaves int32.
-///
-/// Each block depends only on `deps`, so the launches are free to overlap.
+/// `max_range_2d_rows(col_count)` rows, so grids of more than 2^31 items can be launched.
 ///
 /// @param[in] q         The SYCL queue
 /// @param[in] row_count Number of grid rows

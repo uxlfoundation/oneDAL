@@ -31,10 +31,7 @@ namespace pr = oneapi::dal::backend::primitives;
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 
-/// Build a oneAPI compute result from device-side responses (no centers).
-///
-/// Wraps `responses` into a homogen_table when `result_options::responses` is
-/// requested; always sets `cluster_count` and forwards `result_options`.
+/// Build a oneAPI compute result from device-side outputs, without centers.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -83,11 +80,8 @@ inline result_t make_results(sycl::queue& queue,
     return results;
 }
 
-/// Build a oneAPI compute result from device-side responses, including centers.
-///
-/// Forwards to the no-data overload to set responses and cluster count, then fills the
-/// centroid and/or medoid tables `desc.get_store_centers()` asks for, with scikit-learn's
-/// probability-weighted formulas (see `set_cluster_centers`).
+/// Build a oneAPI compute result from device-side outputs, with the centers `store_centers` asks
+/// for (see `set_cluster_centers`).
 ///
 /// @tparam Float Floating-point type used for centers
 ///
@@ -120,8 +114,7 @@ inline result_t make_results(sycl::queue& queue,
     const auto store_centers = desc.get_store_centers();
     if (cluster_count > 0 && store_centers != store_centers_method::none &&
         desc.get_result_options().test(result_options::responses)) {
-        // The centers go through the host helper the CPU backends use, so both devices
-        // produce identical centers; they only need the labels and the probabilities.
+        // The centers are computed on host, by the same kernel as on CPU.
         const std::int64_t row_count = data.get_row_count();
         ONEDAL_ASSERT(probabilities.get_count() == row_count);
         const auto data_host = row_accessor<const Float>(data).pull({ 0, -1 });

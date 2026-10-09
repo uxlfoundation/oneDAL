@@ -122,7 +122,6 @@ sycl::event distance<Float, Metric>::operator()(const ndview<Float, 2, order1>& 
     // Metric instance
     const auto& metric = this->m_;
 
-    // `n_samples1 * n_samples2` can leave int32 for a large square output.
     return parallel_for_2d_by_row_blocks(
         q_,
         n_samples1,

@@ -48,13 +48,8 @@ inline std::uint32_t get_kselect_simd_width(const sycl::queue& queue) {
 /// Which `kselect_by_rows_base` implementation the dispatch picks
 enum class kselect_by_rows_kind { single_col, simd, heap, quick };
 
-/// Pick the k-selection implementation for the given `k` and device
-///
-/// Shared by the `kselect_by_rows` constructor and
-/// `kselect_by_rows_scratch_size`, so the thresholds have a single definition.
-/// A sub-group width without a `kselect_by_rows_simd` instantiation falls
-/// through to the heap or quick path, as it did before the thresholds moved
-/// here.
+/// Pick the k-selection implementation for the given `k` and device; used by the
+/// `kselect_by_rows` constructor and `kselect_by_rows_scratch_size`.
 ///
 /// @tparam Float Floating-point type of the values being selected
 ///

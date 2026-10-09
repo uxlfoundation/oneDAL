@@ -57,8 +57,7 @@ struct batch_kernel {
     using type = daal_hdbscan::HDBSCANBatchKernel<Float, to_daal_method<Method>::value, Cpu>;
 };
 
-/// Run the HDBSCAN CPU pipeline of `Method` through the DAAL `HDBSCANBatchKernel` and pack its
-/// outputs, plus the centers `store_centers` asks for, into a oneAPI `compute_result`.
+/// Run the HDBSCAN CPU pipeline of `Method` through the DAAL `HDBSCANBatchKernel`.
 ///
 /// @tparam Float  Floating-point type
 /// @tparam Method oneAPI method tag
@@ -81,8 +80,8 @@ static result_t compute_kernel_impl(const context_cpu& ctx,
     const auto daal_responses = interop::convert_to_daal_homogen_table(arr_responses, row_count, 1);
     const auto daal_cluster_count = interop::convert_to_daal_homogen_table(arr_cluster_count, 1, 1);
 
-    // The centers are weighted by membership probability, as in scikit-learn. An unallocated
-    // array converts to a null table, which makes the kernel skip that output.
+    // The centers are weighted by membership probability. An empty array becomes a null table,
+    // which the kernel skips.
     const bool need_centers =
         store_centers != store_centers_method::none && options.test(result_options::responses);
     const bool need_probabilities = options.test(result_options::probabilities);
@@ -93,7 +92,7 @@ static result_t compute_kernel_impl(const context_cpu& ctx,
     const auto daal_probabilities =
         interop::convert_to_daal_homogen_table(arr_probabilities, row_count, 1);
 
-    // The dendrogram has one row per merge, so there is nothing to ask for below two rows.
+    // There is no merge below two rows.
     const std::int64_t edge_count = row_count - 1;
     const bool need_single_linkage_tree =
         options.test(result_options::single_linkage_tree) && edge_count > 0;

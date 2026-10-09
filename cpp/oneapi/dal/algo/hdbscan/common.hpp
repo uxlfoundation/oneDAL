@@ -42,7 +42,7 @@ enum class distance_metric {
 
 /// Method used to select clusters from the condensed tree.
 enum class cluster_selection_method {
-    /// Excess of Mass — selects clusters that maximise total stability
+    /// Excess of Mass: selects clusters that maximise total stability
     /// (default).
     eom,
     /// Selects all leaf nodes of the condensed tree, producing a

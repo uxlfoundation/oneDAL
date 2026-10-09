@@ -60,7 +60,6 @@ sycl::event scatter_2d(sycl::queue& q,
     const auto* const inp2_ptr = inp2.get_data();
     auto* const out_ptr = out.get_mutable_data();
 
-    // `n_samples1 * n_samples2` can leave int32 for a large square output.
     return parallel_for_2d_by_row_blocks(
         q,
         n_samples1,

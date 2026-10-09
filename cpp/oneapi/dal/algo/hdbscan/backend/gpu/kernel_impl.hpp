@@ -38,12 +38,7 @@ namespace oneapi::dal::hdbscan::backend {
 namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
-/// Working pointers and scalar constants shared by the GPU cluster-extraction kernels.
-///
-/// Groups every device pointer (MST inputs, dendrogram/condensed-tree scratch,
-/// per-cluster bookkeeping, walk-up stacks) and the per-call scalar parameters
-/// so the four extract_clusters phases pass a single value instead of 30+
-/// individual arguments.
+/// Device pointers and scalar parameters shared by the GPU cluster-extraction kernels.
 ///
 /// @tparam Float Floating-point type used for MST weights and lambdas
 template <typename Float>
@@ -88,17 +83,13 @@ struct cluster_work_ptrs {
 
     std::int32_t* nc_ptr;
 
-    // Membership-probability output and its scratch. All four are null unless the
-    // caller requested probabilities, in which case `prob_ptr` is the output view
-    // and the rest hold the per-cluster death lambda, the same value keyed by
-    // dense label, and the lambda at which each point dropped out.
+    // Membership probabilities and their scratch; all null unless probabilities are requested.
     Float* prob_ptr;
     Float* cdeath_ptr;
     Float* ldeath_ptr;
     Float* plam_ptr;
 
-    // Single-linkage dendrogram output, a row-major `(row_count - 1) x 4` dump of
-    // the node arrays above. Null unless the caller requested it.
+    // Single-linkage tree output, `(row_count - 1) x 4`; null unless requested.
     Float* slt_ptr;
 
     std::int64_t row_count;
@@ -107,26 +98,17 @@ struct cluster_work_ptrs {
     std::int64_t total_nodes;
     std::int32_t cluster_selection; // 0 = EOM, 1 = leaf
     bool allow_single_cluster;
-    // Stored as `Float` (not `double`) so the SYCL kernels that capture this
-    // struct by value don't pull in `aspect::fp64` when `Float = float`.
+    // `Float`, not `double`, so kernels capturing this struct need no fp64 support.
     Float cluster_selection_epsilon;
     std::int64_t max_cluster_size;
 };
 
-/// Fraction of device global memory the brute-force path is allowed to occupy.
+/// The brute-force path may use at most `1 / mrd_global_mem_divisor` of device global memory.
 ///
-/// A `malloc_device` past the physically available memory succeeds and then
-/// faults on first access, which aborts the process instead of raising, so the
-/// budget has to stop short of the reported size. On a 48 GiB card an n x n
-/// matrix still ran at 28.6 GiB and faulted at 32.5 GiB; half the global memory
-/// stays clear of that edge and leaves room for the GEMM scratch, the driver's
-/// own reservations and anything else the process holds.
+/// An oversubscribed `malloc_device` succeeds and then faults on first access instead of raising.
 constexpr std::int64_t mrd_global_mem_divisor = 2;
 
-/// Byte total the sizing helpers return when the exact value leaves `std::int64_t`.
-///
-/// Larger than any device limit, so a saturated total always compares as "does
-/// not fit" instead of wrapping negative and passing the guard.
+/// Byte total the sizing helpers return on overflow; larger than any device limit.
 constexpr std::int64_t mrd_bytes_saturated = dal::detail::limits<std::int64_t>::max();
 
 /// Multiply two non-negative byte counts without signed overflow.
@@ -156,17 +138,10 @@ inline std::int64_t mrd_add_bytes(std::int64_t lhs, std::int64_t rhs) {
     return (lhs > mrd_bytes_saturated - rhs) ? mrd_bytes_saturated : lhs + rhs;
 }
 
-/// Decide whether the brute-force path's device buffers fit within given limits.
+/// Decide whether the brute-force path's device buffers fit within the given limits.
 ///
-/// Split out of `check_mrd_matrix_fits_on_device` so the sizing arithmetic can
-/// be exercised against synthetic limits instead of whatever GPU is attached.
-/// Every product goes through `mrd_mul_bytes`/`mrd_add_bytes`: a dimension whose
-/// footprint leaves `std::int64_t` saturates and is rejected, rather than
-/// wrapping into a small total that passes.
-///
-/// The peak is taken over the two phases that hold the matrix. The k-selection
-/// output and scratch are freed when `compute_core_distances` returns, so they
-/// are never live at the same time as the MST edge arrays.
+/// The peak is the matrix plus the larger of the k-selection buffers and the MST edge arrays,
+/// which are never live at the same time.
 ///
 /// @param[in] row_count             Number of input rows `n`
 /// @param[in] column_count          Number of input columns `d`
@@ -174,12 +149,11 @@ inline std::int64_t mrd_add_bytes(std::int64_t lhs, std::int64_t rhs) {
 /// @param[in] max_alloc_bytes       Device limit on a single allocation
 /// @param[in] global_mem_bytes      Device global memory size
 /// @param[in] min_samples           `k` of the core-distance k-selection
-/// @param[in] kselect_scratch_bytes Device scratch the selected `kselect_by_rows`
-///                                  implementation allocates, from
+/// @param[in] kselect_scratch_bytes Device scratch of `kselect_by_rows`, from
 ///                                  `pr::kselect_by_rows_scratch_size`
 ///
-/// @return `true` if the `n × n` matrix fits one allocation and the pipeline's
-///         peak footprint stays inside the global-memory budget
+/// @return `true` if the `n x n` matrix fits one allocation and the peak footprint fits the
+///         global-memory budget
 inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
                                       std::int64_t column_count,
                                       std::int64_t element_size,
@@ -193,12 +167,10 @@ inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
         return false;
     }
 
-    // Live alongside the matrix on every path: the input table and the core
-    // distances.
+    // The input table and the core distances.
     const std::int64_t resident_bytes = mrd_mul_bytes(row_bytes, column_count + 1);
 
-    // The `n x min_samples` k-selection output plus whatever the selected
-    // k-selection implementation allocates for itself.
+    // The `n x min_samples` k-selection output and its scratch.
     const std::int64_t selection_bytes =
         mrd_add_bytes(mrd_mul_bytes(row_bytes, min_samples), kselect_scratch_bytes);
 
@@ -212,13 +184,7 @@ inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
     return peak_bytes <= global_mem_bytes / mrd_global_mem_divisor;
 }
 
-/// Reject up front the row counts whose `n × n` MRD matrix cannot be allocated.
-///
-/// The brute-force path materializes the whole matrix, so its device footprint
-/// grows quadratically and a 100k-row fit already asks for 80 GB in `double`.
-/// Without this check the failure surfaces as a bare `std::bad_alloc` from deep
-/// inside the allocator, which tells the caller neither what was too large nor
-/// that `kd_tree`/`ball_tree` would have worked.
+/// Reject the row counts whose `n x n` MRD matrix does not fit on the device.
 ///
 /// @tparam Float Floating-point type of the distance matrix
 ///
@@ -238,9 +204,7 @@ inline void check_mrd_matrix_fits_on_device(sycl::queue& queue,
     const std::int64_t max_alloc_bytes = bk::device_max_mem_alloc_size(queue);
     const std::int64_t global_mem_bytes = bk::device_global_mem_size(queue);
 
-    // The scratch query needs an `n x n` shape, and `ndshape` asserts that
-    // `n * n` is representable, so the matrix is sized first with no scratch
-    // accounted for. A row count that already fails that is rejected either way.
+    // Size the matrix alone first: the scratch query needs an `n x n` shape to be representable.
     const bool matrix_fits = mrd_matrix_fits_on_device(row_count,
                                                        column_count,
                                                        element_size,
@@ -305,18 +269,13 @@ inline sycl::event fix_zero_norm_cosine(sycl::queue& queue,
     return event;
 }
 
-/// Compute the full pairwise distance matrix on the GPU using the requested metric.
-///
-/// Routes to the matching primitive in `dal::backend::primitives::distance`.
-/// For `euclidean`, returns the squared L2 matrix (sqrt is applied later inside
-/// `compute_core_distances`/`compute_mrd_matrix` to amortize the sweep). For
-/// other metrics the matrix already holds final distances.
+/// Compute the full pairwise distance matrix; squared L2 for `euclidean`, final distances otherwise.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue  The SYCL queue
-/// @param[in]  data   Input matrix of size `n × d`
-/// @param[out] dist   Output matrix of size `n × n` (row-major)
+/// @param[in]  data   Input matrix of size `n x d`
+/// @param[out] dist   Output matrix of size `n x n` (row-major)
 /// @param[in]  metric Distance metric tag (`distance_metric`)
 /// @param[in]  degree Minkowski degree (used only when `metric == minkowski`)
 /// @param[in]  deps   Events that must complete before submission
@@ -358,24 +317,19 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
             pr::chebyshev_distance<Float> dist_op(queue);
             return dist_op(data, data, dist, deps);
         }
-        default: { // euclidean — compute squared L2 (sqrt applied later)
+        default: { // euclidean: squared L2, the root is taken later
             pr::squared_l2_distance<Float> dist_op(queue);
             return dist_op(data, data, dist, deps);
         }
     }
 }
 
-/// Compute per-point core distances as the k-th smallest entry per row.
-///
-/// Runs `pr::kselect_by_rows` on the precomputed distance matrix to extract
-/// the k smallest values per row, then takes element `k - 1` (the k-th
-/// smallest) into `core_distances`. For `euclidean`, the input matrix holds
-/// squared L2 values so a `sqrt(max(·, 0))` is applied during the extraction.
+/// Compute per-point core distances as the `min_samples`-th smallest entry of each row.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue          The SYCL queue
-/// @param[in]  dist           Pairwise distance matrix of size `n × n`
+/// @param[in]  dist           Pairwise distance matrix of size `n x n`
 /// @param[out] core_distances Per-point core distances, length `n`
 /// @param[in]  min_samples    `k` used for the k-NN core-distance definition
 /// @param[in]  row_count      Number of rows `n`
@@ -402,12 +356,7 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    // Canonical HDBSCAN core distance (Campello 2013): the distance to the
-    // `min_samples`-th nearest neighbor counting the query point itself as
-    // neighbor #1. `kselect_by_rows` operates on a row that contains the
-    // zero self-distance on the diagonal, so a k-smallest selection of size
-    // `min_samples` returns {self + (min_samples - 1) non-self}, and the
-    // largest entry (`[k - 1]`) is the `min_samples`-th-including-self answer.
+    // The point itself counts as its first neighbor, as in scikit-learn.
     const std::int64_t k = min_samples;
 
     auto [ksel_vals, ksel_vals_event] =
@@ -437,11 +386,7 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     return extract_event;
 }
 
-/// Compute per-point core distances with the k-NN search primitive, so the `N x N` matrix is
-/// never held.
-///
-/// The core distance of a point is its `min_samples`-th nearest neighbor counting itself, i.e.
-/// the last of the `k` distances `pr::search_engine` returns for that row.
+/// Compute per-point core distances with `pr::search_engine`, without the `n x n` matrix.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -520,19 +465,14 @@ inline sycl::event compute_core_distances_blocked(sycl::queue& queue,
     return extract_event;
 }
 
-/// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
-///
-/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j)) / alpha`, as in
-/// scikit-learn's brute path, which divides the whole distance matrix by alpha. For
-/// `euclidean`, the input matrix holds squared L2 values so a `sqrt(max(·, 0))`
-/// is applied per entry before the alpha scale and the `max`. For other
-/// metrics the values are already final distances.
+/// Convert a distance matrix in place into `MRD(i, j) = max(core_i, core_j, dist(i, j)) / alpha`.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]     queue          The SYCL queue
 /// @param[in]     core_distances Per-point core distances, length `n` (unscaled)
-/// @param[in,out] mrd_matrix     Distance matrix `n × n`, overwritten with MRD values
+/// @param[in,out] mrd_matrix     Distance matrix `n x n` (squared L2 for euclidean), overwritten
+///                               with MRD values
 /// @param[in]     metric         Distance metric tag (controls the sqrt finalize)
 /// @param[in]     alpha          Robust single-linkage scaling factor; divides the whole MRD
 /// @param[in]     deps           Events that must complete before submission
@@ -558,7 +498,6 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
     const bool needs_sqrt = (metric == distance_metric::euclidean);
     const Float inv_alpha = static_cast<Float>(1.0 / alpha);
 
-    // `n * n` work items can leave int32, which the runtime rejects.
     return bk::parallel_for_2d_by_row_blocks(
         queue,
         n,
@@ -575,16 +514,12 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
         deps);
 }
 
-/// Find the nearest different-component neighbor per point by scanning a precomputed MRD matrix.
-///
-/// One work-item per row: iterates over the row, keeps the smallest entry
-/// whose column belongs to a different component than the row's own. Writes
-/// the best MRD and the best column index per point.
+/// Find each point's nearest neighbor in another component from a precomputed MRD matrix.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue           The SYCL queue
-/// @param[in]  mrd_ptr         Precomputed MRD matrix of size `n × n`
+/// @param[in]  mrd_ptr         Precomputed MRD matrix of size `n x n`
 /// @param[in]  comp_ptr        Per-point component id, length `n`
 /// @param[out] pt_best_mrd_ptr Per-point best MRD, length `n`
 /// @param[out] pt_best_idx_ptr Per-point best different-component column index, length `n`
@@ -620,22 +555,14 @@ inline sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
     });
 }
 
-/// Find the nearest different-component neighbor per point with on-the-fly distance computation.
+/// Find each point's nearest neighbor in another component, computing the distances on the fly.
 ///
-/// Same as `boruvka_find_nearest_mrd` but does not require an `n × n` MRD
-/// matrix in memory: each work-item computes the distance to every other
-/// point on the fly using the requested metric. Used by the kd-tree and
-/// ball-tree GPU backends to avoid the `O(n²)` storage of a precomputed
-/// matrix.
-///
-/// `MRD(i, j) = max(core_i, core_j, dist(i, j) * inv_alpha)` per the
-/// canonical HDBSCAN robust single-linkage definition; alpha scales only the
-/// pairwise dist term, not the core distances.
+/// Uses `MRD(i, j) = max(core_i, core_j, dist(i, j) * inv_alpha)`, so no `n x n` matrix is held.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue           The SYCL queue
-/// @param[in]  data_ptr        Row-major input buffer, size `n × col_count`
+/// @param[in]  data_ptr        Row-major input buffer, size `n x col_count`
 /// @param[in]  col_count       Number of features
 /// @param[in]  core_ptr        Per-point core distances, length `n` (unscaled)
 /// @param[in]  comp_ptr        Per-point component id, length `n`
@@ -717,12 +644,7 @@ inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
     });
 }
 
-/// Reduce per-point bests to per-component bests, then merge via union-find.
-///
-/// The reduction runs in parallel; only the union-find step, which has serial
-/// data dependencies, stays a single task. Appends accepted edges to
-/// `mst_from_ptr` / `mst_to_ptr` / `mst_weight_ptr` and decrements
-/// `num_comp_ptr` accordingly.
+/// Reduce per-point bests to per-component bests, then merge components and append the MST edges.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -838,11 +760,7 @@ inline sycl::event boruvka_merge_components(sycl::queue& queue,
     });
 }
 
-/// Path-compress component ids in parallel after a Boruvka merge round.
-///
-/// One work-item per point: walks `uf_parent` to the root and writes the root
-/// into `comp_ptr`. Equivalent to `comp[i] = find(i)` per point but fully
-/// parallel because the walk only reads `uf_parent` (no concurrent writes).
+/// Set `comp[i] = find(i)` for every point after a Boruvka merge round.
 ///
 /// @param[in]  queue         The SYCL queue
 /// @param[out] comp_ptr      Per-point component id, length `n` (overwritten)
@@ -867,21 +785,12 @@ inline sycl::event boruvka_compress_components(sycl::queue& queue,
     });
 }
 
-/// Build the MST under MRD on the GPU using the precomputed MRD matrix.
-///
-/// Allocates per-point Boruvka working arrays (component ids, union-find,
-/// per-point and per-component bests, MST counters) on the device, then loops
-/// at most `max_rounds` Boruvka iterations: parallel find -> single-task
-/// merge -> parallel path compression. Stops as soon as the device-side
-/// component counter drops to 1.
-///
-/// Used by the brute-force GPU backend; the kd-tree and ball-tree backends
-/// use `build_mst_otf` to avoid the `O(n²)` MRD storage.
+/// Build the MST under MRD with Boruvka's algorithm from a precomputed MRD matrix.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue       The SYCL queue
-/// @param[in]  mrd_matrix  Precomputed MRD matrix of size `n × n`
+/// @param[in]  mrd_matrix  Precomputed MRD matrix of size `n x n`
 /// @param[out] mst_from    Output MST `from` endpoints, length `n - 1`
 /// @param[out] mst_to      Output MST `to` endpoints, length `n - 1`
 /// @param[out] mst_weights Output MST weights, length `n - 1`
@@ -951,7 +860,7 @@ inline sycl::event build_mst(sycl::queue& queue,
 
     bool connected = (n <= 1);
     for (std::int32_t round = 0; round < max_rounds; round++) {
-        // Step A: parallel find nearest different-component neighbor
+        // Step A: nearest neighbor in another component
         auto find_event = boruvka_find_nearest_mrd<Float>(queue,
                                                           mrd_ptr,
                                                           comp_ptr,
@@ -961,7 +870,7 @@ inline sycl::event build_mst(sycl::queue& queue,
                                                           { last_event });
         find_event.wait_and_throw();
 
-        // Step B: reduce + merge (single_task — O(N) work)
+        // Step B: reduce and merge
         auto merge_event = boruvka_merge_components<Float>(queue,
                                                            comp_ptr,
                                                            uf_parent_ptr,
@@ -979,7 +888,7 @@ inline sycl::event build_mst(sycl::queue& queue,
                                                            { find_event });
         merge_event.wait_and_throw();
 
-        // Step C: parallel path compression
+        // Step C: path compression
         auto compress_event =
             boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
         compress_event.wait_and_throw();
@@ -994,25 +903,19 @@ inline sycl::event build_mst(sycl::queue& queue,
         }
     }
 
-    // Only non-finite input leaves components that no round can join; the MST tail would stay
-    // zero-filled and be read as self-merges.
+    // Only non-finite input leaves components that no round can join.
     if (!connected) {
         throw domain_error(dal::detail::error_messages::hdbscan_input_data_is_not_finite());
     }
     return last_event;
 }
 
-/// Build the MST under MRD on the GPU with on-the-fly distance computation.
-///
-/// Same Boruvka loop as `build_mst`, but the find phase uses
-/// `boruvka_find_nearest_otf` so no `n × n` MRD matrix is required. Used by
-/// the kd-tree and ball-tree GPU backends where the matrix would be the
-/// dominant memory cost.
+/// Build the MST under MRD with Boruvka's algorithm, computing the distances on the fly.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue          The SYCL queue
-/// @param[in]  data           Row-major input buffer of size `n × col_count`
+/// @param[in]  data           Row-major input buffer of size `n x col_count`
 /// @param[in]  core_distances Per-point core distances, length `n`
 /// @param[out] mst_from       Output MST `from` endpoints, length `n - 1`
 /// @param[out] mst_to         Output MST `to` endpoints, length `n - 1`
@@ -1021,8 +924,7 @@ inline sycl::event build_mst(sycl::queue& queue,
 /// @param[in]  col_count      Number of features `d`
 /// @param[in]  metric         Distance metric tag
 /// @param[in]  degree         Minkowski degree (used only when `metric == minkowski`)
-/// @param[in]  alpha          Robust single-linkage scaling factor; applied
-///                            only to dist(i,j) inside MRD (default 1.0)
+/// @param[in]  alpha          Robust single-linkage scaling factor of `dist(i, j)` inside MRD
 /// @param[in]  deps           Events that must complete before submission
 ///
 /// @return Event signaling completion of the final Boruvka round
@@ -1145,20 +1047,14 @@ inline sycl::event build_mst_otf(sycl::queue& queue,
         }
     }
 
-    // Only non-finite input leaves components that no round can join; the MST tail would stay
-    // zero-filled and be read as self-merges.
+    // Only non-finite input leaves components that no round can join.
     if (!connected) {
         throw domain_error(dal::detail::error_messages::hdbscan_input_data_is_not_finite());
     }
     return last_event;
 }
 
-/// Sort MST edges in ascending order of weight, keeping endpoints aligned.
-///
-/// Builds an iota index permutation, runs `pr::radix_sort_indices_inplace` on
-/// `mst_weights` against the index permutation, then gathers `mst_from` /
-/// `mst_to` according to the resulting permutation and copies the gathered
-/// arrays back in place.
+/// Sort MST edges in ascending order of weight, keeping the endpoints aligned.
 ///
 /// @tparam Float Floating-point type used for edge weights
 ///
@@ -1185,12 +1081,10 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
     auto indices = pr::ndarray<Index, 1>::empty(queue, edge_count, sycl::usm::alloc::device);
     auto iota_event = indices.arange(queue, deps);
 
-    // Sort weights with corresponding indices using radix sort
     pr::radix_sort_indices_inplace<Float, Index> sorter(queue);
     auto sort_event = sorter(mst_weights, indices, { iota_event });
     sort_event.wait_and_throw();
 
-    // Permute mst_from and mst_to according to sorted indices
     auto [sorted_from, sf_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [sorted_to, st_event] =
@@ -1227,17 +1121,9 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
     return copy_to_event;
 }
 
-/// Cluster extraction kernel 1: build the single-linkage dendrogram.
+/// Cluster extraction kernel 1: build the single-linkage dendrogram from the sorted MST edges.
 ///
-/// Walks sorted MST edges via union-find. Writes directly into the node
-/// arrays accessed through `w`: ids `[0, row_count)` are leaves with size 1;
-/// ids `[row_count, total_nodes)` are internal nodes (one per accepted edge),
-/// with `lc_ptr` / `rc_ptr` set to the merged components' representative node
-/// ids and `nw_ptr` set to the merging edge weight.
-///
-/// Single SYCL task because union-find is inherently serial; runs on `O(n)`
-/// data so the GPU is used as a coprocessor for the surrounding allocations
-/// and chained kernels rather than for parallelism here.
+/// Ids `[0, row_count)` are leaves; internal node `row_count + e` is created by edge `e`.
 ///
 /// @tparam Float Floating-point type used for edge weights
 ///
@@ -1297,20 +1183,10 @@ inline sycl::event build_dendrogram_kernels(sycl::queue& queue,
     });
 }
 
-/// Dump the single-linkage dendrogram as a row-major `(row_count - 1) x 4` matrix.
+/// Write the single-linkage dendrogram as a row-major `(row_count - 1) x 4` matrix.
 ///
-/// Device twin of the CPU `dumpSingleLinkageTree`. Row `e` describes the merge
-/// that created internal node `row_count + e`: `[left, right, distance, size]`,
-/// the layout scipy's `linkage` and scikit-learn's `_single_linkage_tree_` use,
-/// so a caller can re-cut the hierarchy at an arbitrary distance -- what
-/// `HDBSCAN.dbscan_clustering` does -- without rebuilding it.
-///
-/// Node ids need no remapping: `build_dendrogram_kernels` keys internal node `e`
-/// off the MST edge index, and every MST edge joins two distinct components (the
-/// edge set is a forest, so no edge is ever redundant whatever order it is
-/// processed in), which makes ids `[row_count, row_count + edge_count)` dense.
-/// Unlike the kernels around it this one is a plain `parallel_for`: each row is
-/// an independent gather.
+/// Row `e` is the merge that created node `row_count + e`: `[left, right, distance, size]`, the
+/// layout of scipy's `linkage` and scikit-learn's `_single_linkage_tree_`.
 ///
 /// @tparam Float Floating-point type used for merge distances
 ///
@@ -1340,14 +1216,8 @@ inline sycl::event dump_single_linkage_tree_kernel(sycl::queue& queue,
 
 /// Cluster extraction kernel 2: build the condensed tree from the dendrogram.
 ///
-/// Walks the dendrogram top-down: for each internal node, sides whose subtree
-/// size is at least `min_cluster_size` keep their cluster id; sides smaller
-/// than `min_cluster_size` are emitted as fallen-leaf condensed edges. New
-/// cluster ids are allocated only when both sides survive (a real split).
-/// Writes the condensed-edge arrays (`cond_p_ptr` / `cond_c_ptr` /
-/// `cond_l_ptr` / `cond_s_ptr`) and the next-cluster-id counter (`nc_ptr`).
-///
-/// Single SYCL task because the walk is serial and operates on `O(n)` data.
+/// A side smaller than `min_cluster_size` falls out as points; a new cluster id is allocated only
+/// when both sides of a split survive.
 ///
 /// @tparam Float Floating-point type used for edge weights / lambdas
 ///
@@ -1411,8 +1281,7 @@ inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
                     }
                 };
 
-            // A FIFO queue: breadth-first, left before right, like scikit-learn's _condense_tree,
-            // which is what numbers the clusters. Each node is enqueued at most once.
+            // Breadth-first, left before right, so the cluster ids match scikit-learn's.
             std::int32_t ct_head = 0;
             std::int32_t ct_sp = 0;
             w.stk_ptr[ct_sp] = root;
@@ -1435,9 +1304,7 @@ inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
                 const std::int32_t ls = w.ns_ptr[lc_node];
                 const std::int32_t rs = w.ns_ptr[rc_node];
                 const Float wt = w.nw_ptr[nid];
-                // scikit-learn stores an infinite lambda for a zero-distance
-                // merge. The largest finite value stands in for it, as on the
-                // CPU, so no reciprocal of a representable distance outranks it.
+                // A zero-distance merge gets the largest finite lambda, as on the CPU.
                 const Float lambda =
                     (wt > Float(0)) ? Float(1) / wt : dal::detail::limits<Float>::max();
 
@@ -1483,17 +1350,7 @@ inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
     });
 }
 
-/// Cluster extraction kernel 3: EOM stability selection and label assignment prep.
-///
-/// Initializes per-cluster bookkeeping (lambda birth, leaf flag, child
-/// pointers, sizes), accumulates stability per cluster, runs Excess-of-Mass
-/// (or leaf) selection, optionally enforces `allow_single_cluster=false`,
-/// applies `cluster_selection_epsilon`, then assigns dense label ids to
-/// selected clusters and records `point_fell_from` and `cluster_parent` for
-/// the labeling kernel.
-///
-/// Single SYCL task because the EOM bottom-up sweep and the cluster-epsilon
-/// fixed-point have serial dependencies; data sizes remain `O(nClusters)`.
+/// Cluster extraction kernel 3: select clusters (EOM or leaf, then epsilon) and number them.
 ///
 /// @tparam Float Floating-point type used for cluster lambdas / stabilities
 ///
@@ -1520,9 +1377,7 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                 w.ilc_ptr[c] = 1;
                 w.is_ptr[c] = 1;
             }
-            // Root participates in EOM only when single-cluster outcomes are
-            // allowed; otherwise it must never be picked, so deselect up front
-            // and skip it in the EOM bottom-up sweep below.
+            // The root can be selected only when `allow_single_cluster` is set.
             if (!w.allow_single_cluster)
                 w.is_ptr[root_cid] = 0;
             w.csz_ptr[root_cid] = static_cast<std::int32_t>(w.row_count);
@@ -1552,17 +1407,14 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                     w.is_ptr[c] = 0;
             }
 
-            // Stays 64-bit: the descriptor takes the cap as int64_t, and narrowing it
-            // would turn a large, non-restrictive cap negative and unselect every cluster.
+            // Kept 64-bit: narrowing a large cap would make it negative.
             const std::int64_t mcs_max = (w.max_cluster_size > 0)
                                              ? w.max_cluster_size
                                              : std::numeric_limits<std::int64_t>::max();
 
             if (w.cluster_selection == 1) {
-                // Leaf mode picks the leaves of the *cluster* tree, whose nodes
-                // are the child clusters only, so the root is never a candidate
-                // -- not even when allow_single_cluster is set, which in leaf
-                // mode only relaxes the labeling threshold.
+                // Leaf mode never selects the root; `allow_single_cluster` only relaxes the
+                // labeling threshold there.
                 w.is_ptr[root_cid] = 0;
                 for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
                     w.is_ptr[c] = (w.ilc_ptr[c] && w.csz_ptr[c] >= w.min_cluster_size) ? 1 : 0;
@@ -1581,8 +1433,7 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                 }
                 for (std::int32_t c = n_clusters - 1; c >= tree_top; c--) {
                     if (w.ilc_ptr[c]) {
-                        // No children to compare against, so only the size cap can unselect a
-                        // leaf; its propagated stability is the empty child sum.
+                        // Only the size cap can unselect a leaf.
                         if (w.csz_ptr[c] > mcs_max) {
                             w.is_ptr[c] = 0;
                             w.stab_ptr[c] = Float(0);
@@ -1625,8 +1476,8 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
                     w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
             }
 
-            // Same port of scikit-learn's epsilon_search as the CPU kernel. Bit 0 of `is_ptr` is
-            // the EOM selection, bit 1 the final pick and bit 2 marks an epsilon target.
+            // scikit-learn's epsilon_search. `is_ptr` bits: 0 EOM selection, 1 final pick,
+            // 2 epsilon target.
             if (w.cluster_selection_epsilon > Float(0) && !w.is_ptr[root_cid]) {
                 const Float eps = w.cluster_selection_epsilon;
                 auto birth_dist = [&](std::int32_t c) {
@@ -1686,16 +1537,8 @@ inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
     });
 }
 
-/// Cluster extraction kernels 4 + 5: build `dendro_parent`, then label each point.
-///
-/// Phase 4 (parallel_for over internal nodes): reverse `lc_ptr` / `rc_ptr`
-/// into `dp_ptr` (parent pointer per node).
-///
-/// Phase 5 (parallel_for over points): for each point, either follow
-/// `point_fell_from` to its drop cluster and walk up the cluster tree until
-/// hitting a selected ancestor, or — for points never ejected — walk up the
-/// dendrogram via `dp_ptr` until a node with a known cluster id is found and
-/// then walk up the cluster tree.
+/// Cluster extraction kernels 4 + 5: build the dendrogram parent links, then label each point
+/// with its deepest selected ancestor cluster.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -1708,8 +1551,7 @@ template <typename Float>
 inline sycl::event assign_label_kernels(sycl::queue& queue,
                                         const cluster_work_ptrs<Float>& w,
                                         const bk::event_vector& deps) {
-    // Kernel 4 (parallel_for): Build dendro_parent from internal nodes.
-    // Each work-item processes one internal node independently.
+    // Kernel 4: parent link of every node.
     auto k4_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.parallel_for(sycl::range<1>(w.edge_count), [=](sycl::id<1> idx) {
@@ -1723,8 +1565,7 @@ inline sycl::event assign_label_kernels(sycl::queue& queue,
         });
     });
 
-    // Kernel 5 (parallel_for): Label each point independently
-    // Each work-item walks up cluster tree or dendrogram tree for one point
+    // Kernel 5: label of every point.
     auto k5_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ k4_event });
         h.parallel_for(sycl::range<1>(w.row_count), [=](sycl::id<1> idx) {
@@ -1738,7 +1579,7 @@ inline sycl::event assign_label_kernels(sycl::queue& queue,
             const std::int32_t root_cid = static_cast<std::int32_t>(w.row_count);
             w.resp_ptr[i] = -1;
 
-            // Case 1: Point fell out of a cluster — walk up to deepest selected ancestor.
+            // The point fell out of a cluster: walk up to its deepest selected ancestor.
             const std::int32_t fell = w.pff_ptr[i];
             if (fell >= 0) {
                 std::int32_t c = fell;
@@ -1752,7 +1593,7 @@ inline sycl::event assign_label_kernels(sycl::queue& queue,
                 return;
             }
 
-            // Case 2: Point was never ejected — walk up dendrogram tree
+            // The point never fell out: walk up the dendrogram.
             std::int32_t nid = static_cast<std::int32_t>(i);
             while (nid >= 0 && nid < static_cast<std::int32_t>(w.total_nodes)) {
                 const std::int32_t cid = w.dtc_ptr[nid];
@@ -1775,21 +1616,10 @@ inline sycl::event assign_label_kernels(sycl::queue& queue,
     return k5_event;
 }
 
-/// Demote the weakest members of a root-only clustering to noise.
+/// When only the root cluster is selected, demote to noise the points whose drop-out lambda is
+/// below scikit-learn's threshold: `1 / epsilon` if epsilon is set, else the root's death lambda.
 ///
-/// Device twin of the CPU `applySingleClusterThreshold`. When the selection
-/// collapsed to the root cluster alone, the flat clustering has no sibling to
-/// separate noise from signal, so scikit-learn's `_do_labelling` keeps a point
-/// only if its drop-out lambda reaches a threshold: `1 / epsilon` when the caller
-/// set a `cluster_selection_epsilon`, otherwise the root's own death lambda (the
-/// largest lambda over every edge leaving the root), which keeps only the points
-/// that made it to the very end.
-///
-/// Whether the selection collapsed is only known on the device, so the kernel is
-/// submitted whenever `allow_single_cluster` is set and returns immediately in
-/// every other case. It runs as a single task on the same grounds as
-/// `eom_select_clusters_kernel`: the work is `O(cond_count + row_count)` and only
-/// reached for degenerate inputs.
+/// Does nothing unless the selection is the root alone.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -1824,9 +1654,7 @@ inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
 
             Float threshold = Float(0);
             if (w.cluster_selection_epsilon > Float(0)) {
-                // Below `1 / inf_lambda` the reciprocal overflows, which would
-                // put the threshold above the zero-distance lambda and demote
-                // the coincident points an infinite lambda keeps.
+                // Cap the threshold at the zero-distance lambda, which `1 / epsilon` can exceed.
                 threshold = (w.cluster_selection_epsilon > Float(1) / inf_lambda)
                                 ? Float(1) / w.cluster_selection_epsilon
                                 : inf_lambda;
@@ -1838,9 +1666,7 @@ inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
                 }
             }
 
-            // Each point is the child of at most one condensed edge; points that
-            // never dropped out keep the -1 the buffer was filled with and are
-            // demoted, the conservative reading of "did not reach the threshold".
+            // Points that never dropped out keep -1 and are demoted.
             for (std::int32_t ei = 0; ei < cond_count; ei++) {
                 const std::int32_t child = w.cond_c_ptr[ei];
                 if (child < static_cast<std::int32_t>(w.row_count))
@@ -1856,29 +1682,10 @@ inline sycl::event single_cluster_threshold_kernel(sycl::queue& queue,
     });
 }
 
-/// Cluster extraction kernels 6-8: membership strength of every point.
+/// Cluster extraction kernels 6-8: membership strength of every point, as in scikit-learn.
 ///
-/// Device twin of the CPU `computeMembershipProbabilities`, and like it a
-/// transcription of scikit-learn's `_hdbscan.hdbscan._get_probabilities`: a
-/// point's strength is the lambda at which it dropped out of the condensed tree
-/// normalized by the lambda at which its cluster died. 1 means the point
-/// persisted to the very end of its cluster, values near 0 mean it detached
-/// almost immediately, and noise is 0.
-///
-/// Phase 6 (parallel_for over condensed edges): `fetch_max` the edge lambda into
-/// the parent cluster's death lambda, and record the edge lambda as the drop
-/// lambda of the child when the child is an original point. Each point is the
-/// child of at most one condensed edge, so that second store needs no atomic.
-///
-/// Phase 7 (parallel_for over clusters): re-key the death lambda by dense label,
-/// so phase 8 can index it with the response it already has instead of walking
-/// back up to the selected ancestor cluster.
-///
-/// Phase 8 (parallel_for over points): divide, clamping to 1. The three cases
-/// that give exactly 1 are a cluster with no outgoing edge (death lambda 0, the
-/// normalization is undefined), a point whose own lambda is at least its
-/// cluster's, and a point that never dropped out at all -- `plam_ptr` still
-/// holds the -1 sentinel for the last case and the `lam < 0` test catches it.
+/// A point's strength is the lambda at which it dropped out, divided by the death lambda of its
+/// cluster and clamped to 1; noise gets 0.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -1891,8 +1698,7 @@ template <typename Float>
 inline sycl::event membership_probability_kernels(sycl::queue& queue,
                                                   const cluster_work_ptrs<Float>& w,
                                                   const bk::event_vector& deps) {
-    // Ranged over the `3 * row_count` worst-case condensed-edge bound that
-    // extract_clusters allocates, not over `total_nodes`, which is smaller.
+    // Over the `3 * row_count` condensed-edge capacity `extract_clusters` allocates.
     auto k6_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.parallel_for(sycl::range<1>(3 * w.row_count), [=](sycl::id<1> idx) {
@@ -1950,13 +1756,6 @@ inline sycl::event membership_probability_kernels(sycl::queue& queue,
 
 /// Extract HDBSCAN cluster labels from a sorted MST on the GPU.
 ///
-/// Orchestrator: allocates every device-side working buffer, fills a
-/// `cluster_work_ptrs<Float>`, and chains the four extraction kernels:
-/// `build_dendrogram_kernels` -> `build_condensed_tree_kernel` ->
-/// `eom_select_clusters_kernel` -> `assign_label_kernels`, followed by
-/// `single_cluster_threshold_kernel` when `allow_single_cluster` is set. Final
-/// responses are written to the caller-supplied `responses` view.
-///
 /// @tparam Float Floating-point type used for MST weights
 ///
 /// @param[in]  queue                     The SYCL queue
@@ -1971,12 +1770,10 @@ inline sycl::event membership_probability_kernels(sycl::queue& queue,
 /// @param[in]  allow_single_cluster      If false, reject root-only outcomes
 /// @param[in]  cluster_selection_epsilon Distance epsilon for cluster_selection_epsilon (0 disables)
 /// @param[in]  max_cluster_size          Maximum cluster size cap (0 disables)
-/// @param[out] probabilities             Optional device buffer of length `row_count` receiving the
-///                                       membership strength of each point in `[0, 1]`. Pass
-///                                       `nullptr` to skip the three extra kernels
-/// @param[out] single_linkage_tree       Optional device buffer of length `4 * (row_count - 1)`
-///                                       receiving the dendrogram as `[left, right, distance, size]`
-///                                       rows. Pass `nullptr` to skip the extra kernel
+/// @param[out] probabilities             Membership strength per point, length `row_count`, or
+///                                       `nullptr` to skip
+/// @param[out] single_linkage_tree       Dendrogram rows `[left, right, distance, size]`, length
+///                                       `4 * (row_count - 1)`, or `nullptr` to skip
 ///
 /// @return Event signaling completion of the labeling phase
 template <typename Float>
@@ -2001,10 +1798,8 @@ inline sycl::event extract_clusters(sycl::queue& queue,
 
     const std::int64_t edge_count = row_count - 1;
     const std::int64_t total_nodes = 2 * row_count - 1;
-    // Worst-case condensed-tree edges: up to 2*(nClusters-1) cluster->cluster
-    // edges (each non-root cluster is created by a real split) plus up to
-    // `row_count` fallen-leaf edges (every original point falls at most once).
-    // With nClusters ≤ row_count, the bound is `3*row_count - 2`.
+    // At most `2 * (cluster_count - 1)` cluster edges plus `row_count` point edges, i.e.
+    // `3 * row_count - 2`.
     const std::int64_t max_condensed = 3 * row_count;
     const std::int64_t max_clusters = total_nodes;
 
@@ -2077,10 +1872,8 @@ inline sycl::event extract_clusters(sycl::queue& queue,
         pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
-    // Probability scratch: the death lambda per cluster and the same value keyed
-    // by dense label. Only allocated when the caller asked for probabilities,
-    // which is not the default. The per-point drop-out lambda is shared with the
-    // single-cluster threshold pass, so it follows `allow_single_cluster` too.
+    // Probability scratch, allocated only when requested; the per-point drop-out lambda is also
+    // needed by the single-cluster threshold.
     const bool need_point_lambda = (probabilities != nullptr) || allow_single_cluster;
     pr::ndarray<Float, 1> cluster_death, label_death, point_lambda;
     if (probabilities != nullptr) {
@@ -2095,7 +1888,6 @@ inline sycl::event extract_clusters(sycl::queue& queue,
         queue.wait_and_throw();
     }
 
-    // Collect all allocation events into a single dependency vector
     bk::event_vector all_events = deps;
     all_events.insert(
         all_events.end(),
@@ -2104,7 +1896,6 @@ inline sycl::event extract_clusters(sycl::queue& queue,
           lb_ev,        ilc_ev,       is_ev,           clab_ev, csz_ev,     cprt_ev,     cc0_ev,
           cc1_ev,       pff_ev,       dp_ev,           stk_ev,  stk_cid_ev, leaf_stk_ev, nca_ev });
 
-    // Fill working data pointers
     cluster_work_ptrs<Float> w;
     w.mst_from_ptr = mst_from.get_data();
     w.mst_to_ptr = mst_to.get_data();
@@ -2152,13 +1943,10 @@ inline sycl::event extract_clusters(sycl::queue& queue,
     w.cluster_selection_epsilon = cluster_selection_epsilon;
     w.max_cluster_size = max_cluster_size;
 
-    // Submit kernels via helpers
     auto k2_event = build_dendrogram_kernels<Float>(queue, w, all_events);
     k2_event.wait_and_throw();
 
-    // Dumped here rather than at the end: the node arrays it reads are owned by
-    // this frame, and the kernels below only read them, so the dendrogram is
-    // final from this point on.
+    // The dendrogram is final from here on; the later kernels only read it.
     if (single_linkage_tree != nullptr && edge_count > 0) {
         auto slt_event = dump_single_linkage_tree_kernel<Float>(queue, w, { k2_event });
         slt_event.wait_and_throw();
@@ -2175,8 +1963,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
 
     sycl::event labeling_event = k4_event;
     if (allow_single_cluster) {
-        // `point_lambda` is owned by this frame and the pass dereferences it, so
-        // the event has to be awaited here: `sycl::free` does not synchronize.
+        // `point_lambda` is freed on return and `sycl::free` does not wait.
         labeling_event = single_cluster_threshold_kernel<Float>(queue, w, { k4_event });
         labeling_event.wait_and_throw();
     }
@@ -2185,9 +1972,7 @@ inline sycl::event extract_clusters(sycl::queue& queue,
         return labeling_event;
     }
 
-    // The three probability scratch arrays are owned by this frame and every
-    // kernel below dereferences them, so the event has to be awaited here:
-    // `sycl::free` does not synchronize.
+    // The probability scratch is freed on return and `sycl::free` does not wait.
     auto k8_event = membership_probability_kernels<Float>(queue, w, { labeling_event });
     k8_event.wait_and_throw();
     return k8_event;
