@@ -694,6 +694,9 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     // A Boruvka round only finds no candidate on non-finite input, which would leave the MST tail
     // uninitialized.
     if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
+    // The edge sort orders by weight and is only defined for finite weights.
+    if (data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))
+        return services::Status(services::ErrorIncorrectInputNumericTable);
 
     // =========================================================================
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force)

@@ -358,6 +358,9 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         // The MRD graph is complete, so a round only fails to find a candidate on non-finite input.
         // A truncated MST leaves tail entries uninitialized, which are then read as tree nodes.
         if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
+        // The edge sort orders by weight and is only defined for finite weights.
+        if (data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))
+            return services::Status(services::ErrorIncorrectInputNumericTable);
     }
 
     // =========================================================================

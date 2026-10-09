@@ -19,11 +19,13 @@
 #define __HDBSCAN_CLUSTER_UTILS_H__
 
 #include "services/daal_defines.h"
+#include "src/data_management/finiteness_checker.h"
 #include "src/algorithms/service_sort.h"
 #include "src/externals/service_memory.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
+#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -58,37 +60,13 @@ struct CondensedEdge
     DAAL_INT childSize; ///< Number of original points in the child subtree (1 for fallen leaves)
 };
 
-/// Strict total order over MST edges: ascending weight, ties broken by the edge's original
-/// position, NaN weights last.
-///
-/// The composite key is what makes one unstable sort stable. Grouping NaNs keeps the relation a
-/// strict weak ordering, which a bare `wa < wb` would not be for a NaN input.
-///
-/// @tparam algorithmFPType Floating-point type used for edge weights
-///
-/// @param[in] wa First edge's weight
-/// @param[in] ia First edge's original position
-/// @param[in] wb Second edge's weight
-/// @param[in] ib Second edge's original position
-///
-/// @return True iff edge `a` must sort before edge `b`
-template <typename algorithmFPType>
-static inline bool mstEdgeLess(algorithmFPType wa, DAAL_INT ia, algorithmFPType wb, DAAL_INT ib)
-{
-    const bool aNan = !(wa == wa);
-    const bool bNan = !(wb == wb);
-    if (aNan != bNan) return bNan;
-    if (!aNan && wa != wb) return wa < wb;
-    return ia < ib;
-}
-
 /// Stably sort MST edges in ascending order of weight, keeping endpoint arrays aligned.
 ///
 /// Required by buildDendrogramFromSortedMst, which folds the edges in this order, so among tied
 /// edges the order decides tie-degenerate splits -- and equal weights are the norm under MRD. The
-/// sort is therefore an index permutation on `(weight, position)`, matching the GPU backend's
-/// stable radix sort, with a fallback to the in-place `qSort` if the permutation buffers cannot be
-/// allocated, which preserves ascending weights and leaves only the tie order unspecified.
+/// sort is therefore on `(weight, position)` pairs, matching the GPU backend's stable radix sort,
+/// with a fallback to the in-place `qSort` if the buffers cannot be allocated, which preserves
+/// ascending weights and leaves only the tie order unspecified. The weights must be finite.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -100,40 +78,39 @@ static inline bool mstEdgeLess(algorithmFPType wa, DAAL_INT ia, algorithmFPType 
 template <typename algorithmFPType, CpuType cpu>
 static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights, size_t edgeCount)
 {
-    TArray<DAAL_INT, cpu> orderArr(edgeCount);
+    TArray<daal::IdxValType<algorithmFPType>, cpu> pairsArr(edgeCount);
     TArray<DAAL_INT, cpu> fromArr(edgeCount);
     TArray<DAAL_INT, cpu> toArr(edgeCount);
-    TArray<algorithmFPType, cpu> weightArr(edgeCount);
-    DAAL_INT * order            = orderArr.get();
-    DAAL_INT * sortedFrom       = fromArr.get();
-    DAAL_INT * sortedTo         = toArr.get();
-    algorithmFPType * sortedWgt = weightArr.get();
+    daal::IdxValType<algorithmFPType> * pairs = pairsArr.get();
+    DAAL_INT * sortedFrom                     = fromArr.get();
+    DAAL_INT * sortedTo                       = toArr.get();
 
-    if (order == nullptr || sortedFrom == nullptr || sortedTo == nullptr || sortedWgt == nullptr)
+    if (pairs == nullptr || sortedFrom == nullptr || sortedTo == nullptr)
     {
         daal::algorithms::internal::qSort<algorithmFPType, DAAL_INT, DAAL_INT, cpu>(edgeCount, mstWeights, mstFrom, mstTo);
         return;
     }
 
-    for (size_t i = 0; i < edgeCount; i++) order[i] = static_cast<DAAL_INT>(i);
+    for (size_t i = 0; i < edgeCount; i++)
+    {
+        pairs[i].value = mstWeights[i];
+        pairs[i].index = i;
+    }
 
-    const algorithmFPType * weights = mstWeights;
-    daal::algorithms::internal::introSort<cpu>(
-        order, order + edgeCount, [weights](DAAL_INT a, DAAL_INT b) { return mstEdgeLess<algorithmFPType>(weights[a], a, weights[b], b); });
+    // Orders by value, then by index: the (weight, position) order.
+    daal::parallel_sort<algorithmFPType>(pairs, pairs + edgeCount);
 
     for (size_t i = 0; i < edgeCount; i++)
     {
-        const DAAL_INT src = order[i];
-        sortedFrom[i]      = mstFrom[src];
-        sortedTo[i]        = mstTo[src];
-        sortedWgt[i]       = mstWeights[src];
+        const size_t src = pairs[i].index;
+        sortedFrom[i]    = mstFrom[src];
+        sortedTo[i]      = mstTo[src];
+        mstWeights[i]    = pairs[i].value;
     }
 
     const size_t idxBytes = edgeCount * sizeof(DAAL_INT);
-    const size_t wgtBytes = edgeCount * sizeof(algorithmFPType);
     daal::services::internal::daal_memcpy_s(mstFrom, idxBytes, sortedFrom, idxBytes);
     daal::services::internal::daal_memcpy_s(mstTo, idxBytes, sortedTo, idxBytes);
-    daal::services::internal::daal_memcpy_s(mstWeights, wgtBytes, sortedWgt, wgtBytes);
 }
 
 /// Build the single-linkage dendrogram from sorted MST edges via union-find.
