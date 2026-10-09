@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/test/fixture.hpp"
+#include "oneapi/dal/test/engine/blobs.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
@@ -22,7 +23,6 @@
 
 #include <algorithm>
 #include <map>
-#include <random>
 #include <set>
 #include <type_traits>
 #include <vector>
@@ -962,34 +962,6 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 // sized so the parallel Boruvka scan is the path under test.
 // =========================================================================
 
-/// Deterministic well-separated blobs. Coordinates sit on a 2^-24 grid of `std::mt19937` output,
-/// whose sequence the standard fixes, so the data is the same everywhere and has exact ties.
-template <typename Float>
-static std::vector<Float> make_blobs(std::int64_t per_cluster,
-                                     std::int64_t cluster_count,
-                                     std::int64_t column_count,
-                                     Float separation,
-                                     Float spread) {
-    std::vector<Float> data(per_cluster * cluster_count * column_count);
-
-    std::mt19937 rng(777u);
-    const auto next_unit = [&]() {
-        return static_cast<Float>(rng() >> 8) / static_cast<Float>(1u << 24);
-    };
-
-    std::int64_t pos = 0;
-    for (std::int64_t c = 0; c < cluster_count; c++) {
-        for (std::int64_t i = 0; i < per_cluster; i++) {
-            for (std::int64_t j = 0; j < column_count; j++) {
-                const Float center = separation * static_cast<Float>(c + 1) *
-                                     static_cast<Float>(j % 2 == 0 ? 1 : -1);
-                data[pos++] = center + spread * (next_unit() - Float(0.5));
-            }
-        }
-    }
-    return data;
-}
-
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force vs tree methods: same partition at thousands of rows",
                      "[hdbscan][batch]",
@@ -1003,11 +975,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t column_count = 3;
     constexpr std::int64_t row_count = per_cluster * cluster_count;
 
-    const auto data = make_blobs<Float>(per_cluster,
-                                        cluster_count,
-                                        column_count,
-                                        /*separation=*/Float(20.0),
-                                        /*spread=*/Float(1.0));
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(20.0),
+                                            /*spread=*/Float(1.0));
     const auto x = homogen_table::wrap(data.data(), row_count, column_count);
 
     constexpr std::int64_t min_cluster_size = 25;
@@ -1061,11 +1033,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t row_count = 3000;
     constexpr std::int64_t column_count = 2;
 
-    const auto data = make_blobs<Float>(row_count,
-                                        /*cluster_count=*/1,
-                                        column_count,
-                                        /*separation=*/Float(0.0),
-                                        /*spread=*/Float(1.0));
+    const auto data = te::make_blobs<Float>(row_count,
+                                            /*cluster_count=*/1,
+                                            column_count,
+                                            /*separation=*/Float(0.0),
+                                            /*spread=*/Float(1.0));
     const auto x = homogen_table::wrap(data.data(), row_count, column_count);
 
     const auto desc =
