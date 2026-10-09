@@ -40,7 +40,7 @@ void set_cluster_centers(const dal::backend::context_cpu& ctx,
                          std::int64_t cluster_count,
                          compute_result<task::clustering>& result) {
     const auto store_centers = desc.get_store_centers();
-    if (cluster_count <= 0 || store_centers == store_centers_method::none) {
+    if (cluster_count <= 0) {
         return;
     }
     const std::int64_t row_count = data.get_row_count();

@@ -596,39 +596,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
-    using algorithms::internal::PairwiseDistanceType;
-
     // Alpha scales only dist(q, p) inside MRD. Cosine is not an L_p distance, so the tree cannot
     // prune with it.
-    size_t edgesAdded = 0;
-    switch (pairwiseDistance)
-    {
-    case PairwiseDistanceType::euclidean:
+    size_t edgesAdded       = 0;
+    services::Status status = callWithLpDistance<algorithmFPType>(pairwiseDistance, minkowskiDegree, [&](const auto & distFunc) {
         edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                                 coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
-        break;
-    case PairwiseDistanceType::manhattan:
-        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                                 coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {}, alpha);
-        break;
-    case PairwiseDistanceType::minkowski:
-        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                                 coreDistances, mstFrom, mstTo, mstWeights,
-                                                                 MinkowskiDist<algorithmFPType>(minkowskiDegree), alpha);
-        break;
-    case PairwiseDistanceType::chebyshev:
-        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                                 coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {}, alpha);
-        break;
-    case PairwiseDistanceType::cosine:
-    default: return services::Status(services::ErrorMethodNotSupported);
-    }
-
-    // An incomplete MST means non-finite input.
-    if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
-    // The edge sort orders by weight and is only defined for finite weights.
-    if (data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))
-        return services::Status(services::ErrorIncorrectInputNumericTable);
+                                                                 coreDistances, mstFrom, mstTo, mstWeights, distFunc, alpha);
+    });
+    DAAL_CHECK_STATUS_VAR(status);
+    DAAL_CHECK_STATUS(status, checkMst(edgesAdded, edgeCount, mstWeights));
 
     // =========================================================================
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force)

@@ -14,7 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <algorithm>
 #include <utility>
 
 #include "oneapi/dal/detail/profiler.hpp"

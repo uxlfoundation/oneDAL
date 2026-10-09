@@ -25,6 +25,14 @@
 
 namespace oneapi::dal::hdbscan::backend {
 
+/// True iff `desc` asks for cluster centers, which are computed from the responses.
+///
+/// @param[in] desc Algorithm descriptor
+inline bool centers_requested(const detail::descriptor_base<task::clustering>& desc) {
+    return desc.get_store_centers() != store_centers_method::none &&
+           desc.get_result_options().test(result_options::responses);
+}
+
 /// Fill the centroid and/or medoid tables `store_centers` asks for into `result`, as
 /// scikit-learn defines them. Does nothing when there are no clusters.
 ///

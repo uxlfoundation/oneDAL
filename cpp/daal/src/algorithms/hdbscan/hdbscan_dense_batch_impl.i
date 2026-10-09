@@ -295,11 +295,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
             refreshComponentIds<cpu>(nRows, uf, componentOf);
         }
 
-        // The MRD graph is complete, so an incomplete MST means non-finite input.
-        if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
-        // The edge sort orders by weight and is only defined for finite weights.
-        if (data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))
-            return services::Status(services::ErrorIncorrectInputNumericTable);
+        services::Status mstStatus = checkMst(edgesAdded, edgeCount, mstWeights);
+        DAAL_CHECK_STATUS_VAR(mstStatus);
     }
 
     // =========================================================================

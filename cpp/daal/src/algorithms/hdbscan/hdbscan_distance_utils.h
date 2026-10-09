@@ -24,7 +24,10 @@
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
+#include "src/externals/service_memory.h"
 #include "src/threading/threading.h"
+// knn_heap.h relies on the headers above.
+#include "src/algorithms/k_nearest_neighbors/knn_heap.h"
 
 namespace daal
 {
@@ -36,7 +39,6 @@ namespace internal
 {
 
 /// Squared L2 norm of a row with no alignment assumption; see `rowNormSquaredAligned`.
-/// unpadded row of the caller's data buffer.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
@@ -474,6 +476,31 @@ struct ChebyshevDist
     }
 };
 
+/// Call `func(dist)` with the L_p distance functor of `pairwiseDistance`.
+///
+/// @tparam FPType Floating-point type
+/// @tparam Func   Callable taking one distance functor
+///
+/// @param[in] pairwiseDistance Distance metric of the fit
+/// @param[in] minkowskiDegree  Exponent `p` for the Minkowski distance
+/// @param[in] func             Callable to run with the functor
+///
+/// @return `ErrorMethodNotSupported` for cosine, which is not an L_p distance
+template <typename FPType, typename Func>
+static services::Status callWithLpDistance(algorithms::internal::PairwiseDistanceType pairwiseDistance, double minkowskiDegree, const Func & func)
+{
+    using algorithms::internal::PairwiseDistanceType;
+    switch (pairwiseDistance)
+    {
+    case PairwiseDistanceType::euclidean: func(EuclideanDist<FPType> {}); break;
+    case PairwiseDistanceType::manhattan: func(ManhattanDist<FPType> {}); break;
+    case PairwiseDistanceType::minkowski: func(MinkowskiDist<FPType>(minkowskiDegree)); break;
+    case PairwiseDistanceType::chebyshev: func(ChebyshevDist<FPType> {}); break;
+    default: return services::Status(services::ErrorMethodNotSupported);
+    }
+    return services::Status();
+}
+
 /// Return the `k`-th smallest entry of `values[0, n)` without modifying or copying the input.
 ///
 /// Keeps a max-heap of the `k` smallest values seen, so the scratch is `k` elements.
@@ -506,93 +533,42 @@ static FPType kthSmallestBounded(const FPType * values, size_t n, size_t k, FPTy
     return heapBuf[0];
 }
 
-/// Bounded max-heap of the k nearest neighbors seen so far.
+/// Bounded max-heap of the k nearest neighbors seen so far, on top of the k-NN `Heap`.
 ///
-/// `dists_[0]` is the largest distance kept; `indices_` moves with `dists_`. Once full, `push()`
-/// replaces the top only for a strictly closer neighbor.
+/// Once full, `push()` replaces the top only for a strictly closer neighbor.
 ///
 /// @tparam FPType Floating-point type used for distances
-/// @tparam cpu    CPU dispatch tag (selects the scalable allocator)
+/// @tparam cpu    CPU dispatch tag
 template <typename FPType, daal::internal::CpuType cpu>
 struct KnnHeap
 {
-    /// Construct an empty heap with capacity `cap`.
-    ///
-    /// Check `ok()` before use; an allocation failure leaves the heap inert.
+    /// Construct an empty heap with capacity `cap`; check `ok()` before use.
     ///
     /// @param[in] cap Maximum number of neighbors to keep
-    KnnHeap(DAAL_INT cap) : capacity_(cap), size_(0), distsArr_(cap), indicesArr_(cap)
-    {
-        dists_   = distsArr_.get();
-        indices_ = indicesArr_.get();
-    }
+    KnnHeap(DAAL_INT cap) : capacity_(cap), ok_(heap_.init(cap)) {}
 
     KnnHeap(const KnnHeap &)             = delete;
     KnnHeap & operator=(const KnnHeap &) = delete;
 
-    /// True iff internal allocations succeeded.
-    bool ok() const { return dists_ != nullptr && indices_ != nullptr; }
+    /// True iff the allocation succeeded.
+    bool ok() const { return ok_; }
 
     /// Return the current k-th nearest distance, or `+inf` if the heap isn't full.
-    FPType maxDist() const { return (size_ == capacity_) ? dists_[0] : daal::services::internal::MaxVal<FPType>::get(); }
+    FPType maxDist()
+    {
+        return (heap_.size() == static_cast<size_t>(capacity_)) ? heap_.getMax()->distance : daal::services::internal::MaxVal<FPType>::get();
+    }
 
-    /// Insert a candidate `(dist, idx)`; ignored if the heap is full and the
-    /// distance is not strictly smaller than the current top.
+    /// Insert a candidate `(dist, idx)`.
     ///
     /// @param[in] dist Candidate distance
     /// @param[in] idx  Candidate point index
-    void push(FPType dist, DAAL_INT idx)
-    {
-        if (size_ < capacity_)
-        {
-            dists_[size_]   = dist;
-            indices_[size_] = idx;
-            size_++;
-            DAAL_INT i = size_ - 1;
-            while (i > 0)
-            {
-                DAAL_INT parent = (i - 1) / 2;
-                if (dists_[i] > dists_[parent])
-                {
-                    services::internal::swap<cpu>(dists_[i], dists_[parent]);
-                    services::internal::swap<cpu>(indices_[i], indices_[parent]);
-                    i = parent;
-                }
-                else
-                    break;
-            }
-        }
-        else if (dist < dists_[0])
-        {
-            dists_[0]   = dist;
-            indices_[0] = idx;
-            DAAL_INT i  = 0;
-            while (true)
-            {
-                DAAL_INT l       = 2 * i + 1;
-                DAAL_INT r       = 2 * i + 2;
-                DAAL_INT largest = i;
-                if (l < size_ && dists_[l] > dists_[largest]) largest = l;
-                if (r < size_ && dists_[r] > dists_[largest]) largest = r;
-                if (largest != i)
-                {
-                    services::internal::swap<cpu>(dists_[i], dists_[largest]);
-                    services::internal::swap<cpu>(indices_[i], indices_[largest]);
-                    i = largest;
-                }
-                else
-                    break;
-            }
-        }
-    }
+    void push(FPType dist, DAAL_INT idx) { heap_.replaceMaxIfNeeded({ dist, static_cast<size_t>(idx) }, static_cast<size_t>(capacity_)); }
 
 private:
     DAAL_INT capacity_;
-    DAAL_INT size_;
-    daal::services::internal::TArrayScalable<FPType, cpu> distsArr_;
-    daal::services::internal::TArrayScalable<DAAL_INT, cpu> indicesArr_;
-    FPType * dists_;     // distances from points in the heap to the current query (heap root is the largest)
-    DAAL_INT * indices_; // indices of points in the heap, kept in lockstep with dists_
+    daal::internal::Heap<daal::internal::GlobalNeighbors<FPType, cpu>, cpu> heap_;
+    bool ok_;
 };
 
 } // namespace internal

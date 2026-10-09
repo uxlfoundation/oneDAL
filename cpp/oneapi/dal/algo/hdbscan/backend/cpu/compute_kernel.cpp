@@ -71,7 +71,6 @@ static result_t compute_kernel_impl(const context_cpu& ctx,
                                     const table& data) {
     const std::int64_t row_count = data.get_row_count();
     const auto& options = desc.get_result_options();
-    const auto store_centers = desc.get_store_centers();
 
     const auto daal_data = interop::convert_to_daal_table<Float>(data);
 
@@ -82,8 +81,7 @@ static result_t compute_kernel_impl(const context_cpu& ctx,
 
     // The centers are weighted by membership probability. An empty array becomes a null table,
     // which the kernel skips.
-    const bool need_centers =
-        store_centers != store_centers_method::none && options.test(result_options::responses);
+    const bool need_centers = centers_requested(desc);
     const bool need_probabilities = options.test(result_options::probabilities);
     array<Float> arr_probabilities;
     if (need_probabilities || need_centers) {

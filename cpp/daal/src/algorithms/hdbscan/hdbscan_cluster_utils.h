@@ -102,6 +102,25 @@ static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType *
     daal::services::internal::daal_memcpy_s(mstTo, idxBytes, sortedTo, idxBytes);
 }
 
+/// Check that Boruvka produced a complete MST with finite weights, which `sortMstEdges` needs.
+///
+/// @tparam algorithmFPType Floating-point type of the weights
+///
+/// @param[in] edgesAdded Number of edges Boruvka added
+/// @param[in] edgeCount  Expected number of edges, `nRows - 1`
+/// @param[in] mstWeights Edge weights, length `edgeCount`
+///
+/// @return `ErrorIncorrectInputNumericTable` otherwise; both happen only for non-finite input
+template <typename algorithmFPType>
+static services::Status checkMst(size_t edgesAdded, size_t edgeCount, const algorithmFPType * mstWeights)
+{
+    if (edgesAdded != edgeCount || data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))
+    {
+        return services::Status(services::ErrorIncorrectInputNumericTable);
+    }
+    return services::Status();
+}
+
 /// Build the single-linkage dendrogram from sorted MST edges via union-find.
 ///
 /// Leaves are the points `[0, nRows)`; MST edge `e` creates internal node `nRows + e`.
