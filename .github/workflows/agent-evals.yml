@@ -1,0 +1,159 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# No-LLM checks for dev/agent_evals. Nothing here calls a model or needs a token.
+#  - validate + static: on every change to the eval directory or to agent guidance, a few minutes.
+#  - self-check (`run.py check`: untouched repo must fail, reference solution must pass) in the eval image:
+#    weekly and on demand for every task; on a pull request only for the tasks it touches, or for one task
+#    per grader when the harness itself changes.
+name: Agent evals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dev/agent_evals/**'
+      - '**/AGENTS.md'
+      - '.github/instructions/**'
+      - '.github/copilot-instructions.md'
+      - 'CONTRIBUTING.md'
+      - '.github/workflows/agent-evals.yml'
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: 'Space-separated task ids for the self-check (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate tasks and guidance
+    if: github.repository == 'uxlfoundation/oneDAL' || github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      tasks: ${{ steps.select.outputs.tasks }}
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0  # every task base must resolve, and the self-check archives those commits
+      - name: Validate task definitions
+        run: python3 dev/agent_evals/run.py validate
+        env:
+          ONEDAL_EVAL_SRC: ${{ github.workspace }}
+      - name: Check guidance claims against the tree (report only)
+        run: |
+          python3 dev/agent_evals/run.py static --tree . --out static.json
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("static.json"))
+          print("### Guidance claims", "", "| status | count |", "|---|---|", sep="\n")
+          for k, v in sorted(d["counts"].items()):
+              print(f"| {k} | {v} |")
+          fails = [c for c in d["claims"] if c["status"] == "fail"]
+          if fails:
+              print("", "| file | line | claim | why |", "|---|---|---|---|", sep="\n")
+              for c in fails:
+                  print(f"| {c['file']} | {c['line']} | `{c['claim'][:80]}` | {c['why']} |")
+          EOF
+      - name: Upload static report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-evals-static
+          path: static.json
+      - name: Select tasks for the self-check
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          INPUT_TASKS: ${{ github.event.inputs.tasks }}
+        run: |
+          all=$(ls dev/agent_evals/tasks)
+          # one task per grader: what a change to the harness or a grader is checked against on a pull request
+          smoke="build_kmeans_host build_make_gnu build_release_host fix_finiteness_mut fix_avx2_dispatch
+                 review_seeded_fc review_replay_pr3580 test_add_chebyshev"
+          if [ "$EVENT" = schedule ]; then
+            sel=$all
+          elif [ "$EVENT" = workflow_dispatch ]; then
+            sel=${INPUT_TASKS:-$all}
+          else
+            changed=$(git diff --name-only "$BASE" HEAD -- dev/agent_evals)
+            sel=$(echo "$changed" | sed -n 's|^dev/agent_evals/tasks/\([^/]*\)/.*|\1|p' | sort -u)
+            if echo "$changed" | grep -v '^dev/agent_evals/tasks/' | grep -v '\.md$' | grep -q .; then
+              sel="$sel $smoke"
+            fi
+          fi
+          json=$(for t in $sel; do [[ "$t" =~ ^[A-Za-z0-9_]+$ && -d "dev/agent_evals/tasks/$t" ]] && echo "$t"; done | sort -u | python3 -c \
+            'import json, sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+          echo "tasks=$json" >> "$GITHUB_OUTPUT"
+          echo "Self-check tasks: $json"
+
+  self-check:
+    name: Self-check ${{ matrix.task }}
+    needs: validate
+    if: needs.validate.outputs.tasks != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4  # shares the org runner pool with the main CI
+      matrix:
+        task: ${{ fromJSON(needs.validate.outputs.tasks) }}
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Build the eval image
+        # build context as agent-benchmark makes it: the tracked tree without the tasks
+        run: |
+          mkdir "$RUNNER_TEMP/ctx"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/ctx"
+          rm -r "$RUNNER_TEMP/ctx/dev/agent_evals/tasks"
+          docker build -f "$RUNNER_TEMP/ctx/dev/agent_evals/Dockerfile" -t onedal-agent-evals "$RUNNER_TEMP/ctx"
+      - name: Run the self-check
+        env:
+          TASK: ${{ matrix.task }}
+        run: |
+          c="$RUNNER_TEMP/cache"
+          mkdir -p "$c/bazel-repo" "$c/bazel-disk" "$c/bazel-registry" "$c/bazel-install" "$RUNNER_TEMP/evalroot"
+          docker run --rm --init --user "$(id -u):$(id -g)" -e USER=eval \
+            -v "$PWD":/harness:ro -v "$PWD":/src:ro -e ONEDAL_EVAL_SRC=/src \
+            -v "$c/bazel-repo":/cache/bazel-repo -v "$c/bazel-disk":/cache/bazel-disk \
+            -v "$c/bazel-registry":/cache/bazel-registry -v "$c/bazel-install":/cache/bazel-install \
+            -v "$RUNNER_TEMP/evalroot":/evalroot -e ONEDAL_EVAL_ROOT=/evalroot -w /harness onedal-agent-evals \
+            bash -c 'test -e /cache/bazel-registry/bazel_registry.json ||
+                       git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry /cache/bazel-registry
+                     python3 dev/agent_evals/run.py check "$0"' "$TASK"
+      - name: Upload self-check logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-evals-check-${{ matrix.task }}
+          path: |
+            ${{ runner.temp }}/evalroot/check/*/grade.json
+            ${{ runner.temp }}/evalroot/check/*/*.log
+          if-no-files-found: ignore
