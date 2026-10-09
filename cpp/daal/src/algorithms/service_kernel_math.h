@@ -328,10 +328,9 @@ public:
             MathInst<FPType, cpu>::vSqrt(count, a + begin, a + begin);
         };
 
-        // `n` spans orders of magnitude across callers: bf_knn finalizes one result block from
-        // inside a `threader_for`, hdbscan a full N x N matrix. So thread the sweep, but only once
-        // there is enough work to pay for the dispatch, which also keeps the small callers off a
-        // nested parallel region. One task per `blocksPerTask` consecutive blocks, i.e. 32k entries.
+        // Thread the sweep only when there is enough work to pay for the dispatch: one task per
+        // 32k entries. `threader_for_optional` runs serially inside a parallel region, so callers
+        // such as bf_knn, which finalize from inside a `threader_for`, keep their TLS buffers.
         const size_t blocksPerTask = 64;
         const size_t nTasks        = nBlocks / blocksPerTask + !!(nBlocks % blocksPerTask);
         if (nTasks < 2)
@@ -343,7 +342,7 @@ public:
             return services::Status();
         }
 
-        daal::threader_for(static_cast<int>(nTasks), 1, [&](int iTask) {
+        daal::threader_for_optional(static_cast<int64_t>(nTasks), 1, [&](int64_t iTask) {
             const size_t firstBlock = static_cast<size_t>(iTask) * blocksPerTask;
             const size_t lastBlock  = services::internal::min<cpu, size_t>(firstBlock + blocksPerTask, nBlocks);
             for (size_t iBlock = firstBlock; iBlock < lastBlock; ++iBlock)

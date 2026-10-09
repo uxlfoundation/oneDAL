@@ -569,14 +569,14 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
         DAAL_CHECK_BLOCK_STATUS(assignBlock);
         int * assignments = assignBlock.get();
-        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
+        services::internal::service_memset<int, cpu>(assignments, -1, nRows);
 
         WriteOnlyRows<algorithmFPType, cpu> probBlock;
         algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
         DAAL_CHECK_BLOCK_STATUS(probBlock);
         if (probabilities)
         {
-            for (size_t i = 0; i < nRows; i++) probabilities[i] = algorithmFPType(0);
+            services::internal::service_memset<algorithmFPType, cpu>(probabilities, algorithmFPType(0), nRows);
         }
 
         WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);

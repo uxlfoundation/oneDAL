@@ -18,8 +18,6 @@
 #ifndef __HDBSCAN_CLUSTER_UTILS_H__
 #define __HDBSCAN_CLUSTER_UTILS_H__
 
-#include <algorithm>
-
 #include "services/daal_defines.h"
 #include "src/algorithms/service_sort.h"
 #include "src/externals/service_memory.h"
@@ -120,7 +118,8 @@ static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType *
     for (size_t i = 0; i < edgeCount; i++) order[i] = static_cast<DAAL_INT>(i);
 
     const algorithmFPType * weights = mstWeights;
-    std::sort(order, order + edgeCount, [weights](DAAL_INT a, DAAL_INT b) { return mstEdgeLess<algorithmFPType>(weights[a], a, weights[b], b); });
+    daal::algorithms::internal::introSort<cpu>(
+        order, order + edgeCount, [weights](DAAL_INT a, DAAL_INT b) { return mstEdgeLess<algorithmFPType>(weights[a], a, weights[b], b); });
 
     for (size_t i = 0; i < edgeCount; i++)
     {
@@ -917,7 +916,7 @@ static void computeMembershipProbabilities(const CondensedEdge * condensed, cons
 {
     TArray<algorithmFPType, cpu> clusterDeathArr(nClusters);
     algorithmFPType * clusterDeath = clusterDeathArr.get();
-    for (DAAL_INT c = 0; c < nClusters; c++) clusterDeath[c] = algorithmFPType(0);
+    services::internal::service_memset<algorithmFPType, cpu>(clusterDeath, algorithmFPType(0), static_cast<size_t>(nClusters));
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const DAAL_INT p = condensed[ei].parent;
@@ -1251,14 +1250,14 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
 
     if (root < 0)
     {
-        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
+        services::internal::service_memset<int, cpu>(assignments, -1, nRows);
         if (probabilities != nullptr)
         {
-            for (size_t i = 0; i < nRows; i++) probabilities[i] = algorithmFPType(0);
+            services::internal::service_memset<algorithmFPType, cpu>(probabilities, algorithmFPType(0), nRows);
         }
         if (singleLinkageTree != nullptr)
         {
-            for (size_t i = 0; i < 4 * edgeCount; i++) singleLinkageTree[i] = algorithmFPType(0);
+            services::internal::service_memset<algorithmFPType, cpu>(singleLinkageTree, algorithmFPType(0), 4 * edgeCount);
         }
         return 0;
     }
