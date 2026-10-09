@@ -509,8 +509,10 @@ CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
 -include $(CORE.tmpdir_a)/*.d
 -include $(CORE.tmpdir_y)/*.d
 
-# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
+# Outside Windows the static and shared objects differ only in symbol visibility, so the static
+# libraries archive the shared objects instead of compiling every source twice.
+CORE.objs_a.lib := $(if $(OS_is_win),$(CORE.objs_a),$(CORE.objs_y))
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a.lib) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
 $(WORKDIR.lib)/$(core_a):                   LOPT:=
@@ -523,7 +525,6 @@ $(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY)
 ifdef OS_is_win
 $(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(core_y)
 endif
-# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): $(CORE.objs_y) $(if $(OS_is_win),$(CORE.tmpdir_y)/dll.res,) | $(CORE.tmpdir_y)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_deps) $(VTUNESDK.LIBS_A) \
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
@@ -754,10 +755,10 @@ $(foreach x,$(PARAMETERS.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$
 
 # Create Host and DPC++ oneapi libraries
 ifeq ($(BUILD_PARAMETERS_LIB),yes)
-$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a.filtered)))
-$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a),$(PARAMETERS.objs_a.filtered)))
+$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(if $(OS_is_win),$(ONEAPI.objs_a.filtered),$(ONEAPI.objs_y.filtered))))
+$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a),$(if $(OS_is_win),$(PARAMETERS.objs_a.filtered),$(PARAMETERS.objs_y.filtered))))
 else
-$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a)))
+$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(if $(OS_is_win),$(ONEAPI.objs_a),$(ONEAPI.objs_y))))
 endif
 
 ONEAPI.objs_y.lib := $(ONEAPI.objs_y.filtered)
