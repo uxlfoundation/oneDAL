@@ -148,20 +148,15 @@ private:
 
         auto* data_tmp_ptr = data_.get_mutable_data();
         const auto data_tmp_str = data_.get_leading_stride();
-        // A square input of more than 46340 rows leaves int32 as one `range<2>`, so copy it
-        // in row blocks, as the distance primitives do.
-        const auto block_rows = max_range_2d_rows(col_count);
-        event_vector cpy_events;
-        for (std::int64_t row_start = 0; row_start < row_count; row_start += block_rows) {
-            const auto rows = std::min(block_rows, row_count - row_start);
-            cpy_events.push_back(queue.submit([&](sycl::handler& cgh) {
-                cgh.depends_on(deps);
-                cgh.parallel_for(make_range_2d(rows, col_count), [=](sycl::id<2> idx) {
-                    const auto row = row_start + static_cast<std::int64_t>(idx[0]);
-                    *(data_tmp_ptr + row * data_tmp_str + idx[1]) = dp.at(row, idx[1]);
-                });
-            }));
-        }
+        // A square input of more than 46340 rows leaves int32 as one `range<2>`.
+        const auto cpy_event = parallel_for_2d_by_row_blocks(
+            queue,
+            row_count,
+            col_count,
+            [=](std::int64_t row, std::int64_t col) {
+                data_tmp_ptr[row * data_tmp_str + col] = dp.at(row, col);
+            },
+            deps);
 
         auto indices_tmp_ptr = indices_.get_mutable_data();
 
@@ -175,7 +170,7 @@ private:
 
         auto event = queue.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
-            cgh.depends_on(cpy_events);
+            cgh.depends_on(cpy_event);
             cgh.parallel_for(make_multiple_nd_range_2d({ preffered_sg_size, row_count },
                                                        { preffered_sg_size, 1 }),
                              [=](sycl::nd_item<2> item) {

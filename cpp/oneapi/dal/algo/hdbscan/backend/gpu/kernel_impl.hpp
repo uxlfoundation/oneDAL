@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
@@ -28,6 +26,8 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
 #include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
+#include "oneapi/dal/backend/primitives/search/copy_search_callback.hpp"
+#include "oneapi/dal/backend/primitives/search/search.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
 #include "oneapi/dal/backend/primitives/sort/sort.hpp"
 
@@ -290,24 +290,19 @@ inline sycl::event fix_zero_norm_cosine(sycl::queue& queue,
     Float* const dist_ptr = dist.get_mutable_data();
     const std::int64_t stride = dist.get_leading_stride();
 
-    const std::int64_t block_rows = bk::max_range_2d_rows(n);
-    bk::event_vector block_events;
-    for (std::int64_t row_start = 0; row_start < n; row_start += block_rows) {
-        const std::int64_t rows = std::min(block_rows, n - row_start);
-        block_events.push_back(queue.submit([&](sycl::handler& h) {
-            h.depends_on(norms_event);
-            h.parallel_for(bk::make_range_2d(rows, n), [=](sycl::id<2> idx) {
-                const std::int64_t i = row_start + std::int64_t(idx[0]);
-                const std::int64_t j = std::int64_t(idx[1]);
-                if (norms_ptr[i] == Float(0) || norms_ptr[j] == Float(0)) {
-                    dist_ptr[i * stride + j] = (i == j) ? Float(0) : Float(1);
-                }
-            });
-        }));
-    }
+    auto event = bk::parallel_for_2d_by_row_blocks(
+        queue,
+        n,
+        n,
+        [=](std::int64_t i, std::int64_t j) {
+            if (norms_ptr[i] == Float(0) || norms_ptr[j] == Float(0)) {
+                dist_ptr[i * stride + j] = (i == j) ? Float(0) : Float(1);
+            }
+        },
+        { norms_event });
     // `norms` is freed on return and `sycl::free` does not wait.
-    sycl::event::wait_and_throw(block_events);
-    return block_events.back();
+    event.wait_and_throw();
+    return event;
 }
 
 /// Compute the full pairwise distance matrix on the GPU using the requested metric.
@@ -442,10 +437,11 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     return extract_event;
 }
 
-/// Compute per-point core distances in `B x N` row blocks, so the `N x N` matrix is never held.
+/// Compute per-point core distances with the k-NN search primitive, so the `N x N` matrix is
+/// never held.
 ///
-/// The block buffers, the selectors and the squared-L2 norms are set up once and reused, and the
-/// blocks are chained by events, so the only host wait is the final one.
+/// The core distance of a point is its `min_samples`-th nearest neighbor counting itself, i.e.
+/// the last of the `k` distances `pr::search_engine` returns for that row.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -453,7 +449,7 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
 /// @param[in]  data           Input data of size `n x d`, device USM
 /// @param[out] core_distances Per-point core distances, length `n`
 /// @param[in]  min_samples    `k` used for the k-NN core-distance definition
-/// @param[in]  block_size     Rows per block `B`, in `[1, n]`
+/// @param[in]  block_size     Query rows per search block, in `[1, n]`
 /// @param[in]  metric         Distance metric tag; cosine is not supported
 /// @param[in]  degree         Minkowski degree
 /// @param[in]  deps           Events that must complete before submission
@@ -477,81 +473,51 @@ inline sycl::event compute_core_distances_blocked(sycl::queue& queue,
     ONEDAL_ASSERT(k >= 1 && k <= n);
     ONEDAL_ASSERT(metric != distance_metric::cosine);
 
+    auto knn_distances = pr::ndarray<Float, 2>::empty(queue, { n, k }, sycl::usm::alloc::device);
+    pr::copy_callback<Float, false, true> callback(queue, block_size, {}, knn_distances);
+    const std::int64_t train_block = pr::propose_train_block<Float>(queue, data.get_dimension(1));
+
+    sycl::event search_event;
     const bool is_euclidean = (metric == distance_metric::euclidean);
-    auto dist_buf =
-        pr::ndarray<Float, 2>::empty(queue, { block_size, n }, sycl::usm::alloc::device);
-    auto ksel_buf =
-        pr::ndarray<Float, 2>::empty(queue, { block_size, k }, sycl::usm::alloc::device);
-
-    pr::ndarray<Float, 1> norms;
-    sycl::event norms_event;
     if (is_euclidean) {
-        std::tie(norms, norms_event) = pr::compute_squared_l2_norms(queue, data, deps);
+        const pr::search_engine<Float, pr::squared_l2_distance<Float>> search(queue,
+                                                                              data,
+                                                                              train_block);
+        search_event = search(data, callback, block_size, k, deps);
+    }
+    else if (metric == distance_metric::chebyshev) {
+        const pr::chebyshev_distance<Float> dist(queue);
+        const pr::search_engine<Float, pr::chebyshev_distance<Float>> search(queue,
+                                                                             data,
+                                                                             train_block,
+                                                                             dist);
+        search_event = search(data, callback, block_size, k, deps);
+    }
+    else {
+        const Float p =
+            metric == distance_metric::manhattan ? Float(1) : static_cast<Float>(degree);
+        const pr::lp_distance<Float> dist(queue, pr::lp_metric<Float>(p));
+        const pr::search_engine<Float, pr::lp_distance<Float>> search(queue,
+                                                                      data,
+                                                                      train_block,
+                                                                      dist);
+        search_event = search(data, callback, block_size, k, deps);
     }
 
-    const std::int64_t tail_rows = n % block_size;
-    pr::kselect_by_rows<Float> ksel_full(queue, { block_size, n }, k);
-    std::optional<pr::kselect_by_rows<Float>> ksel_tail;
-    if (tail_rows > 0) {
-        ksel_tail.emplace(queue, pr::ndshape<2>{ tail_rows, n }, k);
-    }
-
-    const pr::squared_l2_distance<Float> l2_op(queue);
-    const pr::distance<Float, pr::lp_metric<Float>> lp_op(
-        queue,
-        pr::lp_metric<Float>(metric == distance_metric::manhattan ? Float(1)
-                                                                  : static_cast<Float>(degree)));
-    const pr::chebyshev_distance<Float> cheb_op(queue);
-
+    const Float* const knn_ptr = knn_distances.get_data();
     Float* const core_ptr = core_distances.get_mutable_data();
-    bk::event_vector block_deps = deps;
-    block_deps.push_back(norms_event);
-    sycl::event last_event;
-
-    for (std::int64_t b_start = 0; b_start < n; b_start += block_size) {
-        const std::int64_t b_rows = std::min(block_size, n - b_start);
-        const auto block = data.get_row_slice(b_start, b_start + b_rows);
-        auto dist_block = dist_buf.get_row_slice(0, b_rows);
-        auto ksel_block = ksel_buf.get_row_slice(0, b_rows);
-
-        sycl::event dist_event;
-        switch (metric) {
-            case distance_metric::manhattan:
-            case distance_metric::minkowski:
-                dist_event = lp_op(block, data, dist_block, block_deps);
-                break;
-            case distance_metric::chebyshev:
-                dist_event = cheb_op(block, data, dist_block, block_deps);
-                break;
-            default:
-                dist_event = l2_op(block,
-                                   data,
-                                   dist_block,
-                                   norms.get_slice(b_start, b_start + b_rows),
-                                   norms,
-                                   block_deps);
-                break;
-        }
-
-        auto& ksel = (b_rows == block_size) ? ksel_full : *ksel_tail;
-        const auto ksel_event = ksel(queue, dist_block, k, ksel_block, { dist_event });
-
-        const Float* const ksel_ptr = ksel_block.get_data();
-        last_event = queue.submit([&](sycl::handler& h) {
-            h.depends_on(ksel_event);
-            h.parallel_for(sycl::range<1>(b_rows), [=](sycl::id<1> idx) {
-                const std::int64_t i = idx[0];
-                const Float val = ksel_ptr[i * k + (k - 1)];
-                core_ptr[b_start + i] = is_euclidean ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
-            });
+    auto extract_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(search_event);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const Float val = knn_ptr[i * k + (k - 1)];
+            core_ptr[i] = is_euclidean ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
         });
-        // The next block overwrites `dist_buf` and `ksel_buf`.
-        block_deps = { last_event };
-    }
+    });
 
-    // The block buffers and norms are freed on return and `sycl::free` does not wait.
-    last_event.wait_and_throw();
-    return last_event;
+    // `knn_distances` is freed on return and `sycl::free` does not wait for its readers.
+    extract_event.wait_and_throw();
+    return extract_event;
 }
 
 /// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
@@ -592,39 +558,21 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
     const bool needs_sqrt = (metric == distance_metric::euclidean);
     const Float inv_alpha = static_cast<Float>(1.0 / alpha);
 
-    // `n * n` work items can leave int32, which the runtime rejects, so walk the
-    // matrix in row blocks. Each block writes only its own rows and depends on
-    // `deps` alone, so the launches are free to overlap.
-    const std::int64_t block_rows = bk::max_range_2d_rows(n);
-
-    bk::event_vector block_events;
-    for (std::int64_t row_start = 0; row_start < n; row_start += block_rows) {
-        const std::int64_t rows = std::min(block_rows, n - row_start);
-
-        block_events.push_back(queue.submit([&](sycl::handler& h) {
-            h.depends_on(deps);
-            h.parallel_for(bk::make_range_2d(rows, n), [=](sycl::id<2> idx) {
-                const std::int64_t i = row_start + static_cast<std::int64_t>(idx[0]);
-                const std::int64_t j = idx[1];
-                // For euclidean: mrd_matrix has squared L2, need sqrt first
-                // For other metrics: mrd_matrix has actual distances
-                const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
-                                           : mrd_ptr[i * n + j];
-                // scikit-learn's brute path scales the core distances by 1/alpha as well.
-                const Float cd_i = core_ptr[i] * inv_alpha;
-                const Float cd_j = core_ptr[j] * inv_alpha;
-                mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
-            });
-        }));
-    }
-
-    if (block_events.size() == 1u) {
-        return block_events.front();
-    }
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(block_events);
-        h.single_task([]() {});
-    });
+    // `n * n` work items can leave int32, which the runtime rejects.
+    return bk::parallel_for_2d_by_row_blocks(
+        queue,
+        n,
+        n,
+        [=](std::int64_t i, std::int64_t j) {
+            // Euclidean entries hold squared L2; the other metrics hold final distances.
+            const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
+                                       : mrd_ptr[i * n + j];
+            // scikit-learn's brute path scales the core distances by 1/alpha as well.
+            const Float cd_i = core_ptr[i] * inv_alpha;
+            const Float cd_j = core_ptr[j] * inv_alpha;
+            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
+        },
+        deps);
 }
 
 /// Find the nearest different-component neighbor per point by scanning a precomputed MRD matrix.
@@ -1233,22 +1181,9 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
 
     ONEDAL_ASSERT(edge_count > 0);
 
-    // Create index array [0, 1, 2, ..., edge_count-1]
     using Index = std::uint32_t;
-    auto [indices, indices_event] =
-        pr::ndarray<Index, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    indices_event.wait_and_throw();
-
-    Index* ind_ptr = indices.get_mutable_data();
-    sycl::event ind_alloc_event = indices_event;
-    auto iota_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.depends_on({ ind_alloc_event });
-        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
-            ind_ptr[idx[0]] = static_cast<Index>(idx[0]);
-        });
-    });
-    iota_event.wait_and_throw();
+    auto indices = pr::ndarray<Index, 1>::empty(queue, edge_count, sycl::usm::alloc::device);
+    auto iota_event = indices.arange(queue, deps);
 
     // Sort weights with corresponding indices using radix sort
     pr::radix_sort_indices_inplace<Float, Index> sorter(queue);
@@ -1282,21 +1217,14 @@ inline sycl::event sort_mst_by_weight(sycl::queue& queue,
     });
     permute_event.wait_and_throw();
 
-    // Copy permuted results back into mst_from and mst_to
-    std::int32_t* mst_from_ptr = mst_from.get_mutable_data();
-    std::int32_t* mst_to_ptr = mst_to.get_mutable_data();
+    const std::size_t bytes = edge_count * sizeof(std::int32_t);
+    auto copy_from_event = queue.memcpy(mst_from.get_mutable_data(), sf_ptr, bytes, permute_event);
+    auto copy_to_event = queue.memcpy(mst_to.get_mutable_data(), st_ptr, bytes, permute_event);
+    // `sorted_from`, `sorted_to` and `indices` are freed on return.
+    copy_from_event.wait_and_throw();
+    copy_to_event.wait_and_throw();
 
-    auto copy_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ permute_event });
-        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
-            mst_from_ptr[i] = sf_ptr[i];
-            mst_to_ptr[i] = st_ptr[i];
-        });
-    });
-    copy_event.wait_and_throw();
-
-    return copy_event;
+    return copy_to_event;
 }
 
 /// Cluster extraction kernel 1: build the single-linkage dendrogram.

@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// GPU HDBSCAN ball_tree: blocked core distance computation + GPU Boruvka MST.
-/// Same pipeline as kd_tree GPU variant -- all computation stays on device.
+/// GPU HDBSCAN kd_tree and ball_tree: k-NN core distances + GPU Boruvka MST. Neither builds a
+/// tree on the GPU, so both methods share this pipeline and all computation stays on device.
 
 #include "oneapi/dal/algo/hdbscan/backend/gpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
@@ -33,11 +33,12 @@ namespace bk = oneapi::dal::backend;
 namespace pr = oneapi::dal::backend::primitives;
 
 using dal::backend::context_gpu;
+
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-/// Pick a block size for the blocked core-distance sweep.
+/// Pick the query block size of the core-distance search.
 ///
 /// If `user_hint > 0`, the caller-supplied value from
 /// `desc.get_distance_block_size()` is used verbatim (clamped to `row_count`).
@@ -64,11 +65,11 @@ static std::int64_t choose_block_size(std::int64_t row_count,
     return bs;
 }
 
-/// Run the ball-tree HDBSCAN GPU pipeline for a single floating-point type.
+/// Run the kd_tree / ball_tree HDBSCAN GPU pipeline for a single floating-point type.
 ///
-/// Same shape as the kd-tree GPU variant: blocked core distances via
-/// `pr::distance` + `pr::kselect_by_rows`, then on-the-fly Boruvka MST via
-/// `build_mst_otf`, sort, and `extract_clusters`. No host-side tree.
+/// Core distances come from the k-NN search primitive, then the MST is built directly with
+/// `build_mst_otf` (on-the-fly distances), so the full `N x N` MRD matrix is never materialized.
+/// After sort + extract_clusters the responses are assembled into the oneAPI result.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -78,10 +79,10 @@ static std::int64_t choose_block_size(std::int64_t row_count,
 ///
 /// @return oneAPI `compute_result` with responses and cluster count
 template <typename Float>
-static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
-                                              const descriptor_t& desc,
-                                              const table& local_data) {
-    ONEDAL_PROFILER_TASK(hdbscan.compute_ball_tree, ctx.get_queue());
+static result_t compute_kernel_tree_impl(const context_gpu& ctx,
+                                         const descriptor_t& desc,
+                                         const table& local_data) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_tree, ctx.get_queue());
 
     auto& queue = ctx.get_queue();
 
@@ -103,12 +104,8 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
     queue.wait_and_throw();
 
-    // Step 1: Blocked core distance computation on GPU.
-    // Canonical HDBSCAN core distance (Campello 2013): the `min_samples`-th
-    // nearest neighbor counting the query point as neighbor #1. The blocked
-    // distance row contains the zero self-entry, so a k-smallest selection of
-    // size `min_samples` holds {self + (min_samples - 1) non-self}; element
-    // `[k - 1]` is the answer.
+    // Step 1: core distances. Canonical HDBSCAN (Campello 2013) takes the `min_samples`-th
+    // nearest neighbor counting the query point itself, i.e. element `[k - 1]` of its k-NN.
     const std::int64_t block_size =
         choose_block_size(row_count, sizeof(Float), desc.get_distance_block_size());
 
@@ -233,14 +230,25 @@ static result_t compute_kernel_ball_tree_impl(const context_gpu& ctx,
 }
 
 template <typename Float>
+struct compute_kernel_gpu<Float, method::kd_tree, task::clustering> {
+    result_t operator()(const context_gpu& ctx,
+                        const descriptor_t& desc,
+                        const input_t& input) const {
+        return compute_kernel_tree_impl<Float>(ctx, desc, input.get_data());
+    }
+};
+
+template <typename Float>
 struct compute_kernel_gpu<Float, method::ball_tree, task::clustering> {
     result_t operator()(const context_gpu& ctx,
                         const descriptor_t& desc,
                         const input_t& input) const {
-        return compute_kernel_ball_tree_impl<Float>(ctx, desc, input.get_data());
+        return compute_kernel_tree_impl<Float>(ctx, desc, input.get_data());
     }
 };
 
+template struct compute_kernel_gpu<float, method::kd_tree, task::clustering>;
+template struct compute_kernel_gpu<double, method::kd_tree, task::clustering>;
 template struct compute_kernel_gpu<float, method::ball_tree, task::clustering>;
 template struct compute_kernel_gpu<double, method::ball_tree, task::clustering>;
 
