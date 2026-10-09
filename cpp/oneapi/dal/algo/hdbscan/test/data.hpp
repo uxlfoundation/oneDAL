@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/dataframe.hpp"
 
@@ -107,6 +108,64 @@ private:
     static constexpr std::int64_t column_count = 2;
     static constexpr std::int64_t min_cluster_size = 5;
     static constexpr std::int64_t min_samples = 5;
+};
+
+/// Wrap a row-major literal as a table of the floating-point type under test.
+///
+/// @tparam Float Floating-point type of the table
+///
+/// @param[in] src       Source values, `row_count * col_count` of them
+/// @param[in] row_count Number of rows
+/// @param[in] col_count Number of columns
+template <typename Float>
+inline table make_table(const double* src, std::int64_t row_count, std::int64_t col_count) {
+    auto arr = dal::array<Float>::empty(row_count * col_count);
+    Float* const dst = arr.get_mutable_data();
+    for (std::int64_t i = 0; i < row_count * col_count; i++) {
+        dst[i] = static_cast<Float>(src[i]);
+    }
+    return homogen_table::wrap(arr, row_count, col_count);
+}
+
+/// Two tight 5-point blobs ten units apart.
+constexpr inline std::int64_t two_blob_row_count = 10;
+constexpr inline double two_blob_data[] = {
+    0.0,  0.0,  0.1,  0.1,  0.2,  0.0,  0.0,  0.2,  0.15,  0.15, //
+    10.0, 10.0, 10.1, 10.1, 10.2, 10.0, 10.0, 10.2, 10.15, 10.15,
+};
+
+/// The two blobs above plus one point halfway between them.
+constexpr inline std::int64_t two_blob_noise_row_count = 11;
+constexpr inline double two_blob_noise_data[] = {
+    0.0,  0.0,  0.1,  0.1,  0.2,  0.0,  0.0,  0.2,  0.15,  0.15, //
+    10.0, 10.0, 10.1, 10.1, 10.2, 10.0, 10.0, 10.2, 10.15, 10.15, //
+    5.0,  5.0,
+};
+
+/// Two 3-point groups five units apart.
+constexpr inline std::int64_t two_small_groups_row_count = 6;
+constexpr inline double two_small_groups_data[] = {
+    0.0, 0.0, 0.1, 0.1, 0.2, 0.0, //
+    5.0, 5.0, 5.1, 5.1, 5.2, 5.0,
+};
+
+/// Three 5-point clusters on a line, one column.
+constexpr inline std::int64_t three_blob_1d_row_count = 15;
+constexpr inline double three_blob_1d_data[] = {
+    0.0,  0.1,  0.2,  0.15,  0.05, //
+    5.0,  5.1,  5.2,  5.15,  5.05, //
+    10.0, 10.1, 10.2, 10.15, 10.05,
+};
+
+/// Two blobs of different density, a point that barely joins the dense one and a noise point.
+/// The references of the tests that use it come from
+/// `sklearn.cluster.HDBSCAN(min_cluster_size=5, min_samples=5)`.
+constexpr inline std::int64_t reference_row_count = 20;
+constexpr inline double reference_data[] = {
+    0.5917,  -0.1631, 0.0115, 0.1426,  -0.2761, 0.0007,  -0.0003, -0.6142, 0.3562, 0.2102, //
+    -0.2189, -0.06,   0.1769, -0.0915, -0.085,  -0.5086, 0.1941,  0.0434,  6.151,  5.1604, //
+    6.9079,  6.0849,  5.7871, 7.116,   5.975,   5.2021,  5.7771,  4.7414,  6.5772, 5.7709, //
+    5.5916,  6.5899,  5.0919, 6.2945,  4.8646,  5.6358,  3.0,     -4.0,    -5.0,   7.0,
 };
 
 } // namespace oneapi::dal::hdbscan::test

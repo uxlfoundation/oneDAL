@@ -315,10 +315,8 @@ public:
         std::numeric_limits<std::int32_t>::max() / col_count + 2;
 
     bool fits_on_device() {
-        const auto& device = this->get_queue().get_device();
-        const std::uint64_t global = device.get_info<sycl::info::device::global_mem_size>();
-        const std::uint64_t needed = 3 * sizeof(float) * row_count * col_count;
-        return global > needed + needed / 4;
+        const std::int64_t needed = 3 * sizeof(float) * row_count * col_count;
+        return device_global_mem_size(this->get_queue()) > needed + needed / 4;
     }
 
     // Each row is a permutation of 0 .. col_count - 1, so its k smallest are 0 .. k - 1.
@@ -326,17 +324,14 @@ public:
         auto& q = this->get_queue();
         auto data = ndarray<float, 2>::empty(q, { row_count, col_count }, sycl::usm::alloc::device);
         float* const ptr = data.get_mutable_data();
-        const auto block_rows = max_range_2d_rows(col_count);
-        for (std::int64_t row_start = 0; row_start < row_count; row_start += block_rows) {
-            const auto rows = std::min(block_rows, row_count - row_start);
-            q.submit([&](sycl::handler& cgh) {
-                 cgh.parallel_for(make_range_2d(rows, col_count), [=](sycl::id<2> idx) {
-                     const std::int64_t row = row_start + std::int64_t(idx[0]);
-                     const std::int64_t col = std::int64_t(idx[1]);
-                     ptr[row * col_count + col] = float((col * 7919 + row) % col_count);
-                 });
-             }).wait_and_throw();
-        }
+        parallel_for_2d_by_row_blocks(q,
+                                      row_count,
+                                      col_count,
+                                      [=](std::int64_t row, std::int64_t col) {
+                                          ptr[row * col_count + col] =
+                                              float((col * 7919 + row) % col_count);
+                                      })
+            .wait_and_throw();
         return data;
     }
 

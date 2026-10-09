@@ -18,6 +18,7 @@
 #include <limits>
 #include <cmath>
 #include <map>
+#include <utility>
 #include <vector>
 
 #include "oneapi/dal/algo/hdbscan/compute.hpp"
@@ -235,11 +236,134 @@ public:
                         std::int64_t min_samples,
                         distance_metric metric,
                         double degree = 2.0) const {
+        return get_method_descriptor<method_t>(min_cluster_size, min_samples, metric, degree);
+    }
+
+    auto get_descriptor(std::int64_t min_cluster_size,
+                        std::int64_t min_samples,
+                        const result_option_id& options) const {
         return hdbscan::descriptor<Float, method_t>(min_cluster_size, min_samples)
+            .set_result_options(options);
+    }
+
+    /// Descriptor of `Method` that computes the responses, for cross-method comparisons.
+    template <typename Method>
+    static auto get_method_descriptor(std::int64_t min_cluster_size,
+                                      std::int64_t min_samples,
+                                      distance_metric metric = distance_metric::euclidean,
+                                      double degree = 2.0) {
+        return hdbscan::descriptor<Float, Method>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses)
             .set_metric(metric)
             .set_degree(degree);
     }
+
+    static dal::array<Float> get_labels(const result_t& result) {
+        return row_accessor<const Float>(result.get_responses()).pull({ 0, -1 });
+    }
+
+    static dal::array<Float> get_probabilities(const result_t& result) {
+        return row_accessor<const Float>(result.get_probabilities()).pull({ 0, -1 });
+    }
+
+    static dal::array<Float> get_single_linkage_tree(const result_t& result) {
+        return row_accessor<const Float>(result.get_single_linkage_tree()).pull({ 0, -1 });
+    }
+
+    /// Number of points labeled noise.
+    static std::int64_t count_noise(const dal::array<Float>& labels) {
+        std::int64_t count = 0;
+        for (std::int64_t i = 0; i < labels.get_count(); i++) {
+            count += (static_cast<std::int32_t>(labels[i]) < 0);
+        }
+        return count;
+    }
+
+    /// Size of every reported (non-noise) cluster, keyed by label.
+    static std::map<std::int64_t, std::int64_t> cluster_sizes(const dal::array<Float>& labels) {
+        std::map<std::int64_t, std::int64_t> sizes;
+        for (std::int64_t i = 0; i < labels.get_count(); i++) {
+            const auto label = static_cast<std::int64_t>(labels[i]);
+            if (label >= 0) {
+                sizes[label]++;
+            }
+        }
+        return sizes;
+    }
+
+    /// Check `actual[i]` against `expected[i]` within the absolute tolerance `tol`.
+    ///
+    /// `te::check_if_tables_equal_approx` compares relative errors, which is too strict for the
+    /// small membership strengths these references hold.
+    static void check_close(const dal::array<Float>& actual,
+                            const double* expected,
+                            std::int64_t count,
+                            double tol) {
+        REQUIRE(actual.get_count() == count);
+        for (std::int64_t i = 0; i < count; i++) {
+            CAPTURE(i, actual[i], expected[i]);
+            REQUIRE(std::abs(double(actual[i]) - expected[i]) < tol);
+        }
+    }
+
+    static void check_close(const dal::array<Float>& actual,
+                            const dal::array<Float>& expected,
+                            double tol) {
+        REQUIRE(actual.get_count() == expected.get_count());
+        for (std::int64_t i = 0; i < actual.get_count(); i++) {
+            CAPTURE(i, actual[i], expected[i]);
+            REQUIRE(std::abs(double(actual[i]) - double(expected[i])) < tol);
+        }
+    }
+
+    /// Check that two results have the same cluster count and the same partition.
+    static void check_same_result(const result_t& a, const result_t& b) {
+        REQUIRE(a.get_cluster_count() == b.get_cluster_count());
+        const auto a_labels = get_labels(a);
+        const auto b_labels = get_labels(b);
+        REQUIRE(a_labels.get_count() == b_labels.get_count());
+        check_same_partition(a_labels, b_labels, a_labels.get_count());
+    }
+
+    /// Run two descriptors on `data` and check that they give the same partition.
+    template <typename DescA, typename DescB>
+    void check_descriptors_agree(const DescA& a, const DescB& b, const table& data) {
+        check_same_result(this->compute(a, data), this->compute(b, data));
+    }
+
+    /// Check that each of `Methods` gives the partition of the method under test.
+    template <typename... Methods>
+    void check_methods_agree(const table& data,
+                             std::int64_t min_cluster_size,
+                             std::int64_t min_samples,
+                             distance_metric metric = distance_metric::euclidean,
+                             double degree = 2.0) {
+        const auto reference = this->compute(
+            get_method_descriptor<method_t>(min_cluster_size, min_samples, metric, degree),
+            data);
+        (check_same_result(
+             reference,
+             this->compute(
+                 get_method_descriptor<Methods>(min_cluster_size, min_samples, metric, degree),
+                 data)),
+         ...);
+    }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Run `desc` on the host and on the device of the test policy, and check that the two
+    /// partitions agree when the responses were requested.
+    ///
+    /// @return The host and the device results
+    template <typename Desc>
+    std::pair<result_t, result_t> compare_host_and_device(const Desc& desc, const table& data) {
+        const auto host = dal::compute(desc, data);
+        const auto device = dal::compute(this->get_policy().get_queue(), desc, data);
+        if (desc.get_result_options().test(result_options::responses)) {
+            check_same_result(host, device);
+        }
+        return { host, device };
+    }
+#endif
 
     void run_checks(const table& data,
                     std::int64_t min_cluster_size,
@@ -251,8 +375,7 @@ public:
         const auto hdbscan_desc = get_descriptor(min_cluster_size, min_samples);
 
         INFO("run compute");
-        const auto compute_result =
-            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+        const auto compute_result = this->compute(hdbscan_desc, data);
 
         check_compute_result(compute_result, data, expected_cluster_count);
     }
@@ -269,8 +392,7 @@ public:
         const auto hdbscan_desc = get_descriptor(min_cluster_size, min_samples, metric, degree);
 
         INFO("run compute");
-        const auto compute_result =
-            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+        const auto compute_result = this->compute(hdbscan_desc, data);
 
         check_compute_result(compute_result, data, expected_cluster_count);
     }
@@ -312,8 +434,7 @@ public:
         const auto hdbscan_desc = get_descriptor(min_cluster_size, min_samples);
 
         INFO("run compute");
-        const auto compute_result =
-            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+        const auto compute_result = this->compute(hdbscan_desc, data);
 
         INFO("check responses match reference");
         check_responses_against_ref(compute_result.get_responses(), ref_responses);
@@ -327,8 +448,16 @@ public:
         const auto rows = row_accessor<const Float>(responses).pull({ 0, -1 });
         const auto ref_rows = row_accessor<const Float>(ref_responses).pull({ 0, -1 });
         for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i, rows[i], ref_rows[i]);
             REQUIRE(ref_rows[i] == rows[i]);
         }
+    }
+
+    /// Check the responses against reference labels entry by entry.
+    void check_responses_against_ref(const table& responses,
+                                     const std::int32_t* ref_labels,
+                                     std::int64_t row_count) {
+        check_responses_against_ref(responses, homogen_table::wrap(ref_labels, row_count, 1));
     }
 
     void mode_checks(result_option_id compute_mode,
@@ -342,8 +471,7 @@ public:
             get_descriptor(min_cluster_size, min_samples).set_result_options(compute_mode);
 
         INFO("run compute");
-        const auto compute_result =
-            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+        const auto compute_result = this->compute(hdbscan_desc, data);
 
         INFO("check mode");
         check_for_exception_for_non_requested_results(compute_mode, compute_result);
@@ -434,8 +562,7 @@ public:
                                                           result_options::single_linkage_tree);
 
         INFO("run compute");
-        const auto compute_result =
-            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+        const auto compute_result = this->compute(hdbscan_desc, data);
 
         INFO("check single linkage tree");
         check_single_linkage_tree(compute_result, data.get_row_count());
@@ -505,8 +632,7 @@ public:
                 .set_result_options(result_options::responses | result_options::probabilities);
 
         INFO("run compute");
-        const auto compute_result =
-            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+        const auto compute_result = this->compute(hdbscan_desc, data);
 
         INFO("check probabilities");
         check_probabilities(compute_result, data.get_row_count());
