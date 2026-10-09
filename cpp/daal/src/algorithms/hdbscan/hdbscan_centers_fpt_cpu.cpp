@@ -1,5 +1,6 @@
+/* file: hdbscan_centers_fpt_cpu.cpp */
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,13 +15,23 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "oneapi/dal/backend/primitives/selection/kselect_by_rows_impl.hpp"
+#include "src/algorithms/hdbscan/hdbscan_centers_impl.i"
+#include "services/daal_defines.h"
 
-namespace oneapi::dal::backend::primitives {
+using namespace daal::internal;
 
-template class kselect_by_rows<double>;
-template std::int64_t kselect_by_rows_scratch_size<double>(const sycl::queue&,
-                                                           const ndshape<2>&,
-                                                           std::int64_t);
+namespace daal
+{
+namespace algorithms
+{
+namespace hdbscan
+{
+namespace internal
+{
 
-} // namespace oneapi::dal::backend::primitives
+template class DAAL_EXPORT HDBSCANCentersKernel<DAAL_FPTYPE, DAAL_CPU>;
+
+} // namespace internal
+} // namespace hdbscan
+} // namespace algorithms
+} // namespace daal

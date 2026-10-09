@@ -17,16 +17,17 @@
 
 #pragma once
 
-#include <cmath>
-#include <utility>
-
 #include "services/daal_defines.h" // DAAL_MALLOC_DEFAULT_ALIGNMENT
+#include "src/algorithms/service_heap.h"
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
+#include "src/externals/service_memory.h"
 #include "src/threading/threading.h"
+// knn_heap.h relies on the headers above.
+#include "src/algorithms/k_nearest_neighbors/knn_heap.h"
 
 namespace daal
 {
@@ -37,17 +38,7 @@ namespace hdbscan
 namespace internal
 {
 
-/// Compute the squared L2 norm of a single row, vectorized.
-///
-/// General-purpose helper: the input row pointer alignment is not assumed
-/// (call sites include unpadded rows such as `data + i * nCols`), so no
-/// `aligned(...)` clause is used. For rows guaranteed to start on a
-/// `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary (e.g. per-row slices of a padded
-/// `TArrayScalable` buffer with `alignedRowStride`), use
-/// `rowNormSquaredAligned` instead.
-///
-/// Used by `EuclideanDist::blockDist` to compute `||pivotPt||^2` from an
-/// unpadded row of the caller's data buffer.
+/// Squared L2 norm of a row with no alignment assumption; see `rowNormSquaredAligned`.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
@@ -65,14 +56,7 @@ static FPType rowNormSquared(const FPType * row, size_t nCols)
     return sum;
 }
 
-/// Aligned variant of `rowNormSquared`.
-///
-/// Same math as `rowNormSquared` but the inner reduction carries an
-/// `aligned(row : DAAL_MALLOC_DEFAULT_ALIGNMENT)` SIMD clause. The caller
-/// must guarantee that `row` starts on a `DAAL_MALLOC_DEFAULT_ALIGNMENT`
-/// boundary; passing a misaligned pointer is undefined behavior. Used by
-/// `rowNormsSquared` on per-row slices of a padded scratch buffer whose
-/// stride was rounded up via `alignedRowStride`.
+/// Squared L2 norm of a row that starts on a `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
@@ -90,15 +74,7 @@ static FPType rowNormSquaredAligned(const FPType * row, size_t nCols)
     return sum;
 }
 
-/// Compute squared L2 norms for a row-major block with per-row padding.
-///
-/// Used by ball-tree node construction to amortize `||x||^2` across the three
-/// pivot sweeps performed at the same node. Padded rows keep the pointer to
-/// each row on the same alignment boundary as the base pointer; padding cells
-/// must be zero, so they contribute nothing to the sum of squares. Each row
-/// is dispatched through `rowNormSquaredAligned`, which carries the
-/// `aligned(row : DAAL_MALLOC_DEFAULT_ALIGNMENT)` clause on its inner
-/// reduction.
+/// Squared L2 norms of the rows of a padded, aligned row-major block; padding cells must be zero.
 ///
 /// @tparam FPType Floating-point type
 /// @tparam cpu    CPU dispatch tag
@@ -113,30 +89,11 @@ static FPType rowNormSquaredAligned(const FPType * row, size_t nCols)
 template <typename FPType, daal::internal::CpuType cpu>
 static void rowNormsSquared(const FPType * rows, DAAL_INT count, size_t nCols, size_t rowStride, FPType * outNorms)
 {
-    // Vectorization lives inside `rowNormSquaredAligned` (inner sum reduction
-    // over `nCols` with an aligned clause on each row start); the outer loop
-    // is a scalar sequence of independent reductions.
     for (DAAL_INT i = 0; i < count; i++) outNorms[i] = rowNormSquaredAligned<FPType, cpu>(rows + i * rowStride, nCols);
 }
 
-/// Round `nCols` up so that every row of a row-major batch starts on a
-/// `DAAL_MALLOC_DEFAULT_ALIGNMENT` byte boundary. Callers that own an aligned
-/// base pointer (e.g. `TArrayScalable::get()`) can then reuse the same
-/// alignment guarantee for every row.
-///
-/// Two consumers currently expose the guarantee to a SIMD clause:
-///   - `EuclideanDist::blockDist` finalize pass carries
-///     `aligned(rowNorms2, outDists : ...)` on its `omp simd`, and BLAS
-///     xxgemv picks up the aligned stride via `lda = rowStride`.
-///   - `rowNormsSquared` delegates each row to `rowNormSquaredAligned`, whose
-///     inner reduction carries `aligned(row : ...)`. `rowNormSquared` (no
-///     `Aligned` suffix) is used for unpadded call sites (`pivotNorm2` in
-///     `EuclideanDist::blockDist`) and does not carry an aligned clause.
-/// The non-Euclidean `blockDist` variants run a scalar outer loop over
-/// `count` that delegates to `pointDist`, whose input row alignment is not
-/// guaranteed (see the alignment policy comment below); alignment is still a
-/// correctness guarantee for their inner reductions (they never cross a row
-/// boundary).
+/// Round `nCols` up so every row of a row-major batch starts on a `DAAL_MALLOC_DEFAULT_ALIGNMENT`
+/// boundary when the base pointer does.
 ///
 /// @tparam FPType Floating-point type
 /// @param[in] nCols Feature count
@@ -150,15 +107,8 @@ static inline size_t alignedRowStride(size_t nCols)
     return ((nCols + elemPerAln - 1) / elemPerAln) * elemPerAln;
 }
 
-/// Fill a symmetric `nRows x nRows` distance matrix in row-major layout using a
-/// scalar metric functor.
-///
-/// Exploits symmetry: only the upper triangle (j >= i) is computed, the lower
-/// triangle is mirrored. Outer parallelization over row blocks via
-/// `daal::threader_for`. Diagonal entries are zeroed. Used by the dense
-/// brute-force HDBSCAN for non-Euclidean metrics where there is no GEMM
-/// identity to exploit; centralises the row-pair loop so Manhattan, Chebyshev,
-/// and Minkowski share one implementation instead of three near duplicates.
+/// Fill the symmetric `nRows x nRows` distance matrix with a metric functor; the upper triangle
+/// is computed and mirrored, and the diagonal is zero.
 ///
 /// @tparam FPType   Floating-point type
 /// @tparam cpu      CPU dispatch tag
@@ -172,13 +122,7 @@ static inline size_t alignedRowStride(size_t nCols)
 template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
 static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, const DistFunc & distFunc, FPType * outDist)
 {
-    // Row block size for the outer parallelization. Set to 256 to match the
-    // block sizes used elsewhere in DAAL at runtime (covariance / distance
-    // primitives in service_kernel_math.h); large enough to amortize scheduler
-    // overhead per task while keeping the inner j-loop cache-friendly. Not
-    // exposed through the parameters system today; if profiling shows
-    // sensitivity for very large nCols, revisit by promoting to a tunable in
-    // Parameter.
+    // Rows per parallel task.
     constexpr size_t blockSize = 256;
     const size_t nBlocks       = (nRows + blockSize - 1) / blockSize;
 
@@ -201,68 +145,23 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
 }
 
 // =========================================================================
-// Distance functors for parameterizing tree queries by metric.
-//
-// Each functor provides three methods:
-//   - pointDist<cpu>(a, b, nCols)                 -- full point-to-point distance
-//   - bboxLowerBound<cpu>(q, lo, hi, nCols)       -- minimum distance from query to a bbox
-//   - blockDist<cpu>(pivot, rows, rowNorms2, count, nCols, rowStride, out)
-//                                                 -- pivot-to-block distances; Euclidean uses
-//                                                   BLAS xxgemv + cached row norms^2,
-//                                                   non-Euclidean fall back to a vectorized loop.
-//                                                   `rowNorms2` may be nullptr for non-Euclidean.
-//                                                   `rowStride` (>= nCols) is the row stride of
-//                                                   `rows` in elements; padded past nCols to
-//                                                   preserve base-pointer alignment on every row.
-//
-// The kd-tree "distance to a splitting hyperplane" reduces to `|diff|` for
-// every L_p metric supported here (splits are axis-aligned) and is applied at
-// a single call site in knnQuery; it is inlined there rather than added to
-// each functor.
-//
-// All methods are templated on `cpu` so each per-CPU instantiation gets its
-// own ISA-specific math/BLAS bindings. Used to parameterize HDBSCAN tree
-// builds and Boruvka MRD queries by metric without code duplication.
-//
-// Alignment policy for the SIMD inner loops:
-//   - `pointDist` receives arbitrary row starts (`data + i*nCols`), which
-//     are not guaranteed to be on a `DAAL_MALLOC_DEFAULT_ALIGNMENT`
-//     boundary, so no `aligned(...)` clause is used inside pointDist. This
-//     also applies to non-Euclidean `blockDist` bodies whose inner
-//     accumulator delegates to `pointDist` per row.
-//   - `bboxLowerBound` receives `bboxLo + nodeIdx*nCols` where `bboxLo` is a
-//     `TArray` base but the row stride is `nCols` (unpadded), so per-row
-//     alignment is also not guaranteed. No `aligned(...)` clause is used.
-//   - `blockDist` for Euclidean operates on padded `scratchRows` (per-row
-//     start alignment is guaranteed via `alignedRowStride`, see
-//     `rowNormsSquared` and `gatherRows`) plus `TArrayScalable`-backed
-//     `rowNorms2` / `outDists`. The vectorizable pass -- the finalize loop
-//     that combines `rowNorms2`, `pivotNorm2`, and `outDists` -- carries an
-//     `aligned(rowNorms2, outDists : DAAL_MALLOC_DEFAULT_ALIGNMENT)` clause,
-//     so the padding cost is realized as SIMD alignment there. The xxgemv
-//     itself does not need a SIMD clause; MKL BLAS picks up the alignment
-//     internally via `lda = rowStride`.
-//   - The `pivotNorm2 = rowNormSquared(pivotPt, nCols)` in
-//     `EuclideanDist::blockDist` reads from an unpadded row of the caller's
-//     data buffer, so its internal reduction does not carry an aligned
-//     clause. This is the only vectorized read in `blockDist` that touches
-//     an unpadded pointer.
+// Distance functors used by the tree builds and the Boruvka queries. Each provides
+//   - pointDist<cpu>(a, b, nCols): point-to-point distance
+//   - bboxLowerBound<cpu>(q, lo, hi, nCols): lower bound of the distance from q to a box
+//   - blockDist<cpu>(pivot, rows, rowNorms2, count, nCols, rowStride, out): pivot-to-rows
+//     distances; `rowNorms2` is used by Euclidean only, `rowStride >= nCols` is the padded stride.
+// Only `EuclideanDist::blockDist` relies on aligned rows (see `alignedRowStride`).
 // =========================================================================
 
 /// Euclidean (L2) distance functor.
 ///
-/// All methods are static (stateless metric). blockDist uses the identity
-/// `||x - p||^2 = ||x||^2 + ||p||^2 - 2 * <x, p>` to delegate the inner
-/// products to a single BLAS xxgemv call, then sqrts in a vectorized pass.
+/// `blockDist` uses `||x - p||^2 = ||x||^2 + ||p||^2 - 2 <x, p>` with one xxgemv call.
 ///
 /// @tparam FPType Floating-point type
 template <typename FPType>
 struct EuclideanDist
 {
     /// Compute the L2 distance between two rows.
-    ///
-    /// Uses `MathInst::sSqrt` for the final sqrt to match the CPU-specific
-    /// math dispatch used elsewhere in DAAL (e.g. em_gmm, zscore, pca, cordistance).
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -284,10 +183,7 @@ struct EuclideanDist
         return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
     }
 
-    /// Compute the L2 distance from a query point to its nearest point in a
-    /// bounding box (== 0 if the query lies inside the box).
-    ///
-    /// Used as a kd-tree pruning lower bound.
+    /// L2 distance from a query point to the nearest point of a box (0 inside the box).
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -315,11 +211,8 @@ struct EuclideanDist
 
     /// Vectorized pivot-to-block Euclidean distance via BLAS xxgemv.
     ///
-    /// Identity used: `||x_i - p||^2 = ||x_i||^2 + ||p||^2 - 2 * <x_i, p>`.
-    /// The inner products are computed as a single xxgemv on the row-major
-    /// scratch buffer; `rowNorms2[i]` must equal `||scratchRows[i]||^2` (see
-    /// rowNormsSquared). Negative squared distances from rounding noise are
-    /// clamped to zero before sqrt.
+    /// `rowNorms2[i]` must equal `||scratchRows[i]||^2`; negative squared values from round-off
+    /// are clamped to zero.
     ///
     /// @tparam cpu CPU dispatch tag for BLAS / vSqrt selection
     ///
@@ -329,10 +222,7 @@ struct EuclideanDist
     /// @param[in]  count       Number of rows in the batch
     /// @param[in]  nCols       Number of features
     /// @param[in]  rowStride   Row stride of `scratchRows` in elements (`>= nCols`);
-    ///                         padded past `nCols` so each row starts on the same
-    ///                         alignment boundary as the base pointer. Padding
-    ///                         columns must be zero so they don't contribute to
-    ///                         the inner product.
+    ///                         padding columns must be zero
     /// @param[out] outDists    Output distances, length `count`
     template <daal::internal::CpuType cpu>
     static void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * rowNorms2, DAAL_INT count, size_t nCols,
@@ -341,14 +231,8 @@ struct EuclideanDist
         const FPType pivotNorm2 = rowNormSquared<FPType, cpu>(pivotPt, nCols);
 
         // outDists = scratchRows * pivotPt  (count vector)
-        // GEMV: y = alpha * op(A) * x + beta * y. The row-major
-        // scratchRows[count x rowStride] is a column-major rowStride x count
-        // matrix A; we want y[i] = <scratchRows[i, :nCols], pivotPt> =
-        // sum_d A[d,i]*pivotPt[d] for d < nCols. The trailing padding columns
-        // of the row-major layout become extra leading rows of A that never
-        // contribute (we set m=nCols, ignoring rows [nCols, rowStride)).
-        // So trans='T' with m=nCols (rows of A picked from the top), n=count
-        // (cols of A): x has length m, y has length n, lda = rowStride.
+        // Row-major scratchRows is a column-major rowStride x count matrix, so trans=T with m = nCols
+        // skips the padding rows.
         const char trans    = 'T';
         const DAAL_INT m    = static_cast<DAAL_INT>(nCols);
         const DAAL_INT n    = count;
@@ -359,9 +243,7 @@ struct EuclideanDist
         const DAAL_INT incy = 1;
         daal::internal::BlasInst<FPType, cpu>::xxgemv(&trans, &m, &n, &alpha, scratchRows, &lda, pivotPt, &incx, &beta, outDists, &incy);
 
-        // `rowNorms2` and `outDists` are `TArrayScalable`-backed at every call
-        // site (see the ball-tree build in `hdbscan_ball_tree_batch_impl.i`);
-        // their starts are aligned to `DAAL_MALLOC_DEFAULT_ALIGNMENT`.
+        // `rowNorms2` and `outDists` come from TArrayScalable, aligned to DAAL_MALLOC_DEFAULT_ALIGNMENT.
         PRAGMA_OMP_SIMD_ARGS(aligned(rowNorms2, outDists : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (DAAL_INT i = 0; i < count; i++)
         {
@@ -373,9 +255,6 @@ struct EuclideanDist
 };
 
 /// Manhattan (L1) distance functor.
-///
-/// Stateless metric; same interface as EuclideanDist. blockDist falls through
-/// to a vectorized scalar loop because L1 admits no GEMM identity.
 ///
 /// @tparam FPType Floating-point type
 template <typename FPType>
@@ -426,10 +305,6 @@ struct ManhattanDist
 
     /// Pivot-to-block Manhattan distance.
     ///
-    /// L1 has no factorization that lets us batch via BLAS, but routing through
-    /// a single blockDist entry point keeps ball-tree callers symmetric across
-    /// metrics; pointDist is vectorized internally.
-    ///
     /// @tparam cpu CPU dispatch tag (unused for this metric)
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
@@ -449,8 +324,6 @@ struct ManhattanDist
 
 /// Minkowski distance functor of arbitrary degree `p > 0`.
 ///
-/// Stateful: holds `p` and `1/p`. blockDist falls through to a scalar loop.
-///
 /// @tparam FPType Floating-point type
 template <typename FPType>
 struct MinkowskiDist
@@ -464,10 +337,6 @@ struct MinkowskiDist
     MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
 
     /// Compute `(sum_d |a_d - b_d|^p) ^ (1/p)`.
-    ///
-    /// Per-element `|d|^p` goes through `MathInst<FPType, cpu>::sPowx` so each
-    /// per-CPU instantiation binds to its ISA-specific power routine, matching
-    /// the dispatch convention used elsewhere in DAAL (e.g. em_gmm, zscore).
     ///
     /// @tparam cpu CPU dispatch tag
     ///
@@ -536,8 +405,6 @@ struct MinkowskiDist
 
 /// Chebyshev (L-infinity) distance functor.
 ///
-/// Stateless. blockDist falls through to a scalar loop.
-///
 /// @tparam FPType Floating-point type
 template <typename FPType>
 struct ChebyshevDist
@@ -553,9 +420,7 @@ struct ChebyshevDist
     static FPType pointDist(const FPType * a, const FPType * b, size_t nCols)
     {
         FPType mx = FPType(0);
-        // OpenMP requires reduction-body updates to be expression-form (via `?:`)
-        // rather than branch-form (`if (...) x = ...`) so the compiler can safely
-        // fold each lane into the max-reduction pattern under `omp simd`.
+        // `omp simd` reductions need the `?:` form rather than `if`.
         PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
         for (size_t d = 0; d < nCols; d++)
         {
@@ -611,104 +476,99 @@ struct ChebyshevDist
     }
 };
 
-/// Bounded max-heap of the k nearest neighbors seen so far.
+/// Call `func(dist)` with the L_p distance functor of `pairwiseDistance`.
 ///
-/// Ordering invariant: `dists_[0]` is the largest distance currently in the
-/// heap (binary max-heap over `dists_`; `indices_` moves in lockstep). While
-/// fewer than `capacity` neighbors have been pushed the heap keeps filling;
-/// once full, `dists_[0]` is the current k-th nearest distance and `push()`
-/// only replaces the top when a strictly closer neighbor arrives. `maxDist()`
-/// returns that top or `+infinity` while the heap is not yet full, which lets
-/// tree traversals use it as a pruning radius. The heap owns its storage via
-/// `TArrayScalable` so each thread can allocate its own without external
-/// `TlsMem` scaffolding.
+/// @tparam FPType Floating-point type
+/// @tparam Func   Callable taking one distance functor
+///
+/// @param[in] pairwiseDistance Distance metric of the fit
+/// @param[in] minkowskiDegree  Exponent `p` for the Minkowski distance
+/// @param[in] func             Callable to run with the functor
+///
+/// @return `ErrorMethodNotSupported` for cosine, which is not an L_p distance
+template <typename FPType, typename Func>
+static services::Status callWithLpDistance(algorithms::internal::PairwiseDistanceType pairwiseDistance, double minkowskiDegree, const Func & func)
+{
+    using algorithms::internal::PairwiseDistanceType;
+    switch (pairwiseDistance)
+    {
+    case PairwiseDistanceType::euclidean: func(EuclideanDist<FPType> {}); break;
+    case PairwiseDistanceType::manhattan: func(ManhattanDist<FPType> {}); break;
+    case PairwiseDistanceType::minkowski: func(MinkowskiDist<FPType>(minkowskiDegree)); break;
+    case PairwiseDistanceType::chebyshev: func(ChebyshevDist<FPType> {}); break;
+    default: return services::Status(services::ErrorMethodNotSupported);
+    }
+    return services::Status();
+}
+
+/// Return the `k`-th smallest entry of `values[0, n)` without modifying or copying the input.
+///
+/// Keeps a max-heap of the `k` smallest values seen, so the scratch is `k` elements.
+///
+/// @tparam FPType Floating-point type
+/// @tparam cpu    CPU dispatch tag
+///
+/// @param[in]  values  Input values, length `n`, left untouched
+/// @param[in]  n       Number of input values
+/// @param[in]  k       Rank to select, `1 <= k <= n`
+/// @param[out] heapBuf Caller-owned scratch of at least `k` elements; holds the `k` smallest
+///                     values in heap order on return
+///
+/// @return The `k`-th smallest value of `values[0, n)`
+template <typename FPType, daal::internal::CpuType cpu>
+static FPType kthSmallestBounded(const FPType * values, size_t n, size_t k, FPType * heapBuf)
+{
+    const auto less = [](FPType a, FPType b) { return a < b; };
+    for (size_t i = 0; i < k; i++) heapBuf[i] = values[i];
+    daal::algorithms::internal::makeMaxHeap<cpu>(heapBuf, heapBuf + k, less);
+
+    for (size_t i = k; i < n; i++)
+    {
+        if (values[i] < heapBuf[0])
+        {
+            heapBuf[0] = values[i];
+            daal::algorithms::internal::internalAdjustMaxHeap<cpu>(heapBuf, heapBuf + k, k, size_t(0), less);
+        }
+    }
+    return heapBuf[0];
+}
+
+/// Bounded max-heap of the k nearest neighbors seen so far, on top of the k-NN `Heap`.
+///
+/// Once full, `push()` replaces the top only for a strictly closer neighbor.
 ///
 /// @tparam FPType Floating-point type used for distances
-/// @tparam cpu    CPU dispatch tag (selects the scalable allocator)
+/// @tparam cpu    CPU dispatch tag
 template <typename FPType, daal::internal::CpuType cpu>
 struct KnnHeap
 {
-    /// Construct an empty heap with capacity `cap`.
-    ///
-    /// Allocates internal `dists_` / `indices_` arrays. After construction,
-    /// `ok()` must be checked before use; allocation failure leaves the heap
-    /// inert.
+    /// Construct an empty heap with capacity `cap`; check `ok()` before use.
     ///
     /// @param[in] cap Maximum number of neighbors to keep
-    KnnHeap(DAAL_INT cap) : capacity_(cap), size_(0), distsArr_(cap), indicesArr_(cap)
-    {
-        dists_   = distsArr_.get();
-        indices_ = indicesArr_.get();
-    }
+    KnnHeap(DAAL_INT cap) : capacity_(cap), ok_(heap_.init(cap)) {}
 
     KnnHeap(const KnnHeap &)             = delete;
     KnnHeap & operator=(const KnnHeap &) = delete;
 
-    /// True iff internal allocations succeeded.
-    bool ok() const { return dists_ != nullptr && indices_ != nullptr; }
+    /// True iff the allocation succeeded.
+    bool ok() const { return ok_; }
 
     /// Return the current k-th nearest distance, or `+inf` if the heap isn't full.
-    ///
-    /// Useful as a pruning radius for tree traversals.
-    FPType maxDist() const { return (size_ > 0) ? dists_[0] : daal::services::internal::MaxVal<FPType>::get(); }
+    FPType maxDist()
+    {
+        return (heap_.size() == static_cast<size_t>(capacity_)) ? heap_.getMax()->distance : daal::services::internal::MaxVal<FPType>::get();
+    }
 
-    /// Insert a candidate `(dist, idx)`; ignored if the heap is full and the
-    /// distance is not strictly smaller than the current top.
+    /// Insert a candidate `(dist, idx)`.
     ///
     /// @param[in] dist Candidate distance
     /// @param[in] idx  Candidate point index
-    void push(FPType dist, DAAL_INT idx)
-    {
-        if (size_ < capacity_)
-        {
-            dists_[size_]   = dist;
-            indices_[size_] = idx;
-            size_++;
-            DAAL_INT i = size_ - 1;
-            while (i > 0)
-            {
-                DAAL_INT parent = (i - 1) / 2;
-                if (dists_[i] > dists_[parent])
-                {
-                    std::swap(dists_[i], dists_[parent]);
-                    std::swap(indices_[i], indices_[parent]);
-                    i = parent;
-                }
-                else
-                    break;
-            }
-        }
-        else if (dist < dists_[0])
-        {
-            dists_[0]   = dist;
-            indices_[0] = idx;
-            DAAL_INT i  = 0;
-            while (true)
-            {
-                DAAL_INT l       = 2 * i + 1;
-                DAAL_INT r       = 2 * i + 2;
-                DAAL_INT largest = i;
-                if (l < size_ && dists_[l] > dists_[largest]) largest = l;
-                if (r < size_ && dists_[r] > dists_[largest]) largest = r;
-                if (largest != i)
-                {
-                    std::swap(dists_[i], dists_[largest]);
-                    std::swap(indices_[i], indices_[largest]);
-                    i = largest;
-                }
-                else
-                    break;
-            }
-        }
-    }
+    void push(FPType dist, DAAL_INT idx) { heap_.replaceMaxIfNeeded({ dist, static_cast<size_t>(idx) }, static_cast<size_t>(capacity_)); }
 
 private:
     DAAL_INT capacity_;
-    DAAL_INT size_;
-    daal::services::internal::TArrayScalable<FPType, cpu> distsArr_;
-    daal::services::internal::TArrayScalable<DAAL_INT, cpu> indicesArr_;
-    FPType * dists_;     // distances from points in the heap to the current query (heap root is the largest)
-    DAAL_INT * indices_; // indices of points in the heap, kept in lockstep with dists_
+    daal::internal::Heap<daal::internal::GlobalNeighbors<FPType, cpu>, cpu> heap_;
+    bool ok_;
 };
 
 } // namespace internal

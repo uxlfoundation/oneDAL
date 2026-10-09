@@ -46,7 +46,7 @@ public:
     }
 
     const Float& at(std::int32_t row, std::int32_t col) const {
-        return *(ptr_ + row * str_ + col);
+        return *(ptr_ + std::int64_t(row) * str_ + col);
     }
 
     const std::int32_t& get_width() const {
@@ -96,7 +96,7 @@ public:
     Float at(std::int32_t row, std::int32_t col) const {
         const auto& n1 = *(n1_ptr_ + row);
         const auto& n2 = *(n2_ptr_ + col);
-        const auto& ip = *(ip_ptr_ + row * ip_str_ + col);
+        const auto& ip = *(ip_ptr_ + std::int64_t(row) * ip_str_ + col);
         // L2 distance = inner product + norms #1 + norms #2
         // inner product = -2 * qnorms * tnorms
         return n1 + n2 + ip;

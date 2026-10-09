@@ -118,19 +118,19 @@ sycl::event distance<Float, Metric>::operator()(const ndview<Float, 2, order1>& 
     const auto n_samples2 = inp2.get_dimension(0);
     // Getting info about strides
     const auto out_stride = out.get_leading_stride();
-    // Constructing correct range of size m x n
-    const auto out_range = make_range_2d(n_samples1, n_samples2);
     // Metric instance
     const auto& metric = this->m_;
-    return q_.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(out_range, [=](sycl::id<2> idx) {
-            auto [f1, l1] = dkeeper1.get_row_bound_iterators(idx[0]);
-            auto [f2, l2] = dkeeper2.get_row_bound_iterators(idx[1]);
-            auto& out_place = *(out_ptr + out_stride * idx[0] + idx[1]);
-            out_place = metric(f1, l1, f2);
-        });
-    });
+
+    return parallel_for_2d_by_row_blocks(
+        q_,
+        n_samples1,
+        n_samples2,
+        [=](std::int64_t row, std::int64_t col) {
+            auto [f1, l1] = dkeeper1.get_row_bound_iterators(row);
+            auto [f2, l2] = dkeeper2.get_row_bound_iterators(col);
+            out_ptr[out_stride * row + col] = metric(f1, l1, f2);
+        },
+        deps);
 }
 
 #define INSTANTIATE(F, A, B)                                                                  \

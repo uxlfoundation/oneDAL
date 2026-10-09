@@ -35,13 +35,8 @@ namespace hdbscan
 namespace internal
 {
 
-/// Available methods of the HDBSCAN algorithm.
-///
-/// Kept in the internal src namespace because HDBSCAN is only exposed through
-/// the oneDAL (oneAPI) interface; the legacy DAAL C++ API does not ship this
-/// algorithm, so the method tag does not need to be part of the public API.
-/// Scoped as `enum class` so unqualified `bruteForceDense` / `kdTree` /
-/// `ballTree` names cannot leak into user code.
+/// Available methods of the HDBSCAN algorithm. HDBSCAN is exposed only through the oneAPI
+/// interface, so the method tag stays internal.
 enum class Method
 {
     bruteForceDense = 0, ///< Brute-force method with full distance matrix
@@ -49,13 +44,8 @@ enum class Method
     ballTree        = 2  ///< Ball tree method: hypersphere-based partitioning, robust to high dimensions
 };
 
-/// HDBSCAN batch kernel.
-///
-/// CPU-templated entry point dispatched by the oneAPI HDBSCAN compute kernel.
-/// Each (algorithmFPType, method, cpu) instantiation lives in its own TU
-/// (`hdbscan_{dense,kd_tree,ball_tree}_batch_fpt_cpu.cpp`). Member compute()
-/// runs the full pipeline: pairwise/core distances -> MST under MRD -> sort ->
-/// dendrogram -> condensed tree -> cluster selection -> label points.
+/// HDBSCAN batch kernel: core distances -> MST under mutual reachability distance -> dendrogram
+/// -> condensed tree -> cluster selection -> labels.
 ///
 /// @tparam algorithmFPType Floating-point type used for distances and lambdas
 /// @tparam method          One of `bruteForceDense`, `kdTree`, `ballTree`
@@ -71,27 +61,59 @@ public:
     ///                                     for each input point. -1 indicates noise; non-negative values are the
     ///                                     cluster index in `[0, C)`, where `C` is the number of clusters found
     /// @param[out] ntNClusters             Output numeric table of size `1 x 1` containing the number of clusters `C` found
+    /// @param[out] ntProbabilities         Optional output numeric table of size `N x 1` containing the membership
+    ///                                     strength of each point in the cluster it was assigned to, in `[0, 1]`.
+    ///                                     Noise points get 0. Pass `nullptr` to skip the computation
+    /// @param[out] ntSingleLinkageTree     Optional output numeric table of size `(N - 1) x 4` receiving the
+    ///                                     single-linkage dendrogram, one row per merge in ascending distance
+    ///                                     order: `[left, right, distance, size]`. Ids below `N` are original
+    ///                                     points, id `N + k` is the cluster formed by row `k`. Pass `nullptr`
+    ///                                     to skip it. Left untouched when `N < 2`, where there is no merge
     /// @param[in]  minClusterSize          Minimum number of points required to form a cluster
     /// @param[in]  minSamples              Number of neighbors used when computing core distances
     /// @param[in]  pairwiseDistance        Distance metric used for pairwise distances (see `algorithms::internal::PairwiseDistanceType`)
     /// @param[in]  minkowskiDegree         Exponent `p` for the Minkowski distance. Ignored for other metrics
     /// @param[in]  clusterSelection        Cluster selection strategy: 0 -- excess of mass, 1 -- leaf
     /// @param[in]  allowSingleCluster      If true, allow the root cluster of the condensed tree to be selected
-    /// @param[in]  clusterSelectionEpsilon Distance threshold used to merge clusters closer than epsilon.
-    ///                                     Kept as `double` at the public entry point to match the descriptor;
-    ///                                     narrowed to `algorithmFPType` inside `applyClusterSelectionEpsilon`
-    ///                                     before the per-cluster comparison so tight loops stay in a single
-    ///                                     precision
+    /// @param[in]  clusterSelectionEpsilon Distance threshold below which clusters are merged
     /// @param[in]  maxClusterSize          Maximum allowed cluster size (only used with cluster selection epsilon). 0 disables the limit
     /// @param[in]  alpha                   Robust single-linkage scaling factor (distances are divided by alpha)
     /// @param[in]  leafSize                Maximum number of points per leaf in the kd-tree / ball-tree. Ignored for brute force
     ///
     /// @return Status code
-    services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, size_t minClusterSize,
-                             size_t minSamples,
+    services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities,
+                             NumericTable * ntSingleLinkageTree, size_t minClusterSize, size_t minSamples,
                              algorithms::internal::PairwiseDistanceType pairwiseDistance = algorithms::internal::PairwiseDistanceType::euclidean,
                              double minkowskiDegree = 2.0, int clusterSelection = 0, bool allowSingleCluster = false,
                              double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0, size_t leafSize = 40);
+};
+
+/// Cluster centers in scikit-learn's definitions, computed from a finished labeling.
+///
+/// @tparam algorithmFPType Floating-point type of the data
+/// @tparam cpu             CPU dispatch tag
+template <typename algorithmFPType, CpuType cpu>
+class HDBSCANCentersKernel : public Kernel
+{
+public:
+    /// Compute the probability-weighted centroid and/or the medoid of every cluster.
+    ///
+    /// The medoid of a cluster is the member `i` minimizing `sum_j dist(i, j) * weight_j` over its
+    /// members `j` in the fitted metric; ties go to the lowest row. Empty clusters get zero rows.
+    ///
+    /// @param[in]  ntData           Input numeric table of size `N x P`
+    /// @param[in]  ntAssignments    Cluster id per point, `N x 1`; -1 is noise
+    /// @param[in]  ntWeights        Membership probability per point, `N x 1`
+    /// @param[in]  nClusters        Number of clusters `C`
+    /// @param[out] ntCentroids      Centroids, `C x P`; pass `nullptr` to skip
+    /// @param[out] ntMedoids        Medoids, `C x P`; pass `nullptr` to skip
+    /// @param[in]  pairwiseDistance Distance metric of the fit
+    /// @param[in]  minkowskiDegree  Exponent `p` for the Minkowski distance
+    ///
+    /// @return Status code
+    services::Status compute(const NumericTable * ntData, const NumericTable * ntAssignments, const NumericTable * ntWeights, size_t nClusters,
+                             NumericTable * ntCentroids, NumericTable * ntMedoids, algorithms::internal::PairwiseDistanceType pairwiseDistance,
+                             double minkowskiDegree);
 };
 
 } // namespace internal

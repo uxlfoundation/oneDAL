@@ -18,106 +18,40 @@
 
 #include <cstdint>
 
+#include "oneapi/dal/algo/hdbscan/common.hpp"
+#include "oneapi/dal/algo/hdbscan/compute_types.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
+#include "oneapi/dal/table/common.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
-/// Compute the per-cluster centroid (mean point) of a labeled point set on the host.
+/// True iff `desc` asks for cluster centers, which are computed from the responses.
 ///
-/// This is the CPU / host code path. The GPU backend uses
-/// `compute_centroids_gpu` (declared in `backend/gpu/cluster_utils.hpp`) which
-/// does the same math directly on the SYCL device via `atomic_ref`, so `data` /
-/// `labels` never round-trip through host memory in that path.
-///
-/// Sums every labeled point into its cluster's row of `centroids`, counts the
-/// points per cluster, then divides by the count. Points whose label is
-/// negative or out of range are skipped (HDBSCAN noise). Accumulate and
-/// normalize inner loops carry `PRAGMA_OMP_SIMD` so the compiler autovectorizes
-/// the mul/add.
-///
-/// Defined in `cluster_utils_cpu.cpp`, which is compiled once per supported
-/// instruction set, so `Cpu` selects the vectorization width. Callers on the
-/// host path should use the `context_cpu` overload below, which picks the
-/// instantiation matching the running machine.
-///
-/// TODO: explore `mkl::blas::scal` for the normalize loop.
-///
-/// @tparam Cpu   CPU dispatch tag (`backend::cpu_dispatch_*`)
-/// @tparam Float Floating-point type
-///
-/// @param[in]  data          Row-major input buffer of size `row_count x col_count`
-/// @param[in]  labels        Cluster id per point, length `row_count` (-1 = noise)
-/// @param[in]  row_count     Number of input points
-/// @param[in]  col_count     Number of features per point
-/// @param[in]  cluster_count Number of clusters
-/// @param[out] centroids     Row-major centroid buffer, size `cluster_count x col_count`
-template <typename Cpu, typename Float>
-void compute_centroids(const Float* data,
-                       const std::int32_t* labels,
-                       std::int64_t row_count,
-                       std::int64_t col_count,
-                       std::int64_t cluster_count,
-                       Float* centroids);
+/// @param[in] desc Algorithm descriptor
+inline bool centers_requested(const detail::descriptor_base<task::clustering>& desc) {
+    return desc.get_store_centers() != store_centers_method::none &&
+           desc.get_result_options().test(result_options::responses);
+}
 
-/// Compute the per-cluster medoid (closest input point to the centroid) on the host.
-///
-/// This is the CPU / host code path. The GPU counterpart is
-/// `compute_medoids_gpu` (declared in `backend/gpu/cluster_utils.hpp`) which
-/// keeps `data` / `labels` on the SYCL device.
-///
-/// For each labeled point, computes its squared Euclidean distance to the
-/// cluster centroid and tracks the minimum per cluster. The chosen medoid is
-/// then copied row-by-row into `medoids`. Empty clusters get a zero row.
-///
-/// Defined in `cluster_utils_cpu.cpp` and dispatched per instruction set, same
-/// as `compute_centroids` above.
-///
-/// @tparam Cpu   CPU dispatch tag (`backend::cpu_dispatch_*`)
-/// @tparam Float Floating-point type
-///
-/// @param[in]  data          Row-major input buffer of size `row_count x col_count`
-/// @param[in]  labels        Cluster id per point, length `row_count` (-1 = noise)
-/// @param[in]  row_count     Number of input points
-/// @param[in]  col_count     Number of features per point
-/// @param[in]  cluster_count Number of clusters
-/// @param[in]  centroids     Cluster centroids, size `cluster_count x col_count`
-/// @param[out] medoids       Output medoid rows, size `cluster_count x col_count`
-template <typename Cpu, typename Float>
-void compute_medoids(const Float* data,
-                     const std::int32_t* labels,
-                     std::int64_t row_count,
-                     std::int64_t col_count,
-                     std::int64_t cluster_count,
-                     const Float* centroids,
-                     Float* medoids);
-
-/// Dispatch `compute_centroids` to the instantiation matching the running CPU.
+/// Fill the centroid and/or medoid tables `store_centers` asks for into `result`, as
+/// scikit-learn defines them. Does nothing when there are no clusters.
 ///
 /// @tparam Float Floating-point type
 ///
-/// @param[in] ctx CPU dispatch context carrying the enabled CPU extensions
+/// @param[in]     ctx           CPU dispatch context
+/// @param[in]     desc          Algorithm descriptor (store_centers, metric, degree)
+/// @param[in]     data          Host input table, `row_count x col_count`
+/// @param[in]     labels        Cluster id per point, length `row_count` (-1 = noise)
+/// @param[in]     weights       Membership probability per point, length `row_count`
+/// @param[in]     cluster_count Number of clusters
+/// @param[in,out] result        Result receiving `cluster_centers` / `medoid_centers`
 template <typename Float>
-void compute_centroids(const dal::backend::context_cpu& ctx,
-                       const Float* data,
-                       const std::int32_t* labels,
-                       std::int64_t row_count,
-                       std::int64_t col_count,
-                       std::int64_t cluster_count,
-                       Float* centroids);
-
-/// Dispatch `compute_medoids` to the instantiation matching the running CPU.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in] ctx CPU dispatch context carrying the enabled CPU extensions
-template <typename Float>
-void compute_medoids(const dal::backend::context_cpu& ctx,
-                     const Float* data,
-                     const std::int32_t* labels,
-                     std::int64_t row_count,
-                     std::int64_t col_count,
-                     std::int64_t cluster_count,
-                     const Float* centroids,
-                     Float* medoids);
+void set_cluster_centers(const dal::backend::context_cpu& ctx,
+                         const detail::descriptor_base<task::clustering>& desc,
+                         const table& data,
+                         const array<std::int32_t>& labels,
+                         const array<Float>& weights,
+                         std::int64_t cluster_count,
+                         compute_result<task::clustering>& result);
 
 } // namespace oneapi::dal::hdbscan::backend

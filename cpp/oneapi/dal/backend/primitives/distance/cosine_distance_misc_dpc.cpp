@@ -84,15 +84,16 @@ sycl::event finalize_cosine(sycl::queue& q,
     const auto* const inp1_ptr = inp1.get_data();
     const auto* const inp2_ptr = inp2.get_data();
     auto* const out_ptr = out.get_mutable_data();
-    const auto out_range = make_range_2d(n_samples1, n_samples2);
-    return q.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(out_range, [=](sycl::id<2> idx) {
-            constexpr Float one = 1;
-            auto& out = *(out_ptr + out_stride * idx[0] + idx[1]);
-            out = one - out * inp1_ptr[idx[0]] * inp2_ptr[idx[1]];
-        });
-    });
+
+    return parallel_for_2d_by_row_blocks(
+        q,
+        n_samples1,
+        n_samples2,
+        [=](std::int64_t row, std::int64_t col) {
+            auto& val = out_ptr[out_stride * row + col];
+            val = Float(1) - val * inp1_ptr[row] * inp2_ptr[col];
+        },
+        deps);
 }
 
 template <typename Float, ndorder order1, ndorder order2>

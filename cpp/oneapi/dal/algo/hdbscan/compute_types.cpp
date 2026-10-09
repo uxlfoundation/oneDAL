@@ -37,6 +37,8 @@ public:
     table core_observations;
     table cluster_centers;
     table medoid_centers;
+    table probabilities;
+    table single_linkage_tree;
     std::int64_t cluster_count = 0;
 
     result_option_id result_options;
@@ -118,6 +120,24 @@ const table& compute_result<Task>::get_medoid_centers() const {
 }
 
 template <typename Task>
+const table& compute_result<Task>::get_probabilities() const {
+    using msg = dal::detail::error_messages;
+    if (!get_result_options().test(result_options::probabilities)) {
+        throw domain_error(msg::this_result_is_not_enabled_via_result_options());
+    }
+    return impl_->probabilities;
+}
+
+template <typename Task>
+const table& compute_result<Task>::get_single_linkage_tree() const {
+    using msg = dal::detail::error_messages;
+    if (!get_result_options().test(result_options::single_linkage_tree)) {
+        throw domain_error(msg::this_result_is_not_enabled_via_result_options());
+    }
+    return impl_->single_linkage_tree;
+}
+
+template <typename Task>
 std::int64_t compute_result<Task>::get_cluster_count() const {
     return impl_->cluster_count;
 }
@@ -160,6 +180,16 @@ void compute_result<Task>::set_cluster_centers_impl(const table& value) {
 template <typename Task>
 void compute_result<Task>::set_medoid_centers_impl(const table& value) {
     impl_->medoid_centers = value;
+}
+
+template <typename Task>
+void compute_result<Task>::set_probabilities_impl(const table& value) {
+    impl_->probabilities = value;
+}
+
+template <typename Task>
+void compute_result<Task>::set_single_linkage_tree_impl(const table& value) {
+    impl_->single_linkage_tree = value;
 }
 
 template <typename Task>

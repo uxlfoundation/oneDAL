@@ -19,5 +19,8 @@
 namespace oneapi::dal::backend::primitives {
 
 template class kselect_by_rows<float>;
+template std::int64_t kselect_by_rows_scratch_size<float>(const sycl::queue&,
+                                                          const ndshape<2>&,
+                                                          std::int64_t);
 
 } // namespace oneapi::dal::backend::primitives

@@ -20,6 +20,8 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/selection/select_indexed.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
+#include "oneapi/dal/backend/primitives/selection/kselect_by_rows_heap.hpp"
+#include "oneapi/dal/backend/primitives/selection/kselect_by_rows_impl.hpp"
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
@@ -301,6 +303,85 @@ TEMPLATE_LIST_TEST_M(selection_by_rows_test,
     const auto df_rows = row_accessor<const float_t>(df_table).pull(this->get_queue(), { 0, -1 });
     auto data_array = ndarray<float_t, 2>::wrap(df_rows.get_data(), { rows, cols });
     this->test_selection(data_array, rows, cols, k);
+}
+
+// The input holds more than 2^31 - 1 elements, so every row past the int32 boundary is read
+// through a 64-bit offset. About 26 GB of device memory with the quick-select scratch, hence
+// the `[weekly]` tag.
+class kselect_by_rows_overflow_test : public te::float_algo_fixture<float> {
+public:
+    static constexpr std::int64_t col_count = 32768;
+    static constexpr std::int64_t row_count =
+        std::numeric_limits<std::int32_t>::max() / col_count + 2;
+
+    bool fits_on_device() {
+        const std::int64_t needed = 3 * sizeof(float) * row_count * col_count;
+        return device_global_mem_size(this->get_queue()) > needed + needed / 4;
+    }
+
+    // Each row is a permutation of 0 .. col_count - 1, so its k smallest are 0 .. k - 1.
+    ndarray<float, 2> make_input() {
+        auto& q = this->get_queue();
+        auto data = ndarray<float, 2>::empty(q, { row_count, col_count }, sycl::usm::alloc::device);
+        float* const ptr = data.get_mutable_data();
+        parallel_for_2d_by_row_blocks(q,
+                                      row_count,
+                                      col_count,
+                                      [=](std::int64_t row, std::int64_t col) {
+                                          ptr[row * col_count + col] =
+                                              float((col * 7919 + row) % col_count);
+                                      })
+            .wait_and_throw();
+        return data;
+    }
+
+    void check_rows(const ndarray<float, 2>& data, std::int64_t k) {
+        auto& q = this->get_queue();
+        auto selection = ndarray<float, 2>::empty(q, { row_count, k }, sycl::usm::alloc::device);
+        auto indices =
+            ndarray<std::int32_t, 2>::empty(q, { row_count, k }, sycl::usm::alloc::device);
+
+        kselect_by_rows<float> select(q, data.get_shape(), k);
+        select(q, data, k, selection, indices).wait_and_throw();
+
+        const auto selection_host = selection.to_host(q);
+        const auto indices_host = indices.to_host(q);
+        const float* const sel = selection_host.get_data();
+        const std::int32_t* const ids = indices_host.get_data();
+
+        for (const std::int64_t row : { std::int64_t(0), row_count - 2, row_count - 1 }) {
+            double sum = 0;
+            float max_value = 0;
+            for (std::int64_t j = 0; j < k; ++j) {
+                const float value = sel[row * k + j];
+                const std::int64_t col = ids[row * k + j];
+                REQUIRE(float((col * 7919 + row) % col_count) == value);
+                sum += value;
+                max_value = std::max(max_value, value);
+            }
+            REQUIRE(max_value == float(k - 1));
+            REQUIRE(sum == double(k) * double(k - 1) / 2);
+        }
+    }
+};
+
+TEST_M(kselect_by_rows_overflow_test,
+       "kselect_by_rows reads rows past the int32 element range",
+       "[kselect][overflow][weekly]") {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(!this->fits_on_device());
+
+    auto& q = this->get_queue();
+    const std::int64_t simd_k = 8;
+    const std::int64_t heap_k = 64;
+    const std::int64_t quick_k = get_heap_max_k<float>(q) + 1;
+    REQUIRE(get_kselect_by_rows_kind<float>(q, simd_k) == kselect_by_rows_kind::simd);
+    REQUIRE(get_kselect_by_rows_kind<float>(q, quick_k) == kselect_by_rows_kind::quick);
+
+    const auto data = this->make_input();
+    const std::int64_t k = GENERATE_COPY(simd_k, heap_k, quick_k);
+    INFO("k = " << k);
+    this->check_rows(data, k);
 }
 
 } // namespace oneapi::dal::backend::primitives::test

@@ -20,16 +20,10 @@
  * Tree (MST) algorithm. Follows McInnes & Healy, "Accelerated Hierarchical
  * Density Based Clustering", https://arxiv.org/abs/1705.07321.
  *
- * The approach:
- *   1. Build a k-d tree over the input data (with bounding boxes per node)
- *   2. For each point, find its k-th nearest neighbor via tree search -> core distances
- *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm
- *      with kd-tree-accelerated nearest-different-component queries
- *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
- *
- * Key advantage over brute_force: O(N * k * log N) for core distances,
- * O(N * log^2 N) for MST via Boruvka (vs O(N^2) Prim's in brute_force).
- * Memory: O(N * D * tree_nodes) for bounding boxes + O(N) working arrays.
+ *   1. Build a k-d tree with per-node bounding boxes
+ *   2. Core distances from k-NN queries on the tree
+ *   3. Boruvka MST under MRD with tree-pruned nearest-other-component queries
+ *   4. Sort the MST and extract clusters (shared with brute force)
  */
 
 #include <cstdint>
@@ -64,15 +58,8 @@ using daal::services::internal::TArrayScalable;
 
 /// k-d tree node.
 ///
-/// Internal nodes split a contiguous range of `pointIndices` along `splitDim`
-/// at `splitVal`; leaves are marked with `splitDim < 0`. `componentId` is
-/// updated as Boruvka rounds merge components and is used to prune subtrees
-/// whose points all belong to the query's current component.
-///
-/// Range endpoints (`pointBegin`, `pointEnd`), node indices (`left`, `right`),
-/// and the component id are stored as `DAAL_INT` so trees over > INT32_MAX
-/// points keep addressing addressed correctly. `splitDim` stays `int` because
-/// column count is small.
+/// Internal nodes split a range of `pointIndices` at `splitVal` along `splitDim`; leaves have
+/// `splitDim < 0`. `componentId` is the Boruvka component of all the node's points, or mixed.
 ///
 /// @tparam FPType Floating-point type
 template <typename FPType>
@@ -89,11 +76,8 @@ struct KdNode
 
 /// Build a k-d tree recursively with per-node axis-aligned bounding boxes.
 ///
-/// Splits along the dimension with the largest spread, partitioning
-/// `pointIndices[begin..end)` around the median value via `std::nth_element`.
-/// Leaves are emitted when the point count drops to `<= maxLeafSize`.
-/// Bounding-box arrays are filled in place for every node and used later for
-/// kd-tree pruning.
+/// Splits at the median of the dimension with the largest spread until at most `maxLeafSize`
+/// points remain.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -158,7 +142,7 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
 
     node.splitDim = bestDim;
 
-    // Median-of-3 partitioning via nth_element on the split dimension
+    // Median split on the split dimension
     const DAAL_INT mid = begin + count / 2;
     std::nth_element(pointIndices + begin, pointIndices + mid, pointIndices + end,
                      [&](DAAL_INT a, DAAL_INT b) { return data[a * nCols + bestDim] < data[b * nCols + bestDim]; });
@@ -173,9 +157,7 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
 
 /// k-nearest-neighbor query on the kd-tree, templated on the distance functor.
 ///
-/// Visits the nearer child first to tighten the heap's pruning radius, then
-/// recurses into the far child only if the splitting plane is closer than the
-/// current k-th nearest distance.
+/// The far child is visited only if the splitting plane is closer than the current k-th distance.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag (forwarded to the heap allocator)
@@ -216,11 +198,7 @@ static void knnQuery(const algorithmFPType * data, size_t nCols, const KdNode<al
 
     knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap, distFunc);
 
-    // Prune: only visit far subtree if the splitting plane is closer than the
-    // current k-th NN. Every L_p metric supported here reduces to |diff| for an
-    // axis-aligned split, so we inline the abs instead of routing through the
-    // functor. Inlining lets the compiler fold the compare into the vectorized
-    // traversal loop.
+    // For an axis-aligned split every supported L_p distance to the plane is |diff|.
     const algorithmFPType pd = (diff < algorithmFPType(0)) ? -diff : diff;
     if (pd < heap.maxDist())
     {
@@ -230,8 +208,7 @@ static void knnQuery(const algorithmFPType * data, size_t nCols, const KdNode<al
 
 /// Compute the minimum core distance among the points in every kd-tree subtree.
 ///
-/// Bottom-up O(N) traversal. Used as the third pruning lower bound during
-/// Boruvka MRD queries (`MRD >= max(coreQ, minCoreDistNode[subtree], minDist)`).
+/// A lower bound for the MRD queries: `MRD >= max(coreQ, minCoreDistNode[subtree], minDist)`.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -269,10 +246,7 @@ static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes
 
 /// Refresh per-node component ids after a Boruvka merge round.
 ///
-/// Bottom-up traversal: a leaf inherits its single shared component if all of
-/// its points agree, otherwise it is marked mixed. Internal nodes inherit the
-/// component when both children agree, mixed otherwise. Pure-component nodes
-/// let later MRD queries prune entire subtrees.
+/// A node gets its points' common component, or is marked mixed.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -315,15 +289,9 @@ static DAAL_INT updateNodeComponents(KdNode<algorithmFPType> * nodes, const DAAL
 
 /// Find the query's nearest point in a different component under MRD on the kd-tree.
 ///
-/// Three-level pruning:
-///   1. skip subtrees whose `componentId` matches the query's component;
-///   2. skip subtrees whose `max(coreQ, minCoreDistNode, bboxMinDist * invAlpha)`
-///      is not smaller than the current best MRD;
-///   3. visit the nearer child first to tighten `bestMrd`, then the far child
-///      only if its plane distance still permits an improvement.
-///
-/// Alpha is applied only to the dist(q,p) term inside MRD (canonical HDBSCAN
-/// robust single linkage); core distances are left unscaled.
+/// Skips subtrees whose points all share the query's component, and subtrees whose MRD lower
+/// bound `max(coreQ, minCoreDistNode, bboxMinDist / alpha)` is not below the best so far. Alpha
+/// scales only the distance term.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -413,13 +381,7 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, size_t nCols, c
 
 /// Compute core distances and the MST under MRD on a kd-tree, templated on metric.
 ///
-/// Pipeline:
-///   1. per-point k-NN query against the kd-tree -> `coreDistances`;
-///   2. bottom-up reduction -> `minCoreDistNode`;
-///   3. Boruvka rounds: per-point nearest-different-component MRD query,
-///      reduce to per-component best edges, union via union-find, refresh
-///      per-node component ids. Loops until a single component remains or no
-///      progress is made.
+/// Core distances from k-NN queries, then Boruvka rounds until one component remains.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -440,22 +402,18 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, size_t nCols, c
 /// @param[out]    mstWeights      Edge weights (MRD), length `nRows - 1`
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     alpha           Robust single-linkage scaling factor; applied
-///                                only to dist(q,p) inside MRD (not to k-NN
-///                                core distances or to the metric used for tree
-///                                queries)
+///                                only to dist(q,p) inside MRD
+///
+/// @return Number of MST edges emitted; fewer than `nRows - 1` only on non-finite input
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
-                                  DAAL_INT * pointIndices, DAAL_INT totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,
-                                  algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
-                                  const DistFunc & distFunc, double alpha)
+static size_t computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
+                                    DAAL_INT * pointIndices, DAAL_INT totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,
+                                    algorithmFPType * coreDistances, DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType * mstWeights,
+                                    const DistFunc & distFunc, double alpha)
 {
     const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
-    // Canonical HDBSCAN core distance (Campello 2013): the distance to the
-    // `minSamples`-th nearest neighbor counting the query point itself as
-    // neighbor #1. The kd-tree traversal pushes the query point into the heap
-    // along with the other leaf points, so a heap of size `minSamples` holds
-    // {self + (minSamples - 1) non-self}, and the heap top is the
-    // `minSamples`-th-including-self answer.
+    // The core distance is the distance to the minSamples-th nearest neighbor counting the point
+    // itself, i.e. the heap top of a size-minSamples query that includes the point.
     const DAAL_INT k = static_cast<DAAL_INT>(minSamples);
 
     // Step 2: Compute core distances via k-NN queries on the kd-tree
@@ -471,7 +429,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     // Step 2b: Per-node minimum core distances
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
     algorithmFPType * minCoreDistNode = minCoreDistNodeVec.get();
-    if (!minCoreDistNode) return;
+    if (!minCoreDistNode) return 0;
     computeMinCoreDists<algorithmFPType, cpu>(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
 
     // Step 3: Boruvka MST
@@ -482,13 +440,13 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     DAAL_INT * ufParent    = ufParentVec.get();
     DAAL_INT * ufRank      = ufRankVec.get();
     DAAL_INT * componentOf = componentOfVec.get();
-    if (!ufParent || !ufRank || !componentOf) return;
+    if (!ufParent || !ufRank || !componentOf) return 0;
 
     TArrayScalable<algorithmFPType, cpu> pointBestMrdVec(nRows);
     TArray<DAAL_INT, cpu> pointBestIdxVec(nRows);
     algorithmFPType * pointBestMrd = pointBestMrdVec.get();
     DAAL_INT * pointBestIdx        = pointBestIdxVec.get();
-    if (!pointBestMrd || !pointBestIdx) return;
+    if (!pointBestMrd || !pointBestIdx) return 0;
 
     TArrayScalable<algorithmFPType, cpu> compBestMrdVec(nRows);
     TArray<DAAL_INT, cpu> compBestFromVec(nRows);
@@ -496,7 +454,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     algorithmFPType * compBestMrd = compBestMrdVec.get();
     DAAL_INT * compBestFrom       = compBestFromVec.get();
     DAAL_INT * compBestTo         = compBestToVec.get();
-    if (!compBestMrd || !compBestFrom || !compBestTo) return;
+    if (!compBestMrd || !compBestFrom || !compBestTo) return 0;
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -512,8 +470,7 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
 
-    // Only phase 1 (nearest-different-component MRD tree query) is
-    // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
+    // Nearest neighbor of each point outside its component, under MRD.
     while (numComponents > 1)
     {
         daal::threader_for(nRows, 1, [&](size_t i) {
@@ -542,18 +499,18 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 
         updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
+    return edgesAdded;
 }
 
 // =========================================================================
 // Main HDBSCAN kd-tree compute
 // =========================================================================
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
-                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           algorithms::internal::PairwiseDistanceType pairwiseDistance,
-                                                                           double minkowskiDegree, int clusterSelection, bool allowSingleCluster,
-                                                                           double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
-                                                                           size_t leafSize)
+services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
+    const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, NumericTable * ntProbabilities,
+    NumericTable * ntSingleLinkageTree, size_t minClusterSize, size_t minSamples, algorithms::internal::PairwiseDistanceType pairwiseDistance,
+    double minkowskiDegree, int clusterSelection, bool allowSingleCluster, double clusterSelectionEpsilon, size_t maxClusterSize, double alpha,
+    size_t leafSize)
 {
     const size_t nRows = ntData->getNumberOfRows();
     const size_t nCols = ntData->getNumberOfColumns();
@@ -563,22 +520,23 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
         DAAL_CHECK_BLOCK_STATUS(assignBlock);
         int * assignments = assignBlock.get();
-        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
+        services::internal::service_memset<int, cpu>(assignments, -1, nRows);
+
+        WriteOnlyRows<algorithmFPType, cpu> probBlock;
+        algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
+        DAAL_CHECK_BLOCK_STATUS(probBlock);
+        if (probabilities)
+        {
+            services::internal::service_memset<algorithmFPType, cpu>(probabilities, algorithmFPType(0), nRows);
+        }
+
         WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
         DAAL_CHECK_BLOCK_STATUS(ncBlock);
         ncBlock.get()[0] = 0;
         return services::Status();
     }
 
-    // Label output is stored as `int32_t` in the assignments NumericTable
-    // (codebase-wide DAAL convention shared with kmeans / knn /
-    // decision_forest / etc.). Refuse inputs where the label count could
-    // exceed the destination-type bound. The label count is bounded above by
-    // the number of surviving clusters, itself bounded by `nRows / mcs`.
-    // Guard against `INT32_MAX` (not `INT_MAX`) because the storage type is
-    // fixed-width `int32_t` regardless of the data model -- on a hypothetical
-    // ILP64 platform `INT_MAX` would be 2^63 - 1 and would let overflowing
-    // inputs through.
+    // Labels are stored as int32, and there are at most nRows / minClusterSize clusters.
     if (nRows / minClusterSize > static_cast<size_t>(INT32_MAX))
     {
         return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
@@ -595,8 +553,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // =========================================================================
 
     const DAAL_INT maxLeafSize = static_cast<DAAL_INT>(leafSize);
-    // Conservative upper bound: binary tree stopping at maxLeafSize > 1 has
-    // <= 2*nRows - 1 nodes; 4*nRows removes sensitivity to pathological splits.
+    // A binary tree over nRows points has at most 2 * nRows - 1 nodes; 4 * nRows is headroom.
     const DAAL_INT maxNodes = 4 * static_cast<DAAL_INT>(nRows);
 
     TArray<KdNode<algorithmFPType>, cpu> nodesVec(maxNodes);
@@ -639,41 +596,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
-    using algorithms::internal::PairwiseDistanceType;
-
-    // Robust single linkage: alpha is applied only to dist(q,p) inside MRD
-    // (canonical HDBSCAN). The metric used for k-NN core distances and for
-    // kd-tree pruning is left unscaled.
-    //
-    // The upstream oneAPI check_preconditions() in detail/compute_ops.hpp
-    // rejects cosine with method::kd_tree (kd-tree pruning requires an L_p
-    // distance). The explicit `case cosine:` below is a defense-in-depth
-    // guard so if the DAAL kernel is ever reached with cosine + kd_tree
-    // (e.g. via a future direct-DAAL entry point that bypasses the oneAPI
-    // check), we fail loudly with ErrorMethodNotSupported rather than
-    // silently routing to euclidean via a `default:` fall-through.
-    switch (pairwiseDistance)
-    {
-    case PairwiseDistanceType::euclidean:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {}, alpha);
-        break;
-    case PairwiseDistanceType::manhattan:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {}, alpha);
-        break;
-    case PairwiseDistanceType::minkowski:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(minkowskiDegree),
-                                                    alpha);
-        break;
-    case PairwiseDistanceType::chebyshev:
-        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
-                                                    coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {}, alpha);
-        break;
-    case PairwiseDistanceType::cosine:
-    default: return services::Status(services::ErrorMethodNotSupported);
-    }
+    // Alpha scales only dist(q, p) inside MRD. Cosine is not an L_p distance, so the tree cannot
+    // prune with it.
+    size_t edgesAdded       = 0;
+    services::Status status = callWithLpDistance<algorithmFPType>(pairwiseDistance, minkowskiDegree, [&](const auto & distFunc) {
+        edgesAdded = computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                                 coreDistances, mstFrom, mstTo, mstWeights, distFunc, alpha);
+    });
+    DAAL_CHECK_STATUS_VAR(status);
+    DAAL_CHECK_STATUS(status, checkMst(edgesAdded, edgeCount, mstWeights));
 
     // =========================================================================
     // Steps 4-5: Sort MST + Extract clusters (shared with brute_force)
@@ -683,8 +614,17 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_BLOCK_STATUS(assignBlock);
     int * assignments = assignBlock.get();
 
+    WriteOnlyRows<algorithmFPType, cpu> probBlock;
+    algorithmFPType * probabilities = probBlock.set(ntProbabilities, 0, nRows);
+    DAAL_CHECK_BLOCK_STATUS(probBlock);
+
+    WriteOnlyRows<algorithmFPType, cpu> sltBlock;
+    algorithmFPType * singleLinkageTree = sltBlock.set(ntSingleLinkageTree, 0, edgeCount);
+    DAAL_CHECK_BLOCK_STATUS(sltBlock);
+
     int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
-                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize);
+                                                                       clusterSelection, allowSingleCluster, clusterSelectionEpsilon, maxClusterSize,
+                                                                       probabilities, singleLinkageTree);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

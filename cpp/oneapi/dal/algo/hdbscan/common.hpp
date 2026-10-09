@@ -42,7 +42,7 @@ enum class distance_metric {
 
 /// Method used to select clusters from the condensed tree.
 enum class cluster_selection_method {
-    /// Excess of Mass — selects clusters that maximise total stability
+    /// Excess of Mass: selects clusters that maximise total stability
     /// (default).
     eom,
     /// Selects all leaf nodes of the condensed tree, producing a
@@ -54,9 +54,9 @@ enum class cluster_selection_method {
 enum class store_centers_method {
     /// Do not compute cluster centers (default).
     none,
-    /// Compute centroids (weighted mean of member points).
+    /// Compute centroids (probability-weighted mean of member points).
     centroid,
-    /// Compute medoids (member point minimizing intra-cluster distance).
+    /// Compute medoids (member point minimizing the probability-weighted distance sum).
     medoid,
     /// Compute both centroids and medoids.
     both
@@ -121,6 +121,8 @@ ONEDAL_EXPORT result_option_id get_core_observations_id();
 ONEDAL_EXPORT result_option_id get_core_flags_id();
 ONEDAL_EXPORT result_option_id get_cluster_centers_id();
 ONEDAL_EXPORT result_option_id get_medoid_centers_id();
+ONEDAL_EXPORT result_option_id get_probabilities_id();
+ONEDAL_EXPORT result_option_id get_single_linkage_tree_id();
 
 } // namespace detail
 
@@ -140,6 +142,14 @@ const inline result_option_id core_flags = detail::get_core_flags_id();
 const inline result_option_id cluster_centers = detail::get_cluster_centers_id();
 /// Return cluster medoids (member point minimizing intra-cluster distance).
 const inline result_option_id medoid_centers = detail::get_medoid_centers_id();
+/// Return the membership strength of every observation in the cluster it was
+/// assigned to, in ``[0, 1]``. Noise points get ``0``.
+const inline result_option_id probabilities = detail::get_probabilities_id();
+/// Return the single-linkage dendrogram the flat clustering was cut out of, as
+/// an $(n - 1) \\times 4$ table of ``[left, right, distance, size]`` rows in
+/// merge order. Lets a caller re-cut the hierarchy at any distance without
+/// recomputing it.
+const inline result_option_id single_linkage_tree = detail::get_single_linkage_tree_id();
 
 } // namespace result_options
 
