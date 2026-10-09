@@ -17,10 +17,8 @@
 
 #pragma once
 
-#include <cmath>
-#include <utility>
-
 #include "services/daal_defines.h" // DAAL_MALLOC_DEFAULT_ALIGNMENT
+#include "src/algorithms/service_heap.h"
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
@@ -611,32 +609,6 @@ struct ChebyshevDist
     }
 };
 
-/// Restore the max-heap property at `root` of a max-heap stored in `heap[0, size)`.
-///
-/// @tparam FPType Floating-point type stored in the heap
-///
-/// @param[in,out] heap Heap storage, a valid max-heap except possibly at `root`
-/// @param[in]     size Number of live heap slots
-/// @param[in]     root Index whose subtree needs restoring
-template <typename FPType>
-static inline void siftDownMaxHeap(FPType * heap, size_t size, size_t root)
-{
-    for (;;)
-    {
-        const size_t left  = 2 * root + 1;
-        const size_t right = left + 1;
-        size_t largest     = root;
-        if (left < size && heap[left] > heap[largest]) largest = left;
-        if (right < size && heap[right] > heap[largest]) largest = right;
-        if (largest == root) break;
-
-        const FPType tmp = heap[root];
-        heap[root]       = heap[largest];
-        heap[largest]    = tmp;
-        root             = largest;
-    }
-}
-
 /// Return the `k`-th smallest entry of `values[0, n)` without modifying or copying the input.
 ///
 /// A bounded max-heap of the `k` smallest entries seen so far, so the row is streamed once and the
@@ -655,16 +627,16 @@ static inline void siftDownMaxHeap(FPType * heap, size_t size, size_t root)
 template <typename FPType, daal::internal::CpuType cpu>
 static FPType kthSmallestBounded(const FPType * values, size_t n, size_t k, FPType * heapBuf)
 {
+    const auto less = [](FPType a, FPType b) { return a < b; };
     for (size_t i = 0; i < k; i++) heapBuf[i] = values[i];
-    // Bottom-up heapify: sift every internal node in reverse index order.
-    for (size_t node = k / 2; node-- > 0;) siftDownMaxHeap<FPType>(heapBuf, k, node);
+    daal::algorithms::internal::makeMaxHeap<cpu>(heapBuf, heapBuf + k, less);
 
     for (size_t i = k; i < n; i++)
     {
         if (values[i] < heapBuf[0])
         {
             heapBuf[0] = values[i];
-            siftDownMaxHeap<FPType>(heapBuf, k, 0);
+            daal::algorithms::internal::internalAdjustMaxHeap<cpu>(heapBuf, heapBuf + k, k, size_t(0), less);
         }
     }
     return heapBuf[0];
@@ -729,8 +701,8 @@ struct KnnHeap
                 DAAL_INT parent = (i - 1) / 2;
                 if (dists_[i] > dists_[parent])
                 {
-                    std::swap(dists_[i], dists_[parent]);
-                    std::swap(indices_[i], indices_[parent]);
+                    services::internal::swap<cpu>(dists_[i], dists_[parent]);
+                    services::internal::swap<cpu>(indices_[i], indices_[parent]);
                     i = parent;
                 }
                 else
@@ -751,8 +723,8 @@ struct KnnHeap
                 if (r < size_ && dists_[r] > dists_[largest]) largest = r;
                 if (largest != i)
                 {
-                    std::swap(dists_[i], dists_[largest]);
-                    std::swap(indices_[i], indices_[largest]);
+                    services::internal::swap<cpu>(dists_[i], dists_[largest]);
+                    services::internal::swap<cpu>(indices_[i], indices_[largest]);
                     i = largest;
                 }
                 else

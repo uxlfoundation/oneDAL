@@ -574,7 +574,7 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
 {
     TArray<DAAL_INT, cpu> clusterParentArr(nClusters);
     DAAL_INT * clusterParent = clusterParentArr.get();
-    for (DAAL_INT c = 0; c < nClusters; c++) clusterParent[c] = -1;
+    services::internal::service_memset<DAAL_INT, cpu>(clusterParent, DAAL_INT(-1), static_cast<size_t>(nClusters));
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
@@ -594,11 +594,8 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
     bool * picked   = pickedArr.get();
     bool * isTarget = isTargetArr.get();
     if (!picked || !isTarget) return;
-    for (DAAL_INT c = 0; c < nClusters; c++)
-    {
-        picked[c]   = false;
-        isTarget[c] = false;
-    }
+    services::internal::service_memset<bool, cpu>(picked, false, static_cast<size_t>(nClusters));
+    services::internal::service_memset<bool, cpu>(isTarget, false, static_cast<size_t>(nClusters));
 
     for (DAAL_INT c = rootCid + 1; c < nClusters; c++)
     {
@@ -671,7 +668,7 @@ static void fillChildList(const CondensedEdge * condensed, size_t nCondensed, si
 {
     TArray<DAAL_INT, cpu> fillCursorArr(nClusters);
     DAAL_INT * fillCursor = fillCursorArr.get();
-    for (DAAL_INT c = 0; c < nClusters; c++) fillCursor[c] = 0;
+    services::internal::service_memset<DAAL_INT, cpu>(fillCursor, DAAL_INT(0), static_cast<size_t>(nClusters));
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
@@ -1066,7 +1063,7 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
     int labelCounter = 0;
     TArray<int, cpu> clusterLabelArr(nClusters);
     int * clusterLabel = clusterLabelArr.get();
-    for (DAAL_INT c = 0; c < nClusters; c++) clusterLabel[c] = -1;
+    services::internal::service_memset<int, cpu>(clusterLabel, -1, static_cast<size_t>(nClusters));
     for (DAAL_INT c = rootCid; c < nClusters; c++)
     {
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
@@ -1094,15 +1091,15 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
     DAAL_INT * pointFellFrom      = pointFellFromArr.get();
     DAAL_INT * pointCluster       = pointClusterArr.get();
     algorithmFPType * pointLambda = pointLambdaArr.get();
-    for (DAAL_INT c = 0; c < nClusters; c++) clusterParent[c] = -1;
-    for (size_t i = 0; i < nRows; i++) pointFellFrom[i] = -1;
+    services::internal::service_memset<DAAL_INT, cpu>(clusterParent, DAAL_INT(-1), static_cast<size_t>(nClusters));
+    services::internal::service_memset<DAAL_INT, cpu>(pointFellFrom, DAAL_INT(-1), nRows);
     if (needProbs)
     {
-        for (size_t i = 0; i < nRows; i++) pointCluster[i] = -1;
+        services::internal::service_memset<DAAL_INT, cpu>(pointCluster, DAAL_INT(-1), nRows);
     }
     if (needPointLambda)
     {
-        for (size_t i = 0; i < nRows; i++) pointLambda[i] = algorithmFPType(-1);
+        services::internal::service_memset<algorithmFPType, cpu>(pointLambda, algorithmFPType(-1), nRows);
     }
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
@@ -1247,7 +1244,7 @@ int sortMstAndExtractClusters(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPT
     DAAL_INT nextCid = static_cast<DAAL_INT>(nRows);
     TArray<DAAL_INT, cpu> dendroToClusterArr(totalNodes);
     DAAL_INT * dendroToCluster = dendroToClusterArr.get();
-    for (size_t i = 0; i < totalNodes; i++) dendroToCluster[i] = -1;
+    services::internal::service_memset<DAAL_INT, cpu>(dendroToCluster, DAAL_INT(-1), totalNodes);
     dendroToCluster[root] = nextCid++;
 
     const size_t maxCondensed = 3 * nRows;

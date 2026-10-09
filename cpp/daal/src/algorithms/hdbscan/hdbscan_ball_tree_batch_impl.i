@@ -310,9 +310,9 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
         }
         else
         {
-            std::swap(pointIndices[begin + lo], pointIndices[begin + hi]);
-            std::swap(d2[lo], d2[hi]);
-            std::swap(d3[lo], d3[hi]);
+            services::internal::swap<cpu>(pointIndices[begin + lo], pointIndices[begin + hi]);
+            services::internal::swap<cpu>(d2[lo], d2[hi]);
+            services::internal::swap<cpu>(d3[lo], d3[hi]);
             hi--;
         }
     }
