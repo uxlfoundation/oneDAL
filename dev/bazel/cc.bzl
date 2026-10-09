@@ -15,7 +15,6 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl",
-    "utils",
     "paths",
     "sets",
 )
@@ -317,31 +316,39 @@ cc_static_lib = rule(
 )
 
 
-def _copy_dynamic_release_file(ctx, src, out_name, is_windows = False, extra_inputs = []):
+def _copy_windows_release_file(ctx, src, out_name, extra_inputs = []):
+    """Copy a linker output under the file name the release layout expects.
+
+    Windows only: the Linux release names come straight out of the link action,
+    while a DLL and its import library have to be renamed afterwards (see
+    `_cc_dynamic_lib_impl`). A symlink is not enough, because creating one
+    requires developer mode on Windows.
+
+    Args:
+        ctx: rule context.
+        src: the file produced by the link action.
+        out_name: base name of the copy, declared in the current package.
+        extra_inputs: further link outputs to declare as inputs, so that the
+                      copy cannot run before the whole link action has completed.
+
+    Returns:
+        The declared copy.
+    """
     out = ctx.actions.declare_file(out_name)
-    if is_windows:
-        ctx.actions.run(
-            executable = "cmd.exe",
-            inputs = [src] + extra_inputs,
-            outputs = [out],
-            arguments = [
-                "/d",
-                "/c",
-                'copy /Y "{}" "{}"'.format(
-                    src.path.replace("/", "\\"),
-                    out.path.replace("/", "\\"),
-                ),
-            ],
-            use_default_shell_env = True,
-        )
-    else:
-        ctx.actions.run(
-            executable = "cp",
-            inputs = [src] + extra_inputs,
-            outputs = [out],
-            arguments = [src.path, out.path],
-            use_default_shell_env = True,
-        )
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [src] + extra_inputs,
+        outputs = [out],
+        arguments = [
+            "/d",
+            "/c",
+            'copy /Y "{}" "{}"'.format(
+                src.path.replace("/", "\\"),
+                out.path.replace("/", "\\"),
+            ),
+        ],
+        use_default_shell_env = True,
+    )
     return out
 
 
@@ -407,19 +414,17 @@ def _cc_dynamic_lib_impl(ctx):
             if dynamic_outputs.dynamic_library.basename == dynamic_release_name:
                 default_files.append(dynamic_outputs.dynamic_library)
             else:
-                default_files.append(_copy_dynamic_release_file(
+                default_files.append(_copy_windows_release_file(
                     ctx,
                     dynamic_outputs.dynamic_library,
                     dynamic_release_name,
-                    is_windows = is_windows,
                     extra_inputs = [dynamic_outputs.interface_library] if dynamic_outputs.interface_library else [],
                 ))
         if dynamic_outputs.interface_library:
-            default_files.append(_copy_dynamic_release_file(
+            default_files.append(_copy_windows_release_file(
                 ctx,
                 dynamic_outputs.interface_library,
                 "{}_dll.lib".format(rt_name),
-                is_windows = is_windows,
             ))
     default_info = DefaultInfo(
         files = depset(default_files),

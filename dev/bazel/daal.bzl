@@ -162,10 +162,6 @@ daal_generate_version = rule(
     },
 )
 
-def _get_tool_for_kernel_defines_patching(ctx):
-    return ctx.toolchains["@onedal//dev/bazel/toolchains:extra"] \
-        .extra_toolchain_info.patch_daal_kernel_defines
-
 def _get_disabled_cpus(ctx):
     cpu_info = ctx.attr._cpus[CpuInfo]
     all_cpus = sets.make(cpu_info.allowed)
@@ -178,17 +174,39 @@ def _declare_patched_kernel_defines(ctx):
     return ctx.actions.declare_file(patched_path)
 
 def _daal_patch_kernel_defines_impl(ctx):
-    disabled_cpus = _get_disabled_cpus(ctx)
+    """Comment out the `DAAL_KERNEL_<ISA>` defines of the disabled ISAs.
+
+    `cpp/daal/include/services/internal/daal_kernel_defines.h` enables every
+    CPU dispatch variant oneDAL can build; the ones `--cpu` leaves out have to
+    be removed from the header before it is compiled or released. The Makefile
+    does it with
+
+        sed -b -i -E -e 's/^#define DAAL_KERNEL_<ISA>\\b/$(sed.eol)/'
+
+    where `sed.eol` is empty on Linux and a lone CR on Windows, so that a
+    disabled define leaves behind an empty line with the platform's own line
+    ending while every other line is untouched. `expand_template` does exactly
+    that substitution, without a helper script: it rewrites the file at
+    execution time, so nothing has to read its contents during analysis.
+
+    The key spans the whole line, newlines included, so that it matches only a
+    bare `#define DAAL_KERNEL_<ISA>` like sed's `^...\\b` and never a longer
+    macro name or a comment. The header is `eol=lf` (see `.gitattributes`) and
+    no define sits on its first line. Each substitution keeps the trailing
+    newline, so adjacent disabled defines still match one after another.
+    """
+    disabled_cpus = sets.to_list(_get_disabled_cpus(ctx))
     kernel_defines = _declare_patched_kernel_defines(ctx)
-    ctx.actions.run(
-        executable = _get_tool_for_kernel_defines_patching(ctx),
-        arguments = [
-            ctx.file.src.path,
-            kernel_defines.path,
-            " ".join(sets.to_list(disabled_cpus)),
-        ],
-        inputs = [ctx.file.src],
-        outputs = [kernel_defines],
+    is_windows = ctx.target_platform_has_constraint(
+        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
+    )
+    ctx.actions.expand_template(
+        template = ctx.file.src,
+        output = kernel_defines,
+        substitutions = {
+            "\n#define DAAL_KERNEL_{}\n".format(cpu.upper()): "\n\r\n" if is_windows else "\n\n"
+            for cpu in disabled_cpus
+        },
     )
     return [ DefaultInfo(files=depset([ kernel_defines ])) ]
 
@@ -200,6 +218,8 @@ daal_patch_kernel_defines = rule(
         "_cpus": attr.label(
             default = "@config//:cpu",
         ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
     },
-    toolchains = ["@onedal//dev/bazel/toolchains:extra"],
 )

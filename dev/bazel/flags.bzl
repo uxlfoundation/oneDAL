@@ -147,7 +147,10 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 # `pass-failed` report there is a real problem worth failing on.
                 "-Wno-pass-failed",
             ]
-        if compiler_id not in ["icx", "icpx"]:
+        if compiler_id == "gcc":
+            # Matches COMPILER.all.gnu in dev/make/compiler_definitions/gnu.32e.mk,
+            # which pairs it with `-fwrapv`. Clang treats it as implied by
+            # `-fwrapv` above and reports it unused, which `-Werror` makes fatal.
             flags = flags + ["-fno-strict-overflow"]
         if arch_id in ["arm", "riscv64"]:
             # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),

@@ -16,7 +16,8 @@
 *******************************************************************************/-->
 # Bazel Guide
 ## Install Bazel on Linux
-1. Download Bazelisk
+1. Download Bazelisk. `.ci/env/bazelisk.sh` does the same with a pinned
+   version and a checksum check, and is what CI runs.
    ```sh
    wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
    ```
@@ -52,7 +53,8 @@ validation.
 1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
 
 2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
-   it in the repository root as `bazelisk.exe`.
+   it in the repository root as `bazelisk.exe`. `.ci/env/bazelisk.ps1` does this
+   with a pinned version and a checksum check, and is what CI runs.
    ```bat
    set BAZELISK_VERSION=v1.29.0
    curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
@@ -225,18 +227,19 @@ The most used Bazel commands are `build`, `test` and `run`.
 
 - `--cpu` CPU instruction sets to compile library for. \
   Possible values:
-  - `auto` _(default)_ Automatically detects highest available instruction set
-    on the local machine. If detection failed, uses `avx2`.
+  - `auto` _(default)_ Automatically detects the highest instruction set
+    available on the local machine and builds it together with the `sse2`
+    dispatch baseline, which is always included on x86.
   - `modern` Compiles for `sse2`, `avx2`, `avx512`.
   - `all` Compiles for all instruction sets listed below.
-  - Any comma-separated combination of the following values:
+  - Any space-separated combination of the following values:
     - `sse2`
     - `avx2`
     - `avx512`
 
    Example:
    ```sh
-   bazel test --cpu="avx2,avx512" //cpp/oneapi/dal:tests
+   bazel test --cpu="avx2 avx512" //cpp/oneapi/dal:tests
    ```
 
 - `--test_external_datasets` A switch that enables
@@ -407,7 +410,10 @@ driver in DPC++ link actions while moving large object lists to a response
 file. Each script contains detailed usage and maintenance comments.
 
 When package contents change, update the Bazel packaging rules or the common
-comparator rather than hiding differences in a platform wrapper.
+comparator rather than hiding differences in a platform wrapper. The same goes
+for the build itself: prefer a Bazel action to a helper script. The scripts that
+remain are listed in `dev/bazel/TODO.md` together with what each of them is
+waiting on.
 
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
@@ -560,9 +566,6 @@ dal_test_suite(
      ```sh
      bazel test --test_link_mode=release_dynamic //cpp/oneapi/dal:tests
      ```
-
-## What is missing in this guide
-- How to get make-like release structure
 
 ## Standard-library allocator
 
