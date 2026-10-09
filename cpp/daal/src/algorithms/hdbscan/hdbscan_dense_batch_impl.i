@@ -16,19 +16,13 @@
 *******************************************************************************/
 
 /*
- * HDBSCAN brute-force implementation.
+ * HDBSCAN brute-force implementation:
+ *   1. Full pairwise distance matrix
+ *   2. Core distances: the minSamples-th smallest entry of each row
+ *   3. Boruvka MST under MRD = max(coreI, coreJ, dist) / alpha, as in scikit-learn's brute path
+ *   4. Sort the MST and extract clusters (shared with the tree methods)
  *
- * The approach:
- *   1. Compute full pairwise distance matrix via GEMM
- *   2. Compute core distances (k-th nearest neighbor distance per point) with a
- *      bounded selection heap over each row -- no row copy, O(minSamples) scratch
- *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm,
- *      MRD = max(coreI, coreJ, dist) / alpha, as in scikit-learn's brute path
- *   4. Sort MST + extract clusters via condensed tree + EOM/leaf (shared code)
- *
- * Complexity: O(N^2) for the distance matrix, O(N^2 * log N) worst case for
- *             Boruvka's MST.
- * Memory:     O(N^2) for the distance matrix, O(N) working arrays.
+ * O(N^2) time and memory for the distance matrix.
  */
 
 #include <cstdint>
@@ -93,15 +87,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         return services::Status();
     }
 
-    // Label output is stored as `int32_t` in the assignments NumericTable
-    // (codebase-wide DAAL convention shared with kmeans / knn /
-    // decision_forest / etc.). Refuse inputs where the label count could
-    // exceed the destination-type bound. The label count is bounded above by
-    // the number of surviving clusters, itself bounded by `nRows / mcs`.
-    // Guard against `INT32_MAX` (not `INT_MAX`) because the storage type is
-    // fixed-width `int32_t` regardless of the data model -- on a hypothetical
-    // ILP64 platform `INT_MAX` would be 2^63 - 1 and would let overflowing
-    // inputs through.
+    // Labels are stored as int32, and there are at most nRows / minClusterSize clusters.
     if (nRows / minClusterSize > static_cast<size_t>(INT32_MAX))
     {
         return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
@@ -126,37 +112,12 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     using algorithms::internal::EuclideanDistances;
     using algorithms::internal::CosineDistances;
 
-    // For Euclidean and Cosine, reuse the shared GEMM-based primitives in
-    // service_kernel_math.h. They are the same primitives knn uses, with a
-    // blocked row-norm computation, A * A^T via xxgemm, and a blockwise
-    // finalize() (SIMD max(0, .) clamp + batched vSqrt on 512-entry blocks)
-    // that turns squared L2 into real L2 in place. For other metrics,
-    // fillFullDistMatrix routes the row-pair loop through the corresponding
-    // *Dist functor in hdbscan_distance_utils.h, so all three legacy inline
-    // blocks (manhattan/chebyshev/minkowski) collapse to one call site driven
-    // by the metric tag.
+    // Euclidean and cosine use the GEMM-based PairwiseDistances; the other metrics use the
+    // functors in hdbscan_distance_utils.h.
     if (pairwiseDistance == PairwiseDistanceType::euclidean)
     {
-        // We need real (not squared) L2 here. Distances flow into three
-        // downstream steps as actual distance values, not squared:
-        //   - Core distances (Step 2) are selected from this matrix directly and
-        //     become MST edge weights via
-        //     MRD(a,b) = max(core(a), core(b), dist(a,b)) / alpha.
-        //   - `alpha` divides the pairwise dist term inside MRD; that scaling
-        //     is only meaningful on real distances.
-        //   - `clusterSelectionEpsilon` in sortMstAndExtractClusters is an
-        //     actual distance threshold applied to MST edge weights, so an
-        //     all-squared matrix would silently make the user's epsilon
-        //     behave as if they had passed epsilon^2.
-        //
-        // Path: computeFull(squared=true) fills the matrix with squared L2
-        // via A*A^T + row-norm expansion, then finalize() sweeps in 512-entry
-        // blocks applying max(0, .) per entry (FP round-off on the diagonal /
-        // near-duplicate rows can push squared values slightly below 0) and
-        // a batched MathInst::vSqrt on the block in place. The
-        // `squared=false` fast path is not used: its inline vSqrt has no
-        // clamp and would yield NaN on those slightly-negative entries. The
-        // diagonal is force-zeroed afterwards for defensive safety.
+        // MRD, alpha and clusterSelectionEpsilon all need real L2. finalize() clamps the squared
+        // values at 0 before the root, which squared=false does not, so round-off cannot give NaN.
         EuclideanDistances<algorithmFPType, cpu> dist(*ntData, *ntData, /*squared=*/true);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
@@ -204,36 +165,23 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     }
     else
     {
-        // Unknown metric tag: fail loudly rather than silently routing to
-        // one of the branches above.
         return services::Status(services::ErrorMethodNotSupported);
     }
 
     // =========================================================================
-    // Step 2: Compute core distances (k-th nearest neighbor distance per point)
-    //
-    // Note: alpha scaling is applied later, to the whole MRD
-    // (Step 3). Per the canonical HDBSCAN definition, core distances must be
-    // derived from the unscaled pairwise distance matrix.
+    // Step 2: Core distances, from the unscaled distances (alpha is applied in step 3)
     // =========================================================================
 
     TArray<algorithmFPType, cpu> coreDistsVec(nRows);
     algorithmFPType * coreDistances = coreDistsVec.get();
     DAAL_CHECK_MALLOC(coreDistances);
 
-    // Core distance is the distance to the `minSamples`-th nearest neighbor in
-    // the canonical HDBSCAN definition (Campello 2013), counting the point
-    // itself as neighbor #1. The dense path sorts the full pairwise row, where
-    // self is at index 0, so the answer sits at index `minSamples - 1`. Heap-
-    // based paths (kd/ball-tree, GPU) use a different convention because their
-    // top-k structure includes self as one of the k entries; do not align this
-    // index with theirs.
+    // The core distance is the distance to the minSamples-th nearest neighbor, counting the point
+    // itself, i.e. the minSamples-th smallest entry of its row.
     const size_t target = (minSamples > 0) ? minSamples - 1 : 0;
     const size_t t      = (target >= nRows) ? nRows - 1 : target;
 
     {
-        // The core distance is the `t + 1`-th smallest entry of row `i`, so a bounded heap of that
-        // capacity is enough -- no row copy and no `nThreads * nRows` of scratch.
         const size_t heapSize = t + 1;
         daal::TlsMem<algorithmFPType, cpu> tlsHeap(heapSize);
         SafeStatus safeStat;
@@ -249,10 +197,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     }
 
     // =========================================================================
-    // Step 3: Build MST using Boruvka's algorithm with MRD
-    //
-    // Prim's was tried and reverted: it does less total work on a complete graph, but its N
-    // sequential barriers cannot fill a wide machine and it measured 20-25% slower than Boruvka.
+    // Step 3: Boruvka MST under mutual reachability distance
     // =========================================================================
 
     TArray<DAAL_INT, cpu> mstFromVec(edgeCount);
@@ -305,9 +250,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         size_t edgesAdded    = 0;
         size_t numComponents = nRows;
 
-        // scikit-learn's brute path divides the whole distance matrix by alpha before taking core
-        // distances, so here MRD(a, b) = max(core(a), core(b), dist(a, b)) / alpha. Its tree
-        // paths, and the kd_tree/ball_tree kernels, scale the dist term only.
+        // As in scikit-learn's brute path, MRD(a, b) = max(core(a), core(b), dist(a, b)) / alpha;
+        // the tree methods scale only the dist term.
         const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
         const algorithmFPType inf      = daal::services::internal::MaxVal<algorithmFPType>::get();
         if (alpha != 1.0)
@@ -315,13 +259,9 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
             for (size_t i = 0; i < nRows; i++) coreDistances[i] *= invAlpha;
         }
 
-        // A per-point cache of the `k` smallest MRD neighbours was tried here and reverted: it is
-        // label-preserving, but Boruvka converges in so few rounds that it only measured 1.03x.
         while (numComponents > 1)
         {
-            // Phase 1: For each point, find nearest different-component neighbor under MRD.
-            // Only phase 1 is method-specific; phases 2-4 route through the shared
-            // helpers in hdbscan_boruvka_utils.h.
+            // Nearest neighbor of each point outside its component, under MRD.
             daal::threader_for(nRows, 1, [&](size_t i) {
                 const DAAL_INT myComp          = componentOf[i];
                 const algorithmFPType * mrdRow = distMatrix + i * nRows;
@@ -355,8 +295,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
             refreshComponentIds<cpu>(nRows, uf, componentOf);
         }
 
-        // The MRD graph is complete, so a round only fails to find a candidate on non-finite input.
-        // A truncated MST leaves tail entries uninitialized, which are then read as tree nodes.
+        // The MRD graph is complete, so an incomplete MST means non-finite input.
         if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
         // The edge sort orders by weight and is only defined for finite weights.
         if (data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))

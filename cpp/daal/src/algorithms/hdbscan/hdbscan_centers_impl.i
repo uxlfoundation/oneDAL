@@ -111,8 +111,7 @@ static services::Status computeCentroids(const algorithmFPType * data, const int
     return services::Status();
 }
 
-/// Medoid of every cluster: the member `i` minimizing `sum_j dist(i, j) * weights[j]` over the
-/// members `j`. Ties go to the lowest row; empty clusters get zero rows.
+/// Medoid of every cluster, as defined at `HDBSCANCentersKernel::compute`.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -156,8 +155,7 @@ static services::Status computeMedoids(const algorithmFPType * data, const int *
         if (labels[i] >= 0 && static_cast<size_t>(labels[i]) < nClusters) members[fill[labels[i]]++] = i;
     }
 
-    // The members of each cluster are contiguous here, so a cluster's distance block is one batch
-    // against a contiguous range of rows.
+    // Gathered in cluster order, so each cluster's distances are one batch over contiguous rows.
     TArray<algorithmFPType, cpu> sortedArr(memberCount * nCols);
     TArray<bool, cpu> zeroRowArr(memberCount);
     algorithmFPType * sorted = sortedArr.get();

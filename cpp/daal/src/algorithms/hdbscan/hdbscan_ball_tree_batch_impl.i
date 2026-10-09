@@ -20,17 +20,12 @@
  * Tree (MST) algorithm. Follows McInnes & Healy, "Accelerated Hierarchical
  * Density Based Clustering", https://arxiv.org/abs/1705.07321.
  *
- * The approach:
- *   1. Build a ball tree (hypersphere partitioning) over the input data
- *   2. For each point, find its k-th nearest neighbor via tree search -> core distances
- *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm
- *      with ball-tree-accelerated nearest-different-component queries
- *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
+ *   1. Build a ball tree
+ *   2. Core distances from k-NN queries on the tree
+ *   3. Boruvka MST under MRD with tree-pruned nearest-other-component queries
+ *   4. Sort the MST and extract clusters (shared with brute force)
  *
- * Ball trees can be preferable to kd-trees for some higher-dimensional datasets,
- * although pruning efficiency still depends on the data distribution and metric.
- * The lower bound for a query point q to a ball (center c, radius r) is:
- *   max(0, dist(q, c) - r)
+ * The distance lower bound from a point q to a ball (center c, radius r) is max(0, dist(q, c) - r).
  */
 
 #include <cstdint>
@@ -65,10 +60,6 @@ using daal::services::internal::TArrayScalable;
 
 /// Ball-tree node: hypersphere over a contiguous range of point indices.
 ///
-/// Each node stores a center pivot id and a radius. The lower bound for a
-/// query `q` to any point in the ball is `max(0, dist(q, center) - radius)`,
-/// which is what makes ball trees more robust than kd-trees in high dimensions.
-///
 /// @tparam algorithmFPType Floating-point type
 template <typename algorithmFPType>
 struct BallNode
@@ -85,14 +76,7 @@ struct BallNode
 /// Gather `pointIndices[begin..end)` rows from `data` into a row-major buffer
 /// with per-row padding.
 ///
-/// Paying the gather cost once lets pivot2 / pivot3 / radius / partition share
-/// one layout, avoids repeated FP conversions on low-precision input, and is
-/// what makes the BLAS xxgemv path in EuclideanDist::blockDist applicable
-/// (xxgemv needs the operand row block to be a contiguous matrix). `rowStride`
-/// may be larger than `nCols` to bump each row start to a
-/// `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary, at which point every row inherits
-/// the alignment of the base pointer. Padding cells are zeroed so they never
-/// contribute to inner products.
+/// `rowStride >= nCols` keeps every row aligned like the base pointer; padding cells are zero.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -126,10 +110,6 @@ static void gatherRows(const algorithmFPType * data, const DAAL_INT * pointIndic
 
 /// Index of the largest entry in `[0, count)`; tiebreak by first occurrence.
 ///
-/// Split out from blockDistsAndArgmax so the distance pass goes entirely
-/// through `distFunc.blockDist` (BLAS xxgemv on Euclidean) and the argmax
-/// becomes a straight-line scalar reduction over a contiguous array.
-///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
 ///
@@ -156,13 +136,6 @@ static DAAL_INT argmaxArray(const algorithmFPType * arr, DAAL_INT count)
 
 /// Compute distances from `pivotPt` to a contiguous row block and return the argmax.
 ///
-/// Delegates the distance sweep to `distFunc.blockDist`. For EuclideanDist
-/// this is one BLAS xxgemv + vSqrt finalize over the contiguous scratch
-/// buffer; row norms^2 come from `rowNorms2` (pre-cached once per node by the
-/// caller). For other metrics blockDist falls back to a vectorized per-row
-/// inner loop. The argmax is a separate scalar reduction over the resulting
-/// array.
-///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
 /// @tparam DistFunc        Metric functor exposing `blockDist`
@@ -187,24 +160,9 @@ static DAAL_INT blockDistsAndArgmax(const algorithmFPType * pivotPt, const algor
 
 /// Recursively build a ball-tree node for `pointIndices[begin..end)`.
 ///
-/// Each call:
-///   1. Claims a unique slot `nodeIdx` from the shared `nextNode` counter
-///      (deterministic: left-to-right in DFS order).
-///   2. Gathers the relevant rows into a contiguous scratch buffer once so all
-///      subsequent distance sweeps read contiguous memory and (for Euclidean)
-///      can be batched as a single BLAS xxgemv.
-///   3. Computes `||x_i||^2` once into `rowNorms2` and reuses it across the three
-///      pivot sweeps (radius is free once `d2` is filled).
-///   4. Picks pivot2 as the farthest point from pivot1 (= first point), pivot3
-///      as the farthest from pivot2. pivot2 becomes the ball center; `max(d2)`
-///      becomes the ball radius.
-///   5. Partitions points by `d2 <= d3` vs `d2 > d3`. `d2`, `d3`, and
-///      `pointIndices` swap in lockstep during the partition.
-///   6. Recurses sequentially: left child first, then right. Sequential
-///      ordering gives reproducible node-array layout across runs.
-///
-/// Build cost is small relative to Boruvka MST + labeling, so sibling subtrees
-/// are not parallelized here.
+/// The center is the point farthest from the first point, the radius its largest distance, and
+/// points closer to the center than to the point farthest from it go left. Subtrees are built
+/// sequentially, so the node layout is the same on every run.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag (selects the scratch allocator)
@@ -235,10 +193,6 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
 
     const DAAL_INT count = end - begin;
 
-    // Gather rows once with per-row padding so every row of the scratch buffer
-    // starts on a `DAAL_MALLOC_DEFAULT_ALIGNMENT` boundary (matching the base
-    // pointer alignment provided by `TArrayScalable`). All subsequent distance
-    // sweeps then read from an aligned row start.
     const size_t rowStride = alignedRowStride<algorithmFPType>(nCols);
 
     daal::services::internal::TArrayScalable<algorithmFPType, cpu> scratchRowsArr(static_cast<size_t>(count) * rowStride);
@@ -255,16 +209,13 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     // Cache ||x_i||^2 once per node; reused by all three pivot sweeps when DistFunc is Euclidean.
     rowNormsSquared<algorithmFPType, cpu>(scratchRows, count, nCols, rowStride, rowNorms2);
 
-    // Pick pivot1 = first point. Find pivot2 = argmax dist(pivot1, .); pos is the
-    // offset into scratchRows / pointIndices[begin..end). d3 is scratch for this
-    // sweep; it gets overwritten with dist-to-pivot3 below.
+    // pivot2 is the point farthest from the first point; d3 is scratch here.
     const DAAL_INT pivot1 = pointIndices[begin];
     const DAAL_INT pos2 =
         blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot1 * nCols, scratchRows, rowNorms2, count, nCols, rowStride, distFunc, d3);
     const DAAL_INT pivot2 = pointIndices[begin + pos2];
 
-    // pivot2 is the ball center; d2[i] = dist(pivot2, scratchRows[i]) feeds both
-    // the radius (max d2) and the partition (compared to d3).
+    // pivot2 is the center; d2 gives the radius and, against d3, the partition.
     const DAAL_INT pos3 =
         blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot2 * nCols, scratchRows, rowNorms2, count, nCols, rowStride, distFunc, d2);
     const DAAL_INT pivot3 = pointIndices[begin + pos3];
@@ -272,8 +223,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     node.centerIdx = pivot2;
 
     algorithmFPType maxR = algorithmFPType(0);
-    // `d2` is `TArrayScalable`-backed (see d2Arr above); its start is aligned to
-    // DAAL_MALLOC_DEFAULT_ALIGNMENT. Reduction body uses `?:` per OMP conformance.
+    // d2 comes from TArrayScalable, aligned to DAAL_MALLOC_DEFAULT_ALIGNMENT.
     PRAGMA_OMP_SIMD_ARGS(reduction(max : maxR) aligned(d2 : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (DAAL_INT i = 0; i < count; i++)
     {
@@ -289,17 +239,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     // Populate d3 (distances to pivot3), then partition.
     blockDistsAndArgmax<algorithmFPType, cpu>(data + pivot3 * nCols, scratchRows, rowNorms2, count, nCols, rowStride, distFunc, d3);
 
-    // Hoare in-place partition on the predicate `d2[i] <= d3[i]`. Only the
-    // boundary positions where the predicate fails are swapped, and the
-    // exchange is a single scalar triple (pointIndices[lo], d2[lo], d3[lo])
-    // <-> the corresponding element at `hi`. `lo` and `hi` converge
-    // dynamically so the exchange count is O(count) at best rather than
-    // `count` unconditional swaps. BLAS `?swap` does not apply here: it is
-    // an unconditional whole-vector element-by-element exchange with fixed
-    // strides and no predicate; a per-boundary length-1 `cblas_?swap` call
-    // would be strictly worse than the inline scalar swap below. d2, d3, and
-    // pointIndices swap in lockstep so the distance arrays stay aligned with
-    // pointIndices[begin..end) during the sweep.
+    // Hoare partition on `d2[i] <= d3[i]`; pointIndices, d2 and d3 swap together.
     DAAL_INT lo = 0;
     DAAL_INT hi = count - 1;
     while (lo <= hi)
@@ -332,12 +272,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
 
 /// k-nearest-neighbor query on the ball tree, pruned by hypersphere bounds.
 ///
-/// Maintains a bounded max-heap of the k nearest candidates seen so far. At
-/// each internal node, the lower bound `max(0, dist(query, ballCenter) -
-/// ballRadius)` is compared against the current k-th NN distance
-/// (`heap.maxDist()`). The closer child is visited first so the pruning
-/// radius tightens before exploring the farther child. At leaves the loop
-/// scans every point and pushes into the heap.
+/// A child is skipped when its lower bound is not below the current k-th distance.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -391,11 +326,7 @@ static void knnQueryBallTree(const algorithmFPType * data, size_t nCols, const B
 
 /// Compute the per-node minimum core distance bottom-up.
 ///
-/// For a query point `q` with core distance `c_q`, any candidate `p` in a
-/// subtree `S` has `MRD(q, p) >= max(c_q, minCoreDistNode[S], dist(q, S))`,
-/// so this aggregate is the third pruning ingredient for Boruvka MRD queries.
-/// Recursion returns the subtree min so each node sees its descendants'
-/// aggregate without a second pass.
+/// A lower bound for the MRD queries: `MRD(q, p) >= max(c_q, minCoreDistNode[S], dist(q, S))`.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -434,10 +365,7 @@ static algorithmFPType computeMinCoreDistsBallTree(const BallNode<algorithmFPTyp
 
 /// Refresh per-node component tags after a Boruvka merge round.
 ///
-/// A node's `componentId` is set to the shared component id when every point
-/// under it belongs to the same component, otherwise -1 ("mixed"). The
-/// Boruvka nearest-different-component query uses this to skip whole subtrees
-/// that match the query's component.
+/// A node gets its points' common component, or -1 if mixed.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -480,14 +408,8 @@ static DAAL_INT updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, 
 
 /// Find the query's nearest point in a different component under MRD on the ball tree.
 ///
-/// Prunes subtrees whose `componentId` matches the query's component, or whose
-/// MRD lower bound `max(coreDist(q), minCoreDistNode[S], max(0, dist(q,
-/// center) - radius) * invAlpha)` is not smaller than the current `bestMrd`.
-/// Visits the nearer child first to tighten `bestMrd` before exploring the
-/// other side.
-///
-/// Alpha is applied only to the dist(q,p) term inside MRD (canonical HDBSCAN
-/// robust single linkage); core distances are left unscaled.
+/// Skips subtrees whose points all share the query's component, and subtrees whose MRD lower
+/// bound is not below the best so far. Alpha scales only the distance term.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -564,13 +486,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t 
 
 /// Compute core distances and the MST under MRD on a ball tree.
 ///
-/// Pipeline:
-///   1. per-point k-NN query against the ball tree -> `coreDistances`;
-///   2. bottom-up reduction -> `minCoreDistNode`;
-///   3. Boruvka rounds: per-point nearest-different-component MRD query,
-///      reduce to per-component best edges, union via union-find, refresh
-///      per-node component tags. Loops until a single component remains or no
-///      progress is made. The MST has exactly `nRows - 1` edges.
+/// Core distances from k-NN queries, then Boruvka rounds until one component remains.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -589,9 +505,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t 
 /// @param[out]    mstWeights     Edge weights (MRD), length `nRows - 1`
 /// @param[in]     distFunc       Metric functor instance (unscaled metric)
 /// @param[in]     alpha          Robust single-linkage scaling factor; applied
-///                               only to dist(q,p) inside MRD (not to k-NN
-///                               core distances or to the metric used for tree
-///                               queries)
+///                               only to dist(q,p) inside MRD
 ///
 /// @return Number of MST edges emitted; fewer than `nRows - 1` only on non-finite input
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
@@ -601,22 +515,8 @@ static size_t computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t
                                             const DistFunc & distFunc, double alpha)
 {
     const algorithmFPType invAlpha = static_cast<algorithmFPType>(1.0 / alpha);
-    // Canonical HDBSCAN core distance (Campello 2013): the distance to the
-    // `minSamples`-th nearest neighbor counting the query point itself as
-    // neighbor #1. The ball-tree traversal pushes the query point into the
-    // heap along with the other leaf points, so a heap of size `minSamples`
-    // holds {self + (minSamples - 1) non-self}, and the heap top is the
-    // `minSamples`-th-including-self answer.
-    //
-    // Duplicate-point behavior (matches sklearn / reference `hdbscan`):
-    //   - A point with >= (minSamples - 1) exact duplicates has all its k-NN
-    //     slots at distance 0, so its core distance is 0.
-    //   - For any pair of duplicates (a, b), MRD(a, b) =
-    //     max(core(a), core(b), 0 / alpha) = 0, so they are joined by a
-    //     0-weight MST edge. Multiple zero-weight edges get an arbitrary
-    //     tie-break in the MST sort, but this does not affect labels:
-    //     duplicates share the same dendrogram lambda (= +inf) and therefore
-    //     always end up in the same cluster / noise assignment.
+    // The core distance is the distance to the minSamples-th nearest neighbor counting the point
+    // itself, i.e. the heap top of a size-minSamples query that includes the point.
     const DAAL_INT k = static_cast<DAAL_INT>(minSamples);
 
     // Step 2: Core distances via k-NN on ball tree
@@ -672,8 +572,7 @@ static size_t computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t
     size_t edgesAdded    = 0;
     size_t numComponents = nRows;
 
-    // Only phase 1 (nearest-different-component MRD tree query) is
-    // method-specific; phases 2-4 route through hdbscan_boruvka_utils.h.
+    // Nearest neighbor of each point outside its component, under MRD.
     while (numComponents > 1)
     {
         daal::threader_for(nRows, 1, [&](size_t i) {
@@ -707,10 +606,7 @@ static size_t computeCoreDistAndMstBallTree(const algorithmFPType * data, size_t
 
 /// Build the ball tree then compute core distances + Boruvka MST under MRD.
 ///
-/// Single entry point used by the per-metric switch in compute(): each
-/// pairwise-distance value instantiates this template once. Alpha is applied
-/// only to dist(q,p) inside MRD, not to the metric used for the build / k-NN. Sequential build
-/// keeps the node-array layout deterministic across runs.
+/// Alpha scales only dist(q, p) inside MRD.
 ///
 /// @tparam algorithmFPType Floating-point type
 /// @tparam cpu             CPU dispatch tag
@@ -745,9 +641,6 @@ static size_t runBallTreeCoreDistAndMst(const algorithmFPType * data, size_t nRo
 }
 
 /// Compute HDBSCAN clustering using the ball-tree based batch implementation.
-///
-/// Pipeline: build ball tree -> per-point k-NN core distances -> Boruvka MST
-/// under MRD -> sort + extract clusters via the shared cluster-utils path.
 ///
 /// @tparam algorithmFPType Floating-point type used for distances and lambdas
 /// @tparam method          DAAL Method tag (`ballTree`)
@@ -805,15 +698,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
         return services::Status();
     }
 
-    // Label output is stored as `int32_t` in the assignments NumericTable
-    // (codebase-wide DAAL convention shared with kmeans / knn /
-    // decision_forest / etc.). Refuse inputs where the label count could
-    // exceed the destination-type bound. The label count is bounded above by
-    // the number of surviving clusters, itself bounded by `nRows / mcs`.
-    // Guard against `INT32_MAX` (not `INT_MAX`) because the storage type is
-    // fixed-width `int32_t` regardless of the data model -- on a hypothetical
-    // ILP64 platform `INT_MAX` would be 2^63 - 1 and would let overflowing
-    // inputs through.
+    // Labels are stored as int32, and there are at most nRows / minClusterSize clusters.
     if (nRows / minClusterSize > static_cast<size_t>(INT32_MAX))
     {
         return services::Status(services::ErrorIncorrectSizeOfInputNumericTable);
@@ -827,11 +712,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
 
     // Step 1: Build ball tree
     const DAAL_INT maxLeafSize = static_cast<DAAL_INT>(leafSize);
-    // A binary tree that stops splitting when a node holds a single point has
-    // exactly `2*nRows - 1` nodes. `4*nRows` is a conservative headroom: leaves
-    // stop at `maxLeafSize > 1`, but pathological inputs (degenerate splits,
-    // fallback mid = begin + count/2 when the partition is empty on one side)
-    // can produce very uneven trees; 4x removes the branching-factor sensitivity.
+    // A binary tree over nRows points has at most 2 * nRows - 1 nodes; 4 * nRows is headroom.
     const DAAL_INT maxNodes = 4 * static_cast<DAAL_INT>(nRows);
 
     TArray<BallNode<algorithmFPType>, cpu> nodesVec(maxNodes);
@@ -865,17 +746,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
 
     using algorithms::internal::PairwiseDistanceType;
 
-    // Robust single linkage: alpha is applied only to dist(q,p) inside MRD
-    // (canonical HDBSCAN). The metric used for ball-tree build, k-NN core
-    // distances, and pruning is left unscaled.
-    //
-    // The upstream oneAPI check_preconditions() in detail/compute_ops.hpp
-    // rejects cosine with method::ball_tree (ball-tree pruning relies on
-    // the triangle inequality for an L_p distance). The explicit
-    // `case cosine:` below is a defense-in-depth guard so if the DAAL
-    // kernel is ever reached with cosine + ball_tree we fail loudly with
-    // ErrorMethodNotSupported rather than silently routing to euclidean
-    // via a `default:` fall-through.
+    // Alpha scales only dist(q, p) inside MRD. Cosine is not an L_p distance, so the tree cannot
+    // prune with it.
     size_t edgesAdded = 0;
     switch (pairwiseDistance)
     {
@@ -899,8 +771,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     default: return services::Status(services::ErrorMethodNotSupported);
     }
 
-    // A Boruvka round only finds no candidate on non-finite input, which would leave the MST tail
-    // uninitialized.
+    // An incomplete MST means non-finite input.
     if (edgesAdded != edgeCount) return services::Status(services::ErrorIncorrectInputNumericTable);
     // The edge sort orders by weight and is only defined for finite weights.
     if (data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false))

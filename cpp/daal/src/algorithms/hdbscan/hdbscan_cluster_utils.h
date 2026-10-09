@@ -40,19 +40,11 @@ using daal::internal::CpuType;
 using daal::services::internal::MaxVal;
 using daal::services::internal::TArray;
 
-// Internal index type used across the HDBSCAN CPU pipeline for row / MST-edge /
-// dendrogram-node / cluster identifiers. `DAAL_INT` is 64-bit on 64-bit
-// platforms, mirroring the convention used by linear_model, decision_forests,
-// and other DAAL kernels that must scale beyond INT_MAX rows. Cluster ids are
-// derived from `nRows + edgeIndex`, so once row indices need >32 bits every
-// derived id inherits the same width. The oneAPI boundary casts these down to
-// `std::int32_t` when writing the `responses` table.
+// Row, MST edge, dendrogram node and cluster ids are DAAL_INT; labels are written as int32.
 
 /// One edge of the condensed cluster tree.
 ///
-/// Produced by buildCondensedTree: an edge connects a parent cluster id to
-/// either a child cluster id (with childSize == subtree size) or a single
-/// fallen-out point id (childSize == 1).
+/// Connects a parent cluster to a child cluster or to a single point that fell out of it.
 struct CondensedEdge
 {
     DAAL_INT parent;    ///< Parent cluster id
@@ -62,11 +54,8 @@ struct CondensedEdge
 
 /// Stably sort MST edges in ascending order of weight, keeping endpoint arrays aligned.
 ///
-/// Required by buildDendrogramFromSortedMst, which folds the edges in this order, so among tied
-/// edges the order decides tie-degenerate splits -- and equal weights are the norm under MRD. The
-/// sort is therefore on `(weight, position)` pairs, matching the GPU backend's stable radix sort,
-/// with a fallback to the in-place `qSort` if the buffers cannot be allocated, which preserves
-/// ascending weights and leaves only the tie order unspecified. The weights must be finite.
+/// Ties are broken by edge position, as the GPU backend's stable radix sort does, since the
+/// order of tied edges decides the dendrogram. The weights must be finite.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -97,7 +86,7 @@ static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType *
         pairs[i].index = i;
     }
 
-    // Orders by value, then by index: the (weight, position) order.
+    // IdxValType orders by value, then by index.
     daal::parallel_sort<algorithmFPType>(pairs, pairs + edgeCount);
 
     for (size_t i = 0; i < edgeCount; i++)
@@ -115,10 +104,7 @@ static void sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algorithmFPType *
 
 /// Build the single-linkage dendrogram from sorted MST edges via union-find.
 ///
-/// Each MST edge in ascending-weight order merges two components into a new
-/// internal node; the resulting tree has `edgeCount` internal nodes indexed
-/// `[nRows, nRows + edgeCount)` and the `nRows` original points as leaves
-/// indexed `[0, nRows)`.
+/// Leaves are the points `[0, nRows)`; MST edge `e` creates internal node `nRows + e`.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -147,12 +133,6 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
     DAAL_INT * compSize   = compSizeArr.get();
     DAAL_INT * compToNode = compToNodeArr.get();
 
-    // Both init loops write at the `TArray` base pointer via `service_memset_seq`
-    // which internally aligns its stores; the SIMD annotation on the first loop
-    // covers each of the four arrays' base offset. For the second loop the
-    // stores go through `service_memset_seq` too so no `aligned(...)` clause
-    // is needed on a SIMD loop -- the helper is the memset dispatch path shared
-    // with other DAAL kernels.
     PRAGMA_OMP_SIMD_ARGS(aligned(nodeSize, leftChild, rightChild, nodeWeight : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (size_t i = 0; i < nRows; i++)
     {
@@ -169,7 +149,6 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
         services::internal::service_memset_seq<DAAL_INT, cpu>(rightChild + nRows, static_cast<DAAL_INT>(-1), tail);
         services::internal::service_memset_seq<algorithmFPType, cpu>(nodeWeight + nRows, algorithmFPType(0), tail);
     }
-    // Union-find init: writes only at offset 0 of every `TArray` base.
     PRAGMA_OMP_SIMD_ARGS(aligned(ufParent, compSize, compToNode : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (size_t i = 0; i < nRows; i++)
     {
@@ -222,16 +201,8 @@ static DAAL_INT buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAA
 
 /// Dump the single-linkage dendrogram as a row-major `(nRows - 1) x 4` matrix.
 ///
-/// Row `e` describes the merge that created internal node `nRows + e`:
-/// `[leftChild, rightChild, mergeDistance, subtreeSize]`. This is the layout
-/// scipy's `linkage` and scikit-learn's `_single_linkage_tree_` use, so a caller
-/// can re-cut the hierarchy at an arbitrary distance -- what
-/// `HDBSCAN.dbscan_clustering` does -- without rebuilding it.
-///
-/// Node ids need no remapping: `buildDendrogramFromSortedMst` keys internal node
-/// `e` off the MST edge index, and every MST edge joins two distinct components
-/// (the edge set is a forest, so no edge is ever redundant whatever order it is
-/// processed in), which makes ids `[nRows, nRows + edgeCount)` dense.
+/// Row `e` is the merge that created node `nRows + e`: `[left, right, distance, size]`, the
+/// layout of scipy's `linkage` and scikit-learn's `_single_linkage_tree_`.
 ///
 /// @tparam algorithmFPType Floating-point type used for merge distances
 /// @tparam cpu             CPU dispatch tag
@@ -260,11 +231,8 @@ static void dumpSingleLinkageTree(size_t nRows, size_t edgeCount, const DAAL_INT
 
 /// Build the condensed cluster tree from a single-linkage dendrogram.
 ///
-/// Walks the dendrogram top-down. At each internal node, sides whose subtree
-/// size is at least `mcs` (min cluster size) keep their cluster id; sides
-/// smaller than `mcs` are emitted as "fallen" point edges with the parent
-/// cluster id and the death lambda `1 / nodeWeight[nid]`. New cluster ids are
-/// allocated from `nextCid` only when both sides survive (a real split).
+/// A side with at least `mcs` points stays a cluster, a smaller side falls out as points at lambda
+/// `1 / nodeWeight`, and a new cluster id is taken only when both sides survive.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights
 /// @tparam cpu             CPU dispatch tag
@@ -316,9 +284,8 @@ static size_t buildCondensedTree(DAAL_INT root, size_t nRows, DAAL_INT mcs, cons
         DAAL_INT node;
         DAAL_INT cluster;
     };
-    // A FIFO queue, so the nodes are visited breadth-first, left before right, as
-    // scikit-learn's _condense_tree does; that order is what numbers the clusters.
-    // Each dendrogram node is enqueued at most once, so 2*nRows slots suffice.
+    // Breadth-first, left before right, as scikit-learn's _condense_tree, which fixes the cluster
+    // numbering. Each node is enqueued at most once.
     TArray<StackItem, cpu> mainStackArr(2 * nRows);
     StackItem * mainStack     = mainStackArr.get();
     size_t mainStackHead      = 0;
@@ -396,10 +363,7 @@ static size_t buildCondensedTree(DAAL_INT root, size_t nRows, DAAL_INT mcs, cons
 
 /// Initialize per-cluster bookkeeping arrays from the condensed tree.
 ///
-/// One pass over the condensed edges; for every cluster->cluster edge it sets
-/// the child's birth lambda, marks the parent as non-leaf, increments the
-/// parent's child count, and records the child's subtree size. Per-cluster
-/// arrays are zeroed first; the root cluster's size is preset to `nRows`.
+/// Sets each child's birth lambda and size and each parent's non-leaf flag and child count.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas
 /// @tparam cpu             CPU dispatch tag
@@ -443,9 +407,7 @@ static void initClusterMetadata(const CondensedEdge * condensed, const algorithm
 
 /// Accumulate HDBSCAN stability scores for every cluster.
 ///
-/// stability[c] = sum over edges (parent==c) of (deathLambda - birthLambda) * childSize.
-/// Negative contributions (death before birth, possible at the root) are clamped to 0.
-/// Used by Excess of Mass cluster selection.
+/// `stability[c] = sum over edges from c of max(0, deathLambda - birthLambda) * childSize`.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas
 /// @tparam cpu             CPU dispatch tag
@@ -472,19 +434,10 @@ static void computeClusterStability(const CondensedEdge * condensed, const algor
 
 /// Run the Excess-of-Mass cluster selection pass on the condensed tree.
 ///
-/// Iterates clusters in decreasing id order (children before parents) down to
-/// `treeTop` (inclusive). For each non-leaf cluster, compares the parent's
-/// stability against the sum of its children's stabilities. If children win,
-/// the parent is unselected and its stability is replaced by the sum (so its
-/// grandparent sees the propagated score). If the parent wins, every
-/// descendant is unselected via an explicit stack walk over
-/// `childOffset`/`childList`. Oversized clusters (size > `mcsMax`) are forced
-/// onto the children-win branch unconditionally, leaf clusters included.
-///
-/// `treeTop` controls whether the root cluster participates. When the caller
-/// allows a single-cluster outcome, `treeTop == rootCid` and the root may win
-/// EOM. Otherwise, `treeTop == rootCid + 1` and the root is never visited;
-/// it must be deselected up front by the caller.
+/// Visits clusters children first. A parent whose stability beats its children's sum stays
+/// selected and unselects its descendants; otherwise it takes the children's sum. Clusters larger
+/// than `mcsMax` always defer to their children. The root takes part only when
+/// `treeTop == rootCid`.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster stabilities
 /// @tparam cpu             CPU dispatch tag
@@ -548,10 +501,8 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 
 /// Promote selected clusters that are too dense (birth distance < epsilon) to their parent.
 ///
-/// Implements the cluster_selection_epsilon refinement exactly as scikit-learn's
-/// `epsilon_search`: a selected cluster born below `clusterSelectionEpsilon` is
-/// replaced by its first ancestor born above it, or by the root when
-/// `allowSingleCluster` is set, or kept when only the root lies above.
+/// As scikit-learn's `epsilon_search`: the cluster is replaced by its first ancestor born above
+/// epsilon, or by the root only with `allowSingleCluster`.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas
 /// @tparam cpu             CPU dispatch tag
@@ -563,8 +514,6 @@ static void runEomSelection(DAAL_INT nClusters, DAAL_INT treeTop, DAAL_INT mcsMa
 /// @param[in]     rootCid                Root cluster id (== `nRows`)
 /// @param[in]     lambdaBirth            Birth lambda per cluster, length `nClusters`
 /// @param[in]     clusterSelectionEpsilon Distance threshold; clusters with birth distance below this are merged into parent.
-///                                        Passed in as `algorithmFPType` so the inner comparison against
-///                                        `birthDist` avoids any implicit `float`->`double` promotion inside the tight loop.
 /// @param[in]     allowSingleCluster     If false, never promote up to the root
 /// @param[in,out] isSelected             Selection mask updated in place, length `nClusters`
 template <typename algorithmFPType, CpuType cpu>
@@ -581,10 +530,7 @@ static void applyClusterSelectionEpsilon(const CondensedEdge * condensed, size_t
         if (e.child >= static_cast<DAAL_INT>(nRows)) clusterParent[e.child] = e.parent;
     }
 
-    // A literal port of scikit-learn's epsilon_search / traverse_upwards. A selected cluster born
-    // below epsilon climbs while its parent was born at or below epsilon, stopping at the first
-    // parent born above it; the root is reached only with allowSingleCluster. Clusters under an
-    // earlier target are skipped, while those born at or above epsilon stay selected as they are.
+    // Port of scikit-learn's epsilon_search / traverse_upwards.
     if (isSelected[rootCid]) return;
     auto birthDist = [&](DAAL_INT c) -> algorithmFPType {
         return (lambdaBirth[c] > algorithmFPType(0)) ? algorithmFPType(1) / lambdaBirth[c] : algorithmFPType(0);
@@ -649,10 +595,6 @@ static void computeChildOffsets(DAAL_INT nClusters, const DAAL_INT * childCount,
 
 /// Fill the CSR child list for every cluster from the condensed tree.
 ///
-/// Pairs with computeChildOffsets: emits one entry per cluster->cluster edge,
-/// using a per-cluster cursor so writes for the same parent are appended in
-/// the order they appear in `condensed`.
-///
 /// @tparam algorithmFPType Floating-point type (unused; kept for cpu dispatch)
 /// @tparam cpu             CPU dispatch tag
 ///
@@ -682,12 +624,8 @@ static void fillChildList(const CondensedEdge * condensed, size_t nCondensed, si
 
 /// Top-level cluster selection on the condensed tree.
 ///
-/// Allocates the per-cluster bookkeeping arrays (lambdaBirth, isLeafCluster,
-/// clusterSz, childCount, childOffset/childList, stability), seeds isSelected
-/// with the size-feasible mask, then runs:
-///   - leaf-mode (clusterSelection == 1): pick every leaf cluster of size >= mcs;
-///   - EOM-mode (default): runEomSelection;
-/// followed by applyClusterSelectionEpsilon (if `clusterSelectionEpsilon > 0`).
+/// Leaf mode (`clusterSelection == 1`) picks every leaf cluster, EOM otherwise; then the epsilon
+/// refinement when `clusterSelectionEpsilon > 0`.
 ///
 /// @tparam algorithmFPType Floating-point type used for cluster lambdas/stabilities
 /// @tparam cpu             CPU dispatch tag
@@ -711,9 +649,6 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 {
     TArray<algorithmFPType, cpu> stabilityArr(nClusters);
     TArray<algorithmFPType, cpu> lambdaBirthArr(nClusters);
-    // Predicate-only mask: `bool` is the natural type; DAAL exposes
-    // `TArray<bool, cpu>` (see e.g. df_classification_predict, svm_train_boser)
-    // for the same use case.
     TArray<bool, cpu> isLeafClusterArr(nClusters);
     TArray<DAAL_INT, cpu> clusterSzArr(nClusters);
     TArray<DAAL_INT, cpu> childCountArr(nClusters);
@@ -739,10 +674,7 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 
     const DAAL_INT mcsMax = (maxClusterSize > 0) ? static_cast<DAAL_INT>(maxClusterSize) : MaxVal<DAAL_INT>::get();
 
-    // Seed isSelected: every internal cluster id starts selected and EOM only
-    // deselects. Leaf-mode resets the mask before picking leaves directly.
-    // The root is included only when allowSingleCluster permits it; otherwise
-    // EOM never visits it and it stays deselected.
+    // Every cluster starts selected and EOM only deselects; the root only with allowSingleCluster.
     for (DAAL_INT c = 0; c < nClusters; c++)
     {
         isSelected[c] = false;
@@ -755,11 +687,8 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 
     if (clusterSelection == 1)
     {
-        // Leaf mode picks the leaves of the *cluster* tree, whose nodes are the
-        // child clusters only, so the root is never a candidate -- not even when
-        // allowSingleCluster is set, which in leaf mode only relaxes the labeling
-        // threshold. A condensed tree that never splits therefore offers no
-        // candidate at all and every point ends up as noise.
+        // Leaf mode never selects the root, as in scikit-learn, so a tree that never splits gives
+        // only noise.
         isSelected[rootCid] = false;
         for (DAAL_INT c = rootCid + 1; c < nClusters; c++)
         {
@@ -791,12 +720,7 @@ static void selectClusters(const CondensedEdge * condensed, const algorithmFPTyp
 
 /// Resolve a final point label for every cluster in one O(nClusters) forward sweep.
 ///
-/// Invariant: in the condensed tree built by buildCondensedTree, a parent's
-/// cluster id is always strictly less than each child's id (parents are emitted
-/// before children). Iterating c = rootCid..nClusters-1 therefore visits
-/// parents before children, and resolvedLabel[clusterParent[c]] is already
-/// final by the time we read it. Replaces a per-point ancestor walk with a
-/// single table lookup in labelPoints.
+/// Relies on parents having smaller ids than their children.
 ///
 /// @param[in]  rootCid       Root cluster id (== `nRows`)
 /// @param[in]  nClusters     Total cluster count
@@ -822,10 +746,7 @@ static void resolveClusterLabels(DAAL_INT rootCid, DAAL_INT nClusters, const boo
 
 /// Resolve, for every cluster, the id of the deepest selected ancestor (itself included).
 ///
-/// Same forward sweep and same parent-before-child invariant as
-/// resolveClusterLabels; it resolves to the cluster *id* rather than to the
-/// dense label because the membership probability has to index per-cluster
-/// arrays (the death lambda) and the dense label is not such an index.
+/// Like resolveClusterLabels, but yields cluster ids, which index per-cluster arrays.
 ///
 /// @param[in]  rootCid         Root cluster id (== `nRows`)
 /// @param[in]  nClusters       Total cluster count
@@ -850,23 +771,9 @@ static void resolveSelectedAncestors(DAAL_INT rootCid, DAAL_INT nClusters, const
 
 /// Membership strength of every point in the cluster it was assigned to.
 ///
-/// Mirrors scikit-learn's `_hdbscan.hdbscan._get_probabilities`: a point's
-/// strength is the lambda at which it dropped out of the condensed tree,
-/// normalized by the lambda at which its cluster died (the largest lambda over
-/// the cluster's outgoing condensed edges). 1 means the point survived to the
-/// very end of its cluster, values near 0 mean it detached almost immediately,
-/// and noise is 0.
-///
-/// Three cases give exactly 1:
-///   - the cluster has no outgoing edge, so its death lambda is 0 and the
-///     normalization is undefined (sklearn's `max_lambda == 0.0` branch);
-///   - the point's own lambda is not finite, which happens for duplicate points
-///     at zero mutual reachability distance (sklearn's `not isfinite` branch --
-///     this implementation substitutes the largest finite value instead of an
-///     infinity, which the clamp below handles identically);
-///   - the point never dropped out before its cluster died, i.e. it is one of
-///     the points that labelPoints has to resolve through the dendrogram; such
-///     a point outlived the cluster by definition.
+/// As scikit-learn's `_get_probabilities`: the lambda at which the point fell out of its cluster
+/// divided by the cluster's death lambda; noise gets 0. The result is 1 when the cluster has no
+/// outgoing edge, when the point's lambda is not finite, or when the point never fell out.
 ///
 /// @tparam algorithmFPType Floating-point type used for lambdas
 /// @tparam cpu             CPU dispatch tag
@@ -937,18 +844,8 @@ static void buildDendroParent(const DAAL_INT * leftChild, const DAAL_INT * right
 
 /// Demote the weakest members of a root-only clustering to noise.
 ///
-/// When the only selected cluster is the root, the flat clustering has no
-/// sibling to separate noise from signal, so scikit-learn's `_do_labelling`
-/// keeps a point only if it survived long enough: its drop-out lambda must reach
-/// a threshold. With `cluster_selection_epsilon` set, the threshold is
-/// `1 / epsilon` -- the lambda that corresponds to that distance. Otherwise it
-/// is the root's own death lambda, i.e. the largest lambda over every edge
-/// leaving the root, which keeps only the points that made it to the very end.
-///
-/// A point that never dropped out has `pointLambda < 0` and is demoted, which is
-/// the conservative reading of "did not reach the threshold"; buildCondensedTree
-/// emits every point exactly once for `mcs >= 2`, so this cannot happen in
-/// practice.
+/// As scikit-learn's `_do_labelling`: a point is kept only if its drop-out lambda reaches
+/// `1 / epsilon` when epsilon is set, or else the root's death lambda.
 ///
 /// @tparam algorithmFPType Floating-point type used for lambdas
 /// @tparam cpu             CPU dispatch tag
@@ -974,9 +871,7 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
     algorithmFPType threshold = algorithmFPType(0);
     if (clusterSelectionEpsilon > 0.0)
     {
-        // Below `1 / infLambda` the reciprocal overflows, in double or in the
-        // narrowing, which would put the threshold above the zero-distance
-        // lambda and demote the coincident points an infinite lambda keeps.
+        // Below `1 / infLambda` the reciprocal would overflow and demote coincident points.
         const double minEpsilon = 1.0 / static_cast<double>(infLambda);
         threshold               = (clusterSelectionEpsilon > minEpsilon) ? static_cast<algorithmFPType>(1.0 / clusterSelectionEpsilon) : infLambda;
     }
@@ -1000,21 +895,10 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
     return anyKept;
 }
 
-/// Final point labeling phase. For each input point i, assign assignments[i] to
-///   - the dense label (0..nLabels-1) of the deepest selected ancestor cluster
-///     in the condensed tree, OR
-///   - -1 if no such ancestor exists (the point is "noise").
+/// Assign each point the dense label of its deepest selected ancestor cluster, or -1 for noise.
 ///
-/// Two sequential passes over the points:
-///   1) Points that fell out of a cluster directly (pointFellFrom[i] >= 0):
-///      look up the resolved label of their drop cluster in O(1).
-///   2) Points that never fell out before the root cluster: walk up the
-///      dendrogram via dendroParent[] until hitting a node with a known
-///      cluster id, then look up its resolved label.
-/// resolveClusterLabels precomputes the dense label per cluster in one
-/// O(nClusters) sweep so neither per-point pass walks the cluster tree.
-/// A third pass runs only when the clustering ends up being the root cluster
-/// alone, see applySingleClusterThreshold.
+/// Points that fell out of a cluster use that cluster; the others walk up the dendrogram to the
+/// first node with a known cluster.
 ///
 /// @tparam algorithmFPType Floating-point type of the lambdas and probabilities
 /// @tparam cpu             CPU dispatch tag
@@ -1033,10 +917,7 @@ static bool applySingleClusterThreshold(const CondensedEdge * condensed, const a
 /// @param[in]  clusterSelectionEpsilon Distance epsilon (0 == disabled); drives the
 ///                                     single-cluster labeling threshold
 /// @param[out] assignments     Output point->label table, length `nRows`. Labels
-///                             are dense ids `[0, labelCounter)` or -1 for
-///                             noise, both fit into `int` regardless of
-///                             `nRows`, so the write happens with an explicit
-///                             narrowing cast at this layer.
+///                             are dense ids `[0, labelCounter)` or -1 for noise
 /// @param[out] probabilities   Optional output membership strength in `[0, 1]`,
 ///                             length `nRows`. Pass `nullptr` to skip the
 ///                             computation and its scratch allocations
@@ -1051,15 +932,7 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
 {
     const size_t totalNodes = 2 * nRows - 1;
 
-    // labelCounter fits in `int`: total distinct labels is bounded by the number
-    // of selected clusters, itself bounded by `nRows / mcs` (`mcs >= 2` is
-    // enforced at the kernel entry). The DAAL kernel entry point refuses
-    // inputs with `nRows / minClusterSize > INT32_MAX` up front (see the guard
-    // at the top of each `_batch_impl.i::compute`), so this routine can
-    // materialise labels as `int` (and `-1` for noise) directly. The
-    // `int`-typed labels contract is codebase-wide across DAAL (kmeans, knn,
-    // decision_forest, svm, etc. all use `WriteOnlyRows<int, cpu>`); widening
-    // it here alone would break the convention.
+    // At most nRows / mcs labels, which the kernel entry checks against INT32_MAX.
     int labelCounter = 0;
     TArray<int, cpu> clusterLabelArr(nClusters);
     int * clusterLabel = clusterLabelArr.get();
@@ -1068,18 +941,14 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
     {
         if (isSelected[c]) clusterLabel[c] = labelCounter++;
     }
-    // Defensive: unreachable for realistic inputs, but the invariant should
-    // fire loudly if some future change (e.g. mcs = 1) breaks it.
     DAAL_ASSERT(labelCounter >= 0);
 
     // A clustering that consists of the root alone does not separate noise by
     // itself, so the weakest members are demoted by their drop-out lambda.
     const bool singleRootSelected = allowSingleCluster && labelCounter == 1 && isSelected[rootCid];
 
-    // The scratch arrays are only allocated when something below needs them;
-    // `pointCluster` records which condensed cluster each point was resolved
-    // through (the dense label alone cannot index per-cluster data) and
-    // `pointLambda` the lambda it dropped out at, negative if it never did.
+    // Allocated only when needed: the cluster each point resolved through, and the lambda it fell
+    // out at (negative if it never did).
     const bool needProbs       = (probabilities != nullptr);
     const bool needPointLambda = needProbs || singleRootSelected;
 
@@ -1169,10 +1038,7 @@ static int labelPoints(const CondensedEdge * condensed, const algorithmFPType * 
 
 /// Sort MST edges by weight and extract flat clusters via condensed tree + EOM.
 ///
-/// Shared end-of-pipeline used by brute_force, kd_tree, and ball_tree methods.
-/// Sequence: sortMstEdges -> buildDendrogramFromSortedMst -> buildCondensedTree
-/// -> selectClusters -> labelPoints. If the input MST is empty (root < 0),
-/// every point is labeled noise (-1) and the function returns 0.
+/// Shared by all CPU methods. An empty MST labels every point as noise.
 ///
 /// @tparam algorithmFPType Floating-point type used for edge weights / lambdas
 /// @tparam cpu             CPU dispatch tag

@@ -35,13 +35,8 @@ namespace hdbscan
 namespace internal
 {
 
-/// Available methods of the HDBSCAN algorithm.
-///
-/// Kept in the internal src namespace because HDBSCAN is only exposed through
-/// the oneDAL (oneAPI) interface; the legacy DAAL C++ API does not ship this
-/// algorithm, so the method tag does not need to be part of the public API.
-/// Scoped as `enum class` so unqualified `bruteForceDense` / `kdTree` /
-/// `ballTree` names cannot leak into user code.
+/// Available methods of the HDBSCAN algorithm. HDBSCAN is exposed only through the oneAPI
+/// interface, so the method tag stays internal.
 enum class Method
 {
     bruteForceDense = 0, ///< Brute-force method with full distance matrix
@@ -49,13 +44,8 @@ enum class Method
     ballTree        = 2  ///< Ball tree method: hypersphere-based partitioning, robust to high dimensions
 };
 
-/// HDBSCAN batch kernel.
-///
-/// CPU-templated entry point dispatched by the oneAPI HDBSCAN compute kernel.
-/// Each (algorithmFPType, method, cpu) instantiation lives in its own TU
-/// (`hdbscan_{dense,kd_tree,ball_tree}_batch_fpt_cpu.cpp`). Member compute()
-/// runs the full pipeline: pairwise/core distances -> MST under MRD -> sort ->
-/// dendrogram -> condensed tree -> cluster selection -> label points.
+/// HDBSCAN batch kernel: core distances -> MST under mutual reachability distance -> dendrogram
+/// -> condensed tree -> cluster selection -> labels.
 ///
 /// @tparam algorithmFPType Floating-point type used for distances and lambdas
 /// @tparam method          One of `bruteForceDense`, `kdTree`, `ballTree`
@@ -85,11 +75,7 @@ public:
     /// @param[in]  minkowskiDegree         Exponent `p` for the Minkowski distance. Ignored for other metrics
     /// @param[in]  clusterSelection        Cluster selection strategy: 0 -- excess of mass, 1 -- leaf
     /// @param[in]  allowSingleCluster      If true, allow the root cluster of the condensed tree to be selected
-    /// @param[in]  clusterSelectionEpsilon Distance threshold used to merge clusters closer than epsilon.
-    ///                                     Kept as `double` at the public entry point to match the descriptor;
-    ///                                     narrowed to `algorithmFPType` inside `applyClusterSelectionEpsilon`
-    ///                                     before the per-cluster comparison so tight loops stay in a single
-    ///                                     precision
+    /// @param[in]  clusterSelectionEpsilon Distance threshold below which clusters are merged
     /// @param[in]  maxClusterSize          Maximum allowed cluster size (only used with cluster selection epsilon). 0 disables the limit
     /// @param[in]  alpha                   Robust single-linkage scaling factor (distances are divided by alpha)
     /// @param[in]  leafSize                Maximum number of points per leaf in the kd-tree / ball-tree. Ignored for brute force

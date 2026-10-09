@@ -328,9 +328,8 @@ public:
             MathInst<FPType, cpu>::vSqrt(count, a + begin, a + begin);
         };
 
-        // Thread the sweep only when there is enough work to pay for the dispatch: one task per
-        // 32k entries. `threader_for_optional` runs serially inside a parallel region, so callers
-        // such as bf_knn, which finalize from inside a `threader_for`, keep their TLS buffers.
+        // One task per 32k entries. Inside a parallel region `threader_for_optional` runs serially,
+        // so a caller's thread-local buffers stay valid.
         const size_t blocksPerTask = 64;
         const size_t nTasks        = nBlocks / blocksPerTask + !!(nBlocks % blocksPerTask);
         if (nTasks < 2)
