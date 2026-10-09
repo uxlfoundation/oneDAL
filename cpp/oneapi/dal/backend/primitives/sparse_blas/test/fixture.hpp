@@ -204,6 +204,24 @@ public:
         check_gemv(y);
     }
 
+    /// `optimize_gemv` only caches a plan inside the handle, so the observable
+    /// contract is that the products are unchanged -- including the second one,
+    /// which is the call the plan exists for.
+    void test_gemv_optimized() {
+        sparse_matrix_handle a(this->get_queue());
+        auto a_e = A(a);
+        auto [x, x_e] = ndarray<float_t, 1>::ones(this->get_queue(), k_);
+        auto y = ndarray<float_t, 1>::empty(this->get_queue(), m_);
+
+        auto plan_e = optimize_gemv(this->get_queue(), trans_a, a, { a_e, x_e });
+
+        gemv<float_t>(this->get_queue(), trans_a, a, x, y, { plan_e }).wait_and_throw();
+        check_gemv(y);
+
+        gemv<float_t>(this->get_queue(), trans_a, a, x, y, {}).wait_and_throw();
+        check_gemv(y);
+    }
+
     void check_matmul(const ndarray<float_t, 2, co>& mat) {
         check_if_initialized();
         REQUIRE(mat.get_shape() == ndshape<2>{ m_, p_ });
