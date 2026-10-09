@@ -79,7 +79,7 @@ jobs:
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     runs-on: ${{ matrix.os.label }}
     steps:
 
@@ -149,6 +149,7 @@ jobs:
           CMAKE_GENERATOR: Ninja
 
   openrng-build-and-test:
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     strategy:
       fail-fast: false
       matrix:
@@ -236,7 +237,7 @@ jobs:
         rng: [ ref, openrng ]
 
     name: LinuxBazel_OpenBLAS(SVE)${{ matrix.rng == 'openrng' && '_OpenRNG' || '' }}-${{ matrix.os.name }}
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     runs-on: ${{ matrix.os.label }}
     steps:
       - name: Checkout oneDAL
@@ -367,6 +368,7 @@ jobs:
   # running a matrix CI, and allows changing the CI without needing to change
   # the overall required check name.
   status:
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     needs: [build-and-test, openrng-build-and-test, bazel-build-and-test]
     runs-on: ubuntu-latest
     name: "CI AArch64"

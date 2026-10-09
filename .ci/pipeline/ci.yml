@@ -27,22 +27,8 @@ trigger:
     exclude:
     - docs
     - .ci/pipeline/docs.yml
-pr:
-  branches:
-    include:
-    - main
-    - rls/*
-  paths:
-    exclude:
-    - docs
-    - .ci/pipeline/docs.yml
-    # Changes that cannot affect the library build or tests.
-    # Only PR builds are filtered; pushes to main keep the trigger above.
-    - '**/*.md'
-    - dev/agent_evals
-    - conda-recipe
-    - .github
-    - third-party-programs.txt
+# TEMPORARY: Azure PR validation is off on this PR; revert before merge
+pr: none
 
 variables:
   OPENBLAS_VERSION : 'v0.3.34'

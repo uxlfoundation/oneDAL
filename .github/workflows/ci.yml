@@ -63,7 +63,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     strategy:
       fail-fast: false
       matrix:
@@ -155,6 +155,144 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
 
+  # Times make rebuilds of single-file edits on top of the cached build of the last main commit.
+  LinuxMakeIncremental:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    name: LinuxMakeIncremental(avx2)
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The sources are diffed against the commit the cached build came from.
+          fetch-depth: 0
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+      # Objects built by another compiler or MKL must not be reused.
+      - name: Cache key
+        id: cache-key
+        run: |
+          source /opt/intel/oneapi/setvars.sh > /dev/null
+          toolchain=$( { icpx --version | sed -n 1p; dpkg-query -W -f='${Version}' intel-oneapi-mkl-devel; } | sha256sum | cut -c1-16)
+          echo "prefix=make-work-avx2-${toolchain}-" >> "$GITHUB_OUTPUT"
+          {
+            echo "| Step | Build time | Objects compiled |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Restore the last main build
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}
+          restore-keys: ${{ steps.cache-key.outputs.prefix }}
+          path: |
+            ./__work
+            ./__release_lnx
+      # A fresh checkout dates every file now, newer than all cached objects, so only the files
+      # changed since the cached commit are dated now. Removed or renamed files would leave stale
+      # objects in the link lists, so those start from scratch.
+      - name: Date the sources against the cached build
+        id: cached
+        if: github.event_name == 'pull_request'
+        run: |
+          if [[ -f __work/.cache_commit ]] && [[ -z "$(git diff --name-only --diff-filter=DR "$(cat __work/.cache_commit)" HEAD)" ]]; then
+            git ls-files -z | xargs -0 touch -h -d "2000-01-01 00:00:00"
+            git diff --name-only -z --diff-filter=AMT "$(cat __work/.cache_commit)" HEAD | xargs -0 -r touch -h
+            echo "Rebuilding on top of the cached build of $(cat __work/.cache_commit)"
+            echo "hit=yes" >> "$GITHUB_OUTPUT"
+          else
+            rm -rf __work __release_lnx
+            echo "hit=no" >> "$GITHUB_OUTPUT"
+          fi
+      # Without a cached build, the main commit the pull request merges into is built here.
+      - name: Check out the main commit
+        if: github.event_name == 'pull_request' && steps.cached.outputs.hit == 'no'
+        run: git checkout -q --detach HEAD^1
+      - name: Build main from scratch
+        id: main_from_scratch
+        if: github.event_name != 'pull_request' || steps.cached.outputs.hit == 'no'
+        run: &build |
+          source /opt/intel/oneapi/setvars.sh > /dev/null
+          mkdir -p __incr_logs
+          if [[ -n "${EDIT:-}" ]]; then
+            echo "// incremental build check" >> "${EDIT}"
+          fi
+          log="__incr_logs/${GITHUB_ACTION}.log"
+          start=${SECONDS}
+          if ! .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal > "${log}" 2>&1; then
+            tail -n 100 "${log}"
+            exit 1
+          fi
+          elapsed=$((SECONDS - start))
+          compiled=$(awk '/^(icx|icpx) .* -c /{ n++ } END { print n + 0 }' "${log}")
+          echo "| ${GITHUB_ACTION}${EDIT:+: \`${EDIT}\`} | $((elapsed / 60))m $((elapsed % 60))s | ${compiled} |" >> "$GITHUB_STEP_SUMMARY"
+      # Checking out the merge commit rewrites, and so dates now, only the files that differ.
+      - name: Check out the pull request
+        if: github.event_name == 'pull_request' && steps.cached.outputs.hit == 'no'
+        run: git checkout -q --detach "${GITHUB_SHA}"
+      - name: Rebuild the pull request on top of main
+        id: pull_request_changes
+        if: github.event_name == 'pull_request'
+        run: *build
+      - name: Rebuild with no changes
+        id: no_changes
+        if: github.event_name == 'pull_request'
+        run: *build
+      - name: Rebuild after a DAAL kernel edit
+        id: daal_kernel_impl
+        if: github.event_name == 'pull_request'
+        env:
+          EDIT: cpp/daal/src/algorithms/kmeans/kmeans_plusplus_init_impl.i
+        run: *build
+      - name: Rebuild after a DAAL public header edit
+        id: daal_header
+        if: github.event_name == 'pull_request'
+        env:
+          EDIT: cpp/daal/include/algorithms/kmeans/kmeans_init_types.h
+        run: *build
+      - name: Rebuild after a oneAPI algorithm header edit
+        id: oneapi_algo_header
+        if: github.event_name == 'pull_request'
+        env:
+          EDIT: cpp/oneapi/dal/algo/kmeans/common.hpp
+        run: *build
+      - name: Rebuild after a oneAPI core header edit
+        id: oneapi_core_header
+        if: github.event_name == 'pull_request'
+        env:
+          EDIT: cpp/oneapi/dal/table/common.hpp
+        run: *build
+      - name: Rebuild after a DPC++ kernel edit
+        id: dpc_kernel
+        if: github.event_name == 'pull_request'
+        env:
+          EDIT: cpp/oneapi/dal/algo/kmeans/backend/gpu/infer_kernel_dpc.cpp
+        run: *build
+      - name: Record the cached commit
+        if: github.event_name != 'pull_request'
+        run: git rev-parse HEAD > __work/.cache_commit
+      - name: Cache the build for pull requests
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v6
+        with:
+          key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}
+          path: |
+            ./__work
+            ./__release_lnx
+      - name: Archive build logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: incremental_build_logs
+          path: ./__incr_logs
+
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
@@ -218,7 +356,7 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:

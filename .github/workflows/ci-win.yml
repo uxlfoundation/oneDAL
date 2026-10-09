@@ -65,6 +65,7 @@ env:
 
 jobs:
   build-and-test:
+    if: false  # TEMPORARY: only LinuxMakeIncremental runs on this PR; revert before merge
     strategy:
       fail-fast: false
       matrix:
