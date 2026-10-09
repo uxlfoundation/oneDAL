@@ -499,7 +499,7 @@ class MinkowskiDistances : public PairwiseDistances<FPType, cpu>
 {
 public:
     MinkowskiDistances(const NumericTable & a, const NumericTable & b, const bool powered = true, const double p = 2.0)
-        : _a(a), _b(b), _p(p), _powered(powered)
+        : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
     ~MinkowskiDistances() override {}
@@ -536,6 +536,8 @@ protected:
     services::Status computeBatchImpl(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                       FPType * const res)
     {
+        daal::internal::MathInst<FPType, cpu> math;
+
         const size_t nDims = _a.getNumberOfColumns();
         const size_t nX    = aSize;
         const size_t nY    = bSize;
@@ -640,6 +642,8 @@ protected:
     services::Status computeBatchImpl(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                       FPType * const res)
     {
+        daal::internal::MathInst<FPType, cpu> math;
+
         const size_t nDims = _a.getNumberOfColumns();
         const size_t nX    = aSize;
         const size_t nY    = bSize;

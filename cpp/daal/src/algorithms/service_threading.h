@@ -28,7 +28,7 @@
 
 namespace daal
 {
-class DAAL_EXPORT Mutex
+class Mutex
 {
 public:
     Mutex();

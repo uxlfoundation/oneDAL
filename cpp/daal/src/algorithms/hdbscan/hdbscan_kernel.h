@@ -102,6 +102,34 @@ public:
                              double clusterSelectionEpsilon = 0.0, size_t maxClusterSize = 0, double alpha = 1.0, size_t leafSize = 40);
 };
 
+/// Cluster centers in scikit-learn's definitions, computed from a finished labeling.
+///
+/// @tparam algorithmFPType Floating-point type of the data
+/// @tparam cpu             CPU dispatch tag
+template <typename algorithmFPType, CpuType cpu>
+class HDBSCANCentersKernel : public Kernel
+{
+public:
+    /// Compute the probability-weighted centroid and/or the medoid of every cluster.
+    ///
+    /// The medoid of a cluster is the member `i` minimizing `sum_j dist(i, j) * weight_j` over its
+    /// members `j` in the fitted metric; ties go to the lowest row. Empty clusters get zero rows.
+    ///
+    /// @param[in]  ntData           Input numeric table of size `N x P`
+    /// @param[in]  ntAssignments    Cluster id per point, `N x 1`; -1 is noise
+    /// @param[in]  ntWeights        Membership probability per point, `N x 1`
+    /// @param[in]  nClusters        Number of clusters `C`
+    /// @param[out] ntCentroids      Centroids, `C x P`; pass `nullptr` to skip
+    /// @param[out] ntMedoids        Medoids, `C x P`; pass `nullptr` to skip
+    /// @param[in]  pairwiseDistance Distance metric of the fit
+    /// @param[in]  minkowskiDegree  Exponent `p` for the Minkowski distance
+    ///
+    /// @return Status code
+    services::Status compute(const NumericTable * ntData, const NumericTable * ntAssignments, const NumericTable * ntWeights, size_t nClusters,
+                             NumericTable * ntCentroids, NumericTable * ntMedoids, algorithms::internal::PairwiseDistanceType pairwiseDistance,
+                             double minkowskiDegree);
+};
+
 } // namespace internal
 } // namespace hdbscan
 } // namespace algorithms

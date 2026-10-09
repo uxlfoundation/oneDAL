@@ -21,6 +21,7 @@
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/algo/hdbscan/compute_types.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/cpu/cluster_utils.hpp"
+#include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
@@ -122,18 +123,15 @@ inline result_t make_results(sycl::queue& queue,
         // The centers go through the host helper the CPU backends use, so both devices
         // produce identical centers; they only need the labels and the probabilities.
         const std::int64_t row_count = data.get_row_count();
-        const std::int64_t col_count = data.get_column_count();
         ONEDAL_ASSERT(probabilities.get_count() == row_count);
         const auto data_host = row_accessor<const Float>(data).pull({ 0, -1 });
-        const auto responses_host = responses.to_host(queue);
-        const auto probabilities_host = probabilities.to_host(queue);
+        auto responses_host = responses.to_host(queue);
+        auto probabilities_host = probabilities.to_host(queue);
         set_cluster_centers(dal::backend::context_cpu{},
                             desc,
-                            data_host.get_data(),
-                            responses_host.get_data(),
-                            probabilities_host.get_data(),
-                            row_count,
-                            col_count,
+                            homogen_table::wrap(data_host, row_count, data.get_column_count()),
+                            array<std::int32_t>::wrap(responses_host.get_mutable_data(), row_count),
+                            array<Float>::wrap(probabilities_host.get_mutable_data(), row_count),
                             cluster_count,
                             results);
     }

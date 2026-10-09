@@ -29,7 +29,7 @@
 namespace daal
 {
 //Thread safe holder of Status
-class DAAL_EXPORT SafeStatus
+class SafeStatus
 {
 public:
     explicit SafeStatus();
