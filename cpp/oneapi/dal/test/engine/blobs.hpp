@@ -24,9 +24,7 @@ namespace oneapi::dal::test::engine {
 
 /// Dense, deterministic, well-separated blobs in row-major order, `per_cluster` consecutive rows
 /// per cluster. Cluster `c` is centered at `separation * (c + 1)`, with the sign alternating over
-/// columns, and each coordinate is offset by up to `spread / 2`. Offsets sit on a 2^-24 grid of
-/// `std::mt19937` output, whose sequence the standard fixes, so the data is the same on every
-/// platform and contains exact distance ties.
+/// columns, and each coordinate is offset uniformly by up to `spread / 2`.
 ///
 /// @tparam Float Floating-point type of the data
 ///
@@ -48,9 +46,7 @@ std::vector<Float> make_blobs(std::int64_t per_cluster,
     std::vector<Float> data(per_cluster * cluster_count * column_count);
 
     std::mt19937 rng(seed);
-    const auto next_unit = [&]() {
-        return static_cast<Float>(rng() >> 8) / static_cast<Float>(1u << 24);
-    };
+    std::uniform_real_distribution<Float> offset(-spread / 2, spread / 2);
 
     std::int64_t pos = 0;
     for (std::int64_t c = 0; c < cluster_count; c++) {
@@ -58,7 +54,7 @@ std::vector<Float> make_blobs(std::int64_t per_cluster,
             for (std::int64_t j = 0; j < column_count; j++) {
                 const Float center = separation * static_cast<Float>(c + 1) *
                                      static_cast<Float>(j % 2 == 0 ? 1 : -1);
-                data[pos++] = center + spread * (next_unit() - Float(0.5));
+                data[pos++] = center + offset(rng);
             }
         }
     }
