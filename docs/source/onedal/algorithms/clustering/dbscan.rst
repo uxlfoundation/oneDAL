@@ -37,7 +37,8 @@ Computation
 -----------
 Given the set :math:`X = \{x_1 = (x_{11}, \ldots, x_{1p}), \ldots, x_n = (x_{n1}, \ldots, x_{np})\}`
 of :math:`n` :math:`p`-dimensional feature vectors (further referred as observations),
-a positive floating-point number ``epsilon`` and a positive integer ``minObservations``,
+a ``metric`` for pairwise distance computation, a positive floating-point number ``epsilon``
+and a positive integer ``minObservations``,
 the problem is to get clustering assignments for each input observation, based on the definitions below [Ester96]_:
 two observations |x| and |y| are considered to be in the same cluster if there is a :term:`core observation` :math:`z`,
 and |x| and |y| are both :term:`reachable` from :math:`z`.
@@ -45,6 +46,28 @@ and |x| and |y| are both :term:`reachable` from :math:`z`.
 Each cluster gets a unique identifier, an integer number from :math:`0` to :math:`\text{total number of clusters } – 1`.
 Each observation is assigned an identifier of the :term:`cluster` it belongs to,
 or :math:`-1` if the observation considered to be a :term:`noise observation`.
+
+.. _dbscan_c_math_metrics:
+
+Supported distance metrics
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The distance :math:`d(x, y)` used to decide whether |y| lies in the
+``epsilon``-neighborhood of |x| is selected via the ``metric`` parameter. DBSCAN
+supports the :ref:`Minkowski distances <alg_minkowski_distance>` family with
+configurable ``degree`` :math:`p > 0`, of which ``manhattan`` (:math:`L_1`) and
+``euclidean`` (:math:`L_2`, the default) are also exposed as their own ``metric``
+values, the :ref:`Chebyshev distance <alg_chebyshev_distance>`
+(:math:`L_\infty`), and the :ref:`Cosine distance <alg_cosine_distance>` for
+angular data. All metrics are supported on both CPU and GPU, in both memory
+modes.
+
+``epsilon`` is always interpreted in the units of the selected metric, so the
+same radius describes a different neighborhood for each metric and generally has
+to be re-tuned after changing it. Under the Cosine distance, ``epsilon`` ranges
+over :math:`[0, 2]`. As in scikit-learn, an all-zero observation is at distance
+:math:`1` from every non-zero observation; two all-zero observations are at
+distance :math:`0`.
 
 ---------------------
 Programming Interface
