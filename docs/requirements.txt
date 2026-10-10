@@ -23,7 +23,7 @@ PyYAML==6.0.3
 requests==2.34.2
 six==1.17.0
 snowballstemmer==3.1.1
-soupsieve==2.9.2
+soupsieve==3.0
 Sphinx==9.1.0
 sphinx-book-theme==1.4.0
 sphinx-notfound-page==1.1.0
