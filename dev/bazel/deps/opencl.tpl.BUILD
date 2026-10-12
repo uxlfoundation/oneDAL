@@ -10,6 +10,6 @@ cc_library(
         allow_empty = True,
         exclude = ["*.py", "*.cmake", "*.a", "*.so.*-*"],
     ),
-    linkopts = ["-lOpenCL"],
+    linkopts = %{linkopts},
     visibility = ["//visibility:public"],
 )
