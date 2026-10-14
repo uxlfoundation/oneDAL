@@ -761,7 +761,8 @@ static services::Status selectClusters(const CondensedEdge * condensed, const al
                                 static_cast<DAAL_INT>(maxClusterSize) :
                                 MaxVal<DAAL_INT>::get();
 
-    // Every cluster starts selected and EOM only deselects; the root only with allowSingleCluster.
+    // Every cluster starts selected and EOM only deselects; the root only with allowSingleCluster,
+    // and then whatever its size, as in scikit-learn.
     for (DAAL_INT c = 0; c < nClusters; c++)
     {
         isSelected[c] = false;
@@ -770,7 +771,7 @@ static services::Status selectClusters(const CondensedEdge * condensed, const al
     {
         if (clusterSz[c] >= mcs) isSelected[c] = true;
     }
-    if (allowSingleCluster && clusterSz[rootCid] >= mcs) isSelected[rootCid] = true;
+    if (allowSingleCluster) isSelected[rootCid] = true;
 
     if (clusterSelection == 1)
     {
