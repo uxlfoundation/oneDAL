@@ -107,8 +107,7 @@ DBSCAN_BADARG_TEST("accepts every supported metric") {
 }
 
 DBSCAN_BADARG_TEST("throws if metric is out of range") {
-    // The metric is only validated where it is translated for the backend, so
-    // the descriptor itself accepts the value and the compute call rejects it.
+    // The descriptor stores any value; compute rejects it.
     const auto metric = static_cast<distance_metric>(5);
     REQUIRE_THROWS_AS(
         this->compute(this->get_descriptor().set_metric(metric), this->get_data(), table{}),
