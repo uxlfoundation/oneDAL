@@ -129,7 +129,8 @@ struct get_core_wide_kernel {
                             }
                         }
                         Float distance = metric.reduce(sg, acc);
-                        if (distance <= metric.threshold) {
+                        // A row is always in its own neighborhood.
+                        if (j == wg_id || distance <= metric.threshold) {
                             count += use_weights ? weights_ptr[j] : Float(1);
                             if (local_id == 0) {
                                 neighbours_ptr[wg_id] = count;
@@ -205,7 +206,8 @@ struct get_core_narrow_kernel {
                                     data_ptr[idx * column_count + i],
                                     data_ptr[j * column_count + i]);
                     }
-                    if (metric.finish(acc) > metric.threshold) {
+                    // A row is always in its own neighborhood.
+                    if (j != std::int64_t(idx[0]) && metric.finish(acc) > metric.threshold) {
                         continue;
                     }
                     neighbours_ptr[idx] += use_weights ? weights_ptr[j] : Float(1);

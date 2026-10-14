@@ -390,20 +390,13 @@ struct NTask
     daal::tls<TlsNTask<FPType, cpu> *> * tlsNTask;
 };
 
-/// Threshold that a powered (unrooted) distance must not exceed for a point to
-/// lie inside the `eps` neighborhood.
+/// Maps `eps` to the space the distances are compared in: squared for Euclidean, raised to `p`
+/// for Minkowski, unchanged for the metrics that take no root.
 ///
-/// The neighborhood search never needs a true distance, only its comparison
-/// against `eps`, so each metric is evaluated in the cheapest form that stays
-/// monotone in the true distance and `eps` is mapped into that same space.
-/// Euclidean distances stay squared and Minkowski distances stay raised to the
-/// power `p`; Manhattan, Chebyshev and cosine distances take no root to begin
-/// with, so for them the threshold is `eps` itself.
-///
-/// @param[in] metric The pairwise distance metric in use
-/// @param[in] eps    The neighborhood radius, in the units of `metric`
-/// @param[in] p      The Minkowski degree; ignored by every other metric
-/// @return The value that powered distances are compared against
+/// @param[in] metric Distance metric
+/// @param[in] eps    Neighborhood radius in the units of `metric`
+/// @param[in] p      Minkowski degree; ignored by the other metrics
+/// @return The threshold the unrooted distances are compared against
 template <typename FPType, CpuType cpu>
 inline FPType poweredEpsilon(PairwiseDistanceType metric, FPType eps, FPType p)
 {
@@ -415,27 +408,13 @@ inline FPType poweredEpsilon(PairwiseDistanceType metric, FPType eps, FPType p)
     }
 }
 
-/// Powered point-to-point distance functors for the memory-saving neighborhood
-/// search.
-///
-/// Each functor returns exactly the quantity that the matching
-/// `PairwiseDistances` batch engine writes into its result buffer, so both
-/// search paths share `poweredEpsilon` as their cut-off. They are functors
-/// rather than a single function taking a runtime metric tag so that the
-/// dispatch happens once per query instead of once per candidate pair.
+// Point-to-point distances for the memory-saving search. Each returns the same unrooted value
+// the matching `PairwiseDistances` engine of `queryFull` writes, so both paths share `poweredEpsilon`.
+
 template <typename FPType, CpuType cpu>
 struct EuclideanPoweredDistance
 {
-    FPType operator()(const FPType * a, const FPType * b, size_t dim) const
-    {
-        FPType sum = 0;
-        for (size_t i = 0; i < dim; ++i)
-        {
-            const FPType diff = b[i] - a[i];
-            sum += diff * diff;
-        }
-        return sum;
-    }
+    FPType operator()(const FPType * a, const FPType * b, size_t dim) const { return distancePow2<FPType, cpu>(a, b, dim); }
 };
 
 template <typename FPType, CpuType cpu>
@@ -443,10 +422,12 @@ struct ManhattanPoweredDistance
 {
     FPType operator()(const FPType * a, const FPType * b, size_t dim) const
     {
-        FPType sum = 0;
+        FPType sum = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (size_t i = 0; i < dim; ++i)
         {
-            sum += MathInst<FPType, cpu>::sFabs(b[i] - a[i]);
+            const FPType diff = a[i] - b[i];
+            sum += (diff < FPType(0)) ? -diff : diff;
         }
         return sum;
     }
@@ -459,10 +440,10 @@ struct MinkowskiPoweredDistance
 
     FPType operator()(const FPType * a, const FPType * b, size_t dim) const
     {
-        FPType sum = 0;
+        FPType sum = FPType(0);
         for (size_t i = 0; i < dim; ++i)
         {
-            sum += MathInst<FPType, cpu>::sPowx(MathInst<FPType, cpu>::sFabs(b[i] - a[i]), _p);
+            sum += MathInst<FPType, cpu>::sPowx(MathInst<FPType, cpu>::sFabs(a[i] - b[i]), _p);
         }
         return sum;
     }
@@ -475,16 +456,15 @@ struct ChebyshevPoweredDistance
 {
     FPType operator()(const FPType * a, const FPType * b, size_t dim) const
     {
-        FPType res = 0;
+        FPType mx = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(max : mx))
         for (size_t i = 0; i < dim; ++i)
         {
-            const FPType diff = MathInst<FPType, cpu>::sFabs(b[i] - a[i]);
-            if (diff > res)
-            {
-                res = diff;
-            }
+            const FPType diff = a[i] - b[i];
+            const FPType absd = (diff < FPType(0)) ? -diff : diff;
+            mx                = (absd > mx) ? absd : mx;
         }
-        return res;
+        return mx;
     }
 };
 
@@ -493,9 +473,10 @@ struct CosinePoweredDistance
 {
     FPType operator()(const FPType * a, const FPType * b, size_t dim) const
     {
-        FPType dot = 0;
-        FPType aa  = 0;
-        FPType bb  = 0;
+        FPType dot = FPType(0);
+        FPType aa  = FPType(0);
+        FPType bb  = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : dot, aa, bb))
         for (size_t i = 0; i < dim; ++i)
         {
             dot += a[i] * b[i];
@@ -503,9 +484,38 @@ struct CosinePoweredDistance
             bb += b[i] * b[i];
         }
         const FPType norm = MathInst<FPType, cpu>::sSqrt(aa) * MathInst<FPType, cpu>::sSqrt(bb);
-        if (norm > FPType(0)) return FPType(1) - dot / norm;
-        // As in scikit-learn, a zero row is at distance 1 from non-zero rows; two zero rows coincide.
-        return (aa == FPType(0) && bb == FPType(0)) ? FPType(0) : FPType(1);
+        // As in scikit-learn, a zero row is at distance 1 from every other row.
+        return (norm > FPType(0)) ? FPType(1) - dot / norm : FPType(1);
+    }
+};
+
+/// `CosineDistances` with scikit-learn's value for zero rows: distance 1 from every other row.
+template <typename FPType, CpuType cpu>
+class ZeroRowCosineDistances : public CosineDistances<FPType, cpu>
+{
+    using super = CosineDistances<FPType, cpu>;
+
+public:
+    ZeroRowCosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b) {}
+
+    services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
+                                  FPType * const res) override
+    {
+        services::Status s = super::computeBatch(a, b, aOffset, aSize, bOffset, bSize, res);
+        // `init` stores the row norms, so a zero norm marks a zero row.
+        const FPType * const aNorms = this->normBufferA.get() + aOffset;
+        const FPType * const bNorms = (&this->_a == &this->_b) ? this->normBufferA.get() + bOffset : this->normBufferB.get() + bOffset;
+        for (size_t i = 0; i < aSize; i++)
+        {
+            if (aNorms[i] != FPType(0)) continue;
+            for (size_t j = 0; j < bSize; j++) res[i * bSize + j] = FPType(1);
+        }
+        for (size_t j = 0; j < bSize; j++)
+        {
+            if (bNorms[j] != FPType(0)) continue;
+            for (size_t i = 0; i < aSize; i++) res[i * bSize + j] = FPType(1);
+        }
+        return s;
     }
 };
 
@@ -551,16 +561,6 @@ public:
         return count;
     }
 
-    /// Computes the full epsilon-neighborhood of every row of the inner table by
-    /// evaluating blocks of the pairwise distance matrix.
-    ///
-    /// Only selects the distance engine that matches the configured metric; the
-    /// search itself lives in `queryFullImpl`, which is instantiated once per
-    /// engine so that the per-block distance calls are not virtual.
-    ///
-    /// @param[out]    neighs  Per-row neighborhoods, at least as many as the inner table has rows
-    /// @param[in]     doReset Whether to clear `neighs` before filling it
-    /// @return Status of the computation
     services::Status queryFull(Neighborhood<FPType, cpu> * neighs, bool doReset = false)
     {
         switch (_metric)
@@ -587,7 +587,7 @@ public:
         }
         case PairwiseDistanceType::cosine:
         {
-            CosineDistances<FPType, cpu> metric(*_inTable, *_outTable);
+            ZeroRowCosineDistances<FPType, cpu> metric(*_inTable, *_outTable);
             return queryFullImpl(metric, neighs, doReset);
         }
         }
@@ -610,50 +610,6 @@ public:
     }
 
 private:
-    /// Replaces the 0/0 entries `CosineDistances` produces for zero rows with the values
-    /// `CosinePoweredDistance` uses.
-    ///
-    /// @param inData   Input        `iSize x dim` row-major block of the inner table
-    /// @param iSize    Input        Number of rows in `inData`, at most 128
-    /// @param dim      Input        Number of columns compared
-    /// @param outData  Input        `jSize x outDim` row-major block of the outer table
-    /// @param jSize    Input        Number of rows in `outData`, at most 128
-    /// @param outDim   Input        Row stride of `outData`
-    /// @param dist     Output/Input `iSize x jSize` row-major block of cosine distances
-    static void setZeroRowCosineDistances(const FPType * inData, size_t iSize, size_t dim, const FPType * outData, size_t jSize, size_t outDim,
-                                          FPType * dist)
-    {
-        DAAL_ASSERT(iSize <= 128 && jSize <= 128);
-        bool inZero[128];
-        bool outZero[128];
-        bool anyZero         = false;
-        const auto isZeroRow = [dim](const FPType * row) {
-            for (size_t k = 0; k < dim; ++k)
-            {
-                if (row[k] != FPType(0)) return false;
-            }
-            return true;
-        };
-        for (size_t i = 0; i < iSize; ++i)
-        {
-            inZero[i] = isZeroRow(inData + i * dim);
-            anyZero |= inZero[i];
-        }
-        for (size_t j = 0; j < jSize; ++j)
-        {
-            outZero[j] = isZeroRow(outData + j * outDim);
-            anyZero |= outZero[j];
-        }
-        if (!anyZero) return;
-        for (size_t i = 0; i < iSize; ++i)
-        {
-            for (size_t j = 0; j < jSize; ++j)
-            {
-                if (inZero[i] || outZero[j]) dist[i * jSize + j] = (inZero[i] && outZero[j]) ? FPType(0) : FPType(1);
-            }
-        }
-    }
-
     template <typename Metric>
     services::Status queryFullImpl(Metric & metric, Neighborhood<FPType, cpu> * neighs, bool doReset)
     {
@@ -673,7 +629,8 @@ private:
 
         DAAL_CHECK_STATUS_VAR(metric.init());
 
-        const FPType epsP = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
+        const FPType epsP    = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
+        const bool sameTable = (_inTable == _outTable);
 
         const size_t inBlockSize = 128;
         const size_t nInBlocks   = inRows / inBlockSize + (inRows % inBlockSize > 0);
@@ -732,9 +689,10 @@ private:
                 const FPType * const weights = weightsRows.get() ? weightsRows.get() : onesWeights;
 
                 metric.computeBatch(inData, outData, i1, iSize, j1, jSize, local);
-                if (_metric == PairwiseDistanceType::cosine)
+                if (sameTable)
                 {
-                    setZeroRowCosineDistances(inData, iSize, dim, outData, jSize, outDim, local);
+                    // A row is always in its own neighborhood.
+                    for (size_t k = (i1 > j1 ? i1 : j1); k < (i2 < j2 ? i2 : j2); k++) local[(k - i1) * jSize + (k - j1)] = FPType(0);
                 }
 
                 for (size_t i = 0; i < iSize; i++)
@@ -790,7 +748,8 @@ private:
             }
         }
 
-        const FPType epsP = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
+        const FPType epsP    = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
+        const bool sameTable = (_inTable == _outTable);
 
         size_t outBlockSize = 256;
         size_t nOutBlocks   = outRows / outBlockSize + (outRows % outBlockSize > 0);
@@ -822,8 +781,8 @@ private:
             {
                 for (size_t j = 0; j < jSize; j++)
                 {
-                    const FPType d = dist(queryRows[i].get(), &outData[j * outDim], dim);
-                    if (d <= epsP)
+                    // A row is always in its own neighborhood, as in `queryFull`.
+                    if ((sameTable && indices[i] == j + j1) || dist(queryRows[i].get(), &outData[j * outDim], dim) <= epsP)
                     {
                         DAAL_CHECK_MALLOC_THR(!localNeighs[i].add(j + j1, (weights ? weights[j] : (FPType)1.0)));
                     }

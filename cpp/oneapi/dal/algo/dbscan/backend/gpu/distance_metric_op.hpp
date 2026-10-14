@@ -27,11 +27,7 @@ namespace oneapi::dal::dbscan::backend {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-/// Per-pair accumulator shared by the DBSCAN GPU metric operations.
-///
-/// `sum` carries the running distance term for every metric. Cosine additionally
-/// needs the two row norms; the other metrics never touch those slots, so the
-/// compiler drops them.
+/// Per-pair accumulator of the metric operations; only cosine uses the two norms.
 template <typename Float>
 struct metric_accumulator {
     Float sum = Float(0);
@@ -39,21 +35,9 @@ struct metric_accumulator {
     Float rhs_norm = Float(0);
 };
 
-/// Device-side metric operations for the DBSCAN brute-force GPU kernels.
-///
-/// The neighborhood search only ever compares a distance against `epsilon`, so
-/// each operation evaluates the cheapest form that stays monotone in the true
-/// distance and carries `epsilon` mapped into that same space as `threshold`.
-/// Keeping the threshold inside the operation means exactly one place knows how
-/// a metric is powered, so no caller can pass a raw radius by mistake.
-///
-/// `partial_is_lower_bound` says whether a partially accumulated value is a
-/// lower bound on the final distance. The wide kernels use it to abandon a
-/// candidate pair as soon as the running value crosses `threshold`; cosine has
-/// no such bound, because its partial dot product can still move either way.
-///
-/// The operations are plain aggregates so they are trivially device-copyable and
-/// can be captured straight into a SYCL kernel.
+// Metric operations of the neighborhood kernels. Each computes the unrooted distance and carries
+// `epsilon` mapped into the same space as `threshold`, as `poweredEpsilon` does on CPU.
+// `partial_is_lower_bound` allows the early exit on a partial sum; a partial cosine sum is no bound.
 template <typename Float>
 struct euclidean_metric_op {
     static constexpr bool partial_is_lower_bound = true;
@@ -159,27 +143,20 @@ struct cosine_metric_op {
 
     Float finish(const metric_accumulator<Float>& acc) const {
         const Float norm = sycl::sqrt(acc.lhs_norm) * sycl::sqrt(acc.rhs_norm);
-        if (norm > Float(0)) {
-            return Float(1) - acc.sum / norm;
-        }
-        // As in scikit-learn, a zero row is at distance 1 from non-zero rows; two zero rows coincide.
-        return (acc.lhs_norm == Float(0) && acc.rhs_norm == Float(0)) ? Float(0) : Float(1);
+        // As in scikit-learn, a zero row is at distance 1 from every other row.
+        return (norm > Float(0)) ? Float(1) - acc.sum / norm : Float(1);
     }
 };
 
-/// Builds the metric operation matching `metric` and hands it to `body`.
+/// Calls `body` with the metric operation for `metric`.
 ///
-/// Concentrates the enum-to-operation mapping in one place so every call site
-/// only has to supply a generic callable. The operation arrives as a template
-/// argument, which keeps the innermost distance loops free of metric branches.
-///
-/// @tparam Float  Floating-point type used to perform computations
-/// @tparam Body   Callable accepting one metric operation by value
-/// @param[in] metric  The requested metric
-/// @param[in] epsilon The neighborhood radius, in the units of `metric`
-/// @param[in] degree  The Minkowski degree; ignored by every other metric
-/// @param[in] body    The generic callable to invoke with the built operation
-/// @return Whatever `body` returns
+/// @tparam Float  Floating-point type
+/// @tparam Body   Callable taking one metric operation
+/// @param[in] metric  Distance metric
+/// @param[in] epsilon Neighborhood radius in the units of `metric`
+/// @param[in] degree  Minkowski degree; ignored by the other metrics
+/// @param[in] body    Callable to invoke
+/// @return The result of `body`
 template <typename Float, typename Body>
 inline auto dispatch_by_metric(distance_metric metric, double epsilon, double degree, Body&& body) {
     const Float eps = static_cast<Float>(epsilon);
