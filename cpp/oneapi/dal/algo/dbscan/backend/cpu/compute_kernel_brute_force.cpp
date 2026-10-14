@@ -41,11 +41,6 @@ template <typename Float, daal::internal::CpuType Cpu>
 class dbscan_compute_wrapper {
 public:
     /// Routes to the full-matrix or the memory-saving DBSCAN kernel.
-    ///
-    /// The argument list is spelled out rather than forwarded as a variadic pack
-    /// because `memorySavingMode` has to be read off the `Parameter`, and the
-    /// metric arguments that follow it would make any positional lookup in such
-    /// a pack fragile.
     auto compute(const daal::data_management::NumericTable* data,
                  const daal::data_management::NumericTable* weights,
                  daal::data_management::NumericTable* responses,

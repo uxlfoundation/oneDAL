@@ -43,10 +43,8 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class DBSCANBatchKernel : public Kernel
 {
 public:
-    /// The distance metric and the Minkowski degree are kernel arguments rather
-    /// than `Parameter` fields because `Parameter` is part of the published DAAL
-    /// ABI, while this kernel is internal. They default to the squared Euclidean
-    /// behaviour every existing caller relies on.
+    /// `metric` and `degree` are kernel arguments rather than `Parameter` fields so the public
+    /// DAAL `Parameter` layout stays unchanged.
     services::Status computeNoMemSave(const NumericTable * ntData, const NumericTable * ntWeights, NumericTable * ntAssignments,
                                       NumericTable * ntNClusters, NumericTable * ntCoreIndices, NumericTable * ntCoreObservations,
                                       const Parameter * par,

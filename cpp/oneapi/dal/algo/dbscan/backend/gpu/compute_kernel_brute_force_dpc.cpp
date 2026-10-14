@@ -332,8 +332,6 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
 template <typename Float>
 static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const input_t& input) {
-    // The metric arrives as a template argument so that each metric is compiled
-    // into its own set of neighborhood kernels; see `dispatch_by_metric`.
     return dispatch_by_metric<Float>(desc.get_metric(),
                                      desc.get_epsilon(),
                                      desc.get_degree(),

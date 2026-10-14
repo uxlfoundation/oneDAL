@@ -28,15 +28,9 @@ using daal_pairwise_distance_t = daal::algorithms::internal::PairwiseDistanceTyp
 
 /// Convert a oneAPI DBSCAN `distance_metric` value to the DAAL pairwise tag.
 ///
-/// Used by the CPU backend to forward the user-facing oneAPI metric enum to the
-/// shared DAAL `PairwiseDistanceType` consumed by `DBSCANBatchKernel`. Every
-/// enumerator of `distance_metric` is mapped explicitly, and a value that
-/// matches none of them raises `invalid_argument` -- so a metric added to the
-/// header without updating this switch surfaces as a loud runtime error instead
-/// of being silently routed to euclidean.
-///
 /// @param[in] m oneAPI metric tag
-/// @return The equivalent DAAL `PairwiseDistanceType`
+///
+/// @return Equivalent DAAL `PairwiseDistanceType`
 inline daal_pairwise_distance_t convert_metric(distance_metric m) {
     switch (m) {
         case distance_metric::euclidean: return daal_pairwise_distance_t::euclidean;

@@ -52,22 +52,21 @@ or :math:`-1` if the observation considered to be a :term:`noise observation`.
 Supported distance metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The distance :math:`d(x, y)` used to decide whether |y| lies in the
-``epsilon``-neighborhood of |x| is selected via the ``metric`` parameter. DBSCAN
-supports the :ref:`Minkowski distances <alg_minkowski_distance>` family with
-configurable ``degree`` :math:`p > 0`, of which ``manhattan`` (:math:`L_1`) and
-``euclidean`` (:math:`L_2`, the default) are also exposed as their own ``metric``
-values, the :ref:`Chebyshev distance <alg_chebyshev_distance>`
-(:math:`L_\infty`), and the :ref:`Cosine distance <alg_cosine_distance>` for
-angular data. All metrics are supported on both CPU and GPU, in both memory
-modes.
+The distance used to decide whether |y| lies in the ``epsilon``-neighborhood of
+|x| is selected via the ``metric`` parameter. DBSCAN reuses the
+:ref:`Minkowski distances <alg_minkowski_distance>` family with configurable
+``degree`` :math:`p > 0`: ``degree = 1`` yields the Manhattan (:math:`L_1`)
+distance, ``degree = 2`` yields the Euclidean (:math:`L_2`, default) distance,
+and the limit :math:`p \to \infty` corresponds to the
+:ref:`Chebyshev distance <alg_chebyshev_distance>` (:math:`L_\infty`). The
+Manhattan, Euclidean and Chebyshev distances are also exposed as their own
+``metric`` values. In addition, DBSCAN supports the
+:ref:`Cosine distance <alg_cosine_distance>` for angular data. All metrics are
+supported on CPU and GPU, in both memory modes.
 
-``epsilon`` is always interpreted in the units of the selected metric, so the
-same radius describes a different neighborhood for each metric and generally has
-to be re-tuned after changing it. Under the Cosine distance, ``epsilon`` ranges
-over :math:`[0, 2]`. As in scikit-learn, an all-zero observation is at distance
-:math:`1` from every non-zero observation; two all-zero observations are at
-distance :math:`0`.
+``epsilon`` is interpreted in the units of the selected metric, so it generally
+has to be re-tuned after changing the metric. As in scikit-learn, an all-zero
+observation is at Cosine distance :math:`1` from every other observation.
 
 ---------------------
 Programming Interface

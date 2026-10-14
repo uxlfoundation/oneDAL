@@ -27,13 +27,8 @@ namespace oneapi::dal::dbscan::backend {
 namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
-/// Neighborhood-search kernels for the DBSCAN brute-force GPU backend.
-///
-/// The three entry points that measure distances are templated on a metric
-/// operation from `distance_metric_op.hpp` rather than taking a metric tag, so
-/// each metric gets its own specialized kernel and the innermost loops stay
-/// branch-free. The operation also carries the powered neighborhood radius,
-/// which is why none of them take an `epsilon` argument.
+/// Neighborhood-search kernels; `Metric` is an operation from `distance_metric_op.hpp`, which also
+/// carries the powered radius.
 template <typename Float>
 struct kernels_fp {
     template <bool use_weights, typename Metric>
@@ -111,8 +106,7 @@ sycl::event set_queue_ptr(sycl::queue& queue,
                           pr::ndview<std::int32_t, 1>& queue_front,
                           std::int32_t start_index,
                           const bk::event_vector& deps = {});
-/// The three helpers below are defined in `kernel_fp_impl.hpp`, which is now
-/// included by more than one translation unit, so they have to be `inline`.
+// Defined in `kernel_fp_impl.hpp`, which more than one translation unit includes.
 inline sycl::event set_arr_value(sycl::queue& queue,
                                  pr::ndview<std::int32_t, 1>& arr,
                                  std::int32_t offset,
