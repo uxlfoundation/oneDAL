@@ -89,6 +89,52 @@ def _is_windows(ctx):
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
 
+def _coverage_options(ctx, cc_toolchain, feature_config):
+    """Return Make-compatible coverage driver options for oneDAL actions."""
+    if not ctx.attr._code_coverage[ConfigFlagInfo].flag:
+        return struct(compile_flags = [], link_flags = [])
+
+    is_linux = ctx.target_platform_has_constraint(
+        ctx.attr._linux_constraint[platform_common.ConstraintValueInfo],
+    )
+    compiler_id = cc_toolchain.compiler.split("-")[0]
+    if not is_linux:
+        fail("--code_coverage=true requires Linux (detected target OS is not Linux)")
+    # `CC=icpx` is detected as `icpx`; it is the same Intel driver as `icx`.
+    if compiler_id not in ("icx", "icpx"):
+        fail("--code_coverage=true requires host compiler ID 'icx' or 'icpx' " +
+             "(detected compiler ID: '{}')".format(compiler_id))
+
+    is_dpc = cc_common.is_enabled(
+        feature_configuration = feature_config,
+        feature_name = "dpc++",
+    )
+    # Make adds -coverage to every ICX compilation and to dynamic links.
+    # DPC++ compilations are unchanged; DPC++ dynamic links use -Xscoverage.
+    return struct(
+        compile_flags = [] if is_dpc else ["-coverage"],
+        link_flags = ["-Xscoverage"] if is_dpc else ["-coverage"],
+    )
+
+def _without_coverage_link_flags(linking_context, coverage_link_flags):
+    """Remove action-local coverage flags while preserving linker metadata."""
+    linker_inputs = []
+    for linker_input in linking_context.linker_inputs.to_list():
+        linker_inputs.append(cc_common.create_linker_input(
+            owner = linker_input.owner,
+            libraries = depset(linker_input.libraries),
+            user_link_flags = depset([
+                flag
+                for flag in linker_input.user_link_flags
+                if flag not in coverage_link_flags
+            ]),
+            additional_inputs = depset(linker_input.additional_inputs),
+            linkstamps = depset(linker_input.linkstamps),
+        ))
+    return cc_common.create_linking_context(
+        linker_inputs = depset(linker_inputs),
+    )
+
 def _msvc_runtime_is_debug(ctx, feature_config, is_windows):
     """Return True for a Windows debug-CRT build, failing on a broken config.
 
@@ -150,6 +196,10 @@ def _msvc_runtime_suffix(ctx, feature_config, is_windows):
 
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
+    coverage = _coverage_options(ctx, toolchain, feature_config)
+    coverage_defines = ["GCOV_BUILD"] if (
+        ctx.attr.define_gcov_build and ctx.attr._code_coverage[ConfigFlagInfo].flag
+    ) else []
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
     is_windows = _is_windows(ctx)
     # Validate the MSVC runtime configuration here as well as in the library
@@ -173,8 +223,8 @@ def _cc_module_impl(ctx):
         public_hdrs = ctx.files.hdrs,
         private_hdrs = ctx.files.private_hdrs,
         defines = ctx.attr.defines,
-        local_defines = ctx.attr.local_defines,
-        user_compile_flags = ctx.attr.copts,
+        local_defines = ctx.attr.local_defines + coverage_defines,
+        user_compile_flags = ctx.attr.copts + coverage.compile_flags,
         includes = ctx.attr.includes,
         system_includes = ctx.attr.system_includes,
         quote_includes = ctx.attr.quote_includes,
@@ -194,7 +244,13 @@ def _cc_module_impl(ctx):
             cc_toolchain = toolchain,
             feature_configuration = feature_config,
             compilation_outputs = compilation_outputs,
+            user_link_flags = coverage.link_flags,
         )
+        # create_linking_context_from_compilation_outputs uses the flags for the
+        # module dynamic-link action and also puts them in its linking context.
+        # Keep module-action coverage flags from leaking transitively;
+        # executable and test actions add their own coverage driver option.
+        linking_context = _without_coverage_link_flags(linking_context, coverage.link_flags)
         tagged_linking_contexts.append(onedal_cc_common.create_tagged_linking_context(
             tag = ctx.attr.lib_tag,
             linking_context = linking_context,
@@ -220,6 +276,10 @@ _cc_module = rule(
         "copts": attr.string_list(),
         "defines": attr.string_list(),
         "local_defines": attr.string_list(),
+        "define_gcov_build": attr.bool(
+            default = False,
+            doc = "Define GCOV_BUILD for Make CORE.objs_a/y-equivalent sources.",
+        ),
         "cpu_defines": attr.string_list_dict(),
         "fpt_defines": attr.string_list_dict(),
         "includes": attr.string_list(),
@@ -235,6 +295,13 @@ _cc_module = rule(
         "_fpts": attr.string_list(default = ["f32", "f64"]),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
@@ -377,6 +444,7 @@ def _cc_dynamic_lib_impl(ctx):
     # nothing to resolve the DAAL symbols it imports from onedal_core.dll
     # against and lld-link fails with undefined externals.
     toolchain, feature_config = _init_cc_rule(ctx)
+    coverage = _coverage_options(ctx, toolchain, feature_config)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
@@ -401,7 +469,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts,
+        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags,
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts,
         dll_to_implib_tool = ctx.file._dll_to_implib if is_windows else None,
@@ -454,6 +522,13 @@ cc_dynamic_lib = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
+        ),
         "_build_parameters_lib": attr.label(
             default = "@config//:build_parameters_lib",
             providers = [ConfigFlagInfo],
@@ -476,6 +551,7 @@ def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
         return
     toolchain, feature_config = _init_cc_rule(ctx)
+    coverage = _coverage_options(ctx, toolchain, feature_config)
     is_windows = _is_windows(ctx)
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
@@ -487,7 +563,7 @@ def _cc_exec_impl(ctx):
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
-        user_link_flags = ctx.attr.user_link_flags,
+        user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
     )
     runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data, is_windows)
     default_info = DefaultInfo(
@@ -507,6 +583,13 @@ cc_test = rule(
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
         "_is_test": attr.bool(default=True),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
+        ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
@@ -524,6 +607,13 @@ cc_executable = rule(
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
         "_is_test": attr.bool(default=False),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+        ),
+        "_code_coverage": attr.label(
+            default = "@config//:code_coverage",
+            providers = [ConfigFlagInfo],
+        ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
