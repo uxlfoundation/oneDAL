@@ -1,0 +1,124 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# abicheck project configuration for LinuxAbicheckScan (the blocking,
+# release-shaped job in ci.yml), passed explicitly as its `build-config` input
+# (it is not auto-discovered from here -- abicheck looks for `.abicheck.yml` at
+# the repository root). LinuxAbicheckL2Scan uses abicheck-l2.yml instead: the
+# two keys here apply only to a directory compare, and the one key it needs
+# (`assurance.require_complete`) would floor this job to exit 1.
+#
+# Deliberately small, and deliberately *consumer-only*: every setting the
+# Action still takes as an input stays an input in ci.yml, so the two never
+# disagree about the same knob. That leaves `bundle:` and `scope:` -- which the
+# abicheck CLI used to accept as flags and no longer does, and which have no
+# Action input.
+#
+# What is no longer here is the L2 header-AST `compile:` block, and its absence
+# is load-bearing rather than an omission; see the end of this file.
+#
+# Measured with the pin both workflows carry (5f42eac90), against the 2026.0.0
+# baseline-set: with this file, COMPATIBLE_WITH_RISK, exit 0.
+
+# oneDAL's SYCL libraries link MKL's SYCL interface libraries and the DPC++
+# runtime, and nothing in the release directory provides them. abicheck's
+# bundle analysis is unconditional, and an import whose provider it cannot
+# place is reported. Naming the providers as system-provided is the supported
+# way to say "this library comes from outside the bundle" -- abicheck ships a
+# default list, and these four are the ones oneDAL needs on top of it.
+#
+# No longer verdict-bearing, measured: dropping these four entries gives 212
+# `bundle_unresolved_intra_dependency` findings at risk, exit 0. The previous
+# pin reported the same 212 as BREAKING `bundle_intra_dep_removed`, exit 4,
+# because `bundle_detectors._detect_intra_dep_removed` consulted its own
+# `ever_provided_in_bundle` evidence only inside the allow-list branch;
+# upstream now treats that evidence as a precondition and downgrades a
+# never-in-bundle import to the unresolved kind. The entries stay because they
+# are true and keep those 212 out of the report. With them, what remains is
+# 156 `bundle_intra_dep_signature_unverified` plus 11
+# `bundle_unresolved_intra_dependency` (DPC++ runtime imports), all risk.
+#
+# Entries are soname *stems* (no `.so.N`): abicheck matches a NEEDED soname
+# exactly first, then falls back to a stem match, and the fallback only
+# applies against a version-generic entry like these. See "Staged member
+# binaries" in .github/abicheck/README.md.
+bundle:
+  system_providers:
+    - libmkl_sycl_blas
+    - libmkl_sycl_lapack
+    - libmkl_sycl_rng
+    - libmkl_sycl_sparse
+
+# What makes a library disappearing from the release red. `on_incomplete`
+# governs abicheck's completeness axis, which is separate from the
+# compatibility axis: a baseline snapshot with no counterpart in the new
+# release directory is classified `not_supplied` ("NEW's inventory is not
+# proven complete, so this is unmatched, not removed", ADR-065 D2), so it does
+# not become a `removed library` finding and the step's
+# `fail-on-removed-library: true` input never sees it. Measured by deleting
+# libonedal_thread.so from the new side: exit 0 under the default `warn`,
+# exit 1 under `block`. A full six-library release is a complete scope, so
+# `block` does not touch a normal run (measured: exit 0, same verdict).
+scope:
+  on_incomplete: block
+
+# ── No `compile:` block here, on purpose ────────────────────────────────────
+#
+# This file used to pin the L2 header-AST compile context (`frontend: castxml`,
+# `std: c++17`). The published header-depth baseline-set was dumped without
+# one: `actions/baseline` had no `build-config` input at the previous pin, and
+# abicheck-baseline.yml does not pass the one it gained at this pin. So a
+# block here would be one-sided, and bringing it back means passing it on
+# both sides and re-capturing the header-depth set under a bumped
+# ABICHECK_BASELINE_GENERATION (the snapshot fingerprint changes).
+#
+# Pinning it on the candidate side alone is worse than not pinning it, and
+# measurably so. A header-depth snapshot records its compile context as a
+# profile fingerprint and abicheck refuses to compare across a mismatch, so a
+# candidate that sets `std: c++17` against a baseline-set snapshot that could
+# not becomes: "not comparable: old and new snapshots were extracted under
+# different compile contexts (profile_fingerprint mismatch; differing fields:
+# language_standard)", exit 16, no verdict. Measured on libonedal_parameters.so.
+#
+# With the block removed from both sides the two agree and the comparison is
+# real. Measured at this pin, same pair: exit 0, `requested_depth`/
+# `effective_depth` `headers`, `analysis_assurance.status: complete`,
+# COMPATIBLE_WITH_RISK -- 0 breaking, 1214 risk (1130 of them
+# `public_not_exported`, new at this pin), 87 compatible.
+#
+# Nothing is actually given up, which is why this is a fix and not a
+# concession. The two keys were restating what abicheck resolves on its own:
+# the config-less dump records `frontend: castxml` (`--ast-frontend auto`
+# selects it when a supported castxml is on PATH, and abicheck requires
+# >=0.6.11,<0.8.0 and never falls back to clang silently) and
+# `language_standard: "probed:__cplusplus=201703L"` with
+# `language_standard_explicit: "0"` -- C++17, probed from the frontend rather
+# than asserted. Both sides now install the same checksum-pinned CastXML
+# Superbuild (`dependency-source: system`, `install-deps: true`), so they
+# resolve to the same fingerprint by construction, and any future divergence
+# between publisher and consumer toolchains fails loudly at exit 16 instead of
+# silently comparing across contexts -- which is the property the pinned block
+# was there to provide.
+#
+# castxml is still what carries layout, and still buys nothing on this build:
+# the clang JSON-AST backend "does not carry record size/alignment/offset
+# layout", but measured, both frontends report `layout_unverified_detectors:
+# ['dwarf', 'advanced_dwarf', 'layout_descriptor']` on every leg and agree on
+# all five verdicts, because `LinuxMakeDPCPP` ships no DWARF for L1 to read
+# either.
+#
+# Bringing the block back is now possible: `actions/baseline` takes
+# `build-config` and forwards it as `--config` at this pin. It is not done
+# here because nothing needs a non-default compile context today, and doing it
+# costs a re-capture of every published header-depth set.
