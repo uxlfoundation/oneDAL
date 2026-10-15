@@ -66,13 +66,20 @@ env:
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
+# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
+# Does not apply to the main branch. Matters on the scarce ARM64 runners, where
+# this workflow is the only consumer.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     strategy:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve, llvm_arch: woa64 }
+          { name: GitHub hosted, label: windows-11-vs2026-arm, cxx: clang, arch: arm64, isa: sve }
         ]
     name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
@@ -80,33 +87,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup MSYS2
-        shell: pwsh
-        run: |
-          if (Test-Path 'C:\msys64') {
-            Remove-Item 'C:\msys64' -Recurse -Force
-          }
-          Invoke-WebRequest https://github.com/msys2/msys2-installer/releases/download/2026-06-11/msys2-${{ matrix.os.arch }}-20260611.exe -UseBasicParsing -OutFile msys2-${{ matrix.os.arch }}.exe
-          .\msys2-${{ matrix.os.arch }}.exe install --confirm-command --root "C:\msys64"
-
       - name: Install LLVM for Win-${{ matrix.os.arch }}
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-${{ matrix.os.llvm_arch }}.exe -UseBasicParsing -OutFile LLVM-${{ matrix.os.llvm_arch }}.exe
-          Start-Process -FilePath ".\LLVM-${{ matrix.os.llvm_arch }}.exe" -ArgumentList "/S" -Wait
-          echo "%ProgramFiles%\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          
+        run: .\.ci\env\llvm.ps1 -Arch ${{ matrix.os.arch }}
+
       - name: Install CMake and Ninja for Win-${{ matrix.os.arch }}
         shell: pwsh
-        run: |
-          Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-${{ matrix.os.arch }}.msi -OutFile cmake-${{ matrix.os.arch }}.msi
-          Start-Process msiexec.exe -ArgumentList "/i cmake-${{ matrix.os.arch }}.msi /quiet /norestart" -Wait
-          echo "%ProgramFiles%\CMake\bin" >> $env:GITHUB_PATH
-          
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v${{ env.NINJA_VERSION }}/ninja-win${{ matrix.os.arch }}.zip -OutFile ninja-win${{ matrix.os.arch }}.zip
-          Expand-Archive ninja-win${{ matrix.os.arch }}.zip -DestinationPath ninja
-          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
-          
+        run: .\.ci\env\cmake_ninja.ps1 -Arch ${{ matrix.os.arch }}
+
       - name: Build OpenBLAS
         shell: cmd
         run: |
@@ -135,7 +123,59 @@ jobs:
           set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\scripts\build.bat onedal_c ${{ matrix.os.cxx }} ${{ matrix.os.isa }}
 
+      # `.ci/scripts/test.bat` runs each example executable with no timeout and
+      # redirects its output to a file, so a crash that pops the Windows Error
+      # Reporting dialog would wait for a click that never comes: the step then
+      # hangs until the job limit instead of reporting the non-zero exit code.
+      - name: Disable Windows Error Reporting dialogs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wer = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+          New-Item -Path $wer -Force | Out-Null
+          Set-ItemProperty -Path $wer -Name DontShowUI -Value 1 -Type DWord
+          Set-ItemProperty -Path $wer -Name Disabled -Value 1 -Type DWord
+
+      # OpenBLAS is linked statically (.ci/env/openblas.bat), so no oneDAL binary
+      # may import a DLL named `openblas.dll`: that name is not oneDAL's to claim,
+      # and Windows would resolve the import against whichever `openblas.dll` is
+      # already loaded in the process. Same idea as `Verify ARM64 PE output` in
+      # the Bazel job: check the artifact rather than trust the link.
+      - name: Verify no OpenBLAS import
+        shell: cmd
+        run: |
+          setlocal enabledelayedexpansion
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
+          if errorlevel 1 exit /b 1
+          set /a checked=0
+          for /R __release_win_${{ matrix.os.cxx }} %%f in (onedal*.dll) do (
+            set /a checked+=1
+            dumpbin /nologo /dependents "%%f" > "%TEMP%\dependents.txt"
+            rem A `dumpbin` that cannot read the binary would otherwise look the
+            rem same as one reporting no match.
+            if errorlevel 1 (
+              echo ::error::dumpbin failed on %%f
+              exit /b 1
+            )
+            findstr /I /C:"openblas" /C:"flang" "%TEMP%\dependents.txt" >nul && (
+              echo ::error::%%f imports a math backend DLL
+              type "%TEMP%\dependents.txt"
+              exit /b 1
+            )
+          )
+          rem Zero matches must not pass as "no bad imports": that is the shape a
+          rem renamed release directory or a build that produced nothing takes.
+          if !checked! equ 0 (
+            echo ::error::no onedal*.dll found under __release_win_${{ matrix.os.cxx }}
+            exit /b 1
+          )
+          echo checked !checked! libraries: no OpenBLAS or flang imports
+          rem `findstr` leaves errorlevel 1 behind when it matches nothing, and
+          rem `echo` does not clear it, so the step needs an explicit success.
+          exit /b 0
+
       - name: Test daal
+        timeout-minutes: 30
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
@@ -144,11 +184,10 @@ jobs:
           .ci\scripts\test.bat daal\cpp "" ${{ matrix.os.cxx }} cmake
 
       - name: Test oneapi
+        timeout-minutes: 30
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           set "CMAKE_GENERATOR=Visual Studio 18 2026"
           .ci\scripts\test.bat oneapi\cpp "" ${{ matrix.os.cxx }} cmake
-
-
