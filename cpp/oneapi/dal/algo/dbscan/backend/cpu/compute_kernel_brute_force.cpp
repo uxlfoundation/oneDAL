@@ -17,6 +17,7 @@
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/algo/dbscan/backend/cpu/compute_kernel.hpp"
+#include "oneapi/dal/algo/dbscan/backend/cpu/compute_kernel_common.hpp"
 #include "oneapi/dal/algo/dbscan/backend/fill_core_flags.hpp"
 
 #include <daal/src/algorithms/dbscan/dbscan_kernel.h>
@@ -39,16 +40,38 @@ using daal_dbscan_default_dense_t =
 template <typename Float, daal::internal::CpuType Cpu>
 class dbscan_compute_wrapper {
 public:
-    template <typename... Args>
-    auto compute(Args&&... args) {
-        const daal_dbscan::Parameter* par =
-            std::get<sizeof...(Args) - 1>(std::forward_as_tuple(args...));
+    /// Routes to the full-matrix or the memory-saving DBSCAN kernel.
+    auto compute(const daal::data_management::NumericTable* data,
+                 const daal::data_management::NumericTable* weights,
+                 daal::data_management::NumericTable* responses,
+                 daal::data_management::NumericTable* cluster_count,
+                 daal::data_management::NumericTable* core_indices,
+                 daal::data_management::NumericTable* core_observations,
+                 const daal_dbscan::Parameter* par,
+                 daal_pairwise_distance_t metric,
+                 double degree) {
+        using kernel_t =
+            daal_dbscan::internal::DBSCANBatchKernel<Float, daal_dbscan::defaultDense, Cpu>;
         if (par->memorySavingMode == false) {
-            return daal_dbscan::internal::DBSCANBatchKernel<Float, daal_dbscan::defaultDense, Cpu>{}
-                .computeNoMemSave(std::forward<Args>(args)...);
+            return kernel_t{}.computeNoMemSave(data,
+                                               weights,
+                                               responses,
+                                               cluster_count,
+                                               core_indices,
+                                               core_observations,
+                                               par,
+                                               metric,
+                                               degree);
         }
-        return daal_dbscan::internal::DBSCANBatchKernel<Float, daal_dbscan::defaultDense, Cpu>{}
-            .computeMemSave(std::forward<Args>(args)...);
+        return kernel_t{}.computeMemSave(data,
+                                         weights,
+                                         responses,
+                                         cluster_count,
+                                         core_indices,
+                                         core_observations,
+                                         par,
+                                         metric,
+                                         degree);
     }
 };
 
@@ -94,7 +117,9 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         daal_cluster_count.get(),
         daal_core_observation_indices.get(),
         daal_core_observations.get(),
-        &par));
+        &par,
+        convert_metric(desc.get_metric()),
+        desc.get_degree()));
 
     auto core_observation_indices =
         interop::convert_from_daal_homogen_table<int>(daal_core_observation_indices);

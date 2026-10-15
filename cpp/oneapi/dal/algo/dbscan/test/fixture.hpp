@@ -48,6 +48,39 @@ public:
             .set_mem_save_mode(true)
             .set_result_options(result_options::responses);
     }
+    auto get_metric_descriptor(float_t epsilon,
+                               std::int64_t min_observations,
+                               distance_metric metric,
+                               double degree,
+                               bool mem_save_mode) const {
+        return dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_mem_save_mode(mem_save_mode)
+            .set_result_options(result_options::responses)
+            .set_metric(metric)
+            .set_degree(degree);
+    }
+
+    /// Checks the responses for `metric` in both memory modes; on CPU they are separate
+    /// distance code paths.
+    void run_metric_checks(const table &data,
+                           float_t epsilon,
+                           std::int64_t min_observations,
+                           distance_metric metric,
+                           double degree,
+                           const table &ref_responses) {
+        CAPTURE(epsilon, min_observations, static_cast<int>(metric), degree);
+
+        for (bool mem_save_mode : { false, true }) {
+            CAPTURE(mem_save_mode);
+            const auto compute_result = oneapi::dal::test::engine::compute(
+                this->get_policy(),
+                get_metric_descriptor(epsilon, min_observations, metric, degree, mem_save_mode),
+                data,
+                table{});
+            check_responses_against_ref(compute_result.get_responses(), ref_responses);
+        }
+    }
+
     void check_if_close(const table &left,
                         const table &right,
                         std::string name = "",
