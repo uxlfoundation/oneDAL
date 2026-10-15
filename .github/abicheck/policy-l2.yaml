@@ -1,0 +1,149 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+# Verdict policy for LinuxAbicheckL2Scan only (advisory, header depth). The
+# blocking LinuxAbicheckScan job uses policy.yaml; read that file first -- the
+# cause, the evidence and the expiry are the same, and are not repeated here.
+#
+# Why a second file: at abicheck 5f42eac90 a header-depth leg reports most of
+# the -fvisibility-inlines-hidden removals as `func_removed_elf_only` *without*
+# `symbol_binding` -- the "removed exported C++ ABI artifact ... accounted for
+# by its class's declaration" path leaves it null. Measured against the
+# 2026.0.0 header-depth baseline-set with policy.yaml: 1064 breaking findings
+# with a null binding (libonedal.so 180, libonedal_core.so 659,
+# libonedal_dpc.so 215, libonedal_parameters.so 4, libonedal_parameters_dpc.so
+# 6), every one WEAK in the 2026.0.0 .dynsym, every leg BREAKING exit 4. A
+# `binding: weak` rule cannot match a null binding, so the rules below scope by
+# kind and mangled prefix alone.
+#
+# Those binding-less rules must not reach the blocking gate: there a removal
+# *is* stamped, and a binding-less rule would demote a STRONG removal too. Hence
+# this file. What it gives up, on these advisory legs only: a STRONG export
+# removed inside daal::, oneapi:: or sycl:: is reported as risk, not break. The
+# blocking binary-depth gate still breaks on it.
+#
+# Measured with this file: 0 breaking on all five legs.
+
+base_policy: strict_abi
+
+reclassify:
+  # The 1064 above, by mangled prefix: 659 `_ZN`/`_ZNK`/`_ZZN`/`_ZZZN` 4daal
+  # (108 of them block-scope entities), 386 6oneapi, 19 4sycl (libonedal_dpc.so).
+  # `_Z+N` reaches the block-scope `_ZZN...`/`_ZZZN...` names that a `_ZN`
+  # anchor misses. The same rules also cover the removals that *are* stamped
+  # `binding: weak` on these legs (57 / 755 / 57 / 8 / 11), which policy.yaml's
+  # weak-scoped rules would otherwise demote.
+  - kind: func_removed_elf_only
+    symbol_pattern: '_Z+N[KVR]*4daal.*'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      -fvisibility-inlines-hidden demotion of WEAK COMDAT exports in daal::,
+      reported at header depth with no symbol_binding (abicheck 5f42eac90), so
+      it cannot be scoped by `binding: weak`. Advisory leg only.
+  - kind: func_removed_elf_only
+    symbol_pattern: '_ZN[KVR]*6oneapi.*'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same demotion and the same missing binding, in oneapi::dal::.
+  - kind: func_removed_elf_only
+    symbol_pattern: '_ZN[KVR]*4sycl.*'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same demotion and the same missing binding, for the DPC++ runtime's
+      inline surface libonedal_dpc.so used to re-export.
+  # ── The same demotion as `func_visibility_changed`, which is the kind it
+  # arrives under once a declaration exists (header depth only; measured firing
+  # zero times on the binary-depth gate). Scoped from the measurement, on all
+  # five header-depth legs rather than on one: 230 findings on
+  # `libonedal_core.so` (229 under `daal::`, one leading-return-type template),
+  # 6 on `libonedal.so` and 6 on `libonedal_dpc.so` (all under `oneapi::`), and
+  # zero on the two `parameters` libraries. Every one WEAK. No `sycl` rule,
+  # because no leg reports one -- the `sycl::` re-exports show up only as
+  # removals at binary depth.
+  #
+  # Four of the six on each `oneapi` library are the `oneapi::dal::preview::spmd`
+  # communicator members that header depth also reports as
+  # `experimental_removed_without_replacement`. Demoting the *linkage* finding
+  # does not hide the *source* one: those four stay API_BREAK (exit 2) and stay
+  # in the report, which is the split this file is for -- the WEAK-linkage
+  # demotion is what oneDAL is asserting is safe, not the removal.
+  - kind: func_visibility_changed
+    binding: weak
+    namespace: 'daal'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same -fvisibility-inlines-hidden demotion as the `func_removed_elf_only`
+      rules above, reported as a visibility change because header depth has the
+      declaration the binary-depth fan-out lacks: WEAK COMDAT inline/template in
+      the legacy `daal::` interfaceN surface, still defined as LOCAL FUNC in the
+      new binary's .symtab, with no `extern template` in any installed header. A
+      STRONG export losing visibility is not matched by this rule and still
+      gates.
+  - kind: func_visibility_changed
+    binding: weak
+    namespace: 'oneapi'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same -fvisibility-inlines-hidden demotion in the `oneapi::dal::` surface,
+      reported as a visibility change because header depth has the declaration:
+      6 findings on libonedal.so and 6 on libonedal_dpc.so, all WEAK COMDAT
+      inline/template members (`chunked_array_base::reset`,
+      `homogen_table_builder::build`, `table::init_impl` and the four
+      `preview::spmd` communicator members). The four `preview::spmd` members are
+      separately reported as `experimental_removed_without_replacement` and stay
+      an API break; this rule reclassifies only the linkage finding.
+  # The mangled-name counterpart for this kind, for the same reason as above:
+  # `namespace:` mis-splits a demangled name that starts with a printed return
+  # type. One such symbol is measured on the header-depth legs today (the
+  # `NumericTable::getValue<int>` member template, one of `libonedal_core.so`'s
+  # 230 visibility findings), and the pair below covers the class rather than
+  # that one instance -- which is the lesson the binary-depth gate taught when
+  # two unnamed `sycl::` templates appeared on the first CI run. No `sycl` rule
+  # for this kind: no header-depth leg reports a `func_visibility_changed`
+  # finding under `sycl::` (that surface reaches the gate only as removals at
+  # binary depth), so adding one would widen the file past what is measured.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: '_ZN[KVR]*4daal.*'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same bound as the `namespace: daal` rule above, on the mangled name, so it
+      also reaches return-type-prefixed member templates such as
+      `int daal::data_management::interface1::NumericTable::getValue<int>(
+      unsigned long, unsigned long) const`.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: '_ZN[KVR]*6oneapi.*'
+    to: risk
+    expires: 2027-03-01
+    label: inlines-hidden-demotion
+    reason: >-
+      Same bound as the `namespace: oneapi` rule above, on the mangled name.
+      Nothing in the current header-depth measurement needs it -- all 6 findings
+      per `oneapi` library are reached by the namespace rule -- but a
+      deduced-return or return-type-prefixed template in that surface would
+      otherwise be the same silent gap the `sycl::` pair turned out to be.
