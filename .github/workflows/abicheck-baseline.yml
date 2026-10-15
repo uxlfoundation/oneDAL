@@ -95,12 +95,13 @@ jobs:
     # Measured against the pin below, on the no-debug-info build this workflow
     # produces, and re-measured through `actions/baseline` itself rather than
     # through bare `abicheck dump`, which is what changed the number: the
-    # binary-depth family is 108 s wall and 350 MiB peak RSS for all six
-    # libraries including `validation: strict`, but the header-depth family is
-    # **4576 s (76 min) and 3.6 GiB** for its five -- because `validation:
-    # strict` round-trips every snapshot through a header-depth self-compare, and
-    # a header-depth compare is ~570 s per library on its own. The dumps
-    # themselves are ~23 min of that; the self-compares are the rest.
+    # binary-depth family is 39 s wall and 331 MiB peak RSS for all six
+    # libraries including `validation: strict`, and the header-depth family is
+    # 474 s (~8 min) and 1.14 GiB for its five, `validation: strict`
+    # round-tripping every snapshot through a header-depth self-compare (measured
+    # locally at this pin; the previous pin took 4576 s and 3.6 GiB for the
+    # header-depth family, so the timeout below is now generous rather than
+    # tight).
     #
     # That is worth paying rather than dropping to `validation: none`: the
     # publisher is the only place an unloadable snapshot can be caught before it
@@ -297,11 +298,11 @@ jobs:
       # COMPATIBLE -- "new library libonedal.so appears in the bundle", for
       # libraries that have existed all along); with `binaries/` as the old
       # operand it is real, bundle verdict COMPATIBLE_WITH_RISK over 156
-      # `bundle_intra_dep_signature_unverified` findings, and dropping oneDAL's
-      # four MKL `system_providers` entries turns it BREAKING with 212
-      # `bundle_intra_dep_removed`. So ci.yml's old operand is this set's
-      # `binaries/` directory, and the archive pays for it: 29,489,837 bytes with
-      # the staged binaries against 491,816 without them.
+      # `bundle_intra_dep_signature_unverified` findings (dropping oneDAL's
+      # four MKL `system_providers` entries adds 212 risk-level
+      # `bundle_unresolved_intra_dependency`). So ci.yml's old operand is this
+      # set's `binaries/` directory, and the archive pays for it: 29,719,772
+      # bytes with the staged binaries (at this pin) against ~0.5 MB without.
       #
       # `install-deps: false` because a binary-depth dump needs neither castxml
       # nor gcc -- it reads ELF. The header-depth family below does need them and
@@ -351,26 +352,22 @@ jobs:
       # installs no public header of its own), and it keeps its binary-depth
       # snapshot in family 1, which is what the release-shaped gate compares.
       #
-      # No `build-config` -- and that is the one real capability this migration
-      # gives up. `actions/baseline` runs `abicheck dump` with only
-      # -H/-I/--build-info/--depth/--version/--compression/-o: it forwards
-      # neither `--config` nor `--sources`, and a `compile:` block reaches a dump
-      # only through one of those two. (`actions/baseline/action.yml` has no
-      # `build-config` input to forward either -- `actions/check-target` does,
-      # so the shape exists upstream, just not on this action.) oneDAL's
-      # .github/abicheck/abicheck.yml
-      # therefore no longer carries a `compile:` block on *either* side, because
-      # pinning it on the candidate side alone is worse than not pinning it:
-      # measured, a candidate asserting `std: c++17` against a set that could not
-      # gives "profile_fingerprint mismatch; differing fields:
+      # No `build-config`, deliberately, although `actions/baseline` takes one
+      # at this pin (forwarded as `--config` to its `abicheck dump`; the
+      # previous pin had no such input). oneDAL's .github/abicheck/abicheck.yml
+      # carries no `compile:` block on *either* side, and adding one now would
+      # change every header-depth snapshot's profile fingerprint -- i.e. a
+      # re-capture under a bumped ABICHECK_BASELINE_GENERATION, not a config
+      # edit. Pinning it on the candidate side alone is worse than not pinning
+      # it: measured, a candidate asserting `std: c++17` against a set that
+      # could not gives "profile_fingerprint mismatch; differing fields:
       # language_standard", exit 16, no verdict. With it gone from both, the
       # comparison is real -- exit 0, effective_depth `headers`,
-      # analysis_assurance `complete`. Nothing is actually lost, because the two
-      # keys restated what abicheck resolves anyway (`--ast-frontend auto` picks
-      # the pinned castxml, and the recorded language standard is
-      # `probed:__cplusplus=201703L`); the upstream ask is a `build-config` input
-      # on actions/baseline that is actually forwarded as `--config`. See the
-      # end of .github/abicheck/abicheck.yml.
+      # analysis_assurance `complete`. Nothing is lost, because the two keys
+      # restated what abicheck resolves anyway (`--ast-frontend auto` picks the
+      # pinned castxml, and the recorded language standard is
+      # `probed:__cplusplus=201703L`). See the end of
+      # .github/abicheck/abicheck.yml.
       #
       # `install-deps` is left at its default `true`, which installs the
       # checksum-pinned CastXML Superbuild. That is a real toolchain change from

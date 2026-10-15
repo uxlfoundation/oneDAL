@@ -441,9 +441,10 @@ jobs:
       # snapshot directory as the old operand makes the bundle half vacuous (six
       # spurious `bundle_library_added` findings, bundle verdict COMPATIBLE);
       # `binaries-dir` makes it real (bundle COMPATIBLE_WITH_RISK over 156
-      # `bundle_intra_dep_signature_unverified`, and BREAKING with 212
-      # `bundle_intra_dep_removed` if abicheck.yml's MKL `system_providers`
-      # entries are dropped).
+      # `bundle_intra_dep_signature_unverified`; with abicheck.yml's MKL
+      # `system_providers` entries dropped, 212 `bundle_unresolved_intra_
+      # dependency` risk findings -- BREAKING `bundle_intra_dep_removed` at the
+      # previous pin).
       #
       # `required: true` is the item the previous revision could not express:
       # a baseline-set that is absent, stale or wrong-profile now fails here
@@ -476,16 +477,15 @@ jobs:
       # Both operands are directories, which is abicheck's own multi-library
       # release comparison: one run fans out over every shared object in the
       # directory, matching each one to its counterpart of the same name.
-      # `depth: headers` does not survive this call, so the gate compares
-      # exported symbols and ELF metadata, not the public-header AST. Where it
-      # is lost has changed and the distinction matters: the CLI now forwards
-      # every depth rung for a directory operand
-      # (`cli_compare_options._resolve_depth_for_set_inputs`, which used to
-      # reject `headers` and no longer does), but *this Action* still drops it
-      # with `::notice::mode: compare with a directory/package operand ... does
-      # not honour --depth headers yet` (action/run.sh:2906 at this pin, and
-      # unchanged at abicheck main). `depth: build/source` and inline
-      # sources/build-info remain hard `::error::`s here. What binary depth
+      # This call is pinned to `depth: binary`, so the gate compares exported
+      # symbols and ELF metadata, not the public-header AST. At this pin both
+      # the CLI and the Action forward every depth rung for a directory operand
+      # (the Action's old `::notice::` dropping `depth: headers` is gone), but a
+      # release-shaped run still cannot be *held* to header depth --
+      # `assurance.require_complete` floors such a run to exit 1 (measured:
+      # "release status='partial'" on all six members) -- which is why header
+      # depth lives in LinuxAbicheckL2Scan's single-pair legs instead. Inline
+      # sources/build-info remain a hard `::error::` here. What binary depth
       # costs, and why it is still worth running next to abidiff, is in
       # .github/abicheck/README.md ("Binary depth").
       - name: Check ABI against the released baseline
@@ -559,14 +559,12 @@ jobs:
           # `fail-on-removed-library` above, so the two do not fight over
           # `--config`.
           #
-          # Still load-bearing on the operand shape this job now uses -- staged
-          # real ELF on both sides, which is where an "the stored-facts operand
-          # makes the provider list redundant" expectation would have to hold.
-          # Re-measured, it does not: dropping abicheck.yml's four MKL
-          # `system_providers` entries gives 212 `bundle_intra_dep_removed`
-          # findings, bundle verdict BREAKING, release verdict BREAKING, exit 4.
-          # An unresolvable NEEDED soname is unresolvable whichever way the
-          # operand was built.
+          # No longer verdict-bearing at this pin, but still accurate and still
+          # worth carrying: dropping abicheck.yml's four MKL `system_providers`
+          # entries gives 212 `bundle_unresolved_intra_dependency` findings at
+          # risk, exit 0 (the previous pin made the same 212 BREAKING
+          # `bundle_intra_dep_removed`, exit 4; upstream fixed the detector).
+          # With the entries, 11 remain -- DPC++ runtime imports.
           build-config: .github/abicheck/abicheck.yml
           # The release artifact is already on the runner and nothing here parses
           # a header, so the default (conda-forge) would install a toolchain this
@@ -575,22 +573,29 @@ jobs:
           dependency-source: none
           format: markdown
           output-file: __abi_report/release.md
-          # --write json=: a release comparison's markdown is per-library counts
-          # only -- no symbol names anywhere -- so on a red run the report says
-          # which library broke and nothing about what in it. The json report
-          # names every symbol, one annotation entry per finding (measured:
-          # 720 KB, 2314 entries; its `findings` array is capped at 10 per
-          # library, the annotations are not), and the step below keeps it as an
-          # artifact for exactly that case. It also carries the
-          # `comparison_scope` record the completeness gate points at.
+          # The json next to the markdown: at this pin the markdown lists
+          # findings by symbol (181 KB measured), but the json carries every one
+          # with its evidence, one annotation entry per finding (2593 measured;
+          # its `findings` array is capped at 10 per library, the annotations are
+          # not), and the step below keeps it as an artifact for a red run. It
+          # also carries the `comparison_scope` record the completeness gate
+          # points at.
+          #
+          # Both exports are spelled here, markdown first, because at this pin
+          # an `extra-args` `-o` replaces the Action's own `format`/`output-file`
+          # export instead of adding to it (and `--write` no longer exists:
+          # exit 64). The first `-o` is what `report-path` names, so the summary
+          # step below still gets markdown; `format`/`output-file` above are
+          # kept equal to it so the two cannot disagree.
           extra-args: >-
-            --write json=__abi_report/release.json
+            -o markdown=__abi_report/release.md
+            -o json=__abi_report/release.json
           # The sticky comment reports a single verdict; a six-library comparison
           # is only readable as the table the job summary carries.
           pr-comment: false
       # The Action's `verdict` output is one word for the whole run (measured at
-      # this pin: COMPATIBLE_WITH_RISK, and SCOPE_INCOMPLETE when a library goes
-      # missing -- the earlier pin folded both down to "COMPATIBLE"). The report
+      # this pin against 2026.0.0: COMPATIBLE_WITH_RISK, exit 0, 17 s, ~0.5 GiB
+      # peak). The report
       # is still the only place the per-library verdicts and the bundle row
       # appear, so publish it. always(): it matters most when the check just
       # failed, and abicheck writes it before exiting non-zero.
@@ -622,17 +627,16 @@ jobs:
   #     CLI rejects `--depth headers` for a directory operand" -- is no longer
   #     true and has been corrected: `_resolve_depth_for_set_inputs` forwards
   #     every rung, and per-member floor enforcement now lives downstream in
-  #     `service_compare_pipeline.resolve_compare_request`. Two things still
-  #     stop a release-shaped run from being *held* to L2, both measured at
-  #     this pin and at abicheck main: this Action drops `depth: headers` for a
-  #     directory operand (a `::notice::`, not an error, so the run would claim
-  #     header depth while comparing symbols), and
-  #     `assurance.require_complete: true` -- the successor to
-  #     `require-complete-analysis` -- is rejected with exit 64 on a
-  #     directory/package operand *and* on a stored-bundle-facts operand,
-  #     pointing at run-plan-aware aggregation as the missing piece. A
-  #     single-pair compare accepts and holds it, which is what
-  #     `require-complete-analysis: true` below does.
+  #     `service_compare_pipeline.resolve_compare_request`. At this pin the
+  #     Action forwards `depth: headers` for a directory operand too (it used
+  #     to drop it with a `::notice::`), but a release-shaped run still cannot
+  #     be *held* to L2: `assurance.require_complete: true` floors it to exit 1
+  #     whenever any member is `partial` (measured on the six-library release
+  #     at binary evidence), and nothing reports per-member header depth
+  #     there. A single-pair compare accepts and holds it, which is what
+  #     .github/abicheck/abicheck-l2.yml below does -- the Action's own
+  #     `require-complete-analysis` input is refused at this pin ("was removed
+  #     and is no longer forwarded"), exit 1.
   #   * Cost. Parsing both umbrella headers once per library is the expensive
   #     part, and a whole-release L2 run does it inside one process: measured
   #     29 min and 20.1 GiB peak RSS, which does not fit a 16 GB runner at all.
@@ -642,21 +646,22 @@ jobs:
   # Non-blocking on purpose (`continue-on-error`), for a burn-in period rather
   # than because it is expected to be red. Measured on `main` against the
   # 2026.0.0 header-depth baseline-set, resolved through this Action's own
-  # `abi-baseline` path, with `policy.yaml` in effect: zero breaking findings on
-  # any leg. Three are `COMPATIBLE_WITH_RISK` and exit 0; `libonedal.so` and
-  # `libonedal_dpc.so` are `API_BREAK` and exit 2 -- four `oneapi::dal::preview`
-  # SPMD communicator members removed without replacement -- which the Action's
-  # default `fail-on-api-break: false` reports without failing the step.
+  # `abi-baseline` path, with `policy-l2.yaml` in effect: zero breaking findings
+  # on any leg, all five `COMPATIBLE_WITH_RISK`, exit 0, analysis_assurance
+  # `complete` at effective depth `headers`.
   #
-  # `policy.yaml` is load-bearing *here* and not only on the blocking job: its
-  # `func_visibility_changed` rules exist for this depth (measured firing zero
-  # times at binary depth), and without them three of these five legs are
-  # BREAKING/exit 4 -- 230 findings on libonedal_core.so, 6 each on the two
-  # `oneapi` libraries.
+  # This job has its own policy file, `policy-l2.yaml`, and it is load-bearing:
+  # with the blocking job's `policy.yaml` instead, all five legs are
+  # BREAKING/exit 4 on 1064 `func_removed_elf_only` findings (180 / 659 / 215 /
+  # 4 / 6), every one a WEAK symbol that header depth reports with no
+  # `symbol_binding`, so a `binding: weak` rule cannot reach it. The L2 file's
+  # rules are binding-less, which is why they must not reach the blocking job;
+  # see the head of policy-l2.yaml.
   #
   # What is unproven is the environment, not the verdict: nothing here has ever
   # run on a GitHub runner, the castxml parse is new to CI, and each leg holds
-  # ~4.7 GiB against a 16 GB runner. So it starts advisory and visible; drop this
+  # ~0.7-1.2 GiB (measured at this pin, five legs concurrently) against a 16 GB
+  # runner. So it starts advisory and visible; drop this
   # line once it has been green across a release cycle. .github/abicheck/README.md
   # ("Header depth") carries the per-library numbers.
   LinuxAbicheckL2Scan:
@@ -684,7 +689,8 @@ jobs:
         # findings of which 2190 are `public_not_exported` and 334
         # `private_header_leak`, and zero of them about drift since the baseline.
         # Its analysis is `status: partial` for the same reason, which
-        # `require-complete-analysis` below turns into exit 1 on every run. A
+        # `assurance.require_complete` in abicheck-l2.yml turns into exit 1 on
+        # every run. A
         # permanently red advisory leg teaches reviewers to ignore the job, so
         # this library stays covered by the binary-depth gate (where it is
         # `COMPATIBLE` with one finding) and out of this one.
@@ -694,12 +700,11 @@ jobs:
           - libonedal_dpc.so
           - libonedal_parameters.so
           - libonedal_parameters_dpc.so
-    # Measured per library, on the no-debug-info build, five legs concurrently:
-    # 434-572 s and 4.70-4.71 GiB peak RSS. Those numbers were taken under
-    # conda-forge castxml 0.7.0; this job now resolves castxml through
-    # `dependency-source: system` (the checksum-pinned CastXML Superbuild, see the
-    # step below), which is a different frontend build, so treat the range as an
-    # order of magnitude rather than a pin. On top of the compare sits the
+    # Measured per library at this pin, on the no-debug-info build, five legs
+    # concurrently, with the pinned CastXML Superbuild (`dependency-source:
+    # system`, see the step below): 33-43 s and 0.72-0.87 GiB peak RSS for the
+    # compare (the previous pin took 434-572 s and ~4.7 GiB). Treat the range
+    # as an order of magnitude rather than a pin. On top of the compare sits the
     # dependency install, the checkout and the build artifact download. The
     # frontend is not asserted in `abicheck.yml` any more -- there is no `compile:`
     # block on either side, deliberately; see the `build-config` comment below.
@@ -785,14 +790,16 @@ jobs:
           # operands are single libraries; the release-shaped compare above
           # cannot ask for it at all.
           depth: headers
-          # And the assurance that it was actually reached. Without it a header
-          # set that failed to parse degrades to symbols-only and still exits 0
-          # under a report that says `headers`; with it, an effective depth below
-          # the requested one is exit 1 on its own axis (abicheck records
-          # `effective_depth`, `depth_satisfied` and `header_context_status` for
-          # exactly this). A green run here therefore means "compared at header
-          # depth", not "asked for header depth".
-          require-complete-analysis: true
+          # The assurance that it was actually reached is not an input any more:
+          # `require-complete-analysis` is refused at this pin, and its
+          # replacement is `assurance.require_complete: true` in
+          # .github/abicheck/abicheck-l2.yml (the `build-config` below). Without
+          # it a header set that failed to parse degrades to symbols-only and
+          # still exits 0 under a report that says `headers`; with it, an
+          # effective depth below the requested one is exit 1 on its own axis
+          # (abicheck records `effective_depth`, `depth_satisfied` and
+          # `header_context_status` for exactly this). A green run here therefore
+          # means "compared at header depth", not "asked for header depth".
           old-version: ${{ env.ABICHECK_BASELINE_TAG }}
           new-version: ${{ github.sha }}
           # The two umbrella headers that between them declare oneDAL's public
@@ -813,8 +820,8 @@ jobs:
             ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
           # The include root the umbrella headers resolve their own `#include`s
           # against. Without it the parse fails on the first nested include
-          # rather than degrading, which `require-complete-analysis` above would
-          # then report as an unsatisfied depth.
+          # rather than degrading, which `assurance.require_complete` would then
+          # report as an unsatisfied depth.
           new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
           # The old side needs no header set or include root: a header-depth
           # snapshot already carries the parsed declarations, which is the whole
@@ -828,19 +835,21 @@ jobs:
           # traced at this pin). A single-pair compare has no library inventory
           # to lose one from, so the input only ever reached the effective-config
           # digest. The blocking job, whose operands *are* directories, keeps it.
-          policy-file: .github/abicheck/policy.yaml
-          # No longer supplies a `compile:` block, and must not: `actions/baseline`
-          # forwards no `--config` to its dumps, so the published header-depth
-          # snapshots record whatever compile context abicheck resolved on its
-          # own. Asserting one only here would make the two fingerprints
-          # disagree, which abicheck refuses to compare across -- measured on
+          # The L2-only policy: binding-less demotion rules that must not reach
+          # the blocking job. Why, and what it gives up, is at its head.
+          policy-file: .github/abicheck/policy-l2.yaml
+          # The L2-only project config: `assurance.require_complete: true` and
+          # nothing else. Not the blocking job's abicheck.yml, whose `bundle:`
+          # and `scope:` apply only to a directory compare, and which cannot
+          # carry `require_complete` itself -- that floors the six-library
+          # release compare to exit 1 (every member `partial` at binary
+          # evidence). Still no `compile:` block, on either side: the published
+          # header-depth snapshots were dumped without one, and asserting a
+          # compile context only here would make the two fingerprints disagree,
+          # which abicheck refuses to compare across -- measured on
           # libonedal_parameters.so: "profile_fingerprint mismatch; differing
-          # fields: language_standard", exit 16, no verdict. With the block gone
-          # from both sides the comparison is real: exit 0, effective_depth
-          # `headers`, analysis_assurance `complete`. What remains in the file is
-          # `bundle:` and `scope:`, which this job inherits from
-          # LinuxAbicheckScan's copy rather than needing its own.
-          build-config: .github/abicheck/abicheck.yml
+          # fields: language_standard", exit 16, no verdict.
+          build-config: .github/abicheck/abicheck-l2.yml
           # `system`, not `conda-forge`, and this is what keeps the two
           # fingerprints equal: `actions/baseline` provisions dependencies through
           # this repo's own install-deps.sh, i.e. the checksum-pinned CastXML
@@ -856,11 +865,14 @@ jobs:
           output-file: __abi_report/${{ matrix.library }}.l2.md
           # The markdown is per-library prose and capped finding lists; the json
           # carries every finding with its symbol, its evidence tier and the
-          # `analysis_assurance` record that `require-complete-analysis` gates
+          # `analysis_assurance` record that `assurance.require_complete` gates
           # on. Archived below, because on a red run that record is the first
-          # thing to read.
+          # thing to read. Both exports spelled here, markdown first, for the
+          # same reason as LinuxAbicheckScan's: an `extra-args` `-o` replaces the
+          # Action's own export, and the first one is `report-path`.
           extra-args: >-
-            --write json=__abi_report/${{ matrix.library }}.l2.json
+            -o markdown=__abi_report/${{ matrix.library }}.l2.md
+            -o json=__abi_report/${{ matrix.library }}.l2.json
           # Five matrix legs would be five comments. The job summary is where a
           # per-library verdict belongs.
           pr-comment: false

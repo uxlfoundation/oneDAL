@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# abicheck project configuration for both abicheck jobs in ci.yml, passed
-# explicitly as their `build-config` input (it is not auto-discovered from here
-# -- abicheck looks for `.abicheck.yml` at the repository root).
+# abicheck project configuration for LinuxAbicheckScan (the blocking,
+# release-shaped job in ci.yml), passed explicitly as its `build-config` input
+# (it is not auto-discovered from here -- abicheck looks for `.abicheck.yml` at
+# the repository root). LinuxAbicheckL2Scan uses abicheck-l2.yml instead: the
+# two keys here apply only to a directory compare, and the one key it needs
+# (`assurance.require_complete`) would floor this job to exit 1.
 #
-# Deliberately small, and now deliberately *consumer-only*: every setting the
+# Deliberately small, and deliberately *consumer-only*: every setting the
 # Action still takes as an input stays an input in ci.yml, so the two never
 # disagree about the same knob. That leaves `bundle:` and `scope:` -- which the
 # abicheck CLI used to accept as flags and no longer does, and which have no
@@ -25,48 +28,31 @@
 # What is no longer here is the L2 header-AST `compile:` block, and its absence
 # is load-bearing rather than an omission; see the end of this file.
 #
-# Measured with the pin both workflows carry, against the published 2026.0.0
-# baselines: without this file the job is red (BREAKING, 218 cross-library
-# findings, exit 4); with it, COMPATIBLE_WITH_RISK, exit 0, and a per-library
-# table identical to the one the previous pin produced.
+# Measured with the pin both workflows carry (5f42eac90), against the 2026.0.0
+# baseline-set: with this file, COMPATIBLE_WITH_RISK, exit 0.
 
 # oneDAL's SYCL libraries link MKL's SYCL interface libraries and the DPC++
 # runtime, and nothing in the release directory provides them. abicheck's
-# bundle analysis is unconditional since the `--no-bundle-analysis` flag was
-# removed, and its resolver treats an unresolvable NEEDED soname as an
-# intra-bundle dependency removal -- traced to
-# `bundle_detectors._detect_intra_dep_removed`, which reaches
-# `BUNDLE_INTRA_DEP_REMOVED` ("Runtime load ... will fail with undefined
-# symbol") on an import that no side ever had an in-bundle provider for; its
-# own `ever_provided_in_bundle` evidence is consulted only inside the
-# allow-list branch these entries feed. That is why this list is not
-# decoration: it is the only supported way to keep a never-in-bundle
-# dependency from being reported as a historical removal. abicheck already has
-# the correctly weaker kind for this evidence
-# (`BUNDLE_UNRESOLVED_INTRA_DEPENDENCY`, risk, used by the audit-mode sibling);
-# the upstream ask is for the diff-mode detector to use it -- see "Known gaps"
-# in .github/abicheck/README.md. Naming the providers as system-provided is
-# the supported way to say "this library comes from outside the bundle" --
-# abicheck ships a 43-entry default list, and these four are the ones oneDAL
-# needs on top of it.
+# bundle analysis is unconditional, and an import whose provider it cannot
+# place is reported. Naming the providers as system-provided is the supported
+# way to say "this library comes from outside the bundle" -- abicheck ships a
+# default list, and these four are the ones oneDAL needs on top of it.
 #
-# Still load-bearing, and re-measured on the shape the gate now runs (a real
-# ELF bundle on *both* sides -- the baseline-set's staged member binaries, not
-# snapshots): dropping these four entries gives 212 `bundle_intra_dep_removed`
-# findings, bundle verdict BREAKING, release verdict BREAKING, exit 4. With
-# them: bundle COMPATIBLE_WITH_RISK, exit 0. The reviewer expectation that
-# moving off raw-ELF construction onto stored-facts operands would make this
-# list redundant does not hold -- an unresolvable NEEDED edge is unresolvable
-# whichever way the operand was built.
+# No longer verdict-bearing, measured: dropping these four entries gives 212
+# `bundle_unresolved_intra_dependency` findings at risk, exit 0. The previous
+# pin reported the same 212 as BREAKING `bundle_intra_dep_removed`, exit 4,
+# because `bundle_detectors._detect_intra_dep_removed` consulted its own
+# `ever_provided_in_bundle` evidence only inside the allow-list branch;
+# upstream now treats that evidence as a precondition and downgrades a
+# never-in-bundle import to the unresolved kind. The entries stay because they
+# are true and keep those 212 out of the report. With them, what remains is
+# 156 `bundle_intra_dep_signature_unverified` plus 11
+# `bundle_unresolved_intra_dependency` (DPC++ runtime imports), all risk.
 #
 # Entries are soname *stems* (no `.so.N`): abicheck matches a NEEDED soname
 # exactly first, then falls back to a stem match, and the fallback only
-# applies against a version-generic entry like these. What remains after this
-# is 156 `bundle_intra_dep_signature_unverified` findings, reported and not
-# gating (bundle verdict COMPATIBLE_WITH_RISK). The six `bundle_library_added`
-# findings an earlier revision of this comment recorded are gone: they were an
-# artifact of a snapshot-only old side, which made the whole bundle read as
-# newly appeared. See "Staged member binaries" in .github/abicheck/README.md.
+# applies against a version-generic entry like these. See "Staged member
+# binaries" in .github/abicheck/README.md.
 bundle:
   system_providers:
     - libmkl_sycl_blas
@@ -90,16 +76,12 @@ scope:
 # ── No `compile:` block here, on purpose ────────────────────────────────────
 #
 # This file used to pin the L2 header-AST compile context (`frontend: castxml`,
-# `std: c++17`). It cannot, now that the baselines are published as a
-# baseline-set by `abicheck/abicheck/actions/baseline`: that action runs
-# `abicheck dump` with only `-H`/`-I`/`--build-info`/`--depth`/`--version`/
-# `--compression`/`-o`, and forwards neither `--config` nor `--sources`. A
-# `compile:` block reaches a dump one of exactly two ways -- an explicit
-# `--config`, or a `.abicheck.yml` auto-discovered *at the `--sources` tree
-# root* -- and a baseline-set dump passes neither, so there is no route by which
-# a pinned block could reach the baseline side at all. Copying this file to the
-# workspace root does not help; discovery is anchored to `--sources`, not to the
-# working directory.
+# `std: c++17`). The published header-depth baseline-set was dumped without
+# one: `actions/baseline` had no `build-config` input at the previous pin, and
+# abicheck-baseline.yml does not pass the one it gained at this pin. So a
+# block here would be one-sided, and bringing it back means passing it on
+# both sides and re-capturing the header-depth set under a bumped
+# ABICHECK_BASELINE_GENERATION (the snapshot fingerprint changes).
 #
 # Pinning it on the candidate side alone is worse than not pinning it, and
 # measurably so. A header-depth snapshot records its compile context as a
@@ -110,10 +92,10 @@ scope:
 # language_standard)", exit 16, no verdict. Measured on libonedal_parameters.so.
 #
 # With the block removed from both sides the two agree and the comparison is
-# real. Measured, same pair: exit 0, `requested_depth`/`effective_depth`
-# `headers`, `analysis_assurance.status: complete`, `depth_satisfied: true`,
-# COMPATIBLE_WITH_RISK -- 0 breaking, 146 risk, 16 compatible additions, 3
-# quality issues.
+# real. Measured at this pin, same pair: exit 0, `requested_depth`/
+# `effective_depth` `headers`, `analysis_assurance.status: complete`,
+# COMPATIBLE_WITH_RISK -- 0 breaking, 1214 risk (1130 of them
+# `public_not_exported`, new at this pin), 87 compatible.
 #
 # Nothing is actually given up, which is why this is a fix and not a
 # concession. The two keys were restating what abicheck resolves on its own:
@@ -136,8 +118,7 @@ scope:
 # all five verdicts, because `LinuxMakeDPCPP` ships no DWARF for L1 to read
 # either.
 #
-# The upstream ask that would let this block come back: a `build-config` input
-# on `actions/baseline`, forwarded as `--config` to its `abicheck dump`. Until
-# then a project that genuinely needs a non-default compile context -- one that
-# `--ast-frontend auto` plus frontend probing does not already produce -- cannot
-# publish a header-depth baseline-set at all.
+# Bringing the block back is now possible: `actions/baseline` takes
+# `build-config` and forwards it as `--config` at this pin. It is not done
+# here because nothing needs a non-default compile context today, and doing it
+# costs a re-capture of every published header-depth set.
