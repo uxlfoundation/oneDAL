@@ -450,7 +450,7 @@ jobs:
       # rather than leaving the comparison step `skipped` under a green job.
       - name: Resolve the release-contract baseline
         id: resolve
-        uses: abicheck/abicheck/actions/resolve-baseline@0e9fdd008292ead47527cd5467ec48de934bc94a
+        uses: abicheck/abicheck/actions/resolve-baseline@5f42eac90a9bfda930d36c0a5caade4fbf49ec30
         with:
           baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
           channel: release-contract
@@ -491,7 +491,7 @@ jobs:
       - name: Check ABI against the released baseline
         id: abicheck
         if: steps.resolve.outputs.outcome == 'resolved'
-        uses: abicheck/abicheck@0e9fdd008292ead47527cd5467ec48de934bc94a
+        uses: abicheck/abicheck@5f42eac90a9bfda930d36c0a5caade4fbf49ec30
         with:
           mode: compare
           # The baseline-set's staged member binaries, resolved and digest-checked
@@ -764,7 +764,7 @@ jobs:
       # future SONAME bump does not need this list edited.
       - name: Check the public header surface against the released baseline
         id: abicheck
-        uses: abicheck/abicheck@0e9fdd008292ead47527cd5467ec48de934bc94a
+        uses: abicheck/abicheck@5f42eac90a9bfda930d36c0a5caade4fbf49ec30
         with:
           mode: compare
           # Overrides old-library; there is no old-library input here at all.
