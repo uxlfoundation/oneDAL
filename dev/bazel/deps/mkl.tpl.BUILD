@@ -11,6 +11,8 @@ cc_library(
     includes = [
         "include",
     ],
+    # conda installs the SYCL headers next to these, so they must not be -I.
+    features = ["system_include_paths"],
 )
 
 cc_library(

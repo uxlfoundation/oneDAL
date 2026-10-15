@@ -72,6 +72,9 @@ onedal_cc_toolchain = repository_rule(
         "PATH",
         "INCLUDE",
         "LIB",
+        # Intel compiler config files; they can change the sysroot and include paths.
+        "ICXCFG",
+        "ICPXCFG",
         # Opt-in switch for the Intel oneAPI Windows toolchain:
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
         # back to the rules_cc MSVC cl auto-config.
