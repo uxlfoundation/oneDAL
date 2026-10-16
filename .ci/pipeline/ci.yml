@@ -252,9 +252,15 @@ jobs:
     vmImage: '$(VM_IMAGE)'
   variables:
     platform.type : 'lnx32e'
-    BAZEL_CACHE_DIR: $(Pipeline.Workspace)/.bazel-cache
+    # `/` on the hosted image has ~5Gb free; the Bazel output root and disk
+    # cache live on the agent's resource disk instead, so no step has to
+    # discard build outputs to make room for the next one.
+    BAZEL_CACHE_DIR: /mnt/bazel-cache
+    BAZEL_OUTPUT_USER_ROOT: /mnt/bazel-root
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
-    BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
+    # A full job writes ~4.5Gb of cache entries; at the old 4Gb ceiling the
+    # cache was deleted at the end of every run and never restored warm.
+    BAZEL_CACHE_MAX_SIZE_KB: 10485760 # Size in kilobytes ~ 10Gb
   steps:
   - script: |
       .ci/env/apt.sh opencl
@@ -271,14 +277,20 @@ jobs:
   - script: |
       .ci/scripts/describe_system.sh
     displayName: 'System info'
+  - script: |
+      set -eu
+      df -h / /mnt
+      sudo mkdir -p "$(BAZEL_CACHE_DIR)" "$(BAZEL_OUTPUT_USER_ROOT)"
+      sudo chown "$(id -u):$(id -g)" "$(BAZEL_CACHE_DIR)" "$(BAZEL_OUTPUT_USER_ROOT)"
+    displayName: 'bazel-storage'
   - task: Cache@2
     inputs:
       # Commit ID is added to a cache key. Caches are immutable by design,
       # so we always need to change a key to upload the last version
       # of the Bazel cache. Cache lookup is based on `restoreKeys` option.
-      key: '"$(BAZEL_VERSION)" | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      key: '"$(BAZEL_VERSION)" | "$(Agent.OS)" | "v2" | "$(Build.SourceVersion)"'
       restoreKeys: |
-        "$(BAZEL_VERSION)" | "$(Agent.OS)" | "v1"
+        "$(BAZEL_VERSION)" | "$(Agent.OS)" | "v2"
       path: $(BAZEL_CACHE_DIR)
     displayName: 'bazel-cache'
 
@@ -292,7 +304,8 @@ jobs:
 
       # Create `.bazelrc` and set cache directory
       # Minimal CPU instruction set in Azure is AVX2
-      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --cpu=avx2" > ~/.bazelrc
+      echo "startup --output_user_root=$(BAZEL_OUTPUT_USER_ROOT)" > ~/.bazelrc
+      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --cpu=avx2" >> ~/.bazelrc
 
       # Display oneDAL build configuration
       bazel build @config//:dump
@@ -333,13 +346,8 @@ jobs:
       # here rather than diagnosing it several steps later.
       report_disk() {
         echo "Disk ${1} the folded consumer smoke:"
-        df -h /
-        # Both of these matter and only one is reclaimed between steps. The
-        # output base under ~/.cache/bazel goes away at the next `Clean Bazel
-        # cache (expunge)`; the --disk_cache directory does not -- `clean` has
-        # no effect on it and `bazel-cache-limit` only trims it, at 4Gb, once
-        # the whole job is over.
-        du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
+        df -h / /mnt
+        du -sh "${BAZEL_OUTPUT_USER_ROOT:-}" 2>/dev/null || true
         du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       }
       report_disk before
@@ -348,16 +356,11 @@ jobs:
       # before the build would repoint `@mkl` at the oneAPI installation and
       # invalidate the dependency for this step only.
       #
-      # `--disk_cache=` disables the shared cache that `~/.bazelrc` points at
-      # (written in the `bazel-configure` step above) for this build alone.
-      # Nothing will ever reuse these artifacts: this is a one-off validation
-      # under a configuration no other step builds, so the entries share nothing
-      # with the default configuration and only occupy the cache for the rest of
-      # the job -- `bazel clean --expunge` cannot reclaim them, since it clears
-      # the output base and not a disk cache. Worth keeping on its own terms; it
-      # is not, as first assumed, the cause of the `cpp-tests-thread-dev` link
-      # failures, which persist with 4.6Gb free.
-      bazel build :release --release_dpc=false --build_parameters_lib=no --disk_cache=
+      # Same disk cache as every other step: `--build_parameters_lib=no` shares
+      # every compile action with the default `release` below (2800 of 2800 hit
+      # locally), and switching `--disk_cache` off for one build and back on for
+      # the next discards the action cache, which rebuilt the whole release.
+      bazel build :release --release_dpc=false --build_parameters_lib=no
       # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
       # oneAPI environment as an installed package user. `setvars.sh` reads
       # optional variables such as `OCL_ICD_FILENAMES` unguarded, so `nounset`
@@ -446,24 +449,9 @@ jobs:
     displayName: 'Upload build artifacts'
 
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
-
-  - script: |
       bazel test //cpp/daal:mkl_linkage_test \
                   --test_env DALROOT
     displayName: 'Check mkl symbols'
-
-  - script: |
-      bazel test //cpp/daal:isa_coverage_test \
-                 --cpu=all
-    displayName: 'Check ISA coverage'
-
-  - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //examples/daal/cpp:all \
@@ -472,20 +460,10 @@ jobs:
     displayName: 'daal-cpp-examples-thread-dev'
 
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
-
-  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-dev'
-
-  - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //examples/daal/cpp:all \
@@ -495,22 +473,12 @@ jobs:
     displayName: 'daal-cpp-examples-thread-release-static'
 
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
-
-  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
                  --config=host \
                  --test_thread_mode=par \
                  --test_env DALROOT
     displayName: 'cpp-examples-thread-release-static'
-
-  - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       . "$(DALROOT)/env/vars.sh"
@@ -532,11 +500,6 @@ jobs:
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
-
-  - script: |
       . "$(DALROOT)/env/vars.sh"
       # See the previous release-dynamic step for why the staged oneTBB
       # directory has to be on `LD_LIBRARY_PATH`.
@@ -549,73 +512,20 @@ jobs:
     displayName: 'cpp-examples-thread-release-dynamic'
 
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
-
-  - script: |
       bazel test //cpp/daal:tests
     displayName: 'daal-tests-algorithms'
 
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-      # `clean --expunge` clears the output base and leaves the --disk_cache
-      # directory alone, so by itself it reclaims nothing of the ~4.5Gb sitting
-      # there, and the step below -- which links 112 debug-mode test binaries and
-      # is the largest consumer in the job -- gets only ~4.6Gb to work with.
-      # Reclaiming here takes that to ~9.1Gb.
-      #
-      # This is not on its own enough; see `--disk_cache=` on that step, without
-      # which it refills the cache as it builds and fills / anyway. Both are
-      # needed: this frees the space, that stops it being spent twice.
-      #
-      # Dropped here rather than at the first expunge of this sequence so the
-      # example suites above keep their cache hits -- without them they rebuild
-      # oneDAL from scratch six times over, which is a much larger cost than the
-      # one step below losing its own.
-      #
-      # And this costs nothing at all: at 4.5Gb the cache is already over the 4Gb
-      # BAZEL_CACHE_MAX_SIZE_KB ceiling, so `bazel-cache-limit` deletes it at the
-      # end of every run regardless. This only moves that deletion to the point
-      # where the space is needed instead of after the step that needed it.
-      if [ -d "${BAZEL_CACHE_DIR:-}" ]; then
-        echo "Reclaiming Bazel disk cache: $(du -sh "${BAZEL_CACHE_DIR}" | cut -f1)"
-        rm -rf "${BAZEL_CACHE_DIR}"
-        mkdir -p "${BAZEL_CACHE_DIR}"
-      fi
-      df -h /
-    displayName: 'Clean Bazel cache (expunge)'
-
-  - script: |
-      # This step fills / and dies, on a target that moves between runs --
-      # correlation_distance, covariance, linear_regression, pca, louvain over
-      # five builds, always exactly one of 112, and for five of them with nothing
-      # from ld but `collect2: error: ld returned 1 exit status`, because that is
-      # all ld says when it cannot write. With enough headroom to get further,
-      # Bazel names it:
-      #
-      #   WARNING: Remote Cache: No space left on device
-      #   BulkTransferException: No space left on device
-      #
-      # "Remote Cache" there is the `--disk_cache` from `~/.bazelrc`. So this step
-      # needs room for two copies of everything it produces: the output base, and
-      # a cache entry for each action. Emptying the cache beforehand does not
-      # help, since the step immediately refills it -- with 9.1Gb free it still
-      # reached 100% and 16Mb.
-      #
-      # `--disk_cache=` drops the second copy. Nothing is lost: the step above
-      # empties the cache, so there are no entries left to hit either way, and
-      # these outputs are of no use to anything downstream -- this is the last
-      # build in the job.
+      # Links 118 test binaries (~1.5Gb). The output root and disk cache are on
+      # /mnt, so the libraries built by the steps above are reused here instead
+      # of being rebuilt with the cache switched off.
       free -m
-      df -h /
+      df -h / /mnt
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
                  --test_thread_mode=par \
-                 --disk_cache= \
                  --verbose_failures
     displayName: 'cpp-tests-thread-dev'
 
@@ -628,7 +538,7 @@ jobs:
       # names it. `free -m` and the kernel OOM grep are kept because they are
       # what ruled out memory pressure, which the same symptom also fits.
       echo '=== disk ==='
-      df -h /
+      df -h / /mnt
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       echo '=== memory ==='
       free -m
@@ -638,10 +548,14 @@ jobs:
     displayName: 'Diagnose test link failure'
     condition: failed()
 
+  # `--cpu=all` regenerates the kernel-defines header every kernel includes,
+  # at the same output path as the `--cpu=avx2` build; the platform suffix
+  # gives it its own output tree so neither overwrites the other.
   - script: |
-      echo "Cleaning Bazel cache before running example or tests"
-      bazel clean --expunge
-    displayName: 'Clean Bazel cache (expunge)'
+      bazel test //cpp/daal:isa_coverage_test \
+                 --cpu=all \
+                 --platform_suffix=isa-all
+    displayName: 'Check ISA coverage'
 
   - script: |
       # Clear cache if its size exceeds some predefined value
@@ -762,7 +676,7 @@ jobs:
     BAZELISK_VERSION: 'v1.28.1'
     BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
-    BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
+    BAZEL_CACHE_MAX_SIZE_KB: 10485760 # Size in kilobytes ~ 10Gb; the MD + MDd builds exceed 4Gb, which deleted the cache every run
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'

@@ -41,10 +41,17 @@ test --test_env=LD_LIBRARY_PATH
 # dumpbin/lib look up VCTOOLSINSTALLDIR to add the MSVC HostX64\x64
 # bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
 # actions that go through cmd-style helpers.
-build --action_env=VCTOOLSINSTALLDIR
-build --action_env=INCLUDE
-build --action_env=LIB
-build --action_env=PATH
+#
+# Windows only: every `--action_env` value is part of every action key, so
+# forwarding the shell PATH on Linux made any PATH difference (a conda env,
+# `setvars.sh`, another terminal, another CI image) rebuild the whole tree
+# and kept caches from being shared between machines. `build:windows` is
+# applied automatically through --enable_platform_specific_config.
+common --enable_platform_specific_config
+build:windows --action_env=VCTOOLSINSTALLDIR
+build:windows --action_env=INCLUDE
+build:windows --action_env=LIB
+build:windows --action_env=PATH
 
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
@@ -152,8 +159,16 @@ build:release-dpc \
 # highest ISA (auto-detected). Use this to speed up iterative builds.
 # NOT suitable for release/packaging.
 #   bazel build //cpp/oneapi/dal:tests --config=dev
+#
+# `--cpu` selects the contents of a generated header that every kernel
+# includes, at one output path for every value, so switching between
+# `--config=dev` and the default rebuilt ~1160 actions each way. The platform
+# suffix gives the dev ISA set its own output tree; switching back and forth
+# then rebuilds nothing. Pass a suffix the same way when building another
+# `--cpu` value side by side (e.g. `--cpu=all --platform_suffix=isa-all`).
 build:dev \
-    --cpu=auto
+    --cpu=auto \
+    --platform_suffix=dev
 
 
 # =============================================================================
