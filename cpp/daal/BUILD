@@ -116,9 +116,7 @@ daal_module(
         "src/services/**/*.h",
         "src/externals/**/*.h",
         "src/algorithms/*.h",
-    ]) + [
-        ":version",
-    ],
+    ]),
     deps = [
         ":includes",
     ],
@@ -139,12 +137,30 @@ daal_module(
             "src/externals/**/*.cpp",
             "src/algorithms/*.cpp",
         ],
-        exclude = ["src/externals/**/*_win_dll.cpp"],
+        exclude = [
+            "src/externals/**/*_win_dll.cpp",
+            "src/services/library_version_info.cpp",
+        ],
     ),
     deps = [
         ":service_headers",
         ":threading_headers",
         ":microvmlipp",
+    ],
+)
+
+# `daal_version_gen.h` carries the build date and changes every day. Bazel
+# makes a module's headers, private ones included, declared inputs of every
+# compile action downstream, and those inputs are the disk/remote cache key;
+# as part of `services` the date expired ~1800 DAAL compile entries at
+# midnight. Only `library_version_info.cpp` includes it, so it is a leaf that
+# only the core libraries link and nothing compiles against.
+daal_module(
+    name = "version_info",
+    srcs = ["src/services/library_version_info.cpp"],
+    private_hdrs = [":version"],
+    deps = [
+        ":service_headers",
     ],
 )
 
@@ -281,6 +297,7 @@ daal_static_lib(
     deps = [
         ":core",
         ":all_algorithms",
+        ":version_info",
     ],
 )
 
@@ -303,6 +320,7 @@ daal_dynamic_lib(
     deps = [
         ":core",
         ":all_algorithms",
+        ":version_info",
     ] + select({
         # MSVC requires all DLL symbols to be resolved at link time. On
         # Windows the threading entry points come from
