@@ -81,7 +81,7 @@ public:
 
     sycl::event mark_present_rows(const pr::ndarray<Index, 1>& row_list,
                                   pr::ndarray<Index, 1>& row_buffer,
-                                  Index global_row_count,
+                                  Index row_list_stride,
                                   Index block_row_count,
                                   Index node_row_count,
                                   Index node_count,
@@ -124,7 +124,7 @@ public:
                                  const pr::ndarray<Index, 1>& node_list,
                                  pr::ndarray<Index, 1>& oob_row_count_list,
                                  pr::ndarray<Index, 1>& oob_row_list,
-                                 Index global_row_count,
+                                 Index row_list_stride,
                                  Index block_row_count,
                                  Index node_count,
                                  const bk::event_vector& deps = {});
