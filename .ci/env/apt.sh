@@ -32,12 +32,12 @@ function add_repo {
 
 function install_dpcpp {
     # DPC++ compiler version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.1.1-325
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.2.0-863
 }
 
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-tbb-devel=2023.1.0-151
+    sudo apt-get install -y intel-oneapi-tbb-devel=2023.2.0-492
 }
 
 function install_dpl {
@@ -46,7 +46,7 @@ function install_dpl {
 
 function install_mkl {
     # MKL version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-mkl-devel=2026.1.0-236
+    sudo apt-get install -y intel-oneapi-mkl-devel=2026.2.0-881
     install_tbb
     install_dpl
 }
