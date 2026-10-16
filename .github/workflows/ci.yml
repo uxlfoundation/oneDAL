@@ -95,14 +95,16 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
           rm -rf __work
       - name: Make onedal
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
           rm -rf __work
+          # No debug info for oneapi_dpc: device DWARF exhausts the runner's memory at -j20.
+          # TODO: add --debug symbols once device DWARF is suppressed or the runner is larger.
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
@@ -196,6 +198,9 @@ jobs:
       - name: Check ABI conformance
         run: |
           echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 oneDAL build."
+          echo "Host libraries are built with debug info, so abidiff checks their types. The DPC++ libraries"
+          echo "are not, so abidiff only checks their symbols for addition and removal. Public symbols added"
+          echo "to a DPC++ library but not to its host library are listed as warnings; review those by hand."
           echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
           echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
           echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
