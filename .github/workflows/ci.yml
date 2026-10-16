@@ -92,21 +92,65 @@ jobs:
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
           echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
           echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
+          # Objects are only reused with the same compiler, MKL and system headers.
+          toolchain=$(dpkg-query -W 'intel-oneapi-*' 'g++*' 'libstdc++*-dev' libc6-dev | sha256sum | cut -c1-16)
+          echo "MAIN_BUILD=make_build_${{ matrix.ISA }}_${toolchain}" >> "$GITHUB_ENV"
+      # A pull request rebuilds only what it changed on top of the newest main build with the same
+      # toolchain. Only main writes these caches, so a pull request cannot plant one.
+      - name: Restore the main build
+        id: main-build
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          key: ${{ env.MAIN_BUILD }}-${{ github.sha }}
+          restore-keys: ${{ env.MAIN_BUILD }}-
+          path: ${{ runner.temp }}/build.tar.zst
+      # Builds from scratch if files were removed or renamed or the make setup changed since then.
+      - name: Date the sources against the main build
+        if: steps.main-build.outputs.cache-matched-key != ''
+        env:
+          MATCHED_KEY: ${{ steps.main-build.outputs.cache-matched-key }}
+        run: |
+          # A failed git diff would leave the changed sources older than the restored build.
+          set -o pipefail
+          sha=${MATCHED_KEY##*-}
+          if ! git fetch -q --no-tags --depth=1 origin "${sha}" ||
+             ! changes=$(git diff --name-status "${sha}" HEAD) ||
+             grep -qE '^[DR]|\s(makefile|dev/make/|\.ci/scripts/build\.sh)' <<< "${changes}"; then
+            echo "Files were removed or the make setup changed since ${sha}, building from scratch"
+          elif ! tar --zstd -xf "${RUNNER_TEMP}/build.tar.zst"; then
+            echo "Cannot unpack the build of ${sha}, building from scratch"
+            rm -rf __work __release_lnx
+          else
+            # The checkout dates every file now. Date the sources before the restored build, and
+            # the files that differ from ${sha} after it.
+            git ls-files -z | xargs -0 touch -h -d "2000-01-01 00:00:00"
+            git diff --name-only -z "${sha}" HEAD | xargs -0 -r touch -h
+            echo "Rebuilding on top of the build of ${sha}"
+          fi
+          rm -f "${RUNNER_TEMP}/build.tar.zst"
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --jobs 20
-          rm -rf __work
       - name: Make onedal
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --jobs 20
-          rm -rf __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --jobs 20
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            tar --zstd -cf "${RUNNER_TEMP}/build.tar.zst" __work __release_lnx
+          fi
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Cache the main build for pull requests
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v6
+        with:
+          key: ${{ env.MAIN_BUILD }}-${{ github.sha }}
+          path: ${{ runner.temp }}/build.tar.zst
       - name: Prepare Cache build
         if: github.event_name != 'pull_request'
         run: cp -r __release_lnx __release_lnx_main
@@ -118,7 +162,7 @@ jobs:
           path: ./__release_lnx_main
       - name: Remove Cache build
         if: github.event_name != 'pull_request'
-        run: rm -rf __release_lnx_main
+        run: rm -rf __release_lnx_main "${RUNNER_TEMP}/build.tar.zst"
       - name: Archive build
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
