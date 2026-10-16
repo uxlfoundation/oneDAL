@@ -26,7 +26,7 @@
 
 #include <type_traits>
 
-#include <mkl.h>
+#include <mkl_vsl.h>
 #include <mkl_vsl_functions.h>
 #include "services/error_indexes.h"
 #include "src/externals/service_memory.h"

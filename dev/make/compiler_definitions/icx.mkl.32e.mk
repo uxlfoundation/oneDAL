@@ -64,7 +64,11 @@ ifeq ($(STDALLOC), yes)
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
+# Debug-size reductions on Linux that leave the emitted code alone: zlib-compress the
+# .debug_* sections (zlib rather than zstd, so binutils, gdb and libabigail of any
+# supported distribution can still read them) and dedup DWARF type DIEs across
+# translation units. The linked library is compressed by -DEBL in the makefile.
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g -gz -fdebug-types-section) -fno-system-debug -Wno-pass-failed
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan

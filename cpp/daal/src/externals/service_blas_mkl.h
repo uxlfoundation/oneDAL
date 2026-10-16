@@ -26,7 +26,9 @@
 
 #include "services/daal_defines.h"
 #include "src/services/cpu_type.h"
-#include <mkl.h>
+#include <mkl_blas.h>
+#include <mkl_cblas.h>
+#include <mkl_service.h>
 
 #define __DAAL_MKLFN_CALL_BLAS(f_name, f_args) f_name f_args;
 

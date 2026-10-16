@@ -25,7 +25,7 @@
 #define __SERVICE_MATH_MKL_H__
 
 #include <math.h>
-#include <mkl.h>
+#include <mkl_vml.h>
 #include "src/services/service_defines.h"
 
 #define __DAAL_MKLFN_CALL_MATH(f_name, f_args) \

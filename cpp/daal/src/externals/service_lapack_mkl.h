@@ -25,7 +25,8 @@
 #define __SERVICE_LAPACK_MKL_H__
 
 #include "services/daal_defines.h"
-#include <mkl.h>
+#include <mkl_lapack.h>
+#include <mkl_service.h>
 
 #define __DAAL_MKLFN_CALL_LAPACK(f_name, f_args) f_name f_args;
 

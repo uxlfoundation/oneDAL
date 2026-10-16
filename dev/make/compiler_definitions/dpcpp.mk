@@ -68,7 +68,9 @@ endif
 
 
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
--DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+# The same debug-size reductions as in icx.mkl.32e.mk, for the host side of DPC++.
+# Device code is compressed separately, by --offload-compress on the link line.
+-DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g -gz -fdebug-types-section) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
