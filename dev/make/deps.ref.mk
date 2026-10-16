@@ -34,7 +34,12 @@ OPENBLASDIR.libia := $(OPENBLASDIR.libia.$(_OS))
 OPENBLASDIR.soia :=  $(OPENBLASDIR.soia.$(_OS))
 
 releaseopen_blas.LIBS_A := $(OPENBLASDIR.libia)/$(plib)openblas.$(a)
-releaseopen_blas.LIBS_Y := $(OPENBLASDIR.soia)/$(plib)openblas.$(y)
+# `.ci/env/openblas.bat` builds a static-only OpenBLAS, so on Windows there is no
+# shared object to stage: keep this empty rather than pointing the release rules
+# at a file that is never produced (makefile, `.release.t` over
+# `releaseopen_blas.LIBS_Y`). The Linux script builds both, and the shared one is
+# released there as before.
+releaseopen_blas.LIBS_Y := $(if $(OS_is_win),,$(OPENBLASDIR.soia)/$(plib)openblas.$(y))
 
 daaldep.math_backend.thr := $(releaseopen_blas.LIBS_A)
 daaldep.math_backend.seq := $(releaseopen_blas.LIBS_A)

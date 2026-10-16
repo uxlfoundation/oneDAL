@@ -297,9 +297,14 @@ def _detect_cpu_extension(repo_ctx):
     return cpudetect_result.stdout.strip()
 
 def _declare_onedal_config_impl(repo_ctx):
-    auto_cpu = _detect_cpu_extension(repo_ctx)
     os_id = detect_os(repo_ctx)
     target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+    # `cpudetect.cpp` probes the x86 ISA extensions of the exec host. On
+    # ARM/RISC-V there is a single fixed variant and `_cpu_info_impl` ignores
+    # `auto_cpu`, so running the probe there only risks a spurious warning
+    # (e.g. MSVC ARM64 `cl` cannot compile the `__cpuid` path).
+    auto_cpu = (_detect_cpu_extension(repo_ctx) if target_arch == "intel64"
+                else _ISA_EXTENSION_AUTO_DEFAULT)
 
     repo_ctx.template(
         "BUILD",
@@ -320,7 +325,13 @@ def _declare_onedal_config_impl(repo_ctx):
 declare_onedal_config = repository_rule(
     implementation = _declare_onedal_config_impl,
     local = True,
-    environ = ["CC", "CXX"],
+    environ = [
+        "CC",
+        "CXX",
+        # Windows host-arch detection (see toolchains/common.bzl).
+        "PROCESSOR_ARCHITECTURE",
+        "PROCESSOR_ARCHITEW6432",
+    ],
     attrs = {
         "_cpudetect_src": attr.label(
             default = "@onedal//dev/bazel/config:cpudetect.cpp",

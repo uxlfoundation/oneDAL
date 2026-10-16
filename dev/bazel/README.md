@@ -48,16 +48,20 @@
 Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
 and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
 Running DPC++ examples and tests on Windows still needs separate device/runtime
-validation.
+validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
+[Windows ARM64](#windows-arm64).
 
 1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
 
 2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
    it in the repository root as `bazelisk.exe`. `.ci/env/bazelisk.ps1` does this
-   with a pinned version and a checksum check, and is what CI runs.
+   with a pinned version and a checksum check, and is what CI runs; it also picks
+   the `arm64` asset on an ARM64 host, which the command below does by hand.
    ```bat
    set BAZELISK_VERSION=v1.29.0
-   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
+   set BAZELISK_ARCH=amd64
+   if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set BAZELISK_ARCH=arm64
+   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-%BAZELISK_ARCH%.exe
    bazelisk.exe version
    ```
 
@@ -831,6 +835,8 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | Both runtimes in one tree      | `bazel build //:release_all`                                 | Windows only; equals `//:release` elsewhere                                |
 | `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
 | `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
+| `PLAT=winarm`                  | `--platforms=@config//:windows_arm64`                        | Windows ARM64 with `clang-cl` (ref backend only)                           |
+| `COMPILER=clang` (Windows)     | `ONEDAL_WIN_COMPILER=clang bazel build ...`                   | `clang-cl` + `lld-link` + `llvm-lib`; implied when targeting Windows ARM64, untested on x86_64 (Make has no `COMPILER.win.clang` for it either) |
 | `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
 
 ## Cross-compiling to ARM/RISC-V
@@ -857,3 +863,40 @@ validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at a
 OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
 effect together with `--backend_config=ref`; it is silently ignored on the MKL
 backend, whose build never compiles the ref RNG shim that OpenRNG replaces.
+
+## Windows ARM64
+
+Windows ARM64 is the Bazel counterpart of the Makefile's `PLAT=winarm` and, like
+it, supports the `ref` backend only, with a single fixed SVE ISA variant and the
+LLVM toolchain from `dev/make/compiler_definitions/clang.ref.arm.mk`: `clang-cl`
+driving `--target=aarch64-pc-windows-msvc -march=armv8-a+sve`, `lld-link` and
+`llvm-lib`. That toolchain is selected automatically whenever the target arch is
+ARM64 -- a compiler named through `ONEDAL_WIN_COMPILER` or `CC`/`CXX` may only be
+clang-cl there, anything else fails with a diagnostic, because neither MSVC `cl`
+nor `icx` builds this target.
+
+The default target is the host arch, read from `PROCESSOR_ARCHITEW6432` /
+`PROCESSOR_ARCHITECTURE`, so an ARM64 host targets ARM64 and
+`--platforms=@config//:windows_arm64` only makes that explicit. That pair of
+variables answers for a 32-bit process on 64-bit Windows; a 64-bit x86_64
+process emulated on an ARM64 host reports `AMD64`, so state the target
+explicitly there.
+
+Cross-compiling from an x86_64 host is **untested**: the toolchain does pass the
+target triple explicitly (`--platforms=@config//:windows_arm64`, or a
+`--target=aarch64-pc-windows-msvc` in `CC`/`CXX`), but it also needs
+`vcvarsall x64_arm64` and ARM64 builds of oneTBB and OpenBLAS, and no CI lane
+covers it. CI covers the native ARM64 path only.
+
+```bat
+rem From a Developer Command Prompt for arm64 (clang-cl uses the MSVC headers,
+rem libraries and CRT that vcvarsall exports), with %ProgramFiles%\LLVM\bin on PATH
+bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+  //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+```
+
+`OPENBLASROOT` and `TBBROOT` must point at ARM64 builds of those dependencies;
+`.ci/env/openblas.bat` and `.ci/env/tbb.bat` produce them. The default download
+URLs in `MODULE.bazel` are all x86_64 packages, so leaving these unset fails the
+repository rule instead of silently linking wrong-arch binaries.
+`.github/workflows/ci-win.yml` runs this lane on a native ARM64 runner.
