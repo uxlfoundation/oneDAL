@@ -557,12 +557,13 @@ jobs:
     displayName: 'Diagnose test link failure'
     condition: failed()
 
-  # Last Bazel step on purpose: `--cpu=all` regenerates the kernel-defines
-  # header every kernel includes, so any `--cpu=avx2` step after it would
-  # recompile ~1160 actions it already had.
+  # `--cpu=all` regenerates the kernel-defines header every kernel includes,
+  # at the same output path as the `--cpu=avx2` build; the platform suffix
+  # gives it its own output tree so neither overwrites the other.
   - script: |
       bazel test //cpp/daal:isa_coverage_test \
-                 --cpu=all
+                 --cpu=all \
+                 --platform_suffix=isa-all
     displayName: 'Check ISA coverage'
 
   - script: |

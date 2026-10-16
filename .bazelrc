@@ -160,8 +160,16 @@ build:release-dpc \
 # highest ISA (auto-detected). Use this to speed up iterative builds.
 # NOT suitable for release/packaging.
 #   bazel build //cpp/oneapi/dal:tests --config=dev
+#
+# `--cpu` selects the contents of a generated header that every kernel
+# includes, at one output path for every value, so switching between
+# `--config=dev` and the default rebuilt ~1160 actions each way. The platform
+# suffix gives the dev ISA set its own output tree; switching back and forth
+# then rebuilds nothing. Pass a suffix the same way when building another
+# `--cpu` value side by side (e.g. `--cpu=all --platform_suffix=isa-all`).
 build:dev \
-    --cpu=auto
+    --cpu=auto \
+    --platform_suffix=dev
 
 
 # =============================================================================
