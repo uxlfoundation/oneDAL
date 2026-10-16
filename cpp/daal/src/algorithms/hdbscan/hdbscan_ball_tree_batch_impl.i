@@ -431,12 +431,14 @@ static DAAL_INT updateNodeComponentsBallTree(BallNode<algorithmFPType> * nodes, 
 /// @param[in,out] bestIdx         Index of the best different-component candidate so far
 /// @param[in]     distFunc        Metric functor instance (unscaled metric)
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
+/// @param[in]     bound           Subtrees whose MRD lower bound exceeds it are skipped
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
 static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t nCols, const BallNode<algorithmFPType> * nodes,
                                            const DAAL_INT * pointIndices, const algorithmFPType * coreDistances,
                                            const algorithmFPType * minCoreDistNode, const DAAL_INT * componentOf, const algorithmFPType * queryPoint,
                                            DAAL_INT queryIdx, algorithmFPType queryCoreD, DAAL_INT queryComponent, DAAL_INT nodeIdx,
-                                           algorithmFPType & bestMrd, DAAL_INT & bestIdx, const DistFunc & distFunc, algorithmFPType invAlpha)
+                                           algorithmFPType & bestMrd, DAAL_INT & bestIdx, const DistFunc & distFunc, algorithmFPType invAlpha,
+                                           algorithmFPType bound)
 {
     const BallNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -448,7 +450,7 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t 
     algorithmFPType mrdLB              = bboxMin * invAlpha;
     if (queryCoreD > mrdLB) mrdLB = queryCoreD;
     if (minCoreDistNode[nodeIdx] > mrdLB) mrdLB = minCoreDistNode[nodeIdx];
-    if (mrdLB >= bestMrd) return;
+    if (mrdLB >= bestMrd || mrdLB > bound) return;
 
     if (node.left < 0)
     {
@@ -479,9 +481,10 @@ static void nearestMrdBoruvkaQueryBallTree(const algorithmFPType * data, size_t 
     const DAAL_INT farChild  = (dLeft <= dRight) ? node.right : node.left;
 
     nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint,
-                                                         queryIdx, queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha);
+                                                         queryIdx, queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha,
+                                                         bound);
     nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf, queryPoint,
-                                                         queryIdx, queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha);
+                                                         queryIdx, queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha, bound);
 }
 
 /// Compute core distances and the MST under MRD on a ball tree.
@@ -563,10 +566,15 @@ static services::Status computeCoreDistAndMstBallTree(const algorithmFPType * da
     DAAL_INT * compBestTo         = compBestToVec.get();
     DAAL_CHECK_MALLOC(compBestMrd && compBestFrom && compBestTo);
 
+    TArrayScalable<algorithmFPType, cpu> compBoundVec(nRows);
+    algorithmFPType * compBound = compBoundVec.get();
+    DAAL_CHECK_MALLOC(compBound);
+
     for (size_t i = 0; i < nRows; i++)
     {
-        ufParent[i]    = static_cast<DAAL_INT>(i);
-        componentOf[i] = static_cast<DAAL_INT>(i);
+        ufParent[i]     = static_cast<DAAL_INT>(i);
+        componentOf[i]  = static_cast<DAAL_INT>(i);
+        pointBestIdx[i] = -1;
     }
     services::internal::service_memset_seq<DAAL_INT, cpu>(ufRank, 0, nRows);
 
@@ -579,7 +587,10 @@ static services::Status computeCoreDistAndMstBallTree(const algorithmFPType * da
     // Nearest neighbor of each point outside its component, under MRD.
     while (numComponents > 1)
     {
+        computeComponentBounds<algorithmFPType>(nRows, componentOf, pointBestMrd, pointBestIdx, compBound);
+
         daal::threader_for(nRows, 1, [&](size_t i) {
+            if (skipBoruvkaQuery<algorithmFPType>(i, componentOf, coreDistances, compBound, pointBestIdx)) return;
             const DAAL_INT comp              = componentOf[i];
             const algorithmFPType * queryPt  = data + i * nCols;
             const algorithmFPType queryCoreD = coreDistances[i];
@@ -588,10 +599,11 @@ static services::Status computeCoreDistAndMstBallTree(const algorithmFPType * da
 
             nearestMrdBoruvkaQueryBallTree<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, minCoreDistNode, componentOf,
                                                                  queryPt, static_cast<DAAL_INT>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc,
-                                                                 invAlpha);
+                                                                 invAlpha, compBound[comp]);
 
+            // Above the bound the pruned search may miss the best edge; such a result cannot win.
             pointBestMrd[i] = bestMrd;
-            pointBestIdx[i] = bestIdx;
+            pointBestIdx[i] = (bestMrd > compBound[comp]) ? -1 : bestIdx;
         });
 
         reduceComponentBestEdges<algorithmFPType>(nRows, componentOf, pointBestMrd, pointBestIdx, compBestMrd, compBestFrom, compBestTo);

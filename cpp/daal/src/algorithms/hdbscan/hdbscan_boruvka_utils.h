@@ -121,6 +121,58 @@ static void reduceComponentBestEdges(size_t nRows, const DAAL_INT * componentOf,
     }
 }
 
+/// Upper-bound each component's lightest outgoing edge by last round's edges that still leave it.
+///
+/// @tparam FPType Floating-point type used for edge weights (MRD)
+///
+/// @param[in]  nRows        Number of points
+/// @param[in]  componentOf  Per-point component id
+/// @param[in]  pointBestMrd Per-point best MRD from the previous round
+/// @param[in]  pointBestIdx Per-point best target id from the previous round (-1 if none)
+/// @param[out] compBound    Per-component bound, `+inf` where no such edge exists
+template <typename FPType>
+static void computeComponentBounds(size_t nRows, const DAAL_INT * componentOf, const FPType * pointBestMrd, const DAAL_INT * pointBestIdx,
+                                   FPType * compBound)
+{
+    const FPType inf = daal::services::internal::MaxVal<FPType>::get();
+    for (size_t i = 0; i < nRows; i++) compBound[i] = inf;
+    for (size_t i = 0; i < nRows; i++)
+    {
+        const DAAL_INT j    = pointBestIdx[i];
+        const DAAL_INT comp = componentOf[i];
+        if (j >= 0 && componentOf[j] != comp && pointBestMrd[i] < compBound[comp]) compBound[comp] = pointBestMrd[i];
+    }
+}
+
+/// Check whether a point's Boruvka query can be skipped this round.
+///
+/// Candidates only leave a point's search space between rounds, so an exact best edge that still
+/// leaves the component stays the point's best. A point whose core distance exceeds the component
+/// bound cannot give the component's edge, because its MRD is at least its core distance.
+///
+/// @tparam FPType Floating-point type used for edge weights (MRD)
+///
+/// @param[in]     i             Point id
+/// @param[in]     componentOf   Per-point component id
+/// @param[in]     coreDistances Per-point core distances, scaled as in the MRD
+/// @param[in]     compBound     Per-component bound from `computeComponentBounds`
+/// @param[in,out] pointBestIdx  Per-point exact best target id or -1; set to -1 for a skipped point
+///
+/// @return `true` if the point keeps its previous edge or cannot give its component's edge
+template <typename FPType>
+static bool skipBoruvkaQuery(size_t i, const DAAL_INT * componentOf, const FPType * coreDistances, const FPType * compBound, DAAL_INT * pointBestIdx)
+{
+    const DAAL_INT comp = componentOf[i];
+    const DAAL_INT prev = pointBestIdx[i];
+    if (prev >= 0 && componentOf[prev] != comp) return true;
+    if (coreDistances[i] > compBound[comp])
+    {
+        pointBestIdx[i] = -1;
+        return true;
+    }
+    return false;
+}
+
 /// Append each component's best edge to the MST and merge its endpoints' sets, skipping edges
 /// whose endpoints an earlier edge of the same round already joined.
 ///
