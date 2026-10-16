@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include "services/daal_defines.h"
 #include "src/services/service_unique_ptr.h"
+#include "src/services/service_profiler_site.h"
 
 namespace daal
 {
@@ -84,10 +85,30 @@ public:
 };
 
 typedef internal::UniquePtr<Reducer, DAAL_BASE_CPU> ReducerUniquePtr;
+
+/// The task a parallel region was started from, as the kernel profiler identifies it.
+struct profiler_region
+{
+    const void * parent;
+    uint64_t run;
+    const char * name; // row of the region's chunks, or nullptr for a region without a known call site
+};
+
+/// Callbacks through which the threading layer tells the kernel profiler, when one is attached,
+/// which region each chunk of parallel work belongs to.
+struct profiler_region_hooks
+{
+    profiler_region (*capture)(bool blocking);      // on the thread that starts a region
+    void (*finish)(const profiler_region & region); // on that thread, when a blocking region is done
+    void (*enter)(const profiler_region & region);  // on a thread that starts running a chunk of it
+    void (*leave)();                                // when that chunk is done
+};
 } // namespace daal
 
 extern "C"
 {
+    DAAL_EXPORT void _daal_threader_set_profiler_hooks(const daal::profiler_region_hooks * hooks);
+
     DAAL_EXPORT int _daal_threader_get_max_threads();
     DAAL_EXPORT int _daal_threader_get_current_thread_index();
 
@@ -311,9 +332,11 @@ inline void threader_func_break_int32(int i, bool & needBreak, const void * a)
 ///                       single thread. Must be at least 1.
 /// @param[in] func       Callable object that defines the loop body.
 template <typename F>
-inline void threader_for(int64_t n, int64_t grain_size, const F & func)
+inline void threader_for(int64_t n, int64_t grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                         int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for(n, grain_size, a, threader_func<F>);
 }
@@ -340,9 +363,11 @@ inline void threader_for(int64_t n, int64_t grain_size, const F & func)
 /// @param[in] grain_size Number of iterations in a chunk. Must be at least 1.
 /// @param[in] func       Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_simple(int64_t n, int64_t grain_size, const F & func)
+inline void threader_for_simple(int64_t n, int64_t grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_simple(n, grain_size, a, threader_func<F>);
 }
@@ -371,9 +396,11 @@ inline void threader_for_simple(int64_t n, int64_t grain_size, const F & func)
 /// @param[in] end      Pointer past the last element of the iteration range.
 /// @param[in] func     Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_int64ptr(const int64_t * begin, const int64_t * end, const F & func)
+inline void threader_for_int64ptr(const int64_t * begin, const int64_t * end, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                  int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_int64ptr(begin, end, a, threader_func_int64ptr<F>);
 }
@@ -406,9 +433,11 @@ inline void threader_for_int64ptr(const int64_t * begin, const int64_t * end, co
 /// @param[in] n        Number of iterations in the for loop.
 /// @param[in] func     Callable object that defines iteration's body.
 template <typename F>
-inline void static_threader_for(int64_t n, const F & func)
+inline void static_threader_for(int64_t n, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE, int line = DAAL_PROFILER_CALLER_LINE,
+                                const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_static_threader_for(n, a, static_threader_func<F>);
 }
@@ -431,9 +460,11 @@ inline void static_threader_for(int64_t n, const F & func)
 /// @param[in] func       Callable object that processes the block of loop's iterations
 ///                       `[beginRange, endRange)`.
 template <typename F>
-inline void threader_for_blocked(int64_t n, int64_t grain_size, const F & func)
+inline void threader_for_blocked(int64_t n, int64_t grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                 int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_blocked(n, grain_size, a, threader_func_b<F>);
 }
@@ -463,9 +494,11 @@ inline void threader_for_blocked(int64_t n, int64_t grain_size, const F & func)
 /// @param[in] grain_size Minimum number of iterations per chunk for the threading backend.
 /// @param[in] func       Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_optional(int64_t n, int64_t grain_size, const F & func)
+inline void threader_for_optional(int64_t n, int64_t grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                  int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_optional(n, grain_size, a, threader_func<F>);
 }
@@ -502,9 +535,11 @@ inline void threader_for_optional(int64_t n, int64_t grain_size, const F & func)
 /// @param[in] func       Callable object that defines iteration's body
 ///                       and may request loop termination.
 template <typename F>
-inline void threader_for_break(int64_t n, int64_t grain_size, const F & func)
+inline void threader_for_break(int64_t n, int64_t grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                               int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_break(n, grain_size, a, threader_func_break<F>);
 }
@@ -532,9 +567,11 @@ inline void threader_for_break(int64_t n, int64_t grain_size, const F & func)
 ///                       single thread. Must be at least 1.
 /// @param[in] func       Callable object that defines the loop body.
 template <typename F>
-inline void threader_for_int32(int n, int grain_size, const F & func)
+inline void threader_for_int32(int n, int grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                               int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_int32(n, grain_size, a, threader_func_int32<F>);
 }
@@ -548,9 +585,11 @@ inline void threader_for_int32(int n, int grain_size, const F & func)
 /// @param[in] grain_size Number of iterations in a chunk. Must be at least 1.
 /// @param[in] func       Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_simple_int32(int n, int grain_size, const F & func)
+inline void threader_for_simple_int32(int n, int grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                      int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_simple_int32(n, grain_size, a, threader_func_int32<F>);
 }
@@ -566,9 +605,11 @@ inline void threader_for_simple_int32(int n, int grain_size, const F & func)
 /// @param[in] func       Callable object that processes the block of loop's iterations
 ///                       `[beginRange, endRange)`.
 template <typename F>
-inline void threader_for_blocked_int32(int n, int grain_size, const F & func)
+inline void threader_for_blocked_int32(int n, int grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                       int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_blocked_int32(n, grain_size, a, threader_func_b_int32<F>);
 }
@@ -583,9 +624,11 @@ inline void threader_for_blocked_int32(int n, int grain_size, const F & func)
 ///                       single thread. Must be at least 1.
 /// @param[in] func       Callable object that defines iteration's body.
 template <typename F>
-inline void threader_for_optional_int32(int n, int grain_size, const F & func)
+inline void threader_for_optional_int32(int n, int grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                        int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_optional_int32(n, grain_size, a, threader_func_int32<F>);
 }
@@ -601,9 +644,11 @@ inline void threader_for_optional_int32(int n, int grain_size, const F & func)
 /// @param[in] func       Callable object that defines iteration's body
 ///                       and may request loop termination.
 template <typename F>
-inline void threader_for_break_int32(int n, int grain_size, const F & func)
+inline void threader_for_break_int32(int n, int grain_size, const F & func, const char * file = DAAL_PROFILER_CALLER_FILE,
+                                     int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
     const void * a = static_cast<const void *>(&func);
+    const ::daal::internal::profiler_region_site site(file, line, function);
 
     _daal_threader_for_break_int32(n, grain_size, a, threader_func_break_int32<F>);
 }
@@ -716,8 +761,10 @@ public:
     /// @param func     Callable object that is applied to each element of thread-local
     ///                 storage in parallel.
     template <typename callableType>
-    void parallel_reduce(const callableType & func)
+    void parallel_reduce(const callableType & func, const char * file = DAAL_PROFILER_CALLER_FILE, int line = DAAL_PROFILER_CALLER_LINE,
+                         const char * function = DAAL_PROFILER_CALLER_FUNCTION)
     {
+        const ::daal::internal::profiler_region_site site(file, line, function);
         const void * ac = static_cast<const void *>(&func);
         void * a        = const_cast<void *>(ac);
         _daal_parallel_reduce_tls(tlsPtr, a, tls_reduce_func<F, callableType>);
@@ -1023,8 +1070,10 @@ void conditional_static_threader_for(const bool inParallel, const size_t n, Func
 ///                      The number of iterations assigned to each thread is at least `grainSize / 2`.
 /// @param[in] reducer   Callable object that defines the loop body.
 template <typename ReducerType>
-void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer)
+void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer, const char * file = DAAL_PROFILER_CALLER_FILE,
+                     int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
+    const ::daal::internal::profiler_region_site site(file, line, function);
     _daal_threader_reduce(n, grainSize, reducer);
 }
 
@@ -1042,8 +1091,10 @@ void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reduc
 ///                      The number of iterations assigned to each thread is at least `grainSize / 2`.
 /// @param[in] reducer   Callable object that defines the loop body.
 template <typename ReducerType>
-void static_threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer)
+void static_threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer, const char * file = DAAL_PROFILER_CALLER_FILE,
+                            int line = DAAL_PROFILER_CALLER_LINE, const char * function = DAAL_PROFILER_CALLER_FUNCTION)
 {
+    const ::daal::internal::profiler_region_site site(file, line, function);
     _daal_static_threader_reduce(n, grainSize, reducer);
 }
 

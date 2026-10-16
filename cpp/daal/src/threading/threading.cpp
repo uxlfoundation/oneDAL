@@ -50,6 +50,64 @@
     #include <windows.h>
 #endif
 
+#include <atomic>
+
+namespace
+{
+std::atomic<const daal::profiler_region_hooks *> profiler_hooks { nullptr };
+
+/// The task a parallel region was started from, handed to every chunk of the region.
+/// Does nothing unless the kernel profiler attached its hooks.
+class profiler_region_handle
+{
+public:
+    explicit profiler_region_handle(bool blocking) : hooks_(profiler_hooks.load(std::memory_order_acquire))
+    {
+        if (hooks_) region_ = hooks_->capture(blocking);
+    }
+
+    class chunk
+    {
+    public:
+        explicit chunk(const profiler_region_handle & handle) : hooks_(handle.hooks_)
+        {
+            if (hooks_) hooks_->enter(handle.region_);
+        }
+        ~chunk()
+        {
+            if (hooks_) hooks_->leave();
+        }
+        chunk(const chunk &)             = delete;
+        chunk & operator=(const chunk &) = delete;
+
+    private:
+        const daal::profiler_region_hooks * hooks_;
+    };
+
+protected:
+    const daal::profiler_region_hooks * hooks_;
+    daal::profiler_region region_ {};
+};
+
+/// A region that is done when the call that started it returns.
+class profiler_region_scope : public profiler_region_handle
+{
+public:
+    profiler_region_scope() : profiler_region_handle(true) {}
+    ~profiler_region_scope()
+    {
+        if (hooks_) hooks_->finish(region_);
+    }
+    profiler_region_scope(const profiler_region_scope &)             = delete;
+    profiler_region_scope & operator=(const profiler_region_scope &) = delete;
+};
+} // namespace
+
+DAAL_EXPORT void _daal_threader_set_profiler_hooks(const daal::profiler_region_hooks * hooks)
+{
+    profiler_hooks.store(hooks, std::memory_order_release);
+}
+
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
 {
 #ifndef USE_STD_ALLOC
@@ -126,7 +184,9 @@ DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t grain_size, const void * 
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, grain_size), [&](tbb::blocked_range<int64_t> r) {
+            const profiler_region_handle::chunk chunk(region);
             int64_t i;
             for (i = r.begin(); i < r.end(); i++)
             {
@@ -148,9 +208,11 @@ DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t grain_size, const 
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         tbb::parallel_for(
             tbb::blocked_range<int64_t>(0, n, grain_size),
             [&](tbb::blocked_range<int64_t> r) {
+                const profiler_region_handle::chunk chunk(region);
                 int64_t i;
                 for (i = r.begin(); i < r.end(); i++)
                 {
@@ -173,7 +235,9 @@ DAAL_EXPORT void _daal_threader_for_int32(int n, int grain_size, const void * a,
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         tbb::parallel_for(tbb::blocked_range<int>(0, n, grain_size), [&](tbb::blocked_range<int> r) {
+            const profiler_region_handle::chunk chunk(region);
             for (int i = r.begin(); i < r.end(); i++)
             {
                 func(i, a);
@@ -193,9 +257,11 @@ DAAL_EXPORT void _daal_threader_for_simple_int32(int n, int grain_size, const vo
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         tbb::parallel_for(
             tbb::blocked_range<int>(0, n, grain_size),
             [&](tbb::blocked_range<int> r) {
+                const profiler_region_handle::chunk chunk(region);
                 for (int i = r.begin(); i < r.end(); i++)
                 {
                     func(i, a);
@@ -216,7 +282,9 @@ DAAL_EXPORT void _daal_threader_for_int64ptr(const int64_t * begin, const int64_
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         tbb::parallel_for(tbb::blocked_range<const int64_t *>(begin, end, 1), [&](tbb::blocked_range<const int64_t *> r) {
+            const profiler_region_handle::chunk chunk(region);
             const int64_t * i;
             for (i = r.begin(); i != r.end(); i++)
             {
@@ -239,9 +307,13 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64(int32_t n, int64_t init, c
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         return tbb::parallel_reduce(
             tbb::blocked_range<int32_t>(0, n), init,
-            [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) { return loop_func(r.begin(), r.end(), value_for_reduce, a); },
+            [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) {
+                const profiler_region_handle::chunk chunk(region);
+                return loop_func(r.begin(), r.end(), value_for_reduce, a);
+            },
             [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::auto_partitioner {});
     }
     else
@@ -256,9 +328,13 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64_simple(int32_t n, int64_t 
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         return tbb::parallel_reduce(
             tbb::blocked_range<int32_t>(0, n), init,
-            [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) { return loop_func(r.begin(), r.end(), value_for_reduce, a); },
+            [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) {
+                const profiler_region_handle::chunk chunk(region);
+                return loop_func(r.begin(), r.end(), value_for_reduce, a);
+            },
             [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
     }
     else
@@ -274,9 +350,11 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32ptr_int64_simple(const int32_t * 
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
+        const profiler_region_scope region;
         return tbb::parallel_reduce(
             tbb::blocked_range<const int32_t *>(begin, end), init,
             [&](const tbb::blocked_range<const int32_t *> & r, int64_t value_for_reduce) {
+                const profiler_region_handle::chunk chunk(region);
                 return loop_func(r.begin(), r.end(), value_for_reduce, a);
             },
             [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
@@ -295,9 +373,11 @@ DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::func
     {
         const int64_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
 
+        const profiler_region_scope region;
         tbb::parallel_for(
             tbb::blocked_range<int64_t>(0, nthreads, 1),
             [&](tbb::blocked_range<int64_t> r) {
+                const profiler_region_handle::chunk chunk(region);
                 const int64_t tid   = r.begin();
                 const int64_t begin = tid * nblocks_per_thread;
                 const int64_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
@@ -349,7 +429,11 @@ DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t grain_size, const
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, grain_size), [&](tbb::blocked_range<int64_t> r) { func(r.begin(), r.end(), a); });
+        const profiler_region_scope region;
+        tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, grain_size), [&](tbb::blocked_range<int64_t> r) {
+            const profiler_region_handle::chunk chunk(region);
+            func(r.begin(), r.end(), a);
+        });
     }
     else
     {
@@ -361,7 +445,11 @@ DAAL_EXPORT void _daal_threader_for_blocked_int32(int n, int grain_size, const v
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int>(0, n, grain_size), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end(), a); });
+        const profiler_region_scope region;
+        tbb::parallel_for(tbb::blocked_range<int>(0, n, grain_size), [&](tbb::blocked_range<int> r) {
+            const profiler_region_handle::chunk chunk(region);
+            func(r.begin(), r.end(), a);
+        });
     }
     else
     {
@@ -419,9 +507,11 @@ DAAL_EXPORT void _daal_threader_for_break(int64_t n, int64_t grain_size, const v
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         tbb::task_group_context context;
+        const profiler_region_scope region;
         tbb::parallel_for(
             tbb::blocked_range<int64_t>(0, n, grain_size),
             [&](tbb::blocked_range<int64_t> r) {
+                const profiler_region_handle::chunk chunk(region);
                 int64_t i;
                 for (i = r.begin(); i < r.end(); ++i)
                 {
@@ -449,9 +539,11 @@ DAAL_EXPORT void _daal_threader_for_break_int32(int n, int grain_size, const voi
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         tbb::task_group_context context;
+        const profiler_region_scope region;
         tbb::parallel_for(
             tbb::blocked_range<int>(0, n, grain_size),
             [&](tbb::blocked_range<int> r) {
+                const profiler_region_handle::chunk chunk(region);
                 for (int i = r.begin(); i < r.end(); ++i)
                 {
                     bool needBreak = false;
@@ -524,7 +616,9 @@ DAAL_EXPORT void _daal_parallel_reduce_tls(void * tlsPtr, void * a, daal::tls_re
         {
             size_t i = 0;
             for (auto it = p->begin(); it != p->end(); ++it) aDataPtr[i++] = *it;
+            const profiler_region_scope region;
             tbb::parallel_for(tbb::blocked_range<size_t>(0, n, 1), [&](tbb::blocked_range<size_t> r) {
+                const profiler_region_handle::chunk chunk(region);
                 for (size_t i = r.begin(); i < r.end(); i++) func(aDataPtr[i], a);
             });
             ::free(aDataPtr);
@@ -888,13 +982,13 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
     {
         typedef daal::services::Atomic<int> RefCounterType;
 
-        shared_task(daal::task & t) : _t(t), _nRefs(nullptr)
+        shared_task(daal::task & t) : _t(t), _nRefs(nullptr), _region(false)
         {
             _nRefs = new RefCounterType;
             (*_nRefs).set(1);
         }
 
-        shared_task(const shared_task & o) : _t(o._t), _nRefs(o._nRefs) { (*_nRefs).inc(); }
+        shared_task(const shared_task & o) : _t(o._t), _nRefs(o._nRefs), _region(o._region) { (*_nRefs).inc(); }
 
         ~shared_task()
         {
@@ -905,10 +999,15 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
             }
         }
 
-        void operator()() const { _t.run(); }
+        void operator()() const
+        {
+            const profiler_region_handle::chunk chunk(_region);
+            _t.run();
+        }
 
         daal::task & _t;
         RefCounterType * _nRefs;
+        profiler_region_handle _region;
 
     private:
         shared_task & operator=(const shared_task &);
@@ -950,7 +1049,8 @@ public:
     /// Constructs the body of the parallel reduce algorithm from the given reducer.
     ///
     /// @param reducer Pointer to the reducer object.
-    explicit ReductionBody(daal::Reducer & reducer) : _reducer(&reducer, EmptyDeleterT {}) {}
+    /// @param region Region the reduction runs in, for the kernel profiler.
+    ReductionBody(daal::Reducer & reducer, const profiler_region_handle & region) : _reducer(&reducer, EmptyDeleterT {}), _region(&region) {}
 
     /// Splitting constructor.
     /// Constructs the partial result initialized to identity value from the given partial result.
@@ -958,13 +1058,14 @@ public:
     ///
     /// @param other The body to split.
     /// @param split Split object.
-    ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()) {}
+    ReductionBody(ReductionBody & other, tbb::split) : _reducer(create(other)), _region(other._region) {}
 
     /// Accumulate the partial results for a sub-range
     ///
     /// @param r The sub-range to process.
     void operator()(const tbb::blocked_range<size_t> & r)
     {
+        const profiler_region_handle::chunk chunk(*_region);
         if (_reducer) _reducer->update(r.begin(), r.end());
     }
 
@@ -973,18 +1074,27 @@ public:
     /// @param other The body to merge.
     void join(ReductionBody & other)
     {
+        const profiler_region_handle::chunk chunk(*_region);
         if (_reducer) _reducer->join(other._reducer.get());
     }
 
 private:
+    static daal::ReducerUniquePtr create(ReductionBody & other)
+    {
+        const profiler_region_handle::chunk chunk(*other._region);
+        return other._reducer->create();
+    }
+
     ReducerManagingPtr _reducer; // Pointer to the implementation
+    const profiler_region_handle * _region;
 };
 
 DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        ReductionBody body(reducer);
+        const profiler_region_scope region;
+        ReductionBody body(reducer, region);
         tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body);
     }
     else
@@ -999,7 +1109,8 @@ DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grain
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        ReductionBody body(reducer);
+        const profiler_region_scope region;
+        ReductionBody body(reducer, region);
         tbb::parallel_deterministic_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
     }
     else

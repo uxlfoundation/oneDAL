@@ -17,23 +17,26 @@
 
 /*
 //++
-//  Profiler for time measurement of kernels
+//  Profiler for time and memory measurement of kernels
 //--
 */
 #pragma once
 
-#include <chrono>
+#include <atomic>
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <cctype>
+#include <string>
 #include <vector>
-#include <sstream>
-#include <iomanip>
 #include <iostream>
-#include <mutex>
+#include <sstream>
 #include <algorithm>
 #include <exception>
-#include <unordered_map>
+#include "services/daal_defines.h"
 #include "services/library_version_info.h"
+#include "src/services/service_profiler_site.h"
 
 #ifdef _WIN32
     #define PRETTY_FUNCTION __FUNCSIG__
@@ -43,6 +46,11 @@
 
 #define __SERVICE_PROFILER_H__
 
+// Some Windows builds compile DAAL without /EHsc, where a try block does not compile.
+#if defined(__cpp_exceptions) || defined(_CPPUNWIND)
+    #define DAAL_PROFILER_EXCEPTIONS_ENABLED
+#endif
+
 #define DAAL_PROFILER_CONCAT2(x, y) x##y
 #define DAAL_PROFILER_CONCAT(x, y)  DAAL_PROFILER_CONCAT2(x, y)
 #define DAAL_PROFILER_UNIQUE_ID     __LINE__
@@ -51,39 +59,48 @@
 #define DAAL_PROFILER_MACRO_2(name, queue)                daal::internal::profiler::start_task(#name, queue)
 #define DAAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
-// HEADER OUTPUT
-#define DAAL_PROFILER_PRINT_HEADER()                                                                          \
-    do                                                                                                        \
-    {                                                                                                         \
-        std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
-        std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                                  \
-        if (daal::internal::is_service_debug_enabled())                                                       \
-        {                                                                                                     \
-            std::cerr << PRETTY_FUNCTION << '\n';                                                             \
-        }                                                                                                     \
+#define DAAL_PROFILER_STRINGIFY2(x) #x
+#define DAAL_PROFILER_STRINGIFY(x)  DAAL_PROFILER_STRINGIFY2(x)
+
+// LOGGER OUTPUT
+// Logs a call of a profiled task: where it was called from, then the streamed message. On stderr each
+// call site is logged once (see profiler_log), and is not formatted again after that.
+#define DAAL_PROFILER_LOG(...)                                                                                      \
+    do                                                                                                              \
+    {                                                                                                               \
+        static std::atomic<bool> profiler_site_logged_ { false };                                                   \
+        if (daal::internal::is_every_call_logged()                                                                  \
+            || (!profiler_site_logged_.load(std::memory_order_relaxed) && !profiler_site_logged_.exchange(true)))   \
+        {                                                                                                           \
+            std::ostringstream profiler_log_line_;                                                                  \
+            profiler_log_line_ << "-----------------------------------------------------------------------------\n" \
+                               << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                           \
+            if (daal::internal::is_service_debug_enabled()) profiler_log_line_ << PRETTY_FUNCTION << '\n';          \
+            profiler_log_line_ << __VA_ARGS__;                                                                      \
+            daal::internal::profiler_log(__FILE__ ":" DAAL_PROFILER_STRINGIFY(__LINE__), profiler_log_line_.str()); \
+        }                                                                                                           \
     } while (0)
 
 // ARGS LOGGING
-#define DAAL_PROFILER_LOG_ARGS(task_name, ...)                                  \
-    do                                                                          \
-    {                                                                           \
-        DAAL_PROFILER_PRINT_HEADER();                                           \
-        std::cerr << "Profiler task_name: " << #task_name << " Printed args: "; \
-        daal::internal::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);     \
-        std::cerr << '\n';                                                      \
-    } while (0)
+#define DAAL_PROFILER_LOG_ARGS(task_name, ...)                                                                                                    \
+    DAAL_PROFILER_LOG("Profiler task_name: " << #task_name << " Printed args: " << daal::internal::profiler_named_args(#__VA_ARGS__, __VA_ARGS__) \
+                                             << '\n')
 
-#define DAAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                                                                          \
-    daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-        if (daal::internal::is_profiler_enabled())                                                                                            \
-        {                                                                                                                                     \
-            if (daal::internal::is_logger_enabled())                                                                                          \
-            {                                                                                                                                 \
-                DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                                                               \
-            }                                                                                                                                 \
-            return daal::internal::profiler::start_task(#task_name);                                                                          \
-        }                                                                                                                                     \
-        return daal::internal::profiler::start_task(nullptr);                                                                                 \
+#define DAAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                                                                               \
+    daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task {      \
+        if (daal::internal::is_profiler_enabled())                                                                                                 \
+        {                                                                                                                                          \
+            if (daal::internal::is_logger_enabled())                                                                                               \
+            {                                                                                                                                      \
+                DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                                                                    \
+            }                                                                                                                                      \
+            if (daal::internal::is_analyzer_enabled())                                                                                             \
+            {                                                                                                                                      \
+                return daal::internal::profiler::start_task_with_args(#task_name, daal::internal::profiler_named_args(#__VA_ARGS__, __VA_ARGS__)); \
+            }                                                                                                                                      \
+            return daal::internal::profiler::start_task(#task_name);                                                                               \
+        }                                                                                                                                          \
+        return daal::internal::profiler::start_task(nullptr);                                                                                      \
     }()
 
 #define DAAL_PROFILER_TASK(...)                                                                                                               \
@@ -92,8 +109,7 @@
         {                                                                                                                                     \
             if (daal::internal::is_logger_enabled())                                                                                          \
             {                                                                                                                                 \
-                DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
-                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                             \
+                DAAL_PROFILER_LOG("Profiler task_name: " << #__VA_ARGS__ << '\n');                                                            \
             }                                                                                                                                 \
             return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
         }                                                                                                                                     \
@@ -115,75 +131,42 @@
         {                                                                                                                                     \
             if (daal::internal::is_logger_enabled())                                                                                          \
             {                                                                                                                                 \
-                DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
-                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                             \
+                DAAL_PROFILER_LOG("Profiler task_name: " << #__VA_ARGS__ << '\n');                                                            \
             }                                                                                                                                 \
             return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
         }                                                                                                                                     \
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
 
-static volatile int daal_verbose_val                = -1;
-inline static constexpr int PROFILER_MODE_OFF       = 0;
-inline static constexpr int PROFILER_MODE_LOGGER    = 1;
-inline static constexpr int PROFILER_MODE_TRACER    = 2;
-inline static constexpr int PROFILER_MODE_ANALYZER  = 3;
-inline static constexpr int PROFILER_MODE_ALL_TOOLS = 4;
-inline static constexpr int PROFILER_MODE_DEBUG     = 5;
-
 namespace daal
 {
+struct profiler_region_hooks;
+
 namespace internal
 {
 
-inline static void set_verbose_from_env()
-{
-    const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
-    int newval               = PROFILER_MODE_OFF;
-    if (verbose_str)
-    {
-        char * endptr  = nullptr;
-        errno          = 0;
-        long val       = std::strtol(verbose_str, &endptr, 10);
-        bool parsed_ok = (errno == 0 && endptr != verbose_str && *endptr == '\0');
-        if (parsed_ok && val >= 0 && val <= 5) newval = static_cast<int>(val);
-    }
-    daal_verbose_val = newval;
-}
-
-inline static int daal_verbose_mode()
-{
-    if (daal_verbose_val == -1) set_verbose_from_env();
-    return daal_verbose_val;
-}
-
-inline static std::string format_time_for_output(std::uint64_t time_ns)
-{
-    std::ostringstream out;
-    double time = static_cast<double>(time_ns);
-    if (time <= 0)
-        out << "0.00s";
-    else if (time > 1e9)
-        out << std::fixed << std::setprecision(2) << time / 1e9 << "s";
-    else if (time > 1e6)
-        out << std::fixed << std::setprecision(2) << time / 1e6 << "ms";
-    else if (time > 1e3)
-        out << std::fixed << std::setprecision(2) << time / 1e3 << "us";
-    else
-        out << static_cast<std::uint64_t>(time) << "ns";
-    return out.str();
-}
-
-inline void profiler_log_named_args(const char * /*names*/) {}
+inline void profiler_write_named_args(std::ostream & /*out*/, const char * /*names*/) {}
 
 template <typename T, typename... Rest>
-inline void profiler_log_named_args(const char * names, const T & value, Rest &&... rest)
+inline void profiler_write_named_args(std::ostream & out, const char * names, const T & value, Rest &&... rest)
 {
+    while (std::isspace(static_cast<unsigned char>(*names))) ++names;
     const char * comma = strchr(names, ',');
-    std::string name   = comma ? std::string(names, comma) : std::string(names);
-    name.erase(name.begin(), std::find_if(name.begin(), name.end(), [](unsigned char ch) { return !std::isspace(ch); }));
-    std::cerr << name << ": " << value << "; ";
-    if (comma) profiler_log_named_args(comma + 1, std::forward<Rest>(rest)...);
+    out.write(names, comma ? comma - names : static_cast<std::streamsize>(strlen(names)));
+    out << ": " << value << "; ";
+    if (comma) profiler_write_named_args(out, comma + 1, std::forward<Rest>(rest)...);
+}
+
+/// Formats `value...` as "name: value; " pairs, the names taken from the stringized argument list `names`.
+template <typename... Args>
+inline std::string profiler_named_args(const char * names, Args &&... values)
+{
+    // One stream per thread: constructing a stream costs more than formatting a few numbers.
+    thread_local std::ostringstream out;
+    out.str(std::string());
+    out.clear();
+    profiler_write_named_args(out, names, std::forward<Args>(values)...);
+    return out.str();
 }
 
 inline static bool is_service_debug_enabled()
@@ -207,21 +190,10 @@ inline static bool is_logger_enabled()
 inline static bool is_tracer_enabled()
 {
     static const bool verbose_value = [] {
-        std::ios::sync_with_stdio(false);
         int value = daal_verbose_mode();
         return value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
     }();
     return verbose_value;
-}
-
-inline static bool is_profiler_enabled()
-{
-    static const bool profiler_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS
-               || value == PROFILER_MODE_DEBUG;
-    }();
-    return profiler_value;
 }
 
 inline static bool is_analyzer_enabled()
@@ -233,340 +205,280 @@ inline static bool is_analyzer_enabled()
     return profiler_value;
 }
 
+/// Whether allocations are recorded. Only the analyzer report and the timeline show them;
+/// ONEDAL_PROFILER_MEMORY=0 turns them off.
+inline static bool is_memory_tracking_enabled()
+{
+    static const bool value = [] {
+        const char * memory = std::getenv("ONEDAL_PROFILER_MEMORY");
+        const bool off      = memory && std::strcmp(memory, "0") == 0;
+        return !off && (is_analyzer_enabled() || profiler_trace_path() != nullptr);
+    }();
+    return value;
+}
+
+/// Form of the analyzer report, set by ONEDAL_PROFILER_REPORT.
+enum class profiler_report_format
+{
+    text,   // summary, task tree, hotspots and memory
+    tree,   // the task tree alone
+    folded, // one line per call path with its self time, for flame graph tools
+    json,   // every row of the task tree with all its figures
+    health  // the health checks and the memory summary alone
+};
+
+inline static profiler_report_format report_format()
+{
+    static const profiler_report_format value = [] {
+        const char * report = std::getenv("ONEDAL_PROFILER_REPORT");
+        if (!report) return profiler_report_format::text;
+        if (std::strcmp(report, "tree") == 0) return profiler_report_format::tree;
+        if (std::strcmp(report, "folded") == 0) return profiler_report_format::folded;
+        if (std::strcmp(report, "json") == 0) return profiler_report_format::json;
+        if (std::strcmp(report, "health") == 0) return profiler_report_format::health;
+        return profiler_report_format::text;
+    }();
+    return value;
+}
+
+/// Whether the report is something other than the full text report, which has no room for the
+/// version lines.
+inline static bool is_tree_only_report()
+{
+    return report_format() != profiler_report_format::text;
+}
+
+/// Whether ONEDAL_PROFILER_REPORT_AT=call asks for a report after each outermost call instead of
+/// one at exit.
+inline static bool is_report_per_call()
+{
+    static const bool value = [] {
+        const char * at = std::getenv("ONEDAL_PROFILER_REPORT_AT");
+        return at && std::strcmp(at, "call") == 0;
+    }();
+    return value;
+}
+
+/// Whether ONEDAL_PROFILER_OUTPUT asks for every call to be logged, rather than each call site once.
+inline static bool is_every_call_logged()
+{
+    static const bool value = [] {
+        const char * path = std::getenv("ONEDAL_PROFILER_OUTPUT");
+        return path && *path;
+    }();
+    return value;
+}
+
+/// Writes `text` to the profiler output: the file named by ONEDAL_PROFILER_OUTPUT, or stderr.
+///
+/// @param[in] once_key  If not nullptr, `text` is written only the first time this key is seen,
+///                      unless the output is a file, which takes every call.
+/// @param[in] text      Whole lines, written in one piece.
+DAAL_EXPORT void profiler_log(const char * once_key, const std::string & text);
+
 inline void print_header()
 {
-    if (is_profiler_enabled())
+    if (is_profiler_enabled() && !is_tree_only_report())
     {
         daal::services::LibraryVersionInfo ver;
-        std::cerr << "Major version:          " << ver.majorVersion << '\n';
-        std::cerr << "Minor version:          " << ver.minorVersion << '\n';
-        std::cerr << "Update version:         " << ver.updateVersion << '\n';
-        std::cerr << "Product status:         " << ver.productStatus << '\n';
-        std::cerr << "Build:                  " << ver.build << '\n';
-        std::cerr << "Build revision:         " << ver.build_rev << '\n';
-        std::cerr << "Name:                   " << ver.name << '\n';
-        std::cerr << "Processor optimization: " << ver.processor << '\n';
-        std::cerr << '\n';
+        std::ostringstream out;
+        out << "Major version:          " << ver.majorVersion << '\n';
+        out << "Minor version:          " << ver.minorVersion << '\n';
+        out << "Update version:         " << ver.updateVersion << '\n';
+        out << "Product status:         " << ver.productStatus << '\n';
+        out << "Build:                  " << ver.build << '\n';
+        out << "Build revision:         " << ver.build_rev << '\n';
+        out << "Name:                   " << ver.name << '\n';
+        out << "Processor optimization: " << ver.processor << '\n';
+        out << '\n';
+        profiler_log(nullptr, out.str());
     }
 }
 
-struct task_entry
+/// Memory an allocation lives in. USM shared memory counts as device memory.
+enum class profiler_memory_kind : int
 {
-    std::int64_t idx;
-    std::string name;
-    std::uint64_t duration;
-    std::int64_t level;
-    std::int64_t count;
-    bool threading_task;
+    host   = 0,
+    device = 1
 };
 
-struct task
+/// Direction of an explicit copy between host and device memory.
+enum class profiler_transfer_kind : int
 {
-    std::vector<task_entry> kernels;
+    host_to_device = 0,
+    device_to_host = 1
 };
+
+/// Opens a task on the calling thread.
+///
+/// @param[in] task_name    Name of the task; copied the first time it is seen at a tree position
+/// @param[in] threading    Whether the task is the body of a parallel region
+///
+/// @return The stack depth to pass to profiler_end_task()
+DAAL_EXPORT int profiler_begin_task(const char * task_name, bool threading);
+
+/// Opens a task that the analyzer reports separately for each distinct `args`, up to a few per task.
+///
+/// @param[in] task_name    Name of the task
+/// @param[in] args         The task's arguments as "name: value; " pairs
+///
+/// @return The stack depth to pass to profiler_end_task()
+DAAL_EXPORT int profiler_begin_task_with_args(const char * task_name, const std::string & args);
+
+/// Closes the task opened at `depth` on the calling thread, and any task still open above it.
+///
+/// @param[in] depth    Value returned by profiler_begin_task()
+DAAL_EXPORT void profiler_end_task(int depth);
+
+/// Records an allocation, charged to the innermost task open on the calling thread.
+///
+/// @param[in] ptr      Address of the allocation; nullptr is ignored
+/// @param[in] bytes    Size of the allocation
+/// @param[in] kind     Memory the allocation lives in
+DAAL_EXPORT void profiler_record_alloc(const void * ptr, std::size_t bytes, profiler_memory_kind kind);
+
+/// Records a deallocation. Pointers whose allocation was not recorded are ignored.
+///
+/// @param[in] ptr      Address passed to the deallocation function
+DAAL_EXPORT void profiler_record_free(const void * ptr);
+
+/// Records an explicit copy between host and device memory.
+///
+/// @param[in] bytes    Size of the copy
+/// @param[in] kind     Direction of the copy
+DAAL_EXPORT void profiler_record_transfer(std::size_t bytes, profiler_transfer_kind kind);
+
+/// One task of the merged task tree. Arrays are indexed by profiler_memory_kind or
+/// profiler_transfer_kind; memory figures include the task's children.
+struct profiler_report_row
+{
+    std::string name;
+    std::int64_t parent; // index of the parent row, -1 for a top-level task
+    std::int64_t depth;
+    bool parallel;                // ran inside a parallel region
+    std::uint64_t count;          // number of runs
+    std::uint64_t time_ns;        // wall time; for a parallel task, along the busiest thread of each run
+    std::uint64_t cpu_ns;         // time summed over all threads
+    std::uint64_t self_ns;        // wall time not spent in child tasks
+    std::uint64_t min_ns;         // shortest run
+    std::uint64_t max_ns;         // longest run
+    std::uint64_t first_ns;       // the first run, which on a GPU includes compiling its kernels
+    std::uint64_t threads;        // number of threads; for a parallel task, the most in one run of the region
+    std::uint64_t busiest_ns;     // for a parallel task: the busiest thread's time, summed over runs
+    std::uint64_t mean_thread_ns; // for a parallel task: the average thread's time, summed over runs
+    std::uint64_t alloc_bytes[2];
+    std::uint64_t alloc_count[2];
+    std::uint64_t free_bytes[2];
+    std::uint64_t free_count[2];
+    std::uint64_t peak_bytes[2]; // highest live memory above the level at task start
+    std::uint64_t live_bytes[2]; // allocated in the task and not freed when the report was built
+    std::uint64_t live_count[2];
+    std::uint64_t transfer_bytes[2];
+    std::uint64_t transfer_count[2];
+};
+
+/// Returns the merged task tree recorded so far, parents before children. Open tasks are skipped.
+DAAL_EXPORT std::vector<profiler_report_row> profiler_report();
+
+/// Writes the analyzer report for everything recorded so far.
+///
+/// @param[in] out  Stream to write to
+DAAL_EXPORT void profiler_print_report(std::ostream & out);
+
+/// Writes the report in the given form, as ONEDAL_PROFILER_REPORT and ONEDAL_PROFILER_MIN_PERCENT
+/// would select it.
+///
+/// @param[in] out          Stream to write to
+/// @param[in] format       Form of the report
+/// @param[in] min_percent  Rows shorter than this share of the profiled time are folded into one per parent
+DAAL_EXPORT void profiler_print_report(std::ostream & out, profiler_report_format format, double min_percent);
+
+/// Drops everything recorded so far. No task may be open on any thread.
+DAAL_EXPORT void profiler_reset();
+
+/// Sets every figure recorded so far to zero, keeping the timeline. No task may be open on any thread.
+DAAL_EXPORT void profiler_clear();
+
+/// Callbacks the threading layer calls around every chunk of a parallel region.
+DAAL_EXPORT const daal::profiler_region_hooks & profiler_threading_hooks();
 
 class profiler_task
 {
 public:
-    inline profiler_task(const char * task_name, int idx) : task_name_(task_name), idx_(idx) {}
-    inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx_(idx), is_thread_(thread) {}
+    profiler_task() = default;
+    explicit profiler_task(int depth) : depth_(depth) {}
     inline ~profiler_task();
 
     profiler_task(const profiler_task &)             = delete;
     profiler_task & operator=(const profiler_task &) = delete;
 
-    profiler_task(profiler_task && other) noexcept : task_name_(other.task_name_), idx_(other.idx_), is_thread_(other.is_thread_)
-    {
-        other.task_name_ = nullptr;
-        other.idx_       = -1;
-        other.is_thread_ = false;
-    }
+    profiler_task(profiler_task && other) noexcept : depth_(other.depth_) { other.depth_ = -1; }
 
     profiler_task & operator=(profiler_task && other) noexcept
     {
         if (this != &other)
         {
-            task_name_ = other.task_name_;
-            idx_       = other.idx_;
-            is_thread_ = other.is_thread_;
-
-            other.task_name_ = nullptr;
-            other.idx_       = -1;
-            other.is_thread_ = false;
+            depth_       = other.depth_;
+            other.depth_ = -1;
         }
         return *this;
     }
 
 private:
-    const char * task_name_ = nullptr;
-    int idx_                = -1;
-    bool is_thread_         = false;
+    int depth_ = -1;
 };
 
 class profiler
 {
 public:
-    inline profiler() { daal_verbose_mode(); }
-
-    inline ~profiler()
-    {
-        if (is_analyzer_enabled())
-        {
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
-            try
-            {
-#endif
-                merge_tasks();
-                const auto & tasks_info  = get_instance()->get_task();
-                std::uint64_t total_time = 0;
-                std::cerr << "Algorithm tree analyzer" << '\n';
-
-                for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
-                {
-                    const auto & entry = tasks_info.kernels[i];
-                    if (entry.level == 0) total_time += entry.duration;
-                }
-
-                for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
-                {
-                    const auto & entry = tasks_info.kernels[i];
-                    std::string prefix;
-                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|  ";
-                    prefix += "|-- ";
-                    std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
-                              << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
-                              << " times in a " << (entry.threading_task ? "parallel" : "sequential") << " region" << '\n';
-                }
-                std::cerr << "|--(end)" << '\n';
-                std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
-
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
-            }
-            catch (std::exception & e)
-            {
-                std::cerr << e.what() << std::endl;
-            }
-#endif
-        }
-    }
-
-    /// Starts a profiling task with the given task name and returns a profiler_task object
+    /// Starts a profiling task
     ///
-    /// @param[in] task_name The name of the task to be profiled
+    /// @param[in] task_name The name of the task, or nullptr for a task that records nothing
     ///
-    /// @return A profiler_task object containing the task name and a unique task ID. Returns an invalid
-    /// profiler_task (nullptr, -1) if task_name is nullptr
-    ///
-    /// @note Captures the start time, updates task information, increments the current nesting level and kernel count,
-    /// and stores task details (ID, name, start time, level, active status) in the tasks_info.kernels vector.
-    /// Invoked by the DAAL_PROFILER_TASK macro.
+    /// @return An object that ends the task when destroyed. Invoked by the DAAL_PROFILER_TASK macro.
     inline static profiler_task start_task(const char * task_name)
     {
-        if (!task_name) return profiler_task(nullptr, -1);
-
-        std::lock_guard<std::mutex> lock(global_mutex());
-        auto ns_start                = get_time();
-        auto & tasks_info            = get_instance()->get_task();
-        auto & current_level_        = get_instance()->get_current_level();
-        auto & current_kernel_count_ = get_instance()->get_kernel_count();
-        std::int64_t tmp             = current_kernel_count_;
-        tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, false });
-        current_level_++;
-        current_kernel_count_++;
-        return profiler_task(task_name, tmp);
+        if (!task_name) return profiler_task();
+        return profiler_task(profiler_begin_task(task_name, false));
     }
 
-    /// Starts a threading-specific profiling task with the given task name and returns a profiler_task object
+    /// Starts a profiling task reported separately for each distinct set of arguments
     ///
-    /// @param[in] task_name The name of the threading task to be profiled
+    /// @param[in] task_name The name of the task
+    /// @param[in] args      The task's arguments, as formatted by profiler_named_args()
+    inline static profiler_task start_task_with_args(const char * task_name, const std::string & args)
+    {
+        return profiler_task(profiler_begin_task_with_args(task_name, args));
+    }
+
+    /// Starts a task that is the body of a parallel region. Invoked by DAAL_PROFILER_THREADING_TASK.
     ///
-    /// @return A profiler_task object containing the task name, a unique task ID, and a threading flag.
-    /// Returns an invalid profiler_task (nullptr, -1) if task_name is nullptr
-    ///
-    /// @note Uses a mutex for thread safety, logs unique task names if logging is enabled, captures the start time,
-    /// updates task info, and increments the kernel count. Stores task details in tasks_info.kernels, marking it
-    /// as a threading task. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
+    /// @param[in] task_name The name of the task, or nullptr for a task that records nothing
     inline static profiler_task start_threading_task(const char * task_name)
     {
-        if (!task_name) return profiler_task(nullptr, -1);
-
-        std::lock_guard<std::mutex> lock(global_mutex());
-        if (is_logger_enabled())
-        {
-            if (!is_service_debug_enabled())
-            {
-                static std::vector<std::string> unique_task_names;
-                bool is_new_task = std::find(unique_task_names.begin(), unique_task_names.end(), task_name) == unique_task_names.end();
-                if (is_new_task)
-                {
-                    unique_task_names.push_back(task_name);
-                    std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                    std::cerr << "THREADING Profiler task started on the main rank: " << task_name << '\n';
-                }
-            }
-            else
-            {
-                std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                std::cerr << "THREADING Profiler task started " << task_name << '\n';
-            }
-        }
-        auto ns_start                = get_time();
-        auto & tasks_info            = get_instance()->get_task();
-        auto & current_level_        = get_instance()->get_current_level();
-        auto & current_kernel_count_ = get_instance()->get_kernel_count();
-        std::int64_t tmp             = current_kernel_count_;
-        tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, true });
-        current_kernel_count_++;
-        return profiler_task(task_name, tmp, true);
-    }
-
-    /// Terminates a profiling task and records its duration
-    ///
-    /// @param[in] task_name The name of the task to end
-    /// @param[in] idx_ The index of the task in the tasks_info.kernels vector
-    ///
-    /// @note If task_name is nullptr, the function returns immediately. Captures the end time,
-    /// calculates the task duration, updates the task entry, and decrements the current nesting level.
-    /// Logs the task name and duration if tracing is enabled. Uses a mutex for thread safety.
-    /// Invoked by macros such as DAAL_PROFILER_TASK.
-    inline static void end_task(const char * task_name, int idx_)
-    {
-        if (!task_name) return;
-        const std::uint64_t ns_end = get_time();
-        auto & tasks_info          = get_instance()->get_task();
-
-        std::lock_guard<std::mutex> lock(global_mutex());
-        auto & entry          = tasks_info.kernels[idx_];
-        auto duration         = ns_end - entry.duration;
-        entry.duration        = duration;
-        auto & current_level_ = get_instance()->get_current_level();
-        current_level_--;
-        if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
-    }
-
-    /// Terminates a threading-specific profiling task and records its duration
-    ///
-    /// @param[in] task_name The name of the threading task to end
-    /// @param[in] idx_ The index of the task in the tasks_info.kernels vector
-    ///
-    /// @note If task_name is nullptr or idx_ is invalid, the function returns immediately.
-    /// Captures the end time, calculates the task duration, and updates the task entry.
-    /// Logs unique task names and duration if tracing is enabled, indicating completion on the main rank.
-    /// Uses a mutex for thread safety. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
-    inline static void end_threading_task(const char * task_name, int idx_)
-    {
-        if (!task_name) return;
-
-        std::lock_guard<std::mutex> lock(global_mutex());
-        const std::uint64_t ns_end = get_time();
-        auto & tasks_info          = get_instance()->get_task();
-
-        if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
-
-        auto & entry   = tasks_info.kernels[idx_];
-        auto duration  = ns_end - entry.duration;
-        entry.duration = duration;
-
-        if (is_tracer_enabled())
-        {
-            static std::vector<std::string> unique_task_names;
-            bool is_new_task = std::find(unique_task_names.begin(), unique_task_names.end(), task_name) == unique_task_names.end();
-            if (is_new_task)
-            {
-                unique_task_names.push_back(task_name);
-                std::cerr << "THREADING " << task_name
-                          << " finished on the main rank(time could be different for other ranks): " << format_time_for_output(duration) << '\n';
-            }
-        }
-    }
-
-    inline static std::uint64_t get_time()
-    {
-        auto now = std::chrono::steady_clock::now();
-        auto ns  = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
-        return static_cast<std::uint64_t>(ns);
-    }
-
-    inline static profiler * get_instance()
-    {
-        static profiler instance;
-        return &instance;
-    }
-
-    /// Merges tasks at the same nesting level with identical names to improve profiling clarity
-    ///
-    /// @note Combines tasks with the same name and level in the tasks_info.kernels vector to simplify
-    /// profiling output. For non-threading tasks, durations are summed; for threading tasks, the maximum
-    /// duration is taken. Updates task counts and removes redundant entries. Skips merging if service
-    /// debug mode is enabled to preserve detailed task information.
-    inline void merge_tasks()
-    {
-        if (is_service_debug_enabled())
-        {
-            return;
-        }
-        auto & tasks_info = get_instance()->get_task();
-        auto & kernels    = tasks_info.kernels;
-        size_t i          = 0;
-        while (i < kernels.size())
-        {
-            size_t start      = i;
-            int current_level = kernels[i].level;
-            size_t end        = start;
-            while (end < kernels.size() && kernels[end].level == current_level) ++end;
-            for (size_t j = start; j < end; ++j)
-            {
-                for (size_t k = j + 1; k < end; ++k)
-                {
-                    if (kernels[j].name == kernels[k].name)
-                    {
-                        if (kernels[j].threading_task)
-                            kernels[j].duration = std::max(kernels[j].duration, kernels[k].duration);
-                        else
-                            kernels[j].duration += kernels[k].duration;
-                        kernels.erase(kernels.begin() + k);
-                        --k;
-                        --end;
-                        kernels[j].count++;
-                    }
-                }
-            }
-            i = end;
-        }
-    }
-
-    inline task & get_task() { return task_; }
-    inline std::int64_t & get_current_level() { return current_level_; }
-    inline std::int64_t & get_kernel_count() { return kernel_count_; }
-
-private:
-    std::int64_t current_level_ = 0;
-    std::int64_t kernel_count_  = 0;
-    task task_;
-    static std::mutex & global_mutex()
-    {
-        static std::mutex m;
-        return m;
+        if (!task_name) return profiler_task();
+        return profiler_task(profiler_begin_task(task_name, true));
     }
 };
 
 inline profiler_task::~profiler_task()
 {
-    if (task_name_)
+    if (depth_ >= 0)
     {
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+#ifdef DAAL_PROFILER_EXCEPTIONS_ENABLED
         try
         {
 #endif
-            if (is_thread_)
-                profiler::end_threading_task(task_name_, idx_);
-            else
-                profiler::end_task(task_name_, idx_);
-#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+            profiler_end_task(depth_);
+#ifdef DAAL_PROFILER_EXCEPTIONS_ENABLED
         }
         catch (std::exception & e)
         {
-            std::cerr << e.what() << std::endl;
+            std::cerr << "DAAL KERNEL_PROFILER: unexpected error while ending a task: " << e.what() << std::endl;
+        }
+        catch (...)
+        {
+            std::cerr << "DAAL KERNEL_PROFILER: unexpected error while ending a task" << std::endl;
         }
 #endif
     }
@@ -574,3 +486,13 @@ inline profiler_task::~profiler_task()
 
 } // namespace internal
 } // namespace daal
+
+extern "C"
+{
+    /// Writes the analyzer report for everything recorded so far, for callers without C++ linkage
+    /// such as Python through ctypes.
+    ///
+    /// @param[in] path     File to append the report to, or nullptr for the profiler output
+    /// @param[in] clear    If not 0, the figures are set to zero afterwards, as profiler_clear() does
+    DAAL_EXPORT void _onedal_profiler_report(const char * path, int clear);
+}

@@ -149,6 +149,7 @@ typedef void (*_daal_run_task_group_t)(void * taskGroupPtr, daal::task * t);
 typedef void (*_daal_wait_task_group_t)(void * taskGroupPtr);
 
 typedef bool (*_daal_is_in_parallel_t)();
+typedef void (*_daal_threader_set_profiler_hooks_t)(const daal::profiler_region_hooks * hooks);
 typedef void (*_daal_tbb_task_scheduler_free_t)(void *& globalControl);
 typedef void (*_daal_tbb_task_scheduler_handle_free_t)(void *& schedulerHandle);
 typedef size_t (*_setNumberOfThreads_t)(const size_t, void **);
@@ -488,6 +489,14 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
     load_daal_thr_dll();
     static _daal_wait_task_group_t _daal_wait_task_group_ptr = (_daal_wait_task_group_t)load_daal_thr_func("_daal_wait_task_group");
     _daal_wait_task_group_ptr(taskGroupPtr);
+}
+
+DAAL_EXPORT void _daal_threader_set_profiler_hooks(const daal::profiler_region_hooks * hooks)
+{
+    load_daal_thr_dll();
+    static _daal_threader_set_profiler_hooks_t _daal_threader_set_profiler_hooks_ptr =
+        (_daal_threader_set_profiler_hooks_t)load_daal_thr_func("_daal_threader_set_profiler_hooks");
+    _daal_threader_set_profiler_hooks_ptr(hooks);
 }
 
 DAAL_EXPORT bool _daal_is_in_parallel()

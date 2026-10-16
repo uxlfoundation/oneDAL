@@ -521,4 +521,88 @@ TEST("the conditional loops cover the space and honour inParallel", "[threading]
     }
 }
 
+/// Hooks that record what the threading layer reports to the kernel profiler.
+namespace hooks_log
+{
+std::atomic<uint64_t> next_run { 0 };
+std::atomic<int64_t> captures { 0 };
+std::atomic<int64_t> finishes { 0 };
+std::atomic<int64_t> enters { 0 };
+std::atomic<int64_t> leaves { 0 };
+std::atomic<int64_t> foreign_enters { 0 }; // chunks handed a region other than the one started
+std::atomic<uint64_t> current_run { 0 };
+
+daal::profiler_region capture(bool)
+{
+    captures.fetch_add(1);
+    const uint64_t run = next_run.fetch_add(1) + 1;
+    current_run.store(run);
+    return { nullptr, run, nullptr };
+}
+void finish(const daal::profiler_region & region)
+{
+    if (region.run == current_run.load()) finishes.fetch_add(1);
+}
+void enter(const daal::profiler_region & region)
+{
+    enters.fetch_add(1);
+    if (region.run != current_run.load()) foreign_enters.fetch_add(1);
+}
+void leave()
+{
+    leaves.fetch_add(1);
+}
+
+const daal::profiler_region_hooks hooks = { capture, finish, enter, leave };
+
+void reset()
+{
+    captures       = 0;
+    finishes       = 0;
+    enters         = 0;
+    leaves         = 0;
+    foreign_enters = 0;
+}
+} // namespace hooks_log
+
+TEST("parallel loops report their region and every chunk to the profiler hooks", "[threading][unit]")
+{
+    if (!isParallel()) return;
+    _daal_threader_set_profiler_hooks(&hooks_log::hooks);
+    constexpr int64_t n = 100000;
+
+    auto check = [](const char * loop) {
+        INFO(loop);
+        REQUIRE(hooks_log::captures.load() == 1);
+        REQUIRE(hooks_log::finishes.load() == 1);
+        REQUIRE(hooks_log::enters.load() > 0);
+        REQUIRE(hooks_log::enters.load() == hooks_log::leaves.load());
+        REQUIRE(hooks_log::foreign_enters.load() == 0);
+        hooks_log::reset();
+    };
+
+    hooks_log::reset();
+    VisitLog plain(n);
+    threader_for(n, 1, [&](int64_t i) { plain.mark(i); });
+    REQUIRE(plain.visitedExactlyOnce());
+    check("threader_for");
+
+    VisitLog blocked(n);
+    threader_for_blocked(n, 16, [&](int64_t first, int64_t last) {
+        for (int64_t i = first; i < last; ++i) blocked.mark(i);
+    });
+    REQUIRE(blocked.visitedExactlyOnce());
+    check("threader_for_blocked");
+
+    VisitLog stat(n);
+    static_threader_for(n, [&](int64_t i, size_t tid) {
+        (void)tid;
+        stat.mark(i);
+    });
+    REQUIRE(stat.visitedExactlyOnce());
+    check("static_threader_for");
+
+    _daal_threader_set_profiler_hooks(nullptr);
+}
+
 } // namespace daal::test

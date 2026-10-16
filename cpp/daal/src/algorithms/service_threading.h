@@ -75,8 +75,10 @@ public:
         if (_impl) _daal_del_task_group(_impl);
     }
     template <typename F>
-    void run(F & f)
+    void run(F & f, const char * file = DAAL_PROFILER_CALLER_FILE, int line = DAAL_PROFILER_CALLER_LINE,
+             const char * function = DAAL_PROFILER_CALLER_FUNCTION)
     {
+        const ::daal::internal::profiler_region_site site(file, line, function);
         if (_impl)
             _daal_run_task_group(_impl, task_impl<F>::create(f));
         else

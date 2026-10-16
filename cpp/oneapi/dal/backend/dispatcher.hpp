@@ -25,6 +25,7 @@
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/communicator.hpp"
 #include "oneapi/dal/backend/dispatcher_cpu.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 #define KERNEL_SPEC(spec, ...) ::oneapi::dal::backend::kernel_spec<spec, __VA_ARGS__>
 
@@ -162,6 +163,26 @@ struct single_node_gpu_kernel {};
 /// Tag that indicates universal GPU kernel for single-node and SPMD modes
 struct universal_spmd_gpu_kernel {};
 
+/// Runs a kernel as a profiled task named after the kernel's type, so every algorithm call has a
+/// row of its own. On a GPU the task waits for the queue at both ends, like other tasks given a queue.
+template <typename Kernel, typename... Args>
+inline auto run_profiled_kernel(const context_cpu& ctx, Args&&... args) {
+    auto task = daal::internal::is_profiler_enabled()
+                    ? daal::internal::profiler::start_task(detail::profiler_type_name<Kernel>())
+                    : daal::internal::profiler::start_task(nullptr);
+    return Kernel{}(ctx, std::forward<Args>(args)...);
+}
+
+#ifdef ONEDAL_DATA_PARALLEL
+template <typename Kernel, typename... Args>
+inline auto run_profiled_kernel(const context_gpu& ctx, Args&&... args) {
+    auto task = detail::queue_sync_guard::make(ctx.get_queue(),
+                                               detail::profiler_type_name<Kernel>(),
+                                               daal::internal::is_profiler_enabled());
+    return Kernel{}(ctx, std::forward<Args>(args)...);
+}
+#endif
+
 template <typename Tag, typename Kernel>
 struct kernel_spec {};
 
@@ -186,7 +207,7 @@ template <typename CpuKernel>
 struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
     template <typename... Args>
     auto operator()(const detail::host_policy& policy, Args&&... args) const {
-        return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
+        return run_profiled_kernel<CpuKernel>(context_cpu{ policy }, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
@@ -204,7 +225,7 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
         return dispatch_by_device(
             policy,
             [&]() {
-                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+                return run_profiled_kernel<CpuKernel>(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() -> cpu_kernel_return_t<CpuKernel, Args...> {
                 // We have to specify return type for this lambda as compiler cannot
@@ -229,12 +250,12 @@ template <typename CpuKernel>
 struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>> {
     template <typename... Args>
     auto operator()(const detail::host_policy& policy, Args&&... args) const {
-        return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+        return run_profiled_kernel<CpuKernel>(context_cpu{}, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     auto operator()(const detail::spmd_host_policy& policy, Args&&... args) const {
-        return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
+        return run_profiled_kernel<CpuKernel>(context_cpu{ policy }, std::forward<Args>(args)...);
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -243,7 +264,7 @@ struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>> {
         return dispatch_by_device(
             policy,
             [&]() {
-                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+                return run_profiled_kernel<CpuKernel>(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() -> cpu_kernel_return_t<CpuKernel, Args...> {
                 // We have to specify return type for this lambda as compiler cannot
@@ -273,10 +294,11 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
         return dispatch_by_device(
             policy,
             [&]() {
-                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+                return run_profiled_kernel<CpuKernel>(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() {
-                return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
+                return run_profiled_kernel<GpuKernel>(context_gpu{ policy },
+                                                      std::forward<Args>(args)...);
             });
     }
 
@@ -302,10 +324,11 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
         return dispatch_by_device(
             policy,
             [&]() {
-                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+                return run_profiled_kernel<CpuKernel>(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() {
-                return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
+                return run_profiled_kernel<GpuKernel>(context_gpu{ policy },
+                                                      std::forward<Args>(args)...);
             });
     }
 
@@ -322,7 +345,8 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
                 };
             },
             [&]() {
-                return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
+                return run_profiled_kernel<GpuKernel>(context_gpu{ policy },
+                                                      std::forward<Args>(args)...);
             });
     }
 };
