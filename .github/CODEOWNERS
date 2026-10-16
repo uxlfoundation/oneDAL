@@ -25,6 +25,8 @@ cmake/         @Alexandr-Solovev
 deploy/        @homksei @ahuber21 @ethanglaser
 dev/           @homksei @ahuber21 @ethanglaser
 dev/bazel/     @Alexandr-Solovev
+# Agent evals: tasks, graders and eval image (dev/agent_evals/README.md)
+dev/agent_evals/ @napetrov @homksei @ahuber21 @ethanglaser
 MODULE.bazel*  @Alexandr-Solovev @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 
 # C++ code

@@ -1,0 +1,13 @@
+diff --git a/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i b/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i
+index 59e2f7d..dec4ac1 100644
+--- a/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i
++++ b/cpp/daal/src/algorithms/k_nearest_neighbors/bf_knn_impl.i
+@@ -82,7 +82,7 @@ public:
+ 
+         services::SharedPtr<PairwiseDistances<FPType, cpu> > dist;
+ 
+-        if (pairwiseDistance == PairwiseDistanceType::minkowski && minkowskiDegree == 2.0)
++        if (pairwiseDistance == PairwiseDistanceType::minkowski && minkowskiDegree >= 2.0)
+         {
+             dist.reset(new EuclideanDistances<FPType, cpu>(*testTable, *trainTable, true));
+         }

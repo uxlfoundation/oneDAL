@@ -1,0 +1,16 @@
+{
+  "id": "review_replay_pr3773",
+  "family": "review",
+  "base": "0bb1c28987cdad725899f23dad4c3ee07dcb6898",
+  "grader": "review_replay",
+  "score": {
+    "metric": "recall",
+    "max": 1.0
+  },
+  "review_patch": "change.patch",
+  "gold": "gold.json",
+  "window": 5,
+  "source_pr": 3773,
+  "reviewed_commit": "4527f778f8a203507c0d19fb0977bed62e2b5e52",
+  "prompt": "You are reviewing a pull request to oneDAL. The change under review is the HEAD commit of this repository (inspect it with `git show HEAD`). Review it as a oneDAL maintainer would: report every problem that should be fixed before merge (correctness, the project's coding guidelines and conventions, portability, hygiene). Do not report things that are acceptable, and do not modify any files. End your answer with a fenced ```json block containing an array of findings, each an object {\"file\": \"<repo-relative path>\", \"line\": <line number in the new version of the file>, \"severity\": \"blocker|major|minor\", \"rule\": \"<short rule name>\", \"message\": \"<one sentence>\"}."
+}

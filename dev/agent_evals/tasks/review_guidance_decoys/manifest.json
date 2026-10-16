@@ -1,0 +1,128 @@
+{
+  "seeds": [
+    {
+      "id": "S1_lastblock",
+      "class": "generic",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        115
+      ],
+      "kw": "last block|final block|remainder|nRows\\s*%\\s*blockSize|% ?blockSize|modulo|divisible|multiple of|zero rows|0 rows|tail rows|skip(s|ped)? (the )?(last|final|trailing)|ignor(es|ed) (the )?(last|final|trailing)"
+    },
+    {
+      "id": "S2_mutex",
+      "class": "guideline",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        26,
+        111,
+        124
+      ],
+      "kw": "mutex|lock_guard|std::lock|\\block\\b|threading (layer|primitive)|daal::Mutex|serializ|contention"
+    },
+    {
+      "id": "S3_pragma_once",
+      "class": "guideline",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        24
+      ],
+      "kw": "pragma once|#ifndef|include guard|header guard|__COVARIANCE"
+    },
+    {
+      "id": "S4_errmsg_literal",
+      "class": "maintainer",
+      "file": "cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp",
+      "lines": [
+        65
+      ],
+      "kw": "error_messages|string literal|hard-?coded (error )?(message|string)|literal (error )?(message|string)|inline (error )?(message|string)|message catalog|centrali[sz]ed"
+    },
+    {
+      "id": "S5_wrong_option",
+      "class": "generic",
+      "file": "cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp",
+      "lines": [
+        158,
+        159
+      ],
+      "kw": "cov_matrix|cor_matrix|result_options?|wrong (result )?(option|condition|flag)|(only|instead of) .*correlation|correlation .*(not|never) (checked|validated)|reject\\w* (valid )?covariance"
+    },
+    {
+      "id": "S6_copyright_style",
+      "class": "maintainer",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        3
+      ],
+      "kw": "copyright|contributors to the oneDAL|licen[cs]e header|file header"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "D1_mix_interfaces",
+      "file": "cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp",
+      "lines": [
+        46,
+        47,
+        52,
+        56,
+        57
+      ],
+      "kw": "mix(ing|es|ed)?\\b|interface separation|DAAL (and|with) oneAPI|oneAPI (and|with) DAAL|status_to_exception|call_daal_kernel|NumericTablePtr|daal::",
+      "evidence": "cpp/AGENTS.md, cpp/daal/AGENTS.md, cpp/oneapi/AGENTS.md, examples/AGENTS.md, cpp-coding-guidelines 'Critical Reminders #1' and general.instructions 'What NOT to Generate': NEVER mix DAAL and oneAPI patterns in the same file. Every oneAPI CPU backend is a DAAL bridge: at 3120d0ab 101 files under cpp/oneapi #include DAAL headers, 103 reference daal::, 56 call interop::status_to_exception; this very file already calls interop::call_daal_kernel/status_to_exception three times."
+    },
+    {
+      "id": "D2_member_prefix",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        50,
+        85,
+        86,
+        87
+      ],
+      "kw": "underscore|_ ?prefix|prefix(ed)? (with )?_|leading _|trailing _|suffix|member (variable )?nam",
+      "evidence": "cpp-coding-guidelines 'Naming Conventions': 'Class Members: With underscore suffix: entries_, store_, comm_'. In cpp/daal, member declarations with a leading underscore (_name;) = 865 hits in 218 files vs 6 hits in 3 files with a trailing underscore; covariance_impl.i's own SumsReducer uses _dataTable/_numRowsInBlock/_nFeatures/_sumsArray. (The suffix rule holds in cpp/oneapi: 828 suffix vs 40 prefix.)"
+    },
+    {
+      "id": "D3_simd_pragmas",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        73,
+        74
+      ],
+      "kw": "PRAGMA_|\\bpragmas?\\b|compiler.specific|vectori[sz]|\\bsimd\\b|ivdep|non-?portable|platform.specific|extension",
+      "evidence": "cpp-coding-guidelines 'Extensions: Avoid compiler-specific extensions'; general.instructions 'What NOT to Generate: Platform-specific hardcoded code'. cpp/daal uses PRAGMA_OMP_SIMD 275x and PRAGMA_VECTOR_ALWAYS 209x (59 files) as the standard inner-loop idiom; the pair appears verbatim in covariance_impl.i. The macros expand to nothing on compilers that do not support them."
+    },
+    {
+      "id": "D4_tls_raw_new",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        107,
+        132
+      ],
+      "kw": "\\bnew\\b|\\bdelete\\b|raw (owning )?pointer|owning|ownership|unique_ptr|shared_ptr|SharedPtr|smart pointer|RAII|leak|makeUnique",
+      "evidence": "cpp/daal/AGENTS.md 'Memory: Use daal::services::SharedPtr<T>, never raw pointers for ownership'; general.instructions 'Raw pointers for ownership' under What NOT to Generate; root AGENTS.md 'Use smart pointers and RAII'. daal::tls<T*> takes a raw-pointer factory and frees in reduce(): 43 daal::tls< declarations in 29 files, factories such as logistic_regression_predict_dense_default_batch_impl.i:296 and low_order_moments_estimates_batch.i:252 'return new ...', 15 reduce lambdas that 'delete' the TLS pointer; 93 plain delete statements and 0 std::unique_ptr/make_unique uses in cpp/daal/src."
+    },
+    {
+      "id": "D5_tarray",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        98,
+        99,
+        100
+      ],
+      "kw": "TArray|DAAL_CHECK_MALLOC|std::vector|STL container|standard (library )?container",
+      "evidence": "root AGENTS.md 'STL: Leverage standard library containers'; general.instructions 'Smart Pointers: Always use std::unique_ptr and std::shared_ptr' (applyTo '**'). cpp/daal/src uses TArray/TArrayScalable/TArrayCalloc 525x in 115 files and DAAL_CHECK_MALLOC 387x in 107 files, vs std::vector 6 hits in 2 files and 0 std::unique_ptr."
+    },
+    {
+      "id": "D6_const_naming",
+      "file": "cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i",
+      "lines": [
+        95
+      ],
+      "kw": "UPPER|upper.?case|all.?caps|constant nam|naming convention|camel.?case|snake.?case|magic number|BLOCK_SIZE",
+      "evidence": "cpp-coding-guidelines 'Naming Conventions': 'Constants: UPPER_CASE: MAX_ITERATIONS' and 'Variables: cluster_count' (snake_case). In cpp/daal/src 'const(expr) size_t <lowerCamel> = ' occurs 838x in 199 files vs 4x UPPER_CASE (3 files); 67 such blockSize-style constants; nRows 1259x vs row_count 0x. Hard-coded row blocks are the norm (e.g. nRowsInBlock = 512 in logistic_regression predict)."
+    }
+  ]
+}

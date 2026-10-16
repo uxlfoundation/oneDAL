@@ -1,0 +1,13 @@
+diff --git a/cpp/daal/src/algorithms/service_kernel_math.h b/cpp/daal/src/algorithms/service_kernel_math.h
+index 23b10ba..ee90a04 100644
+--- a/cpp/daal/src/algorithms/service_kernel_math.h
++++ b/cpp/daal/src/algorithms/service_kernel_math.h
+@@ -505,7 +505,7 @@ public:
+         if (_p != 1.0)
+         {
+             daal::internal::MathInst<FPType, cpu> math;
+-            math.vPowx(n, a, 1.0 / _p, a);
++            math.vPowx(n, a, 0.5, a);
+         }
+         return services::Status();
+     }
