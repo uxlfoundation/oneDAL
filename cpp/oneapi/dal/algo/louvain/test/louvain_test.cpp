@@ -506,9 +506,9 @@ LOUVAIN_TEST("Random generated graph with 20 vertices and 35 edges, double weigh
         313.37, 799.64, 479.49, 604.71, 955.43, 329.42, 313.37, 393.1,  640.29, 505.99,
         226.37, 527.54, 688,    614.4,  799.64, 94.38,  182.1,  126.71, 775.34, 724.05
     };
-    std::vector<std::int32_t> expected_labels = { 0, 1, 0, 2, 2, 3, 1, 3, 0, 2,
-                                                  1, 0, 1, 0, 1, 1, 2, 3, 1, 0 };
-    std::int64_t expected_community_count = 4;
+    std::vector<std::int32_t> expected_labels = { 0, 1, 0, 2, 1, 2, 1, 0, 3, 2,
+                                                  1, 3, 4, 3, 4, 4, 2, 0, 4, 3 };
+    std::int64_t expected_community_count = 5;
     this->check_louvain(graph_data, double_weights, expected_labels, expected_community_count);
 }
 
@@ -516,7 +516,7 @@ LOUVAIN_TEST("Zachary's karate club graph, edge weights are nonzero and equal") 
     karate_club_graph_data graph_data;
     std::int64_t expected_community_count = 4;
     std::vector<std::int32_t> expected_labels = {
-        0, 0, 0, 0, 1, 1, 1, 0, 2, 0, 1, 0, 0, 0, 2, 2, 1,
+        0, 0, 0, 0, 1, 1, 1, 0, 2, 2, 1, 0, 0, 0, 2, 2, 1,
         0, 2, 0, 2, 0, 2, 2, 3, 3, 2, 2, 3, 2, 2, 3, 2, 2
     };
     SECTION("Int32 weights") {

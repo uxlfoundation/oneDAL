@@ -517,6 +517,15 @@ DF_BATCH_REG_TEST("df reg min weight fraction reduces node count") {
     this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
 }
 
+// The GPU random splitter walks a node's rows with a work-group stride, so a node larger than the
+// work group is the case that exercises more than one iteration of that stride.
+DF_BATCH_REG_TEST("df reg random splitter covers nodes larger than a work group") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    this->check_random_split_covers_all_rows(GENERATE_COPY(2048, 8192));
+}
+
 DF_BATCH_REG_TEST("df reg base check with non default params") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());

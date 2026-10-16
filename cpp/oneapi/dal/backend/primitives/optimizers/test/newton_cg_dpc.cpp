@@ -57,7 +57,9 @@ public:
         auto params_host =
             ndarray<float_t, 1>::empty(this->get_queue(), { p_ + 1 }, sycl::usm::alloc::host);
 
-        primitives::host_engine eng(2007 + n);
+        // Engine pinned, not defaulted: the accuracy thresholds below are tuned to this exact
+        // value stream and the n = 1000, p = 50 case clears them only by a couple of samples.
+        primitives::host_engine eng(2007 + n, primitives::engine_type_internal::mt2203);
         primitives::uniform<float_t>(n_ * p_, X_host.get_mutable_data(), eng, -10.0, 10.0);
         primitives::uniform<float_t>(p_ + 1, params_host.get_mutable_data(), eng, -5.0, 5.0);
         for (std::int64_t i = 0; i < n_; ++i) {

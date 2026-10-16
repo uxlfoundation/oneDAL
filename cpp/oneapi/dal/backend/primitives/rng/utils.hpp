@@ -90,4 +90,33 @@ struct uniform_dispatcher {
     }
 };
 
+/// Draws `count` distinct indices out of `[0, top)` with the partial Fisher-Yates algorithm.
+///
+/// @param[in]  state   The DAAL engine state the values are drawn from.
+/// @param[out] indices The `count` drawn indices.
+/// @param[in]  count   The number of indices to draw; must not exceed `top`.
+/// @param[in]  top     The size of the population to draw from.
+template <typename Type>
+inline void partial_fisher_yates_draw(void* state,
+                                      Type* indices,
+                                      std::size_t count,
+                                      std::size_t top) {
+    std::size_t value = 0;
+    for (std::size_t i = 0; i < count; ++i) {
+        uniform_dispatcher::uniform_by_cpu(1, &value, state, i, top);
+        indices[i] = dal::detail::integral_cast<Type>(value);
+    }
+    // Resolving step `i` needs the raw draws of all earlier steps, so the pass runs backwards and
+    // every draw stays in place until the steps that read it are done.
+    for (std::size_t i = count; i-- > 0;) {
+        value = dal::detail::integral_cast<std::size_t>(indices[i]);
+        for (std::size_t j = i; j > 0; j--) {
+            if (value == dal::detail::integral_cast<std::size_t>(indices[j - 1])) {
+                value = j - 1;
+            }
+        }
+        indices[i] = dal::detail::integral_cast<Type>(value);
+    }
+}
+
 } // namespace oneapi::dal::backend::primitives
