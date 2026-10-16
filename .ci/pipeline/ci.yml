@@ -1153,6 +1153,12 @@ jobs:
       .\.ci\scripts\test.bat oneapi\cpp dll msvs cmake
     displayName: 'oneapi/cpp examples'
   - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      call "%ONEAPI_ROOT%\setvars-vcvarsall.bat"
+      set PATH=C:\msys64\usr\bin;%PATH%
+      bash dev/release_tests/check_windows_static_exports.sh $(release.dir)
+    displayName: 'static linking exports'
+  - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
       bash deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
       tree -h -I include __nuget/inteldal*/
@@ -1210,6 +1216,12 @@ jobs:
       .\.ci\scripts\test.bat oneapi\cpp lib icx cmake
       .\.ci\scripts\test.bat oneapi\cpp dll icx cmake
     displayName: 'oneapi/cpp examples'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      call "%ONEAPI_ROOT%\setvars-vcvarsall.bat"
+      set PATH=C:\msys64\usr\bin;%PATH%
+      bash dev/release_tests/check_windows_static_exports.sh $(release.dir)
+    displayName: 'static linking exports'
   - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
       bash deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
