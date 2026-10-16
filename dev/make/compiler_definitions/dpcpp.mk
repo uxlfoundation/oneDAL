@@ -73,18 +73,31 @@ endif
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
 
+# Offload targets for the device code. Unset leaves the compiler at its default,
+# which is Intel SPIR-V; ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda retargets it at
+# NVIDIA GPUs. oneDAL's device sources are target-agnostic -- no Intel SYCL
+# extension, sub-group sizes queried at run time -- so changing GPU vendor is a
+# toolchain concern and nothing else in the build reacts to this. The value is
+# passed through verbatim, so a comma-separated list of triples works, and it has
+# to reach both the compile and the link because device code is produced at both.
+-fsycl-targets.dpcpp = $(if $(ONEDAL_SYCL_TARGETS),-fsycl-targets=$(ONEDAL_SYCL_TARGETS))
+
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
-                     -Werror -Wreturn-type -fsycl-device-code-split=per_kernel
+                     -Werror -Wreturn-type -fsycl-device-code-split=per_kernel \
+                     $(-fsycl-targets.dpcpp)
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
-                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel
+                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel \
+                     $(-fsycl-targets.dpcpp)
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
-                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL) \
+                     $(-fsycl-targets.dpcpp)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
-                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL) \
+                     $(-fsycl-targets.dpcpp)
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \

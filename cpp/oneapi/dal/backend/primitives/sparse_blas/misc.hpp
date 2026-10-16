@@ -18,12 +18,11 @@
 
 #include "oneapi/dal/table/common.hpp"
 
-#include <mkl_version.h>
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
-namespace mkl = oneapi::mkl;
+namespace mkl = oneapi::dal::backend::math;
 
 /// Convert oneDAL `sparse_indexing` to oneMKL `index_base`
 inline constexpr mkl::index_base sparse_indexing_to_mkl(const sparse_indexing indexing) {

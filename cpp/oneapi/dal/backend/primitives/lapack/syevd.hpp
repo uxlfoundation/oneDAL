@@ -24,7 +24,7 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-namespace mkl = oneapi::mkl;
+namespace mkl = oneapi::dal::backend::math;
 
 template <mkl::job jobz, mkl::uplo uplo, typename Float>
 sycl::event syevd(sycl::queue& queue,

@@ -26,7 +26,8 @@ make -f makefile daal oneapi_c PLAT=lnx32e -j$(nproc)
 - `PLAT`: `lnx32e`, `win32e`, `mac32e`, `lnxarm`, `winarm`, `lnxriscv64`.
 - `COMPILER`: `icx` (x86-64 default), `gnu`, `clang`, `vc`; the allowed set per platform is in `make/function_definitions/`.
 - `REQCPU`: subset of `sse2 avx2 avx512` on x86-64, `sve` on ARM, `rv64` on RISC-V.
-- `BACKEND_CONFIG`: `mkl` (default on x86-64) or `ref` (OpenBLAS; default on ARM and RISC-V).
+- `BACKEND_CONFIG`: `mkl` (default on x86-64) or `ref` (OpenBLAS; default on ARM and RISC-V). Names the host math library only.
+- `DPC_MATH_BACKEND`: `mkl` (default) or `onemath`, the math library behind the DPC++ device code. `onemath` additionally reaches NVIDIA GPUs and needs `ONEMATHROOT`; it mirrors Bazel's `--dpc_math_backend` and is independent of `BACKEND_CONFIG`.
 
 ## Bazel
 

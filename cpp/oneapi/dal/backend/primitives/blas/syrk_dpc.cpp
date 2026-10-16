@@ -18,7 +18,7 @@
 #include "oneapi/dal/backend/primitives/blas/syrk.hpp"
 #include "oneapi/dal/backend/primitives/blas/misc.hpp"
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
@@ -40,7 +40,18 @@ static sycl::event syrk_wrapper(sycl::queue& queue,
     ONEDAL_ASSERT(is_trans || lda >= n);
     ONEDAL_ASSERT(!is_trans || lda >= k);
 
-    return mkl::blas::syrk(queue, uplo, trans, n, k, alpha, a, lda, beta, c, ldc, deps);
+    return mkl::blas::column_major::syrk(queue,
+                                         uplo,
+                                         trans,
+                                         n,
+                                         k,
+                                         alpha,
+                                         a,
+                                         lda,
+                                         beta,
+                                         c,
+                                         ldc,
+                                         deps);
 }
 
 template <mkl::uplo uplo, typename Float, ndorder ao>

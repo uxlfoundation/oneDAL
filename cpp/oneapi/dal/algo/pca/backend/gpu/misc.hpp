@@ -53,12 +53,12 @@ auto syevd_computation(sycl::queue& queue,
 
     sycl::event syevd_event;
     {
-        syevd_event = pr::syevd<mkl::job::vec, mkl::uplo::upper>(queue,
-                                                                 column_count,
-                                                                 corr,
-                                                                 lda,
-                                                                 eigenvalues,
-                                                                 { deps });
+        syevd_event = pr::syevd<pr::mkl::job::vec, pr::mkl::uplo::upper>(queue,
+                                                                         column_count,
+                                                                         corr,
+                                                                         lda,
+                                                                         eigenvalues,
+                                                                         { deps });
     }
     syevd_event.wait_and_throw();
     return std::make_tuple(eigenvalues, syevd_event);

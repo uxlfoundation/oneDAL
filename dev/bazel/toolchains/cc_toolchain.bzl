@@ -76,5 +76,9 @@ onedal_cc_toolchain = repository_rule(
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
         # back to the rules_cc MSVC cl auto-config.
         "ONEDAL_WIN_COMPILER",
+        # Comma-separated SYCL target triples for the DPC++ compile and link
+        # actions, e.g. ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda. Empty leaves
+        # the compiler at its default (Intel SPIR-V).
+        "ONEDAL_SYCL_TARGETS",
     ],
 )

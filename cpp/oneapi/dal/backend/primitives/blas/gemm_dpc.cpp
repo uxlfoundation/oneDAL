@@ -18,7 +18,7 @@
 #include "oneapi/dal/backend/primitives/blas/gemm.hpp"
 #include "oneapi/dal/backend/primitives/blas/misc.hpp"
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
@@ -43,38 +43,38 @@ sycl::event gemm(sycl::queue& queue,
 
     constexpr bool is_c_trans = (co == ndorder::c);
     if constexpr (is_c_trans) {
-        return mkl::blas::gemm(queue,
-                               f_order_as_transposed(bo),
-                               f_order_as_transposed(ao),
-                               c.get_dimension(1),
-                               c.get_dimension(0),
-                               a.get_dimension(1),
-                               alpha,
-                               b.get_data(),
-                               b.get_leading_stride(),
-                               a.get_data(),
-                               a.get_leading_stride(),
-                               beta,
-                               c.get_mutable_data(),
-                               c.get_leading_stride(),
-                               deps);
+        return mkl::blas::column_major::gemm(queue,
+                                             f_order_as_transposed(bo),
+                                             f_order_as_transposed(ao),
+                                             c.get_dimension(1),
+                                             c.get_dimension(0),
+                                             a.get_dimension(1),
+                                             alpha,
+                                             b.get_data(),
+                                             b.get_leading_stride(),
+                                             a.get_data(),
+                                             a.get_leading_stride(),
+                                             beta,
+                                             c.get_mutable_data(),
+                                             c.get_leading_stride(),
+                                             deps);
     }
     else {
-        return mkl::blas::gemm(queue,
-                               c_order_as_transposed(ao),
-                               c_order_as_transposed(bo),
-                               c.get_dimension(0),
-                               c.get_dimension(1),
-                               a.get_dimension(1),
-                               alpha,
-                               a.get_data(),
-                               a.get_leading_stride(),
-                               b.get_data(),
-                               b.get_leading_stride(),
-                               beta,
-                               c.get_mutable_data(),
-                               c.get_leading_stride(),
-                               deps);
+        return mkl::blas::column_major::gemm(queue,
+                                             c_order_as_transposed(ao),
+                                             c_order_as_transposed(bo),
+                                             c.get_dimension(0),
+                                             c.get_dimension(1),
+                                             a.get_dimension(1),
+                                             alpha,
+                                             a.get_data(),
+                                             a.get_leading_stride(),
+                                             b.get_data(),
+                                             b.get_leading_stride(),
+                                             beta,
+                                             c.get_mutable_data(),
+                                             c.get_leading_stride(),
+                                             deps);
     }
 }
 
