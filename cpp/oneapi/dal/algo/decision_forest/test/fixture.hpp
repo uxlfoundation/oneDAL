@@ -22,6 +22,8 @@
 
 #include <cmath>
 #include <list>
+#include <random>
+#include <type_traits>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
 
@@ -341,6 +343,75 @@ public:
         const std::int64_t min_samples =
             static_cast<std::int64_t>(std::ceil(min_weight_fraction * row_count));
         check_trees_node_min_sample_count(constrained_model, min_samples);
+    }
+
+    // Responses and weights stored in the other floating-point type must give the same forest
+    // as Float ones. All values are float-representable, so the conversion is exact.
+    void check_other_dtype_responses_match(bool weighted) {
+        using other_t = std::conditional_t<std::is_same_v<Float, float>, double, float>;
+        constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
+        constexpr std::int64_t row_count = 2000;
+        constexpr std::int64_t column_count = 4;
+        constexpr std::int64_t class_count = 3;
+
+        auto x_arr = array<Float>::zeros(row_count * column_count);
+        auto y_arr = array<Float>::zeros(row_count);
+        auto w_arr = array<Float>::zeros(row_count);
+        auto y_other_arr = array<other_t>::zeros(row_count);
+        auto w_other_arr = array<other_t>::zeros(row_count);
+        Float* x_ptr = x_arr.get_mutable_data();
+
+        std::mt19937 rng(7777);
+        std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            float row[column_count];
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                row[j] = dist(rng);
+                x_ptr[i * column_count + j] = row[j];
+            }
+            const float y = is_cls ? static_cast<float>((row[0] + row[1] > 0.0f) + (row[2] > 0.5f))
+                                   : row[0] * row[0] + row[1] - 0.5f * row[2];
+            const float w = 0.55f + 0.45f * dist(rng);
+            y_arr.get_mutable_data()[i] = y;
+            w_arr.get_mutable_data()[i] = w;
+            y_other_arr.get_mutable_data()[i] = y;
+            w_other_arr.get_mutable_data()[i] = w;
+        }
+        const auto x = dal::homogen_table::wrap(x_arr, row_count, column_count);
+        const auto y = dal::homogen_table::wrap(y_arr, row_count, 1);
+        const auto w = dal::homogen_table::wrap(w_arr, row_count, 1);
+        const auto y_other = dal::homogen_table::wrap(y_other_arr, row_count, 1);
+        const auto w_other = dal::homogen_table::wrap(w_other_arr, row_count, 1);
+
+        auto desc = this->get_default_descriptor();
+        if constexpr (is_cls) {
+            desc.set_class_count(class_count);
+        }
+        desc.set_tree_count(10);
+        desc.set_observations_per_tree_fraction(0.3);
+        desc.set_error_metric_mode(error_metric_mode::out_of_bag_error_per_observation);
+
+        const auto ref_result = weighted ? this->train(desc, x, y, w) : this->train(desc, x, y);
+        const auto other_result =
+            weighted ? this->train(desc, x, y_other, w_other) : this->train(desc, x, y_other);
+
+        const auto ref_infer = this->infer(desc, ref_result.get_model(), x);
+        const auto other_infer = this->infer(desc, other_result.get_model(), x);
+
+        const auto ref_resp = dal::row_accessor<const double>(ref_infer.get_responses()).pull();
+        const auto other_resp = dal::row_accessor<const double>(other_infer.get_responses()).pull();
+        const auto ref_oob =
+            dal::row_accessor<const double>(ref_result.get_oob_err_per_observation()).pull();
+        const auto other_oob =
+            dal::row_accessor<const double>(other_result.get_oob_err_per_observation()).pull();
+        REQUIRE(ref_resp.get_count() == row_count);
+        REQUIRE(ref_oob.get_count() == row_count);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            CAPTURE(i);
+            REQUIRE(ref_resp[i] == other_resp[i]);
+            // Per-thread OOB partial sums are reduced in a nondeterministic order.
+            REQUIRE(std::abs(ref_oob[i] - other_oob[i]) <= 1e-5 * (1.0 + std::abs(ref_oob[i])));
+        }
     }
 
     void check_trees_node_min_sample_count(const df::model<Task>& model,

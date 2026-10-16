@@ -341,6 +341,15 @@ DF_BATCH_CLS_TEST("df cls base check with default params and train weights") {
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
+DF_BATCH_CLS_TEST("df cls responses and weights in the other float type") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+
+    const bool weighted = GENERATE_COPY(false, true);
+    this->check_other_dtype_responses_match(weighted);
+}
+
 // min_weight_fraction_in_leaf_node enforcement (classification).
 DF_BATCH_CLS_TEST("df cls min weight fraction reduces node count") {
     SKIP_IF(this->not_available_on_device());
@@ -505,6 +514,15 @@ DF_BATCH_REG_TEST("df reg base check with default params and train weights") {
         this->train_weighted_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
+DF_BATCH_REG_TEST("df reg responses and weights in the other float type") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+
+    const bool weighted = GENERATE_COPY(false, true);
+    this->check_other_dtype_responses_match(weighted);
 }
 
 // min_weight_fraction_in_leaf_node enforcement (regression).
