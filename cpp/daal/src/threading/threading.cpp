@@ -26,6 +26,7 @@
 #include "src/algorithms/service_qsort.h"
 #include "src/services/service_arrays.h"
 #include "services/daal_shared_ptr.h"
+#include "src/threading/service_thread_pinner.h"
 
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #define TBB_PREVIEW_TASK_ARENA     1
@@ -1002,17 +1003,28 @@ private:
     size_t _nThreads;
     tbb::spin_mutex _mutex;
 };
+
+/// A thread pinned by `enableThreadPinning` keeps its CPU, so it sees a single node.
+bool isThreadPinned()
+{
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+    return daal::services::internal::is_thread_pinned();
+#else
+    return false;
+#endif
+}
 } // namespace
 
 DAAL_EXPORT int _daal_threader_numa_count()
 {
+    if (isThreadPinned()) return 1;
     return std::max(1, NumaArenas::instance().count());
 }
 
 DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
 {
     NumaArenas & arenas = NumaArenas::instance();
-    if (arenas.count() > 1 && node >= 0 && node < arenas.count())
+    if (!isThreadPinned() && arenas.count() > 1 && node >= 0 && node < arenas.count())
     {
         arenas.arena(node)->execute([&]() { func(a); });
     }

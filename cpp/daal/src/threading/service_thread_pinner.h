@@ -82,6 +82,10 @@ public:
     virtual void operator()() = 0;
 };
 
+/// @return `true` if the calling thread is currently pinned to a CPU by the thread pinner.
+/// Defined in the threading library and not exported, so only that library can call it.
+bool is_thread_pinned();
+
 } // namespace internal
 } // namespace services
 } // namespace daal

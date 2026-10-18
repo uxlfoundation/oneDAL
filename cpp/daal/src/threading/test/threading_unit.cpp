@@ -39,12 +39,15 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <utility>
 #include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "services/env_detect.h"
 #include "src/threading/threading.h"
+#include "src/threading/service_thread_pinner.h"
+#include "src/services/service_topo.h"
 
 #if defined(__linux__)
     #include <sys/syscall.h>
@@ -648,6 +651,58 @@ TEST("threader_execute_in_numa keeps each arena's threads on one NUMA node", "[t
     std::sort(sorted.begin(), sorted.end());
     REQUIRE(sorted.front() >= 0);
     REQUIRE(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
+}
+#endif
+
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+/// Runs `func` in the thread pinner's arena.
+template <typename F>
+class PinnedTask : public services::internal::thread_pinner_task_t
+{
+public:
+    explicit PinnedTask(const F & func) : _func(func) {}
+    void operator()() override { _func(); }
+
+private:
+    const F & _func;
+};
+
+TEST("threads pinned by enableThreadPinning see one node and run threader_execute_in_numa inline", "[threading][unit]")
+{
+    const int nodes = threader_numa_count();
+    if (nodes < 2) return;
+
+    services::Environment::getInstance()->enableThreadPinning(true);
+    services::internal::thread_pinner_t * pinner = services::internal::getThreadPinner(false, read_topology, delete_topology);
+    if (pinner == nullptr || !pinner->get_pinning())
+    {
+        services::Environment::getInstance()->enableThreadPinning(false);
+        return;
+    }
+
+    constexpr int64_t n = 10000;
+    std::atomic<bool> sawManyNodes { false };
+    std::atomic<bool> leftThread { false };
+    std::atomic<int64_t> calls { 0 };
+    const auto body = [&]() {
+        threader_for(n, 1, [&](int64_t) {
+            if (threader_numa_count() != 1) sawManyNodes.store(true, std::memory_order_relaxed);
+            const std::thread::id caller = std::this_thread::get_id();
+            threader_execute_in_numa(nodes - 1, [&]() {
+                if (std::this_thread::get_id() != caller) leftThread.store(true, std::memory_order_relaxed);
+                calls.fetch_add(1, std::memory_order_relaxed);
+            });
+        });
+    };
+    PinnedTask<decltype(body)> task(body);
+    pinner->execute(task);
+    services::Environment::getInstance()->enableThreadPinning(false);
+
+    REQUIRE(!sawManyNodes.load(std::memory_order_relaxed));
+    REQUIRE(!leftThread.load(std::memory_order_relaxed));
+    REQUIRE(calls.load(std::memory_order_relaxed) == n);
+    // Leaving the pinner's arena unpins the thread, so it sees every node again.
+    REQUIRE(threader_numa_count() == nodes);
 }
 #endif
 

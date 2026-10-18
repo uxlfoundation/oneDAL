@@ -193,6 +193,11 @@ struct cpu_mask_t
     } // ~cpu_mask_t()
 };
 
+namespace
+{
+thread_local bool threadPinned = false;
+} // namespace
+
 class thread_pinner_impl_t : public tbb::task_scheduler_observer
 {
     int status;
@@ -278,11 +283,14 @@ void thread_pinner_impl_t::on_scheduler_entry(bool) /*override*/
 
     delete target_mask;
 
+    threadPinned = (status == 0);
+
     return;
 } /* void on_scheduler_entry()  */
 
 void thread_pinner_impl_t::on_scheduler_exit(bool) /*override*/
 {
+    threadPinned = false;
     if (do_pinning == false || status < 0) return;
 
     // get current thread original mask
@@ -335,6 +343,11 @@ thread_pinner_impl_t::~thread_pinner_impl_t()
 
     return;
 } /* ~thread_pinner_impl_t() */
+
+bool daal::services::internal::is_thread_pinned()
+{
+    return threadPinned;
+}
 
 DAAL_EXPORT void * _getThreadPinner(bool create_pinner, void (*read_topo)(int &, int &, int &, int **), void (*deleter)(void *))
 {

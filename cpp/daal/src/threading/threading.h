@@ -623,8 +623,8 @@ inline void threader_func_void(const void * a)
 }
 
 /// Number of NUMA nodes the threading layer runs work on, at least 1.
-/// It is 1 on a single-node host and when the threading backend cannot detect the topology
-/// (oneTBB without `tbbbind`).
+/// It is 1 on a single-node host, when the threading backend cannot detect the topology
+/// (oneTBB without `tbbbind`), and on a thread pinned by `enableThreadPinning`.
 inline int threader_numa_count()
 {
     return _daal_threader_numa_count();
@@ -633,7 +633,8 @@ inline int threader_numa_count()
 /// Run `func` in the arena bound to NUMA node `node` and wait for it to finish.
 /// Parallel constructs called from `func` (`threader_for`, `threader_reduce`, `task_group`, ...)
 /// stay in that arena, so they run on the node's cores. With one node, or a `node` outside
-/// `[0, threader_numa_count())`, `func` runs in the calling thread's arena.
+/// `[0, threader_numa_count())`, `func` runs in the calling thread's arena. That includes a
+/// thread pinned by `enableThreadPinning`, which keeps its CPU.
 ///
 /// Each arena's concurrency is the node's share of the thread count set by
 /// `setNumberOfThreads`; `threader_get_max_threads_number()` returns it inside `func`.
