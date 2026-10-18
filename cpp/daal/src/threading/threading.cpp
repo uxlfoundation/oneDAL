@@ -24,14 +24,14 @@
 #include "src/threading/threading.h"
 #include "services/daal_memory.h"
 #include "src/algorithms/service_qsort.h"
+#include "src/services/service_arrays.h"
+#include "services/daal_shared_ptr.h"
 
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #define TBB_PREVIEW_TASK_ARENA     1
 
 #include <algorithm> // std::min
-#include <memory>
-#include <stdlib.h> // malloc and free
-#include <vector>
+#include <stdlib.h>  // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
 #include <tbb/scalable_allocator.h>
@@ -936,10 +936,15 @@ namespace
 {
 /// One arena per NUMA node. The arenas are sized from the thread count set by
 /// `setNumberOfThreads` and replaced when it changes; a caller still executing in a replaced
-/// arena keeps it alive through its `shared_ptr`.
+/// arena keeps it alive through its `SharedPtr`.
 class NumaArenas
 {
+    template <typename T>
+    using Array = daal::services::internal::TArrayScalable<T, DAAL_BASE_CPU>;
+
 public:
+    using ArenaPtr = daal::services::SharedPtr<tbb::task_arena>;
+
     static NumaArenas & instance()
     {
         static NumaArenas arenas;
@@ -948,7 +953,7 @@ public:
 
     int count() const { return static_cast<int>(_nodes.size()); }
 
-    std::shared_ptr<tbb::task_arena> arena(int node)
+    ArenaPtr arena(int node)
     {
         const size_t nThreads = daal::threader_env()->getNumberOfThreads();
         tbb::spin_mutex::scoped_lock lock(_mutex);
@@ -961,29 +966,39 @@ public:
 
 private:
     // `numa_nodes()` returns `{-1}` when oneTBB cannot load `tbbbind`; that is one node.
-    NumaArenas() : _nodes(tbb::info::numa_nodes()), _nThreads(0) {}
+    // If an allocation fails, `count()` is 0 and work runs in the caller's arena.
+    NumaArenas() : _totalConcurrency(0), _nThreads(0)
+    {
+        const auto nodes = tbb::info::numa_nodes();
+        const size_t n   = nodes.size();
+        if (!_arenas.reset(n) || !_concurrency.reset(n) || !_nodes.reset(n))
+        {
+            _nodes.reset(0);
+            return;
+        }
+        for (size_t i = 0; i < n; ++i)
+        {
+            _nodes[i]       = nodes[i];
+            _concurrency[i] = tbb::info::default_concurrency(nodes[i]);
+            _totalConcurrency += _concurrency[i];
+        }
+    }
 
     void rebuild(size_t nThreads)
     {
-        std::vector<int> concurrency(_nodes.size());
-        size_t total = 0;
         for (size_t i = 0; i < _nodes.size(); ++i)
         {
-            concurrency[i] = tbb::info::default_concurrency(_nodes[i]);
-            total += concurrency[i];
-        }
-
-        _arenas.resize(_nodes.size());
-        for (size_t i = 0; i < _nodes.size(); ++i)
-        {
-            const int share = nThreads < total ? std::max(1, static_cast<int>(concurrency[i] * nThreads / total)) : concurrency[i];
-            _arenas[i]      = std::make_shared<tbb::task_arena>(tbb::task_arena::constraints {}.set_numa_id(_nodes[i]).set_max_concurrency(share));
+            const int share =
+                nThreads < _totalConcurrency ? std::max(1, static_cast<int>(_concurrency[i] * nThreads / _totalConcurrency)) : _concurrency[i];
+            _arenas[i] = ArenaPtr(new tbb::task_arena(tbb::task_arena::constraints {}.set_numa_id(_nodes[i]).set_max_concurrency(share)));
         }
         _nThreads = nThreads;
     }
 
-    const std::vector<tbb::numa_node_id> _nodes;
-    std::vector<std::shared_ptr<tbb::task_arena> > _arenas;
+    Array<tbb::numa_node_id> _nodes;
+    Array<int> _concurrency;
+    Array<ArenaPtr> _arenas;
+    size_t _totalConcurrency;
     size_t _nThreads;
     tbb::spin_mutex _mutex;
 };
@@ -991,7 +1006,7 @@ private:
 
 DAAL_EXPORT int _daal_threader_numa_count()
 {
-    return NumaArenas::instance().count();
+    return std::max(1, NumaArenas::instance().count());
 }
 
 DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
