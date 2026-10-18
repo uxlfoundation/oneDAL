@@ -29,11 +29,14 @@
 #define TBB_PREVIEW_TASK_ARENA     1
 
 #include <algorithm> // std::min
-#include <stdlib.h>  // malloc and free
+#include <memory>
+#include <stdlib.h> // malloc and free
+#include <vector>
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
 #include <tbb/scalable_allocator.h>
 #include <tbb/global_control.h>
+#include <tbb/info.h>
 #include <tbb/task_arena.h>
 #include "services/daal_atomic_int.h"
 
@@ -927,6 +930,81 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
 DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 {
     ((tbb::task_group *)taskGroupPtr)->wait();
+}
+
+namespace
+{
+/// One arena per NUMA node. The arenas are sized from the thread count set by
+/// `setNumberOfThreads` and replaced when it changes; a caller still executing in a replaced
+/// arena keeps it alive through its `shared_ptr`.
+class NumaArenas
+{
+public:
+    static NumaArenas & instance()
+    {
+        static NumaArenas arenas;
+        return arenas;
+    }
+
+    int count() const { return static_cast<int>(_nodes.size()); }
+
+    std::shared_ptr<tbb::task_arena> arena(int node)
+    {
+        const size_t nThreads = daal::threader_env()->getNumberOfThreads();
+        tbb::spin_mutex::scoped_lock lock(_mutex);
+        if (nThreads != _nThreads)
+        {
+            rebuild(nThreads);
+        }
+        return _arenas[node];
+    }
+
+private:
+    // `numa_nodes()` returns `{-1}` when oneTBB cannot load `tbbbind`; that is one node.
+    NumaArenas() : _nodes(tbb::info::numa_nodes()), _nThreads(0) {}
+
+    void rebuild(size_t nThreads)
+    {
+        std::vector<int> concurrency(_nodes.size());
+        size_t total = 0;
+        for (size_t i = 0; i < _nodes.size(); ++i)
+        {
+            concurrency[i] = tbb::info::default_concurrency(_nodes[i]);
+            total += concurrency[i];
+        }
+
+        _arenas.resize(_nodes.size());
+        for (size_t i = 0; i < _nodes.size(); ++i)
+        {
+            const int share = nThreads < total ? std::max(1, static_cast<int>(concurrency[i] * nThreads / total)) : concurrency[i];
+            _arenas[i]      = std::make_shared<tbb::task_arena>(tbb::task_arena::constraints {}.set_numa_id(_nodes[i]).set_max_concurrency(share));
+        }
+        _nThreads = nThreads;
+    }
+
+    const std::vector<tbb::numa_node_id> _nodes;
+    std::vector<std::shared_ptr<tbb::task_arena> > _arenas;
+    size_t _nThreads;
+    tbb::spin_mutex _mutex;
+};
+} // namespace
+
+DAAL_EXPORT int _daal_threader_numa_count()
+{
+    return NumaArenas::instance().count();
+}
+
+DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
+{
+    NumaArenas & arenas = NumaArenas::instance();
+    if (arenas.count() > 1 && node >= 0 && node < arenas.count())
+    {
+        arenas.arena(node)->execute([&]() { func(a); });
+    }
+    else
+    {
+        func(a);
+    }
 }
 
 /// Class to manage the lifetime of the daal::Reducer object.

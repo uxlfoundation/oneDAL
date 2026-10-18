@@ -41,6 +41,7 @@ struct IdxValType
     bool operator<=(const IdxValType & o) const { return value < o.value || (value == o.value && index == o.index); }
 };
 typedef void (*functype)(int64_t i, const void * a);
+typedef void (*functype_void)(const void * a);
 typedef void (*functype_int64ptr)(const int64_t * i, const void * a);
 typedef void (*functype_static)(int64_t i, size_t tid, const void * a);
 typedef void (*functype2)(int64_t first, int64_t last, const void * a);
@@ -141,6 +142,9 @@ extern "C"
     DAAL_EXPORT void _daal_del_task_group(void * taskGroupPtr);
     DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t);
     DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr);
+
+    DAAL_EXPORT int _daal_threader_numa_count();
+    DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func);
 
     DAAL_EXPORT void _daal_tbb_task_scheduler_free(void *& globalControl);
     DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle);
@@ -609,6 +613,46 @@ inline void threader_for_break_int32(int n, int grain_size, const F & func)
     const void * a = static_cast<const void *>(&func);
 
     _daal_threader_for_break_int32(n, grain_size, a, threader_func_break_int32<F>);
+}
+
+template <typename F>
+inline void threader_func_void(const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func();
+}
+
+/// Number of NUMA nodes the threading layer runs work on, at least 1.
+/// It is 1 on a single-node host and when the threading backend cannot detect the topology
+/// (oneTBB without `tbbbind`).
+inline int threader_numa_count()
+{
+    return _daal_threader_numa_count();
+}
+
+/// Run `func` in the arena bound to NUMA node `node` and wait for it to finish.
+/// Parallel constructs called from `func` (`threader_for`, `threader_reduce`, `task_group`, ...)
+/// stay in that arena, so they run on the node's cores. With one node, or a `node` outside
+/// `[0, threader_numa_count())`, `func` runs in the calling thread's arena.
+///
+/// Each arena's concurrency is the node's share of the thread count set by
+/// `setNumberOfThreads`; `threader_get_max_threads_number()` returns it inside `func`.
+///
+/// Thread indices are arena-relative: threads of different arenas share the indices
+/// `[0, threader_get_max_threads_number())`. A `static_tls` used from more than one arena
+/// therefore races; code run through this function uses `tls`, or a `static_tls`
+/// constructed inside the arena that uses it.
+///
+/// @tparam F   Callable object of type `[/* captures */]() -> void`.
+///
+/// @param[in] node Index of the NUMA node, `0 <= node < threader_numa_count()`.
+/// @param[in] func Callable object to run.
+template <typename F>
+inline void threader_execute_in_numa(int node, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_execute_in_numa(node, a, threader_func_void<F>);
 }
 
 template <typename callableType>
