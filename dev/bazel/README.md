@@ -188,6 +188,7 @@ repositories.
 | `@mpi`            | `MPIROOT`            | yes               |
 | `@ccl`            | `CCL_ROOT`           | yes               |
 | `@dpl`            | `DPL_ROOT`           | yes               |
+| `@simd_sort`      | `SIMD_SORT_ROOT`     | yes               |
 | `@openmp`         | `GOMPROOT`           | yes               |
 | `@openblas`       | `OPENBLASROOT`       | no                |
 | `@openrng`        | `OPENRNGROOT`        | no                |

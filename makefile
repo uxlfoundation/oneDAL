@@ -331,6 +331,20 @@ endif
 ONEDPLDIR := $(subst \,/,$(DPL_ROOT))
 ONEDPL.include := $(ONEDPLDIR)/include
 
+#============================= SIMD sort folders ===================================
+
+# Header-only SIMD sort library per architecture. Architectures without one set
+# nothing here, so they neither need it nor add it to the include path.
+ifeq ($(IA_is_intel64),yes)
+SIMDSORT.subdir := src
+SIMDSORT.header := x86simdsort-static-incl.h
+endif
+
+ifneq ($(SIMDSORT.header),)
+SIMDSORTDIR := $(if $(SIMD_SORT_ROOT),$(subst \,/,$(SIMD_SORT_ROOT)),$(DIR)/__deps/simd_sort)
+SIMDSORT.include := $(if $(wildcard $(SIMDSORTDIR)/$(SIMDSORT.subdir)/$(SIMDSORT.header)),$(SIMDSORTDIR)/$(SIMDSORT.subdir),$(error Can`t find $(SIMDSORT.header) in $(SIMDSORTDIR)/$(SIMDSORT.subdir): run dev/download_simd_sort.sh or set SIMD_SORT_ROOT))
+endif
+
 #======================= Option to use stdlib allocators ==============================
 
 ifeq ($(STDALLOC), yes)
@@ -479,7 +493,7 @@ CORE.srcdirs  := $(CORE.SERV.srcdir) $(CORE.srcdir)                  \
                  $(CPPDIR.daal)/src/data_management
 
 CORE.incdirs.common := $(RELEASEDIR.include) $(CPPDIR.daal) $(WORKDIR)
-CORE.incdirs.thirdp := $(daaldep.math_backend.incdir) $(VTUNESDK.include) $(ONEDPL.include) $(TBBDIR.include)
+CORE.incdirs.thirdp := $(daaldep.math_backend.incdir) $(VTUNESDK.include) $(ONEDPL.include) $(SIMDSORT.include) $(TBBDIR.include)
 CORE.incdirs := $(CORE.incdirs.common) $(CORE.incdirs.thirdp)
 
 $(info CORE.incdirs: $(CORE.incdirs))

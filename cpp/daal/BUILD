@@ -120,9 +120,13 @@ daal_module(
         "src/externals/**/*.h",
         "src/algorithms/*.h",
     ]),
+    # SIMD sort headers for the target arch; targets without a library never fetch one.
     deps = [
         ":includes",
-    ],
+    ] + select({
+        "@platforms//cpu:x86_64": [ "@simd_sort//:headers" ],
+        "//conditions:default": [],
+    }),
 )
 
 daal_module(

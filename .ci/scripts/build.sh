@@ -263,6 +263,11 @@ elif [[ "${ARCH}" == "arm" || ("${ARCH}" == "riscv64") ]]; then
     export LD_LIBRARY_PATH=${TBBROOT}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 fi
 
+# SIMD sort setup (x86-64 only)
+if [ "${ARCH}" == "32e" ] && [ -z "${SIMD_SORT_ROOT:-}" ]; then
+    "${ONEDAL_DIR}"/dev/download_simd_sort.sh
+fi
+
 make_options=("${target:-onedal_c}"
     "${make_op}"
     COMPILER="${compiler}"

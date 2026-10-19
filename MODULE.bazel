@@ -72,6 +72,9 @@ ccl_repo(name = "ccl")
 dpl_repo = use_repo_rule("@onedal//dev/bazel/deps:dpl.bzl", "dpl_repo")
 dpl_repo(name = "dpl")
 
+simd_sort_repo = use_repo_rule("@onedal//dev/bazel/deps:simd_sort.bzl", "simd_sort_repo")
+simd_sort_repo(name = "simd_sort")
+
 mkl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo")
 mkl_repo(name = "mkl")
 
