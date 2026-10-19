@@ -60,7 +60,9 @@ def g_review(rd, ws, t, tr):
     seeds, decoys = man.get("seeds", []), man.get("decoys", [])
     findings = last_json(tr["answer"])
     if not isinstance(findings, list):
-        return {"pass": False, "parse_error": True}
+        # no findings list found nothing: recall 0, so a score-only task still reports its score (dokimi counts a
+        # missing score as a grader failure); a clean control has no seeds, hence no recall
+        return {"pass": False, "parse_error": True, "recall": 0.0 if seeds else None}
     findings = [f for f in findings if isinstance(f, dict)]
     hit, fp, other = set(), set(), 0
     for f in findings:

@@ -47,7 +47,9 @@ def g_replay(rd, ws, t, tr):
     window = t.get("window", 5)
     findings = last_json(tr["answer"])
     if not isinstance(findings, list):
-        return {"pass": False, "parse_error": True}
+        # as in review.py: an answer without a findings list hit no thread, so recall is 0, not missing
+        zero = _ratio(0, len(gold))
+        return {"pass": False, "parse_error": True, "recall": zero, "recall_all": zero}
     findings = [f for f in findings if isinstance(f, dict)]
     pairs, near = [], 0
     for i, f in enumerate(findings):
