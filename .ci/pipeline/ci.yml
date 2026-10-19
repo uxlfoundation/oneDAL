@@ -252,11 +252,7 @@ jobs:
     vmImage: '$(VM_IMAGE)'
   variables:
     platform.type : 'lnx32e'
-    # `/` on the hosted image has ~5Gb free; the Bazel output root and disk
-    # cache live on the agent's resource disk instead, so no step has to
-    # discard build outputs to make room for the next one.
-    BAZEL_CACHE_DIR: /mnt/bazel-cache
-    BAZEL_OUTPUT_USER_ROOT: /mnt/bazel-root
+    BAZEL_CACHE_DIR: $(Pipeline.Workspace)/.bazel-cache
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
     # A full job writes ~4.5Gb of cache entries; at the old 4Gb ceiling the
     # cache was deleted at the end of every run and never restored warm.
@@ -279,10 +275,18 @@ jobs:
     displayName: 'System info'
   - script: |
       set -eu
-      df -h / /mnt
-      sudo mkdir -p "$(BAZEL_CACHE_DIR)" "$(BAZEL_OUTPUT_USER_ROOT)"
-      sudo chown "$(id -u):$(id -g)" "$(BAZEL_CACHE_DIR)" "$(BAZEL_OUTPUT_USER_ROOT)"
-    displayName: 'bazel-storage'
+      # The hosted image starts with ~9Gb free on `/` (there is no separate
+      # resource disk: `/mnt` is the same filesystem), and the job needs more
+      # than that once the output base is kept between steps instead of being
+      # expunged. Drop SDKs this job never uses.
+      df -h /
+      for d in /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+               /usr/local/.ghcup /usr/share/swift /opt/hostedtoolcache/CodeQL; do
+        sudo rm -rf "$d" &
+      done
+      wait
+      df -h /
+    displayName: 'free-disk-space'
   - task: Cache@2
     inputs:
       # Commit ID is added to a cache key. Caches are immutable by design,
@@ -304,8 +308,7 @@ jobs:
 
       # Create `.bazelrc` and set cache directory
       # Minimal CPU instruction set in Azure is AVX2
-      echo "startup --output_user_root=$(BAZEL_OUTPUT_USER_ROOT)" > ~/.bazelrc
-      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --cpu=avx2" >> ~/.bazelrc
+      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --cpu=avx2" > ~/.bazelrc
 
       # Display oneDAL build configuration
       bazel build @config//:dump
@@ -355,8 +358,8 @@ jobs:
       # here rather than diagnosing it several steps later.
       report_disk() {
         echo "Disk ${1} the folded consumer smoke:"
-        df -h / /mnt
-        du -sh "${BAZEL_OUTPUT_USER_ROOT:-}" 2>/dev/null || true
+        df -h /
+        du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
         du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       }
       report_disk before
@@ -525,11 +528,11 @@ jobs:
     displayName: 'daal-tests-algorithms'
 
   - script: |
-      # Links 118 test binaries (~1.5Gb). The output root and disk cache are on
-      # /mnt, so the libraries built by the steps above are reused here instead
-      # of being rebuilt with the cache switched off.
+      # Links 118 test binaries (~1.5Gb). The output base is kept from the steps
+      # above, so the libraries they built are reused here instead of being
+      # rebuilt with the cache switched off.
       free -m
-      df -h / /mnt
+      df -h /
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
@@ -547,7 +550,8 @@ jobs:
       # names it. `free -m` and the kernel OOM grep are kept because they are
       # what ruled out memory pressure, which the same symptom also fits.
       echo '=== disk ==='
-      df -h / /mnt
+      df -h /
+      du -sh "${HOME}/.cache/bazel" 2>/dev/null || true
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       echo '=== memory ==='
       free -m
