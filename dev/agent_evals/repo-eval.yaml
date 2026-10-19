@@ -45,4 +45,4 @@ entry_points:
 
 tasks: dev/agent_evals/tasks
 explore_tasks: null
-build_systems: [bazel, make]
+build_systems: [bazel, make, cmake]
