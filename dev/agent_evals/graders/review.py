@@ -32,8 +32,11 @@ SEVERE = ("blocker", "major")
 
 
 def norm_path(p):
-    """Repository-relative path of a finding: absolute paths into the run's repo/ are cut at repo/."""
+    """Repository-relative path of a finding: absolute paths into the run's workspace (dokimi's
+    /eval/run/workspace) or repo/ are cut there."""
     p = str(p or "").strip().replace("\\", "/")
+    if "/eval/run/workspace/" in p:
+        p = p.rsplit("/eval/run/workspace/", 1)[1]
     if "/repo/" in p:
         p = p.rsplit("/repo/", 1)[1]
     while p.startswith("./"):

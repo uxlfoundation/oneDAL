@@ -49,7 +49,8 @@ def g_replay(rd, ws, t, tr):
     if not isinstance(findings, list):
         # as in review.py: an answer without a findings list hit no thread, so recall is 0, not missing
         zero = _ratio(0, len(gold))
-        return {"pass": False, "parse_error": True, "recall": zero, "recall_all": zero}
+        return {"pass": False, "parse_error": True, "recall": zero, "recall_all": zero,
+                "recall_addressed": _ratio(0, sum(bool(g.get("addressed")) for g in gold))}
     findings = [f for f in findings if isinstance(f, dict)]
     pairs, near = [], 0
     for i, f in enumerate(findings):
