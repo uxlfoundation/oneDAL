@@ -966,12 +966,13 @@ public:
     }
 
 private:
-    // `numa_nodes()` returns `{-1}` when oneTBB cannot load `tbbbind`; that is one node.
-    // If an allocation fails, `count()` is 0 and work runs in the caller's arena.
+    // With one node, including the `{-1}` oneTBB returns without `tbbbind`, there are no
+    // arenas: `count()` is 0 and work runs in the caller's arena. Same if an allocation fails.
     NumaArenas() : _totalConcurrency(0), _nThreads(0)
     {
         const auto nodes = tbb::info::numa_nodes();
         const size_t n   = nodes.size();
+        if (n < 2) return;
         if (!_arenas.reset(n) || !_concurrency.reset(n) || !_nodes.reset(n))
         {
             _nodes.reset(0);
@@ -1024,7 +1025,7 @@ DAAL_EXPORT int _daal_threader_numa_count()
 DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
 {
     NumaArenas & arenas = NumaArenas::instance();
-    if (!isThreadPinned() && arenas.count() > 1 && node >= 0 && node < arenas.count())
+    if (!isThreadPinned() && node >= 0 && node < arenas.count())
     {
         arenas.arena(node)->execute([&]() { func(a); });
     }
