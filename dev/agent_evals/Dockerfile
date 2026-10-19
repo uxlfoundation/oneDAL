@@ -44,9 +44,11 @@ RUN curl -fsSL -o /usr/local/bin/bazelisk \
     chmod 755 /usr/local/bin/bazelisk
 
 # bazelisk picks the Bazel version from each workspace's .bazelversion, and task bases pin different ones.
-# Download them all now so no run fetches Bazel. Refresh the list with:
+# Download them all now so no run fetches Bazel. The list must hold every task base's version, including the one
+# the eval tree pins today: CI builds the image from the pull request merged into main, whose .bazelversion moves
+# on. Refresh it with:
 #   for b in $(jq -r .base dev/agent_evals/tasks/*/task.json | sort -u); do git show $b:.bazelversion; done | sort -u
-ARG TASK_BAZEL_VERSIONS="6.2.0 7.0.2 8.4.1 9.0.1 9.1.0 9.1.1"
+ARG TASK_BAZEL_VERSIONS="6.2.0 7.0.2 8.4.1 9.0.1 9.1.0 9.1.1 9.2.0"
 ENV BAZELISK_HOME=/opt/bazelisk
 COPY .bazelversion /tmp/.bazelversion
 RUN for v in $(cat /tmp/.bazelversion) ${TASK_BAZEL_VERSIONS}; do USE_BAZEL_VERSION=$v bazelisk --version || exit 1; done && \
