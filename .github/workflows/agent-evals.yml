@@ -79,16 +79,13 @@ jobs:
         run: dokimi repo validate .@HEAD --manifest "$MANIFEST"
       - name: Check guidance claims against the tree (report only)
         run: |
-          python3 dev/agent_evals/static_check.py --out static.json
-          dokimi repo scan .@HEAD --manifest "$MANIFEST" --static static.json --out readiness.json 2>&1 | tee scan.txt
+          dokimi repo scan .@HEAD --manifest "$MANIFEST" --out readiness.json 2>&1 | tee scan.txt
           { echo "### Guidance claims"; echo; echo '```text'; cat scan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload static report
+      - name: Upload guidance report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: agent-evals-static
-          path: |
-            static.json
-            readiness.json
+          path: readiness.json
       - name: Select tasks for the self-check
         id: select
         env:

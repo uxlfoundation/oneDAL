@@ -27,7 +27,7 @@ self-check, running agents, isolation, traces, reports) is done by [dokimi](http
 reads `repo-eval.yaml` (the repository-evaluation contract). No LLM judges a result: graders rebuild and rerun tests.
 
 The generic parts still here are moving to dokimi too ([intel/dokimi#41](https://github.com/intel/dokimi/issues/41)):
-the review and hidden-test graders, `contract.py`, `metrics.py` and `static_check.py` are replaced by dokimi built-ins
+the review and hidden-test graders, `contract.py` and `metrics.py` are replaced by dokimi built-ins
 step by step, until this directory holds only the tasks, the oneDAL build graders and the eval image.
 
 Terms used below:
@@ -44,7 +44,7 @@ Terms used below:
 
 | tier | what | cost |
 |---|---|---|
-| T0 static | `dokimi repo scan` with `static_check.py`: every link, path, Bazel label, bazel/make command, Starlark macro and identifier named in the guidance is checked against the tree | $0, seconds |
+| T0 static | `dokimi repo scan`: every link, path, Bazel label, bazel/make/cmake command, Starlark macro and identifier named in the guidance is checked against the tree | $0, seconds |
 | self-check | `dokimi repo tasks check`: for every task the untouched workspace fails its grader and the reference solution passes | $0, CPU, docker |
 | T1 tasks | `dokimi repo run`: an agent solves each task under each arm; these graders score it | LLM cost + CPU |
 
@@ -60,8 +60,7 @@ python3 -m venv ~/dokimi && ~/dokimi/bin/pip install \
 export PATH=~/dokimi/bin:$PATH
 M=dev/agent_evals/repo-eval.yaml
 dokimi repo validate .@HEAD --manifest $M      # task.json shape, bases resolve, patches exist; no build
-python3 dev/agent_evals/static_check.py --out static.json
-dokimi repo scan .@HEAD --manifest $M --static static.json                  # T0
+dokimi repo scan .@HEAD --manifest $M                                       # T0
 dokimi repo tasks check .@HEAD --manifest $M --task fix_finiteness_mut --warm  # self-check in the eval image
 ```
 
@@ -75,7 +74,7 @@ See "Eval image" below for the caches.
 
 - on every pull request that touches this directory or the agent guidance (`AGENTS.md`, `.github/instructions`,
   `.github/copilot-instructions.md`, `CONTRIBUTING.md`): `dokimi repo validate` (a gate) and `dokimi repo scan`
-  with `static_check.py` (report only, as a job summary and an artifact);
+  (report only, as a job summary and an artifact);
 - `dokimi repo tasks check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one
   task per grader when the entry points or a grader change; weekly, and on demand (`workflow_dispatch`), for every
   task. `fix_cel_thread_race` is left out until dokimi can mark a task unsupported on hosts that cannot show its bug
@@ -104,7 +103,6 @@ patches, the arm, the review patch), runs the agent in its own container, writes
 |---|---|
 | `run.py grade --contract <run_dir> --source <clone>` | grades `run_dir/workspace` with the task's grader, writes `grade.json` (`repo_grade.v1`) |
 | `run.py oracle --contract <run_dir> --source <clone>` | applies the reference solution (and answer) for the self-check |
-| `run.py static --out <file>` | guidance claim check as one JSON document (`repo_static.v1`) |
 
 Arms are `guidance:none` (every file matched by `guidance.globs` deleted) and `guidance:raw` (as checked in), both
 made by the framework from `repo-eval.yaml`. Fix and feature tasks declare `"gate": ["strict_pass"]`; score-only

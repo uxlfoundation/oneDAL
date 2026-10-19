@@ -19,10 +19,9 @@
 
   run.py grade   --contract <run_dir>... [--source DIR]   grade.json as repo_grade.v1
   run.py oracle  --contract <run_dir> [--source DIR]      apply the reference solution
-  run.py static  [--tree DIR] [--out FILE]                T0: check guidance claims against the tree, $0
 
-dokimi prepares workspaces, runs agents and self-checks the tasks (`dokimi repo tasks check`, README.md) and calls
-these entry points in the eval image. Configuration is by environment variable, see config.py.
+dokimi prepares workspaces, runs agents, self-checks the tasks (`dokimi repo tasks check`) and checks the guidance
+(`dokimi repo scan`, README.md), and calls these entry points in the eval image. Configuration is by environment variable, see config.py.
 """
 import argparse
 import json
@@ -45,9 +44,6 @@ def main():
     p.add_argument("run_dir", type=Path)
     p.add_argument("--contract", action="store_true", required=True)
     p.add_argument("--source", type=Path, help="full-history oneDAL clone; overrides ONEDAL_EVAL_SRC")
-    p = sub.add_parser("static")
-    p.add_argument("--tree", type=Path, default=config.src())
-    p.add_argument("--out", type=Path)
     a = ap.parse_args()
     if getattr(a, "source", None):
         if not (a.source / ".git").exists() and not (a.source / "HEAD").is_file():
@@ -65,9 +61,6 @@ def main():
     elif a.cmd == "oracle":
         rd = a.run_dir.resolve()
         contract.oracle(rd, rd / "workspace", json.loads((rd / "task.json").read_text()))
-    elif a.cmd == "static":
-        import static_check
-        static_check.main(a.tree.resolve(), a.out)
 
 
 if __name__ == "__main__":

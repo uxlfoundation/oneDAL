@@ -42,7 +42,6 @@ image:
 entry_points:
   grade:  "python3 {eval_dir}/run.py grade --contract {run_dir} --source {source_dir}"
   oracle: "python3 {eval_dir}/run.py oracle --contract {run_dir} --source {source_dir}"
-  static: "python3 {eval_dir}/static_check.py --out {out}"
 
 tasks: dev/agent_evals/tasks
 explore_tasks: null
