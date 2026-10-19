@@ -20,12 +20,12 @@ Everything host-specific is read from environment variables so the graders run f
 
   ONEDAL_EVAL_SRC      oneDAL git clone with full history (default: the checkout this file lives in).
                        Mined tasks read fix commits from it, so it must contain them. `run.py grade|oracle
-                       --source DIR` overrides it (agent-benchmark passes {source_dir}). Never visible to the agent.
-  ONEDAL_EVAL_ROOT     where `run.py check` puts its run directories (default: $TMPDIR/onedal-agent-evals-$USER).
+                       --source DIR` overrides it (dokimi passes {source_dir}). Never visible to the agent.
+  ONEDAL_EVAL_ROOT     parent of the default Bazel caches (default: $TMPDIR/onedal-agent-evals-$USER).
   ONEDAL_EVAL_BAZEL    real bazel/bazelisk binary (default: first bazelisk/bazel on PATH outside bin/).
   ONEDAL_EVAL_REPO_CACHE, ONEDAL_EVAL_DISK_CACHE   shared Bazel caches (default: under ONEDAL_EVAL_ROOT/cache).
 
-Agent runs (models, harness, isolation) are agent-benchmark's: see README.md.
+The eval image sets all but ONEDAL_EVAL_SRC. Workspaces, agent runs and isolation are dokimi's: see README.md.
 """
 import getpass
 import os
@@ -37,8 +37,6 @@ from pathlib import Path
 H = Path(__file__).resolve().parent
 TASKS = H / "tasks"
 BIN = H / "bin"
-# Snapshots are built from a commit of SRC; this directory must never be visible to the agent.
-EVAL_DIR_IN_REPO = "dev/agent_evals"
 
 
 # set by `run.py grade|oracle --source`; takes precedence over ONEDAL_EVAL_SRC

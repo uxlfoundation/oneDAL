@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-"""Entry points of the agent-benchmark repository-evaluation contract (see repo-eval.yaml).
+"""Entry points of the dokimi repository-evaluation contract (see repo-eval.yaml).
 
   run.py grade --contract <run_dir>    reads workspace/, task.json, answer.txt, events.jsonl, meta.json from
                                        run_dir and writes run_dir/grade.json as repo_grade.v1
@@ -36,7 +36,7 @@ def start_commit(ws, t, m):
 
     meta.json `base_rev` / `base_sha` / `base_date` name the upstream commit the workspace was snapshotted from.
     That commit is not in the workspace (its history is gone), so it cannot be diffed against. The starting
-    commit is `start_sha` when the standalone runner recorded it; runs from before that recorded it as
+    commit is `start_sha` when the former standalone runner recorded it; runs from before that recorded it as
     `base_sha` with no `base_rev`. Otherwise it is derived from the history workspace preparation makes: one
     root commit (snapshot + setup patches + arm) and, for review tasks, one `git am` commit on top; whatever
     follows is the agent's.
@@ -63,7 +63,7 @@ def split_result(g):
 
 
 def oracle(rd, ws, t):
-    """Reference solution in place; also what `run.py check` uses for its oracle half."""
+    """Reference solution in place; `dokimi repo tasks check` grades it as the oracle half of the self-check."""
     text = graders.ORACLES[t["grader"]](rd, ws, t)
     if text:
         (rd / "answer.txt").write_text(text)

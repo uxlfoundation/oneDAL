@@ -22,9 +22,13 @@ tasks lets a change to `AGENTS.md`, `.github/instructions`, the build system or 
 agent behaviour it produces rather than by reading it.
 
 This directory holds only what is specific to oneDAL: the tasks, the graders that rebuild and rerun oneDAL tests,
-the eval image and the oneDAL rules of the guidance claim check. Running agents (workspace preparation, the
-harness, isolation, traces, reports) is done by agent-benchmark, which reads `repo-eval.yaml` (the
-repository-evaluation contract). No LLM judges a result: graders rebuild and rerun tests.
+the eval image and the oneDAL rules of the guidance claim check. Everything else (workspace preparation, the task
+self-check, running agents, isolation, traces, reports) is done by [dokimi](https://github.com/intel/dokimi), which
+reads `repo-eval.yaml` (the repository-evaluation contract). No LLM judges a result: graders rebuild and rerun tests.
+
+The generic parts still here are moving to dokimi too ([intel/dokimi#41](https://github.com/intel/dokimi/issues/41)):
+the review and hidden-test graders, `contract.py`, `metrics.py` and `static_check.py` are replaced by dokimi built-ins
+step by step, until this directory holds only the tasks, the oneDAL build graders and the eval image.
 
 Terms used below:
 
@@ -35,51 +39,61 @@ Terms used below:
 - **oracle**: the reference solution of a task, used to prove the grader accepts a correct answer.
 - **hidden test**: a test the agent never sees; the grader adds it only while grading.
 - **strict pass**: the hidden tests pass and the component's existing tests still pass.
-- **contract**: the file layout and commands (`repo-eval.yaml`, `run.py grade|oracle --contract`) through which an
-  external runner uses this directory.
+- **contract**: the file layout and commands (`repo-eval.yaml`, `run.py grade|oracle --contract`) through which
+  dokimi uses this directory.
 
 | tier | what | cost |
 |---|---|---|
-| T0 static | `run.py static`: every link, path, Bazel label, bazel/make command, Starlark macro and identifier named in the guidance is checked against the tree | $0, seconds |
-| self-check | `run.py check`: for every task the untouched workspace fails its grader and the reference solution passes | $0, CPU |
-| T1 tasks | agent-benchmark `repo run`: an agent solves each task under each arm; these graders score it | LLM cost + CPU |
+| T0 static | `dokimi repo scan` with `static_check.py`: every link, path, Bazel label, bazel/make command, Starlark macro and identifier named in the guidance is checked against the tree | $0, seconds |
+| self-check | `dokimi repo tasks check`: for every task the untouched workspace fails its grader and the reference solution passes | $0, CPU, docker |
+| T1 tasks | `dokimi repo run`: an agent solves each task under each arm; these graders score it | LLM cost + CPU |
 
 ## Quick start
 
+Install dokimi at the commit CI pins (`DOKIMI_SHA` in `.github/workflows/agent-evals.yml`), then, from a
+full-history clone of oneDAL (mined tasks read their fix commits from it):
+
 ```sh
-# Python 3.9+, git, bazelisk, uv (for the pinned clang-format)
-export ONEDAL_EVAL_SRC=$PWD                     # full-history clone; mined tasks read fix commits from it
-python3 dev/agent_evals/run.py list
-python3 dev/agent_evals/run.py validate         # task.json shape, bases resolve, patches exist; no build
-python3 dev/agent_evals/run.py static           # T0
-python3 dev/agent_evals/run.py check            # grader self-check for every task, no LLM
+python3 -m venv ~/dokimi && ~/dokimi/bin/pip install \
+  -c https://raw.githubusercontent.com/intel/dokimi/$DOKIMI_SHA/dokimi/requirements.lock.txt \
+  "dokimi @ git+https://github.com/intel/dokimi@$DOKIMI_SHA#subdirectory=dokimi"
+export PATH=~/dokimi/bin:$PATH
+M=dev/agent_evals/repo-eval.yaml
+dokimi repo validate .@HEAD --manifest $M      # task.json shape, bases resolve, patches exist; no build
+python3 dev/agent_evals/static_check.py --out static.json
+dokimi repo scan .@HEAD --manifest $M --static static.json                  # T0
+dokimi repo tasks check .@HEAD --manifest $M --task fix_finiteness_mut --warm  # self-check in the eval image
 ```
 
-Other settings (Bazel binary, shared caches, where `check` writes) are environment variables documented in
-`config.py`.
+`repo tasks check` needs docker; `--task` is repeatable and without it every task is checked. Its run directories
+are under `--out` (default `repo-check/check/<task>__null` and `__oracle`, with `grade.json` and the grader logs).
+See "Eval image" below for the caches.
 
 ## Continuous integration
 
 `.github/workflows/agent-evals.yml` runs the checks that need no model and no token:
 
 - on every pull request that touches this directory or the agent guidance (`AGENTS.md`, `.github/instructions`,
-  `.github/copilot-instructions.md`, `CONTRIBUTING.md`): `run.py validate` (a gate) and `run.py static` (report only,
-  as a job summary and an artifact);
-- `run.py check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one task per
-  grader when the harness or a grader changes; weekly, and on demand (`workflow_dispatch`), for every task.
+  `.github/copilot-instructions.md`, `CONTRIBUTING.md`): `dokimi repo validate` (a gate) and `dokimi repo scan`
+  with `static_check.py` (report only, as a job summary and an artifact);
+- `dokimi repo tasks check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one
+  task per grader when the entry points or a grader change; weekly, and on demand (`workflow_dispatch`), for every
+  task. `fix_cel_thread_race` is left out until dokimi can mark a task unsupported on hosts that cannot show its bug
+  (intel/dokimi#41, step D3).
 
-Agent runs stay manual: they cost tokens and depend on the agent being measured. Rerun them after
-a large change to guidance, tooling, build system or layout. A change that breaks `run.py check` for a task updates
-that task in the same pull request.
+dokimi is pinned by commit in the workflow. Agent runs stay manual: they cost tokens and depend on the agent being
+measured. Rerun them after a large change to guidance, tooling, build system or layout. A change that breaks
+`dokimi repo tasks check` for a task updates that task in the same pull request.
+
 ## Running agents
 
-With agent-benchmark (see its `docs/repo-evaluation-contract.md`, "Running"):
+With dokimi (see its `docs/repo-evaluation-contract.md`, "Running"):
 
 ```sh
-python cli.py repo tasks check <oneDAL>@<sha> --manifest dev/agent_evals/repo-eval.yaml       # self-check in the image
-python cli.py repo run <oneDAL>@<sha> --manifest dev/agent_evals/repo-eval.yaml \
+dokimi repo run <oneDAL>@<sha> --manifest dev/agent_evals/repo-eval.yaml \
     --arm guidance:none,guidance:raw --model <model id> --reps 3 --batch b1
-python cli.py repo report repo-runs/b1
+dokimi repo report repo-runs/b1
+dokimi repo compare repo-runs/b1 --baseline guidance:none
 ```
 
 The framework prepares each workspace (history-free `git archive` of the task base without this directory, setup
@@ -103,20 +117,21 @@ from and why it is built that way: [`tasks/README.md`](tasks/README.md).
 
 | key | meaning |
 |---|---|
-| `base` | commit the snapshot is taken from (`<sha>^` for mined fixes) |
+| `base` | commit the workspace is taken from (`<sha>^` for mined fixes) |
 | `family` | `build`, `fix`, `test`, `review` |
 | `prompt` | what the agent is told; a final ```` ```json ```` block is requested when the grader needs a structured answer |
 | `grader` | name registered by a module in `graders/` |
-| `setup_patch` / `setup_patches` | applied to the snapshot before the arm (injected bugs) |
+| `setup_patch` / `setup_patches` | applied to the workspace before the arm (injected bugs) |
 | `review_patch` | `git am`-ed on top as the HEAD commit under review |
-| `gate` | metrics that count as success for agent-benchmark (default `["pass"]`); `["strict_pass"]` on every `test_pass`/`test_pass_files` task, since they all have regression suites |
+| `gate` | metrics that count as success for dokimi (default `["pass"]`); `["strict_pass"]` on every `test_pass`/`test_pass_files` task, since they all have regression suites |
 | grader keys | see the docstring of the grader: `hidden_from`/`hidden_files`/`targets`/`regression_targets` for `test_pass`, `manifest.json` for `review`, ... |
 
 Rules every task follows:
 
-- `run.py check <task>` passes: the untouched workspace fails the grader and the reference solution passes it.
-- Fixes and answers cannot leak. The snapshot is `git archive` of `base` with no history, and `dev/agent_evals`
-  is deleted from it.
+- `dokimi repo tasks check --task <id>` reports it `ok`: the untouched workspace fails the grader, the reference
+  solution passes it, and the agent's container sees neither this directory nor the full-history clone.
+- Fixes and answers cannot leak. dokimi makes the workspace from `git archive` of `base` with no history, and
+  `dev/agent_evals` is deleted from it.
 - Grading is deterministic: tests are rerun with `--nocache_test_results`, and regrading a run gives the same result.
   Graders write hidden tests over the agent's tree and take library sources out of it; both are undone when
   grading ends, so the run directory holds only what the agent did and the second grade reads the same inputs as
@@ -126,6 +141,7 @@ Rules every task follows:
 
 Adding a grader: a new module in `graders/` exporting `GRADERS = {name: fn(rd, ws, task, trace)}` and, for the
 self-check, `ORACLES = {name: fn(rd, ws, task)}`. The registry imports every module in the package.
+
 ## Reading results
 
 `grade.json` holds the grader result plus process metrics from `events.jsonl` (`metrics.py`): tool calls,
@@ -140,25 +156,21 @@ Agent variance is large (haiku review recall ranged 0.375–0.75 within one cell
 
 ## Eval image
 
-The image is `Dockerfile`, built from a `git archive` of the repository without `tasks/`. Runs are offline; four
-cache directories are mounted from the host: `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a
-BCR mirror: task workspaces have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as
-`--output_user_root`, so Bazel's install base is shared and stays off the container layer). Fill them once with
-network access; the full `check` is the warm-up, since task bases pin different Bazel versions and dependency sets:
+The image is `Dockerfile`; dokimi builds it from the repository at the eval revision without `tasks/` (tag
+`dokimi/onedal:<sha>`). Runs are offline (`image.network: none`); the four caches of `repo-eval.yaml` are host
+directories mounted at `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a BCR mirror: task
+workspaces have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as `--output_user_root`,
+so Bazel's install base is shared and stays off the container layer). dokimi puts them under `--cache-root`
+(default `~/.cache/dokimi/caches/onedal/<name>`). Clone the BCR mirror once, then fill the other caches with one
+`--warm` pass (null and oracle with network), since task bases pin different Bazel versions and dependency sets:
 
 ```sh
-mkdir ctx && git archive HEAD | tar -x -C ctx && rm -r ctx/dev/agent_evals/tasks   # as agent-benchmark builds it
-docker build -f ctx/dev/agent_evals/Dockerfile -t onedal-agent-evals ctx
-docker run --rm --user "$(id -u):$(id -g)" -e USER=eval \
-  -v "$PWD":/harness:ro -v <oneDAL clone or .git dir>:/src:ro -e ONEDAL_EVAL_SRC=/src \
-  -v <cache>/bazel-repo:/cache/bazel-repo -v <cache>/bazel-disk:/cache/bazel-disk \
-  -v <cache>/bazel-registry:/cache/bazel-registry -v <cache>/bazel-install:/cache/bazel-install \
-  -v <root>:/evalroot -e ONEDAL_EVAL_ROOT=/evalroot -w /harness onedal-agent-evals \
-  bash -c 'test -e /cache/bazel-registry/bazel_registry.json ||
-             git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry /cache/bazel-registry
-           python3 dev/agent_evals/run.py check'
+C=~/.cache/dokimi/caches/onedal
+git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry $C/bazel-registry
+dokimi repo tasks check .@HEAD --manifest dev/agent_evals/repo-eval.yaml --warm -j 4
+dokimi repo tasks check .@HEAD --manifest dev/agent_evals/repo-eval.yaml -j 4     # offline, as agents run
 ```
 
-After that, the same command with `--network none` passes `check` for every task. `build_make_gnu` builds
+After the warm-up, the offline check passes for every task. `build_make_gnu` builds
 against the oneMKL/oneTBB the image installs under `/opt/onedal-make-deps` (its prompt says so); outside the image
 its oracle pip-installs the same pins, with network. Behind a proxy, pass `http_proxy`/`https_proxy` to the warm-up.

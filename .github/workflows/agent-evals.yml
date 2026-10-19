@@ -14,11 +14,13 @@
 # limitations under the License.
 #===============================================================================
 
-# No-LLM checks for dev/agent_evals. Nothing here calls a model or needs a token.
-#  - validate + static: on every change to the eval directory or to agent guidance, a few minutes.
-#  - self-check (`run.py check`: untouched repo must fail, reference solution must pass) in the eval image:
-#    weekly and on demand for every task; on a pull request only for the tasks it touches, or for one task
-#    per grader when the harness itself changes.
+# No-LLM checks for dev/agent_evals with dokimi (https://github.com/intel/dokimi), installed at a pinned commit.
+# Nothing here calls a model or needs a token.
+#  - `dokimi repo validate` (a gate) and `dokimi repo scan` (report only): on every change to the eval directory or
+#    to agent guidance, a few minutes.
+#  - `dokimi repo tasks check` (untouched workspace must fail, reference solution must pass) in the eval image:
+#    weekly and on demand for every task; on a pull request only for the tasks it touches, or for one task per
+#    grader when the entry points or a grader change.
 name: Agent evals
 
 on:
@@ -47,43 +49,46 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
   cancel-in-progress: true
 
+env:
+  # intel/dokimi main; update the SHA together with any change the new version needs in repo-eval.yaml or the tasks
+  DOKIMI_SHA: 6e695ce27511248562202f83b264d14264d84b03
+  MANIFEST: dev/agent_evals/repo-eval.yaml
+
 jobs:
   validate:
     name: Validate tasks and guidance
     if: github.repository == 'uxlfoundation/oneDAL' || github.event_name != 'schedule'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     outputs:
       tasks: ${{ steps.select.outputs.tasks }}
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0  # every task base must resolve, and the self-check archives those commits
+          fetch-depth: 0  # every task base must resolve, and workspaces are archived from those commits
+          persist-credentials: false
+      - name: Install dokimi
+        run: |
+          python3 -m venv "$RUNNER_TEMP/dokimi"
+          "$RUNNER_TEMP/dokimi/bin/pip" install -q \
+            -c "https://raw.githubusercontent.com/intel/dokimi/$DOKIMI_SHA/dokimi/requirements.lock.txt" \
+            "dokimi @ git+https://github.com/intel/dokimi@$DOKIMI_SHA#subdirectory=dokimi"
+          echo "$RUNNER_TEMP/dokimi/bin" >> "$GITHUB_PATH"
       - name: Validate task definitions
-        run: python3 dev/agent_evals/run.py validate
-        env:
-          ONEDAL_EVAL_SRC: ${{ github.workspace }}
+        run: dokimi repo validate .@HEAD --manifest "$MANIFEST"
       - name: Check guidance claims against the tree (report only)
         run: |
-          python3 dev/agent_evals/run.py static --tree . --out static.json
-          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          d = json.load(open("static.json"))
-          print("### Guidance claims", "", "| status | count |", "|---|---|", sep="\n")
-          for k, v in sorted(d["counts"].items()):
-              print(f"| {k} | {v} |")
-          fails = [c for c in d["claims"] if c["status"] == "fail"]
-          if fails:
-              print("", "| file | line | claim | why |", "|---|---|---|---|", sep="\n")
-              for c in fails:
-                  print(f"| {c['file']} | {c['line']} | `{c['claim'][:80]}` | {c['why']} |")
-          EOF
+          python3 dev/agent_evals/static_check.py --out static.json
+          dokimi repo scan .@HEAD --manifest "$MANIFEST" --static static.json --out readiness.json 2>&1 | tee scan.txt
+          { echo "### Guidance claims"; echo; echo '```text'; cat scan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload static report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: agent-evals-static
-          path: static.json
+          path: |
+            static.json
+            readiness.json
       - name: Select tasks for the self-check
         id: select
         env:
@@ -92,9 +97,13 @@ jobs:
           INPUT_TASKS: ${{ github.event.inputs.tasks }}
         run: |
           all=$(ls dev/agent_evals/tasks)
-          # one task per grader: what a change to the harness or a grader is checked against on a pull request
+          # one task per grader: what a change to the entry points or a grader is checked against on a pull request
           smoke="build_kmeans_host build_make_gnu build_release_host fix_finiteness_mut fix_avx2_dispatch
                  review_seeded_fc review_replay_pr3580 test_add_chebyshev"
+          # fix_cel_thread_race only shows its bug on 4+ Intel CPUs; until dokimi reports such a task as unsupported
+          # on other hosts (task `host` requirements, intel/dokimi#41 step D3) it would be a false pass or a false
+          # failure on a hosted runner, so it is not self-checked here.
+          skip="fix_cel_thread_race"
           if [ "$EVENT" = schedule ]; then
             sel=$all
           elif [ "$EVENT" = workflow_dispatch ]; then
@@ -106,7 +115,7 @@ jobs:
               sel="$sel $smoke"
             fi
           fi
-          json=$(for t in $sel; do [[ "$t" =~ ^[A-Za-z0-9_]+$ && -d "dev/agent_evals/tasks/$t" ]] && echo "$t"; done | sort -u | python3 -c \
+          json=$(for t in $sel; do [[ "$t" =~ ^[A-Za-z0-9_]+$ && -d "dev/agent_evals/tasks/$t" && " $skip " != *" $t "* ]] && echo "$t"; done | sort -u | python3 -c \
             'import json, sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
           echo "tasks=$json" >> "$GITHUB_OUTPUT"
           echo "Self-check tasks: $json"
@@ -127,33 +136,34 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Build the eval image
-        # build context as agent-benchmark makes it: the tracked tree without the tasks
+          persist-credentials: false
+      - name: Install dokimi
         run: |
-          mkdir "$RUNNER_TEMP/ctx"
-          git archive HEAD | tar -x -C "$RUNNER_TEMP/ctx"
-          rm -r "$RUNNER_TEMP/ctx/dev/agent_evals/tasks"
-          docker build -f "$RUNNER_TEMP/ctx/dev/agent_evals/Dockerfile" -t onedal-agent-evals "$RUNNER_TEMP/ctx"
+          python3 -m venv "$RUNNER_TEMP/dokimi"
+          "$RUNNER_TEMP/dokimi/bin/pip" install -q \
+            -c "https://raw.githubusercontent.com/intel/dokimi/$DOKIMI_SHA/dokimi/requirements.lock.txt" \
+            "dokimi @ git+https://github.com/intel/dokimi@$DOKIMI_SHA#subdirectory=dokimi"
+          echo "$RUNNER_TEMP/dokimi/bin" >> "$GITHUB_PATH"
       - name: Run the self-check
+        # dokimi builds the eval image from the tree without its tasks, prepares the null and oracle workspaces as
+        # for an agent, and runs the grade/oracle entry points of repo-eval.yaml in the image. The caches start
+        # empty on a hosted runner, so it runs with network (--warm); task bases resolve modules from a BCR mirror.
         env:
           TASK: ${{ matrix.task }}
         run: |
           c="$RUNNER_TEMP/cache"
-          mkdir -p "$c/bazel-repo" "$c/bazel-disk" "$c/bazel-registry" "$c/bazel-install" "$RUNNER_TEMP/evalroot"
-          docker run --rm --init --user "$(id -u):$(id -g)" -e USER=eval \
-            -v "$PWD":/harness:ro -v "$PWD":/src:ro -e ONEDAL_EVAL_SRC=/src \
-            -v "$c/bazel-repo":/cache/bazel-repo -v "$c/bazel-disk":/cache/bazel-disk \
-            -v "$c/bazel-registry":/cache/bazel-registry -v "$c/bazel-install":/cache/bazel-install \
-            -v "$RUNNER_TEMP/evalroot":/evalroot -e ONEDAL_EVAL_ROOT=/evalroot -w /harness onedal-agent-evals \
-            bash -c 'test -e /cache/bazel-registry/bazel_registry.json ||
-                       git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry /cache/bazel-registry
-                     python3 dev/agent_evals/run.py check "$0"' "$TASK"
+          mkdir -p "$c"
+          git clone -q --depth 1 https://github.com/bazelbuild/bazel-central-registry "$c/bazel-registry"
+          dokimi repo tasks check .@HEAD --manifest "$MANIFEST" --task "$TASK" --warm \
+            --cache-root "$c" --out "$RUNNER_TEMP/check"
       - name: Upload self-check logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: agent-evals-check-${{ matrix.task }}
           path: |
-            ${{ runner.temp }}/evalroot/check/*/grade.json
-            ${{ runner.temp }}/evalroot/check/*/*.log
+            ${{ runner.temp }}/check/check/check.json
+            ${{ runner.temp }}/check/check/*/grade.json
+            ${{ runner.temp }}/check/check/*/*.log
+            ${{ runner.temp }}/check/check/*/*.err
           if-no-files-found: ignore

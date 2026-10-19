@@ -14,13 +14,12 @@
 # limitations under the License.
 #===============================================================================
 
-"""Shell, git, snapshot and arm helpers shared by the runner and the graders."""
+"""Shell, git and grading helpers shared by the entry points and the graders."""
 import contextlib
 import json
 import os
 import re
 import shlex
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -43,59 +42,9 @@ def task_dir(task):
     return config.TASKS / task
 
 
-def task_spec(task):
-    t = json.loads((task_dir(task) / "task.json").read_text())
-    t.setdefault("id", task)
-    return t
-
-
 def show(rev, path):
     """File content at rev in the source clone (hidden tests, mined fixes)."""
     return sh(["git", "show", f"{rev}:{path}"], cwd=config.src()).stdout
-
-
-def snapshot(commit, dest):
-    """History-free tree of oneDAL at commit: no git log to leak the fix, no eval tasks to leak the answers."""
-    dest.mkdir(parents=True)
-    archive = subprocess.Popen(["git", "-C", str(config.src()), "archive", commit], stdout=subprocess.PIPE)
-    tar = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout)
-    archive.stdout.close()
-    if archive.wait() or tar.returncode:
-        raise RuntimeError(f"git archive {commit} | tar: rc={archive.returncode}/{tar.returncode}")
-    shutil.rmtree(dest / config.EVAL_DIR_IN_REPO, ignore_errors=True)
-    git(dest, "init", "-q")
-    git(dest, "add", "-A")
-    git(dest, "commit", "-qm", f"snapshot {commit}")
-
-
-def prep(task, rd):
-    """Workspace for the self-check, laid out as agent-benchmark prepares one (contract §3, guidance as checked in).
-
-    rd/workspace is a history-free tree at the task base with the setup patches committed and, for review tasks,
-    the change under review as its HEAD commit; rd also gets task.json, meta.json and an empty answer and trace.
-    """
-    t = task_spec(task)
-    ws = rd / "workspace"
-    if rd.exists():
-        shutil.rmtree(rd)
-    rd.mkdir(parents=True)
-    snapshot(t["base"], ws)
-    for p in t.get("setup_patches", [t["setup_patch"]] if t.get("setup_patch") else []):
-        git(ws, "apply", str(task_dir(task) / p))
-    git(ws, "add", "-A")
-    git(ws, "commit", "-q", "--amend", "-m", "snapshot")
-    if t.get("review_patch"):
-        sh(["git", "-c", "user.name=Dev Contributor", "-c", "user.email=dev@example.com", "am", "-q",
-            str(task_dir(task) / t["review_patch"])], cwd=ws)
-    # base_* as agent-benchmark writes them (the upstream commit); start_sha is the workspace commit graders diff from
-    up = sh(["git", "log", "-1", "--format=%H %cI", f"{t['base']}^{{commit}}"], cwd=config.src()).stdout.split()
-    start = git(ws, "rev-parse", "HEAD").stdout.strip()
-    (rd / "meta.json").write_text(json.dumps({"task": task, "arm": "guidance:raw", "base_rev": t["base"],
-                                              "base_sha": up[0], "base_date": up[1], "start_sha": start}))
-    (rd / "task.json").write_text(json.dumps(t, indent=1))
-    (rd / "answer.txt").write_text("")
-    (rd / "events.jsonl").write_text("")
-    return ws
 
 
 # ---------------------------------------------------------------- grading helpers
@@ -121,7 +70,7 @@ def last_json(text):
     return None
 
 
-# agent-benchmark mounts the run directory here in every container (and the workspace at /eval/run/workspace)
+# dokimi mounts the run directory here in every container (and the workspace at /eval/run/workspace)
 CONTRACT_RUN_DIR = Path("/eval/run")
 
 
@@ -129,7 +78,7 @@ def rebase_run_path(p, rd, ws):
     """Map an absolute path recorded in a run to the run directory rd it is graded in now, or None.
 
     A run's answer and its symlinks (Bazel's convenience links point into the output base) name absolute paths
-    from where the run was recorded: the standalone run directory, or /eval/run under agent-benchmark. A copied
+    from where the run was recorded: the standalone run directory, or /eval/run under dokimi. A copied
     or archived run is graded somewhere else, so the prefix up to the run directory is replaced by rd, and its
     `repo`/`workspace` child by ws. A path under no run directory maps to None.
     """

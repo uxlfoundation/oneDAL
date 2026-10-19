@@ -35,8 +35,8 @@ The key format is in [`../README.md`](../README.md#tasks). This page explains th
   something else does not count.
 - **CPU only, no oneAPI compilers.** Targets are `*_host` Bazel tests, so they build with gcc on a plain Linux box
   or a CI runner. Several prompts say so, because otherwise agents spend their time trying to install `icpx`.
-- **Self-checked.** `run.py check` proves for every task that the untouched tree fails and the reference solution
-  passes. A task that cannot show both is broken, however reasonable it looks.
+- **Self-checked.** `dokimi repo tasks check` proves for every task that the untouched tree fails and the reference
+  solution passes. A task that cannot show both is broken, however reasonable it looks.
 
 ## Families
 
@@ -133,5 +133,5 @@ These numbers are from one small run and are not significant; they show which ta
 1. Pick a base commit and a check the untouched tree fails, preferably the test of a merged fix.
 2. Write the prompt as the user or the reporter would, without the solution.
 3. Add `regression_targets` for the component, and `"gate": ["strict_pass"]` for fix and feature tasks.
-4. Run `python3 dev/agent_evals/run.py validate` and `python3 dev/agent_evals/run.py check <task>` until the
+4. Run `dokimi repo validate` and `dokimi repo tasks check --task <task>` ([README](../README.md)) until the
    untouched tree fails and the reference passes. CI runs the same check for changed tasks.
