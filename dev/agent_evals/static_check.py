@@ -20,7 +20,7 @@ Extracts links, paths, Bazel labels, bazel/make/cmake commands, Starlark macro c
 the guidance files (AGENTS.md, .github/instructions, CONTRIBUTING.md) and checks each against the same tree.
 Status per claim: ok / fail / unresolved. 'unresolved' is not a failure; it needs a human look.
 Usage: static_check.py [--tree DIR] [--out FILE]   (or run.py static ...)
-  --tree  tree to check (default: the current directory, the workspace root under agent-benchmark)
+  --tree  tree to check (default: the current directory, the workspace root under dokimi)
   --out   write {"schema": "repo_static.v1", "files", "counts", "claims"} as one JSON document instead of the
           human-readable report
 """

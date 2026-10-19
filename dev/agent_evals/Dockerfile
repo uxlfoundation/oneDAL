@@ -15,8 +15,8 @@
 #===============================================================================
 
 # Build image for the agent evals (repo-eval.yaml image.dockerfile): the toolchain the graders and the agent's
-# CPU-only builds need, nothing else. No agent CLI (agent-benchmark brings the harness) and no oneAPI compilers
-# (tasks use *_host targets). The build context is the repository at the eval revision as agent-benchmark makes it:
+# CPU-only builds need, nothing else. No agent CLI (dokimi brings the harness) and no oneAPI compilers
+# (tasks use *_host targets). The build context is the repository at the eval revision as dokimi makes it:
 # `git archive` (no .git, no untracked files) with dev/agent_evals/tasks removed. Nothing here may COPY tasks/; the
 # image holds tooling only (.bazelversion and bin/bazel below), so the agent's container cannot read a task:
 #
@@ -24,7 +24,7 @@
 #   docker build -f ctx/dev/agent_evals/Dockerfile -t onedal-agent-evals ctx
 #
 # Runs are offline (image.network: none). External Bazel repositories come from the shared repository cache, which
-# is filled once with network access; see "Running under agent-benchmark" in README.md.
+# is filled once with network access; see "Eval image" in README.md.
 
 FROM ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
 
@@ -77,5 +77,5 @@ RUN mkdir -p /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /cache/ba
     chmod 1777 /cache/bazel-repo /cache/bazel-disk /cache/bazel-registry /cache/bazel-install /tmp/home
 
 # The Bazel server daemonizes; without an init as PID 1 nothing reaps it and `bazel shutdown` hangs then fails.
-# -s: under `docker run --init` (as agent-benchmark runs every container) tini is not PID 1 and reaps as a subreaper
+# -s: under `docker run --init` (as dokimi runs every container) tini is not PID 1 and reaps as a subreaper
 ENTRYPOINT ["/usr/bin/tini", "-s", "--"]

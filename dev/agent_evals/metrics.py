@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-"""Process metrics from <run_dir>/events.jsonl, the harness-independent trace agent-benchmark writes."""
+"""Process metrics from <run_dir>/events.jsonl, the harness-independent trace dokimi writes."""
 import json
 import re
 
