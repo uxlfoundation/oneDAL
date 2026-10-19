@@ -952,7 +952,7 @@ public:
         return arenas;
     }
 
-    int count() const { return static_cast<int>(_nodes.size()); }
+    int arenaCount() const { return static_cast<int>(_nodes.size()); }
 
     ArenaPtr arena(int node)
     {
@@ -967,7 +967,7 @@ public:
 
 private:
     // With one node, including the `{-1}` oneTBB returns without `tbbbind`, there are no
-    // arenas: `count()` is 0 and work runs in the caller's arena. Same if an allocation fails.
+    // arenas: `arenaCount()` is 0 and work runs in the caller's arena. Same if an allocation fails.
     NumaArenas() : _totalConcurrency(0), _nThreads(0)
     {
         const auto nodes = tbb::info::numa_nodes();
@@ -1019,13 +1019,13 @@ bool isThreadPinned()
 DAAL_EXPORT int _daal_threader_numa_count()
 {
     if (isThreadPinned()) return 1;
-    return std::max(1, NumaArenas::instance().count());
+    return std::max(1, NumaArenas::instance().arenaCount());
 }
 
 DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
 {
     NumaArenas & arenas = NumaArenas::instance();
-    if (!isThreadPinned() && node >= 0 && node < arenas.count())
+    if (!isThreadPinned() && node >= 0 && node < arenas.arenaCount())
     {
         arenas.arena(node)->execute([&]() { func(a); });
     }
