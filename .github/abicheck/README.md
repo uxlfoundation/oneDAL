@@ -98,7 +98,7 @@ per `label` in the json's `disposition_audit`.
 | `weak-template-leak` | 102 | same; restates hidden WEAK templates |
 | `weak-visibility-hidden` | ≤442 L2 | same; default→hidden on WEAK |
 | `csr-setarrays-still-declared` | 1 per L2 leg | abicheck false positive: `CSRNumericTable::setArrays<T>` is still inline in `csr_numeric_table.h` |
-| `threader-internal-3471` | 3 | `^_daal_(static_)?threader_for.*`: internal C-linkage entry points of `libonedal_thread`, no installed header; same deselection as `.github/.abignore`. #3471 (fdd4e9528) moved them to int64; accepted. |
+| `threader-internal-3471` | 16 bin, 3 L2 | `^_daal_(static_)?threader_for.*`: internal C-linkage entry points of `libonedal_thread`, no installed header; same deselection as `.github/.abignore`. #3471 (fdd4e9528) moved them to int64; accepted. |
 
 All `weak-*` rules retire once the baseline is 2026.1.0 or later.
 
