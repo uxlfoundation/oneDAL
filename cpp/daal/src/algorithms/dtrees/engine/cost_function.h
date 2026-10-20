@@ -104,18 +104,29 @@ public:
     /// counts holds 2 * nClasses doubles of scratch: the left side, then the parent.
     GiniCost(size_t nClasses, double * counts) : _nClasses(nClasses), _left(counts), _parent(counts + nClasses) {}
 
-    /// Sets the parent from labels and weights of its n rows.
-    void setParent(const uint32_t * label, const double * w, size_t n)
+    /// Sets the parent row by row: startParent, addParent per row, finishParent.
+    void startParent()
     {
         for (size_t c = 0; c < _nClasses; ++c) _parent[c] = 0;
         _w = 0;
-        for (size_t i = 0; i < n; ++i)
-        {
-            _parent[label[i]] += w[i];
-            _w += w[i];
-        }
+    }
+    void addParent(uint32_t c, double a)
+    {
+        _parent[c] += a;
+        _w += a;
+    }
+    void finishParent()
+    {
         _sq = 0;
         for (size_t c = 0; c < _nClasses; ++c) _sq += _parent[c] * _parent[c];
+    }
+
+    /// Sets the parent from labels and weights of its n rows.
+    void setParent(const uint32_t * label, const double * w, size_t n)
+    {
+        startParent();
+        for (size_t i = 0; i < n; ++i) addParent(label[i], w[i]);
+        finishParent();
     }
 
     double weight() const { return _w; }
@@ -173,17 +184,24 @@ class MseCost
 public:
     static constexpr bool classification = false;
 
-    void setParent(const double * y, const double * w, size_t n)
+    void startParent()
     {
         _w  = 0;
         _s  = 0;
         _s2 = 0;
-        for (size_t i = 0; i < n; ++i)
-        {
-            _w += w[i];
-            _s += w[i] * y[i];
-            _s2 += w[i] * y[i] * y[i];
-        }
+    }
+    void addParent(double y, double a)
+    {
+        _w += a;
+        _s += a * y;
+        _s2 += a * y * y;
+    }
+    void finishParent() {}
+
+    void setParent(const double * y, const double * w, size_t n)
+    {
+        startParent();
+        for (size_t i = 0; i < n; ++i) addParent(y[i], w[i]);
     }
 
     double weight() const { return _w; }
@@ -202,10 +220,12 @@ public:
         _wL = 0;
         _sL = 0;
     }
-    void addLeft(double y, double a)
+    void addLeft(double y, double a) { addLeftSums(a, a * y); }
+    /// Moves rows of total weight a and weighted response sum s to the left.
+    void addLeftSums(double a, double s)
     {
         _wL += a;
-        _sL += a * y;
+        _sL += s;
     }
     double leftWeight() const { return _wL; }
     double rightWeight() const { return _w - _wL; }

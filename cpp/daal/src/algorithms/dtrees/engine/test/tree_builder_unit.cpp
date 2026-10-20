@@ -30,6 +30,8 @@
 #include "services/env_detect.h"
 #include "services/internal/daal_kernel_defines.h"
 #include "src/algorithms/dtrees/engine/node_rng.h"
+#include "src/algorithms/dtrees/engine/quantile_binner.h"
+
 #include "src/algorithms/dtrees/engine/tree_builder.h"
 
 namespace daal::algorithms::dtrees::engine::internal::test
@@ -126,13 +128,15 @@ private:
     std::map<std::thread::id, std::unique_ptr<daal::internal::BaseRNGsInst<cpu> > > _streams;
 };
 
-/// Trains nTrees trees and returns their tables.
+/// Trains nTrees trees and returns their tables; with binning, a hist fit over the binned data.
 template <typename Record, CpuType cpu>
 std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, size_t nTrees, const std::vector<std::vector<uint16_t> > & counts,
-                               uint64_t seed = 777)
+                               uint64_t seed = 777, const BinningParams * binning = nullptr)
 {
     std::vector<double> xCopy = d.x;
     NumericTablePtr xt        = HomogenNumericTable<double>::create(xCopy.data(), d.p, d.nRows);
+    for (size_t f = 0; f < d.p; ++f)
+        if (!d.categorical.empty() && d.categorical[f]) (*xt->getDictionarySharedPtr())[f].featureType = features::DAAL_CATEGORICAL;
     std::vector<double> yCopy = d.y;
     NumericTablePtr yt        = HomogenNumericTable<double>::create(yCopy.data(), 1, d.nRows);
     std::vector<double> wCopy = d.w;
@@ -151,6 +155,14 @@ std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, siz
     data.categorical = cat.get();
     data.nRows       = d.nRows;
     data.nFeatures   = d.p;
+    BinMatrix<cpu> bins;
+    if (binning)
+    {
+        bool binned = false;
+        REQUIRE((QuantileBinner<double, cpu>::build(*xt, *binning, PhiloxRowSampler { seed }, bins, binned)).ok());
+        REQUIRE(binned);
+        data.bins = &bins;
+    }
     Inputs<Record, cpu> inputs(src, counts, seed, nTrees);
     REQUIRE((trainTrees<double, Record, cpu>(data, params, nTrees, inputs)).ok());
     return std::move(inputs.trees);
@@ -672,6 +684,211 @@ TEST("other engines draw from the calling thread's stream", "[unit]")
         requireConsistent(d, a[i], counts[i]);
         requireSameTables(a[i], b[i]); // one thread: the stream order is fixed
     }
+}
+// --- Histogram phase (design 4.6) ---
+
+/// Integer features in [0, D), one categorical, NaN in feature 1; integer responses, so every bin and
+/// row statistic is exact and the histogram and exact phases score candidates identically.
+Dataset lowCardinalityData(size_t nRows, size_t nClasses, uint64_t seed)
+{
+    std::mt19937_64 gen(seed);
+    const size_t p = 5;
+    Dataset d;
+    d.nRows       = nRows;
+    d.p           = p;
+    d.nClasses    = nClasses;
+    d.categorical = { false, false, false, true, false };
+    d.x.resize(nRows * p);
+    d.y.resize(nRows);
+    for (size_t i = 0; i < nRows; ++i)
+    {
+        double s = 0;
+        for (size_t f = 0; f < p; ++f)
+        {
+            const size_t levels = 4 + 6 * f;
+            d.x[i * p + f]      = double(gen() % levels);
+            s += d.x[i * p + f] * (f == 3 ? 0.5 : 1.0);
+        }
+        if (i % 11 == 0) d.x[i * p + 1] = std::numeric_limits<double>::quiet_NaN();
+        d.y[i] = nClasses ? double((size_t(s) + gen() % 3) % nClasses) : double(size_t(s) % 7 + gen() % 3);
+    }
+    return d;
+}
+
+/// Every in-bag row reaches the same leaf of both trees.
+void requireSameRouting(const Dataset & d, const EmittedTree & a, const EmittedTree & b, const std::vector<uint16_t> & counts)
+{
+    for (size_t i = 0; i < d.nRows; ++i)
+        if (counts.empty() || counts[i]) REQUIRE(leafOf(a, d.x.data() + i * d.p, d.categorical) == leafOf(b, d.x.data() + i * d.p, d.categorical));
+}
+
+/// a and b have the same structure, statistics and leaves; thresholds may differ where the routing of the
+/// training rows does not.
+void requireSameTrees(const Dataset & d, const EmittedTree & a, const EmittedTree & b, const std::vector<uint16_t> & counts)
+{
+    const size_t n = a.nodes->getNumberOfRows();
+    REQUIRE(n == b.nodes->getNumberOfRows());
+    const DecisionTreeNode * ra = rowsOf(a);
+    const DecisionTreeNode * rb = rowsOf(b);
+    for (size_t i = 0; i < n; ++i)
+    {
+        REQUIRE(ra[i].featureIndex == rb[i].featureIndex);
+        REQUIRE(ra[i].leftIndexOrClass == rb[i].leftIndexOrClass);
+        REQUIRE(ra[i].defaultLeft == rb[i].defaultLeft);
+        REQUIRE(a.impurity->getArray()[i] == b.impurity->getArray()[i]);
+        REQUIRE(a.nodeSamples->getArray()[i] == b.nodeSamples->getArray()[i]);
+        if (ra[i].featureIndex < 0) REQUIRE(ra[i].featureValueOrResponse == rb[i].featureValueOrResponse);
+    }
+    const size_t np = a.probabilities->getNumberOfRows() * a.probabilities->getNumberOfColumns();
+    for (size_t i = 0; i < np; ++i) REQUIRE(a.probabilities->getArray()[i] == b.probabilities->getArray()[i]);
+    requireSameRouting(d, a, b, counts);
+}
+
+BinningParams exactBinning()
+{
+    BinningParams b;
+    b.maxBins    = 64;
+    b.minBinSize = 1;
+    return b;
+}
+
+TEST("hist with one bin per value equals the exact phase on the same draws", "[unit]")
+{
+    constexpr size_t nTrees     = 6;
+    const Dataset c             = lowCardinalityData(4000, 3, 91);
+    const Dataset r             = lowCardinalityData(4000, 0, 92);
+    const auto counts           = bootstrapCounts(nTrees, 4000, 93);
+    const BinningParams binning = exactBinning();
+    forEachCpu([&](auto cpu) {
+        constexpr CpuType ct = decltype(cpu)::value;
+        for (bool random : { false, true })
+        {
+            TreeParams params;
+            params.featuresPerNode = 3;
+            params.randomSplitter  = random;
+            params.denseThreshold  = 0; // the histogram phase at every node
+            params.nClasses        = 3;
+            const auto exactC      = train<ClsCountRecord, ct>(c, params, nTrees, counts);
+            const auto histC       = train<ClsCountRecord, ct>(c, params, nTrees, counts, 777, &binning);
+            params.nClasses        = 0;
+            const auto exactR      = train<RegCountRecord<double>, ct>(r, params, nTrees, counts);
+            const auto histR       = train<RegCountRecord<double>, ct>(r, params, nTrees, counts, 777, &binning);
+            size_t borderSplits    = 0;
+            for (size_t t = 0; t < nTrees; ++t)
+            {
+                requireSameTrees(c, exactC[t], histC[t], counts[t]);
+                requireSameTrees(r, exactR[t], histR[t], counts[t]);
+                // Histogram thresholds are bin borders, here the integer values themselves.
+                for (const EmittedTree * h : { &histC[t], &histR[t] })
+                    for (size_t i = 0; i < h->nodes->getNumberOfRows(); ++i)
+                    {
+                        const DecisionTreeNode & node = rowsOf(*h)[i];
+                        if (node.featureIndex < 0) continue;
+                        REQUIRE(node.featureValueOrResponse == std::floor(node.featureValueOrResponse));
+                        ++borderSplits;
+                    }
+            }
+            REQUIRE(borderSplits > 0);
+        }
+    });
+}
+
+TEST("chunked histograms and partitions do not depend on chunking or the thread count", "[unit]")
+{
+    constexpr size_t nTrees = 3;
+    Dataset c               = classificationData(40000, 6, 3, 101);
+    Dataset r               = regressionData(40000, 6, 102, true);
+    for (size_t i = 0; i < c.nRows; i += 53) c.x[i * c.p + (i % c.p)] = std::numeric_limits<double>::quiet_NaN();
+    const auto counts = bootstrapCounts(nTrees, 40000, 103);
+    BinningParams binning;
+    binning.maxBins = 32;
+    TreeParams params;
+    params.featuresPerNode = 3;
+    params.maxDepth        = 8;
+    params.chunkRows       = 1000;
+    std::vector<EmittedTree> refC, refR;
+    {
+        ThreadCountGuard one(1);
+        params.nClasses = 3;
+        refC            = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, &binning);
+        params.nClasses = 0;
+        refR            = train<RegWeightRecord<double>, baseCpu>(r, params, nTrees, counts, 777, &binning);
+    }
+    params.nClasses  = 3;
+    const auto manyC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, &binning);
+    params.nClasses  = 0;
+    const auto manyR = train<RegWeightRecord<double>, baseCpu>(r, params, nTrees, counts, 777, &binning);
+    // Count statistics are integers, so one chunk per node gives the same classification trees.
+    params.nClasses   = 3;
+    params.chunkRows  = 0;
+    const auto wholeC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, &binning);
+    for (size_t t = 0; t < nTrees; ++t)
+    {
+        requireConsistent(c, refC[t], counts[t]);
+        requireConsistent(r, refR[t], counts[t]);
+        requireSameTables(refC[t], manyC[t]);
+        requireSameTables(refR[t], manyR[t]);
+        requireSameTables(refC[t], wholeC[t]);
+    }
+}
+
+TEST("a histogram node with every drawn feature constant by bins takes the exact phase", "[unit]")
+{
+    // Two bins on one continuous feature: below the root, each child holds one bin, yet its values differ.
+    Dataset d;
+    d.nRows = 4000;
+    d.p     = 1;
+    std::mt19937_64 gen(111);
+    std::normal_distribution<double> normal;
+    for (size_t i = 0; i < d.nRows; ++i)
+    {
+        d.x.push_back(normal(gen));
+        d.y.push_back(std::sin(2 * d.x.back()) + 0.1 * normal(gen));
+    }
+    BinningParams binning;
+    binning.maxBins = 2;
+    TreeParams params;
+    params.maxDepth       = 3;
+    params.denseThreshold = 0;
+    const std::vector<std::vector<uint16_t> > noBootstrap;
+    const auto trees      = train<RegCountRecord<double>, baseCpu>(d, params, 1, noBootstrap, 777, &binning);
+    const EmittedTree & t = trees[0];
+    requireConsistent(d, t, {});
+    const DecisionTreeNode * rows = rowsOf(t);
+    REQUIRE(rows[0].featureIndex >= 0);
+    REQUIRE(rows[1].featureIndex >= 0);
+    REQUIRE(rows[2].featureIndex >= 0);
+    REQUIRE(depthOf(t) == 3);
+}
+
+TEST("the random splitter on bins takes each border uniformly and never leaves a side empty (defect 1)", "[unit]")
+{
+    // Values 0..8, one bin each: the draw is uniform in [0, 8) and the split goes after bin floor(t).
+    Dataset d;
+    d.nRows    = 900;
+    d.p        = 1;
+    d.nClasses = 2;
+    for (size_t i = 0; i < d.nRows; ++i)
+    {
+        d.x.push_back(double(i % 9));
+        d.y.push_back(double((i / 9) % 2));
+    }
+    TreeParams params;
+    params.nClasses             = 2;
+    params.randomSplitter       = true;
+    params.maxDepth             = 1;
+    params.denseThreshold       = 0;
+    const BinningParams binning = exactBinning();
+    const std::vector<std::vector<uint16_t> > noBootstrap;
+    std::vector<size_t> hits(8, 0);
+    for (const auto & t : train<ClsCountRecord, baseCpu>(d, params, 4000, noBootstrap, 777, &binning))
+    {
+        REQUIRE(rowsOf(t)[0].featureIndex == 0);
+        const double v = rowsOf(t)[0].featureValueOrResponse;
+        REQUIRE((v >= 0 && v <= 7 && v == std::floor(v)));
+        ++hits[size_t(v)];
+    }
+    REQUIRE(chiSquare(hits) < chiSquare7Dof999);
 }
 
 } // namespace daal::algorithms::dtrees::engine::internal::test

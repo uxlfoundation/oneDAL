@@ -17,7 +17,8 @@
 
 /*
 //++
-//  Implementation of the tree builder with the exact phase at every node.
+//  Implementation of the tree builder: the histogram phase (phase_hist.i) on nodes of at least
+//  denseThreshold * maxBins records of a binned fit, the exact phase on the others.
 //  Included only by tree_builder_fpt_cpu.cpp.
 //--
 */
@@ -30,6 +31,8 @@
 #include "src/algorithms/dtrees/engine/cost_function.h"
 #include "src/algorithms/dtrees/engine/executor.h"
 #include "src/algorithms/dtrees/engine/node_rng.h"
+#include "src/algorithms/dtrees/engine/phase_hist.i"
+
 #include "src/algorithms/dtrees/engine/prefetch.h"
 #include "src/algorithms/dtrees/engine/tree_builder.h"
 #include "src/algorithms/dtrees/engine/tree_soa.h"
@@ -59,18 +62,21 @@ namespace exact
 /// A split of one node on one feature.
 struct Candidate
 {
-    bool valid       = false;
-    bool categorical = false;
-    uint32_t feature = 0;
-    uint32_t nLeft   = 0; // records going left
-    double threshold = 0; // ordered: rows with x <= threshold go left; categorical: rows with x == threshold
-    double proxy     = 0; // cost function proxy, larger is better (cost_function.h)
-    double wLeft     = 0;
+    bool valid        = false;
+    bool categorical  = false;
+    uint32_t feature  = 0;
+    uint32_t nLeft    = 0; // records going left
+    double threshold  = 0; // ordered: rows with x <= threshold go left; categorical: rows with x == threshold
+    double proxy      = 0; // cost function proxy, larger is better (cost_function.h)
+    double wLeft      = 0;
+    bool byBin        = false; // histogram split: rows route by bin, which agrees with threshold on the training rows
+    uint32_t splitBin = 0;     // ordered: bins <= splitBin and the missing bin go left; categorical: bin == splitBin
 };
 
-/// Scratch for one node. Below parallelSortRecords a thread's own scratch is used: those nodes call no
-/// parallel algorithm, so the thread never runs another node while it holds it. Larger nodes sort in
-/// parallel, and a thread waiting in the sort can run other nodes, so they get scratch of their own.
+/// Scratch for one node. A node that calls no parallel algorithm uses its thread's scratch, as the thread
+/// never runs another node while it holds it. A node that sorts or builds histograms in parallel can have
+/// its thread run other nodes while it waits, so it gets scratch of its own. The per-row arrays are
+/// allocated only for the exact phase.
 template <typename algorithmFPType, CpuType cpu>
 struct NodeScratch
 {
@@ -81,15 +87,18 @@ struct NodeScratch
     LargeArray<uint32_t, cpu> label;
     LargeArray<double, cpu> classWeights;
     LargeArray<uint32_t, cpu> permutation;
+    LargeArray<uint32_t, cpu> lanes; // histogram phase: the features of a pass
     size_t capacity = 0;
 
-    bool ensure(size_t n, size_t nClasses, size_t nFeatures)
+    bool ensureBase(size_t nClasses, size_t nFeatures)
     {
-        if (!permutation.get())
-        {
-            if (!permutation.reset(2 * nFeatures)) return false;
-            if (nClasses && !classWeights.reset(2 * nClasses)) return false;
-        }
+        if (permutation.get()) return true;
+        if (!permutation.reset(2 * nFeatures) || !lanes.reset(nFeatures)) return false;
+        return !nClasses || classWeights.reset(2 * nClasses);
+    }
+
+    bool ensureRows(size_t n, size_t nClasses)
+    {
         if (n <= capacity) return true;
         size_t c = capacity ? capacity : 1;
         while (c < n) c *= 2;
@@ -184,25 +193,27 @@ public:
 
     services::Status evaluate(TreeContext & ctx, WorkItem & item, bool & splittable)
     {
-        splittable = false;
+        splittable           = false;
+        const bool histNode  = useHist(item.n);
+        const size_t nChunks = histNode ? hist::chunkCount(item.n, _params.chunkRows, _params.maxChunks) : 1;
         Scratch own;
-        Scratch * scratch = item.n >= parallelSortRecords ? &own : _scratch.local();
-        DAAL_CHECK_MALLOC(scratch && scratch->ensure(item.n, _params.nClasses, _data.nFeatures));
+        Scratch * scratch = item.n < parallelSortRecords && nChunks == 1 ? _scratch.local() : &own;
+        DAAL_CHECK_MALLOC(scratch && scratch->ensureBase(_params.nClasses, _data.nFeatures));
         const Record * records = ctx.records.buffer(item.depth) + item.start;
 
         // Node statistics from its records.
+        Cost cost         = makeCost(*scratch);
         uint64_t nSamples = 0;
+        cost.startParent();
         for (size_t i = 0; i < item.n; ++i)
         {
-            scratch->w[i] = recordWeight(records[i]);
             nSamples += recordCount(records[i]);
-            setResponse(*scratch, i, records[i]);
+            addParent(cost, records[i]);
         }
-        Cost cost = makeCost(*scratch);
-        setParent(cost, *scratch, item.n);
+        cost.finishParent();
         // Purity is decided exactly: impurity computed from sums can round to a small positive value
         // for a pure node, which would then split on zero gain.
-        const bool pure = isPure(cost, *scratch, item.n);
+        const bool pure = isPure(cost, records, item.n);
 
         TreeNode & node = ctx.nodes[item.node];
         node            = TreeNode();
@@ -222,16 +233,21 @@ public:
         services::Status s;
         if (_params.counterDraws)
         {
-            CounterNodeDraws<cpu> draws(ctx.rng, item.key);
-            best = searchSplit(ctx, records, item.n, *scratch, cost, draws, s);
-            s |= draws.status();
+            // An exact phase after an all-constant histogram phase restarts the feature draws (design 4.6).
+            CounterNodeDraws<cpu> features(ctx.rng, item.key);
+            CounterNodeDraws<cpu> restart(ctx.rng, item.key);
+            CounterNodeDraws<cpu> splits(ctx.rng, item.key, nodeThresholdWords);
+            best = searchNode(ctx, records, item.n, histNode, nChunks, *scratch, cost, features, restart, splits, s);
+            s |= features.status();
+            s |= restart.status();
+            s |= splits.status();
         }
         else
         {
             void * stream = _inputs.nodeStream();
             DAAL_CHECK(stream, services::ErrorNullPtr);
             StreamNodeDraws<cpu> draws(stream);
-            best = searchSplit(ctx, records, item.n, *scratch, cost, draws, s);
+            best = searchNode(ctx, records, item.n, histNode, nChunks, *scratch, cost, draws, draws, draws, s);
             s |= draws.status();
         }
         DAAL_CHECK_STATUS_VAR(s);
@@ -246,23 +262,18 @@ public:
 
     services::Status commit(TreeContext & ctx, WorkItem & item, WorkItem & left, WorkItem & right)
     {
-        const Candidate & split   = item.split;
-        const Record * in         = ctx.records.buffer(item.depth) + item.start;
-        Record * out              = ctx.records.buffer(item.depth + 1) + item.start;
-        const algorithmFPType * x = _data.x->data(ctx.numaNode);
-        const size_t p            = _data.nFeatures;
-        size_t iLeft              = 0;
-        size_t iRight             = split.nLeft;
-        prefetchedLoop<cpu>(
-            item.n, prefetchDistance(item.n), [&](size_t i) { DAAL_PREFETCH_READ_T0(x + size_t(in[i].row) * p + split.feature); },
-            [&](size_t i) {
-                const algorithmFPType v = x[size_t(in[i].row) * p + split.feature];
-                if (goesLeft(v, split))
-                    out[iLeft++] = in[i];
-                else
-                    out[iRight++] = in[i];
-            });
-        if (iLeft != split.nLeft || iRight != item.n) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
+        const Candidate & split = item.split;
+        const Record * in       = ctx.records.buffer(item.depth) + item.start;
+        Record * out            = ctx.records.buffer(item.depth + 1) + item.start;
+        const size_t nChunks    = hist::chunkCount(item.n, _params.chunkRows, _params.maxChunks);
+        services::Status s;
+        if (!split.byBin)
+            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(ctx.numaNode), _data.nFeatures, split });
+        else if (_data.bins->binBytes() == 1)
+            s = partition(in, out, item.n, split.nLeft, nChunks, BinRoute<uint8_t>(*_data.bins, ctx.numaNode, split));
+        else
+            s = partition(in, out, item.n, split.nLeft, nChunks, BinRoute<uint16_t>(*_data.bins, ctx.numaNode, split));
+        DAAL_CHECK_STATUS_VAR(s);
 
         const uint32_t pair = ctx.nodes.allocatePair();
         DAAL_CHECK_MALLOC(pair);
@@ -314,11 +325,96 @@ public:
 
 private:
     // Ordered: x <= threshold, NaN included, as prediction routes x > threshold right. Categorical: x == threshold.
-    static bool goesLeft(algorithmFPType v, const Candidate & split)
+    struct ValueRoute
     {
-        if (split.categorical) return double(v) == split.threshold;
-        return daal::algorithms::internal::isNaN<algorithmFPType, cpu>(v) || double(v) <= split.threshold;
+        const algorithmFPType * x;
+        size_t p;
+        const Candidate & split;
+
+        const void * address(uint32_t row) const { return x + size_t(row) * p + split.feature; }
+        bool left(uint32_t row) const
+        {
+            const algorithmFPType v = x[size_t(row) * p + split.feature];
+            if (split.categorical) return double(v) == split.threshold;
+            return daal::algorithms::internal::isNaN<algorithmFPType, cpu>(v) || double(v) <= split.threshold;
+        }
+    };
+
+    // The same sides as ValueRoute on the training rows, from the bin matrix.
+    template <typename BinT>
+    struct BinRoute
+    {
+        BinRoute(const BinMatrix<cpu> & bins, int numaNode, const Candidate & split)
+            : bins(bins),
+              numaNode(numaNode),
+              feature(split.feature),
+              splitBin(split.splitBin),
+              missing(bins.missingBin(split.feature)),
+              categorical(split.categorical)
+        {}
+
+        const BinMatrix<cpu> & bins;
+        int numaNode;
+        size_t feature;
+        size_t splitBin;
+        size_t missing;
+        bool categorical;
+
+        const void * address(uint32_t row) const { return bins.template row<BinT>(numaNode, row) + feature; }
+        bool left(uint32_t row) const
+        {
+            const size_t b = bins.template row<BinT>(numaNode, row)[feature];
+            if (categorical) return b == splitBin;
+            return b <= splitBin || b == missing;
+        }
+    };
+
+    /// Stable partition of n records into out, the nLeft left ones first. Several chunks count their left
+    /// records in parallel, then each scatters from its offsets in chunk order.
+    template <typename Route>
+    services::Status partition(const Record * in, Record * out, size_t n, size_t nLeft, size_t nChunks, const Route & route) const
+    {
+        const size_t distance = prefetchDistance(n);
+        auto scatter          = [&](size_t begin, size_t end, size_t iLeft, size_t iRight) {
+            prefetchedLoop<cpu>(
+                end - begin, distance, [&](size_t i) { DAAL_PREFETCH_READ_T0(route.address(in[begin + i].row)); },
+                [&](size_t i) {
+                    const Record & r = in[begin + i];
+                    if (route.left(r.row))
+                        out[iLeft++] = r;
+                    else
+                        out[iRight++] = r;
+                });
+            return iLeft;
+        };
+        if (nChunks <= 1)
+        {
+            if (scatter(0, n, 0, nLeft) != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
+            return services::Status();
+        }
+        TArray<size_t, cpu> lefts(nChunks + 1);
+        DAAL_CHECK_MALLOC(lefts.get());
+        daal::threader_for(nChunks, 1, [&](size_t c) {
+            size_t begin, end, count = 0;
+            hist::chunkRange(n, nChunks, c, begin, end);
+            prefetchedLoop<cpu>(
+                end - begin, distance, [&](size_t i) { DAAL_PREFETCH_READ_T0(route.address(in[begin + i].row)); },
+                [&](size_t i) { count += route.left(in[begin + i].row); });
+            lefts[c + 1] = count;
+        });
+        lefts[0] = 0;
+        for (size_t c = 0; c < nChunks; ++c) lefts[c + 1] += lefts[c];
+        if (lefts[nChunks] != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
+        daal::threader_for(nChunks, 1, [&](size_t c) {
+            size_t begin, end;
+            hist::chunkRange(n, nChunks, c, begin, end);
+            scatter(begin, end, lefts[c], nLeft + begin - lefts[c]);
+        });
+        return services::Status();
     }
+
+    bool useHist(size_t n) const { return _data.bins && n >= _params.denseThreshold * _params.maxBins; }
+    bool isCategorical(size_t f) const { return _data.categorical && _data.categorical[f]; }
 
     static double recordsWeight(const Record * r, size_t n)
     {
@@ -345,12 +441,12 @@ private:
         else
             return Cost();
     }
-    void setParent(Cost & cost, Scratch & s, size_t n) const
+    static void addParent(Cost & cost, const Record & r)
     {
         if constexpr (isClassification)
-            cost.setParent(s.label.get(), s.w.get(), n);
+            cost.addParent(recordClass(r), recordWeight(r));
         else
-            cost.setParent(s.y.get(), s.w.get(), n);
+            cost.addParent(recordResponse(r), recordWeight(r));
     }
     void addLeft(Cost & cost, const Scratch & s, size_t i) const
     {
@@ -361,7 +457,7 @@ private:
     }
 
     /// One class holds all the weight, or every response is equal.
-    bool isPure(const Cost & cost, const Scratch & s, size_t n) const
+    bool isPure(const Cost & cost, const Record * r, size_t n) const
     {
         if constexpr (isClassification)
         {
@@ -372,7 +468,7 @@ private:
         else
         {
             for (size_t i = 1; i < n; ++i)
-                if (s.y[i] != s.y[0]) return false;
+                if (recordResponse(r[i]) != recordResponse(r[0])) return false;
             return true;
         }
     }
@@ -384,19 +480,44 @@ private:
                && wRight >= _params.minLeafWeight && wLeft > 0 && wRight > 0;
     }
 
+    /// The histogram phase on hist nodes, the exact phase on the others and on hist nodes whose drawn
+    /// features are all constant by bins (design 4.6, 4.7).
+    template <typename FeatureDraws, typename SplitDraws>
+    Candidate searchNode(TreeContext & ctx, const Record * records, size_t n, bool histNode, size_t nChunks, Scratch & scratch, Cost & cost,
+                         FeatureDraws & features, FeatureDraws & restart, SplitDraws & splits, services::Status & status) const
+    {
+        if (histNode)
+        {
+            bool allConstant  = false;
+            const Candidate c = histSearch(ctx, records, n, nChunks, scratch, cost, features, splits, allConstant, status);
+            if (!status || !allConstant) return c;
+        }
+        if (!scratch.ensureRows(n, _params.nClasses))
+        {
+            status = services::Status(services::ErrorMemoryAllocationFailed);
+            return Candidate();
+        }
+        for (size_t i = 0; i < n; ++i)
+        {
+            scratch.w[i] = recordWeight(records[i]);
+            setResponse(scratch, i, records[i]);
+        }
+        return exactSearch(ctx, records, n, scratch, cost, histNode ? restart : features, splits, status);
+    }
+
     /// The best split over the node's first k non-constant features in draw order (design 4.6, 4.13).
-    template <typename Draws>
-    Candidate searchSplit(TreeContext & ctx, const Record * records, size_t n, Scratch & scratch, Cost & cost, Draws & draws,
-                          services::Status & status) const
+    template <typename FeatureDraws, typename SplitDraws>
+    Candidate exactSearch(TreeContext & ctx, const Record * records, size_t n, Scratch & scratch, Cost & cost, FeatureDraws & features,
+                          SplitDraws & splits, services::Status & status) const
     {
         FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch.permutation.get());
         Candidate best;
         size_t visited = 0;
         while (visited < _k && !permutation.exhausted())
         {
-            const uint32_t f  = permutation.next(draws);
+            const uint32_t f  = permutation.next(features);
             bool constant     = false;
-            const Candidate c = splitOnFeature(ctx, records, n, scratch, cost, draws, f, constant, status);
+            const Candidate c = splitOnFeature(ctx, records, n, scratch, cost, splits, f, constant, status);
             if (!status) return best;
             if (constant) continue; // constant features do not count toward k, as in sklearn
             ++visited;
@@ -405,11 +526,159 @@ private:
         return best;
     }
 
+    /// The histogram phase's search: each pass draws the features still needed for k non-constant ones
+    /// and histograms them together; lanes constant by bins do not count toward k (design 4.6).
+    template <typename FeatureDraws, typename SplitDraws>
+    Candidate histSearch(TreeContext & ctx, const Record * records, size_t n, size_t nChunks, Scratch & scratch, Cost & cost, FeatureDraws & features,
+                         SplitDraws & splits, bool & allConstant, services::Status & status) const
+    {
+        FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch.permutation.get());
+        uint32_t * lanes = scratch.lanes.get();
+        hist::Planes<Record, cpu> planes;
+        Candidate best;
+        size_t visited = 0;
+        allConstant    = true;
+        while (visited < _k && !permutation.exhausted())
+        {
+            size_t nLanes = 0;
+            while (visited + nLanes < _k && !permutation.exhausted()) lanes[nLanes++] = permutation.next(features);
+            status = hist::build(records, n, *_data.bins, ctx.numaNode, lanes, nLanes, _params.nClasses, nChunks, prefetchDistance(n), planes);
+            if (!status) return best;
+            for (size_t j = 0; j < nLanes; ++j)
+            {
+                bool constant     = false;
+                const Candidate c = scanLane(planes, j, lanes[j], n, cost, splits, constant);
+                if (constant) continue;
+                allConstant = false;
+                ++visited;
+                if (c.valid && (!best.valid || c.proxy > best.proxy)) best = c;
+            }
+        }
+        return best;
+    }
+
+    /// The split of one lane from its histogram (design 4.4). The missing bin goes left on ordered features
+    /// and right on categorical ones, as NaN in the exact phase. A lane with at most one nonempty data bin
+    /// is constant.
+    template <typename SplitDraws>
+    Candidate scanLane(const hist::Planes<Record, cpu> & h, size_t lane, uint32_t f, size_t n, Cost & cost, SplitDraws & draws, bool & constant) const
+    {
+        const BinMatrix<cpu> & bins = *_data.bins;
+        const size_t nData          = bins.nBins(f);
+        auto records                = [&](size_t b) { return size_t(h.records[h.at(b, lane)]); };
+        size_t first = nData, last = 0, nonEmpty = 0;
+        for (size_t b = 0; b < nData; ++b)
+        {
+            if (!records(b)) continue;
+            first = first == nData ? b : first;
+            last  = b;
+            ++nonEmpty;
+        }
+
+        Candidate best;
+        best.feature     = f;
+        best.categorical = isCategorical(f);
+        best.byBin       = true;
+        if (nonEmpty <= 1)
+        {
+            constant = true;
+            return best;
+        }
+        const double * border = bins.borders(f);
+        const double w        = cost.weight();
+        auto addBin           = [&](size_t b) {
+            if constexpr (isClassification)
+            {
+                for (size_t c = 0; c < _params.nClasses; ++c)
+                {
+                    const double a = double(h.classStat(c, b, lane));
+                    if (a > 0) cost.addLeft(uint32_t(c), a);
+                }
+            }
+            else
+            {
+                cost.addLeftSums(double(h.stat[h.at(b, lane)]), h.sumY[h.at(b, lane)]);
+            }
+        };
+        auto consider = [&](size_t nLeft, size_t b) {
+            if (!admissible(nLeft, n, cost.leftWeight(), w)) return;
+            const double proxy = cost.proxy();
+            if (best.valid && !(proxy > best.proxy)) return;
+            best.valid     = true;
+            best.threshold = border[b];
+            best.splitBin  = uint32_t(b);
+            best.nLeft     = uint32_t(nLeft);
+            best.wLeft     = cost.leftWeight();
+            best.proxy     = proxy;
+        };
+
+        if (best.categorical)
+        {
+            // One category against the rest; the random splitter takes the u-th category present.
+            const size_t chosen = _params.randomSplitter ? size_t(draws.below(uint32_t(nonEmpty))) : nonEmpty;
+            size_t run          = 0;
+            for (size_t b = first; b <= last; ++b)
+            {
+                if (!records(b)) continue;
+                if (chosen == nonEmpty || run == chosen)
+                {
+                    cost.resetLeft();
+                    addBin(b);
+                    consider(records(b), b);
+                }
+                ++run;
+            }
+            return best;
+        }
+
+        cost.resetLeft();
+        size_t nLeft = 0;
+        if (bins.hasMissing(f))
+        {
+            addBin(bins.missingBin(f));
+            nLeft += records(bins.missingBin(f));
+        }
+        if (_params.randomSplitter)
+        {
+            // Uniform in [upper border of the first nonempty bin, that of the last); the split goes after the
+            // last bin whose border is <= the draw, so both sides are nonempty (defect 1).
+            const double lo = border[first];
+            const double hi = border[last];
+            double t        = lo + draws.unit() * (hi - lo);
+            if (t >= hi) t = lo;
+            size_t a = first, z = last; // border[a] <= t < border[z]
+            while (z - a > 1)
+            {
+                const size_t mid = a + (z - a) / 2;
+                if (border[mid] <= t)
+                    a = mid;
+                else
+                    z = mid;
+            }
+            for (size_t b = first; b <= a; ++b)
+            {
+                if (!records(b)) continue;
+                addBin(b);
+                nLeft += records(b);
+            }
+            consider(nLeft, a);
+            return best;
+        }
+        for (size_t b = first; b < last; ++b)
+        {
+            if (!records(b)) continue;
+            addBin(b);
+            nLeft += records(b);
+            consider(nLeft, b);
+        }
+        return best;
+    }
+
     template <typename Draws>
     Candidate splitOnFeature(TreeContext & ctx, const Record * records, size_t n, Scratch & scratch, Cost & cost, Draws & draws, uint32_t f,
                              bool & constant, services::Status & status) const
     {
-        const bool categorical    = _data.categorical && _data.categorical[f];
+        const bool categorical    = isCategorical(f);
         const algorithmFPType * x = _data.x->data(ctx.numaNode);
         const size_t p            = _data.nFeatures;
         algorithmFPType * values  = scratch.x.get();

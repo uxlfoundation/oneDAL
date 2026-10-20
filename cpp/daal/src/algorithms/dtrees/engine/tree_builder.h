@@ -31,6 +31,7 @@
 
 #include "data_management/data/homogen_numeric_table.h"
 #include "src/algorithms/dtrees/dtrees_model_impl.h"
+#include "src/algorithms/dtrees/engine/bin_matrix.h"
 #include "src/algorithms/dtrees/engine/executor.h"
 #include "src/algorithms/dtrees/engine/numa_alloc.h"
 #include "src/algorithms/dtrees/engine/response_set.h"
@@ -63,6 +64,12 @@ struct TreeParams
     bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeStream
     size_t serialSubtreeRows   = 0;    // see ExecutorParams
     size_t treesInFlight       = 0;
+    // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
+    size_t denseThreshold = 2;
+    size_t maxBins        = 256;
+    // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks (design 4.6).
+    size_t chunkRows = size_t(1) << 14;
+    size_t maxChunks = 64;
 };
 
 /// The training data, read-only for the whole fit.
@@ -72,6 +79,7 @@ struct TreeData
     const NumaReplicated<algorithmFPType, cpu> * x         = nullptr; // row-major, nRows x nFeatures, per NUMA node
     const ResponseSource<algorithmFPType, cpu> * responses = nullptr;
     const bool * categorical                               = nullptr; // per feature; nullptr: all ordered
+    const BinMatrix<cpu> * bins                            = nullptr; // hist: the binned table; nullptr for defaultDense
     size_t nRows                                           = 0;
     size_t nFeatures                                       = 0;
 };

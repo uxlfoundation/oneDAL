@@ -178,6 +178,11 @@ inline uint32_t boundedWord(uint32_t range, NextWord && next)
 // thresholds usually fit, and the read cost is mostly per call (design 4.13).
 constexpr size_t nodeDrawBlock = 16;
 
+// A node's feature draws use words [0, 2^62) of its stream and its splitter draws (random thresholds and
+// categories) words from 2^62, so the two kinds do not depend on how a phase interleaves them: the
+// histogram phase draws its features before any threshold, the exact phase one feature at a time.
+constexpr uint64_t nodeThresholdWords = uint64_t(1) << 62;
+
 // 2^53 and 2^26: a unit draw takes 26 + 27 bits from two words, as for a 53-bit double.
 constexpr double twoPow53 = 9007199254740992.0;
 constexpr double twoPow26 = 67108864.0;
@@ -191,7 +196,8 @@ template <CpuType cpu>
 class CounterNodeDraws
 {
 public:
-    CounterNodeDraws(const CounterRng<cpu> & rng, uint64_t nodeKey) : _rng(rng), _nodeKey(nodeKey) {}
+    /// Draws from word firstWord of the node's stream; the threshold draws of a node start at nodeThresholdWords.
+    CounterNodeDraws(const CounterRng<cpu> & rng, uint64_t nodeKey, uint64_t firstWord = 0) : _rng(rng), _nodeKey(nodeKey), _position(firstWord) {}
 
     /// Uniform integer in [0, range), range > 0.
     uint32_t below(uint32_t range)
@@ -224,9 +230,9 @@ private:
 
     const CounterRng<cpu> & _rng;
     uint64_t _nodeKey;
-    uint64_t _position = 0;
-    size_t _used       = 0;
-    size_t _filled     = 0;
+    uint64_t _position;
+    size_t _used   = 0;
+    size_t _filled = 0;
     uint32_t _words[nodeDrawBlock] {};
     services::Status _status;
 };
