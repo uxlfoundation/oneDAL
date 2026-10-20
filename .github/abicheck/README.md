@@ -63,21 +63,27 @@ The build sources the compiler, MKL and TBB versions pinned in the tag's `.ci/en
 Plain `setvars.sh` picks the newest installed versions, and with those MKL 2026.2 lacks
 `libmkl_intel_ilp64.a`.
 
-Measured cost (local, 2026-10-19):
+Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/oneDAL, 1 h 03 min):
+
+| Step | Time |
+|---|---|
+| Build daal + oneapi_c + oneapi_dpc | 48 min |
+| Binary dump | 57 s |
+| Header dump | 10 min 45 s |
+
+Compares against those assets (local, 5 L2 legs concurrently):
 
 | Step | Time | Memory |
 |---|---|---|
-| Binary dump | 39 s | 333 MiB |
-| Header dump | 9 min 19 s | 1.03 GiB |
-| Blocking compare | 23 s | 413 MiB |
-| L2 leg (each) | ~45 s | ~0.9 GiB |
+| Blocking compare | 32 s | 486 MiB |
+| L2 leg (each) | 1:00-1:26 | 0.7-0.9 GiB |
 
-Gen2 assets:
+Gen2 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3):
 
 | Asset | Bytes | sha256 |
 |---|---|---|
-| binary | 29,720,054 | `7fffdd118f12c55822c53c5b37750d44329d5420431112597a6daf78ebbe729c` |
-| headers | 10,360,846 | `166126e3cfa6ffabfc780162381b363726ff7013ffac189b0b86f46b53d515be` |
+| binary | 27,630,663 | `bcd881da6543d70504a955e2c4a270c3c4c9d1f2994410ebdc6579a58c26dfa6` |
+| headers | 10,335,721 | `844399777aa961184fd3ade577929f95abf5987a3d9d9c8310f6436148b4e739` |
 
 ## Rules
 
@@ -86,7 +92,7 @@ per `label` in the json's `disposition_audit`.
 
 | label | Matches 2026.0.0 → main | Evidence |
 |---|---|---|
-| `weak-func-hidden` | 2002 bin, ≤2073 L2 | #3604 `-fvisibility-inlines-hidden` (867c643b9, from 2026.1.0) hides WEAK inline/template symbols. GLOBAL removals still break. |
+| `weak-func-hidden` | 2001 bin, ≤659 L2 | #3604 `-fvisibility-inlines-hidden` (867c643b9, from 2026.1.0) hides WEAK inline/template symbols. GLOBAL removals still break. |
 | `weak-var-hidden`, `weak-var-hidden-elf` | 24 | same; WEAK template statics |
 | `weak-inst-hidden` | 42 | same; WEAK instantiations |
 | `weak-template-leak` | 102 | same; restates hidden WEAK templates |
@@ -118,9 +124,10 @@ Controls run against the final policy (patched ELFs):
   prefers any `*.abicheck.json` release asset over the named set, and it passes no
   `expected_project_ref`. Do not attach such assets to releases. Upstream ask filed.
 * **Bundle findings.** With `system_providers` the bundle check gives 156
-  `bundle_intra_dep_signature_unverified` + 17 `bundle_unresolved_intra_dependency`.
+  `bundle_intra_dep_signature_unverified` + 37 `bundle_unresolved_intra_dependency`.
   Without it, about 200 more unresolved findings. Both are risk only, so neither affects
   the verdict.
-* **Local measurements used compiler 2026.1.1** for the PR side versus 2025.3 in the
-  baseline. CI builds both sides with the tag's pins, but the PR side follows `main`'s
-  `apt.sh`.
+* **Compiler skew between the sides.** The baseline is built with the tag's `apt.sh` pins
+  (icx 2025.3.3 for 2026.0.0); the PR side uses `main`'s `apt.sh`. WEAK template
+  instantiations differ with the compiler, so `weak-func-hidden` counts move when either pin
+  changes.
