@@ -54,15 +54,8 @@ reclassify:
     to: risk
     expires: 2027-04-01
     reason: Headers depth only. The WEAK instantiation is hidden by #3604, but setArrays<T> is still an inline template in csr_numeric_table.h.
-  - label: threader-int64-3471
-    kind: func_removed_elf_only
-    symbol_pattern: '_daal_threader_for_(int64|blocked_size)'
+  - label: threader-internal-3471
+    symbol_pattern: '^_daal_(static_)?threader_for.*'
     to: risk
     expires: 2027-04-01
-    reason: '#3471 moved libonedal_thread to int64 indices; its only clients are libonedal_core and libonedal of the same release.'
-  - label: threader-int64-3471-rename
-    kind: func_likely_renamed
-    symbol_pattern: '_daal_threader_for_int32ptr'
-    to: risk
-    expires: 2027-04-01
-    reason: Same #3471 change, paired as a rename.
+    reason: 'internal C-linkage entry points of libonedal_thread, no installed header; accepted in #3471, same deselection as .github/.abignore'
