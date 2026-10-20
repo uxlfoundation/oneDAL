@@ -293,6 +293,23 @@ public:
         return errcode;
     }
 
+    int skipAheadEx(size_t nWords, const DAAL_UINT64 * nSkip)
+    {
+        // vslSkipAheadStreamEx supports fewer generators than vslSkipAheadStream (not MT19937), so skips
+        // that fit a long long take the one-word call.
+        if (fitsOneWord(nWords, nSkip)) return skipAhead(nWords ? size_t(nSkip[0]) : 0);
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslSkipAheadStreamEx, (_stream, (const MKL_INT)nWords, (const MKL_UINT64 *)nSkip), errcode);
+        return errcode;
+    }
+
+    int copyState(void * srcState)
+    {
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslCopyStreamState, (_stream, (const VSLStreamStatePtr)srcState), errcode);
+        return errcode;
+    }
+
     void * getState() { return _stream; }
 
 protected:

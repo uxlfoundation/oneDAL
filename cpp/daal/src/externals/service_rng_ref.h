@@ -299,6 +299,20 @@ public:
         return errcode;
     }
 
+    // std::discard takes one count, so only skips that fit one word are supported.
+    int skipAheadEx(size_t nWords, const DAAL_UINT64 * nSkip)
+    {
+        if (!fitsOneWord(nWords, nSkip)) return __DAAL_SKIP_AHEAD_METHOD_ERRCODE;
+        if (nWords) _stream->discard(size_t(nSkip[0]));
+        return 0;
+    }
+
+    int copyState(void * srcState)
+    {
+        _stream->assign(srcState);
+        return 0;
+    }
+
     void * getState() { return _stream; }
 
 private:
