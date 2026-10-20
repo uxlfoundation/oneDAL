@@ -412,6 +412,7 @@ void qSortByKey(size_t n, T * x)
 template <typename algorithmDataType, typename algorithmIndexType, CpuType cpu>
 size_t qSort(size_t n, algorithmDataType * x, algorithmIndexType * index, bool hasNaN = false)
 {
+    // Not the library's hasnan: its std::isnan check can be folded away under -ffast-math.
     const size_t nNotNaN = hasNaN ? moveNaNsToEnd<algorithmDataType, algorithmIndexType, cpu>(n, x, index) : n;
 #if defined(DAAL_SIMD_SORT_ENABLED)
     if constexpr (useSimdSort<cpu, algorithmDataType, algorithmIndexType>)
