@@ -676,6 +676,70 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: minkowski merge distances match the MST of std::pow distances",
+                     "[hdbscan][batch]",
+                     hdbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // 1.5 and 3 are raised by multiplication and 2.7 through vPowx; 300 columns do not fit one
+    // vPowx buffer.
+    const double degree = GENERATE(1.5, 2.7, 3.0);
+    const std::int64_t column_count = GENERATE(3, 300);
+    CAPTURE(degree, column_count);
+
+    constexpr std::int64_t row_count = 60;
+    const auto data = te::make_blobs<Float>(20, 3, column_count, Float(5.0), Float(2.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    // With min_samples = 1 every core distance is 0, so the merge distances are the MST weights.
+    const auto desc =
+        this->get_descriptor(2, 1, distance_metric::minkowski, degree)
+            .set_result_options(result_options::responses | result_options::single_linkage_tree);
+    const auto tree = this->get_single_linkage_tree(this->compute(desc, x));
+
+    const auto distance = [&](std::int64_t a, std::int64_t b) {
+        double sum = 0.0;
+        for (std::int64_t d = 0; d < column_count; d++) {
+            const double diff =
+                double(data[a * column_count + d]) - double(data[b * column_count + d]);
+            sum += std::pow(std::abs(diff), degree);
+        }
+        return std::pow(sum, 1.0 / degree);
+    };
+
+    // Prim's algorithm; the sorted MST weights do not depend on how ties are broken.
+    std::vector<double> best(row_count, std::numeric_limits<double>::infinity());
+    std::vector<bool> in_tree(row_count, false);
+    std::vector<double> weights;
+    best[0] = 0.0;
+    for (std::int64_t step = 0; step < row_count; step++) {
+        std::int64_t u = -1;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            if (!in_tree[i] && (u < 0 || best[i] < best[u])) {
+                u = i;
+            }
+        }
+        in_tree[u] = true;
+        if (step > 0) {
+            weights.push_back(best[u]);
+        }
+        for (std::int64_t v = 0; v < row_count; v++) {
+            if (!in_tree[v]) {
+                best[v] = std::min(best[v], distance(u, v));
+            }
+        }
+    }
+    std::sort(weights.begin(), weights.end());
+
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-10);
+    for (std::int64_t e = 0; e < row_count - 1; e++) {
+        CAPTURE(e, tree[4 * e + 2], weights[e]);
+        REQUIRE(std::abs(double(tree[4 * e + 2]) - weights[e]) <= tol * weights[e]);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: alpha=1 is default behavior",
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
