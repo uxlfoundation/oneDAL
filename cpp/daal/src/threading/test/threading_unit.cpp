@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -611,6 +612,41 @@ TEST("NUMA arenas share the thread count set by setNumberOfThreads", "[threading
         REQUIRE(threads == 1);
     }
     REQUIRE(restored == initial);
+}
+
+TEST("NUMA arenas can be first entered from a worker whose slot index exceeds their size", "[threading][unit]")
+{
+    const int nodes           = threader_numa_count();
+    const size_t savedThreads = threader_get_threads_number();
+    if (nodes < 2 || savedThreads < 4 * static_cast<size_t>(nodes)) return;
+
+    // A new thread count replaces the arenas, so the next entry into each one initializes it.
+    const size_t nThreads = savedThreads - 1;
+    services::Environment::getInstance()->setNumberOfThreads(nThreads);
+    const int64_t minSlot = static_cast<int64_t>(nThreads / static_cast<size_t>(nodes)) + 1;
+
+    // Threads below minSlot hold their iteration until a thread at or above it claims one, so the
+    // loop cannot finish on low slots alone; the deadline only keeps a broken scheduler from hanging.
+    const int64_t n     = static_cast<int64_t>(4 * nThreads);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    std::atomic<bool> claimed { false };
+    std::atomic<int> entered { 0 };
+    threader_for(n, 1, [&](int64_t) {
+        if (threader_get_max_current_thread_index() < minSlot)
+        {
+            while (!claimed.load() && std::chrono::steady_clock::now() < deadline) std::this_thread::yield();
+            return;
+        }
+        if (claimed.exchange(true)) return;
+        for (int node = 0; node < nodes; ++node)
+        {
+            threader_execute_in_numa(node, [&]() { entered.fetch_add(1); });
+        }
+    });
+    services::Environment::getInstance()->setNumberOfThreads(savedThreads);
+
+    REQUIRE(claimed.load());
+    REQUIRE(entered.load() == nodes);
 }
 
 #if defined(__linux__)

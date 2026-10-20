@@ -644,6 +644,9 @@ inline int threader_numa_count()
 /// therefore races; code run through this function uses `tls`, or a `static_tls`
 /// constructed inside the arena that uses it.
 ///
+/// Requires oneTBB 2023.2 or later when `tbbbind` is loaded. Earlier versions write out of bounds
+/// when a worker whose slot index exceeds the arena's size is the first to enter it (oneTBB #2121).
+///
 /// @tparam F   Callable object of type `[/* captures */]() -> void`.
 ///
 /// @param[in] node Index of the NUMA node, `0 <= node < threader_numa_count()`.

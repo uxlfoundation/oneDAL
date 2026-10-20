@@ -937,7 +937,8 @@ namespace
 {
 /// One arena per NUMA node. The arenas are sized from the thread count set by
 /// `setNumberOfThreads` and replaced when it changes; a caller still executing in a replaced
-/// arena keeps it alive through its `SharedPtr`.
+/// arena keeps it alive through its `SharedPtr`. Each arena is initialized by the first thread to
+/// enter it, which needs oneTBB 2023.2 or later (see `threader_execute_in_numa`).
 class NumaArenas
 {
     template <typename T>
