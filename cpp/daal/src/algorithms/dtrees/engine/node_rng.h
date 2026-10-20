@@ -86,18 +86,46 @@ constexpr size_t philoxBlockWords = 4;
  *  mutable. Backends that cannot skip past 2^64 (the reference backend, whose philox4x32x10 is not
  *  philox) fail init with ErrorMethodNotSupported.
  */
+/// Per-thread working streams of philox4x32x10, shared by every CounterRng of a fit. A thread's
+/// stream is reset from a CounterRng's base state before each read, so one stream per thread serves
+/// all keys.
+template <CpuType cpu>
+class CounterStreams
+{
+    using Stream = daal::internal::BaseRNGsInst<cpu>;
+
+public:
+    CounterStreams()
+        : _streams([]() -> Stream * {
+              const unsigned int seed[2] = { 0, 0 };
+              return new Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
+          })
+    {}
+    ~CounterStreams()
+    {
+        _streams.reduce([](Stream * s) { delete s; });
+    }
+    CounterStreams(const CounterStreams &)             = delete;
+    CounterStreams & operator=(const CounterStreams &) = delete;
+
+    Stream * local() const { return _streams.local(); }
+
+private:
+    mutable daal::tls<Stream *> _streams;
+};
+
 template <CpuType cpu>
 class CounterRng
 {
     using Stream = daal::internal::BaseRNGsInst<cpu>;
 
 public:
-    CounterRng() : _streams([this]() -> Stream * { return _base ? new Stream(*_base) : nullptr; }) {}
-    ~CounterRng()
-    {
-        _streams.reduce([](Stream * s) { delete s; });
-        delete _base;
-    }
+    /// Reads through shared's per-thread streams, or through its own when shared is null.
+    explicit CounterRng(const CounterStreams<cpu> * shared = nullptr) : _streams(shared ? shared : &_own) {}
+    ~CounterRng() { delete _base; }
+
+    /// Reads through shared's per-thread streams from now on; shared must outlive this object.
+    void useStreams(const CounterStreams<cpu> * shared) { _streams = shared ? shared : &_own; }
     CounterRng(const CounterRng &)             = delete;
     CounterRng & operator=(const CounterRng &) = delete;
 
@@ -117,7 +145,7 @@ public:
     /// Writes words [position, position + n) of stream streamId to out.
     services::Status read(uint64_t streamId, uint64_t position, size_t n, uint32_t * out) const
     {
-        Stream * s = _streams.local();
+        Stream * s = _streams->local();
         DAAL_CHECK_MALLOC(s && s->getState());
         // Skip of streamId * 2^66 + position words, as three 64-bit words.
         const DAAL_UINT64 skip[3] = { position, streamId << 2, streamId >> 62 };
@@ -128,8 +156,188 @@ public:
     }
 
 private:
+    CounterStreams<cpu> _own;
+    const CounterStreams<cpu> * _streams;
     Stream * _base = nullptr;
-    mutable daal::tls<Stream *> _streams;
+};
+
+/// Unbiased integer in [0, range) from 32-bit words (Lemire, ACM TOMACS 2019), range > 0.
+template <CpuType cpu, typename NextWord>
+inline uint32_t boundedWord(uint32_t range, NextWord && next)
+{
+    uint64_t m = uint64_t(next()) * range;
+    if (uint32_t(m) < range)
+    {
+        const uint32_t t = uint32_t(-range) % range;
+        while (uint32_t(m) < t) m = uint64_t(next()) * range;
+    }
+    return uint32_t(m >> 32);
+}
+
+// Words read per CounterRng call for one node: a feature subset of sqrt(p) features and its random
+// thresholds usually fit, and the read cost is mostly per call (design 4.13).
+constexpr size_t nodeDrawBlock = 16;
+
+// 2^53 and 2^26: a unit draw takes 26 + 27 bits from two words, as for a 53-bit double.
+constexpr double twoPow53 = 9007199254740992.0;
+constexpr double twoPow26 = 67108864.0;
+
+/**
+ *  \brief Draws of one node with philox4x32x10: word w is word w of stream nodeKey of the tree's CounterRng
+ *
+ *  The draws depend only on (treeSeed, nodeKey) and their order within the node.
+ */
+template <CpuType cpu>
+class CounterNodeDraws
+{
+public:
+    CounterNodeDraws(const CounterRng<cpu> & rng, uint64_t nodeKey) : _rng(rng), _nodeKey(nodeKey) {}
+
+    /// Uniform integer in [0, range), range > 0.
+    uint32_t below(uint32_t range)
+    {
+        return boundedWord<cpu>(range, [this]() { return next(); });
+    }
+
+    /// Uniform double in [0, 1).
+    double unit()
+    {
+        const double hi = double(next() >> 6);
+        const double lo = double(next() >> 5);
+        return (hi * twoPow26 * 2 + lo) / twoPow53;
+    }
+
+    const services::Status & status() const { return _status; }
+
+private:
+    uint32_t next()
+    {
+        if (_used == _filled)
+        {
+            _status |= _rng.read(_nodeKey, _position, nodeDrawBlock, _words);
+            _position += nodeDrawBlock;
+            _filled = nodeDrawBlock;
+            _used   = 0;
+        }
+        return _words[_used++];
+    }
+
+    const CounterRng<cpu> & _rng;
+    uint64_t _nodeKey;
+    uint64_t _position = 0;
+    size_t _used       = 0;
+    size_t _filled     = 0;
+    uint32_t _words[nodeDrawBlock] {};
+    services::Status _status;
+};
+
+/**
+ *  \brief Draws of one node from a stream of the user's engine owned by the calling thread
+ *
+ *  For engines other than philox4x32x10 (design 4.13): draws are taken in execution order, so they
+ *  depend on which thread builds the node and on what it drew before.
+ */
+template <CpuType cpu>
+class StreamNodeDraws
+{
+public:
+    explicit StreamNodeDraws(void * streamState) : _state(streamState) {}
+
+    uint32_t below(uint32_t range)
+    {
+        int v = 0;
+        daal::internal::RNGsInst<int, cpu> rng;
+        if (rng.uniform(1, &v, _state, 0, int(range))) _status |= services::Status(services::ErrorIncorrectErrorcodeFromGenerator);
+        return uint32_t(v);
+    }
+
+    double unit()
+    {
+        double v = 0;
+        daal::internal::RNGsInst<double, cpu> rng;
+        if (rng.uniform(1, &v, _state, 0.0, 1.0)) _status |= services::Status(services::ErrorIncorrectErrorcodeFromGenerator);
+        return v < 1.0 ? v : 0.0;
+    }
+
+    const services::Status & status() const { return _status; }
+
+private:
+    void * _state;
+    services::Status _status;
+};
+
+// A node's permutation is a full identity array, reset per node, below this many features or when the
+// node may draw at least 1/8 of them; otherwise a table of the swapped positions, so a node with few
+// draws over many features costs O(draws^2) with small draws rather than O(p).
+constexpr size_t densePermutationFeatures  = 4096;
+constexpr size_t densePermutationDrawShare = 8;
+
+/**
+ *  \brief The features of a node in draw order: a Fisher-Yates permutation of [0, p) drawn one element at a time
+ *
+ *  Draw j is uniform over the p - j features not yet drawn, so the first k draws are a uniform
+ *  k-subset in a uniform order (design 4.13).
+ */
+template <CpuType cpu>
+class FeaturePermutation
+{
+public:
+    /// scratch holds 2 * nFeatures entries; expectedDraws selects the representation.
+    FeaturePermutation(uint32_t nFeatures, size_t expectedDraws, uint32_t * scratch)
+        : _p(nFeatures),
+          _dense(nFeatures <= densePermutationFeatures || expectedDraws * densePermutationDrawShare >= nFeatures),
+          _keys(scratch),
+          _values(scratch + nFeatures)
+    {
+        if (_dense)
+            for (uint32_t i = 0; i < _p; ++i) _keys[i] = i;
+    }
+
+    bool exhausted() const { return _drawn == _p; }
+
+    template <typename Draws>
+    uint32_t next(Draws & draws)
+    {
+        const uint32_t j    = _drawn++;
+        const uint32_t pick = j + draws.below(_p - j);
+        if (_dense)
+        {
+            const uint32_t v = _keys[pick];
+            _keys[pick]      = _keys[j];
+            _keys[j]         = v;
+            return v;
+        }
+        const uint32_t v = lookup(pick);
+        set(pick, lookup(j));
+        return v;
+    }
+
+private:
+    uint32_t lookup(uint32_t pos) const
+    {
+        for (size_t i = 0; i < _n; ++i)
+            if (_keys[i] == pos) return _values[i];
+        return pos;
+    }
+    void set(uint32_t pos, uint32_t value)
+    {
+        for (size_t i = 0; i < _n; ++i)
+            if (_keys[i] == pos)
+            {
+                _values[i] = value;
+                return;
+            }
+        _keys[_n]   = pos;
+        _values[_n] = value;
+        ++_n;
+    }
+
+    uint32_t _p;
+    bool _dense;
+    uint32_t * _keys;
+    uint32_t * _values;
+    size_t _n       = 0;
+    uint32_t _drawn = 0;
 };
 
 } // namespace internal

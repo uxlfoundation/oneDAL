@@ -9,6 +9,8 @@ daal_module(
     srcs = glob(["*.cpp"], allow_empty = True),
     deps = [
         "@onedal//cpp/daal:core",
+        # DecisionTreeTable, the model's tree format
+        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
     ],
 )
 

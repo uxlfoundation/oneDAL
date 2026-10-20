@@ -64,13 +64,6 @@ constexpr size_t unlimitedBins = ~size_t(0);
 
 namespace binner
 {
-inline uint32_t popcount(uint32_t v)
-{
-    v = v - ((v >> 1) & 0x55555555u);
-    v = (v & 0x33333333u) + ((v >> 2) & 0x33333333u);
-    return (((v + (v >> 4)) & 0x0F0F0F0Fu) * 0x01010101u) >> 24;
-}
-
 /// Number of the n sorted values below x.
 template <CpuType cpu>
 inline size_t countBelow(const double * sorted, size_t n, double x)
@@ -165,22 +158,22 @@ void QuantileBinner<algorithmFPType, cpu>::searchBins(const double * inner, size
             const double v = double(x[i * xStride]);
     #if (__CPUID__(DAAL_CPU) == __avx512__)
             const __m512d xv = _mm512_set1_pd(v);
-            uint32_t q       = binner::popcount(_mm512_cmp_pd_mask(_mm512_load_pd(coarse), xv, _CMP_LT_OQ))
-                         + binner::popcount(_mm512_cmp_pd_mask(_mm512_load_pd(coarse + 8), xv, _CMP_LT_OQ));
+            uint32_t q       = _mm_popcnt_u32(_mm512_cmp_pd_mask(_mm512_load_pd(coarse), xv, _CMP_LT_OQ))
+                         + _mm_popcnt_u32(_mm512_cmp_pd_mask(_mm512_load_pd(coarse + 8), xv, _CMP_LT_OQ));
             q                 = q < simdSearchBlock ? q : simdSearchBlock - 1;
             const double * bl = padded + q * simdSearchBlock;
-            const uint32_t r  = binner::popcount(_mm512_cmp_pd_mask(_mm512_load_pd(bl), xv, _CMP_LT_OQ))
-                               + binner::popcount(_mm512_cmp_pd_mask(_mm512_load_pd(bl + 8), xv, _CMP_LT_OQ));
+            const uint32_t r  = _mm_popcnt_u32(_mm512_cmp_pd_mask(_mm512_load_pd(bl), xv, _CMP_LT_OQ))
+                               + _mm_popcnt_u32(_mm512_cmp_pd_mask(_mm512_load_pd(bl + 8), xv, _CMP_LT_OQ));
     #else
             const __m256d xv = _mm256_set1_pd(v);
             uint32_t q       = 0;
             for (size_t j = 0; j < simdSearchBlock; j += 4)
-                q += binner::popcount(uint32_t(_mm256_movemask_pd(_mm256_cmp_pd(_mm256_load_pd(coarse + j), xv, _CMP_LT_OQ))));
+                q += _mm_popcnt_u32(uint32_t(_mm256_movemask_pd(_mm256_cmp_pd(_mm256_load_pd(coarse + j), xv, _CMP_LT_OQ))));
             q                 = q < simdSearchBlock ? q : simdSearchBlock - 1;
             const double * bl = padded + q * simdSearchBlock;
             uint32_t r        = 0;
             for (size_t j = 0; j < simdSearchBlock; j += 4)
-                r += binner::popcount(uint32_t(_mm256_movemask_pd(_mm256_cmp_pd(_mm256_load_pd(bl + j), xv, _CMP_LT_OQ))));
+                r += _mm_popcnt_u32(uint32_t(_mm256_movemask_pd(_mm256_cmp_pd(_mm256_load_pd(bl + j), xv, _CMP_LT_OQ))));
     #endif
             const size_t bin = size_t(q) * simdSearchBlock + r;
             bins[i]          = uint32_t(bin < nInner ? bin : nInner);
