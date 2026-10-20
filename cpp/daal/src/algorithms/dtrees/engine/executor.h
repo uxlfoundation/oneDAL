@@ -75,8 +75,9 @@ struct ExecutorParams
  *
  *  Builder provides:
  *  - WorkItem, a copyable node description, and TreeContext, default-constructible per-runner state.
- *  - Status initContext(TreeContext &): called once per runner, inside the runner's arena. Per-tree
- *    buffers allocated here are reused by every tree the runner builds and stay on its NUMA node.
+ *  - Status initContext(TreeContext &, int numaNode): called once per runner, inside the arena of NUMA
+ *    node numaNode, in [0, threader_numa_count()). Per-tree buffers allocated here are reused by every
+ *    tree the runner builds and stay on that node; numaNode also selects the node's data replicas.
  *  - Status beginTree(TreeContext &, size_t iTree, WorkItem & root)
  *  - Status evaluate(TreeContext &, WorkItem &, bool & splittable): finds the item's split. In
  *    best-first trees it also sets the improvement the heap orders by.
@@ -110,12 +111,13 @@ public:
         const int nArenas = threader_numa_count();
         if (nArenas == 1)
         {
-            runArena(safeStat);
+            runArena(0, safeStat);
         }
         else
         {
-            daal::threader_for(nArenas, 1,
-                               [&](size_t iArena) { daal::threader_execute_in_numa(static_cast<int>(iArena), [&]() { runArena(safeStat); }); });
+            daal::threader_for(nArenas, 1, [&](size_t iArena) {
+                daal::threader_execute_in_numa(static_cast<int>(iArena), [&]() { runArena(static_cast<int>(iArena), safeStat); });
+            });
         }
         return safeStat.detach();
     }
@@ -138,16 +140,16 @@ private:
     };
 
     // One runner per thread of the arena; each runs trees one at a time until none are left.
-    void runArena(SafeStatus & safeStat)
+    void runArena(int numaNode, SafeStatus & safeStat)
     {
         const int nRunners = threader_get_max_threads_number();
         daal::task_group group;
-        auto runner = [&]() { runTrees(safeStat); };
+        auto runner = [&]() { runTrees(numaNode, safeStat); };
         for (int i = 0; i < nRunners; ++i) group.run(runner);
         group.wait();
     }
 
-    void runTrees(SafeStatus & safeStat)
+    void runTrees(int numaNode, SafeStatus & safeStat)
     {
         // Runners hold the per-tree buffers, so bounding them bounds the trees in flight.
         if (_params.treesInFlight && _runners.inc() > _params.treesInFlight) return;
@@ -159,7 +161,7 @@ private:
             if (iTree >= _params.nTrees) return;
             if (!initialized)
             {
-                const services::Status s = _builder.initContext(ctx);
+                const services::Status s = _builder.initContext(ctx, numaNode);
                 DAAL_CHECK_STATUS_THR(s);
                 initialized = true;
             }

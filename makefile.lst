@@ -68,6 +68,7 @@ CORE.ALGORITHMS.FULL :=                                                       \
     distributions/normal                                                      \
     distributions/uniform                                                     \
     dtrees                                                                    \
+    dtrees/engine                                                             \
     dtrees/forest                                                             \
     dtrees/forest/classification                                              \
     dtrees/forest/regression                                                  \

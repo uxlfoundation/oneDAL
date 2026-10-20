@@ -27,7 +27,7 @@
 #include "oneapi/dal/test/engine/common.hpp"
 #include "services/env_detect.h"
 #include "src/algorithms/dtrees/engine/executor.h"
-#include "src/algorithms/dtrees/engine/philox_counter.h"
+#include "src/algorithms/dtrees/engine/node_rng.h"
 
 namespace daal::algorithms::dtrees::engine::internal::test
 {
@@ -94,8 +94,9 @@ public:
         for (size_t i = 0; i < nTrees; ++i) logs.emplace_back(new TreeLog);
     }
 
-    services::Status initContext(TreeContext & ctx)
+    services::Status initContext(TreeContext & ctx, int numaNode)
     {
+        if (numaNode < 0 || numaNode >= threader_numa_count()) contractViolated = true;
         ctx.initialized = true;
         ++contexts;
         return services::Status();
