@@ -4,4 +4,5 @@ cc_library(
     name = "headers",
     hdrs = glob(["src/*.h", "src/*.hpp"]),
     includes = [ "src" ],
+    defines = [ "DAAL_USE_SIMD_SORT" ],
 )

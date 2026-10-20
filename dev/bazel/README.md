@@ -402,6 +402,16 @@ The most used Bazel commands are `build`, `test` and `run`.
   bazel build //cpp/daal:core_static --stdalloc=true
   ```
 
+- `--simd_sort` Uses [x86-simd-sort](https://github.com/intel/x86-simd-sort)
+  for DAAL key-value sorts in AVX2 and AVX-512 kernels on x86-64. Enabled by default.
+  Set it to `false` to build without fetching `@simd_sort`, for example
+  offline; sorts then use the scalar implementation.
+
+  Example:
+  ```sh
+  bazel build //cpp/daal:core_static --simd_sort=false
+  ```
+
 ## Build recipes for oneDAL
 ### Build release artifacts
 - To build the Bazel release artifacts, run:

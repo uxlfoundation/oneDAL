@@ -28,8 +28,23 @@
 #include "src/algorithms/service_heap.h"
 #include "services/collection.h"
 
+#include <type_traits>
+
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include <immintrin.h>
+    #define __RADIX_SORT_CAST32(x) (_castf32_u32(x))
+    #define __RADIX_SORT_CAST64(x) (_castf64_u64(x))
+#else
+    #define __RADIX_SORT_CAST32(x) (*reinterpret_cast<const unsigned int *>(&(x)))
+    #define __RADIX_SORT_CAST64(x) (*reinterpret_cast<const DAAL_UINT64 *>(&(x)))
+#endif
+
+// x86-simd-sort picks its ISA from the compiler target, so it is usable only in
+// translation units built for AVX2 or for AVX-512 with DQ and VL.
+#if defined(DAAL_USE_SIMD_SORT) && defined(__AVX2__) && (!defined(__AVX512F__) || (defined(__AVX512DQ__) && defined(__AVX512VL__)))
+    #include <cstdint>
+    #include "x86simdsort-static-incl.h"
+    #define DAAL_SIMD_SORT_ENABLED
 #endif
 
 namespace daal
@@ -42,6 +57,65 @@ using namespace daal::internal;
 using namespace services::internal;
 
 typedef int (*CompareFunction)(const void *, const void *);
+
+#if defined(DAAL_SIMD_SORT_ENABLED)
+template <typename T>
+constexpr bool isSimdSortType = std::is_same_v<T, float> || std::is_same_v<T, double> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>
+                                || std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>;
+
+// The cpu check keeps generic (sse2) instantiations on the scalar path even in AVX2 translation units.
+template <CpuType cpu, typename... T>
+constexpr bool useSimdSort = (cpu >= avx2) && (isSimdSortType<T> && ...);
+#endif
+
+// Bitwise NaN test, which compiler fast-math modes cannot fold away. The IEEE 754 masks
+// match src/data_management/finiteness_checker.h, which data_management's dependency on
+// these headers keeps from being included here.
+template <typename T, CpuType cpu>
+inline bool isNaN(const T & value)
+{
+    if constexpr (std::is_same_v<T, float>)
+    {
+        constexpr unsigned int absMask = 0x7fffffffu;
+        constexpr unsigned int expMask = 0x7f800000u;
+        return (__RADIX_SORT_CAST32(value) & absMask) > expMask;
+    }
+    else if constexpr (std::is_same_v<T, double>)
+    {
+        constexpr DAAL_UINT64 absMask = 0x7fffffffffffffffull;
+        constexpr DAAL_UINT64 expMask = 0x7ff0000000000000ull;
+        return (__RADIX_SORT_CAST64(value) & absMask) > expMask;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/**
+ *  \brief Moves NaN keys, and the indices paired with them, to the end of the arrays
+ *
+ *  \return Number of keys that are not NaN; they occupy the front of the arrays
+ */
+template <typename algorithmDataType, typename algorithmIndexType, CpuType cpu>
+size_t moveNaNsToEnd(size_t n, algorithmDataType * x, algorithmIndexType * index)
+{
+    size_t nNotNaN = n;
+    for (size_t i = 0; i < nNotNaN;)
+    {
+        if (isNaN<algorithmDataType, cpu>(x[i]))
+        {
+            --nNotNaN;
+            daal::services::internal::swap<cpu, algorithmDataType>(x[i], x[nNotNaN]);
+            daal::services::internal::swap<cpu, algorithmIndexType>(index[i], index[nNotNaN]);
+        }
+        else
+        {
+            ++i;
+        }
+    }
+    return nNotNaN;
+}
 
 /**
  * \brief Quick sort function that sorts array x
@@ -327,20 +401,32 @@ void qSortByKey(size_t n, T * x)
  *  \brief Quick sort function that sorts array x and rearranges array index
  *         accordingly
  *
- *  \param n[in] Length of input arrays
- *  \param x     Array that is used as "key" when sorted
- *  \param index Array that is used as "value" when sorted
+ *  \param n[in]      Length of input arrays
+ *  \param x          Array that is used as "key" when sorted
+ *  \param index      Array that is used as "value" when sorted
+ *  \param hasNaN[in] Whether x may contain NaN. If true, NaN keys and their indices are
+ *                    moved to the end and the rest is sorted; if false, x must not contain NaN.
+ *
+ *  \return Number of keys that are not NaN, sorted at the front of the arrays
  */
 template <typename algorithmDataType, typename algorithmIndexType, CpuType cpu>
-void qSort(size_t n, algorithmDataType * x, algorithmIndexType * index)
+size_t qSort(size_t n, algorithmDataType * x, algorithmIndexType * index, bool hasNaN = false)
 {
+    const size_t nNotNaN = hasNaN ? moveNaNsToEnd<algorithmDataType, algorithmIndexType, cpu>(n, x, index) : n;
+#if defined(DAAL_SIMD_SORT_ENABLED)
+    if constexpr (useSimdSort<cpu, algorithmDataType, algorithmIndexType>)
+    {
+        x86simdsortStatic::keyvalue_qsort(x, index, nNotNaN, false);
+        return nNotNaN;
+    }
+#endif
     int i, ir, j, k, jstack = -1, l = 0;
     algorithmDataType a;
     algorithmIndexType b;
     const int M = 7, NSTACK = 128;
     algorithmDataType istack[NSTACK];
 
-    ir = n - 1;
+    ir = nNotNaN - 1;
 
     for (;;)
     {
@@ -429,6 +515,7 @@ void qSort(size_t n, algorithmDataType * x, algorithmIndexType * index)
             }
         }
     }
+    return nNotNaN;
 }
 
 template <typename algorithmFPtype, typename wType, typename zType, CpuType cpu>
@@ -561,14 +648,6 @@ void indexBubbleSortDesc(services::Collection<algorithmFPtype> & x, services::Co
         }
     }
 }
-
-#if defined(DAAL_INTEL_CPP_COMPILER)
-    #define __RADIX_SORT_CAST32(x) (_castf32_u32(x))
-    #define __RADIX_SORT_CAST64(x) (_castf64_u64(x))
-#else
-    #define __RADIX_SORT_CAST32(x) (*reinterpret_cast<const unsigned int *>(&(x)))
-    #define __RADIX_SORT_CAST64(x) (*reinterpret_cast<const DAAL_UINT64 *>(&(x)))
-#endif
 
 #define DAAL_INSERTION_SORT_MAX_SIZE_IN_INTROSORT 32
 #define DAAL_MIDDLE_OF_3_THRESHOLD                41

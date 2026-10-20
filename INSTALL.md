@@ -183,13 +183,13 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
-7. Set up the SIMD sort library (x86-64 only)
+7. (Optional, recommended) Set up the SIMD sort library (x86-64 only)
 
-    On x86-64, oneDAL uses the static headers of [x86-simd-sort](https://github.com/intel/x86-simd-sort) at the release pinned in `dev/bazel/deps/simd_sort.bzl`. Fetch them into `__deps/simd_sort` (Linux\*, or MSYS2 bash on Windows\*):
+    On x86-64, oneDAL sorts with the static headers of [x86-simd-sort](https://github.com/intel/x86-simd-sort) at the release pinned in `dev/bazel/deps/simd_sort.bzl`. Fetch them into `__deps/simd_sort` (Linux\*, or MSYS2 bash on Windows\*):
 
             ./dev/download_simd_sort.sh
 
-    Alternatively, point `SIMD_SORT_ROOT` at an x86-simd-sort source tree of that release. ARM and RISC-V builds do not use it.
+    Alternatively, point `SIMD_SORT_ROOT` at an x86-simd-sort source tree of that release. Without the headers, the build prints a warning and uses the scalar sort. ARM and RISC-V builds do not use it.
 
 8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker, memory allocator, and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
