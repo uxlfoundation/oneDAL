@@ -504,6 +504,47 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan tree methods: wide data gives the brute force hierarchy",
+                     "[hdbscan][batch]",
+                     hdbscan_tree_types) {
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // From 32 columns the tree methods build the MST with Prim's algorithm instead of Boruvka.
+    const std::int64_t column_count = GENERATE(31, 32, 64);
+    const auto metric = GENERATE(distance_metric::euclidean, distance_metric::manhattan);
+    CAPTURE(column_count, metric);
+
+    constexpr std::int64_t per_cluster = 150;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(10.0),
+                                            /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto ref_desc =
+        this->template get_method_descriptor<hdbscan::method::brute_force>(10, 5, metric)
+            .set_result_options(options);
+    const auto desc =
+        this->template get_method_descriptor<Method>(10, 5, metric).set_result_options(options);
+    const auto ref = this->compute(ref_desc, x);
+    const auto result = this->compute(desc, x);
+
+    // The float32 brute force computes squared L2 from norms and dot products.
+    this->check_same_result(ref, result);
+    check_same_hierarchy(this->get_single_linkage_tree(result),
+                         this->get_single_linkage_tree(ref),
+                         row_count,
+                         te::get_tolerance<Float>(1e-2, 1e-9));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: threaded MST is stable across runs",
                      "[hdbscan][batch]",
                      hdbscan_bf_only) {
