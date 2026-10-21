@@ -113,7 +113,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
             pRes[i] = isLessThanThreshold * expThreshold + (one - isLessThanThreshold) * pRes[i];
         }
     }
-    daal::internal::MathInst<algorithmFPType, cpu>::vExp(nRows * nCols, res, res);
+    daal::internal::MathInst<algorithmFPType, cpu>::vExpxx(nRows * nCols, res, res);
     if (softmaxSums != nullptr && yLocal != nullptr)
     {
         for (size_t iRow = 0; iRow < nRows; ++iRow)
@@ -383,7 +383,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
 
                 algorithmFPType * const logP = tlsLogP.local();
                 DAAL_CHECK_THR(logP, services::ErrorMemoryAllocationFailed);
-                daal::internal::MathInst<algorithmFPType, cpu>::vLog(nRowsToProcess * nClasses, fPtrLocal, logP);
+                daal::internal::MathInst<algorithmFPType, cpu>::vLogxx(nRowsToProcess * nClasses, fPtrLocal, logP);
 
                 algorithmFPType localValue(0);
                 for (size_t i = 0; i < nRowsToProcess; ++i)
