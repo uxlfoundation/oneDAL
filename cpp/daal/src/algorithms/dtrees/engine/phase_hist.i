@@ -18,7 +18,8 @@
 /*
 //++
 //  Histogram phase of the tree builder (design 4.6): per-node histograms of the
-//  drawn features over the bin matrix, built in chunks for large nodes.
+//  drawn features over the bin matrix, built in chunks for large nodes, and the
+//  partition pass that builds the children's histograms as it routes the rows.
 //  Included by tree_builder.i.
 //--
 */
@@ -121,9 +122,49 @@ struct Planes
             for (size_t i = 0; i < n; ++i) sumY[i] += o.sumY[i];
     }
 
+    void release()
+    {
+        records.reset(0);
+        stat.reset(0);
+        sumY.reset(0);
+    }
+
     size_t at(size_t bin, size_t lane) const { return bin * stride + lane; }
     Stat classStat(size_t c, size_t bin, size_t lane) const { return stat[c * nBins * stride + at(bin, lane)]; }
 };
+
+/// Adds one record, whose bin row is b, to the planes of nLanes features.
+template <typename Record, typename BinT, CpuType cpu>
+inline void addRow(const Record & r, const BinT * b, const uint32_t * features, size_t nLanes, Planes<Record, cpu> & h)
+{
+    uint32_t * records  = h.records.get();
+    auto * stat         = h.stat.get();
+    const size_t stride = h.stride;
+    if constexpr (Layout<Record>::classification)
+    {
+        const size_t offset = size_t(recordClass(r)) * h.nBins * stride;
+        const auto weight   = static_cast<typename Planes<Record, cpu>::Stat>(recordWeight(r));
+        for (size_t j = 0; j < nLanes; ++j)
+        {
+            const size_t idx = size_t(b[features[j]]) * stride + j;
+            ++records[idx];
+            stat[offset + idx] += weight;
+        }
+    }
+    else
+    {
+        double * sumY   = h.sumY.get();
+        const double w  = recordWeight(r);
+        const double wy = w * recordResponse(r);
+        for (size_t j = 0; j < nLanes; ++j)
+        {
+            const size_t idx = size_t(b[features[j]]) * stride + j;
+            ++records[idx];
+            stat[idx] += float(w);
+            sumY[idx] += wy;
+        }
+    }
+}
 
 /// Adds records [begin, end) to the planes, reading each record's bin row once and prefetching distance rows
 /// ahead the lines that hold the lanes' features.
@@ -131,40 +172,41 @@ template <typename Record, typename BinT, CpuType cpu>
 void accumulate(const Record * rec, size_t begin, size_t end, const BinMatrix<cpu> & bins, int numaNode, const uint32_t * features, size_t nLanes,
                 const uint32_t * lines, size_t nLines, size_t distance, Planes<Record, cpu> & h)
 {
-    uint32_t * records                        = h.records.get();
-    typename Planes<Record, cpu>::Stat * stat = h.stat.get();
-    double * sumY                             = h.sumY.get();
-    const size_t planeSize                    = h.nBins * h.stride;
-    const size_t stride                       = h.stride;
     prefetchedLoop<cpu>(
         end - begin, distance, [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(numaNode, rec[begin + i].row), lines, nLines); },
         [&](size_t i) {
             const Record & r = rec[begin + i];
-            const BinT * b   = bins.template row<BinT>(numaNode, r.row);
-            if constexpr (Layout<Record>::classification)
-            {
-                const size_t offset = size_t(recordClass(r)) * planeSize;
-                const auto weight   = static_cast<typename Planes<Record, cpu>::Stat>(recordWeight(r));
-                for (size_t j = 0; j < nLanes; ++j)
-                {
-                    const size_t idx = size_t(b[features[j]]) * stride + j;
-                    ++records[idx];
-                    stat[offset + idx] += weight;
-                }
-            }
-            else
-            {
-                const double w  = recordWeight(r);
-                const double wy = w * recordResponse(r);
-                for (size_t j = 0; j < nLanes; ++j)
-                {
-                    const size_t idx = size_t(b[features[j]]) * stride + j;
-                    ++records[idx];
-                    stat[idx] += float(w);
-                    sumY[idx] += wy;
-                }
-            }
+            addRow<Record, BinT, cpu>(r, bins.template row<BinT>(numaNode, r.row), features, nLanes, h);
         });
+}
+
+/// Bins of the planes of nLanes features: the largest data bin count plus missing bin over them.
+template <CpuType cpu>
+size_t planeBins(const BinMatrix<cpu> & bins, const uint32_t * features, size_t nLanes)
+{
+    size_t nBins = 0;
+    for (size_t j = 0; j < nLanes; ++j)
+    {
+        const size_t f = features[j];
+        const size_t b = bins.nBins(f) + (bins.hasMissing(f) ? 1 : 0);
+        nBins          = b > nBins ? b : nBins;
+    }
+    return nBins;
+}
+
+/// Adds the planes of chunks 1 .. nChunks - 1 into chunk 0's by a fixed pairwise tree over chunk index.
+template <typename PlanesOf>
+void reducePairwise(size_t nChunks, const PlanesOf & planesOf)
+{
+    for (size_t width = 1; width < nChunks; width *= 2)
+    {
+        const size_t nPairs = (nChunks + 2 * width - 1) / (2 * width);
+        daal::threader_for(nPairs, 1, [&](size_t q) {
+            const size_t a = q * 2 * width;
+            const size_t b = a + width;
+            if (b < nChunks) planesOf(a).add(planesOf(b));
+        });
+    }
 }
 
 /// Chunks of a node of n records: ceil(n / chunkRows), at most maxChunks. Boundaries depend on n only.
@@ -208,13 +250,7 @@ template <typename Record, CpuType cpu>
 services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins, int numaNode, const uint32_t * features, size_t nLanes,
                        size_t nClasses, size_t nChunks, size_t distance, Planes<Record, cpu> & out)
 {
-    size_t nBins = 0;
-    for (size_t j = 0; j < nLanes; ++j)
-    {
-        const size_t f = features[j];
-        const size_t b = bins.nBins(f) + (bins.hasMissing(f) ? 1 : 0);
-        nBins          = b > nBins ? b : nBins;
-    }
+    const size_t nBins = planeBins(bins, features, nLanes);
     TArray<uint32_t, cpu> lines(nLanes);
     DAAL_CHECK_MALLOC(lines.get());
     const size_t nLines = rowLines(features, nLanes, bins.binBytes(), lines.get());
@@ -243,16 +279,102 @@ services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins
         pass(begin, end, h);
     });
     DAAL_CHECK_SAFE_STATUS();
-    for (size_t width = 1; width < nChunks; width *= 2)
+    reducePairwise(nChunks, [&](size_t c) -> Planes<Record, cpu> & { return c ? partial[c] : out; });
+    return services::Status();
+}
+
+/// One child's histograms in a fused partition: nLanes features into planes, or none when planes is null.
+template <typename Record, CpuType cpu>
+struct Target
+{
+    const uint32_t * features    = nullptr;
+    size_t nLanes                = 0;
+    Planes<Record, cpu> * planes = nullptr;
+};
+
+/**
+ *  \brief Stable partition of n records into out, the nLeft rows with left(binRow) first, building each
+ *  child's histograms from the bin rows the routing reads (design 4.6, fused partition)
+ *
+ *  One chunk routes, scatters and adds in one pass. Several chunks route and add in parallel, keeping the
+ *  side of each row and partial planes per chunk and child, reduced in chunk order; a second pass
+ *  scatters from the per-chunk offsets. Results do not depend on the thread count.
+ */
+template <typename Record, typename BinT, typename Left, CpuType cpu>
+services::Status fusedPartition(const Record * in, Record * out, size_t n, size_t nLeft, const BinMatrix<cpu> & bins, int numaNode,
+                                uint32_t splitFeature, const Left & left, const Target<Record, cpu> (&targets)[2], size_t nClasses, size_t nChunks,
+                                size_t distance)
+{
+    // Lines to prefetch: the split feature's and the children's features'.
+    size_t nFeatures = 1 + targets[0].nLanes + targets[1].nLanes;
+    TArray<uint32_t, cpu> features(nFeatures);
+    TArray<uint32_t, cpu> lines(nFeatures);
+    DAAL_CHECK_MALLOC(features.get() && lines.get());
+    features[0] = splitFeature;
+    nFeatures   = 1;
+    for (const auto & t : targets)
+        for (size_t j = 0; j < t.nLanes; ++j) features[nFeatures++] = t.features[j];
+    const size_t nLines = rowLines(features.get(), nFeatures, bins.binBytes(), lines.get());
+
+    size_t nBins[2] = { 0, 0 };
+    for (size_t s = 0; s < 2; ++s)
     {
-        const size_t nPairs = (nChunks + 2 * width - 1) / (2 * width);
-        daal::threader_for(nPairs, 1, [&](size_t q) {
-            const size_t a = q * 2 * width;
-            const size_t b = a + width;
-            if (b >= nChunks) return;
-            (a ? partial[a] : out).add(partial[b]);
-        });
+        if (!targets[s].planes) continue;
+        nBins[s] = planeBins(bins, targets[s].features, targets[s].nLanes);
+        DAAL_CHECK_MALLOC(targets[s].planes->init(nBins[s], targets[s].nLanes, nClasses));
     }
+    auto prefetch = [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(numaNode, in[i].row), lines.get(), nLines); };
+
+    if (nChunks <= 1)
+    {
+        size_t iLeft = 0, iRight = nLeft;
+        prefetchedLoop<cpu>(n, distance, prefetch, [&](size_t i) {
+            const Record & r            = in[i];
+            const BinT * b              = bins.template row<BinT>(numaNode, r.row);
+            const size_t s              = left(b) ? 0 : 1;
+            out[s ? iRight++ : iLeft++] = r;
+            if (targets[s].planes) addRow<Record, BinT, cpu>(r, b, targets[s].features, targets[s].nLanes, *targets[s].planes);
+        });
+        if (iLeft != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
+        return services::Status();
+    }
+
+    TArray<uint8_t, cpu> side(n);
+    TArray<size_t, cpu> lefts(nChunks + 1);
+    TArray<Planes<Record, cpu>, cpu> partial(2 * nChunks);
+    DAAL_CHECK_MALLOC(side.get() && lefts.get() && partial.get());
+    auto planesOf = [&](size_t s, size_t c) -> Planes<Record, cpu> & { return c ? partial[2 * c + s] : *targets[s].planes; };
+    SafeStatus safeStat;
+    daal::threader_for(nChunks, 1, [&](size_t c) {
+        for (size_t s = 0; s < 2; ++s)
+            DAAL_CHECK_THR(!c || !targets[s].planes || planesOf(s, c).init(nBins[s], targets[s].nLanes, nClasses),
+                           services::ErrorMemoryAllocationFailed);
+        size_t begin, end, count = 0;
+        chunkRange(n, nChunks, c, begin, end);
+        prefetchedLoop<cpu>(
+            end - begin, distance, [&](size_t i) { prefetch(begin + i); },
+            [&](size_t i) {
+                const Record & r = in[begin + i];
+                const BinT * b   = bins.template row<BinT>(numaNode, r.row);
+                const size_t s   = left(b) ? 0 : 1;
+                side[begin + i]  = uint8_t(s);
+                count += 1 - s;
+                if (targets[s].planes) addRow<Record, BinT, cpu>(r, b, targets[s].features, targets[s].nLanes, planesOf(s, c));
+            });
+        lefts[c + 1] = count;
+    });
+    DAAL_CHECK_SAFE_STATUS();
+    lefts[0] = 0;
+    for (size_t c = 0; c < nChunks; ++c) lefts[c + 1] += lefts[c];
+    if (lefts[nChunks] != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
+    for (size_t s = 0; s < 2; ++s)
+        if (targets[s].planes) reducePairwise(nChunks, [&](size_t c) -> Planes<Record, cpu> & { return planesOf(s, c); });
+    daal::threader_for(nChunks, 1, [&](size_t c) {
+        size_t begin, end;
+        chunkRange(n, nChunks, c, begin, end);
+        size_t iLeft = lefts[c], iRight = nLeft + begin - lefts[c];
+        for (size_t i = begin; i < end; ++i) out[side[i] ? iRight++ : iLeft++] = in[i];
+    });
     return services::Status();
 }
 

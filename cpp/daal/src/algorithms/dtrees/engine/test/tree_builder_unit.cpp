@@ -891,4 +891,81 @@ TEST("the random splitter on bins takes each border uniformly and never leaves a
     REQUIRE(chiSquare(hits) < chiSquare7Dof999);
 }
 
+/// d with three more features: constant everywhere, constant where feature 0 is below 0, and two-valued.
+Dataset withConstantFeatures(Dataset d)
+{
+    const size_t p = d.p + 3;
+    std::vector<double> x(d.nRows * p);
+    for (size_t i = 0; i < d.nRows; ++i)
+    {
+        const double * row = d.x.data() + i * d.p;
+        std::copy(row, row + d.p, x.data() + i * p);
+        x[i * p + d.p]     = 3;
+        x[i * p + d.p + 1] = row[0] < 0 ? 1 : double(i % 13);
+        x[i * p + d.p + 2] = double(i % 2);
+    }
+    d.x = std::move(x);
+    d.p = p;
+    if (!d.categorical.empty()) d.categorical.resize(p, false);
+    return d;
+}
+
+TEST("fused partitions and constant lists do not change the trees", "[unit]")
+{
+    constexpr size_t nTrees = 4;
+    Dataset c               = withConstantFeatures(classificationData(20000, 5, 3, 121));
+    const Dataset low       = withConstantFeatures(lowCardinalityData(20000, 0, 122));
+    Dataset r               = withConstantFeatures(regressionData(20000, 5, 123));
+    for (size_t i = 0; i < c.nRows; i += 41) c.x[i * c.p + 1] = std::numeric_limits<double>::quiet_NaN();
+    const auto counts = bootstrapCounts(nTrees, 20000, 124);
+    BinningParams binning;
+    binning.maxBins           = 32;
+    const BinningParams exact = exactBinning();
+    for (bool random : { false, true })
+    {
+        for (size_t maxLeaves : { size_t(0), size_t(60) })
+        {
+            TreeParams params;
+            params.featuresPerNode = 2;
+            params.randomSplitter  = random;
+            params.maxLeafNodes    = maxLeaves;
+            params.maxBins         = 32;
+            params.chunkRows       = 1000;
+            std::vector<EmittedTree> refC, refL, refR;
+            for (int mode = 0; mode < 4; ++mode)
+            {
+                params.fusePartition  = mode & 1;
+                params.carryConstants = mode & 2;
+                // Integer statistics make chunked sums exact; the continuous regression runs in one chunk.
+                params.nClasses  = 3;
+                params.chunkRows = 1000;
+                auto tc          = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, &binning);
+                params.nClasses  = 0;
+                auto tl          = train<RegCountRecord<double>, baseCpu>(low, params, nTrees, counts, 777, &exact);
+                params.chunkRows = 0;
+                auto tr          = train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, &binning);
+                if (!mode)
+                {
+                    refC = std::move(tc);
+                    refL = std::move(tl);
+                    refR = std::move(tr);
+                    for (size_t t = 0; t < nTrees; ++t)
+                    {
+                        requireConsistent(c, refC[t], counts[t]);
+                        requireConsistent(low, refL[t], counts[t]);
+                        requireConsistent(r, refR[t], counts[t]);
+                    }
+                    continue;
+                }
+                for (size_t t = 0; t < nTrees; ++t)
+                {
+                    requireSameTables(refC[t], tc[t]);
+                    requireSameTables(refL[t], tl[t]);
+                    requireSameTables(refR[t], tr[t]);
+                }
+            }
+        }
+    }
+}
+
 } // namespace daal::algorithms::dtrees::engine::internal::test

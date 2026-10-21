@@ -118,6 +118,86 @@ inline double midpoint(double a, double b)
 }
 } // namespace exact
 
+inline size_t bitWords(size_t n)
+{
+    return (n + 63) / 64;
+}
+inline bool testBit(const uint64_t * bits, size_t i)
+{
+    return (bits[i >> 6] >> (i & 63)) & 1;
+}
+inline void setBit(uint64_t * bits, size_t i)
+{
+    bits[i >> 6] |= uint64_t(1) << (i & 63);
+}
+
+/// What a node passes to its children (design 4.6): its constant features, and the histograms of the
+/// child's first draws that the parent's fused partition built.
+template <typename Record, CpuType cpu>
+struct NodeCarry
+{
+    NodeCarry * prev = nullptr;
+    NodeCarry * next = nullptr;
+    // Two lists of one bit per feature: constant by bins, for the histogram phase; constant by value, for
+    // the exact phase, as rows in one bin can still differ in value.
+    LargeArray<uint64_t, cpu> bits;
+    LargeArray<uint32_t, cpu> lanes;
+    size_t nLanes = 0;
+    hist::Planes<Record, cpu> planes;
+};
+
+/// The live carries of one tree. Node tasks of the tree create and destroy them concurrently, hence the
+/// lock; the list lets endTree free the carries of nodes a failed build never reached.
+template <typename Record, CpuType cpu>
+class CarryList
+{
+public:
+    using Carry = NodeCarry<Record, cpu>;
+
+    CarryList()                              = default;
+    CarryList(const CarryList &)             = delete;
+    CarryList & operator=(const CarryList &) = delete;
+    ~CarryList() { clear(); }
+
+    Carry * create()
+    {
+        Carry * c = new Carry();
+        if (!c) return nullptr;
+        AutoLock lock(_mutex);
+        c->next = _head;
+        if (_head) _head->prev = c;
+        _head = c;
+        return c;
+    }
+
+    void destroy(Carry * c)
+    {
+        if (!c) return;
+        {
+            AutoLock lock(_mutex);
+            if (c->prev) c->prev->next = c->next;
+            if (c->next) c->next->prev = c->prev;
+            if (_head == c) _head = c->next;
+        }
+        delete c;
+    }
+
+    void clear()
+    {
+        AutoLock lock(_mutex);
+        while (_head)
+        {
+            Carry * c = _head;
+            _head     = c->next;
+            delete c;
+        }
+    }
+
+private:
+    Mutex _mutex;
+    Carry * _head = nullptr;
+};
+
 /// Builds trees for the executor (executor.h): the exact phase at every node.
 template <typename algorithmFPType, typename Record, CpuType cpu>
 class TreeBuilder
@@ -137,7 +217,9 @@ public:
         uint32_t depth     = 0;
         uint64_t key       = 0;
         double improvement = 0;
+        double weight      = 0; // of the node's records, set by evaluate
         Candidate split;
+        NodeCarry<Record, cpu> * carry = nullptr; // owned; nullptr: the root lists and no histograms
     };
 
     struct TreeContext
@@ -145,6 +227,7 @@ public:
         ResponseSet<Record, cpu> records;
         NodePool<cpu> nodes;
         CounterRng<cpu> rng;
+        CarryList<Record, cpu> carries;
         int numaNode = 0;
     };
 
@@ -153,6 +236,7 @@ public:
           _params(params),
           _inputs(inputs),
           _k(params.featuresPerNode && params.featuresPerNode < data.nFeatures ? params.featuresPerNode : data.nFeatures),
+          _words(bitWords(data.nFeatures)),
           _scratch([]() -> Scratch * { return new Scratch(); }),
           _prefetchRows(defaultPrefetchDistance<cpu>()),
           _l2Bytes(services::internal::getL2CacheSize())
@@ -161,6 +245,21 @@ public:
     ~TreeBuilder()
     {
         _scratch.reduce([](Scratch * s) { delete s; });
+    }
+
+    /// The root lists: features with at most one data bin; by value only if that bin is one value.
+    services::Status init()
+    {
+        DAAL_CHECK_MALLOC(_rootBits.reset(2 * _words));
+        for (size_t i = 0; i < 2 * _words; ++i) _rootBits[i] = 0;
+        if (!_data.bins) return services::Status();
+        for (size_t f = 0; f < _data.nFeatures; ++f)
+        {
+            if (_data.bins->nBins(f) > 1) continue;
+            setBit(_rootBits.get(), f);
+            if (!_data.bins->nBins(f) || _data.bins->exactBins(f)) setBit(_rootBits.get() + _words, f);
+        }
+        return services::Status();
     }
 
     services::Status initContext(TreeContext & ctx, int numaNode)
@@ -185,9 +284,11 @@ public:
         // A tree of n records has at most n leaves and n - 1 splits.
         s = ctx.nodes.reset(2 * n);
         DAAL_CHECK_STATUS_VAR(s);
-        root     = WorkItem();
-        root.n   = uint32_t(n);
-        root.key = treeSeed;
+        root       = WorkItem();
+        root.n     = uint32_t(n);
+        root.key   = treeSeed;
+        root.carry = newCarry(ctx, nullptr);
+        DAAL_CHECK_MALLOC(root.carry);
         return s;
     }
 
@@ -224,10 +325,8 @@ public:
         node.depth      = item.depth;
         node.start      = item.start;
 
-        const double w = cost.weight();
-        if (item.n < _params.minSplitRecords || item.n < 2 * _params.minLeafRecords || w < 2 * _params.minLeafWeight
-            || (_params.maxDepth && item.depth >= _params.maxDepth) || pure || node.impurity <= _params.impurityThreshold)
-            return services::Status();
+        item.weight = cost.weight();
+        if (leafBySize(item.n, item.weight, item.depth) || pure || node.impurity <= _params.impurityThreshold) return services::Status();
 
         Candidate best;
         services::Status s;
@@ -237,7 +336,7 @@ public:
             CounterNodeDraws<cpu> features(ctx.rng, item.key);
             CounterNodeDraws<cpu> restart(ctx.rng, item.key);
             CounterNodeDraws<cpu> splits(ctx.rng, item.key, nodeThresholdWords);
-            best = searchNode(ctx, records, item.n, histNode, nChunks, *scratch, cost, features, restart, splits, s);
+            best = searchNode(ctx, item.carry, records, item.n, histNode, nChunks, *scratch, cost, features, restart, splits, s);
             s |= features.status();
             s |= restart.status();
             s |= splits.status();
@@ -247,9 +346,10 @@ public:
             void * stream = _inputs.nodeStream();
             DAAL_CHECK(stream, services::ErrorNullPtr);
             StreamNodeDraws<cpu> draws(stream);
-            best = searchNode(ctx, records, item.n, histNode, nChunks, *scratch, cost, draws, draws, draws, s);
+            best = searchNode(ctx, item.carry, records, item.n, histNode, nChunks, *scratch, cost, draws, draws, draws, s);
             s |= draws.status();
         }
+        if (item.carry) item.carry->planes.release();
         DAAL_CHECK_STATUS_VAR(s);
 
         const double decrease = best.proxy - cost.parentProxy();
@@ -263,30 +363,8 @@ public:
     services::Status commit(TreeContext & ctx, WorkItem & item, WorkItem & left, WorkItem & right)
     {
         const Candidate & split = item.split;
-        const Record * in       = ctx.records.buffer(item.depth) + item.start;
-        Record * out            = ctx.records.buffer(item.depth + 1) + item.start;
-        const size_t nChunks    = hist::chunkCount(item.n, _params.chunkRows, _params.maxChunks);
-        services::Status s;
-        if (!split.byBin)
-            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(ctx.numaNode), _data.nFeatures, split });
-        else if (_data.bins->binBytes() == 1)
-            s = partition(in, out, item.n, split.nLeft, nChunks, BinRoute<uint8_t>(*_data.bins, ctx.numaNode, split));
-        else
-            s = partition(in, out, item.n, split.nLeft, nChunks, BinRoute<uint16_t>(*_data.bins, ctx.numaNode, split));
-        DAAL_CHECK_STATUS_VAR(s);
-
-        const uint32_t pair = ctx.nodes.allocatePair();
+        const uint32_t pair     = ctx.nodes.allocatePair();
         DAAL_CHECK_MALLOC(pair);
-        TreeNode & node       = ctx.nodes[item.node];
-        node.feature          = int32_t(split.feature);
-        node.threshold        = split.threshold;
-        node.categorical      = split.categorical;
-        node.weightedDecrease = item.improvement;
-        node.left             = pair;
-        // Missing values follow the side with more weight (design 4.16).
-        const double wTotal = recordsWeight(in, item.n);
-        node.defaultLeft    = split.wLeft >= wTotal - split.wLeft;
-
         left        = WorkItem();
         left.node   = pair;
         left.start  = item.start;
@@ -299,11 +377,58 @@ public:
         right.n     = item.n - split.nLeft;
         right.depth = item.depth + 1;
         right.key   = childNodeKey<cpu>(item.key, 1);
+
+        // Children that may split get the node's constant lists; those that will run the histogram phase
+        // also get their first draws, histogrammed by the partition pass.
+        services::Status s;
+        WorkItem * children[2]  = { &left, &right };
+        const double weights[2] = { split.wLeft, item.weight - split.wLeft };
+        const bool fuse         = split.byBin && _params.fusePartition && _params.counterDraws;
+        hist::Target<Record, cpu> targets[2];
+        for (size_t c = 0; c < 2 && s; ++c)
+        {
+            WorkItem & child = *children[c];
+            if (leafBySize(child.n, weights[c], child.depth)) continue;
+            child.carry = newCarry(ctx, item.carry);
+            if (!child.carry)
+            {
+                s = services::Status(services::ErrorMemoryAllocationFailed);
+                break;
+            }
+            if (!fuse || !useHist(child.n)) continue;
+            s = drawChildLanes(ctx, child);
+            if (s && child.carry->nLanes) targets[c] = { child.carry->lanes.get(), child.carry->nLanes, &child.carry->planes };
+        }
+        ctx.carries.destroy(item.carry);
+        item.carry = nullptr;
+        DAAL_CHECK_STATUS_VAR(s);
+
+        const Record * in    = ctx.records.buffer(item.depth) + item.start;
+        Record * out         = ctx.records.buffer(item.depth + 1) + item.start;
+        const size_t nChunks = hist::chunkCount(item.n, _params.chunkRows, _params.maxChunks);
+        if (!split.byBin)
+            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(ctx.numaNode), _data.nFeatures, split });
+        else if (_data.bins->binBytes() == 1)
+            s = partitionByBin<uint8_t>(ctx, in, out, item.n, nChunks, split, targets);
+        else
+            s = partitionByBin<uint16_t>(ctx, in, out, item.n, nChunks, split, targets);
+        DAAL_CHECK_STATUS_VAR(s);
+
+        TreeNode & node       = ctx.nodes[item.node];
+        node.feature          = int32_t(split.feature);
+        node.threshold        = split.threshold;
+        node.categorical      = split.categorical;
+        node.weightedDecrease = item.improvement;
+        node.left             = pair;
+        // Missing values follow the side with more weight (design 4.16).
+        node.defaultLeft = split.wLeft >= item.weight - split.wLeft;
         return services::Status();
     }
 
     services::Status makeLeaf(TreeContext & ctx, WorkItem & item)
     {
+        ctx.carries.destroy(item.carry);
+        item.carry      = nullptr;
         TreeNode & node = ctx.nodes[item.node];
         node.feature    = -1;
         node.start      = item.start;
@@ -312,6 +437,7 @@ public:
 
     services::Status endTree(TreeContext & ctx, size_t iTree, const services::Status & built)
     {
+        ctx.carries.clear();
         if (!built) return built;
         EmittedTree tree;
         services::Status s = emit(ctx, tree);
@@ -361,12 +487,8 @@ private:
         bool categorical;
 
         const void * address(uint32_t row) const { return bins.template row<BinT>(numaNode, row) + feature; }
-        bool left(uint32_t row) const
-        {
-            const size_t b = bins.template row<BinT>(numaNode, row)[feature];
-            if (categorical) return b == splitBin;
-            return b <= splitBin || b == missing;
-        }
+        bool left(uint32_t row) const { return leftBin(bins.template row<BinT>(numaNode, row)[feature]); }
+        bool leftBin(size_t b) const { return categorical ? b == splitBin : b <= splitBin || b == missing; }
     };
 
     /// Stable partition of n records into out, the nLeft left ones first. Several chunks count their left
@@ -416,11 +538,75 @@ private:
     bool useHist(size_t n) const { return _data.bins && n >= _params.denseThreshold * _params.maxBins; }
     bool isCategorical(size_t f) const { return _data.categorical && _data.categorical[f]; }
 
-    static double recordsWeight(const Record * r, size_t n)
+    /// A node too small, light or deep to split.
+    bool leafBySize(size_t n, double w, size_t depth) const
     {
-        double w = 0;
-        for (size_t i = 0; i < n; ++i) w += recordWeight(r[i]);
-        return w;
+        return n < _params.minSplitRecords || n < 2 * _params.minLeafRecords || w < 2 * _params.minLeafWeight
+               || (_params.maxDepth && depth >= _params.maxDepth);
+    }
+
+    /// A carry with the parent's lists, or the root lists for the root and with carryConstants off.
+    NodeCarry<Record, cpu> * newCarry(TreeContext & ctx, const NodeCarry<Record, cpu> * parent) const
+    {
+        NodeCarry<Record, cpu> * c = ctx.carries.create();
+        if (!c) return nullptr;
+        if (!c->bits.reset(2 * _words))
+        {
+            ctx.carries.destroy(c);
+            return nullptr;
+        }
+        const uint64_t * from = parent && _params.carryConstants ? parent->bits.get() : _rootBits.get();
+        for (size_t i = 0; i < 2 * _words; ++i) c->bits[i] = from[i];
+        return c;
+    }
+
+    const uint64_t * constantBits(const NodeCarry<Record, cpu> * c) const { return c ? c->bits.get() : _rootBits.get(); }
+    const uint64_t * exactConstantBits(const NodeCarry<Record, cpu> * c) const { return constantBits(c) + _words; }
+
+    /// Adds f to the node's lists: constant by bins, and by value if found by value or if its bins are values.
+    void markConstant(NodeCarry<Record, cpu> * c, uint32_t f, bool byValue) const
+    {
+        if (!c || !_params.carryConstants) return;
+        setBit(c->bits.get(), f);
+        if (byValue || (_data.bins && _data.bins->exactBins(f))) setBit(c->bits.get() + _words, f);
+    }
+
+    /// The next up to want draws of the permutation that are not in the constant list.
+    template <typename Draws>
+    static size_t drawLanes(FeaturePermutation<cpu> & permutation, Draws & draws, const uint64_t * constant, size_t want, uint32_t * lanes)
+    {
+        size_t n = 0;
+        while (n < want && !permutation.exhausted())
+        {
+            const uint32_t f = permutation.next(draws);
+            if (!testBit(constant, f)) lanes[n++] = f;
+        }
+        return n;
+    }
+
+    /// A child's first histogram pass draws, as its histSearch will make them.
+    services::Status drawChildLanes(TreeContext & ctx, WorkItem & child) const
+    {
+        // No parallel call until the draws are made, so the thread's scratch is free (NodeScratch).
+        Scratch * scratch = _scratch.local();
+        DAAL_CHECK_MALLOC(scratch && scratch->ensureBase(_params.nClasses, _data.nFeatures));
+        DAAL_CHECK_MALLOC(child.carry->lanes.reset(_k));
+        CounterNodeDraws<cpu> draws(ctx.rng, child.key);
+        FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch->permutation.get());
+        child.carry->nLanes = drawLanes(permutation, draws, child.carry->bits.get(), _k, child.carry->lanes.get());
+        return draws.status();
+    }
+
+    template <typename BinT>
+    services::Status partitionByBin(TreeContext & ctx, const Record * in, Record * out, size_t n, size_t nChunks, const Candidate & split,
+                                    const hist::Target<Record, cpu> (&targets)[2]) const
+    {
+        const BinRoute<BinT> route(*_data.bins, ctx.numaNode, split);
+        if (!targets[0].planes && !targets[1].planes) return partition(in, out, n, split.nLeft, nChunks, route);
+        const size_t f = split.feature;
+        return hist::fusedPartition<Record, BinT>(
+            in, out, n, split.nLeft, *_data.bins, ctx.numaNode, split.feature, [&](const BinT * b) { return route.leftBin(b[f]); }, targets,
+            _params.nClasses, nChunks, prefetchDistance(n));
     }
 
     // No software prefetch for nodes whose rows already fit half of L2 after the parent's pass (design 4.5).
@@ -483,13 +669,14 @@ private:
     /// The histogram phase on hist nodes, the exact phase on the others and on hist nodes whose drawn
     /// features are all constant by bins (design 4.6, 4.7).
     template <typename FeatureDraws, typename SplitDraws>
-    Candidate searchNode(TreeContext & ctx, const Record * records, size_t n, bool histNode, size_t nChunks, Scratch & scratch, Cost & cost,
-                         FeatureDraws & features, FeatureDraws & restart, SplitDraws & splits, services::Status & status) const
+    Candidate searchNode(TreeContext & ctx, NodeCarry<Record, cpu> * carry, const Record * records, size_t n, bool histNode, size_t nChunks,
+                         Scratch & scratch, Cost & cost, FeatureDraws & features, FeatureDraws & restart, SplitDraws & splits,
+                         services::Status & status) const
     {
         if (histNode)
         {
             bool allConstant  = false;
-            const Candidate c = histSearch(ctx, records, n, nChunks, scratch, cost, features, splits, allConstant, status);
+            const Candidate c = histSearch(ctx, carry, records, n, nChunks, scratch, cost, features, splits, allConstant, status);
             if (!status || !allConstant) return c;
         }
         if (!scratch.ensureRows(n, _params.nClasses))
@@ -502,24 +689,31 @@ private:
             scratch.w[i] = recordWeight(records[i]);
             setResponse(scratch, i, records[i]);
         }
-        return exactSearch(ctx, records, n, scratch, cost, histNode ? restart : features, splits, status);
+        return exactSearch(ctx, carry, records, n, scratch, cost, histNode ? restart : features, splits, status);
     }
 
     /// The best split over the node's first k non-constant features in draw order (design 4.6, 4.13).
+    /// Features on the by-value constant list are skipped as the search would find them constant.
     template <typename FeatureDraws, typename SplitDraws>
-    Candidate exactSearch(TreeContext & ctx, const Record * records, size_t n, Scratch & scratch, Cost & cost, FeatureDraws & features,
-                          SplitDraws & splits, services::Status & status) const
+    Candidate exactSearch(TreeContext & ctx, NodeCarry<Record, cpu> * carry, const Record * records, size_t n, Scratch & scratch, Cost & cost,
+                          FeatureDraws & features, SplitDraws & splits, services::Status & status) const
     {
         FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch.permutation.get());
+        const uint64_t * known = exactConstantBits(carry);
         Candidate best;
         size_t visited = 0;
         while (visited < _k && !permutation.exhausted())
         {
-            const uint32_t f  = permutation.next(features);
+            const uint32_t f = permutation.next(features);
+            if (testBit(known, f)) continue;
             bool constant     = false;
             const Candidate c = splitOnFeature(ctx, records, n, scratch, cost, splits, f, constant, status);
             if (!status) return best;
-            if (constant) continue; // constant features do not count toward k, as in sklearn
+            if (constant) // constant features do not count toward k, as in sklearn
+            {
+                markConstant(carry, f, true);
+                continue;
+            }
             ++visited;
             if (c.valid && (!best.valid || c.proxy > best.proxy)) best = c;
         }
@@ -527,28 +721,52 @@ private:
     }
 
     /// The histogram phase's search: each pass draws the features still needed for k non-constant ones
-    /// and histograms them together; lanes constant by bins do not count toward k (design 4.6).
+    /// and histograms them together; lanes constant by bins, and features on the node's list, do not
+    /// count toward k (design 4.6). The first pass uses the histograms the parent built, if any.
     template <typename FeatureDraws, typename SplitDraws>
-    Candidate histSearch(TreeContext & ctx, const Record * records, size_t n, size_t nChunks, Scratch & scratch, Cost & cost, FeatureDraws & features,
-                         SplitDraws & splits, bool & allConstant, services::Status & status) const
+    Candidate histSearch(TreeContext & ctx, NodeCarry<Record, cpu> * carry, const Record * records, size_t n, size_t nChunks, Scratch & scratch,
+                         Cost & cost, FeatureDraws & features, SplitDraws & splits, bool & allConstant, services::Status & status) const
     {
         FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch.permutation.get());
-        uint32_t * lanes = scratch.lanes.get();
-        hist::Planes<Record, cpu> planes;
+        const uint64_t * known = constantBits(carry);
+        uint32_t * lanes       = scratch.lanes.get();
+        hist::Planes<Record, cpu> own;
+        bool carried = carry && carry->nLanes;
         Candidate best;
         size_t visited = 0;
         allConstant    = true;
-        while (visited < _k && !permutation.exhausted())
+        while (visited < _k)
         {
-            size_t nLanes = 0;
-            while (visited + nLanes < _k && !permutation.exhausted()) lanes[nLanes++] = permutation.next(features);
-            status = hist::build(records, n, *_data.bins, ctx.numaNode, lanes, nLanes, _params.nClasses, nChunks, prefetchDistance(n), planes);
-            if (!status) return best;
+            const size_t nLanes = drawLanes(permutation, features, known, _k - visited, lanes);
+            if (!nLanes) break;
+            const hist::Planes<Record, cpu> * planes = &own;
+            if (carried)
+            {
+                // The parent drew these lanes from the same key and lists.
+                bool same = carry->nLanes == nLanes;
+                for (size_t j = 0; j < nLanes && same; ++j) same = carry->lanes[j] == lanes[j];
+                if (!same)
+                {
+                    status = services::Status(services::ErrorIncorrectInternalFunctionParameter);
+                    return best;
+                }
+                planes  = &carry->planes;
+                carried = false;
+            }
+            else
+            {
+                status = hist::build(records, n, *_data.bins, ctx.numaNode, lanes, nLanes, _params.nClasses, nChunks, prefetchDistance(n), own);
+                if (!status) return best;
+            }
             for (size_t j = 0; j < nLanes; ++j)
             {
                 bool constant     = false;
-                const Candidate c = scanLane(planes, j, lanes[j], n, cost, splits, constant);
-                if (constant) continue;
+                const Candidate c = scanLane(*planes, j, lanes[j], n, cost, splits, constant);
+                if (constant)
+                {
+                    markConstant(carry, lanes[j], false);
+                    continue;
+                }
                 allConstant = false;
                 ++visited;
                 if (c.valid && (!best.valid || c.proxy > best.proxy)) best = c;
@@ -938,6 +1156,8 @@ private:
     const TreeParams _params;
     TreeInputs<Record, cpu> & _inputs;
     const size_t _k;
+    const size_t _words; // per constant list
+    LargeArray<uint64_t, cpu> _rootBits;
     CounterStreams<cpu> _streams;
     mutable daal::tls<Scratch *> _scratch;
     const size_t _prefetchRows;
@@ -950,6 +1170,8 @@ services::Status trainTrees(const TreeData<algorithmFPType, cpu> & data, const T
     DAAL_CHECK(data.x && data.responses && data.nFeatures && data.nRows, services::ErrorNullInput);
     DAAL_CHECK_STATUS_VAR(checkRowCount(data.nRows));
     TreeBuilder<algorithmFPType, Record, cpu> builder(data, params, inputs);
+    DAAL_CHECK_STATUS_VAR(builder.init());
+
     ExecutorParams executorParams;
     executorParams.nTrees            = nTrees;
     executorParams.maxLeafNodes      = params.maxLeafNodes;
