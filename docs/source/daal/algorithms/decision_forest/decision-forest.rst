@@ -289,7 +289,7 @@ At the training stage, decision forest regression has the following parameters:
      - If true, the training set for a tree is a bootstrap of the whole training set.
        If false, the whole training set is used to build trees.
    * - ``engine``
-     - ``SharePtr<engines::mt2203::Batch>()>``
+          - ``SharePtr<engines::philox4x32x10::Batch>()>``
      - Pointer to the random number generator engine.
 
        The random numbers produced by this engine are used to choose the bootstrap set,

@@ -51,12 +51,15 @@ using daal::internal::CpuType;
 /// Tree-growing parameters, resolved once per fit from the public Parameter.
 struct TreeParams
 {
-    size_t nClasses            = 0; // 0 for regression
-    size_t featuresPerNode     = 0; // k features drawn per node; 0 or more than the features: all
-    size_t maxDepth            = 0; // 0: unlimited
-    size_t maxLeafNodes        = 0; // 0: depth-first; otherwise best-first with at most this many leaves
-    size_t minLeafRecords      = 1; // records (in-bag rows) on each side of a split
-    size_t minSplitRecords     = 2; // records a node needs to be split
+    size_t nClasses        = 0; // 0 for regression
+    size_t featuresPerNode = 0; // k features drawn per node; 0 or more than the features: all
+    size_t maxDepth        = 0; // 0: unlimited
+    size_t maxLeafNodes    = 0; // 0: depth-first; otherwise best-first with at most this many leaves
+    size_t minLeafRecords  = 1; // records (in-bag rows) on each side of a split
+    size_t minSplitRecords = 2; // records a node needs to be split
+    // minLeafRecords and minSplitRecords count bootstrap draws, duplicates included, as legacy, instead of
+    // records (sklearn); count record layouts only.
+    bool sizesInDraws          = false;
     double minLeafWeight       = 0; // weight on each side of a split
     double minWeightedDecrease = 0; // a split's weighted impurity decrease must reach this
     double impurityThreshold   = 0; // nodes with impurity at or below this are leaves

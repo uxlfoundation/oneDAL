@@ -542,10 +542,19 @@ private:
     bool useHist(size_t n) const { return _data.bins && n >= _params.denseThreshold * _params.maxBins; }
     bool isCategorical(size_t f) const { return _data.categorical && _data.categorical[f]; }
 
+    /// The size a node's minimum sizes apply to: its records, or with sizesInDraws its bootstrap draws, which on
+    /// the count layouts are its weight. The weighted layouts fold the counts into the weight and use records.
+    size_t sizeOf(size_t nRecords, double w) const
+    {
+        constexpr bool countLayout = std::is_same<Record, ClsCountRecord>::value || std::is_same<Record, RegCountRecord<algorithmFPType> >::value;
+        return _params.sizesInDraws && countLayout ? size_t(w + 0.5) : nRecords;
+    }
+
     /// A node too small, light or deep to split.
     bool leafBySize(size_t n, double w, size_t depth) const
     {
-        return n < _params.minSplitRecords || n < 2 * _params.minLeafRecords || w < 2 * _params.minLeafWeight
+        const size_t size = sizeOf(n, w);
+        return size < _params.minSplitRecords || size < 2 * _params.minLeafRecords || w < 2 * _params.minLeafWeight
                || (_params.maxDepth && depth >= _params.maxDepth);
     }
 
@@ -666,7 +675,10 @@ private:
     bool admissible(size_t nLeft, size_t n, double wLeft, double w) const
     {
         const double wRight = w - wLeft;
-        return nLeft >= _params.minLeafRecords && n - nLeft >= _params.minLeafRecords && wLeft >= _params.minLeafWeight
+        const size_t left   = sizeOf(nLeft, wLeft);
+        const size_t total  = sizeOf(n, w);
+        const size_t right  = total > left ? total - left : 0;
+        return nLeft > 0 && nLeft < n && left >= _params.minLeafRecords && right >= _params.minLeafRecords && wLeft >= _params.minLeafWeight
                && wRight >= _params.minLeafWeight && wLeft > 0 && wRight > 0;
     }
 
