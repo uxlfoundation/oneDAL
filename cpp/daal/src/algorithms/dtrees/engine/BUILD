@@ -42,8 +42,9 @@ dal_test_suite(
     ],
 )
 
-# Training time with and without fused partitions and constant lists on Higgs. Hidden from the
-# default test run; select it with --test_arg="[.benchmark]".
+# Training time with and without fused partitions and constant lists on a .npy classification
+# table (Higgs by default; FUSION_BENCHMARK_X and _Y select others). Hidden from the default
+# test run; select it with --test_arg="[.benchmark]".
 dal_test_suite(
     name = "fusion_benchmark",
     compile_as = [ "c++" ],
