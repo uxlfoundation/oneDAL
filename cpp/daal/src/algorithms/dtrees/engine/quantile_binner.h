@@ -67,13 +67,6 @@ struct BinningParams
     size_t sampleRows        = binSampleRows;
 };
 
-/// Sample draws from philox4x32x10, read through service_rng: row r's draw is word r of the sequence
-/// keyed by seed. Backends without full-counter skip-ahead cannot sample (ErrorMethodNotSupported).
-struct PhiloxRowSampler
-{
-    uint64_t seed;
-};
-
 template <typename algorithmFPType, CpuType cpu>
 class QuantileBinner
 {
@@ -81,12 +74,14 @@ public:
     /**
      *  \brief Bins x into out
      *
-     *  binned is false, and out unset, when the fit cannot be binned: maxBins above 65536 or a
+          *  binned is false, and out unset, when the fit cannot be binned: maxBins above 65536 or a
      *  categorical feature with more than 65535 categories. Such a fit runs the exact phase everywhere.
+     *
+     *  sampleStream is a service_rng stream state of the user's engine. Above params.sampleRows rows it
+     *  draws the sample and advances by one uniform double per row; otherwise it is not read and may be null.
      */
-    template <typename Sampler>
-    static services::Status build(const data_management::NumericTable & x, const BinningParams & params, const Sampler & sampler,
-                                  BinMatrix<cpu> & out, bool & binned);
+    static services::Status build(const data_management::NumericTable & x, const BinningParams & params, void * sampleStream, BinMatrix<cpu> & out,
+                                  bool & binned);
 
     /**
      *  \brief Bins of one feature from its sorted non-NaN sample values s[0, k)

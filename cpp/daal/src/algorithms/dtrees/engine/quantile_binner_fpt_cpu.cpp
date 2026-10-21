@@ -36,8 +36,6 @@ namespace internal
 using namespace daal::internal; // DAAL_CPU names a CpuType value
 
 template class QuantileBinner<DAAL_FPTYPE, DAAL_CPU>;
-template services::Status QuantileBinner<DAAL_FPTYPE, DAAL_CPU>::build<PhiloxRowSampler>(const data_management::NumericTable &, const BinningParams &,
-                                                                                         const PhiloxRowSampler &, BinMatrix<DAAL_CPU> &, bool &);
 } // namespace internal
 } // namespace engine
 } // namespace dtrees

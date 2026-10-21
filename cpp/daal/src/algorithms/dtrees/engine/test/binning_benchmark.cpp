@@ -36,6 +36,7 @@
 #include "services/internal/daal_kernel_defines.h"
 #include "src/algorithms/dtrees/dtrees_train_data_helper.i" // legacy binner, as the legacy forest includes it
 #include "src/algorithms/dtrees/engine/quantile_binner.h"
+#include "src/externals/service_rng.h"
 
 namespace daal::algorithms::dtrees::engine::internal::test
 {
@@ -97,8 +98,9 @@ template <CpuType cpu>
 double timeNewBinner(const NumericTable & x, BinMatrix<cpu> & bins)
 {
     BinningParams params;
-    bool binned    = false;
-    const double t = seconds([&]() { REQUIRE(QuantileBinner<float, cpu>::build(x, params, PhiloxRowSampler { 777 }, bins, binned).ok()); });
+    bool binned = false;
+    daal::internal::BaseRNGsInst<cpu> engine(777, __DAAL_BRNG_PHILOX4X32X10);
+    const double t = seconds([&]() { REQUIRE(QuantileBinner<float, cpu>::build(x, params, engine.getState(), bins, binned).ok()); });
     REQUIRE(binned);
     return t;
 }

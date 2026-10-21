@@ -25,8 +25,9 @@
 #ifndef __DTREES_ENGINE_QUANTILE_BINNER_I__
 #define __DTREES_ENGINE_QUANTILE_BINNER_I__
 
-#include "src/algorithms/dtrees/engine/node_rng.h"
 #include "src/algorithms/dtrees/engine/quantile_binner.h"
+#include "src/externals/service_rng.h"
+
 #include "src/algorithms/dtrees/engine/response_set.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/algorithms/service_sort.h"
@@ -254,58 +255,57 @@ struct SampleRows
     TArray<size_t, cpu> offset;
     TArray<uint32_t, cpu> rows;
 
-    services::Status select(size_t nRows, size_t sampleRows, const PhiloxRowSampler & sampler)
+    services::Status selectAll(size_t nRows)
     {
         const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
         DAAL_CHECK_MALLOC(offset.reset(nBlocks + 1));
-        all = nRows <= sampleRows;
-        if (all)
+        for (size_t b = 0; b <= nBlocks; ++b) offset[b] = b * tableBlockRows < nRows ? b * tableBlockRows : nRows;
+        all = true;
+        k   = nRows;
+        return services::Status();
+    }
+
+    /// Every row when nRows <= sampleRows; otherwise a Bernoulli sample: row r is in it if the stream's r-th
+    /// uniform draw is below sampleRows / nRows. The draws are read serially, in row order, so the sample
+    /// depends on the stream alone, for every engine and thread count.
+    services::Status select(size_t nRows, size_t sampleRows, void * stream)
+    {
+        if (nRows <= sampleRows) return selectAll(nRows);
+        DAAL_CHECK(stream, services::ErrorNullPtr);
+        const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
+        const size_t nWords  = (nRows + 63) / 64;
+        TArray<uint64_t, cpu> selected(nWords);
+        TArray<double, cpu> draws(tableBlockRows);
+        DAAL_CHECK_MALLOC(offset.reset(nBlocks + 1) && selected.get() && draws.get());
+        for (size_t w = 0; w < nWords; ++w) selected[w] = 0;
+        all               = false;
+        const double rate = double(sampleRows) / double(nRows);
+        daal::internal::RNGsInst<double, cpu> rng;
+        offset[0] = 0;
+        for (size_t b = 0; b < nBlocks; ++b)
         {
-            for (size_t b = 0; b <= nBlocks; ++b) offset[b] = b * tableBlockRows < nRows ? b * tableBlockRows : nRows;
-            k = nRows;
-            return services::Status();
-        }
-        // Bernoulli sampling: row r is in the sample if its 32-bit draw, word r of stream 0 of the
-        // philox4x32x10 sequence keyed by the sampler's seed, is below sampleRows / nRows * 2^32.
-        CounterRng<cpu> rng;
-        services::Status s = rng.init(sampler.seed);
-        DAAL_CHECK_STATUS_VAR(s);
-        const uint64_t threshold = uint64_t(double(sampleRows) / double(nRows) * 4294967296.0);
-        daal::tls<uint32_t *> tlsDraws([]() -> uint32_t * { return services::internal::service_malloc<uint32_t, cpu>(tableBlockRows); });
-        SafeStatus safeStat;
-        auto forBlockRows = [&](size_t b, auto && visit) {
             const size_t begin = b * tableBlockRows;
             const size_t n     = begin + tableBlockRows < nRows ? tableBlockRows : nRows - begin;
-            uint32_t * draws   = tlsDraws.local();
-            DAAL_CHECK_MALLOC_THR(draws);
-            const services::Status st = rng.read(0, begin, n, draws);
-            DAAL_CHECK_STATUS_THR(st);
+            if (rng.uniform(n, draws.get(), stream, 0.0, 1.0)) return services::Status(services::ErrorIncorrectErrorcodeFromGenerator);
+            size_t count = 0;
             for (size_t i = 0; i < n; ++i)
-                if (draws[i] < threshold) visit(begin + i);
-        };
+            {
+                if (!(draws[i] < rate)) continue;
+                selected[(begin + i) >> 6] |= uint64_t(1) << ((begin + i) & 63);
+                ++count;
+            }
+            offset[b + 1] = offset[b] + count;
+        }
+        k = offset[nBlocks];
+        if (k) DAAL_CHECK_MALLOC(rows.reset(k));
         daal::threader_for(nBlocks, 1, [&](size_t b) {
-            size_t n = 0;
-            forBlockRows(b, [&](size_t) { ++n; });
-            offset[b + 1] = n;
+            const size_t begin = b * tableBlockRows;
+            const size_t end   = begin + tableBlockRows < nRows ? begin + tableBlockRows : nRows;
+            size_t i           = offset[b];
+            for (size_t r = begin; r < end; ++r)
+                if ((selected[r >> 6] >> (r & 63)) & 1) rows[i++] = uint32_t(r);
         });
-        s = safeStat.detach();
-        if (s)
-        {
-            offset[0] = 0;
-            for (size_t b = 0; b < nBlocks; ++b) offset[b + 1] += offset[b];
-            k = offset[nBlocks];
-            if (k && !rows.reset(k)) s = services::Status(services::ErrorMemoryAllocationFailed);
-        }
-        if (s)
-        {
-            daal::threader_for(nBlocks, 1, [&](size_t b) {
-                size_t i = offset[b];
-                forBlockRows(b, [&](size_t r) { rows[i++] = uint32_t(r); });
-            });
-            s = safeStat.detach();
-        }
-        tlsDraws.reduce([](uint32_t * d) { services::internal::service_free<uint32_t, cpu>(d); });
-        return s;
+        return services::Status();
     }
 };
 
@@ -430,9 +430,8 @@ void sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, al
 } // namespace binner
 
 template <typename algorithmFPType, CpuType cpu>
-template <typename Sampler>
 services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_management::NumericTable & x, const BinningParams & params,
-                                                             const Sampler & sampler, BinMatrix<cpu> & out, bool & binned)
+                                                             void * sampleStream, BinMatrix<cpu> & out, bool & binned)
 {
     using data_management::NumericTableIface;
     binned             = false;
@@ -452,7 +451,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     for (size_t f = 0; f < p; ++f) categorical[f] = x.getFeatureType(f) == data_management::features::DAAL_CATEGORICAL;
 
     binner::SampleRows<cpu> sample;
-    services::Status s = sample.select(nRows, params.sampleRows, sampler);
+    services::Status s = sample.select(nRows, params.sampleRows, sampleStream);
     DAAL_CHECK_STATUS_VAR(s);
     const size_t nThreads = threader_get_threads_number();
 
@@ -644,7 +643,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
             const bool needFull = categorical[f] || nBins[f] == 0;
             if (needFull && !fullSelected)
             {
-                s = fullColumn.select(nRows, nRows, sampler);
+                s = fullColumn.selectAll(nRows);
                 DAAL_CHECK_STATUS_VAR(s);
                 fullSelected = true;
             }

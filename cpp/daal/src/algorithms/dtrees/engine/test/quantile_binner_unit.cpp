@@ -26,8 +26,8 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/env_detect.h"
 #include "services/internal/daal_kernel_defines.h"
-#include "src/algorithms/dtrees/engine/node_rng.h"
 #include "src/algorithms/dtrees/engine/quantile_binner.h"
+#include "src/externals/service_rng.h"
 
 namespace daal::algorithms::dtrees::engine::internal::test
 {
@@ -76,10 +76,24 @@ struct Built
     services::Status status;
 };
 
+// Engines a fit can use; the sample takes its draws from a stream of the user's engine.
+const int engines[] = { __DAAL_BRNG_PHILOX4X32X10, __DAAL_BRNG_MT2203, __DAAL_BRNG_MT19937, __DAAL_BRNG_MCG59 };
+
 template <CpuType cpu>
-void build(const NumericTable & x, const BinningParams & params, uint64_t seed, Built<cpu> & out)
+void build(const NumericTable & x, const BinningParams & params, uint64_t seed, Built<cpu> & out, int brng = __DAAL_BRNG_PHILOX4X32X10)
 {
-    out.status = QuantileBinner<double, cpu>::build(x, params, PhiloxRowSampler { seed }, out.bins, out.binned);
+    daal::internal::BaseRNGsInst<cpu> engine(unsigned(seed), brng);
+    out.status = QuantileBinner<double, cpu>::build(x, params, engine.getState(), out.bins, out.binned);
+}
+
+/// The first n uniform draws of a fresh stream of brng.
+std::vector<double> streamDraws(uint64_t seed, size_t n, int brng = __DAAL_BRNG_PHILOX4X32X10)
+{
+    daal::internal::BaseRNGsInst<baseCpu> engine(unsigned(seed), brng);
+    daal::internal::RNGsInst<double, baseCpu> rng;
+    std::vector<double> draws(n);
+    REQUIRE(rng.uniform(n, draws.data(), engine.getState(), 0.0, 1.0) == 0);
+    return draws;
 }
 
 template <CpuType cpu>
@@ -130,25 +144,24 @@ void requireEqual(const BinMatrix<a> & x, const BinMatrix<b> & y)
     }
 }
 
-/// Rows the binner leaves out of its sample, by the sampler's own rule; empty if the backend cannot sample.
+/// Rows the binner leaves out of its sample, by the sampler's own rule: row r's draw is the stream's r-th.
 std::vector<size_t> rowsOutsideSample(uint64_t seed, size_t nRows, size_t sampleRows)
 {
-    const uint64_t threshold = uint64_t(double(sampleRows) / double(nRows) * 4294967296.0);
-    CounterRng<baseCpu> rng;
+    const double rate               = double(sampleRows) / double(nRows);
+    const std::vector<double> draws = streamDraws(seed, nRows);
     std::vector<size_t> out;
-    if (!rng.init(seed).ok()) return out;
-    std::vector<uint32_t> draws(nRows);
-    REQUIRE(rng.read(0, 0, nRows, draws.data()).ok());
     for (size_t r = 0; r < nRows; ++r)
-        if (draws[r] >= threshold) out.push_back(r);
+        if (!(draws[r] < rate)) out.push_back(r);
     return out;
 }
 
-/// Whether this RNG backend can address philox4x32x10 by counter, which sampled binning needs.
-bool canSample()
+/// Whether this RNG backend can draw uniform doubles from the engine, which sampled binning needs.
+bool canSample(int brng = __DAAL_BRNG_PHILOX4X32X10)
 {
-    CounterRng<baseCpu> rng;
-    return rng.init(1).ok();
+    daal::internal::BaseRNGsInst<baseCpu> engine(1, brng);
+    daal::internal::RNGsInst<double, baseCpu> rng;
+    double v = 0;
+    return engine.getState() && rng.uniform(1, &v, engine.getState(), 0.0, 1.0) == 0;
 }
 
 TEST("binRowStride keeps rows inside cache lines", "[unit]")
@@ -310,24 +323,53 @@ TEST("an exact-mode build bins every row by its borders, the same on every CpuTy
     });
 }
 
-TEST("the binning sample and the bins do not depend on the thread count", "[unit]")
+TEST("the binning sample and the bins do not depend on the thread count, for every engine", "[unit]")
 {
-    SKIP_IF(!canSample());
     MixedTable t(60000, 2);
     NumericTablePtr x = makeTable(t.data, MixedTable::p, { 4 });
     BinningParams params;
-    params.sampleRows  = 5000;
-    const size_t saved = services::Environment::getInstance()->getNumberOfThreads();
-    services::Environment::getInstance()->setNumberOfThreads(1);
-    Built<baseCpu> one;
-    build(*x, params, 99, one);
-    services::Environment::getInstance()->setNumberOfThreads(saved);
-    Built<baseCpu> many;
-    build(*x, params, 99, many);
-    REQUIRE(one.status.ok());
-    REQUIRE(many.status.ok());
-    requireConsistent(many.bins, t.data);
-    requireEqual(one.bins, many.bins);
+    params.sampleRows = 5000;
+    for (int brng : engines)
+    {
+        if (!canSample(brng)) continue;
+        const size_t saved = services::Environment::getInstance()->getNumberOfThreads();
+        services::Environment::getInstance()->setNumberOfThreads(1);
+        Built<baseCpu> one;
+        build(*x, params, 99, one, brng);
+        services::Environment::getInstance()->setNumberOfThreads(saved);
+        Built<baseCpu> many;
+        build(*x, params, 99, many, brng);
+        REQUIRE(one.status.ok());
+        REQUIRE(many.status.ok());
+        requireConsistent(many.bins, t.data);
+        requireEqual(one.bins, many.bins);
+    }
+}
+
+TEST("sampling advances the stream by one draw per row, and exact mode does not read it", "[unit]")
+{
+    std::vector<double> data(20000);
+    for (size_t r = 0; r < data.size(); ++r) data[r] = double(r % 977);
+    NumericTablePtr x = makeTable(data, 1);
+    for (int brng : engines)
+    {
+        if (!canSample(brng)) continue;
+        const std::vector<double> reference = streamDraws(5, data.size() + 1, brng);
+        for (size_t sampleRows : { size_t(2000), data.size() })
+        {
+            BinningParams params;
+            params.sampleRows = sampleRows;
+            daal::internal::BaseRNGsInst<baseCpu> engine(5, brng);
+            BinMatrix<baseCpu> bins;
+            bool binned = false;
+            REQUIRE(QuantileBinner<double, baseCpu>::build(*x, params, engine.getState(), bins, binned).ok());
+            REQUIRE(binned);
+            daal::internal::RNGsInst<double, baseCpu> rng;
+            double next = 0;
+            REQUIRE(rng.uniform(1, &next, engine.getState(), 0.0, 1.0) == 0);
+            REQUIRE(next == reference[sampleRows < data.size() ? data.size() : 0]);
+        }
+    }
 }
 
 TEST("a NaN outside the sample rebins a feature that uses all maxBins data bins", "[unit]")
@@ -408,17 +450,21 @@ TEST("sampled borders are within the DKW rank bound of the full column", "[unit]
     BinningParams params;
     params.sampleRows = sampleRows;
     params.minBinSize = 1;
-    for (uint64_t seed = 1; seed <= 5; ++seed)
+    for (int brng : engines)
     {
-        Built<baseCpu> b;
-        build(*x, params, seed, b);
-        REQUIRE(b.status.ok());
-        const size_t B = b.bins.nBins(0);
-        REQUIRE(B == params.maxBins);
-        for (size_t j = 1; j < B; ++j)
+        if (!canSample(brng)) continue;
+        for (uint64_t seed = 1; seed <= 5; ++seed)
         {
-            const double rank = double(std::upper_bound(sorted.begin(), sorted.end(), b.bins.borders(0)[j - 1]) - sorted.begin()) / double(nRows);
-            REQUIRE(std::abs(rank - double(j) / double(B)) <= eps + 1.0 / double(sampleRows));
+            Built<baseCpu> b;
+            build(*x, params, seed, b, brng);
+            REQUIRE(b.status.ok());
+            const size_t B = b.bins.nBins(0);
+            REQUIRE(B == params.maxBins);
+            for (size_t j = 1; j < B; ++j)
+            {
+                const double rank = double(std::upper_bound(sorted.begin(), sorted.end(), b.bins.borders(0)[j - 1]) - sorted.begin()) / double(nRows);
+                REQUIRE(std::abs(rank - double(j) / double(B)) <= eps + 1.0 / double(sampleRows));
+            }
         }
     }
 }

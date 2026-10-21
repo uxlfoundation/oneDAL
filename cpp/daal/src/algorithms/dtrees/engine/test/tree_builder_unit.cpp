@@ -159,7 +159,8 @@ std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, siz
     if (binning)
     {
         bool binned = false;
-        REQUIRE((QuantileBinner<double, cpu>::build(*xt, *binning, PhiloxRowSampler { seed }, bins, binned)).ok());
+        daal::internal::BaseRNGsInst<cpu> engine(unsigned(seed), __DAAL_BRNG_PHILOX4X32X10);
+        REQUIRE((QuantileBinner<double, cpu>::build(*xt, *binning, engine.getState(), bins, binned)).ok());
         REQUIRE(binned);
         data.bins = &bins;
     }
