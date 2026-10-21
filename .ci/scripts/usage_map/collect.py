@@ -52,7 +52,7 @@ def canon(path):
 
 def gcov_one(gcno, gcda_root):
     obj = gcno[:-5]
-    with tempfile.TemporaryDirectory(dir=f"{U}/tmp") as td:
+    with tempfile.TemporaryDirectory(dir=f"{U}/gcov-work") as td:
         base = os.path.join(td, "o")
         os.symlink(gcno, base + ".gcno")
         if gcda_root:
@@ -62,7 +62,7 @@ def gcov_one(gcno, gcda_root):
             os.symlink(gcda, base + ".gcda")
         r = subprocess.run(GCOV + ["--json-format", "--stdout", "--demangled-names", "-o", td, base],
                            cwd=SRC, capture_output=True, text=True)
-    return [json.loads(l) for l in r.stdout.splitlines() if l.strip().startswith("{")]
+    return [json.loads(ln) for ln in r.stdout.splitlines() if ln.strip().startswith("{")]
 
 
 def collect(name, gcnos):
@@ -100,7 +100,7 @@ def collect(name, gcnos):
 
 
 def main():
-    os.makedirs(f"{U}/tmp", exist_ok=True)
+    os.makedirs(f"{U}/gcov-work", exist_ok=True)
     gcnos = []
     for w in WORKS:
         for d, _, fs in os.walk(w):

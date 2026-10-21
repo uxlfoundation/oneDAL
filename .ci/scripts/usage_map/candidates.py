@@ -31,7 +31,8 @@ d = json.load(open(f"{U}/out-{B}/data.json"))
 rows = []
 for c in d["components"]:
     for s, v in c["subs"].items():
-        L = v["lines"]; dead = v["C"] + v["B"] + v["E"]
+        L = v["lines"]
+        dead = v["C"] + v["B"] + v["E"]
         if L < 50: continue
         t = "T1 drop" if v["A"] + v["P"] == 0 else "T2 deprecate" if v["A"] == 0 else "T3 trim" if dead / L >= .5 else None
         if t: rows.append((t, c["api"], c["comp"], s, L, v["A"], v["P"], dead, c["sec"] * (v["lines"] / max(c["lines"], 1))))

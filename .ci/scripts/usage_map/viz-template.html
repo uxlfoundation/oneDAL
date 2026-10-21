@@ -26,6 +26,8 @@ limitations under the License.
   --cA: #2a78d6; --cP: #1baf7a; --cC: #eb6834; --cB: #6250d6; --cE: #c9c8c1;
   --seq0: #f0efec; --seq1: #cde2fb; --seq3: #6da7ec; --seq5: #256abf; --seq7: #0d366b;
   --focus: #2a78d6;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--surface-0);
+  color: var(--text-primary); min-height: 100vh; padding: 20px 24px 60px;
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) .viz-root {
@@ -45,8 +47,6 @@ limitations under the License.
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
-.viz-root { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--surface-0);
-  color: var(--text-primary); min-height: 100vh; padding: 20px 24px 60px; }
 h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
 h2 { font-size: 15px; margin: 0 0 2px; font-weight: 600; }
 .sub { color: var(--text-secondary); margin: 0 0 12px; }

@@ -102,18 +102,18 @@ def norm(sig):
 def main():
     labels = REAL + PUBLIC + FILTERED
     uni = load("universe")
-    data = {l: load(l) for l in labels}
-    hits = {l: {(f, n, s): c for f, n, s, c in d["functions"]} for l, d in data.items()}
+    data = {lab: load(lab) for lab in labels}
+    hits = {lab: {(f, n, s): c for f, n, s, c in d["functions"]} for lab, d in data.items()}
     exp = exported()
     os.makedirs(f"{U}/out", exist_ok=True)
 
     rows = []
     for f, n, s, _ in uni["functions"]:
         k = (f, n, s)
-        used = {l: hits[l].get(k, 0) for l in labels}
-        real = [l for l in REAL if used[l]]
-        filt = [l for l in FILTERED if used[l]]
-        pub = [l for l in PUBLIC if used[l]]
+        used = {lab: hits[lab].get(k, 0) for lab in labels}
+        real = [lab for lab in REAL if used[lab]]
+        filt = [lab for lab in FILTERED if used[lab]]
+        pub = [lab for lab in PUBLIC if used[lab]]
         cls = "A" if real else ("P" if pub else ("C" if filt else "E"))
         abi = "D" if cls != "A" and norm(n) in exp else ""
         api, comp, sub = area(f)
@@ -126,15 +126,15 @@ def main():
 
     # line-level per file
     ulines = {f: dict(v) for f, v in uni["lines"].items()}
-    llines = {l: {f: {n for n, c in v if c} for f, v in d["lines"].items()} for l, d in data.items()}
+    llines = {lab: {f: {n for n, c in v if c} for f, v in d["lines"].items()} for lab, d in data.items()}
     frows = []
     for f, lm in ulines.items():
         tot = len(lm)
         if not tot:
             continue
-        real = set().union(*(llines[l].get(f, set()) for l in REAL + PUBLIC))
-        filt = set().union(*(llines[l].get(f, set()) for l in FILTERED))
-        per = [len(llines[l].get(f, set())) for l in labels]
+        real = set().union(*(llines[lab].get(f, set()) for lab in REAL + PUBLIC))
+        filt = set().union(*(llines[lab].get(f, set()) for lab in FILTERED))
+        per = [len(llines[lab].get(f, set())) for lab in labels]
         api, comp, sub = area(f)
         frows.append([api, comp, sub, f, tot, len(real), len(filt - real), tot - len(real | filt), *per])
     with open(f"{U}/out/files.csv", "w", newline="") as fh:
@@ -147,30 +147,40 @@ def main():
     agg = defaultdict(lambda: defaultdict(int))
     for r in frows:
         a = agg[(r[1], r[0])]
-        a["lines"] += r[4]; a["real"] += r[5]; a["filt"] += r[6]; a["unused"] += r[7]
-        for i, l in enumerate(labels):
-            a[l] += r[8 + i]
+        a["lines"] += r[4]
+        a["real"] += r[5]
+        a["filt"] += r[6]
+        a["unused"] += r[7]
+        for i, lab in enumerate(labels):
+            a[lab] += r[8 + i]
     for r in rows:
         a = agg[(r[3], r[2])]
-        a["fn"] += 1; a["fn_" + r[0]] += 1; a["fn_D"] += bool(r[1])
+        a["fn"] += 1
+        a["fn_" + r[0]] += 1
+        a["fn_D"] += bool(r[1])
         a["static"] = static_tag(r[2], r[3])
     arows = []
     for (comp, api), a in agg.items():
         arows.append([comp, api, a.get("static", ""), a["lines"], a["real"], a["filt"], a["unused"],
                       a["fn"], a["fn_A"], a["fn_P"], a["fn_C"], a["fn_E"], a["fn_D"],
-                      *[a[l] for l in labels]])
+                      *[a[lab] for lab in labels]])
     arows.sort(key=lambda r: -r[6])
     hdr = ["component", "api", "static", "lines", "used_hit", "examples_only", "unused",
            "fns", "fn_A", "fn_P", "fn_C", "fn_E", "fn_abi_only", *labels]
     with open(f"{U}/out/algorithms.csv", "w", newline="") as fh:
-        w = csv.writer(fh); w.writerow(hdr); w.writerows(arows)
+        w = csv.writer(fh)
+        w.writerow(hdr)
+        w.writerows(arows)
 
     tot = defaultdict(int)
     for r in rows:
-        tot[r[0]] += 1; tot["D"] += bool(r[1])
-    L = sum(r[4] for r in frows); R = sum(r[5] for r in frows)
-    Fo = sum(r[6] for r in frows); Un = sum(r[7] for r in frows)
-    md = [f"# oneDAL 2026.1.0 usage map (CPU, avx512 build)\n",
+        tot[r[0]] += 1
+        tot["D"] += bool(r[1])
+    L = sum(r[4] for r in frows)
+    R = sum(r[5] for r in frows)
+    Fo = sum(r[6] for r in frows)
+    Un = sum(r[7] for r in frows)
+    md = ["# oneDAL 2026.1.0 usage map (CPU, avx512 build)\n",
           f"Functions: {len(rows)}  A={tot['A']}  P={tot['P']}  C={tot['C']}  E={tot['E']}  (ABI-exported non-A: {tot['D']})\n",
           f"Lines: {L}  real-consumer hit={R} ({100*R/L:.1f}%)  examples-only={Fo}  unused={Un} ({100*Un/L:.1f}%)\n",
           "\n## Components by unused lines\n",

@@ -55,7 +55,7 @@ def parse(text_files):
 
 def gcov_one(gcno, gcda_root):
     obj = gcno[:-5]
-    with tempfile.TemporaryDirectory(dir=f"{collect.U}/tmp") as td:
+    with tempfile.TemporaryDirectory(dir=f"{collect.U}/gcov-work") as td:
         base = os.path.join(td, "o")
         os.symlink(gcno, base + ".gcno")
         if gcda_root:
@@ -71,7 +71,7 @@ def gcov_one(gcno, gcda_root):
 
 def main():
     collect.gcov_one = gcov_one
-    os.makedirs(f"{collect.U}/tmp", exist_ok=True)
+    os.makedirs(f"{collect.U}/gcov-work", exist_ok=True)
     gcnos = []
     for w in collect.WORKS:
         for d, _, fs in os.walk(w):

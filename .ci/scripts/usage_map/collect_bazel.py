@@ -39,7 +39,7 @@ GCDA = f"{collect.U}/cov-cov2/u/{UNIT}/proc/self/cwd/"
 
 
 def main():
-    os.makedirs(f"{collect.U}/tmp", exist_ok=True)
+    os.makedirs(f"{collect.U}/gcov-work", exist_ok=True)
     gcnos = []
     for d, _, fs in os.walk(f"{EXEC}/bazel-out/k8-opt/bin/cpp"):
         gcnos += [os.path.join(d, f) for f in fs if f.endswith(".gcno")]
@@ -51,13 +51,13 @@ def _gcov(gcno):
     gcda = GCDA + os.path.relpath(gcno, EXEC)[:-5] + ".gcda"
     if not os.path.exists(gcda):
         return None
-    with tempfile.TemporaryDirectory(dir=f"{collect.U}/tmp") as td:
+    with tempfile.TemporaryDirectory(dir=f"{collect.U}/gcov-work") as td:
         base = os.path.join(td, "o")
         os.symlink(gcno, base + ".gcno")
         os.symlink(gcda, base + ".gcda")
         r = subprocess.run(collect.GCOV + ["--json-format", "--stdout", "--demangled-names", "-o", td, base],
                            cwd=EXEC, capture_output=True, text=True)
-    return [json.loads(l) for l in r.stdout.splitlines() if l.strip().startswith("{")]
+    return [json.loads(ln) for ln in r.stdout.splitlines() if ln.strip().startswith("{")]
 
 
 if __name__ == "__main__":

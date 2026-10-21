@@ -61,7 +61,7 @@ def exported():
         if so.endswith(".so.4.0"):
             r = subprocess.run(["nm", "-D", "--defined-only", os.path.join(LIBDIR, so)],
                                capture_output=True, text=True)
-            names.update(l.split()[-1] for l in r.stdout.splitlines() if l.split()[1:2] in (["T"], ["W"]))
+            names.update(ln.split()[-1] for ln in r.stdout.splitlines() if ln.split()[1:2] in (["T"], ["W"]))
     return names
 
 
