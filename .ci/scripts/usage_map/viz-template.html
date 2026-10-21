@@ -1,0 +1,371 @@
+<!--
+Copyright contributors to the oneDAL project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>oneDAL usage map</title>
+<style>
+.viz-root {
+  color-scheme: light;
+  --surface-0: #f4f3f0; --surface-1: #fcfcfb; --line: #e2e1dc; --grid: #ecebe7;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7973;
+  --cA: #2a78d6; --cP: #1baf7a; --cC: #eb6834; --cB: #6250d6; --cE: #c9c8c1;
+  --seq0: #f0efec; --seq1: #cde2fb; --seq3: #6da7ec; --seq5: #256abf; --seq7: #0d366b;
+  --focus: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --surface-0: #121211; --surface-1: #1a1a19; --line: #33332f; --grid: #262624;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --cA: #3987e5; --cP: #199e70; --cC: #d95926; --cB: #9085e9; --cE: #4a4945;
+    --seq0: #262624; --seq1: #104281; --seq3: #256abf; --seq5: #5598e7; --seq7: #cde2fb;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --surface-0: #121211; --surface-1: #1a1a19; --line: #33332f; --grid: #262624;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --cA: #3987e5; --cP: #199e70; --cC: #d95926; --cB: #9085e9; --cE: #4a4945;
+  --seq0: #262624; --seq1: #104281; --seq3: #256abf; --seq5: #5598e7; --seq7: #cde2fb;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.viz-root { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--surface-0);
+  color: var(--text-primary); min-height: 100vh; padding: 20px 24px 60px; }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+h2 { font-size: 15px; margin: 0 0 2px; font-weight: 600; }
+.sub { color: var(--text-secondary); margin: 0 0 12px; }
+.muted { color: var(--text-muted); }
+.card { background: var(--surface-1); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface-1); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.tile .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile .k { color: var(--text-secondary); font-size: 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 16px; }
+.filters label { color: var(--text-secondary); font-size: 12px; display: flex; gap: 6px; align-items: center; }
+select, input[type=search] { font: inherit; background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; border: 0; background: var(--surface-1); color: var(--text-secondary); padding: 4px 10px; cursor: pointer; }
+.seg button[aria-pressed=true] { background: var(--text-primary); color: var(--surface-1); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin: 6px 0 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+@media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }
+#treemap { position: relative; height: 460px; }
+#treemap .cell { position: absolute; border: 2px solid var(--surface-1); border-radius: 4px; overflow: hidden;
+  font-size: 11px; padding: 3px 5px; cursor: pointer; color: var(--text-primary); }
+#treemap .cell.dark { color: #fcfcfb; }
+#treemap .cell:not(.dark) { color: #1a1a19; }
+#treemap .cell:hover, #treemap .cell.sel { outline: 2px solid var(--text-primary); outline-offset: -2px; z-index: 2; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 4px 6px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 500; font-size: 12px; cursor: pointer; position: sticky; top: 0; background: var(--surface-1); user-select: none; }
+th.l, td.l { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-0); }
+tbody tr.sel { background: var(--surface-0); box-shadow: inset 3px 0 0 var(--focus); }
+.scroll { max-height: 560px; overflow: auto; }
+.bar { display: flex; height: 10px; width: 160px; gap: 2px; }
+.bar span { height: 100%; }
+.bar span:first-child { border-radius: 4px 0 0 4px; }
+.bar span:last-child { border-radius: 0 4px 4px 0; }
+.bar span:only-child { border-radius: 4px; }
+.tag { font-size: 11px; color: var(--text-secondary); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+#tip { position: fixed; pointer-events: none; background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  display: none; z-index: 10; max-width: 380px; }
+#tip .r { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+#tip .r i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.heat td.h { width: 64px; height: 22px; border: 2px solid var(--surface-1); padding: 0; text-align: center; font-size: 11px; }
+.fn { font-family: ui-monospace, monospace; font-size: 11.5px; }
+.pill { display: inline-block; min-width: 16px; text-align: center; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fcfcfb; padding: 0 3px; }
+.note { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+.themebtn { float: right; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <div class="seg themebtn"><button id="th-l">Light</button><button id="th-d">Dark</button></div>
+  <h1>oneDAL 2026.1.0 usage map</h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="filters">
+    <label>API <select id="f-api"><option value="">all</option><option>daal</option><option>oneapi</option></select></label>
+    <label>Lens <select id="f-lens"></select></label>
+    <label>Size by <span class="seg" id="f-size"></span></label>
+    <label><input type="checkbox" id="f-shared"> hide shared/*</label>
+    <label>Find <input type="search" id="f-q" placeholder="component"></label>
+  </div>
+
+  <div class="card">
+    <h2 id="tm-title">Components</h2>
+    <div class="muted" id="tm-sub"></div>
+    <div class="legend" id="tm-legend"></div>
+    <div id="treemap" role="img" aria-label="Treemap of components"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Components</h2>
+      <div class="muted">Lines by class (stacked). Click a row for details. Click headers to sort.</div>
+      <div class="legend" id="cls-legend"></div>
+      <div class="scroll"><table id="ctab"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card" id="detail"><h2>Pick a component</h2><div class="muted">Click a treemap cell or table row.</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Consumer × component</h2>
+    <div class="muted">Share of component lines each consumer executes. Top 40 components by lines in the current filter.</div>
+    <div class="scroll" style="max-height:none"><table class="heat" id="heat"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Test units</h2>
+    <div class="muted">One unit = one pytest file or one C++ example, run alone at O0 with coverage. Time is wall seconds on this box.</div>
+    <div class="scroll"><table id="utab"><thead></thead><tbody></tbody></table></div>
+  </div>
+  <div id="tip"></div>
+</div>
+<script>
+const D = /*DATA*/null;
+const CLS = ["A", "P", "C", "B", "E"];
+const CLSN = { A: "A · used by product", P: "P · daal4py public API only", C: "C · oneDAL examples / own tests only",
+  B: "B · not run, statically reachable", E: "E · not run, unreachable" };
+const css = n => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(n).trim();
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? (n / 1e3).toFixed(0) + "k" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : Math.round(n).toString();
+const pct = (a, b) => b ? (100 * a / b).toFixed(1) + "%" : "–";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const $ = id => document.getElementById(id);
+
+const SIZES = { lines: "Lines", bytes: "Object bytes", sec: "Build CPU-s", test_sec_attr: "Test s" };
+const st = { api: "", lens: "", size: "lines", hideShared: false, q: "", sel: null, sort: ["removable", -1] };
+
+D.components.forEach(c => { c.removable = c.C + c.B + c.E; });
+const unitById = Object.fromEntries(D.units.map(u => [u.uid, u]));
+
+function lensHit(c) { return st.lens ? c.by[st.lens] : c.A + c.P; }
+function colorShare(s) {   // sequential blue from the background: near-background = little removable, strongest = mostly removable
+  const stops = [css("--seq0"), css("--seq1"), css("--seq3"), css("--seq5"), css("--seq7")];
+  const t = Math.max(0, Math.min(1, s)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t));
+  return mix(stops[i], stops[i + 1], t - i);
+}
+function mix(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const x = p(a), y = p(b);
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+function lum(h) { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; }
+
+function visible() {
+  return D.components.filter(c => (!st.api || c.api === st.api) && (!st.hideShared || !c.comp.startsWith("shared:"))
+    && (!st.q || c.comp.toLowerCase().includes(st.q)));
+}
+
+function tiles() {
+  const cs = D.components, T = k => cs.reduce((s, c) => s + c[k], 0);
+  const L = T("lines");
+  const us = D.units, ts = g => us.filter(u => g.includes(u.consumer)).reduce((s, u) => s + u.seconds, 0);
+  const t = [
+    [fmt(L), "executable lines (all ISAs, headers)"],
+    [pct(T("A"), L), "used by product (A)"],
+    [pct(T("P"), L), "daal4py public API only (P)"],
+    [pct(T("C"), L), "oneDAL examples / own tests only (C)"],
+    [pct(T("B") + T("E"), L), "never run (B+E)"],
+    [fmt(T("sec") + T("sec_static")), "build CPU-s (half is static-lib copy)"],
+    [(T("bytes") / 1e6).toFixed(1) + " MB", "object code, dynamic libs"],
+    [fmt(ts(D.real.concat(D.public))), "consumer test s (O0, serial sum)"],
+  ];
+  $("tiles").innerHTML = t.map(([v, k]) => `<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join("");
+  $("subtitle").textContent = `Build ${D.build}: gcov, O0, sse2+avx2+avx512. ${D.units.length} test units. ` +
+    `Real consumers: ${D.real.join(", ")}. Public API: ${D.public.join(", ")}. Filtered: ${D.filtered.join(", ")}.`;
+}
+
+function legendHTML() {
+  return CLS.map(k => `<span><i style="background:var(--c${k})"></i>${CLSN[k]}</span>`).join("");
+}
+
+// squarified treemap
+function squarify(items, x, y, w, h, out) {
+  if (!items.length) return;
+  const total = items.reduce((s, i) => s + i.v, 0);
+  if (items.length === 1 || w * h === 0) { items.forEach(i => out.push({ ...i, x, y, w, h })); if (items.length === 1) return; }
+  let row = [], rest = items.slice(), side = Math.min(w, h), scale = w * h / total, best = Infinity;
+  while (rest.length) {
+    const cand = row.concat([rest[0]]);
+    const s = cand.reduce((a, i) => a + i.v * scale, 0), mx = Math.max(...cand.map(i => i.v * scale)), mn = Math.min(...cand.map(i => i.v * scale));
+    const worst = Math.max(side * side * mx / (s * s), (s * s) / (side * side * mn));
+    if (worst > best) break;
+    best = worst; row = cand; rest.shift();
+  }
+  const s = row.reduce((a, i) => a + i.v * scale, 0);
+  if (w >= h) {
+    const rw = s / h; let yy = y;
+    row.forEach(i => { const ih = i.v * scale / rw; out.push({ ...i, x, y: yy, w: rw, h: ih }); yy += ih; });
+    squarify(rest, x + rw, y, w - rw, h, out);
+  } else {
+    const rh = s / w; let xx = x;
+    row.forEach(i => { const iw = i.v * scale / rh; out.push({ ...i, x: xx, y, w: iw, h: rh }); xx += iw; });
+    squarify(rest, x, y + rh, w, h - rh, out);
+  }
+}
+
+function treemap() {
+  const el = $("treemap"), W = el.clientWidth, H = el.clientHeight;
+  const items = visible().map(c => ({ c, v: Math.max(c[st.size], 0) })).filter(i => i.v > 0).sort((a, b) => b.v - a.v);
+  const out = []; squarify(items, 0, 0, W, H, out);
+  $("tm-title").textContent = `Components sized by ${SIZES[st.size].toLowerCase()}`;
+  $("tm-sub").textContent = st.lens
+    ? `Color: share of lines ${st.lens} does not execute. Stronger color = more removable.`
+    : "Color: share of lines no product consumer or public-API test executes (C+B+E). Stronger color (further from the background) = more removable.";
+  $("tm-legend").innerHTML = [0, .25, .5, .75, 1].map(s => `<span><i style="background:${colorShare(s)}"></i>${s * 100}%</span>`).join("") + `<span class="muted">removable</span>`;
+  el.innerHTML = "";
+  out.forEach(r => {
+    const c = r.c, share = c.lines ? 1 - lensHit(c) / c.lines : 0, bg = colorShare(share);
+    const d = document.createElement("div");
+    d.className = "cell" + (lum(bg) < .4 ? " dark" : "") + (st.sel === c.key ? " sel" : "");
+    Object.assign(d.style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px", background: bg });
+    if (r.w > 46 && r.h > 16) d.innerHTML = `<b>${esc(c.comp)}</b>${r.h > 30 ? `<br>${c.api} · ${pct(c.lines - lensHit(c), c.lines)} removable` : ""}`;
+    d.onmousemove = e => tip(e, compTip(c));
+    d.onmouseleave = untip;
+    d.onclick = () => select(c.key);
+    el.appendChild(d);
+  });
+}
+
+function compTip(c) {
+  return `<b>${esc(c.comp)}</b> <span class="muted">${c.api}${c.static ? " · " + c.static : ""}</span><br>` +
+    CLS.map(k => `<div class="r"><span><i style="background:var(--c${k})"></i>${k}</span><span>${fmt(c[k])} · ${pct(c[k], c.lines)}</span></div>`).join("") +
+    `<div class="r"><span>lines</span><span>${fmt(c.lines)}</span></div>` +
+    `<div class="r"><span>build CPU-s / obj</span><span>${c.sec.toFixed(0)} s · ${fmt(c.bytes)} B</span></div>` +
+    `<div class="r"><span>test s attributed</span><span>${c.test_sec_attr}</span></div>`;
+}
+function tip(e, h) {
+  const t = $("tip"); t.innerHTML = h; t.style.display = "block";
+  const x = Math.min(e.clientX + 14, innerWidth - t.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8);
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+function untip() { $("tip").style.display = "none"; }
+
+function stack(o, tot) {
+  return `<div class="bar">` + CLS.filter(k => o[k] > 0).map(k => `<span style="width:${100 * o[k] / tot}%;background:var(--c${k})"></span>`).join("") + `</div>`;
+}
+
+const COLS = [
+  ["comp", "component", "l"], ["api", "api", "l"], ["bar", "classes", "l"], ["lines", "lines"],
+  ["A", "A"], ["P", "P"], ["C", "C"], ["B", "B"], ["E", "E"], ["removable", "C+B+E"],
+  ["sec", "build s"], ["bytes", "obj KB"], ["test_sec_attr", "test s"], ["focused", "focused tests"]];
+function table() {
+  const cs = visible().slice(), [k, dir] = st.sort;
+  cs.sort((a, b) => (typeof a[k] === "string" ? a[k].localeCompare(b[k]) : a[k] - b[k]) * dir);
+  $("ctab").tHead.innerHTML = "<tr>" + COLS.map(([key, lab, cl]) =>
+    `<th class="${cl || ""}" data-k="${key}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}">${lab}${key === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr>";
+  $("ctab").tBodies[0].innerHTML = cs.map(c => `<tr data-k="${c.key}" class="${st.sel === c.key ? "sel" : ""}">` +
+    `<td class="l">${esc(c.comp)}${c.static ? ` <span class="tag">${c.static}</span>` : ""}</td><td class="l">${c.api}</td>` +
+    `<td class="l">${stack(c, c.lines)}</td><td>${fmt(c.lines)}</td>` +
+    CLS.map(x => `<td>${fmt(c[x])}</td>`).join("") + `<td>${fmt(c.removable)}</td>` +
+    `<td>${c.sec.toFixed(0)}</td><td>${(c.bytes / 1e3).toFixed(0)}</td><td>${c.test_sec_attr.toFixed(0)}</td><td>${c.focused}</td></tr>`).join("");
+  $("ctab").tHead.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const kk = th.dataset.k; if (kk === "bar") return;
+    st.sort = [kk, st.sort[0] === kk ? -st.sort[1] : -1]; table();
+  });
+  $("ctab").tBodies[0].querySelectorAll("tr").forEach(tr => {
+    const c = D.components.find(x => x.key === tr.dataset.k);
+    tr.onclick = () => select(c.key);
+    tr.querySelector(".bar").onmousemove = e => tip(e, compTip(c));
+    tr.querySelector(".bar").onmouseleave = untip;
+  });
+}
+
+function detail() {
+  const c = D.components.find(x => x.key === st.sel);
+  if (!c) return;
+  const files = D.files.filter(f => `${f.api}/${f.comp}` === c.key).sort((a, b) => (b.C + b.B + b.E) - (a.C + a.B + a.E));
+  const subs = Object.entries(c.subs).sort((a, b) => b[1].lines - a[1].lines);
+  const us = Object.entries(c.units).map(([u, n]) => ({ u: unitById[u], n })).filter(x => x.u).sort((a, b) => b.n - a.n);
+  const fcls = st.fcls || "";
+  const fns = c.functions.filter(f => !fcls || f[0] === fcls);
+  $("detail").innerHTML = `<h2>${esc(c.comp)} <span class="muted">${c.api}</span></h2>
+    <div class="muted">${c.static ? "static surface: " + c.static + " · " : ""}${c.files} files · ${fmt(c.lines)} lines ·
+      build ${c.sec.toFixed(0)} CPU-s (+${c.sec_static.toFixed(0)} static) · ${(c.bytes / 1e3).toFixed(0)} KB obj ·
+      ABI-exported non-A fns: ${c.fn_abi}</div>
+    <div class="legend">${CLS.map(k => `<span><i style="background:var(--c${k})"></i>${k} ${fmt(c[k])} lines · ${c.fn[k]} fns</span>`).join("")}</div>
+    <h2 style="margin-top:10px">Subdirectories</h2>
+    <table><tbody>${subs.map(([s, v]) => `<tr><td class="l">${esc(s)}</td><td class="l">${stack(v, v.lines)}</td><td>${fmt(v.lines)}</td><td>${pct(v.A + v.P, v.lines)} used</td></tr>`).join("")}</tbody></table>
+    <h2 style="margin-top:12px">Files <span class="muted">(most removable first)</span></h2>
+    <div class="scroll" style="max-height:220px"><table><tbody>${files.map(f =>
+      `<tr title="${esc(f.file)}"><td class="l fn">${esc(f.file.split("/").pop())}</td><td class="l">${stack(f, f.lines)}</td><td>${f.lines}</td>` +
+      D.groups.map(g => `<td title="${g}">${f.by[g]}</td>`).join("") + `</tr>`).join("")}</tbody></table></div>
+    <div class="note">Per-file columns after the bar: lines hit by ${D.groups.join(", ")}.</div>
+    <h2 style="margin-top:12px">Tests that reach it <span class="muted">(${us.length})</span></h2>
+    <div class="scroll" style="max-height:180px"><table><tbody>${us.slice(0, 80).map(x =>
+      `<tr><td class="l fn">${esc(x.u.id)}</td><td class="l muted">${x.u.consumer}</td><td>${x.n} lines</td><td>${x.u.seconds.toFixed(0)} s</td></tr>`).join("")}</tbody></table></div>
+    <h2 style="margin-top:12px">Functions <span class="seg" id="fseg">${["", ...CLS].map(k => `<button data-k="${k}" aria-pressed="${k === fcls}">${k || "all"}</button>`).join("")}</span></h2>
+    <div class="scroll" style="max-height:260px"><table><tbody>${fns.slice(0, 300).map(f =>
+      `<tr title="${esc(f[1])}:${f[2]}"><td class="l"><span class="pill" style="background:var(--c${f[0]})">${f[0]}</span></td><td class="l fn">${esc(f[3])}</td><td class="l muted">${esc(f[4])}</td></tr>`).join("")}</tbody></table></div>
+    <div class="note">List capped at 400 per component in the data (dead first); full list in functions.csv.</div>`;
+  $("fseg").querySelectorAll("button").forEach(b => b.onclick = () => { st.fcls = b.dataset.k; detail(); });
+}
+
+function heat() {
+  const cs = visible().sort((a, b) => b.lines - a.lines).slice(0, 40);
+  const gs = D.groups;
+  $("heat").innerHTML = `<thead><tr><th class="l">component</th>${gs.map(g => `<th>${g}</th>`).join("")}<th>lines</th></tr></thead><tbody>` +
+    cs.map(c => `<tr data-k="${c.key}"><td class="l">${esc(c.comp)} <span class="muted">${c.api}</span></td>` +
+      gs.map(g => { const s = c.lines ? c.by[g] / c.lines : 0, bg = colorShare(s);
+        return `<td class="h" style="background:${bg};color:${lum(bg) < .4 ? "#fcfcfb" : "inherit"}" data-g="${g}">${s ? Math.round(100 * s) : ""}</td>`; }).join("") +
+      `<td>${fmt(c.lines)}</td></tr>`).join("") + "</tbody>";
+  $("heat").querySelectorAll("tbody tr").forEach(tr => {
+    const c = D.components.find(x => x.key === tr.dataset.k);
+    tr.onclick = () => select(c.key);
+    tr.querySelectorAll("td.h").forEach(td => {
+      td.onmousemove = e => tip(e, `<b>${esc(c.comp)}</b> × ${td.dataset.g}<br>${fmt(c.by[td.dataset.g])} of ${fmt(c.lines)} lines (${pct(c.by[td.dataset.g], c.lines)})`);
+      td.onmouseleave = untip;
+    });
+  });
+}
+
+function units() {
+  const us = D.units.slice().sort((a, b) => b.seconds - a.seconds);
+  $("utab").tHead.innerHTML = "<tr><th class='l'>unit</th><th class='l'>consumer</th><th>seconds</th><th>rc</th><th>components reached</th></tr>";
+  const reach = {};
+  D.components.forEach(c => Object.keys(c.units).forEach(u => reach[u] = (reach[u] || 0) + 1));
+  $("utab").tBodies[0].innerHTML = us.map(u => `<tr><td class="l fn">${esc(u.id)}</td><td class="l">${u.consumer}</td><td>${u.seconds.toFixed(1)}</td><td>${u.rc}</td><td>${reach[u.uid] || 0}</td></tr>`).join("");
+}
+
+function select(k) { st.sel = k; treemap(); table(); detail(); }
+function all() { treemap(); table(); heat(); detail(); }
+
+$("f-lens").innerHTML = `<option value="">product + public API</option>` + D.groups.map(g => `<option>${g}</option>`).join("");
+$("f-size").innerHTML = Object.entries(SIZES).map(([k, v]) => `<button data-k="${k}" aria-pressed="${k === st.size}">${v}</button>`).join("");
+$("f-size").querySelectorAll("button").forEach(b => b.onclick = () => {
+  st.size = b.dataset.k; $("f-size").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); treemap(); });
+$("f-api").onchange = e => { st.api = e.target.value; all(); };
+$("f-lens").onchange = e => { st.lens = e.target.value; treemap(); };
+$("f-shared").onchange = e => { st.hideShared = e.target.checked; all(); };
+$("f-q").oninput = e => { st.q = e.target.value.toLowerCase(); all(); };
+$("th-l").onclick = () => { document.documentElement.dataset.theme = "light"; all(); };
+$("th-d").onclick = () => { document.documentElement.dataset.theme = "dark"; all(); };
+$("cls-legend").innerHTML = legendHTML();
+addEventListener("resize", treemap);
+tiles(); units(); all(); if (location.hash) select(decodeURIComponent(location.hash.slice(1)));
+</script>
+</body>
+</html>
