@@ -129,6 +129,15 @@ private:
         TreeContext & ctx;
         daal::task_group group;
         SafeStatus status;
+        // Set with the first error. Node tasks read it per node; SafeStatus::ok would take a lock each time.
+        services::Atomic<int> failed;
+
+        void add(const services::Status & s)
+        {
+            if (s) return;
+            status |= s;
+            failed.set(1);
+        }
     };
 
     struct NodeTask
@@ -198,11 +207,11 @@ private:
     // Spawns the left child and continues with the right one in the same task.
     void processNode(TreeState & tree, WorkItem item)
     {
-        while (tree.status.ok())
+        while (!tree.failed.get())
         {
             if (_builder.rows(item) < _params.serialSubtreeRows)
             {
-                tree.status |= buildSerialSubtree(tree.ctx, item);
+                tree.add(buildSerialSubtree(tree.ctx, item));
                 return;
             }
             WorkItem left;
@@ -211,7 +220,7 @@ private:
             services::Status s = splitNode(tree.ctx, item, left, right, split);
             if (!s)
             {
-                tree.status |= s;
+                tree.add(s);
                 return;
             }
             if (!split) return;

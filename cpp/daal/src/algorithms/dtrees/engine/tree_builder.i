@@ -284,11 +284,14 @@ public:
         // A tree of n records has at most n leaves and n - 1 splits.
         s = ctx.nodes.reset(2 * n);
         DAAL_CHECK_STATUS_VAR(s);
-        root       = WorkItem();
-        root.n     = uint32_t(n);
-        root.key   = treeSeed;
-        root.carry = newCarry(ctx, nullptr);
-        DAAL_CHECK_MALLOC(root.carry);
+        root     = WorkItem();
+        root.n   = uint32_t(n);
+        root.key = treeSeed;
+        if (useHist(n))
+        {
+            root.carry = newCarry(ctx, nullptr);
+            DAAL_CHECK_MALLOC(root.carry);
+        }
         return s;
     }
 
@@ -378,8 +381,9 @@ public:
         right.depth = item.depth + 1;
         right.key   = childNodeKey<cpu>(item.key, 1);
 
-        // Children that may split get the node's constant lists; those that will run the histogram phase
-        // also get their first draws, histogrammed by the partition pass.
+        // Children that may split in the histogram phase get the node's constant lists, and with fusion their
+        // first draws, histogrammed by the partition pass. Exact-phase nodes, most of a tree, get no carry and
+        // use the root lists: a carry per node costs two locked list operations (CarryList).
         services::Status s;
         WorkItem * children[2]  = { &left, &right };
         const double weights[2] = { split.wLeft, item.weight - split.wLeft };
@@ -388,14 +392,14 @@ public:
         for (size_t c = 0; c < 2 && s; ++c)
         {
             WorkItem & child = *children[c];
-            if (leafBySize(child.n, weights[c], child.depth)) continue;
+            if (leafBySize(child.n, weights[c], child.depth) || !useHist(child.n)) continue;
             child.carry = newCarry(ctx, item.carry);
             if (!child.carry)
             {
                 s = services::Status(services::ErrorMemoryAllocationFailed);
                 break;
             }
-            if (!fuse || !useHist(child.n)) continue;
+            if (!fuse) continue;
             s = drawChildLanes(ctx, child);
             if (s && child.carry->nLanes) targets[c] = { child.carry->lanes.get(), child.carry->nLanes, &child.carry->planes };
         }
