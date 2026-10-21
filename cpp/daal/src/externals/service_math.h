@@ -84,8 +84,6 @@ struct Math
 
     static void vExp(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vExp(n, in, out); }
 
-    static void vExpxx(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vExpxx(n, in, out); }
-
     static fpType vExpThreshold() { return _impl<fpType, cpu>::vExpThreshold(); }
 
     static void vTanh(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vTanh(n, in, out); }
@@ -100,8 +98,6 @@ struct Math
     }
 
     static void vLog(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vLog(n, in, out); }
-
-    static void vLogxx(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vLogxx(n, in, out); }
 
     static void vLog1p(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vLog1p(n, in, out); }
 

@@ -120,8 +120,6 @@ struct RefMath<double, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = exp(in[i]);
     }
 
-    static void vExpxx(SizeType n, const double * in, double * out) { vExp(n, in, out); }
-
     static double vExpThreshold() { return -650.0; }
 
     static void vTanh(SizeType n, const double * in, double * out)
@@ -153,8 +151,6 @@ struct RefMath<double, cpu>
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = log(in[i]);
     }
-
-    static void vLogxx(SizeType n, const double * in, double * out) { vLog(n, in, out); }
 
     static void vLog1p(SizeType n, const double * in, double * out)
     {
@@ -319,9 +315,6 @@ struct RefMath<float, cpu>
             out[i] = exp(in[i]);
         }
     }
-
-    static void vExpxx(SizeType n, const float * in, float * out) { vExp(n, in, out); }
-
     static float vExpThreshold() { return -75.0f; }
 
     static void vTanh(SizeType n, const float * in, float * out)
@@ -353,8 +346,6 @@ struct RefMath<float, cpu>
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = log(in[i]);
     }
-
-    static void vLogxx(SizeType n, const float * in, float * out) { vLog(n, in, out); }
 
     static void vLog1p(SizeType n, const float * in, float * out)
     {
