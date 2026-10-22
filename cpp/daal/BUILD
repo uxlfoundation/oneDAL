@@ -151,10 +151,10 @@ daal_module(
 
 # `daal_version_gen.h` carries the build date and changes every day. Bazel
 # makes a module's headers, private ones included, declared inputs of every
-# compile action downstream, and those inputs are the disk/remote cache key;
-# as part of `services` the date expired ~1800 DAAL compile entries at
-# midnight. Only `library_version_info.cpp` includes it, so it is a leaf that
-# only the core libraries link and nothing compiles against.
+# downstream compile action, and those inputs are part of the cache key.
+# Only `library_version_info.cpp` includes the header, so it lives in this
+# leaf module: the core libraries link it and nothing compiles against it,
+# so the daily change invalidates one compile action instead of every DAAL one.
 daal_module(
     name = "version_info",
     srcs = ["src/services/library_version_info.cpp"],
