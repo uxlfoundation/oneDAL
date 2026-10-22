@@ -186,6 +186,9 @@ static void refreshComponentIds(size_t nRows, UnionFind & uf, DAAL_INT * compone
 /// Width from which the tree bounds barely prune, so `primMst` replaces the Boruvka rounds.
 constexpr size_t primMinCols = 32;
 
+/// Below this many row values left to scan, a Prim step runs serially: a parallel-for costs more than the scan.
+constexpr size_t primSerialWork = 32768;
+
 /// Build the MST under MRD with Prim's algorithm, computing the distances on the fly.
 ///
 /// Needs O(nRows x nCols) extra memory, for a compact copy of the rows outside the tree. Each step
@@ -283,11 +286,15 @@ static services::Status primMst(const FPType * data, size_t nRows, size_t nCols,
             blockMrd[b] = localMrd;
             blockPos[b] = localPos;
         };
-        // A static partition keeps each thread on mostly the same rows from step to step.
-        if (blockCount == 1)
-            scanBlock(0);
+        if (blockCount == 1 || remaining * nCols < primSerialWork)
+        {
+            for (size_t b = 0; b < blockCount; b++) scanBlock(b);
+        }
         else
+        {
+            // A static partition keeps each thread on mostly the same rows from step to step.
             daal::static_threader_for(blockCount, [&](size_t b, size_t) { scanBlock(b); });
+        }
 
         FPType minMrd = inf;
         size_t minPos = remaining;

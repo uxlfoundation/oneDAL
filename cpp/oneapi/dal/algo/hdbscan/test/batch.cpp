@@ -517,9 +517,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto metric = GENERATE(distance_metric::euclidean, distance_metric::manhattan);
     CAPTURE(column_count, metric);
 
-    constexpr std::int64_t per_cluster = 150;
+    // 600 rows run every Prim step serially; 2400 rows run the early steps in parallel.
+    const std::int64_t per_cluster = GENERATE(150, 600);
+    CAPTURE(per_cluster);
     constexpr std::int64_t cluster_count = 4;
-    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    const std::int64_t row_count = per_cluster * cluster_count;
     const auto data = te::make_blobs<Float>(per_cluster,
                                             cluster_count,
                                             column_count,
