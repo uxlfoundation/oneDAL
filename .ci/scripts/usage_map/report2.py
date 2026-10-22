@@ -28,6 +28,7 @@ A function group folds the per-ISA instantiations (CpuType sse2/avx2/avx512)
 of one source function: they are one piece of code compiled N times.
 """
 import csv
+import glob
 import gzip
 import json
 import os
@@ -42,7 +43,7 @@ from report import area, static_tag  # noqa: E402
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 B = sys.argv[1]
 OUT = f"{U}/out-{B}"
-REAL = ["sklearnex", "daal4py", "model-builders"]
+REAL = ["sklearnex", "sklearnex-gpu", "daal4py", "model-builders"]
 PUBLIC = ["daal4py-api"]
 FILTERED = ["examples-oneapi", "examples-daal", "onedal-tests"]
 GROUPS = REAL + PUBLIC + FILTERED
@@ -65,6 +66,25 @@ def exported():
     return names
 
 
+_load_time = {}
+
+
+def load_time(f):
+    """Lines of f that run at library load (serialization registration).
+
+    llvm-cov reports the registrar functions these macros expand to as executed by every
+    GPU run, so they would mark any algorithm as used. gcc attributes them elsewhere.
+    """
+    if f not in _load_time:
+        try:
+            src = open(f"{U}/oneDAL-gpu/{f}", errors="replace").read().splitlines()
+        except OSError:
+            src = []
+        reg = "__DAAL_REGISTER_SERIALIZATION_CLASS"
+        _load_time[f] = {i + 1 for i, t in enumerate(src) if t.lstrip().startswith(reg)}
+    return _load_time[f]
+
+
 def main():
     uni = load(f"{U}/data/{B}/universe.json.gz")
     funcs = uni["functions"]                   # mangled -> [file, line, demangled]
@@ -82,6 +102,32 @@ def main():
         uline[uid] = {f: set(v) for f, v in d["lines"].items()}
         for f, v in uline[uid].items():
             gline[u["consumer"]][f] |= set(v)
+
+    # GPU build (collect-gpu.py): host-side hits of the sklearnex/onedal GPU and SPMD runs.
+    # llvm-cov names functions by demangled name only, so they join on (file, normalized name).
+    gpu_fn = {}                                # (file, normalized) -> GPU-only record source
+    if os.path.exists(f"{U}/data/gpu/universe.json.gz"):
+        guni = load(f"{U}/data/gpu/universe.json.gz")
+        for f, v in guni["lines"].items():
+            ulines.setdefault(f, set()).update(v)
+        gsec = {x["uid"]: x for x in json.load(open(f"{U}/units-gpu.json"))} if os.path.exists(
+            f"{U}/units-gpu.json") else {}
+        for p in sorted(glob.glob(f"{U}/data/gpu/gpu_*.json.gz")):
+            uid = os.path.basename(p)[:-8]
+            d = load(p)
+            units[uid] = dict(uid=uid, id=f"gpu:{uid[4:]}", consumer="sklearnex-gpu",
+                              seconds=gsec.get(uid, {}).get("seconds", 0), rc=gsec.get(uid, {}).get("rc", 0))
+            uline[uid] = {f: set(v) - load_time(f) for f, v in d["lines"].items()}
+            for f, v in uline[uid].items():
+                gline["sklearnex-gpu"][f] |= set(v)
+            for name in d["functions"]:
+                if name in guni["functions"]:
+                    f, line, dem = guni["functions"][name]
+                    if line in load_time(f):
+                        continue
+                    gpu_fn.setdefault((f, CPU.sub("CPU", dem)), [f, line, True])
+        for name, (f, line, dem) in guni["functions"].items():
+            gpu_fn.setdefault((f, CPU.sub("CPU", dem)), [f, line, False])
 
     a_set = set().union(*(hit[g] for g in REAL))
     # static reach from executed A code over direct calls
@@ -103,6 +149,14 @@ def main():
         r["used"].update(g for g in GROUPS if m in hit[g])
         r["reach"] |= m in reach
         r["abi"] |= m in exp
+    at = {}                                    # (file, line) -> CPU group, for names llvm-cov spells differently
+    for m, (f, line, dem) in funcs.items():
+        at.setdefault((f, line), grp[(f, CPU.sub("CPU", dem))])
+    for key, (f, line, ran) in gpu_fn.items():
+        # GPU-only functions have no call graph: never-run ones count as E
+        r = grp.get(key) or at.get((f, line)) or grp.setdefault(key, dict(file=f, line=line, name=key[1], inst=1, used=set(), reach=False, abi=False))
+        if ran:
+            r["used"].add("sklearnex-gpu")
     for r in grp.values():
         u = r["used"]
         r["cls"] = ("A" if u & set(REAL) else "P" if u & set(PUBLIC) else "C" if u & set(FILTERED)

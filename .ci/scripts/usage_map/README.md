@@ -26,7 +26,7 @@ Class of a line or function:
 
 | class | meaning |
 |---|---|
-| A | run by a real consumer (sklearnex, daal4py estimators, model builders) |
+| A | run by a real consumer (sklearnex on CPU and GPU, daal4py estimators, model builders) |
 | P | run only through the daal4py public API tests |
 | C | run only by oneDAL examples or oneDAL's own tests (shown, filtered out) |
 | B | never run, but reachable from run code in the call graph |
@@ -122,7 +122,11 @@ Limits:
 
 - Coverage only sees what the test suites run. Users outside the tests are
   invisible, so T2 needs outside evidence such as code search or user reports.
-- The CPU classes do not include GPU hits yet.
+- GPU hits come from the host side of the icpx build (consumer `sklearnex-gpu`). That build has
+  no call graph, so its never-run functions all count as E. Lines registered at library load
+  (`__DAAL_REGISTER_SERIALIZATION_CLASS`) are dropped from GPU hits, since llvm-cov counts them
+  as run in every process.
+- SPMD units are capped per file (`CAP`, default 600 s); a file that hits the cap is partly covered.
 - Measures size and usage only, not performance.
 
 ## Known traps

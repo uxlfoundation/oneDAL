@@ -18,7 +18,7 @@
 D=$(cd "$(dirname "$0")" && pwd)
 U=${USAGE_MAP_WORK:-$PWD}
 for p in onedal sklearnex; do
-  /usr/bin/time -f "$p %e s" env OD=oneDAL-gpu $D/run_gpu.sh gpu_$p -m pytest -q -n 4 --timeout=1800 \
+  /usr/bin/time -f "$p %e s" env OD=oneDAL-gpu $D/run_gpu.sh u/gpu_$p -m pytest -q -n 4 --timeout=1800 \
     -c $U/sklearnex-gpusrc/setup.cfg $U/sklearnex-gpusrc/$p > $U/gpu-tests-$p.log 2>&1
   tail -1 $U/gpu-tests-$p.log
 done

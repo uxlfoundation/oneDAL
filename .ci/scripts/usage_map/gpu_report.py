@@ -21,6 +21,7 @@ Host-side coverage of the GPU (DPC++) build from sklearnex/onedal GPU test runs
 GPU build, i.e. code the CPU map (report2.py) cannot see. Device kernels are not
 instrumented: a kernel body counts through its host-side launcher only.
 """
+import glob
 import gzip
 import json
 import os
@@ -31,7 +32,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from report import area  # noqa: E402
 
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
-UNITS = ["gpu_onedal", "gpu_sklearnex"]
+UNITS = sorted(os.path.basename(p)[:-8] for p in glob.glob(f"{U}/data/gpu/gpu_*.json.gz"))
 
 
 def load(name):

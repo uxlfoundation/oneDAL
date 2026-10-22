@@ -14,11 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #===============================================================================
-# GPU SPMD unit: sklearnex/onedal spmd tests on 4 MPI ranks over host-instrumented oneDAL-gpu
+# GPU SPMD tests, one unit per test file under 4 ranks. Each file is capped at CAP s
+# with SIGINT so pytest exits cleanly and gcov still writes the .gcda files.
 D=$(cd "$(dirname "$0")" && pwd)
 U=${USAGE_MAP_WORK:-$PWD}
 S=$U/sklearnex-gpusrc
-export OD=oneDAL-gpu I_MPI_FABRICS=shm
-/usr/bin/time -f "spmd %e s" env PATH=$U/genv/bin:$PATH $U/genv/bin/mpirun -n 4 $D/run_gpu.sh gpu_spmd $S/tests/helper_mpi_tests.py \
-  pytest -q --with-mpi --timeout=1800 -c $S/setup.cfg $S/onedal/spmd $S/sklearnex/spmd > $U/gpu-tests-spmd.log 2>&1
-grep -E "^=.*(passed|failed|skipped)" $U/gpu-tests-spmd.log | tail -1
+CAP=${CAP:-600}
+export OD=oneDAL-gpu I_MPI_FABRICS=shm PATH=$U/genv/bin:$PATH
+one() {
+  f=$1
+  n=gpu_spmd_$(basename "$f" .py | sed 's/^test_//; s/_spmd$//')
+  timeout -s INT -k 60 "$CAP" "$U/genv/bin/mpirun" -n 4 "$D/run_gpu.sh" "u/$n" "$S/tests/helper_mpi_tests.py" \
+    pytest -q --with-mpi --timeout=300 -c "$S/setup.cfg" "$f" > "$U/spmd-logs/$n.log" 2>&1
+  echo "$n rc=$? $(grep -E '[0-9]+ (passed|failed)' "$U/spmd-logs/$n.log" | tail -1)"
+}
+export -f one
+export U S D CAP
+mkdir -p "$U/spmd-logs"
+find "$S/sklearnex/spmd" -name 'test_*.py' | sort | xargs -P 3 -I{} bash -c 'one {}'
