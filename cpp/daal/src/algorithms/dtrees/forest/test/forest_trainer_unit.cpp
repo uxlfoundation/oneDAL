@@ -100,7 +100,8 @@ Dataset makeData(size_t n, size_t p, size_t nClasses, uint64_t seed)
 
 /// Engine hyperparameters as the oneAPI interface sets them, with the legacy kernels or the tree engine.
 template <typename Hyperparameter>
-void setHyperparameters(Hyperparameter & hp, bool legacy)
+/// serial: the serialSubtreeRows id, or -1 to leave it unset (the trainer's L2-based cutoff).
+void setHyperparameters(Hyperparameter & hp, bool legacy, int64 serial)
 {
     if constexpr (std::is_same<Hyperparameter, cls::training::internal::Hyperparameter>::value)
     {
@@ -108,12 +109,14 @@ void setHyperparameters(Hyperparameter & hp, bool legacy)
         REQUIRE(hp.set(cls::training::internal::minPartCoefficient, int64(4)).ok());
         REQUIRE(hp.set(cls::training::internal::minSizeCoefficient, int64(24000)).ok());
         REQUIRE(hp.set(cls::training::internal::legacyTraining, int64(legacy)).ok());
+        if (serial >= 0) REQUIRE(hp.set(cls::training::internal::serialSubtreeRows, serial).ok());
     }
     else
     {
         REQUIRE(hp.set(reg::training::internal::minPartCoefficient, int64(4)).ok());
         REQUIRE(hp.set(reg::training::internal::minSizeCoefficient, int64(24000)).ok());
         REQUIRE(hp.set(reg::training::internal::legacyTraining, int64(legacy)).ok());
+        if (serial >= 0) REQUIRE(hp.set(reg::training::internal::serialSubtreeRows, serial).ok());
     }
 }
 
@@ -127,7 +130,7 @@ struct Fit
 };
 
 template <cls::training::Method method>
-Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter par, bool legacy = false)
+Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter par, bool legacy = false, int64 serial = -1)
 {
     Fit<cls::training::ResultPtr> f;
     // As the Batch API sets it; Parameter::check rejects the base default of 0.
@@ -145,7 +148,7 @@ Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter
     model->clear();
     model->setNFeatures(d.p);
     cls::training::internal::Hyperparameter hp;
-    setHyperparameters(hp, legacy);
+    setHyperparameters(hp, legacy, serial);
     cls::training::internal::ClassificationTrainBatchKernel<double, method, cpu> kernel;
     REQUIRE(kernel.compute(f.x.get(), f.y.get(), nullptr, *model, *f.result, par, &hp).ok());
     f.model = model;
@@ -153,7 +156,7 @@ Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter
 }
 
 template <reg::training::Method method>
-Fit<reg::training::ResultPtr> fitReg(const Dataset & d, reg::training::Parameter par, bool legacy = false)
+Fit<reg::training::ResultPtr> fitReg(const Dataset & d, reg::training::Parameter par, bool legacy = false, int64 serial = -1)
 {
     Fit<reg::training::ResultPtr> f;
     if (!par.minObservationsInLeafNode) par.minObservationsInLeafNode = 5;
@@ -169,7 +172,7 @@ Fit<reg::training::ResultPtr> fitReg(const Dataset & d, reg::training::Parameter
     auto * model = static_cast<reg::internal::ModelImpl *>(f.result->get(reg::training::model).get());
     model->clear();
     reg::training::internal::Hyperparameter hp;
-    setHyperparameters(hp, legacy);
+    setHyperparameters(hp, legacy, serial);
     reg::training::internal::RegressionTrainBatchKernel<double, method, cpu> kernel;
     REQUIRE(kernel.compute(f.x.get(), f.y.get(), nullptr, *model, *f.result, par, &hp).ok());
     f.model = model;
@@ -394,6 +397,24 @@ TEST("the tree engine scores as the legacy kernels do", "[unit]")
         CAPTURE(hist, cn, cl, rn, rl);
         REQUIRE(cn > cl - 0.02);
         REQUIRE(rn > rl - 0.02);
+    }
+}
+
+TEST("serial subtrees do not change the forests", "[unit]")
+{
+    const Dataset c = makeData(6000, 8, 3, 12);
+    const Dataset r = makeData(6000, 8, 0, 13);
+    cls::training::Parameter pc(3);
+    pc.nTrees = 6;
+    reg::training::Parameter pr;
+    pr.nTrees     = 6;
+    const auto c0 = fitCls<cls::training::hist>(c, pc, false, 0);
+    const auto r0 = fitReg<reg::training::hist>(r, pr, false, 0);
+    for (int64 serial : { int64(-1), int64(64), int64(100000) }) // the L2-based cutoff, a small one, the whole tree
+    {
+        CAPTURE(serial);
+        requireSameModels(*c0.model, *fitCls<cls::training::hist>(c, pc, false, serial).model);
+        requireSameModels(*r0.model, *fitReg<reg::training::hist>(r, pr, false, serial).model);
     }
 }
 

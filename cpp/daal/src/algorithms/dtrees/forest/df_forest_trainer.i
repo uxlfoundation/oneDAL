@@ -36,6 +36,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_rng.h"
+#include "src/services/service_environment.h"
 #include "src/threading/threading.h"
 
 namespace daal
@@ -507,6 +508,20 @@ size_t defaultFeaturesPerNode(size_t p, bool classification)
     return k < 1 ? 1 : k;
 }
 
+// Bytes of the largest record layout (RegWeightRecord<double>), two buffers of which a subtree reads per row.
+constexpr size_t maxRecordBytes = 24;
+// L2 size taken when the CPU does not report one: SPR's 2 MB per core.
+constexpr size_t defaultL2Bytes = size_t(2) << 20;
+
+/// The serial-subtree cutoff: the rows whose records (both buffers), bin row and X row fit a core's L2 (design 8, step 15).
+template <typename algorithmFPType, CpuType cpu>
+size_t serialSubtreeRows(size_t p, size_t binRowBytes)
+{
+    const size_t l2     = services::internal::getL2CacheSize();
+    const size_t perRow = 2 * maxRecordBytes + binRowBytes + p * sizeof(algorithmFPType);
+    return (l2 ? l2 : defaultL2Bytes) / perRow;
+}
+
 template <typename algorithmFPType, typename Record, CpuType cpu>
 services::Status train(const eng::TreeData<algorithmFPType, cpu> & data, const eng::TreeParams & params, size_t nTrees,
                        const typename ForestInputs<algorithmFPType, Record, cpu>::Setup & setup)
@@ -621,10 +636,12 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     tp.randomSplitter      = par.splitter == decision_forest::training::random;
     tp.counterDraws        = counter;
     tp.treesInFlight       = size_t(hp.treesInFlight);
-    tp.denseThreshold      = size_t(hp.denseThreshold);
-    tp.maxBins             = par.maxBins;
-    tp.chunkRows           = size_t(hp.chunkRows);
-    tp.maxChunks           = size_t(hp.maxChunks);
+    tp.serialSubtreeRows =
+        hp.serialSubtreeRows >= 0 ? size_t(hp.serialSubtreeRows) : trainer::serialSubtreeRows<algorithmFPType, cpu>(p, binned ? bins.rowStride() : 0);
+    tp.denseThreshold = size_t(hp.denseThreshold);
+    tp.maxBins        = par.maxBins;
+    tp.chunkRows      = size_t(hp.chunkRows);
+    tp.maxChunks      = size_t(hp.maxChunks);
 
     eng::TreeData<algorithmFPType, cpu> data;
     data.x           = &xr;
