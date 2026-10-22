@@ -26,7 +26,7 @@ Class of a line or function:
 
 | class | meaning |
 |---|---|
-| A | run by a real consumer (sklearnex on CPU and GPU, daal4py estimators, model builders) |
+| A | run by a real consumer (sklearnex on CPU and GPU, scikit-learn_bench workloads, daal4py estimators, model builders) |
 | P | run only through the daal4py public API tests |
 | C | run only by oneDAL examples or oneDAL's own tests (shown, filtered out) |
 | B | never run, but reachable from run code in the call graph |
@@ -37,7 +37,9 @@ labels, because they can be removed together with the code they cover.
 
 Outputs (`out-<build>/`): `REPORT.md`, `data.json`, `functions.csv`,
 `usage-map.html` (treemap, table, per-component detail, unit heatmap),
-`CANDIDATES.md` (removal tiers), `GPU.md` (GPU-only files).
+`CANDIDATES.md` (removal tiers), `GPU.md` (GPU-only files), `VARIANTS.md`
+(template instances by fptype/method/ISA), `BRANCHES.md` (untaken branch arms
+in A functions).
 
 This is a measurement tool for maintainers. It runs on a dev box, not in CI.
 
@@ -100,6 +102,9 @@ python callgraph.py cov2
 python report2.py cov2
 python viz.py cov2
 python candidates.py cov2
+python run_bench.py              # optional: scikit-learn_bench cases as consumer "workloads"
+python variants.py cov2
+python branches.py cov2
 
 # GPU (host side only; device kernels are not instrumented)
 build_gpu.sh && build_sklearnex_gpu.sh

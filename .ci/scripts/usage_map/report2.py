@@ -43,7 +43,7 @@ from report import area, static_tag  # noqa: E402
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 B = sys.argv[1]
 OUT = f"{U}/out-{B}"
-REAL = ["sklearnex", "sklearnex-gpu", "daal4py", "model-builders"]
+REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]
 PUBLIC = ["daal4py-api"]
 FILTERED = ["examples-oneapi", "examples-daal", "onedal-tests"]
 GROUPS = REAL + PUBLIC + FILTERED
@@ -90,6 +90,8 @@ def main():
     funcs = uni["functions"]                   # mangled -> [file, line, demangled]
     ulines = {f: set(v) for f, v in uni["lines"].items()}
     units = {u["uid"]: u for u in json.load(open(f"{U}/units-{B}.json"))}
+    if os.path.exists(f"{U}/units-bench.json"):          # scikit-learn_bench cases (run_bench.py)
+        units.update({u["uid"]: u for u in json.load(open(f"{U}/units-bench.json"))})
     hit = defaultdict(set)                     # group -> mangled executed
     uline = {}                                 # uid -> {file: set(lines)}
     gline = {g: defaultdict(set) for g in GROUPS}
