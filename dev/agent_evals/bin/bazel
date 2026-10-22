@@ -36,6 +36,8 @@ case $verb in
 esac
 case $verb in
   build|test|run|query|cquery|aquery|fetch|coverage|mod)
-    [[ -n ${EVAL_BAZEL_REGISTRY-} ]] && caches+=(--registry="$EVAL_BAZEL_REGISTRY") ;;
+    # only a filled mirror: in CI the cache starts empty and --warm resolves from bcr.bazel.build instead
+    [[ -n ${EVAL_BAZEL_REGISTRY-} && -f ${EVAL_BAZEL_REGISTRY#file://}/bazel_registry.json ]] &&
+      caches+=(--registry="$EVAL_BAZEL_REGISTRY") ;;
 esac
 exec "${ONEDAL_EVAL_BAZEL:?ONEDAL_EVAL_BAZEL unset}" --output_base="$OB" "${startup[@]}" ${verb:+"$verb"} "${caches[@]}" "$@"

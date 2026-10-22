@@ -26,19 +26,18 @@ Grader `test_pass_files`: same result keys as `test_pass` (graders/fix.py), whic
   regression_flags    extra bazel flags for the `regression_targets` run
   root_cause          {"file", "must_contain"} and/or {"file", "must_not_contain"}; root_cause_fixed is True
                       only if every given condition holds (a missing file counts as not fixed)
-  min_cpus, cpu_vendors, cpu_flags
-                      host the hidden test needs to see the bug at all, e.g. a race that does not happen on
-                      fewer cores or another CPU. Elsewhere grading raises HostUnsupported instead of
-                      passing the unfixed tree
+  host                {"min_cpus", "cpu_vendors", "cpu_flags"}: dokimi's task.json `host`, the host the hidden
+                      test needs to see the bug at all, e.g. a race that does not happen on fewer cores or
+                      another CPU. dokimi checks it before grading (the task is unsupported elsewhere, and
+                      tasks check skips the null run there); the grader does not
 
 touched_tests reports the test files the agent changed, not the hidden files the grader wrote.
 """
-from common import changed_files, files_restored, is_test_file, require_host, show, task_dir
+from common import changed_files, files_restored, is_test_file, show, task_dir
 from graders.fix import g_test_pass, o_test_pass
 
 
 def g_test_pass_files(rd, ws, t, tr):
-    require_host(t)
     repo = ws
     changed = changed_files(ws, tr["start_sha"])  # before any grader write, see g_test_pass
     agent_touched = [f for f in changed if is_test_file(f)]

@@ -50,13 +50,14 @@ Terms used below:
 
 ## Quick start
 
-Install dokimi at the commit CI pins (`DOKIMI_SHA` in `.github/workflows/agent-evals.yml`), then, from a
+Install dokimi at the commit CI pins (`dokimi-ref` in `.github/workflows/agent-evals.yml`), then, from a
 full-history clone of oneDAL (mined tasks read their fix commits from it):
 
 ```sh
-python3 -m venv ~/dokimi && ~/dokimi/bin/pip install \
-  -c https://raw.githubusercontent.com/intel/dokimi/$DOKIMI_SHA/dokimi/requirements.lock.txt \
-  "dokimi @ git+https://github.com/intel/dokimi@$DOKIMI_SHA#subdirectory=dokimi"
+DOKIMI_SHA=ad1cbd0873d5d9e3b7a6537c705169d80e91ae42
+python3 -m venv ~/dokimi && ~/dokimi/bin/pip install --require-hashes \
+  -r https://raw.githubusercontent.com/intel/dokimi/$DOKIMI_SHA/dokimi/requirements.lock.txt &&
+  ~/dokimi/bin/pip install --no-deps "dokimi @ git+https://github.com/intel/dokimi@$DOKIMI_SHA#subdirectory=dokimi"
 export PATH=~/dokimi/bin:$PATH
 M=dev/agent_evals/repo-eval.yaml
 dokimi repo validate .@HEAD --manifest $M      # task.json shape, bases resolve, patches exist; no build
@@ -77,10 +78,10 @@ See "Eval image" below for the caches.
   (report only, as a job summary and an artifact);
 - `dokimi repo tasks check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one
   task per grader when the entry points or a grader change; weekly, and on demand (`workflow_dispatch`), for every
-  task. `fix_cel_thread_race` is left out until dokimi can mark a task unsupported on hosts that cannot show its bug
-  (intel/dokimi#41, step D3).
+  task. `fix_cel_thread_race` declares the host it needs (task.json `host`, 4+ Intel CPUs); it is left out of CI,
+  since a hosted runner may be AMD and dokimi does not judge the host under `--warm`, which CI needs.
 
-dokimi is pinned by commit in the workflow. Agent runs stay manual: they cost tokens and depend on the agent being
+The checks are dokimi's reusable `repo-eval.yml` workflow, pinned by commit SHA (the `uses:` ref and `dokimi-ref`). Agent runs stay manual: they cost tokens and depend on the agent being
 measured. Rerun them after a large change to guidance, tooling, build system or layout. A change that breaks
 `dokimi repo tasks check` for a task updates that task in the same pull request.
 

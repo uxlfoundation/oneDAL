@@ -146,62 +146,6 @@ def resolve_in_run(p, rd, ws, max_links=40):
     return q if q.exists() else None
 
 
-class HostUnsupported(RuntimeError):
-    """The task cannot be graded meaningfully on this host (see require_host); not a grader bug."""
-
-
-def cgroup_cpu_limit():
-    """CPUs allowed by the cgroup quota (docker --cpus), or None. oneTBB sizes its default arena by it."""
-    for path, parse in (("/sys/fs/cgroup/cpu.max", lambda s: s.split()),
-                        ("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", None)):
-        try:
-            if parse:
-                quota, period = parse(Path(path).read_text())
-            else:
-                quota = Path(path).read_text().strip()
-                period = Path("/sys/fs/cgroup/cpu/cpu.cfs_period_us").read_text().strip()
-        except (OSError, ValueError):
-            continue
-        if quota in ("max", "-1"):
-            return None
-        return max(1, -(-int(quota) // int(period)))
-    return None
-
-
-def host_info():
-    """CPU facts a task's result can depend on (thread races, ISA dispatch).
-
-    cpus counts what a threaded library can use: the affinity mask, capped by the cgroup CPU quota.
-    """
-    cpus, limit = len(os.sched_getaffinity(0)), cgroup_cpu_limit()
-    info = {"cpus": min(cpus, limit) if limit else cpus, "cpu_vendor": None, "cpu_model": None, "cpu_flags": []}
-    try:
-        text = Path("/proc/cpuinfo").read_text()
-    except OSError:
-        return info
-    v = re.search(r"^vendor_id\s*:\s*(.+)$", text, re.M)
-    m = re.search(r"^model name\s*:\s*(.+)$", text, re.M)
-    f = re.search(r"^flags\s*:\s*(.+)$", text, re.M)
-    info.update(cpu_vendor=v.group(1).strip() if v else None, cpu_model=m.group(1).strip() if m else None,
-                cpu_flags=f.group(1).split() if f else [])
-    return info
-
-
-def require_host(t):
-    """Raise HostUnsupported unless the host meets the task's min_cpus, cpu_vendors and cpu_flags.
-
-    For a hidden test that can only see the bug on some hardware: elsewhere the unfixed tree passes, so a grade
-    there would be a false pass. cpu_vendors and cpu_flags use /proc/cpuinfo names (GenuineIntel, avx512f).
-    """
-    h = host_info()
-    need = {"min_cpus": t.get("min_cpus", 1), "cpu_vendors": t.get("cpu_vendors"), "cpu_flags": t.get("cpu_flags", [])}
-    missing = [f for f in need["cpu_flags"] if f not in h["cpu_flags"]]
-    if h["cpus"] < need["min_cpus"] or missing or (need["cpu_vendors"] and h["cpu_vendor"] not in need["cpu_vendors"]):
-        want = {k: v for k, v in need.items() if v}
-        raise HostUnsupported(f"{t['id']} needs {want} to detect the bug; this host has {h['cpus']} x "
-                              f"{h['cpu_model']} ({h['cpu_vendor']})" + (f", missing {missing}" if missing else ""))
-
-
 def changed_files(ws, base):
     """Files the agent changed or added in workspace ws since the prepared commit base."""
     ch = git(ws, "diff", "--name-only", base, check=False).stdout.split()

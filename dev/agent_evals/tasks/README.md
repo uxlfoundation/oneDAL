@@ -82,8 +82,8 @@ that cross the oneAPI → DAAL layers.
 
 `fix_cel_thread_race` only fails on hardware where the race can happen. It was measured to need at least 3 CPUs,
 as oneTBB counts them (the affinity mask and the cgroup quota), and it was never seen on AMD EPYC 7763. The task
-therefore declares `min_cpus: 4` and `cpu_vendors: ["GenuineIntel"]`; on other hosts the check reports `SKIPPED`
-instead of a false pass (see `graders/fix_hidden.py`).
+therefore declares `"host": {"min_cpus": 4, "cpu_vendors": ["GenuineIntel"]}`; on other hosts dokimi reports the
+task unsupported instead of a false pass (`repo run` runs no agent there; `repo tasks check` skips the null run).
 
 ### test (2): write tests that would catch bugs
 
