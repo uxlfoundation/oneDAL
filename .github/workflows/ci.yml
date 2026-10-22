@@ -317,6 +317,8 @@ jobs:
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-binary
       ABICHECK_BASELINE_GENERATION: "2"
+      # sha256 the publish run reported for this asset; rotate it with the tag.
+      ABICHECK_BASELINE_DIGEST: sha256:bcd881da6543d70504a955e2c4a270c3c4c9d1f2994410ebdc6579a58c26dfa6
       ABICHECK_BASELINE_DIR: __abi_baselines
     steps:
       - name: Checkout oneDAL
@@ -326,8 +328,8 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      # Checked against the sha256 the release records; a missing asset fails.
-      - name: Fetch and verify the baseline-set archive
+      # resolve-baseline checks the archive against ABICHECK_BASELINE_DIGEST.
+      - name: Fetch the baseline-set archive
         id: baselines
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -335,21 +337,13 @@ jobs:
           set -euo pipefail
           asset="abicheck-baseline-${ABICHECK_PROFILE}-gen${ABICHECK_BASELINE_GENERATION}.tar.zst"
           echo "asset=${asset}" >> "$GITHUB_OUTPUT"
-          digest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${ABICHECK_BASELINE_TAG}" \
-            --jq ".assets[] | select(.name == \"${asset}\") | .digest")"
-          case "$digest" in
-            sha256:*) ;;
-            *) echo "::error::Release ${ABICHECK_BASELINE_TAG} has no sha256-digested asset '${asset}'. Dispatch 'Publish Abicheck Baseline' for it."; exit 1 ;;
-          esac
           mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
           gh release download "${ABICHECK_BASELINE_TAG}" --repo "${GITHUB_REPOSITORY}" \
-            --pattern "${asset}" --dir "${ABICHECK_BASELINE_DIR}" --clobber
-          printf '%s  %s\n' "${digest#sha256:}" "${asset}" > "${RUNNER_TEMP}/baseline.sha256"
-          ( cd "${ABICHECK_BASELINE_DIR}" && sha256sum --check --strict "${RUNNER_TEMP}/baseline.sha256" )
+            --pattern "${asset}" --dir "${ABICHECK_BASELINE_DIR}"
       # kind: bundle returns the staged ELF (binaries-dir): bundle analysis skips snapshots.
       - name: Resolve the release-contract baseline
         id: resolve
-        uses: abicheck/abicheck/actions/resolve-baseline@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck/actions/resolve-baseline@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
           channel: release-contract
@@ -363,11 +357,12 @@ jobs:
           required: true
           expected-project-ref: ${{ env.ABICHECK_BASELINE_TAG }}
           expected-baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          expected-archive-digest: ${{ env.ABICHECK_BASELINE_DIGEST }}
       # Keep every abicheck pin equal to abicheck-baseline.yml's.
       - name: Check ABI against the released baseline
         id: abicheck
         if: steps.resolve.outputs.outcome == 'resolved'
-        uses: abicheck/abicheck@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           mode: compare
           old-library: ${{ steps.resolve.outputs.binaries-dir }}
@@ -425,6 +420,7 @@ jobs:
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
       ABICHECK_BASELINE_GENERATION: "2"
+      ABICHECK_BASELINE_DIGEST: sha256:844399777aa961184fd3ade577929f95abf5987a3d9d9c8310f6436148b4e739
       ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
       - name: Checkout oneDAL
@@ -439,7 +435,7 @@ jobs:
       # abi-baseline fetches and resolves this leg's library from the set (required).
       - name: Check the public header surface against the released baseline
         id: abicheck
-        uses: abicheck/abicheck@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           mode: compare
           abi-baseline: ${{ env.ABICHECK_BASELINE_TAG }}
@@ -447,6 +443,9 @@ jobs:
           baseline-target: ${{ matrix.library }}
           baseline-asset-name-template: abicheck-baseline-{profile}-gen{generation}.tar.zst
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          expected-archive-digest: ${{ env.ABICHECK_BASELINE_DIGEST }}
+          # Incomplete header evidence fails the leg instead of passing it.
+          analysis-assurance-complete: 'true'
           new-library: __release_lnx/daal/latest/lib/intel64/${{ matrix.library }}
           depth: headers
           old-version: ${{ env.ABICHECK_BASELINE_TAG }}

@@ -74,14 +74,14 @@ jobs:
       # stage_binary: bundle analysis needs real ELF on the old side.
       - name: Build the binary-depth baseline-set
         id: bset-binary
-        uses: abicheck/abicheck/actions/baseline@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck/actions/baseline@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           output-dir: __abi_baseline_binary
           project-ref: ${{ env.TAG }}
           profile: linux-x86_64-icx-avx2-nodbg-binary
           depth: binary
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 026a6109e809f266c303e908e11c7285f17b5a13
+          generator-git-sha: 8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
           validation: strict
           snapshot-compression: zstd
           install-deps: false
@@ -97,14 +97,14 @@ jobs:
 
       - name: Build the header-depth baseline-set
         id: bset-headers
-        uses: abicheck/abicheck/actions/baseline@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck/actions/baseline@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           output-dir: __abi_baseline_headers
           project-ref: ${{ env.TAG }}
           profile: linux-x86_64-icx-avx2-nodbg-headers
           depth: headers
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 026a6109e809f266c303e908e11c7285f17b5a13
+          generator-git-sha: 8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
           validation: strict
           snapshot-compression: zstd
           libraries: |
@@ -118,7 +118,7 @@ jobs:
 
       - name: Package the binary-depth baseline-set
         id: archive-binary
-        uses: abicheck/abicheck/actions/stage-baseline@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck/actions/stage-baseline@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           baseline-path: ${{ steps.bset-binary.outputs.baseline-path }}
           asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
@@ -127,7 +127,7 @@ jobs:
 
       - name: Package the header-depth baseline-set
         id: archive-headers
-        uses: abicheck/abicheck/actions/stage-baseline@026a6109e809f266c303e908e11c7285f17b5a13
+        uses: abicheck/abicheck/actions/stage-baseline@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
         with:
           baseline-path: ${{ steps.bset-headers.outputs.baseline-path }}
           asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
@@ -142,3 +142,13 @@ jobs:
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY"
           "${{ steps.archive-binary.outputs.archive-path }}"
           "${{ steps.archive-headers.outputs.archive-path }}"
+
+      # Copy these into ABICHECK_BASELINE_DIGEST in ci.yml when rotating.
+      - name: Report the archive digests
+        run: |
+          {
+            echo "| asset | sha256 |"
+            echo "|---|---|"
+            echo "| \`${{ steps.archive-binary.outputs.archive-path }}\` | \`sha256:${{ steps.archive-binary.outputs.archive-sha256 }}\` |"
+            echo "| \`${{ steps.archive-headers.outputs.archive-path }}\` | \`sha256:${{ steps.archive-headers.outputs.archive-sha256 }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
