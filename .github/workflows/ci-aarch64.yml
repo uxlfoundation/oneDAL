@@ -362,6 +362,20 @@ jobs:
             --test_output=errors \
             -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
 
+      # The release tree, not only the libraries: its layout follows
+      # ARCH_DIR_ONEDAL (`lib/arm` here, as in Make's lnxarm release).
+      - name: bazel build release
+        run: |
+          set -euo pipefail
+          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            --release_dpc=false \
+            //:release
+          test -d bazel-bin/release/daal/latest/lib/arm
+          grep -qx 'libdir=${exec_prefix}/lib/arm' \
+            bazel-bin/release/daal/latest/lib/pkgconfig/dal-dynamic-threading-host.pc
+          dev/bazel/tests/release_structure_test.sh bazel-bin/release/daal/latest
+
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
   # running a matrix CI, and allows changing the CI without needing to change

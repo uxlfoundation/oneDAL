@@ -314,7 +314,7 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
-  same subdirectories: headers under `include`, libraries under `lib/intel64`, environment
+  same subdirectories: headers under `include`, libraries under `lib/intel64` (`lib/arm`, `lib/riscv64`, `lib/ARM64` on the other targets, as in Make), environment
   setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:

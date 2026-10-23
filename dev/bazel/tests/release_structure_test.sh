@@ -26,7 +26,13 @@
 set -euo pipefail
 
 RELEASE_DIR="${1:-bazel-bin/release/daal/latest}"
+# lib/<ARCH_DIR_ONEDAL>: intel64, arm (AArch64) or riscv64.
 LIB_DIR="${RELEASE_DIR}/lib/intel64"
+for arch_dir in arm riscv64; do
+    if [ -d "${RELEASE_DIR}/lib/${arch_dir}" ]; then
+        LIB_DIR="${RELEASE_DIR}/lib/${arch_dir}"
+    fi
+done
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PASS=0
 FAIL=0

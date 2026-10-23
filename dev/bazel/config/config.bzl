@@ -188,6 +188,26 @@ cpu_info = rule(
     },
 )
 
+# Attributes `release_arch_dir` reads. Merge into a rule's attrs with `|`.
+RELEASE_ARCH_ATTRS = {
+    "_aarch64_constraint": attr.label(default = "@platforms//cpu:aarch64"),
+    "_riscv64_constraint": attr.label(default = "@platforms//cpu:riscv64"),
+}
+
+def release_arch_dir(ctx, is_windows):
+    """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`.
+
+    `lib/<dir>` holds the libraries and, on Windows, `redist/<dir>` the DLLs.
+    Values match `dev/make/function_definitions/<PLAT>.mk`: `intel64`, `arm`
+    for `lnxarm`, `riscv64` for `lnxriscv64` and `ARM64` for `winarm`. The
+    rule needs `RELEASE_ARCH_ATTRS`.
+    """
+    if ctx.target_platform_has_constraint(ctx.attr._aarch64_constraint[platform_common.ConstraintValueInfo]):
+        return "ARM64" if is_windows else "arm"
+    if ctx.target_platform_has_constraint(ctx.attr._riscv64_constraint[platform_common.ConstraintValueInfo]):
+        return "riscv64"
+    return "intel64"
+
 VersionInfo = provider(
     fields = [
         "major",
