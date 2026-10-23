@@ -35,7 +35,7 @@ permissions:
 env:
   # Bump when an abicheck upgrade invalidates published sets. gen3: 44d86bc11
   # spells an undeduced auto return "auto" (gen2 header sets say "AutoType").
-  # ci.yml moves to 3, with the new digests, once gen3 is published.
+  # ci.yml reads the same generation; move it with the new digests after a publish.
   ABICHECK_BASELINE_GENERATION: "3"
   ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
   TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}

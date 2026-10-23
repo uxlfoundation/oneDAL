@@ -48,7 +48,7 @@ Baseline assets are attached to the release they describe:
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-binary-gen<N>.tar.zst`
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-headers-gen<N>.tar.zst`
 
-The consumers read generation **2**; the publisher writes **3** (see Known gaps).
+The publisher writes and the consumers read generation **3**.
 
 * **Publish.** The workflow runs on `release: published`, or by hand:
   `gh workflow run abicheck-baseline.yml -f baseline_tag=<tag>`. It also runs on a fork
@@ -65,7 +65,7 @@ The build sources the compiler, MKL and TBB versions pinned in the tag's `.ci/en
 Plain `setvars.sh` picks the newest installed versions, and with those MKL 2026.2 lacks
 `libmkl_intel_ilp64.a`.
 
-Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/oneDAL, 1 h 03 min):
+Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/oneDAL, 1 h 03 min; the gen3 run 39906849058 took 45 min 52 s in total):
 
 | Step | Time |
 |---|---|
@@ -78,14 +78,14 @@ Compares against those assets at 44d86bc11 (local, 5 L2 legs concurrently, cold 
 | Step | Time | Memory |
 |---|---|---|
 | Blocking compare | 12 s | 270 MiB |
-| L2 leg (each) | 1:00-1:08 | 1.0-1.1 GiB |
+| L2 leg (each) | 1:17-1:24 | 1.07-1.18 GiB |
 
-Gen2 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3):
+Gen3 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3, generator 44d86bc11, schema 63):
 
 | Asset | Bytes | sha256 |
 |---|---|---|
-| binary | 27,630,663 | `bcd881da6543d70504a955e2c4a270c3c4c9d1f2994410ebdc6579a58c26dfa6` |
-| headers | 10,335,721 | `844399777aa961184fd3ade577929f95abf5987a3d9d9c8310f6436148b4e739` |
+| binary | 27,630,706 | `d3b5a2095817287551e9e0d0ba3106baaacdc42d3570e73d54da47ed57a24ecf` |
+| headers | 10,304,115 | `98573c29e2703366cb4f442fbda29dbd5de72243287a4a70e3d2a700fd4ef505` |
 
 ## Rules
 
@@ -126,10 +126,11 @@ Controls run against the final policy (patched ELFs):
   when one primary template has that name; `CSRNumericTable` has two `setArrays<T>`
   overloads, so their instance reads removed. At `--depth headers` the check does not run
   at all, because that depth drops the declaration graph it reads. Hence the csr rule.
-* **gen2 header sets break L2 at 44d86bc11.** They spell an undeduced `auto&` return
-  `AutoType&`; 44d86bc11 spells it `auto&`, so 8 graph `set_*` setters read
-  `func_return_changed` (BREAKING) on every L2 leg. The header is unchanged. gen3 fixes it;
-  the blocking job is unaffected.
+* **Snapshots carry no extractor generation.** abicheck does not notice when a stored set
+  comes from an older extractor. gen2 header sets spelled an undeduced `auto&` return
+  `AutoType&`; read at 44d86bc11, 8 graph `set_*` setters showed false
+  `func_return_changed` (BREAKING). gen3 fixes it for us. After an abicheck bump that
+  changes the extractor, bump the generation and republish.
 * **Bundle findings.** With `system_providers` the bundle check gives 156
   `bundle_intra_dep_signature_unverified` + 37 `bundle_unresolved_intra_dependency`.
   Without it, about 200 more unresolved findings. Both are risk only, so neither affects
