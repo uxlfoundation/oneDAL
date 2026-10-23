@@ -343,7 +343,7 @@ jobs:
       # kind: bundle returns the staged ELF (binaries-dir): bundle analysis skips snapshots.
       - name: Resolve the release-contract baseline
         id: resolve
-        uses: abicheck/abicheck/actions/resolve-baseline@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
+        uses: abicheck/abicheck/actions/resolve-baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
         with:
           baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
           channel: release-contract
@@ -362,7 +362,7 @@ jobs:
       - name: Check ABI against the released baseline
         id: abicheck
         if: steps.resolve.outputs.outcome == 'resolved'
-        uses: abicheck/abicheck@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
+        uses: abicheck/abicheck@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
         with:
           mode: compare
           old-library: ${{ steps.resolve.outputs.binaries-dir }}
@@ -377,10 +377,8 @@ jobs:
           dependency-source: none
           format: markdown
           output-file: __abi_report/release.md
-          # An extra-args -o replaces the format/output-file export, so both are listed.
-          extra-args: >-
-            -o markdown=__abi_report/release.md
-            -o json=__abi_report/release.json
+          # Added beside the markdown export above.
+          extra-args: -o json=__abi_report/release.json
           pr-comment: false
       - name: Publish the comparison to the job summary
         if: always() && steps.abicheck.outputs.report-path != ''
@@ -435,7 +433,7 @@ jobs:
       # abi-baseline fetches and resolves this leg's library from the set (required).
       - name: Check the public header surface against the released baseline
         id: abicheck
-        uses: abicheck/abicheck@8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2
+        uses: abicheck/abicheck@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
         with:
           mode: compare
           abi-baseline: ${{ env.ABICHECK_BASELINE_TAG }}
@@ -460,9 +458,7 @@ jobs:
           dependency-source: system
           format: markdown
           output-file: __abi_report/${{ matrix.library }}.l2.md
-          extra-args: >-
-            -o markdown=__abi_report/${{ matrix.library }}.l2.md
-            -o json=__abi_report/${{ matrix.library }}.l2.json
+          extra-args: -o json=__abi_report/${{ matrix.library }}.l2.json
           pr-comment: false
       - name: Publish the comparison to the job summary
         if: always() && steps.abicheck.outputs.report-path != ''

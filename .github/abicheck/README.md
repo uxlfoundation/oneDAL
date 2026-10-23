@@ -19,7 +19,7 @@
 
 Two abicheck jobs in `../workflows/ci.yml` compare a PR's Linux build with the
 published baseline for the last release (`2026.0.0`). abicheck is pinned to
-`8a8e1a5d27b7fdb2a3aa19ff0b18019816c50bb2` in both jobs and in the baseline workflow.
+`44d86bc112ebe606d0653fb7e9c9e1bd63f37e23` in both jobs and in the baseline workflow.
 
 | File | Role |
 |---|---|
@@ -48,7 +48,7 @@ Baseline assets are attached to the release they describe:
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-binary-gen<N>.tar.zst`
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-headers-gen<N>.tar.zst`
 
-The current generation is **2**.
+The consumers read generation **2**; the publisher writes **3** (see Known gaps).
 
 * **Publish.** The workflow runs on `release: published`, or by hand:
   `gh workflow run abicheck-baseline.yml -f baseline_tag=<tag>`. It also runs on a fork
@@ -57,9 +57,9 @@ The current generation is **2**.
 * **Rotate.** Publish for the new tag. Then, in one PR, set both `ABICHECK_BASELINE_TAG` and
   `ABICHECK_BASELINE_DIGEST` pairs in `ci.yml` (the publish job summary lists the digests) and
   delete every rule the audit reports `unused` on all runs.
-* **Change the dump** (toolchain or flags). Bump `ABICHECK_BASELINE_GENERATION` in
-  `ci.yml` and in `abicheck-baseline.yml` together, then re-publish. A pin bump alone need
-  not: the gen2 assets dumped at 026a6109e load at 8a8e1a5d2.
+* **Change the dump** (pin, toolchain or flags). Bump `ABICHECK_BASELINE_GENERATION` in
+  `abicheck-baseline.yml`, publish, then move `ci.yml` to it with the new digests. A pin
+  bump needs this when abicheck changes what it extracts, even if the old sets still load.
 
 The build sources the compiler, MKL and TBB versions pinned in the tag's `.ci/env/apt.sh`.
 Plain `setvars.sh` picks the newest installed versions, and with those MKL 2026.2 lacks
@@ -73,12 +73,12 @@ Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/o
 | Binary dump | 57 s |
 | Header dump | 10 min 45 s |
 
-Compares against those assets at 8a8e1a5d2 (local, 5 L2 legs concurrently):
+Compares against those assets at 44d86bc11 (local, 5 L2 legs concurrently, cold cache as in CI):
 
 | Step | Time | Memory |
 |---|---|---|
-| Blocking compare | 11 s | 283 MiB |
-| L2 leg (each) | 35-43 s | 0.7-0.85 GiB |
+| Blocking compare | 12 s | 270 MiB |
+| L2 leg (each) | 1:00-1:08 | 1.0-1.1 GiB |
 
 Gen2 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3):
 
@@ -122,8 +122,14 @@ Controls run against the final policy (patched ELFs):
   no symbol or declaration change is unseen (`abidiff` has the same limit).
 * **Duplicate names are first-wins** in header parses (`interface1`/`v1` namespaces,
   templates). A change confined to a shadowed duplicate is invisible.
-* **Member templates of plain classes.** abicheck keeps a still-declared class-template
-  instance, but not `setArrays<T>` of the non-template `CSRNumericTable`; hence the csr rule.
+* **Overloaded member templates.** abicheck keeps a still-declared template instance only
+  when one primary template has that name; `CSRNumericTable` has two `setArrays<T>`
+  overloads, so their instance reads removed. At `--depth headers` the check does not run
+  at all, because that depth drops the declaration graph it reads. Hence the csr rule.
+* **gen2 header sets break L2 at 44d86bc11.** They spell an undeduced `auto&` return
+  `AutoType&`; 44d86bc11 spells it `auto&`, so 8 graph `set_*` setters read
+  `func_return_changed` (BREAKING) on every L2 leg. The header is unchanged. gen3 fixes it;
+  the blocking job is unaffected.
 * **Bundle findings.** With `system_providers` the bundle check gives 156
   `bundle_intra_dep_signature_unverified` + 37 `bundle_unresolved_intra_dependency`.
   Without it, about 200 more unresolved findings. Both are risk only, so neither affects
