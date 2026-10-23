@@ -448,6 +448,12 @@ jobs:
       exit $status
     displayName: 'Check staged runtime dependencies'
 
+  - script: |
+      # Checks the `.so` -> `.so.<major>` -> `.so.<major>.<minor>` chain,
+      # `env/vars.sh`, the pkg-config files and the modulefile.
+      dev/bazel/tests/release_structure_test.sh "$(DALROOT)"
+    displayName: 'Check release structure'
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
