@@ -106,7 +106,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
 - Remove unused `load()` symbols.
 - Don't hardcode platform-specific paths; reference external libraries by their repository labels.
-- Library binary versions are `MAJORBINARY` / `MINORBINARY` in `makefile.ver`, mirrored by `_BINARY_MAJOR` / `_BINARY_MINOR` in `dev/bazel/repos.bzl`. Change both together; don't hardcode them anywhere else.
+- Product and library binary versions of the Bazel build live only in `dev/bazel/version.bzl`. Until Make is removed, `makefile.ver` carries the same values; bump both.
 
 ## 🧪 Testing and Validation
 - **Build Validation**: Ensure builds work on all supported platforms
