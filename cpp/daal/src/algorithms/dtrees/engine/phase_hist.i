@@ -49,8 +49,9 @@ using services::internal::TArray;
 // Lanes of a plane row are padded to 16, so each bin's row of u32 or f32 statistics starts on a cache line.
 constexpr size_t laneAlign = 16;
 
-/// Per-bin statistics of a record layout (design 4.10): record counts u32; classification class weights u32
-/// (bootstrap counts) or f32 (user weights); regression weight f32 and weighted response sum f64.
+/// Per-bin statistics of a record layout (design 4.10): record counts u32; class weights, or the regression
+/// weight, u32 for bootstrap counts and f64 for user weights, which float sums would round (legacy moved to
+/// f64 for the same reason); the regression weighted response sum f64.
 template <typename Record>
 struct Layout;
 template <>
@@ -62,19 +63,19 @@ struct Layout<ClsCountRecord>
 template <typename algorithmFPType>
 struct Layout<ClsWeightRecord<algorithmFPType> >
 {
-    using Stat                           = float;
+    using Stat                           = double;
     static constexpr bool classification = true;
 };
 template <typename algorithmFPType>
 struct Layout<RegCountRecord<algorithmFPType> >
 {
-    using Stat                           = float;
+    using Stat                           = uint32_t;
     static constexpr bool classification = false;
 };
 template <typename algorithmFPType>
 struct Layout<RegWeightRecord<algorithmFPType> >
 {
-    using Stat                           = float;
+    using Stat                           = double;
     static constexpr bool classification = false;
 };
 
@@ -156,11 +157,12 @@ inline void addRow(const Record & r, const BinT * b, const uint32_t * features, 
         double * sumY   = h.sumY.get();
         const double w  = recordWeight(r);
         const double wy = w * recordResponse(r);
+        const auto ws   = static_cast<typename Planes<Record, cpu>::Stat>(w);
         for (size_t j = 0; j < nLanes; ++j)
         {
             const size_t idx = size_t(b[features[j]]) * stride + j;
             ++records[idx];
-            stat[idx] += float(w);
+            stat[idx] += ws;
             sumY[idx] += wy;
         }
     }

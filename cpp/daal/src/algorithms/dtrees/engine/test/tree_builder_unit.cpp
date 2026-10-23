@@ -322,22 +322,31 @@ Dataset regressionData(size_t nRows, size_t p, uint64_t seed, bool weighted = fa
 
 // --- Independent reference: brute-force best split over every feature and boundary, min leaf 1. ---
 
+/// Weight of row i: its user weight, or 1.
+double weightOf(const Dataset & d, size_t i)
+{
+    return d.w.empty() ? 1. : d.w[i];
+}
+
 /// Proxy of a partition (cost_function.h), computed directly: sum_c L_c^2 / wL + sum_c R_c^2 / wR for Gini,
-/// sL^2 / wL + sR^2 / wR for MSE. Unit weights.
+/// sL^2 / wL + sR^2 / wR for MSE, with the rows' weights. The engine's weights are scaled to a maximum of 1,
+/// which scales every proxy alike.
 double partitionProxy(const Dataset & d, const std::vector<size_t> & l, const std::vector<size_t> & r)
 {
     auto side = [&](const std::vector<size_t> & rows) {
+        double w = 0;
+        for (size_t i : rows) w += weightOf(d, i);
         if (d.nClasses)
         {
             std::vector<double> cw(d.nClasses, 0);
-            for (size_t i : rows) cw[size_t(d.y[i])] += 1;
+            for (size_t i : rows) cw[size_t(d.y[i])] += weightOf(d, i);
             double q = 0;
             for (double c : cw) q += c * c;
-            return q / double(rows.size());
+            return q / w;
         }
         double s = 0;
-        for (size_t i : rows) s += d.y[i];
-        return s * s / double(rows.size());
+        for (size_t i : rows) s += weightOf(d, i) * d.y[i];
+        return s * s / w;
     };
     return side(l) + side(r);
 }
@@ -375,14 +384,18 @@ void requireOptimal(const Dataset & d, const EmittedTree & t, size_t r, const st
         if (d.nClasses)
         {
             std::vector<double> cw(d.nClasses, 0);
-            for (size_t i : rows) cw[size_t(d.y[i])] += 1;
+            for (size_t i : rows) cw[size_t(d.y[i])] += weightOf(d, i);
             REQUIRE(cw[row.leftIndexOrClass] == *std::max_element(cw.begin(), cw.end()));
         }
         else
         {
-            double s = 0;
-            for (size_t i : rows) s += d.y[i];
-            const double mean = s / double(rows.size());
+            double s = 0, w = 0;
+            for (size_t i : rows)
+            {
+                s += weightOf(d, i) * d.y[i];
+                w += weightOf(d, i);
+            }
+            const double mean = s / w;
             REQUIRE(std::abs(row.featureValueOrResponse - mean) <= 1e-12 * (1 + std::abs(mean)));
         }
         return;
@@ -411,6 +424,23 @@ TEST("with every feature at every node, every split is optimal and every leaf un
         const std::vector<std::vector<uint16_t> > noBootstrap;
         const auto trees =
             nClasses ? train<ClsCountRecord, baseCpu>(d, params, 3, noBootstrap) : train<RegCountRecord<double>, baseCpu>(d, params, 3, noBootstrap);
+        for (const auto & t : trees) requireOptimal(d, t, 0, all);
+    }
+}
+
+TEST("with user weights every split is still optimal for the weighted cost", "[unit]")
+{
+    // Weighted left sums once took the weight of the wrong row (#2092); unit weights cannot show that.
+    for (size_t nClasses : { 0, 2, 3 })
+    {
+        const Dataset d = nClasses ? classificationData(300, 5, nClasses, 13, true) : regressionData(300, 5, 14, true);
+        TreeParams params;
+        params.nClasses = nClasses;
+        std::vector<size_t> all(d.nRows);
+        for (size_t i = 0; i < d.nRows; ++i) all[i] = i;
+        const std::vector<std::vector<uint16_t> > noBootstrap;
+        const auto trees = nClasses ? train<ClsWeightRecord<double>, baseCpu>(d, params, 3, noBootstrap) :
+                                      train<RegWeightRecord<double>, baseCpu>(d, params, 3, noBootstrap);
         for (const auto & t : trees) requireOptimal(d, t, 0, all);
     }
 }

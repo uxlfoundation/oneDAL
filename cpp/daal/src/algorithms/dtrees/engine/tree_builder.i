@@ -26,6 +26,8 @@
 #ifndef __DTREES_ENGINE_TREE_BUILDER_I__
 #define __DTREES_ENGINE_TREE_BUILDER_I__
 
+#include <cmath>
+#include <limits>
 #include <type_traits>
 
 #include "src/algorithms/dtrees/engine/cost_function.h"
@@ -117,6 +119,20 @@ inline double midpoint(double a, double b)
     return (t >= b || t <= a) ? a : t;
 }
 } // namespace exact
+
+/// The largest algorithmFPType value at or below threshold t. Float prediction compares x > float(t), so a t
+/// rounded up onto a training value would send that value right; no float lies between the result and t, so
+/// it routes every float as t does.
+template <typename algorithmFPType>
+inline double representableThreshold(double t)
+{
+    if constexpr (std::is_same<algorithmFPType, float>::value)
+    {
+        const float f = float(t);
+        return double(f) > t ? double(std::nextafter(f, -std::numeric_limits<float>::infinity())) : double(f);
+    }
+    return t;
+}
 
 inline size_t bitWords(size_t n)
 {
@@ -279,10 +295,10 @@ public:
             s = ctx.rng.init(treeSeed);
             DAAL_CHECK_STATUS_VAR(s);
         }
+        // A tree of n records has at most n leaves and n - 1 splits. A tree whose in-bag rows all have zero
+        // weight has no records and is one leaf.
         const size_t n = ctx.records.size();
-        if (!n) return services::Status(services::ErrorIncorrectNumberOfObservations);
-        // A tree of n records has at most n leaves and n - 1 splits.
-        s = ctx.nodes.reset(2 * n);
+        s              = ctx.nodes.reset(n ? 2 * n : 1);
         DAAL_CHECK_STATUS_VAR(s);
         root     = WorkItem();
         root.n   = uint32_t(n);
@@ -311,7 +327,7 @@ public:
         cost.startParent();
         for (size_t i = 0; i < item.n; ++i)
         {
-            nSamples += recordCount(records[i]);
+            nSamples += recordCount(records[i]); // 1 per record in the weighted layouts, which keep no count
             addParent(cost, records[i]);
         }
         cost.finishParent();
@@ -420,7 +436,7 @@ public:
 
         TreeNode & node       = ctx.nodes[item.node];
         node.feature          = int32_t(split.feature);
-        node.threshold        = split.threshold;
+        node.threshold        = representableThreshold<algorithmFPType>(split.threshold);
         node.categorical      = split.categorical;
         node.weightedDecrease = item.improvement;
         node.left             = pair;
@@ -1148,8 +1164,9 @@ private:
             for (size_t c = 1; c < nClasses; ++c) best = cw[c] > cw[best] ? c : best;
             row.leftIndexOrClass       = best;
             row.featureValueOrResponse = 0;
-            // Probabilities are the weighted class shares; they sum to 1 with user weights too.
-            for (size_t c = 0; c < nClasses; ++c) prob[c] = total > 0 ? cw[c] / total : 0;
+            // Probabilities are the weighted class shares; they sum to 1 with user weights too. A leaf without
+            // records (a tree of zero-weight rows) is uniform.
+            for (size_t c = 0; c < nClasses; ++c) prob[c] = total > 0 ? cw[c] / total : 1. / double(nClasses);
         }
     }
 
@@ -1157,13 +1174,15 @@ private:
     {
         if constexpr (!isClassification)
         {
+            // Records hold the responses less ResponseSource::responseShift() (see computeShift); a leaf without
+            // records predicts the mean response.
             double w = 0, s = 0;
             for (size_t i = 0; i < n; ++i)
             {
                 w += recordWeight(r[i]);
                 s += recordWeight(r[i]) * recordResponse(r[i]);
             }
-            return w > 0 ? s / w : 0;
+            return w > 0 ? _data.responses->responseShift() + s / w : _data.responses->responseMean();
         }
         return 0;
     }

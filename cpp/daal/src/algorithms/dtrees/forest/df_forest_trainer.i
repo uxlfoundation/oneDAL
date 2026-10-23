@@ -25,6 +25,8 @@
 #ifndef __DF_FOREST_TRAINER_I__
 #define __DF_FOREST_TRAINER_I__
 
+#include <limits>
+
 #include "algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/algorithms/dtrees/engine/node_rng.h"
 #include "src/algorithms/dtrees/engine/numa_alloc.h"
@@ -455,7 +457,12 @@ public:
         }
         if (err.get()) err.get()[0] = nPredicted ? algorithmFPType(sumError / double(nPredicted)) : 0;
         if (accuracy.get()) accuracy.get()[0] = nPredicted ? algorithmFPType(1 - sumError / double(nPredicted)) : 1;
-        if (r2.get()) r2.get()[0] = sumSquares > 0 ? algorithmFPType(1 - sumError / sumSquares) : 0;
+        // Undefined without OOB predictions. Constant responses give a zero denominator; as in scikit-learn's
+        // r2_score, R2 is then 1 for an exact fit and 0 otherwise.
+        if (r2.get())
+            r2.get()[0] = !nPredicted    ? std::numeric_limits<algorithmFPType>::quiet_NaN() :
+                          sumSquares > 0 ? algorithmFPType(1 - sumError / sumSquares) :
+                                           algorithmFPType(sumError > 0 ? 0 : 1);
         return services::Status();
     }
 
