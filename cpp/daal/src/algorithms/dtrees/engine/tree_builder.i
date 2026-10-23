@@ -1208,10 +1208,10 @@ services::Status trainTrees(const TreeData<algorithmFPType, cpu> & data, const T
     DAAL_CHECK_STATUS_VAR(builder.init());
 
     ExecutorParams executorParams;
-    executorParams.nTrees            = nTrees;
-    executorParams.maxLeafNodes      = params.maxLeafNodes;
-    executorParams.treesInFlight     = params.treesInFlight;
-    executorParams.serialSubtreeRows = params.serialSubtreeRows;
+    executorParams.nTrees        = nTrees;
+    executorParams.maxLeafNodes  = params.maxLeafNodes;
+    executorParams.treesInFlight = params.treesInFlight;
+    executorParams.numaNodes     = params.numaNodes;
     Executor<TreeBuilder<algorithmFPType, Record, cpu>, cpu> executor(builder, executorParams);
     return executor.run();
 }

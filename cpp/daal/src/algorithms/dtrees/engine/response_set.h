@@ -147,22 +147,23 @@ template <typename algorithmFPType, CpuType cpu>
 class ResponseSource
 {
 public:
-    services::Status build(const data_management::NumericTable & y, const data_management::NumericTable * w, bool classification, bool replicate)
+    services::Status build(const data_management::NumericTable & y, const data_management::NumericTable * w, bool classification,
+                           const NumaPlacement & placement)
     {
         _nRows          = y.getNumberOfRows();
         _classification = classification;
         services::Status s;
         if (classification)
-            s = readColumn(y, replicate, _cls, [](algorithmFPType v) { return uint32_t(v); });
+            s = readColumn(y, placement, _cls, [](algorithmFPType v) { return uint32_t(v); });
         else
-            s = readColumn(y, replicate, _y, [](algorithmFPType v) { return v; });
+            s = readColumn(y, placement, _y, [](algorithmFPType v) { return v; });
         DAAL_CHECK_STATUS_VAR(s);
         _weighted = false;
         _shift    = 0;
         _mean     = 0;
         if (w)
         {
-            s = readWeights(*w, replicate);
+            s = readWeights(*w, placement);
             DAAL_CHECK_STATUS_VAR(s);
         }
         return classification ? s : computeShift();
@@ -177,14 +178,14 @@ public:
     double responseMean() const { return _mean; } // weighted if the fit is; 0 for classification
 
 private:
-    services::Status readWeights(const data_management::NumericTable & w, bool replicate)
+    services::Status readWeights(const data_management::NumericTable & w, const NumaPlacement & placement)
     {
         services::Status s;
         const algorithmFPType maxW = maxValue(w, s);
         DAAL_CHECK_STATUS_VAR(s);
         if (!(maxW > 0)) return s;
         const algorithmFPType eps = algorithmFPType(10) * services::internal::EpsilonVal<algorithmFPType>::get();
-        s                         = readColumn(w, replicate, _w, [=](algorithmFPType v) {
+        s                         = readColumn(w, placement, _w, [=](algorithmFPType v) {
             const algorithmFPType scaled = v / maxW;
             return scaled > eps ? scaled : algorithmFPType(0);
         });
@@ -282,9 +283,10 @@ private:
     }
 
     template <typename T, typename Convert>
-    services::Status readColumn(const data_management::NumericTable & t, bool replicate, NumaReplicated<T, cpu> & out, const Convert & convert)
+    services::Status readColumn(const data_management::NumericTable & t, const NumaPlacement & placement, NumaReplicated<T, cpu> & out,
+                                const Convert & convert)
     {
-        services::Status s = out.allocate(_nRows, replicate);
+        services::Status s = out.allocate(_nRows, placement);
         DAAL_CHECK_STATUS_VAR(s);
         const size_t nBlocks = (_nRows + tableBlockRows - 1) / tableBlockRows;
         for (size_t iCopy = 0; iCopy < out.copies(); ++iCopy)

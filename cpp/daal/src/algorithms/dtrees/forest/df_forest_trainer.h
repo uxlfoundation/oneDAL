@@ -29,6 +29,7 @@
 #include "algorithms/decision_forest/decision_forest_training_parameter.h"
 #include "data_management/data/numeric_table.h"
 #include "src/algorithms/dtrees/dtrees_model_impl.h"
+#include "src/algorithms/dtrees/engine/numa_alloc.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
 
 namespace daal
@@ -42,6 +43,18 @@ namespace training
 namespace internal
 {
 using daal::internal::CpuType;
+
+// Tables of X below this size use one NUMA node. They sit in one socket's L3 (105 MB on SPR), so NUMA placement
+// gains them nothing, while querying the topology costs 45-70 ms once per process on a 2-socket host and the NUMA
+// arenas a few ms a fit (design 8, steps 5e and 15). Provisional; 5e measures it.
+constexpr size_t numaMinTableBytes = size_t(32) << 20;
+
+/// One node for tables of X below numaMinTableBytes, without querying the topology; else every node of the host.
+inline dtrees::engine::internal::NumaPlacement numaPlacement(size_t tableBytes, bool replicate)
+{
+    using dtrees::engine::internal::NumaPlacement;
+    return tableBytes < numaMinTableBytes ? NumaPlacement() : NumaPlacement::host(replicate);
+}
 
 /// Result tables of a fit, allocated by the caller; null when not requested.
 struct ForestResults

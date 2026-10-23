@@ -94,6 +94,16 @@ private:
     size_t _size = 0;
 };
 
+/// The NUMA nodes a fit spreads its data and work over, and whether each node holds its own copy of the data.
+struct NumaPlacement
+{
+    size_t nodes   = 1;     // 1: one copy, used from the calling thread's arena, without querying the topology
+    bool replicate = false; // a copy per node when nodes > 1
+
+    /// Every NUMA node of the host, which queries the topology (hwloc through TBB), replicated if requested.
+    static NumaPlacement host(bool replicate) { return { size_t(threader_numa_count()), replicate }; }
+};
+
 /**
  *  \brief An array of n elements held once per NUMA node, or once in total
  *
@@ -105,11 +115,11 @@ template <typename T, CpuType cpu>
 class NumaReplicated
 {
 public:
-    /// Allocates one copy per NUMA node if replicate is set and there is more than one node, else one copy.
-    services::Status allocate(size_t n, bool replicate)
+    /// Allocates one copy per node of the placement if it replicates over more than one node, else one copy.
+    services::Status allocate(size_t n, const NumaPlacement & placement)
     {
-        _nNodes  = threader_numa_count();
-        _nCopies = (replicate && _nNodes > 1) ? size_t(_nNodes) : 1;
+        _nNodes  = placement.nodes ? placement.nodes : 1;
+        _nCopies = (placement.replicate && _nNodes > 1) ? _nNodes : 1;
         _size    = n;
         _copies.reset(_nCopies);
         DAAL_CHECK_MALLOC(_copies.get());
@@ -149,7 +159,7 @@ public:
         }
         else if (_nNodes > 1)
         {
-            const size_t nNodes = size_t(_nNodes);
+            const size_t nNodes = _nNodes;
             daal::threader_for(nNodes, 1,
                                [&](size_t node) { daal::threader_execute_in_numa(static_cast<int>(node), [&]() { runBlocks(node, nNodes); }); });
         }
@@ -185,7 +195,7 @@ private:
     services::internal::TArray<LargeArray<T, cpu>, cpu> _copies;
     size_t _size    = 0;
     size_t _nCopies = 0;
-    int _nNodes     = 1;
+    size_t _nNodes  = 1;
 };
 
 /// Rows read per block when a table is copied or scanned.
@@ -197,12 +207,12 @@ constexpr size_t tableBlockRows = 4096;
  *  Each copy is read from x through ReadRows blocks inside its own node's arena.
  */
 template <typename algorithmFPType, CpuType cpu>
-services::Status copyTableRows(const data_management::NumericTable & x, bool replicate, NumaReplicated<algorithmFPType, cpu> & out)
+services::Status copyTableRows(const data_management::NumericTable & x, const NumaPlacement & placement, NumaReplicated<algorithmFPType, cpu> & out)
 {
     const size_t nRows = x.getNumberOfRows();
     const size_t nCols = x.getNumberOfColumns();
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nCols);
-    services::Status s = out.allocate(nRows * nCols, replicate);
+    services::Status s = out.allocate(nRows * nCols, placement);
     DAAL_CHECK_STATUS_VAR(s);
     const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
     for (size_t iCopy = 0; iCopy < out.copies(); ++iCopy)

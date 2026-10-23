@@ -89,13 +89,13 @@ public:
         return services::Status();
     }
 
-    services::Status allocateRows(size_t nRows, size_t binBytes, bool replicate)
+    services::Status allocateRows(size_t nRows, size_t binBytes, const NumaPlacement & placement)
     {
         _nRows    = nRows;
         _binBytes = binBytes;
         _stride   = binRowStride<cpu>(_nFeatures, binBytes);
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, _stride);
-        return _rows.allocate(nRows * _stride, replicate);
+        return _rows.allocate(nRows * _stride, placement);
     }
 
     size_t nRows() const { return _nRows; }

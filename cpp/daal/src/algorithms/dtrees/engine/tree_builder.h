@@ -66,8 +66,8 @@ struct TreeParams
     double impurityThreshold   = 0; // nodes with impurity at or below this are leaves
     bool randomSplitter        = false;
     bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeStream
-    size_t serialSubtreeRows   = 0;    // see ExecutorParams
     size_t treesInFlight       = 0;
+    size_t numaNodes           = 0; // see ExecutorParams; the data's NumaPlacement::nodes
     // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
     size_t denseThreshold = 2;
     size_t maxBins        = 256;

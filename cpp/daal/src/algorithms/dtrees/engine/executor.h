@@ -35,7 +35,6 @@
 #include "src/algorithms/service_threading.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_defines.h"
-#include "src/services/service_environment.h"
 #include "src/threading/threading.h"
 
 namespace daal
@@ -50,24 +49,12 @@ namespace internal
 {
 using daal::internal::CpuType;
 
-// A serial subtree's rows should stay in one core's L2 (design 4.8); the other half is left to
-// histograms and scratch. The profiling follow-up sets the final value.
-constexpr size_t serialSubtreeL2Divisor = 2;
-
-/// Rows below which a node builds its whole subtree in one task, for rows touching bytesPerRow bytes each.
-template <CpuType cpu>
-size_t defaultSerialSubtreeRows(size_t bytesPerRow)
-{
-    const size_t l2 = services::internal::getL2CacheSize();
-    return bytesPerRow ? l2 / serialSubtreeL2Divisor / bytesPerRow : 0;
-}
-
 struct ExecutorParams
 {
-    size_t nTrees            = 0;
-    size_t maxLeafNodes      = 0; // 0 builds depth-first; otherwise best-first with this many leaves at most
-    size_t treesInFlight     = 0; // 0 means no limit
-    size_t serialSubtreeRows = 0; // nodes with fewer rows build their subtree in one task; 0 disables it
+    size_t nTrees        = 0;
+    size_t maxLeafNodes  = 0; // 0 builds depth-first; otherwise best-first with this many leaves at most
+    size_t treesInFlight = 0; // 0 means no limit
+    size_t numaNodes     = 0; // arenas: 0 queries the topology for every NUMA node; 1 runs in the calling arena
 };
 
 /**
@@ -76,7 +63,7 @@ struct ExecutorParams
  *  Builder provides:
  *  - WorkItem, a copyable node description, and TreeContext, default-constructible per-runner state.
  *  - Status initContext(TreeContext &, int numaNode): called once per runner, inside the arena of NUMA
- *    node numaNode, in [0, threader_numa_count()). Per-tree buffers allocated here are reused by every
+ *    node numaNode, in [0, ExecutorParams::numaNodes). Per-tree buffers allocated here are reused by every
  *    tree the runner builds and stay on that node; numaNode also selects the node's data replicas.
  *  - Status beginTree(TreeContext &, size_t iTree, WorkItem & root)
  *  - Status evaluate(TreeContext &, WorkItem &, bool & splittable): finds the item's split. In
@@ -106,20 +93,35 @@ public:
     services::Status run()
     {
         _nextTree.set(0);
-        _runners.set(0);
         SafeStatus safeStat;
-        const int nArenas = threader_numa_count();
+        const size_t inFlight = treesInFlight(_params);
+        if (!inFlight) return services::Status();
+        const size_t numaNodes = _params.numaNodes ? _params.numaNodes : size_t(threader_numa_count());
+        const size_t nArenas   = numaNodes < inFlight ? numaNodes : inFlight;
         if (nArenas == 1)
         {
-            runArena(0, safeStat);
+            runArena(0, inFlight, safeStat);
         }
         else
         {
             daal::threader_for(nArenas, 1, [&](size_t iArena) {
-                daal::threader_execute_in_numa(static_cast<int>(iArena), [&]() { runArena(static_cast<int>(iArena), safeStat); });
+                daal::threader_execute_in_numa(static_cast<int>(iArena),
+                                               [&]() { runArena(static_cast<int>(iArena), runnersPerArena(inFlight, nArenas, iArena), safeStat); });
             });
         }
         return safeStat.detach();
+    }
+
+    /// Trees built at once: nTrees, or fewer with params.treesInFlight.
+    static size_t treesInFlight(const ExecutorParams & params)
+    {
+        return params.treesInFlight && params.treesInFlight < params.nTrees ? params.treesInFlight : params.nTrees;
+    }
+
+    /// Runners arena iArena of nArenas starts for inFlight trees in flight, before its thread count caps them.
+    static size_t runnersPerArena(size_t inFlight, size_t nArenas, size_t iArena)
+    {
+        return inFlight / nArenas + (iArena < inFlight % nArenas ? 1 : 0);
     }
 
 private:
@@ -148,20 +150,22 @@ private:
         void operator()() { executor->processNode(*tree, item); }
     };
 
-    // One runner per thread of the arena; each runs trees one at a time until none are left.
-    void runArena(int numaNode, SafeStatus & safeStat)
+    // Up to nRunners runners, at most one per thread of the arena; each runs trees one at a time until none are
+    // left. A runner owns its tree (buffers, begin, wait, emit); the tree's node tasks run on every thread of the
+    // arena, so runners beyond the trees in flight would only wake threads, and on a first fit create them, to find
+    // no tree.
+    void runArena(int numaNode, size_t nRunners, SafeStatus & safeStat)
     {
-        const int nRunners = threader_get_max_threads_number();
+        const size_t nThreads = size_t(threader_get_max_threads_number());
+        if (nRunners > nThreads) nRunners = nThreads;
         daal::task_group group;
         auto runner = [&]() { runTrees(numaNode, safeStat); };
-        for (int i = 0; i < nRunners; ++i) group.run(runner);
+        for (size_t i = 0; i < nRunners; ++i) group.run(runner);
         group.wait();
     }
 
     void runTrees(int numaNode, SafeStatus & safeStat)
     {
-        // Runners hold the per-tree buffers, so bounding them bounds the trees in flight.
-        if (_params.treesInFlight && _runners.inc() > _params.treesInFlight) return;
         TreeContext ctx;
         bool initialized = false;
         while (safeStat.ok())
@@ -209,11 +213,6 @@ private:
     {
         while (!tree.failed.get())
         {
-            if (_builder.rows(item) < _params.serialSubtreeRows)
-            {
-                tree.add(buildSerialSubtree(tree.ctx, item));
-                return;
-            }
             WorkItem left;
             WorkItem right;
             bool split         = false;
@@ -228,31 +227,6 @@ private:
             tree.group.run(task);
             item = right;
         }
-    }
-
-    // Depth-first from a stack, right child pushed first. The stack holds at most one pending right
-    // child per level plus the current node, and a subtree of n rows has fewer than n levels.
-    services::Status buildSerialSubtree(TreeContext & ctx, const WorkItem & root)
-    {
-        const size_t capacity = _builder.rows(root) + 1;
-        services::internal::TArray<WorkItem, cpu> stack(capacity);
-        DAAL_CHECK_MALLOC(stack.get());
-        size_t n   = 0;
-        stack[n++] = root;
-        while (n)
-        {
-            WorkItem item = stack[--n];
-            WorkItem left;
-            WorkItem right;
-            bool split         = false;
-            services::Status s = splitNode(ctx, item, left, right, split);
-            DAAL_CHECK_STATUS_VAR(s);
-            if (!split) continue;
-            DAAL_ASSERT(n + 2 <= capacity);
-            stack[n++] = right;
-            stack[n++] = left;
-        }
-        return services::Status();
     }
 
     // Expands the evaluated node with the largest improvement, ties to the smaller node key, until
@@ -313,7 +287,6 @@ private:
     Builder & _builder;
     const ExecutorParams _params;
     services::Atomic<size_t> _nextTree;
-    services::Atomic<size_t> _runners;
 };
 
 } // namespace internal

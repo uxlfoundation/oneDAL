@@ -131,7 +131,8 @@ private:
 /// Trains nTrees trees and returns their tables; with binning, a hist fit over the binned data.
 template <typename Record, CpuType cpu>
 std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, size_t nTrees, const std::vector<std::vector<uint16_t> > & counts,
-                               uint64_t seed = 777, const BinningParams * binning = nullptr)
+                               uint64_t seed = 777, const BinningParams * binning = nullptr,
+                               const NumaPlacement & placement = NumaPlacement::host(false))
 {
     std::vector<double> xCopy = d.x;
     NumericTablePtr xt        = HomogenNumericTable<double>::create(xCopy.data(), d.p, d.nRows);
@@ -143,9 +144,9 @@ std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, siz
     NumericTablePtr wt        = d.w.empty() ? NumericTablePtr() : NumericTablePtr(HomogenNumericTable<double>::create(wCopy.data(), 1, d.nRows));
 
     NumaReplicated<double, cpu> x;
-    REQUIRE((copyTableRows<double, cpu>(*xt, false, x)).ok());
+    REQUIRE((copyTableRows<double, cpu>(*xt, placement, x)).ok());
     ResponseSource<double, cpu> src;
-    REQUIRE(src.build(*yt, wt.get(), d.nClasses > 0, false).ok());
+    REQUIRE(src.build(*yt, wt.get(), d.nClasses > 0, placement).ok());
     std::unique_ptr<bool[]> cat(new bool[d.p]);
     for (size_t f = 0; f < d.p; ++f) cat[f] = !d.categorical.empty() && d.categorical[f];
 
@@ -475,7 +476,7 @@ TEST("every in-bag row reaches a leaf that matches its rows, with bootstrap and 
 
 // Identity across CpuTypes is not required (design 4.13): FMA contraction in the AVX-512 objects
 // rounds sums differently. Each CpuType is checked against its own single-thread trees.
-TEST("trees do not depend on threads, serial subtrees or trees in flight", "[unit]")
+TEST("trees do not depend on threads or trees in flight", "[unit]")
 {
     constexpr size_t nTrees = 8;
     const Dataset c         = classificationData(3000, 9, 3, 31);
@@ -502,21 +503,17 @@ TEST("trees do not depend on threads, serial subtrees or trees in flight", "[uni
                 for (size_t threads : { 4, 0 })
                 {
                     std::unique_ptr<ThreadCountGuard> guard(threads ? new ThreadCountGuard(threads) : nullptr);
-                    for (size_t serial : { size_t(0), size_t(64), std::numeric_limits<size_t>::max() })
+                    for (size_t inFlight : { 0, 2 })
                     {
-                        for (size_t inFlight : { 0, 2 })
+                        params.treesInFlight = inFlight;
+                        params.nClasses      = 3;
+                        const auto tc        = train<ClsCountRecord, ct>(c, params, nTrees, counts);
+                        params.nClasses      = 0;
+                        const auto tr        = train<RegWeightRecord<double>, ct>(r, params, nTrees, counts);
+                        for (size_t i = 0; i < nTrees; ++i)
                         {
-                            params.serialSubtreeRows = serial;
-                            params.treesInFlight     = inFlight;
-                            params.nClasses          = 3;
-                            const auto tc            = train<ClsCountRecord, ct>(c, params, nTrees, counts);
-                            params.nClasses          = 0;
-                            const auto tr            = train<RegWeightRecord<double>, ct>(r, params, nTrees, counts);
-                            for (size_t i = 0; i < nTrees; ++i)
-                            {
-                                requireSameTables(refC[i], tc[i]);
-                                requireSameTables(refR[i], tr[i]);
-                            }
+                            requireSameTables(refC[i], tc[i]);
+                            requireSameTables(refR[i], tr[i]);
                         }
                     }
                 }
@@ -995,6 +992,37 @@ TEST("fused partitions and constant lists do not change the trees", "[unit]")
                     requireSameTables(refR[t], tr[t]);
                 }
             }
+        }
+    }
+}
+
+TEST("a fit on one NUMA node builds the trees of a fit on every node", "[unit]")
+{
+    constexpr size_t nTrees = 4;
+    const Dataset c         = classificationData(6000, 6, 3, 141);
+    const Dataset r         = regressionData(6000, 6, 142);
+    const auto counts       = bootstrapCounts(nTrees, 6000, 143);
+    BinningParams one;
+    BinningParams all;
+    all.placement = NumaPlacement::host(true);
+    TreeParams params;
+    params.featuresPerNode = 3;
+    for (bool hist : { false, true })
+    {
+        params.numaNodes = 0;
+        params.nClasses  = 3;
+        const auto hostC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host(true));
+        params.nClasses  = 0;
+        const auto hostR = train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host(true));
+        params.numaNodes = 1;
+        params.nClasses  = 3;
+        const auto oneC  = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &one : nullptr, NumaPlacement());
+        params.nClasses  = 0;
+        const auto oneR  = train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, hist ? &one : nullptr, NumaPlacement());
+        for (size_t t = 0; t < nTrees; ++t)
+        {
+            requireSameTables(hostC[t], oneC[t]);
+            requireSameTables(hostR[t], oneR[t]);
         }
     }
 }

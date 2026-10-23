@@ -16,12 +16,15 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <random>
+#include <set>
+#include <thread>
 #include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
@@ -80,12 +83,16 @@ struct TreeLog
     bool builtOk = false;
 };
 
+// Every runner the executor starts constructs one TreeContext, whether or not it gets a tree.
+std::atomic<size_t> runnerContexts { 0 };
+
 class MockBuilder
 {
 public:
     using WorkItem = MockItem;
     struct TreeContext
     {
+        TreeContext() { ++runnerContexts; }
         bool initialized = false;
     };
 
@@ -117,6 +124,14 @@ public:
 
     services::Status evaluate(TreeContext &, MockItem & item, bool & splittable)
     {
+        {
+            std::lock_guard<std::mutex> lock(threadsMutex);
+            evaluators.insert(std::this_thread::get_id());
+        }
+        const auto until = std::chrono::steady_clock::now() + nodeWork;
+        while (std::chrono::steady_clock::now() < until)
+        {
+        }
         splittable = _shape.splittable(item);
         if (splittable) item.improvement = _shape.improvement(item);
         return services::Status();
@@ -158,6 +173,9 @@ public:
     std::atomic<size_t> inFlight { 0 };
     std::atomic<size_t> maxInFlight { 0 };
     std::atomic<bool> contractViolated { false };
+    std::mutex threadsMutex;
+    std::set<std::thread::id> evaluators;     // threads that evaluated a node
+    std::chrono::microseconds nodeWork { 0 }; // busy time of each evaluate
 
 private:
     TreeShape _shape;
@@ -282,7 +300,7 @@ TEST("pushMaxHeap and popMaxHeap pop in descending order", "[unit]")
     REQUIRE(popped == values);
 }
 
-TEST("depth-first trees do not depend on threads, serial subtrees or trees in flight", "[unit]")
+TEST("depth-first trees do not depend on threads or trees in flight", "[unit]")
 {
     std::vector<std::vector<NodeRecord> > expected;
     for (size_t i = 0; i < nTreesTested; ++i) expected.push_back(referenceDepthFirst(shape, i));
@@ -290,25 +308,21 @@ TEST("depth-first trees do not depend on threads, serial subtrees or trees in fl
     for (size_t nThreads : { 1, 2, 8 })
     {
         ThreadCountGuard threads(nThreads);
-        for (size_t serialRows : { size_t(0), size_t(64), std::numeric_limits<size_t>::max() })
+        for (size_t treesInFlight : { 0, 1, 3 })
         {
-            for (size_t treesInFlight : { 0, 1, 3 })
-            {
-                MockBuilder builder(shape, nTreesTested);
-                ExecutorParams params;
-                params.nTrees            = nTreesTested;
-                params.serialSubtreeRows = serialRows;
-                params.treesInFlight     = treesInFlight;
-                Executor<MockBuilder, cpu> executor(builder, params);
-                REQUIRE(executor.run().ok());
+            MockBuilder builder(shape, nTreesTested);
+            ExecutorParams params;
+            params.nTrees        = nTreesTested;
+            params.treesInFlight = treesInFlight;
+            Executor<MockBuilder, cpu> executor(builder, params);
+            REQUIRE(executor.run().ok());
 
-                checkLifecycle(builder, params);
-                for (size_t i = 0; i < nTreesTested; ++i)
-                {
-                    auto nodes = builder.logs[i]->nodes;
-                    std::sort(nodes.begin(), nodes.end());
-                    REQUIRE(nodes == expected[i]);
-                }
+            checkLifecycle(builder, params);
+            for (size_t i = 0; i < nTreesTested; ++i)
+            {
+                auto nodes = builder.logs[i]->nodes;
+                std::sort(nodes.begin(), nodes.end());
+                REQUIRE(nodes == expected[i]);
             }
         }
     }
@@ -354,6 +368,41 @@ TEST("no trees means no runner contexts", "[unit]")
     REQUIRE(builder.contexts == 0);
 }
 
+TEST("runners start only for the trees in flight", "[unit]")
+{
+    ThreadCountGuard threads(8);
+    for (size_t treesInFlight : { 0, 2 })
+    {
+        MockBuilder builder(shape, 3);
+        ExecutorParams params;
+        params.nTrees        = 3;
+        params.treesInFlight = treesInFlight;
+        runnerContexts       = 0;
+        Executor<MockBuilder, cpu> executor(builder, params);
+        REQUIRE(executor.run().ok());
+        checkLifecycle(builder, params);
+        CAPTURE(treesInFlight);
+        // One runner per thread would start 8 and wake every thread for 3 trees.
+        REQUIRE(runnerContexts <= (treesInFlight ? treesInFlight : 3));
+    }
+}
+
+TEST("the nodes of one tree run on more threads than there are trees", "[unit]")
+{
+    // Runners cap the trees in flight, not the node tasks: other threads still build the tree's nodes. Each node
+    // takes 5 us, about 0.3 s for the tree on one thread, so idle threads have time to join; half of them must.
+    ThreadCountGuard threads(8);
+    const TreeShape big { size_t(1) << 16, 30 };
+    MockBuilder builder(big, 1);
+    builder.nodeWork = std::chrono::microseconds(5);
+    ExecutorParams params;
+    params.nTrees = 1;
+    Executor<MockBuilder, cpu> executor(builder, params);
+    REQUIRE(executor.run().ok());
+    CAPTURE(builder.evaluators.size());
+    REQUIRE(builder.evaluators.size() >= 4);
+}
+
 TEST("a failed split stops the fit and every started tree is ended", "[unit]")
 {
     constexpr size_t failingTree = 5;
@@ -370,16 +419,6 @@ TEST("a failed split stops the fit and every started tree is ended", "[unit]")
         REQUIRE(builder.logs[failingTree]->begun == 1);
         REQUIRE(!builder.logs[failingTree]->builtOk);
         for (const auto & log : builder.logs) REQUIRE(log->ended == log->begun);
-    }
-}
-
-TEST("the default serial subtree fits half of L2", "[unit]")
-{
-    REQUIRE(defaultSerialSubtreeRows<cpu>(0) == 0);
-    for (size_t bytesPerRow : { 64, 128, 832 })
-    {
-        const size_t rows = defaultSerialSubtreeRows<cpu>(bytesPerRow);
-        REQUIRE(rows * bytesPerRow <= services::internal::getL2CacheSize() / serialSubtreeL2Divisor);
     }
 }
 

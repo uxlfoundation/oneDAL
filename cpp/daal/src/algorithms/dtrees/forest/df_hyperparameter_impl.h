@@ -50,15 +50,13 @@ struct EngineHyperparameters
     DAAL_INT64 chunkRows      = 1 << 14;
     DAAL_INT64 maxChunks      = 64;
     DAAL_INT64 treesInFlight  = 0; // 0: no limit
-    // Subtrees of fewer rows build in one task (TreeParams::serialSubtreeRows). -1: rows that fit a core's L2; 0: off.
-    DAAL_INT64 serialSubtreeRows = -1;
-    bool legacyTraining          = false;
+    bool legacyTraining       = false;
 };
 
 /// Reads the ids that are set over the defaults; a set value out of range gives ErrorHyperparameterBadValue.
 template <typename HyperparameterType, typename IdType>
 services::Status readEngineHyperparameters(const HyperparameterType * hp, IdType denseThresholdId, IdType chunkRowsId, IdType maxChunksId,
-                                           IdType treesInFlightId, IdType serialSubtreeRowsId, IdType legacyTrainingId, EngineHyperparameters & out)
+                                           IdType treesInFlightId, IdType legacyTrainingId, EngineHyperparameters & out)
 {
     if (!hp) return services::Status();
     DAAL_INT64 v = 0;
@@ -66,9 +64,8 @@ services::Status readEngineHyperparameters(const HyperparameterType * hp, IdType
     if (hp->find(chunkRowsId, v)) out.chunkRows = v;
     if (hp->find(maxChunksId, v)) out.maxChunks = v;
     if (hp->find(treesInFlightId, v)) out.treesInFlight = v;
-    if (hp->find(serialSubtreeRowsId, v)) out.serialSubtreeRows = v;
     if (hp->find(legacyTrainingId, v)) out.legacyTraining = v != 0;
-    if (out.denseThreshold < 0 || out.chunkRows < 0 || out.maxChunks < 1 || out.treesInFlight < 0 || out.serialSubtreeRows < -1)
+    if (out.denseThreshold < 0 || out.chunkRows < 0 || out.maxChunks < 1 || out.treesInFlight < 0)
         return services::Status(services::ErrorHyperparameterBadValue);
     return services::Status();
 }
@@ -100,8 +97,7 @@ enum HyperparameterId
     maxChunks             = 5,
     treesInFlight         = 6,
     legacyTraining        = 7,
-    serialSubtreeRows     = 8,
-    hyperparameterIdCount = 9
+    hyperparameterIdCount = 8
 };
 
 enum DoubleHyperparameterId
@@ -194,8 +190,7 @@ enum HyperparameterId
     maxChunks             = 4,
     treesInFlight         = 5,
     legacyTraining        = 6,
-    serialSubtreeRows     = 7,
-    hyperparameterIdCount = 8
+    hyperparameterIdCount = 7
 };
 
 enum DoubleHyperparameterId

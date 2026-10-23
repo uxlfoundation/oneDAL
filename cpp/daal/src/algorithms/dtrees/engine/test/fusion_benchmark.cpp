@@ -180,10 +180,10 @@ void run(const NumericTable & xt, const NumericTable & yt, size_t nRows, size_t 
     BinMatrix<cpu> bins;
     bool binned = false;
     BinningParams binning;
-    binning.replicate  = true;
+    binning.placement  = NumaPlacement::host(true);
     const double tCopy = seconds([&]() {
-        REQUIRE((copyTableRows<double, cpu>(xt, true, x)).ok());
-        REQUIRE(src.build(yt, nullptr, true, true).ok());
+        REQUIRE((copyTableRows<double, cpu>(xt, NumaPlacement::host(true), x)).ok());
+        REQUIRE(src.build(yt, nullptr, true, NumaPlacement::host(true)).ok());
     });
     daal::internal::BaseRNGsInst<cpu> engine(unsigned(seed), __DAAL_BRNG_PHILOX4X32X10);
     const double tBin = seconds([&]() { REQUIRE((QuantileBinner<double, cpu>::build(xt, binning, engine.getState(), bins, binned)).ok()); });

@@ -38,7 +38,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_rng.h"
-#include "src/services/service_environment.h"
 #include "src/threading/threading.h"
 
 namespace daal
@@ -515,20 +514,6 @@ size_t defaultFeaturesPerNode(size_t p, bool classification)
     return k < 1 ? 1 : k;
 }
 
-// Bytes of the largest record layout (RegWeightRecord<double>), two buffers of which a subtree reads per row.
-constexpr size_t maxRecordBytes = 24;
-// L2 size taken when the CPU does not report one: SPR's 2 MB per core.
-constexpr size_t defaultL2Bytes = size_t(2) << 20;
-
-/// The serial-subtree cutoff: the rows whose records (both buffers), bin row and X row fit a core's L2 (design 8, step 15).
-template <typename algorithmFPType, CpuType cpu>
-size_t serialSubtreeRows(size_t p, size_t binRowBytes)
-{
-    const size_t l2     = services::internal::getL2CacheSize();
-    const size_t perRow = 2 * maxRecordBytes + binRowBytes + p * sizeof(algorithmFPType);
-    return (l2 ? l2 : defaultL2Bytes) / perRow;
-}
-
 template <typename algorithmFPType, typename Record, CpuType cpu>
 services::Status train(const eng::TreeData<algorithmFPType, cpu> & data, const eng::TreeParams & params, size_t nTrees,
                        const typename ForestInputs<algorithmFPType, Record, cpu>::Setup & setup)
@@ -554,14 +539,16 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     DAAL_CHECK(nClasses <= trainer::maxClasses, services::ErrorIncorrectNumberOfClasses);
     DAAL_CHECK(par.engine, services::ErrorEngineNotSupported);
     DAAL_CHECK_MALLOC(model.resize(nTrees));
-    const bool replicate = !par.memorySavingMode;
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, p);
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows * p, sizeof(algorithmFPType));
+    const eng::NumaPlacement placement = numaPlacement(nRows * p * sizeof(algorithmFPType), !par.memorySavingMode);
 
     // X row-major per NUMA node, responses and normalized weights, feature types.
     eng::NumaReplicated<algorithmFPType, cpu> xr;
-    services::Status s = eng::copyTableRows<algorithmFPType, cpu>(x, replicate, xr);
+    services::Status s = eng::copyTableRows<algorithmFPType, cpu>(x, placement, xr);
     DAAL_CHECK_STATUS_VAR(s);
     eng::ResponseSource<algorithmFPType, cpu> src;
-    s = src.build(y, w, nClasses > 0, replicate);
+    s = src.build(y, w, nClasses > 0, placement);
     DAAL_CHECK_STATUS_VAR(s);
     if (nClasses)
         for (size_t i = 0; i < nRows; ++i) DAAL_CHECK(src.classes(0)[i] < nClasses, services::ErrorIncorrectClassLabels);
@@ -581,7 +568,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
         bp.maxBins    = par.maxBins;
         bp.minBinSize = par.minBinSize;
         bp.strategy   = par.binningStrategy;
-        bp.replicate  = replicate;
+        bp.placement  = placement;
         s             = eng::QuantileBinner<algorithmFPType, cpu>::build(x, bp, baseImpl->getState(), bins, binned);
         DAAL_CHECK_STATUS_VAR(s);
     }
@@ -643,12 +630,11 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     tp.randomSplitter      = par.splitter == decision_forest::training::random;
     tp.counterDraws        = counter;
     tp.treesInFlight       = size_t(hp.treesInFlight);
-    tp.serialSubtreeRows =
-        hp.serialSubtreeRows >= 0 ? size_t(hp.serialSubtreeRows) : trainer::serialSubtreeRows<algorithmFPType, cpu>(p, binned ? bins.rowStride() : 0);
-    tp.denseThreshold = size_t(hp.denseThreshold);
-    tp.maxBins        = par.maxBins;
-    tp.chunkRows      = size_t(hp.chunkRows);
-    tp.maxChunks      = size_t(hp.maxChunks);
+    tp.numaNodes           = placement.nodes;
+    tp.denseThreshold      = size_t(hp.denseThreshold);
+    tp.maxBins             = par.maxBins;
+    tp.chunkRows           = size_t(hp.chunkRows);
+    tp.maxChunks           = size_t(hp.maxChunks);
 
     eng::TreeData<algorithmFPType, cpu> data;
     data.x           = &xr;

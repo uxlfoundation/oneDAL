@@ -494,8 +494,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     };
 
     const size_t bytesPerValue = 2 * sizeof(algorithmFPType) + sizeof(int32_t);
-    const size_t perFeature    = sample.k * bytesPerValue;
-    const size_t groupSize     = perFeature && binSampleScratchBytes / perFeature ? binSampleScratchBytes / perFeature : 1;
+    const size_t groupSize     = binGroupFeatures(sample.k, bytesPerValue, nThreads);
     for (size_t f = 0; f < p; ++f) hasMissing[f] = false;
     for (size_t f0 = 0; f0 < p; f0 += groupSize)
     {
@@ -612,7 +611,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
         for (size_t f = 0; f < p; ++f) features[f] = f;
         services::Status st = out.allocateFeatures(p);
         DAAL_CHECK_STATUS_VAR(st);
-        st = out.allocateRows(nRows, binBytes, params.replicate);
+        st = out.allocateRows(nRows, binBytes, params.placement);
         DAAL_CHECK_STATUS_VAR(st);
         resetStats(features.get(), p);
         return assign(features.get(), p);

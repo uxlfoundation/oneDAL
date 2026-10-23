@@ -53,8 +53,7 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
         DAAL_CHECK_STATUS_VAR(s);
     }
     decision_forest::internal::EngineHyperparameters engineHp;
-    s = decision_forest::internal::readEngineHyperparameters(hp, denseThreshold, chunkRows, maxChunks, treesInFlight, serialSubtreeRows,
-                                                             legacyTraining, engineHp);
+    s = decision_forest::internal::readEngineHyperparameters(hp, denseThreshold, chunkRows, maxChunks, treesInFlight, legacyTraining, engineHp);
     DAAL_CHECK_STATUS_VAR(s);
     if (engineHp.legacyTraining) return computeLegacy<algorithmFPType, method, cpu>(x, y, w, m, res, par, hp);
     DAAL_CHECK(x && y, services::ErrorNullInputNumericTable);

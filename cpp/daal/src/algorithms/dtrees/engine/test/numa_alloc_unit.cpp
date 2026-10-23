@@ -33,7 +33,7 @@ TEST("forEachBlock visits every block of every copy once", "[unit]")
     for (bool replicate : { false, true })
     {
         NumaReplicated<int, cpu> a;
-        REQUIRE(a.allocate(1000, replicate).ok());
+        REQUIRE(a.allocate(1000, NumaPlacement::host(replicate)).ok());
         REQUIRE(a.copies() == ((replicate && threader_numa_count() > 1) ? size_t(threader_numa_count()) : 1));
         constexpr size_t nBlocks = 37;
         for (size_t c = 0; c < a.copies(); ++c)
@@ -52,7 +52,7 @@ TEST("forEachBlock visits every block of every copy once", "[unit]")
 TEST("forEachBlock returns a block's error", "[unit]")
 {
     NumaReplicated<int, cpu> a;
-    REQUIRE(a.allocate(10, false).ok());
+    REQUIRE(a.allocate(10, NumaPlacement()).ok());
     REQUIRE(!a.forEachBlock(0, 8, [](size_t b) { return b == 5 ? services::Status(services::ErrorIncorrectParameter) : services::Status(); }).ok());
 }
 
@@ -65,7 +65,7 @@ TEST("copyTableRows copies the table row-major into every copy", "[unit]")
     for (bool replicate : { false, true })
     {
         NumaReplicated<float, cpu> copy;
-        REQUIRE((copyTableRows<float, cpu>(*x, replicate, copy)).ok());
+        REQUIRE((copyTableRows<float, cpu>(*x, NumaPlacement::host(replicate), copy)).ok());
         for (size_t c = 0; c < copy.copies(); ++c)
         {
             const float * d = copy.data(int(c));
@@ -77,7 +77,7 @@ TEST("copyTableRows copies the table row-major into every copy", "[unit]")
 TEST("replicate copies copy 0 into the other copies", "[unit]")
 {
     NumaReplicated<uint8_t, cpu> a;
-    REQUIRE(a.allocate(5000, true).ok());
+    REQUIRE(a.allocate(5000, NumaPlacement::host(true)).ok());
     uint8_t * src = a.data(0);
     for (size_t i = 0; i < a.size(); ++i) src[i] = uint8_t(i * 7);
     REQUIRE(a.replicate(1024).ok());

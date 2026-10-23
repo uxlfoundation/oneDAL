@@ -31,6 +31,7 @@
 #include "services/env_detect.h"
 #include "src/algorithms/dtrees/forest/classification/df_classification_model_impl.h"
 #include "src/algorithms/dtrees/forest/classification/df_classification_train_kernel.h"
+#include "src/algorithms/dtrees/forest/df_forest_trainer.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_model_impl.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
 
@@ -100,8 +101,7 @@ Dataset makeData(size_t n, size_t p, size_t nClasses, uint64_t seed)
 
 /// Engine hyperparameters as the oneAPI interface sets them, with the legacy kernels or the tree engine.
 template <typename Hyperparameter>
-/// serial: the serialSubtreeRows id, or -1 to leave it unset (the trainer's L2-based cutoff).
-void setHyperparameters(Hyperparameter & hp, bool legacy, int64 serial)
+void setHyperparameters(Hyperparameter & hp, bool legacy)
 {
     if constexpr (std::is_same<Hyperparameter, cls::training::internal::Hyperparameter>::value)
     {
@@ -109,14 +109,12 @@ void setHyperparameters(Hyperparameter & hp, bool legacy, int64 serial)
         REQUIRE(hp.set(cls::training::internal::minPartCoefficient, int64(4)).ok());
         REQUIRE(hp.set(cls::training::internal::minSizeCoefficient, int64(24000)).ok());
         REQUIRE(hp.set(cls::training::internal::legacyTraining, int64(legacy)).ok());
-        if (serial >= 0) REQUIRE(hp.set(cls::training::internal::serialSubtreeRows, serial).ok());
     }
     else
     {
         REQUIRE(hp.set(reg::training::internal::minPartCoefficient, int64(4)).ok());
         REQUIRE(hp.set(reg::training::internal::minSizeCoefficient, int64(24000)).ok());
         REQUIRE(hp.set(reg::training::internal::legacyTraining, int64(legacy)).ok());
-        if (serial >= 0) REQUIRE(hp.set(reg::training::internal::serialSubtreeRows, serial).ok());
     }
 }
 
@@ -143,8 +141,7 @@ void makeTables(const Dataset & d, const std::vector<double> & w, Fit<ResultPtr>
 }
 
 template <cls::training::Method method, typename FPType = double>
-Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter par, bool legacy = false, int64 serial = -1,
-                                     const std::vector<double> & w = {})
+Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter par, bool legacy = false, const std::vector<double> & w = {})
 {
     Fit<cls::training::ResultPtr> f;
     // As the Batch API sets it; Parameter::check rejects the base default of 0.
@@ -160,7 +157,7 @@ Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter
     model->clear();
     model->setNFeatures(d.p);
     cls::training::internal::Hyperparameter hp;
-    setHyperparameters(hp, legacy, serial);
+    setHyperparameters(hp, legacy);
     cls::training::internal::ClassificationTrainBatchKernel<FPType, method, cpu> kernel;
     REQUIRE(kernel.compute(f.x.get(), f.y.get(), f.w.get(), *model, *f.result, par, &hp).ok());
     f.model = model;
@@ -168,8 +165,7 @@ Fit<cls::training::ResultPtr> fitCls(const Dataset & d, cls::training::Parameter
 }
 
 template <reg::training::Method method, typename FPType = double>
-Fit<reg::training::ResultPtr> fitReg(const Dataset & d, reg::training::Parameter par, bool legacy = false, int64 serial = -1,
-                                     const std::vector<double> & w = {})
+Fit<reg::training::ResultPtr> fitReg(const Dataset & d, reg::training::Parameter par, bool legacy = false, const std::vector<double> & w = {})
 {
     Fit<reg::training::ResultPtr> f;
     if (!par.minObservationsInLeafNode) par.minObservationsInLeafNode = 5;
@@ -183,7 +179,7 @@ Fit<reg::training::ResultPtr> fitReg(const Dataset & d, reg::training::Parameter
     auto * model = static_cast<reg::internal::ModelImpl *>(f.result->get(reg::training::model).get());
     model->clear();
     reg::training::internal::Hyperparameter hp;
-    setHyperparameters(hp, legacy, serial);
+    setHyperparameters(hp, legacy);
     reg::training::internal::RegressionTrainBatchKernel<FPType, method, cpu> kernel;
     REQUIRE(kernel.compute(f.x.get(), f.y.get(), f.w.get(), *model, *f.result, par, &hp).ok());
     f.model = model;
@@ -440,24 +436,6 @@ TEST("the tree engine scores as the legacy kernels do", "[unit]")
     }
 }
 
-TEST("serial subtrees do not change the forests", "[unit]")
-{
-    const Dataset c = makeData(6000, 8, 3, 12);
-    const Dataset r = makeData(6000, 8, 0, 13);
-    cls::training::Parameter pc(3);
-    pc.nTrees = 6;
-    reg::training::Parameter pr;
-    pr.nTrees     = 6;
-    const auto c0 = fitCls<cls::training::hist>(c, pc, false, 0);
-    const auto r0 = fitReg<reg::training::hist>(r, pr, false, 0);
-    for (int64 serial : { int64(-1), int64(64), int64(100000) }) // the L2-based cutoff, a small one, the whole tree
-    {
-        CAPTURE(serial);
-        requireSameModels(*c0.model, *fitCls<cls::training::hist>(c, pc, false, serial).model);
-        requireSameModels(*r0.model, *fitReg<reg::training::hist>(r, pr, false, serial).model);
-    }
-}
-
 /// Feature 0 holds adjacent floats from 1, so the double midpoint of two neighbouring values is a rounding tie
 /// in float; feature 1 is noise. Classes and responses change every few rows.
 Dataset adjacentFloats(size_t n, size_t nClasses, uint64_t seed)
@@ -557,8 +535,8 @@ TEST("trees whose in-bag rows all have zero weight are single leaves", "[unit]")
     pc.nTrees = 20;
     reg::training::Parameter pr;
     pr.nTrees     = 20;
-    const auto fc = fitCls<cls::training::defaultDense>(c, pc, false, -1, w);
-    const auto fr = fitReg<reg::training::defaultDense>(r, pr, false, -1, w);
+    const auto fc = fitCls<cls::training::defaultDense>(c, pc, false, w);
+    const auto fr = fitReg<reg::training::defaultDense>(r, pr, false, w);
     size_t empty  = 0;
     for (size_t t = 0; t < pc.nTrees; ++t)
     {
@@ -616,10 +594,10 @@ TEST("a constant user weight changes neither the trees nor the minimum impurity 
     {
         CAPTURE(hist);
         auto fitC = [&](const cls::training::Parameter & p, const std::vector<double> & weights) {
-            return hist ? fitCls<cls::training::hist>(c, p, false, -1, weights) : fitCls<cls::training::defaultDense>(c, p, false, -1, weights);
+            return hist ? fitCls<cls::training::hist>(c, p, false, weights) : fitCls<cls::training::defaultDense>(c, p, false, weights);
         };
         auto fitR = [&](const reg::training::Parameter & p, const std::vector<double> & weights) {
-            return hist ? fitReg<reg::training::hist>(r, p, false, -1, weights) : fitReg<reg::training::defaultDense>(r, p, false, -1, weights);
+            return hist ? fitReg<reg::training::hist>(r, p, false, weights) : fitReg<reg::training::defaultDense>(r, p, false, weights);
         };
         const auto c1 = fitC(pc, {});
         const auto r1 = fitR(pr, {});
@@ -704,9 +682,9 @@ TEST("node sample counts are bootstrap draws without weights and distinct rows w
     reg::training::Parameter pr;
     pr.nTrees                                        = 4;
     const auto c1                                    = fitCls<cls::training::hist>(c, pc);
-    const auto cw                                    = fitCls<cls::training::hist>(c, pc, false, -1, w);
+    const auto cw                                    = fitCls<cls::training::hist>(c, pc, false, w);
     const auto r1                                    = fitReg<reg::training::hist>(r, pr);
-    const auto rw                                    = fitReg<reg::training::hist>(r, pr, false, -1, w);
+    const auto rw                                    = fitReg<reg::training::hist>(r, pr, false, w);
     const dtrees::internal::ModelImpl * unweighted[] = { c1.model, r1.model };
     const dtrees::internal::ModelImpl * weighted[]   = { cw.model, rw.model };
     for (size_t m = 0; m < 2; ++m)
@@ -719,6 +697,19 @@ TEST("node sample counts are bootstrap draws without weights and distinct rows w
             REQUIRE(rows > n / 2);
             REQUIRE(rows < 3 * n / 4);
         }
+}
+
+TEST("tables below numaMinTableBytes use one NUMA node and do not query the topology", "[unit]")
+{
+    // Querying the topology (threader_numa_count) loads hwloc, the cost the threshold avoids, so the small-table
+    // placement must not come from it.
+    const auto small = training::internal::numaPlacement(training::internal::numaMinTableBytes - 1, true);
+    REQUIRE(small.nodes == 1);
+    REQUIRE(!small.replicate);
+    const auto large = training::internal::numaPlacement(training::internal::numaMinTableBytes, true);
+    REQUIRE(large.nodes == size_t(threader_numa_count()));
+    REQUIRE(large.replicate);
+    REQUIRE(!training::internal::numaPlacement(training::internal::numaMinTableBytes, false).replicate);
 }
 
 } // namespace daal::algorithms::decision_forest::test

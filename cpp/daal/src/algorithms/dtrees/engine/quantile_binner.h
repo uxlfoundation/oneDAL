@@ -53,6 +53,18 @@ constexpr size_t binSampleRows = size_t(1) << 22;
 // Scratch for the sorted sample of one feature group: values, sort payload and merge buffer.
 constexpr size_t binSampleScratchBytes = size_t(1) << 30;
 
+/// Features sorted together: at most one per thread, as each thread sorts a whole feature once a group has
+/// nThreads of them, and at most what binSampleScratchBytes holds. Larger groups gain no parallelism and only
+/// touch more scratch, whose pages every fit faults in anew (a quarter of an MNIST fit with all 784 features in
+/// one group).
+inline size_t binGroupFeatures(size_t sampleRows, size_t bytesPerValue, size_t nThreads)
+{
+    const size_t perFeature = sampleRows * bytesPerValue;
+    const size_t byBytes    = perFeature && binSampleScratchBytes / perFeature ? binSampleScratchBytes / perFeature : 1;
+    const size_t byThreads  = nThreads ? nThreads : 1;
+    return byBytes < byThreads ? byBytes : byThreads;
+}
+
 // Largest categorical code; codes must be integers in [0, maxCategoryCode].
 constexpr double maxCategoryCode = double((uint32_t(1) << 24) - 1);
 
@@ -63,8 +75,8 @@ struct BinningParams
     size_t maxBins           = 256;
     size_t minBinSize        = 5;
     BinningStrategy strategy = decision_forest::training::quantiles;
-    bool replicate           = false; // one copy of the bins per NUMA node
-    size_t sampleRows        = binSampleRows;
+    NumaPlacement placement; // NUMA nodes of the bins, a copy per node if it replicates
+    size_t sampleRows = binSampleRows;
 };
 
 template <typename algorithmFPType, CpuType cpu>

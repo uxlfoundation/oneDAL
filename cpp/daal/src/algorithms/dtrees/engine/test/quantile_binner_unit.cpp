@@ -346,6 +346,45 @@ TEST("the binning sample and the bins do not depend on the thread count, for eve
     }
 }
 
+TEST("binning groups hold at most one feature per thread and fit the scratch budget", "[unit]")
+{
+    // MNIST: 60k sample rows of doubles (20 bytes a value) on 224 threads; the budget alone would take 894.
+    REQUIRE(binGroupFeatures(60000, 20, 224) == 224);
+    // 4M sample rows: the budget holds 13 features.
+    REQUIRE(binGroupFeatures(size_t(1) << 22, 20, 224) == binSampleScratchBytes / ((size_t(1) << 22) * 20));
+    REQUIRE(binGroupFeatures(1000, 20, 1) == 1);
+    REQUIRE(binGroupFeatures(size_t(1) << 30, 20, 8) == 1); // a feature above the budget is its own group
+}
+
+TEST("a wide table bins the same whatever the feature groups", "[unit]")
+{
+    // 42 features in groups of 1, 4, 16 or all, set by the thread count.
+    constexpr size_t copies = 7, p = MixedTable::p * copies, nRows = 3000;
+    MixedTable t(nRows, 3);
+    std::vector<double> wide(nRows * p);
+    for (size_t r = 0; r < nRows; ++r)
+        for (size_t f = 0; f < p; ++f) wide[r * p + f] = t.data[r * MixedTable::p + f % MixedTable::p];
+    std::vector<size_t> categorical;
+    for (size_t c = 0; c < copies; ++c) categorical.push_back(c * MixedTable::p + 4);
+    NumericTablePtr x = makeTable(wide, p, categorical);
+    BinningParams params;
+    Built<baseCpu> all;
+    build(*x, params, 5, all);
+    REQUIRE(all.status.ok());
+    requireConsistent(all.bins, wide);
+    const size_t saved = services::Environment::getInstance()->getNumberOfThreads();
+    for (size_t nThreads : { 1, 4, 16 })
+    {
+        CAPTURE(nThreads);
+        services::Environment::getInstance()->setNumberOfThreads(nThreads);
+        Built<baseCpu> grouped;
+        build(*x, params, 5, grouped);
+        services::Environment::getInstance()->setNumberOfThreads(saved);
+        REQUIRE(grouped.status.ok());
+        requireEqual(all.bins, grouped.bins);
+    }
+}
+
 TEST("sampling advances the stream by one draw per row, and exact mode does not read it", "[unit]")
 {
     std::vector<double> data(20000);

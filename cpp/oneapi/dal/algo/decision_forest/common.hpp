@@ -504,7 +504,8 @@ public:
         return *this;
     }
 
-    /// The memory saving mode.
+    /// The memory saving mode. On CPU with more than one NUMA node, `false` keeps a copy of the training data
+    /// and its bins on every NUMA node, and `true` keeps one copy.
     /// @remark default = false
     bool get_memory_saving_mode() const {
         return base_t::get_memory_saving_mode();
