@@ -45,6 +45,11 @@ def main():
         gcnos += [os.path.join(d, f) for f in fs if f.endswith(".gcno")]
     collect.gcov_one = lambda gcno, _root: _gcov(gcno)
     collect.collect(UNIT, gcnos)
+    # Register the unit so report2.py reads its coverage as consumer onedal-tests.
+    path = f"{collect.U}/units-{collect.B}.json"
+    units = json.load(open(path)) if os.path.exists(path) else []
+    units = [u for u in units if u.get("uid") != UNIT] + [{"uid": UNIT, "consumer": "onedal-tests"}]
+    json.dump(units, open(path, "w"), indent=1)
 
 
 def _gcov(gcno):

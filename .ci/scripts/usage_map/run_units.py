@@ -44,6 +44,15 @@ PRELOAD = ":".join([f"{TBB}/libtbb.so.12", f"{TBB}/libtbbmalloc.so.2"] +
                    [f"{LIB}/libonedal{x}.so.4" for x in ("_core", "_thread", "", "_parameters")])
 
 
+def run_capped(cmd, timeout, **kw):
+    """subprocess.run that turns a timeout into rc=-9, so one slow unit does not stop the run."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **kw)
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return subprocess.CompletedProcess(cmd, -9, out, f"timeout after {timeout} s")
+
+
 def units():
     out = []
     for pkg, consumer in (("sklearnex", "sklearnex"), ("onedal", "sklearnex"), ("daal4py", "daal4py")):
@@ -89,7 +98,7 @@ def run(u):
         wd = u["cwd"]
         cmd = [u["path"]]
     t = time.time()
-    r = subprocess.run(cmd, cwd=wd, env=env, capture_output=True, text=True, timeout=7200)
+    r = run_capped(cmd, 7200, cwd=wd, env=env)
     dt = time.time() - t
     tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
     return dict(u, uid=uid, seconds=round(dt, 2), rc=r.returncode, summary=tail[0][-200:])

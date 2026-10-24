@@ -68,6 +68,7 @@ def main():
                 sizes[cur] += int(parts[1])
         for t in chunk:
             t["bytes"] = sizes.get(os.path.join(SRC, t["obj"]), 0)
+    os.makedirs(f"{U}/data", exist_ok=True)
     json.dump(tus, open(f"{U}/data/cost-{B}.json", "w"))
     print(B, "tus", len(tus), "cpu-s", round(sum(t["sec"] for t in tus)),
           "MB", round(sum(t["bytes"] for t in tus) / 1e6, 1))

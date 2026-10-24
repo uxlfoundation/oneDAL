@@ -31,9 +31,10 @@ from collections import defaultdict
 B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 SRC = f"{U}/oneDAL-rel/cpp"
-d = json.load(open(f"out-{B}/data.json"))
-intent = {k: v for k, v in json.load(open(f"{U}/intent.json")).items() if not k.startswith("_")} \
-    if os.path.exists(f"{U}/intent.json") else {}
+d = json.load(open(f"{U}/out-{B}/data.json"))
+# Planned use lives next to this script; USAGE_MAP_INTENT points to another file.
+INTENT = os.environ.get("USAGE_MAP_INTENT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "intent.json"))
+intent = {k: v for k, v in json.load(open(INTENT)).items() if not k.startswith("_")}
 
 # Public-API components whose kernel lives in a shared primitive.
 KERNELS = {"logloss_objective": "backend/primitives/objective_function",
@@ -61,13 +62,14 @@ for api, root in (("oneapi", f"{SRC}/oneapi/dal/algo"), ("daal", f"{SRC}/daal/sr
 
 # Real-run lines per kernel dir, sklearnex-run lines per component.
 kern = defaultdict(int); skl = defaultdict(int)
-for r in csv.DictReader(open(f"out-{B}/functions.csv")):
+for r in csv.DictReader(open(f"{U}/out-{B}/functions.csv")):
     g = r["groups"].split("+")
     for k, p in KERNELS.items():
         if p in r["file"] and any(x in REAL for x in g):
             kern[p] += 1
     if "sklearnex" in g or "sklearnex-gpu" in g:
         skl[(r["api"], r["component"])] += 1
+        skl[(r["api"], r["component"], r["sub"])] += 1
 
 def internal(api, comp):
     users = sorted(u for u in inc.get((api, comp), ()) if u in {c["comp"] for c in d["components"]})
@@ -78,17 +80,19 @@ rows = []
 for c in d["components"]:
     api, comp = c["api"], c["comp"]
     users, k = internal(api, comp)
-    has_skl = skl[(api, comp)] > 0 or skl[("oneapi", COUNTERPART.get(comp, comp))] > 0
     for s, v in c["subs"].items():
         L = v["lines"]; dead = v["C"] + v["B"] + v["E"]
         if L < 50:
             continue
+        # T2s needs sklearnex to run this sub itself: a oneAPI counterpart alone does not show
+        # that sklearnex replaces the DAAL path an estimator uses.
+        has_skl = skl[(api, comp, s)] > 0
         if v["A"] + v["P"] == 0:
             t = "T1i drop API only" if users or k else "T1 drop"
-        elif v["A"] == 0:
-            t = "T2 deprecate"
         elif api == "daal" and not comp.startswith("shared:") and v["P"] > 0 and has_skl:
             t = "T2s deprecate API"
+        elif v["A"] == 0:
+            t = "T2 deprecate"
         elif dead / L >= .5:
             t = "T3 trim"
         else:
@@ -96,7 +100,11 @@ for c in d["components"]:
         note = []
         if users: note.append("included by " + ", ".join(users))
         if k: note.append(f"kernel in {k} is run")
-        if t.startswith("T2s"): note.append("sklearnex runs it" if skl[(api, comp)] else f"sklearnex runs oneapi:{COUNTERPART.get(comp, comp)}")
+        cp = COUNTERPART.get(comp, comp)
+        if t.startswith("T2s"):
+            note.append("sklearnex runs this sub; entry path (onedal or daal4py) not checked")
+        elif api == "daal" and v["P"] and skl[("oneapi", cp)]:
+            note.append(f"sklearnex runs oneapi:{cp}")
         it = intent.get(f"{api}:{comp}")
         if it and it["intent"] in ("grow", "keep"):
             note.insert(0, f"keep (intent: {it['intent']}, {it['why']})")
@@ -111,7 +119,7 @@ md = ["Tiers: T1 drop; T1i drop public API only (kernel used elsewhere); T2 depr
       "| tier | api | component | sub | lines | A | P | removable (C+B+E; P for T2s) | ~build s | note |",
       "|---|---|---|---|---:|---:|---:|---:|---:|---|"]
 md += [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]:.0f} | {r[9]} |" for r in rows]
-open(f"out-{B}/CANDIDATES.md", "w").write("\n".join(md) + "\n")
+open(f"{U}/out-{B}/CANDIDATES.md", "w").write("\n".join(md) + "\n")
 for t in ORDER:
     rs = [r for r in rows if r[0] == t and not r[9].startswith("keep")]
     print(t, len(rs), "subs,", sum(r[7] for r in rs), "removable lines,", round(sum(r[8] for r in rs)), "build-s")

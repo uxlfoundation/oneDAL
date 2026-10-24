@@ -20,5 +20,5 @@ export GCOV_PREFIX=$U/cov-gpu/$1 GCOV_PREFIX_STRIP=0 SCIPY_ARRAY_API=1 PYTHONHAS
 mkdir -p $GCOV_PREFIX; export LD_LIBRARY_PATH=$M:$U/cenv/lib:$G
 export LD_PRELOAD=$M/libsycl.so.9:$M/libmkl_core.so.3:$M/libmkl_intel_lp64.so.3:$M/libmkl_tbb_thread.so.3:$L/libonedal_core.so.4:$L/libonedal_thread.so.4:$L/libonedal_dpc.so.4:$L/libonedal_parameters_dpc.so.4
 export PYTHONPATH=$U/sklearnex-gpusrc
-shift; cd $U/run-u
+shift; mkdir -p "$U/run-u" && cd "$U/run-u" || exit 1
 exec $U/genv/bin/python "$@"

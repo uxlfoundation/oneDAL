@@ -41,7 +41,15 @@ import collect as C                     # noqa: E402
 from report import area                 # noqa: E402
 
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
-REAL = ["sklearnex", "sklearnex-gpu", "daal4py", "model-builders"]  # report2.py REAL
+def load_units():
+    """units-<build>.json plus scikit-learn_bench cases (units-bench.json), as in report2.py."""
+    us = json.load(open(f"{U}/units-{B}.json"))
+    if os.path.exists(f"{U}/units-bench.json"):
+        us += json.load(open(f"{U}/units-bench.json"))
+    return us
+
+
+REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]  # report2.py REAL
 WORKERS = 24
 
 
@@ -107,7 +115,7 @@ def main():
 
     uni = load(f"{U}/data/{B}/universe.json.gz")
     funcs = uni["functions"]
-    units = [u for u in json.load(open(f"{U}/units-{B}.json"))
+    units = [u for u in load_units()
              if u["consumer"] in REAL and os.path.exists(f"{U}/data/{B}/{u['uid']}.json.gz")]
     hit_real = set()
     for u in units:

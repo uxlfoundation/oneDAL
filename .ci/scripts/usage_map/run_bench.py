@@ -44,6 +44,15 @@ PRELOAD = ":".join([f"{TBB}/libtbb.so.12", f"{TBB}/libtbbmalloc.so.2"] +
                    [f"{LIB}/libonedal{x}.so.4" for x in ("_core", "_thread", "", "_parameters")])
 
 
+def run_capped(cmd, timeout, **kw):
+    """subprocess.run that turns a timeout into rc=-9, so one slow unit does not stop the run."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **kw)
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return subprocess.CompletedProcess(cmd, -9, out, f"timeout after {timeout} s")
+
+
 def units():
     out = []
     for f in sorted(glob.glob(f"{CASES}/*_float*.json")):
@@ -66,7 +75,7 @@ def run(u):
                LD_PRELOAD=PRELOAD, PATH=f"{U}/venv/bin:" + os.environ.get("PATH", ""))
     cmd = [PY, "-m", "sklbench", "--config", u["path"], "--result-file", res_file, "--runner-log-level", "ERROR"]
     t = time.time()
-    r = subprocess.run(cmd, cwd=BENCH, env=env, capture_output=True, text=True, timeout=1800)
+    r = run_capped(cmd, 1800, cwd=BENCH, env=env)
     dt = time.time() - t
     summary = ""
     n = 0
