@@ -66,10 +66,9 @@ jobs:
       smoke-tasks: >-
         build_kmeans_host build_make_gnu build_release_host fix_finiteness_mut fix_avx2_dispatch
         review_seeded_fc review_replay_pr3580 test_add_chebyshev
-      # fix_cel_thread_race needs 4+ Intel CPUs (its task.json `host`); a hosted runner may be AMD, where its null
-      # run passes. dokimi does not judge the host under --warm (needed here: caches start empty), and the workflow
-      # cannot pass --allow-unsupported yet (intel/dokimi#156), so it is not checked here.
-      exclude-tasks: fix_cel_thread_race
+      # fix_cel_thread_race needs 4+ Intel CPUs (its task.json `host`); a hosted runner may be AMD or smaller, where
+      # its null run would pass. dokimi then reports it unsupported, with the reason, and this passes the job.
+      allow-unsupported: true
       # the caches start empty on a hosted runner: null and oracle run with network
       warm: true
       runs-on: ubuntu-24.04

@@ -78,8 +78,8 @@ See "Eval image" below for the caches.
   (report only, as a job summary and an artifact);
 - `dokimi repo tasks check` in the eval image, one job per task: on a pull request for the tasks it changes, plus one
   task per grader when the entry points or a grader change; weekly, and on demand (`workflow_dispatch`), for every
-  task. `fix_cel_thread_race` declares the host it needs (task.json `host`, 4+ Intel CPUs); it is left out of CI,
-  since a hosted runner may be AMD and dokimi does not judge the host under `--warm`, which CI needs.
+  task. `fix_cel_thread_race` declares the host it needs (task.json `host`, 4+ Intel CPUs); on a runner that
+  misses it the job reports the task unsupported, with the reason, and passes (`allow-unsupported`).
 
 The checks are dokimi's reusable `repo-eval.yml` workflow, pinned by commit SHA (the `uses:` ref and `dokimi-ref`). Agent runs stay manual: they cost tokens and depend on the agent being
 measured. Rerun them after a large change to guidance, tooling, build system or layout. A change that breaks
