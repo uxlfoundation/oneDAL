@@ -34,9 +34,9 @@ intent.json (maintainers) marks components grow/keep; those rows get verdict "ke
 import csv, glob, json, os, re, sys
 from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from usage_consts import REAL, U  # noqa: E402
+from usage_consts import REAL, SRC_ROOT, U  # noqa: E402
 B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
-SRC = f"{U}/oneDAL-rel/cpp"
+SRC = f"{SRC_ROOT}/cpp"
 d = json.load(open(f"{U}/out-{B}/data.json"))
 # Planned use lives next to this script; USAGE_MAP_INTENT points to another file.
 INTENT = os.environ.get("USAGE_MAP_INTENT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "intent.json"))
@@ -131,6 +131,8 @@ for c in d["components"]:
         it = intent.get(f"{api}:{comp}")
         if it and it["intent"] in ("grow", "keep"):
             note.insert(0, f"keep (intent: {it['intent']}, {it['why']})")
+        elif it and it["intent"] == "deprecate":
+            note.insert(0, f"deprecate (intent: {it['why']})")
         if t.startswith(("T2s", "T2m")):
             dead = v["P"]          # only the daal4py-API-only lines go; A lines are the kernel sklearnex runs
         rows.append((t, api, comp, s, L, v["A"], v["P"], dead, c["sec"] * (L / max(c["lines"], 1)), "; ".join(note)))

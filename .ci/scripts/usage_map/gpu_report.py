@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-"""gpu_report.py -> out-cov2/GPU.md, out-cov2/gpu.json
+"""gpu_report.py [build] -> out-<build>/GPU.md, out-<build>/gpu.json
 
 Host-side coverage of the GPU (DPC++) build from sklearnex/onedal GPU test runs
 (run_gpu_tests.sh, collect_gpu.py). Covers source files that exist only in the
@@ -31,6 +31,8 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from usage_consts import U, area  # noqa: E402
 
+B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
+
 UNITS = sorted(os.path.basename(p)[:-8] for p in glob.glob(f"{U}/data/gpu/gpu_*.json.gz"))
 
 
@@ -40,7 +42,7 @@ def load(name):
 
 
 def main():
-    cpu = set(load(f"{U}/data/cov2/universe.json.gz")["lines"])
+    cpu = set(load(f"{U}/data/{B}/universe.json.gz")["lines"])
     uni = load(f"{U}/data/gpu/universe.json.gz")
     hit = defaultdict(set)
     for u in UNITS:
@@ -56,7 +58,7 @@ def main():
         c["lines"] += len(ls)
         c["hit"] += len(hit.get(f, set()) & set(ls))
     rows = sorted(comps.values(), key=lambda c: -(c["lines"] - c["hit"]))
-    json.dump(rows, open(f"{U}/out-cov2/gpu.json", "w"), indent=1)
+    json.dump(rows, open(f"{U}/out-{B}/gpu.json", "w"), indent=1)
     L = sum(c["lines"] for c in rows)
     H = sum(c["hit"] for c in rows)
     md = ["# GPU-only code (files absent from the CPU build), host-side coverage\n",
@@ -65,7 +67,7 @@ def main():
           "| component | api | files | lines | run | never run |", "|---|---|---:|---:|---:|---:|"]
     md += [f"| {c['comp']} | {c['api']} | {c['files']} | {c['lines']} | {c['hit']} | {c['lines'] - c['hit']} |"
            for c in rows]
-    open(f"{U}/out-cov2/GPU.md", "w").write("\n".join(md) + "\n")
+    open(f"{U}/out-{B}/GPU.md", "w").write("\n".join(md) + "\n")
     print("\n".join(md[:2]))
     print("\n".join(md[4:16]))
 

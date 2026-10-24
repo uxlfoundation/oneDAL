@@ -29,6 +29,7 @@ import os
 import re
 
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
+SRC_ROOT = os.environ.get("USAGE_MAP_SRC", f"{U}/oneDAL-rel")   # oneDAL source tree of the release build
 REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]
 PUBLIC = ["daal4py-api"]
 FILTERED = ["examples-oneapi", "examples-daal", "onedal-tests", "onedal-py-tests"]

@@ -56,7 +56,7 @@ import sys
 from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from usage_consts import CPU, FILTERED, PUBLIC, REAL, U, area, load_units  # noqa: E402
+from usage_consts import CPU, FILTERED, PUBLIC, REAL, SRC_ROOT, U, area, load_units  # noqa: E402
 
 B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
 OUT = os.path.join(U, f"out-{B}")
@@ -396,7 +396,7 @@ def main():
 
 
 # Hand-written daal4py bridges. Each site is re-read and its regex checked by check_bridges();
-# DAAL headers are checked for existence under oneDAL-rel. The daal4py C++ sources are not in the
+# DAAL headers are checked for existence under SRC_ROOT (USAGE_MAP_SRC). The daal4py C++ sources are not in the
 # checkout, so the daal4py function -> DAAL component link is the Python call site plus the DAAL
 # header that carries the same algorithm name. keys: rows (comp or comp/sub) a live bridge covers.
 BRIDGES = [
@@ -489,7 +489,7 @@ def check_bridges():
             sites.append(f"{path}:{ln} {tag}" + (f" (matched {hit[0]})" if hit else ""))
         hdr = []
         for h in b["daal"]:
-            e = os.path.exists(os.path.join(U, "oneDAL-rel", h))
+            e = os.path.exists(os.path.join(SRC_ROOT, h))
             ok &= e
             hdr.append(f"{h} {'ok' if e else 'MISSING'}")
         res.append(dict(b, sites=sites, headers=hdr, check_ok=ok))
@@ -498,7 +498,7 @@ def check_bridges():
 
 def write_bridges(res):
     L = ["", "## daal4py bridges (hand-written; each site re-read and regex-checked by the script)", "",
-         "| bridge | sklearnex site | daal4py site(s) | DAAL headers (oneDAL-rel) | rows | status | check |",
+         "| bridge | sklearnex site | daal4py site(s) | DAAL headers (source tree) | rows | status | check |",
          "|---|---|---|---|---|---|---|"]
     for b in res:
         L.append(f"| {b['id']} | {'; '.join(s for s in b['sites'] if s.startswith('sklearnex')) or '-'} | "
