@@ -152,6 +152,27 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
+# Generated headers whose contents follow the --cpu list. Only compile actions
+# that expand the ISA dispatch macros (dispatchers, ISA-conditional TUs) may
+# declare them as inputs; the per-cpu kernel TUs get the static header instead,
+# so that switching --cpu does not rebuild their objects.
+_CPU_LIST_HDRS = ["daal_kernel_defines.h"]
+
+def _without_cpu_list_headers(compilation_context):
+    headers = [
+        h for h in compilation_context.headers.to_list()
+        if h.is_source or h.basename not in _CPU_LIST_HDRS
+    ]
+    return cc_common.create_compilation_context(
+        headers = depset(headers),
+        system_includes = compilation_context.system_includes,
+        includes = compilation_context.includes,
+        quote_includes = compilation_context.quote_includes,
+        framework_includes = compilation_context.framework_includes,
+        defines = compilation_context.defines,
+        local_defines = compilation_context.local_defines,
+    )
+
 def _compile_wrapper(name, ctx, toolchain, feature_config,
                      disallow_nopic_outputs = True, **kwargs):
     return cc_common.compile(
@@ -188,6 +209,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         quote_includes = quote_includes,
     )
     dep_compilation_contexts = [ dep_compilation_context ]
+    cpu_dep_compilation_contexts = [ _without_cpu_list_headers(dep_compilation_context) ]
 
     if sources_by_category.cpu_files or sources_by_category.fpt_cpu_files:
         cpu_defines = utils.normalize_dict(cpu_defines, cpus, default=[])
@@ -238,7 +260,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
                 name + "_" + cpu, ctx, toolchain, cpu_feature_configs[cpu],
                 srcs = srcs,
                 local_defines = local_defines + cpu_defines[cpu],
-                compilation_contexts = dep_compilation_contexts,
+                compilation_contexts = cpu_dep_compilation_contexts,
                 **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),
             )
             compilation_contexts.append(compilation_context)
@@ -252,7 +274,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
                     name + "_" + fpt + "_" + cpu, ctx, toolchain, cpu_feature_configs[cpu],
                     srcs = sources_by_category.fpt_cpu_files,
                     local_defines = local_defines + cpu_defines[cpu] + fpt_defines[fpt],
-                    compilation_contexts = dep_compilation_contexts,
+                    compilation_contexts = cpu_dep_compilation_contexts,
                     **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),
                 )
                 compilation_contexts.append(compilation_context)
