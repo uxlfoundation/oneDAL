@@ -27,8 +27,9 @@ self-check, running agents, isolation, traces, reports) is done by [dokimi](http
 reads `repo-eval.yaml` (the repository-evaluation contract). No LLM judges a result: graders rebuild and rerun tests.
 
 The generic parts still here are moving to dokimi too ([intel/dokimi#41](https://github.com/intel/dokimi/issues/41)):
-the review and hidden-test graders, `contract.py` and `metrics.py` are replaced by dokimi built-ins
-step by step, until this directory holds only the tasks, the oneDAL build graders and the eval image.
+the review tasks already use dokimi's built-in graders (`dokimi:review_seeds`, `dokimi:review_replay`); the
+hidden-test and mutation graders, `contract.py` and `metrics.py` follow step by step, until this directory holds only
+the tasks, the oneDAL build graders and the eval image.
 
 Terms used below:
 
@@ -119,11 +120,11 @@ from and why it is built that way: [`tasks/README.md`](tasks/README.md).
 | `base` | commit the workspace is taken from (`<sha>^` for mined fixes) |
 | `family` | `build`, `fix`, `test`, `review` |
 | `prompt` | what the agent is told; a final ```` ```json ```` block is requested when the grader needs a structured answer |
-| `grader` | name registered by a module in `graders/` |
+| `grader` | name registered by a module in `graders/`, or a dokimi built-in (`dokimi:<name>`, graded by dokimi from the task's data files) |
 | `setup_patch` / `setup_patches` | applied to the workspace before the arm (injected bugs) |
 | `review_patch` | `git am`-ed on top as the HEAD commit under review |
 | `gate` | metrics that count as success for dokimi (default `["pass"]`); `["strict_pass"]` on every `test_pass`/`test_pass_files` task, since they all have regression suites |
-| grader keys | see the docstring of the grader: `hidden_from`/`hidden_files`/`targets`/`regression_targets` for `test_pass`, `manifest.json` for `review`, ... |
+| grader keys | see the docstring of the grader: `hidden_from`/`hidden_files`/`targets`/`regression_targets` for `test_pass`, `manifest.json`/`oracle.json` for `dokimi:review_seeds` and `gold.json`/`window` for `dokimi:review_replay` (dokimi's `docs/repo-evaluation-contract.md`, "Built-in graders"), ... |
 
 Rules every task follows:
 
@@ -143,13 +144,15 @@ self-check, `ORACLES = {name: fn(rd, ws, task)}`. The registry imports every mod
 
 ## Reading results
 
-`grade.json` holds the grader result plus process metrics from `events.jsonl` (`metrics.py`): tool calls,
-bazel/make invocations and failures, whether the agent hit `icpx is not found`, which guidance files it opened,
-and how many commands were refused.
+For the tasks graded here, `grade.json` holds the grader result plus process metrics from `events.jsonl`
+(`metrics.py`): tool calls, bazel/make invocations and failures, whether the agent hit `icpx is not found`, which
+guidance files it opened, and how many commands were refused. A review task's `grade.json` comes from dokimi's
+built-in grader and has the review metrics only; its `events.jsonl` is in the same run directory.
 
 For fix tasks report `strict_pass` (hidden tests and regression suites), not `pass`. `format_ok` is
 clang-format 20.1.8 on the changed files and `diff_lines` is the size of the non-test diff. Review tasks report
-seed recall by class and flagged decoys; a clean-diff control counts findings of blocker/major severity.
+seed recall by class and flagged decoys, or, for replays, thread recall (all and addressed) and `precision_proxy`;
+a clean-diff control counts findings of blocker/major severity.
 Agent variance is large (haiku review recall ranged 0.375–0.75 within one cell in the pilot), so compare cells at
 8+ repeats per cell.
 

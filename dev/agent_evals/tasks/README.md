@@ -98,7 +98,9 @@ sources are restored from `base` before the tests run, so tests cannot pass by c
 ### review (9): find what a maintainer would find
 
 The agent reviews the HEAD commit (`review_patch`) and returns findings as JSON (file, line, severity, rule,
-message).
+message). dokimi grades them with its built-in review graders: `dokimi:review_seeds` for the
+planted-problem tasks and the clean control (`manifest.json`, reference answer `oracle.json`), `dokimi:review_replay`
+for the replays (`gold.json`).
 
 | task | the change under review | graded on |
 |---|---|---|
