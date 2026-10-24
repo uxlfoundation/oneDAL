@@ -35,19 +35,38 @@ Class of a line or function:
 Examples and ABI-exported symbols do not count as consumers. They appear as
 labels, because they can be removed together with the code they cover.
 
-Outputs (`out-<build>/`): `REPORT.md`, `data.json`, `functions.csv`,
-`usage-map.html` (treemap, table, per-component detail, unit heatmap),
-`CANDIDATES.md` (removal tiers), `PATHS.md` and `paths.json` (entry path of each
-T2s row, daal4py bridges), `GPU.md` (GPU-only files), `VARIANTS.md`
-(template instances by fptype/method/ISA), `BRANCHES.md` (untaken branch arms
-in A functions).
+Outputs (`out-<build>/`): `REPORT.md`, `data.json` (schema_version 1, with a
+provenance block), `functions.csv`, `usage-map.html` (treemap, table,
+per-component detail, unit heatmap), `CANDIDATES.md` and `candidates.json`
+(removal tiers, same rows), `PATHS.md` and `paths.json` (entry path of each
+T2s/T2m/T2d row, daal4py bridges), `GPU.md` and `gpu.json` (GPU-only files),
+`VARIANTS.md` (template instances by fptype/method/ISA), `BRANCHES.md` and
+`BRANCHES.json` (untaken branch arms in A functions).
 
 This is a measurement tool for maintainers. It runs on a dev box, not in CI.
 
+## Scripts
+
+- `usage_consts.py`: the shared definitions (consumer groups REAL, PUBLIC, FILTERED;
+  class of a source path `area()`; `load_units()`). Other scripts import from it.
+- `diff_runs.py OLD_OUT NEW_OUT [--md P] [--json P]`: what changed between two
+  `out-<build>/` runs (class shifts, added/removed functions, component and file counts,
+  unit runtime and rc, candidate tier changes). Exit 0 no change, 1 changed, 2 bad input.
+
+## Environment variables
+
+- `USAGE_MAP_WORK`: work directory (default: the current directory). Run from `/tmp` or any
+  scratch directory with it set explicitly.
+- `USAGE_MAP_SRC`: oneDAL source tree for `candidates.py` and `path_attr.py`
+  (default `$USAGE_MAP_WORK/oneDAL-rel`).
+- `USAGE_MAP_INTENT`: intent file for `candidates.py` (default `intent.json` next to the script).
+- `JOBS`: parallel jobs. `run_units.py` defaults to 24, `build_cpu.sh` and `bazel_tests.sh` to 32;
+  all are capped at 32 on this shared box.
+- `CAP`: per-file time cap in `run_gpu_spmd.sh` (default 600 s).
+
 ## Work directory
 
-All scripts read and write under `USAGE_MAP_WORK` (default: the current
-directory):
+All scripts read and write under `USAGE_MAP_WORK`:
 
 ```
 oneDAL-rel/  oneDAL-cov2/  oneDAL-gpu/   oneDAL worktrees, one per build
@@ -97,14 +116,14 @@ build_cpu.sh cov2                # O0, --coverage, -fcallgraph-info
 python cost.py rel               # build seconds and object bytes per file
 python run_units.py cov2         # every pytest file / C++ example as one unit
 bazel_tests.sh                   # oneDAL's own tests, gcc --coverage
-python collect_bazel.py bazel_onedal-tests
+python collect_bazel.py bazel_onedal-tests   # reads bazel-tests.json and .log from bazel_tests.sh
 python collect.py cov2 universe <unit...>
 python callgraph.py cov2
 python report2.py cov2
 python viz.py cov2
 python candidates.py cov2        # first pass: writes the T2s rows that path_attr.py reads
 python path_attr.py cov2         # entry path of each T2s row -> out-cov2/PATHS.md, paths.json
-python candidates.py cov2        # second pass: splits T2s into "deprecate API now" and T2m
+python candidates.py cov2        # second pass: splits T2s into "deprecate API now", T2d and T2m
 python run_bench.py              # optional: scikit-learn_bench cases as consumer "workloads"
 python variants.py cov2
 python branches.py cov2
@@ -113,7 +132,7 @@ python branches.py cov2
 build_gpu.sh && build_sklearnex_gpu.sh
 run_gpu_tests.sh && run_gpu_spmd.sh
 python collect_gpu.py all
-python gpu_report.py
+python gpu_report.py cov2
 ```
 
 ## Reading the results
@@ -130,6 +149,10 @@ python gpu_report.py
   and the DAAL public API can be deprecated. The kernel stays; removable lines are the P lines.
   `path_attr.py` checked the entry path of every A line: each one is reached through an oneAPI
   algorithm that sklearnex runs on CPU (path a), so nothing is lost when the wrapper goes.
+- T2d deprecate daal4py API: `path_attr.py` finds that only daal4py reaches some A lines, no
+  bridge exists, and no sklearnex route loses a line. The daal4py wrapper and the DAAL public API can
+  go without a sklearnex change. Unknown lines (no static entry evidence) are listed in the note; they
+  do not block the tier, so check them for large rows.
 - T2m migrate sklearnex first: same API as T2s, but some A lines are reached only through daal4py
   (`not-safe`), or have no static entry evidence (`unclear`, noted in the row). Before the API can go,
   sklearnex must reach those lines without daal4py. The row note lists the bridges, the hand-written
@@ -141,7 +164,8 @@ python gpu_report.py
 
 Usage today is not the plan. `intent.json` lets maintainers mark components `grow` or
 `keep` (for example distances, as a backend for estimators sklearnex does not patch yet);
-those rows are shown as `keep (intent)` and are not removal proposals.
+those rows are shown as `keep (intent)` and are not removal proposals. `deprecate` keeps the
+row and puts the reason in the note as `deprecate (intent: why)`.
 
 Limits:
 

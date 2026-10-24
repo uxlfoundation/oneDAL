@@ -22,6 +22,7 @@ import sys
 U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 B = sys.argv[1]
 data = json.load(open(f"{U}/out-{B}/data.json"))
-html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "viz-template.html")).read().replace("/*DATA*/null", json.dumps(data, separators=(",", ":")))
+html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "viz-template.html")).read().replace("/*DATA*/null", json.dumps(data, separators=(",", ":"))
+                                                         .replace("</", "<\\/"))  # no </script> in data
 open(f"{U}/out-{B}/usage-map.html", "w").write(html)
 print(f"{U}/out-{B}/usage-map.html", len(html) // 1024, "KB")
