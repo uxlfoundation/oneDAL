@@ -28,7 +28,7 @@ Class of a line or function:
 |---|---|
 | A | run by a real consumer (sklearnex on CPU and GPU, scikit-learn_bench workloads, daal4py estimators, model builders) |
 | P | run only through the daal4py public API tests |
-| C | run only by oneDAL examples or oneDAL's own tests (shown, filtered out) |
+| C | run only by oneDAL examples, oneDAL's own Bazel tests or the `onedal` Python package tests (shown, filtered out) |
 | B | never run, but reachable from run code in the call graph |
 | E | never run and unreachable |
 

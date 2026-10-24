@@ -21,7 +21,8 @@ Per-unit coverage (collect.py), static call graph (callgraph.py), build cost
 component. Classes per function group:
   A  executed by a real consumer test (sklearnex/onedal, daal4py, model builders)
   P  executed only by daal4py public-API tests
-  C  executed only by oneDAL examples or oneDAL's own Bazel tests (filtered consumers)
+  C  executed only by oneDAL examples, oneDAL's own Bazel tests or the onedal Python package tests
+     (filtered consumers: product-binding tests, not product usage)
   B  never executed, but a direct call path from A code exists (static)
   E  never executed, no static path from A code
 A function group folds the per-ISA instantiations (CpuType sse2/avx2/avx512)

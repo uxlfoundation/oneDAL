@@ -55,7 +55,7 @@ def run_capped(cmd, timeout, **kw):
 
 def units():
     out = []
-    for pkg, consumer in (("sklearnex", "sklearnex"), ("onedal", "sklearnex"), ("daal4py", "daal4py")):
+    for pkg, consumer in (("sklearnex", "sklearnex"), ("onedal", "onedal-py-tests"), ("daal4py", "daal4py")):
         for f in sorted(glob.glob(f"{SP}/{pkg}/**/test_*.py", recursive=True)):
             out.append(dict(id=f"py:{pkg}/{os.path.relpath(f, f'{SP}/{pkg}')}", consumer=consumer,
                             kind="pytest", path=f))
