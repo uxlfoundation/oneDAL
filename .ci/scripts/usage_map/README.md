@@ -37,7 +37,8 @@ labels, because they can be removed together with the code they cover.
 
 Outputs (`out-<build>/`): `REPORT.md`, `data.json`, `functions.csv`,
 `usage-map.html` (treemap, table, per-component detail, unit heatmap),
-`CANDIDATES.md` (removal tiers), `GPU.md` (GPU-only files), `VARIANTS.md`
+`CANDIDATES.md` (removal tiers), `PATHS.md` and `paths.json` (entry path of each
+T2s row, daal4py bridges), `GPU.md` (GPU-only files), `VARIANTS.md`
 (template instances by fptype/method/ISA), `BRANCHES.md` (untaken branch arms
 in A functions).
 
@@ -101,7 +102,9 @@ python collect.py cov2 universe <unit...>
 python callgraph.py cov2
 python report2.py cov2
 python viz.py cov2
-python candidates.py cov2
+python candidates.py cov2        # first pass: writes the T2s rows that path_attr.py reads
+python path_attr.py cov2         # entry path of each T2s row -> out-cov2/PATHS.md, paths.json
+python candidates.py cov2        # second pass: splits T2s into "deprecate API now" and T2m
 python run_bench.py              # optional: scikit-learn_bench cases as consumer "workloads"
 python variants.py cov2
 python branches.py cov2
@@ -123,8 +126,16 @@ python gpu_report.py
   Only the public compute API can go.
 - T2 deprecate: no A lines, but the daal4py public API runs it. Removal needs a
   daal4py deprecation cycle.
-- T2s deprecate API: sklearnex already runs the same algorithm, so the daal4py wrapper
+- T2s deprecate API now: sklearnex already runs the same algorithm, so the daal4py wrapper
   and the DAAL public API can be deprecated. The kernel stays; removable lines are the P lines.
+  `path_attr.py` checked the entry path of every A line: each one is reached through an oneAPI
+  algorithm that sklearnex runs on CPU (path a), so nothing is lost when the wrapper goes.
+- T2m migrate sklearnex first: same API as T2s, but some A lines are reached only through daal4py
+  (`not-safe`), or have no static entry evidence (`unclear`, noted in the row). Before the API can go,
+  sklearnex must reach those lines without daal4py. The row note lists the bridges, the hand-written
+  daal4py -> sklearnex links (B1 cosine/correlation distances, B2 ElasticNet/Lasso, B3 LogisticRegressionCV
+  preview). `PATHS.md` has the bridge table; the script re-reads each site and checks its regex.
+  Without `paths.json`, T2s rows stay as "T2s deprecate API" and are not checked.
 - T3 trim: has A lines, but at least half the lines are C, B or E. Look for
   dead branches in `functions.csv`.
 

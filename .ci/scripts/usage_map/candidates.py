@@ -23,6 +23,11 @@ Removal candidates per component/sub: tier by what still runs it.
   T2 deprecate: no A, some P -> only daal4py public API keeps it (needs deprecation cycle)
   T2s deprecate API: has P and sklearnex runs the same algorithm (here or in its oneAPI
       counterpart) -> daal4py wrapper and DAAL public API can be deprecated, the kernel stays
+      Split by path_attr.py (out-<build>/paths.json, read when present):
+      T2s deprecate API now: verdict confirmed, every A line has an oneAPI entry sklearnex runs
+      T2m migrate sklearnex first: verdict not-safe or unclear; the note lists the bridges
+          (daal4py -> sklearnex routes) that must move off daal4py before the API can go
+      T2s deprecate API (no path check): paths.json absent
   T3 trim: A exists but >=50% of lines never run by a real consumer (C+B+E) -> dead branches inside
 intent.json (maintainers) marks components grow/keep; those rows get verdict "keep (intent)".
 """
@@ -35,6 +40,17 @@ d = json.load(open(f"{U}/out-{B}/data.json"))
 # Planned use lives next to this script; USAGE_MAP_INTENT points to another file.
 INTENT = os.environ.get("USAGE_MAP_INTENT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "intent.json"))
 intent = {k: v for k, v in json.load(open(INTENT)).items() if not k.startswith("_")}
+# path_attr.py verdicts per T2s row; absent until path_attr.py has run on this build.
+PATHS = f"{U}/out-{B}/paths.json"
+paths = {(p["api"], p["comp"], p["sub"]): p for p in json.load(open(PATHS))["rows"]} if os.path.exists(PATHS) else {}
+
+def t2m_note(p):
+    br = ", ".join(p["bridges"]) or "none"
+    if p["verdict"] == "unclear":
+        return f"unclear: {p['unknown_lines']} A lines have no static entry evidence; bridges: {br}"
+    return (f"not-safe: {p['lost_lines']} A lines lose their only entry (daal4py-only "
+            f"{p['lost_breakdown']['daal4py-only']}, sk-public {p['lost_breakdown']['sk-public']}); "
+            f"move off daal4py, bridges: {br}")
 
 # Public-API components whose kernel lives in a shared primitive.
 KERNELS = {"logloss_objective": "backend/primitives/objective_function",
@@ -101,20 +117,30 @@ for c in d["components"]:
         if users: note.append("included by " + ", ".join(users))
         if k: note.append(f"kernel in {k} is run")
         cp = COUNTERPART.get(comp, comp)
-        if t.startswith("T2s"):
+        p = paths.get((api, comp, s))
+        if t.startswith("T2s") and p and p["verdict"] == "confirmed":
+            t = "T2s deprecate API now"
+            note.append("entry path checked: every A line has an oneapi entry that sklearnex runs")
+        elif t.startswith("T2s") and p:
+            t = "T2m migrate sklearnex first"
+            note.append(t2m_note(p))
+        elif t.startswith("T2s"):
             note.append("sklearnex runs this sub; entry path (onedal or daal4py) not checked")
         elif api == "daal" and v["P"] and skl[("oneapi", cp)]:
             note.append(f"sklearnex runs oneapi:{cp}")
         it = intent.get(f"{api}:{comp}")
         if it and it["intent"] in ("grow", "keep"):
             note.insert(0, f"keep (intent: {it['intent']}, {it['why']})")
-        if t.startswith("T2s"):
+        if t.startswith(("T2s", "T2m")):
             dead = v["P"]          # only the daal4py-API-only lines go; A lines are the kernel sklearnex runs
         rows.append((t, api, comp, s, L, v["A"], v["P"], dead, c["sec"] * (L / max(c["lines"], 1)), "; ".join(note)))
-ORDER = ["T1 drop", "T1i drop API only", "T2 deprecate", "T2s deprecate API", "T3 trim"]
+ORDER = ["T1 drop", "T1i drop API only", "T2 deprecate", "T2s deprecate API now", "T2s deprecate API",
+         "T2m migrate sklearnex first", "T3 trim"]
 rows.sort(key=lambda r: (ORDER.index(r[0]), -r[7]))
 md = ["Tiers: T1 drop; T1i drop public API only (kernel used elsewhere); T2 deprecate (daal4py API only);",
-      "T2s deprecate daal4py/DAAL API, sklearnex covers the estimator (kernel stays, removable = P lines); T3 trim dead branches.",
+      "T2s deprecate API now: sklearnex covers the estimator and path_attr.py checked the entry path (kernel stays, removable = P lines);",
+      "T2m migrate sklearnex first: same, but a line is reached only through daal4py (not-safe) or has no entry evidence (unclear);",
+      "T2s deprecate API (no path check): same, paths.json absent; T3 trim dead branches.",
       "Rows marked `keep (intent)` are planned for use (intent.json) and are not removal proposals.", "",
       "| tier | api | component | sub | lines | A | P | removable (C+B+E; P for T2s) | ~build s | note |",
       "|---|---|---|---|---:|---:|---:|---:|---:|---|"]
