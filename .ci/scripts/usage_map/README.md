@@ -118,10 +118,19 @@ python gpu_report.py
 `CANDIDATES.md` sorts components into removal tiers:
 
 - T1 drop: no A and no P lines. Only examples or oneDAL tests run it, or nothing does.
+- T1i drop API only: as T1, but other algorithms include its headers or run its kernel
+  in `backend/primitives` (for example `logloss_objective` inside logistic regression).
+  Only the public compute API can go.
 - T2 deprecate: no A lines, but the daal4py public API runs it. Removal needs a
   daal4py deprecation cycle.
+- T2s deprecate API: sklearnex already runs the same algorithm, so the daal4py wrapper
+  and the DAAL public API can be deprecated. The kernel stays; removable lines are the P lines.
 - T3 trim: has A lines, but at least half the lines are C, B or E. Look for
   dead branches in `functions.csv`.
+
+Usage today is not the plan. `intent.json` lets maintainers mark components `grow` or
+`keep` (for example distances, as a backend for estimators sklearnex does not patch yet);
+those rows are shown as `keep (intent)` and are not removal proposals.
 
 Limits:
 

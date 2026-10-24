@@ -1,0 +1,7 @@
+{
+  "_doc": "Planned use, set by maintainers. intent: grow | keep | deprecate. grow/keep rows are never proposed for removal.",
+  "oneapi:cosine_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
+  "oneapi:correlation_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
+  "oneapi:minkowski_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
+  "oneapi:chebyshev_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"}
+}
