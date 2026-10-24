@@ -35,6 +35,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,15 +89,21 @@ def main():
     hit = defaultdict(set)                     # group -> mangled executed
     uline = {}                                 # uid -> {file: set(lines)}
     gline = {g: defaultdict(set) for g in GROUPS}
+    skipped = []                               # listed in units-<build>.json, no coverage file
     for uid, u in units.items():
         p = f"{U}/data/{B}/{uid}.json.gz"
         if not os.path.exists(p):
+            skipped.append(uid)
             continue
         d = load(p)
         hit[u["consumer"]].update(d["functions"])
         uline[uid] = {f: set(v) for f, v in d["lines"].items()}
         for f, v in uline[uid].items():
             gline[u["consumer"]][f] |= set(v)
+
+    if skipped:
+        print(f"warning: {len(skipped)} unit(s) without coverage data, left out: {', '.join(skipped[:5])}"
+              + (" ..." if len(skipped) > 5 else ""), file=sys.stderr)
 
     # GPU build (collect-gpu.py): host-side hits of the sklearnex/onedal GPU and SPMD runs.
     # llvm-cov names functions by demangled name only, so they join on (file, normalized name).
@@ -126,7 +133,10 @@ def main():
 
     a_set = set().union(*(hit[g] for g in REAL))
     # static reach from executed A code over direct calls
-    cg = load(f"{U}/data/{B}/callgraph.json.gz")
+    cg_path = f"{U}/data/{B}/callgraph.json.gz"
+    cg = load(cg_path) if os.path.exists(cg_path) else {}
+    if not cg:
+        print(f"warning: no call graph ({cg_path}): class B is empty", file=sys.stderr)
     reach, stack = set(a_set), list(a_set)
     while stack:
         for c in cg.get(stack.pop(), ()):
@@ -181,7 +191,10 @@ def main():
 
     # build cost (release build) per source file
     cost = defaultdict(lambda: dict(sec=0.0, sec_static=0.0, bytes=0, bytes_static=0, tus=0))
-    for t in json.load(open(f"{U}/data/cost-rel.json")):
+    cost_path = f"{U}/data/cost-rel.json"
+    if not os.path.exists(cost_path):
+        print(f"warning: no build cost ({cost_path}, cost.py): build columns are 0", file=sys.stderr)
+    for t in (json.load(open(cost_path)) if os.path.exists(cost_path) else []):
         f = os.path.normpath(t["src"])
         st = "static" in t["lib"]
         c = cost[f]
@@ -248,7 +261,11 @@ def main():
     for r in grp.values():
         api, comp, _ = area(r["file"])
         top_fn[f"{api}/{comp}"].append([r["cls"], r["file"], r["line"], r["name"][:160], "+".join(sorted(r["used"]))])
-    data = dict(build=B, groups=GROUPS, real=REAL, public=PUBLIC, filtered=FILTERED,
+    data = dict(schema_version=1,
+                provenance=dict(build=B, generated=time.strftime("%Y-%m-%dT%H:%M:%S%z"), units=len(uline),
+                                skipped_units=skipped, callgraph=bool(cg), build_cost=os.path.exists(cost_path),
+                                gpu_units=sum(1 for u in units if u.startswith("gpu_"))),
+                build=B, groups=GROUPS, real=REAL, public=PUBLIC, filtered=FILTERED,
                 units=[dict(uid=u["uid"], id=u["id"], consumer=u["consumer"], seconds=u["seconds"], rc=u["rc"])
                        for u in units.values()],
                 components=[dict(c, key=k, subs=c["subs"], units=c["units"],
