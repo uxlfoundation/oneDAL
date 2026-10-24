@@ -153,12 +153,14 @@ daal_module(
 # makes a module's headers, private ones included, declared inputs of every
 # downstream compile action, and those inputs are part of the cache key.
 # Only `library_version_info.cpp` includes the header, so it lives in this
-# leaf module: the core libraries link it and nothing compiles against it,
-# so the daily change invalidates one compile action instead of every DAAL one.
+# leaf module, and `export_hdrs = False` keeps it out of the compile inputs of
+# everything that links the core libraries (oneDAL tests included). The daily
+# change then invalidates one compile action.
 daal_module(
     name = "version_info",
     srcs = ["src/services/library_version_info.cpp"],
     private_hdrs = [":version"],
+    export_hdrs = False,
     deps = [
         ":service_headers",
     ],
