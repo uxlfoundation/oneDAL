@@ -28,10 +28,9 @@ import os
 import sys
 from collections import defaultdict
 
-sys.path.insert(0, os.path.dirname(__file__))
-from report import area  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from usage_consts import U, area  # noqa: E402
 
-U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 UNITS = sorted(os.path.basename(p)[:-8] for p in glob.glob(f"{U}/data/gpu/gpu_*.json.gz"))
 
 

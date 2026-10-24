@@ -32,23 +32,17 @@ import glob
 import gzip
 import json
 import os
-import re
 import subprocess
 import sys
 from collections import defaultdict
 
-sys.path.insert(0, os.path.dirname(__file__))
-from report import area, static_tag  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from usage_consts import CPU, FILTERED, PUBLIC, REAL, U, area, load_units, static_tag  # noqa: E402
 
-U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 B = sys.argv[1]
 OUT = f"{U}/out-{B}"
-REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]
-PUBLIC = ["daal4py-api"]
-FILTERED = ["examples-oneapi", "examples-daal", "onedal-tests"]
 GROUPS = REAL + PUBLIC + FILTERED
 LIBDIR = f"{U}/oneDAL-{B}/__release_lnx_gnu/daal/latest/lib/intel64"
-CPU = re.compile(r"\((?:daal::)?(?:internal::)?CpuType\)\d+|\b(?:sse2|sse42|avx2|avx512)\b")
 
 
 def load(path):
@@ -89,9 +83,7 @@ def main():
     uni = load(f"{U}/data/{B}/universe.json.gz")
     funcs = uni["functions"]                   # mangled -> [file, line, demangled]
     ulines = {f: set(v) for f, v in uni["lines"].items()}
-    units = {u["uid"]: u for u in json.load(open(f"{U}/units-{B}.json"))}
-    if os.path.exists(f"{U}/units-bench.json"):          # scikit-learn_bench cases (run_bench.py)
-        units.update({u["uid"]: u for u in json.load(open(f"{U}/units-bench.json"))})
+    units = {u["uid"]: u for u in load_units(B)}
     hit = defaultdict(set)                     # group -> mangled executed
     uline = {}                                 # uid -> {file: set(lines)}
     gline = {g: defaultdict(set) for g in GROUPS}

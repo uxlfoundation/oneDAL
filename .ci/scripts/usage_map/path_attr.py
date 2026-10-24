@@ -55,43 +55,23 @@ import subprocess
 import sys
 from collections import Counter, defaultdict
 
-U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from usage_consts import CPU, FILTERED, PUBLIC, REAL, U, area, load_units  # noqa: E402
+
 B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
 OUT = os.path.join(U, f"out-{B}")
 SKX = os.path.join(U, "sklearnex-2026.1")
-REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]
-PUBLIC = ["daal4py-api"]
-FILTERED = ["examples-oneapi", "examples-daal", "onedal-tests"]
 SK_CPU = {"sklearnex", "workloads"}
 CPU_REAL = {"sklearnex", "workloads", "daal4py", "model-builders"}
 D4P = {"daal4py", "daal4py-api", "model-builders"}
 # DAAL batch-dispatch sources: the public layer that daal4py calls into (not kernels)
 PUB_SRC = re.compile(r"^cpp/daal/src/algorithms/[^/]+/[^/]*batch[^/]*\.(cpp|i)$")
-CPU = re.compile(r"\((?:daal::)?(?:internal::)?CpuType\)\d+|\b(?:sse2|sse42|avx2|avx512)\b")
 PUB_RE = re.compile(r"(^cpp/daal/include/)|(/[^/]*(types|input|result|parameter|container|dispatcher|iface|interface)[^/]*\.(h|cpp|i)$)")
 
 
 def load(p):
     with gzip.open(p, "rt") as fh:
         return json.load(fh)
-
-
-def area(path):
-    """Same mapping as report.py area()."""
-    p = path.split("/")
-    if p[1] == "daal":
-        if p[2] == "src" and p[3] == "algorithms" and len(p) > 5:
-            return "daal", p[4], p[5] if len(p) > 6 else "-"
-        if p[2] == "src" and p[3] == "algorithms":
-            return "daal", "shared:algorithms-base", "-"
-        if p[2] == "include" and p[3] == "algorithms" and len(p) > 5:
-            return "daal", p[4], "include"
-        return "daal", "shared:" + "/".join(p[2:4]), "-"
-    if p[1] == "oneapi":
-        if p[3] == "algo" and len(p) > 5:
-            return "oneapi", p[4], p[5] if len(p) > 6 else "-"
-        return "oneapi", "shared:" + "/".join(p[3:4] if len(p) > 4 else ["root"]), "-"
-    return p[1], "shared:other", "-"
 
 
 def oneapi_algo(f):
@@ -169,15 +149,13 @@ def main():
         by_file[f].sort(key=lambda x: x[0])
 
     # ---- A / P line sets exactly as report2.py ----------------------------------------
-    units = {u["uid"]: u for u in json.load(open(f"{U}/units-{B}.json"))}
-    units.update({u["uid"]: u for u in json.load(open(f"{U}/units-bench.json"))})
+    units = {u["uid"]: u for u in load_units(B)}
     gl = {g: defaultdict(set) for g in REAL + PUBLIC + FILTERED}
     for uid, u in units.items():
         p = f"{U}/data/{B}/{uid}.json.gz"
         if os.path.exists(p):
             for f, v in load(p)["lines"].items():
                 gl[u["consumer"]][f] |= set(v)
-    gsec = {x["uid"]: x for x in json.load(open(f"{U}/units-gpu.json"))}
     for name in sorted(os.listdir(f"{U}/data/gpu")):
         if not name.startswith("gpu_"):
             continue

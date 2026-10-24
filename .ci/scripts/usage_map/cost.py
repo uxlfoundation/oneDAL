@@ -18,7 +18,7 @@
 
 Per translation unit of a release-flag build: source file, compile seconds
 (from the tcxx wrapper log), object .text+.data size, and which library it
-lands in. Aggregated later by component in report.py.
+lands in. Aggregated later by component in report2.py.
 """
 import glob
 import json

@@ -33,8 +33,9 @@ intent.json (maintainers) marks components grow/keep; those rows get verdict "ke
 """
 import csv, glob, json, os, re, sys
 from collections import defaultdict
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from usage_consts import REAL, U  # noqa: E402
 B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
-U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 SRC = f"{U}/oneDAL-rel/cpp"
 d = json.load(open(f"{U}/out-{B}/data.json"))
 # Planned use lives next to this script; USAGE_MAP_INTENT points to another file.
@@ -61,7 +62,6 @@ KERNELS = {"logloss_objective": "backend/primitives/objective_function",
 # DAAL component -> oneAPI component sklearnex runs for the same estimator.
 COUNTERPART = {"k_nearest_neighbors": "knn", "low_order_moments": "basic_statistics", "moments": "basic_statistics",
                "cordistance": "correlation_distance", "cosdistance": "cosine_distance"}
-REAL = ("sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders")
 
 # Who includes a component's headers from another component's sources.
 inc = defaultdict(set)

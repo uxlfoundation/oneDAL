@@ -39,21 +39,10 @@ import sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report import area  # noqa: E402
+from usage_consts import CPU, REAL, U, area, load_units  # noqa: E402
 
-U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
 B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
 OUT = f"{U}/out-{B}"
-def load_units():
-    """units-<build>.json plus scikit-learn_bench cases (units-bench.json), as in report2.py."""
-    us = json.load(open(f"{U}/units-{B}.json"))
-    if os.path.exists(f"{U}/units-bench.json"):
-        us += json.load(open(f"{U}/units-bench.json"))
-    return us
-
-
-REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]  # report2.py REAL
-CPU = re.compile(r"\((?:daal::)?(?:internal::)?CpuType\)\d+|\b(?:sse2|sse42|avx2|avx512)\b")
 ISA_NAME = {"0": "sse2", "4": "avx2", "6": "avx512"}
 ENUM_METHOD = re.compile(r"\(((?:\w+::)*?(\w+)::Method)\)(\d+)")
 ISA_CAST = re.compile(r"\(\s*(?:daal::)?(?:internal::)?CpuType\)(\d+)")
@@ -113,7 +102,7 @@ def group_key(f, dem):
 def main():
     uni = load(f"{U}/data/{B}/universe.json.gz")
     funcs = uni["functions"]
-    units = load_units()
+    units = load_units(B)
     hit_real = set()
     n_real_units = 0
     for u in units:
@@ -137,7 +126,6 @@ def main():
                 fp_total=None)
         return comps[k]
 
-    gseen = {}
     for m, (f, line, dem) in funcs.items():
         c = comp(f)
         ran = m in hit_real

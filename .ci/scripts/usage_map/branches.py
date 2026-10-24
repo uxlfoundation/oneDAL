@@ -26,7 +26,6 @@ took it; exceptional (throw) arms are skipped. Output: never-taken arms per func
 import argparse
 import bisect
 import concurrent.futures as cf
-import glob
 import gzip
 import json
 import os
@@ -38,18 +37,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 os.environ["GCOV"] = "gcov -b"          # read by collect.py at import time
 import collect as C                     # noqa: E402
-from report import area                 # noqa: E402
+from usage_consts import REAL, U, area, load_units  # noqa: E402
 
-U = os.environ.get("USAGE_MAP_WORK", os.getcwd())
-def load_units():
-    """units-<build>.json plus scikit-learn_bench cases (units-bench.json), as in report2.py."""
-    us = json.load(open(f"{U}/units-{B}.json"))
-    if os.path.exists(f"{U}/units-bench.json"):
-        us += json.load(open(f"{U}/units-bench.json"))
-    return us
-
-
-REAL = ["sklearnex", "sklearnex-gpu", "workloads", "daal4py", "model-builders"]  # report2.py REAL
 WORKERS = 24
 
 
@@ -112,10 +101,11 @@ def main():
     ap.add_argument("--units", type=int, default=0, help="limit to first N units (debug)")
     a = ap.parse_args()
     B = a.build
+    os.makedirs(f"{U}/gcov-work", exist_ok=True)     # collect.gcov_one writes its temp dirs here
 
     uni = load(f"{U}/data/{B}/universe.json.gz")
     funcs = uni["functions"]
-    units = [u for u in load_units()
+    units = [u for u in load_units(B)
              if u["consumer"] in REAL and os.path.exists(f"{U}/data/{B}/{u['uid']}.json.gz")]
     hit_real = set()
     for u in units:
