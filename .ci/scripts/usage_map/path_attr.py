@@ -44,7 +44,8 @@ Verdict per row, "deprecate daal4py wrapper + DAAL public API, keep kernel":
 Bridges B1-B7 are hand-written sklearnex -> daal4py links, each site re-read and regex-checked.
 Live bridges are attached to the rows they cover ("bridges" in paths.json).
 Read-only on the workdir (USAGE_MAP_WORK, default cwd); writes only into out-<build>/.
-candidates.py reads paths.json: confirmed -> "T2s deprecate API now", the rest -> "T2m migrate sklearnex first".
+candidates.py reads paths.json: confirmed -> "T2s deprecate API now"; not-safe with no bridge and no sk-public
+loss -> "T2d deprecate daal4py API"; the rest -> "T2m migrate sklearnex first".
 """
 import csv
 import gzip
@@ -90,11 +91,11 @@ def load_time_lines(f):
 
 
 def candidate_rows():
-    # T2m is included too: a re-run after candidates.py split the T2s rows must see all of them
+    # T2m and T2d are included too: a re-run after candidates.py split the T2s rows must see all of them
     rows = []
     for line in open(os.path.join(OUT, "CANDIDATES.md")):
         c = [x.strip() for x in line.strip().strip("|").split("|")]
-        if len(c) >= 7 and c[0].startswith(("T2s", "T2m")):
+        if len(c) >= 7 and c[0].startswith(("T2s", "T2m", "T2d")):
             rows.append(dict(api=c[1], comp=c[2], sub=c[3], lines=int(c[4]), A=int(c[5]), P=int(c[6])))
     return rows
 

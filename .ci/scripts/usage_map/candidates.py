@@ -27,6 +27,8 @@ Removal candidates per component/sub: tier by what still runs it.
       T2s deprecate API now: verdict confirmed, every A line has an oneAPI entry sklearnex runs
       T2m migrate sklearnex first: verdict not-safe or unclear; the note lists the bridges
           (daal4py -> sklearnex routes) that must move off daal4py before the API can go
+      T2d deprecate daal4py API: not-safe only because of daal4py-only lines (no sk-public loss),
+          no bridge, so sklearnex needs no migration; the daal4py wrapper and DAAL API go, the kernel stays
       T2s deprecate API (no path check): paths.json absent
   T3 trim: A exists but >=50% of lines never run by a real consumer (C+B+E) -> dead branches inside
 intent.json (maintainers) marks components grow/keep; those rows get verdict "keep (intent)".
@@ -44,6 +46,16 @@ intent = {k: v for k, v in json.load(open(INTENT)).items() if not k.startswith("
 # path_attr.py verdicts per T2s row; absent until path_attr.py has run on this build.
 PATHS = f"{U}/out-{B}/paths.json"
 paths = {(p["api"], p["comp"], p["sub"]): p for p in json.load(open(PATHS))["rows"]} if os.path.exists(PATHS) else {}
+
+def t2d(p):
+    """Only daal4py reaches lines of this sub, and no sklearnex route (bridge or public call) needs it."""
+    return not p["bridges"] and p["lost_breakdown"]["sk-public"] == 0 and p["lost_breakdown"]["daal4py-only"] > 0
+
+
+def t2d_note(p):
+    return (f"{p['lost_breakdown']['daal4py-only']} A lines reached only through daal4py; "
+            f"no bridge, no sklearnex route lost; unknown lines {p['unknown_lines']}")
+
 
 def t2m_note(p):
     br = ", ".join(p["bridges"]) or "none"
@@ -121,6 +133,9 @@ for c in d["components"]:
         if t.startswith("T2s") and p and p["verdict"] == "confirmed":
             t = "T2s deprecate API now"
             note.append("entry path checked: every A line has an oneapi entry that sklearnex runs")
+        elif t.startswith("T2s") and p and t2d(p):
+            t = "T2d deprecate daal4py API"
+            note.append(t2d_note(p))
         elif t.startswith("T2s") and p:
             t = "T2m migrate sklearnex first"
             note.append(t2m_note(p))
@@ -133,21 +148,25 @@ for c in d["components"]:
             note.insert(0, f"keep (intent: {it['intent']}, {it['why']})")
         elif it and it["intent"] == "deprecate":
             note.insert(0, f"deprecate (intent: {it['why']})")
-        if t.startswith(("T2s", "T2m")):
+        if t.startswith(("T2s", "T2m", "T2d")):
             dead = v["P"]          # only the daal4py-API-only lines go; A lines are the kernel sklearnex runs
         rows.append((t, api, comp, s, L, v["A"], v["P"], dead, c["sec"] * (L / max(c["lines"], 1)), "; ".join(note)))
-ORDER = ["T1 drop", "T1i drop API only", "T2 deprecate", "T2s deprecate API now", "T2s deprecate API",
-         "T2m migrate sklearnex first", "T3 trim"]
+ORDER = ["T1 drop", "T1i drop API only", "T2 deprecate", "T2s deprecate API now", "T2d deprecate daal4py API",
+         "T2s deprecate API", "T2m migrate sklearnex first", "T3 trim"]
 rows.sort(key=lambda r: (ORDER.index(r[0]), -r[7]))
 md = ["Tiers: T1 drop; T1i drop public API only (kernel used elsewhere); T2 deprecate (daal4py API only);",
       "T2s deprecate API now: sklearnex covers the estimator and path_attr.py checked the entry path (kernel stays, removable = P lines);",
       "T2m migrate sklearnex first: same, but a line is reached only through daal4py (not-safe) or has no entry evidence (unclear);",
+      "T2d deprecate daal4py API: only daal4py reaches it, no sklearnex route needs it (no bridge, no sk-public loss);",
       "T2s deprecate API (no path check): same, paths.json absent; T3 trim dead branches.",
       "Rows marked `keep (intent)` are planned for use (intent.json) and are not removal proposals.", "",
       "| tier | api | component | sub | lines | A | P | removable (C+B+E; P for T2s) | ~build s | note |",
       "|---|---|---|---|---:|---:|---:|---:|---:|---|"]
 md += [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]:.0f} | {r[9]} |" for r in rows]
 open(f"{U}/out-{B}/CANDIDATES.md", "w").write("\n".join(md) + "\n")
+json.dump([dict(tier=r[0], api=r[1], component=r[2], sub=r[3], lines=r[4], A=r[5], P=r[6], removable=r[7],
+                build_s=round(r[8]), note=r[9]) for r in rows],
+          open(f"{U}/out-{B}/candidates.json", "w"), indent=1)
 for t in ORDER:
     rs = [r for r in rows if r[0] == t and not r[9].startswith("keep")]
     print(t, len(rs), "subs,", sum(r[7] for r in rs), "removable lines,", round(sum(r[8] for r in rs)), "build-s")
