@@ -54,7 +54,7 @@ Install dokimi at the commit CI pins (`dokimi-ref` in `.github/workflows/agent-e
 full-history clone of oneDAL (mined tasks read their fix commits from it):
 
 ```sh
-DOKIMI_SHA=ad1cbd0873d5d9e3b7a6537c705169d80e91ae42
+DOKIMI_SHA=09be35bf0a1e887ba7b146357b839052c830c3b9
 python3 -m venv ~/dokimi && ~/dokimi/bin/pip install --require-hashes \
   -r https://raw.githubusercontent.com/intel/dokimi/$DOKIMI_SHA/dokimi/requirements.lock.txt &&
   ~/dokimi/bin/pip install --no-deps "dokimi @ git+https://github.com/intel/dokimi@$DOKIMI_SHA#subdirectory=dokimi"

@@ -58,9 +58,9 @@ jobs:
       contents: read
     # intel/dokimi main; keep the two SHAs equal, and update them together with any change the new version needs in
     # repo-eval.yaml or the tasks
-    uses: intel/dokimi/.github/workflows/repo-eval.yml@ad1cbd0873d5d9e3b7a6537c705169d80e91ae42
+    uses: intel/dokimi/.github/workflows/repo-eval.yml@09be35bf0a1e887ba7b146357b839052c830c3b9
     with:
-      dokimi-ref: ad1cbd0873d5d9e3b7a6537c705169d80e91ae42
+      dokimi-ref: 09be35bf0a1e887ba7b146357b839052c830c3b9
       manifest: dev/agent_evals/repo-eval.yaml
       tasks: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.tasks || 'all') || 'changed' }}
       smoke-tasks: >-
