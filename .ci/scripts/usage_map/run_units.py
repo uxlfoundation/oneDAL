@@ -110,11 +110,14 @@ def main():
     done = {x["id"]: x for x in json.load(open(path))} if os.path.exists(path) else {}
     # long pytest units first so the pool drains evenly
     us.sort(key=lambda u: (u["kind"] != "pytest", -done.get(u["id"], {}).get("seconds", 0)))
-    with cf.ThreadPoolExecutor(int(os.environ.get("JOBS", "24"))) as ex:
+    jobs = min(int(os.environ.get("JOBS", "24")), 32)      # the box is shared
+    with cf.ThreadPoolExecutor(jobs) as ex:
         for res in ex.map(run, us):
             done[res["id"]] = res
             print(f'{res["seconds"]:8.1f}s rc={res["rc"]} {res["id"]} | {res["summary"][:90]}', flush=True)
-            json.dump(list(done.values()), open(path, "w"), indent=1)
+            with open(path + ".tmp", "w") as fh:            # a kill mid-write keeps the old file
+                json.dump(list(done.values()), fh, indent=1)
+            os.replace(path + ".tmp", path)
 
 
 if __name__ == "__main__":

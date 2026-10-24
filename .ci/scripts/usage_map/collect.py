@@ -70,7 +70,7 @@ def collect(name, gcnos):
     funcs = {}                   # mangled -> [file, line, demangled, count]
     lines = defaultdict(dict)    # file -> {line: count}
     loaded = 0
-    with cf.ThreadPoolExecutor(64) as ex:
+    with cf.ThreadPoolExecutor(32) as ex:
         for docs in ex.map(lambda g: gcov_one(g, gcda_root), gcnos):
             if docs is None:
                 continue

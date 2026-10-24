@@ -24,7 +24,7 @@ export TCXX_LOG=$U/compile-$K.log; : > $TCXX_LOG
 if [ $K = cov2 ]; then
   export CXXFLAGS="--coverage -fprofile-update=atomic -fcallgraph-info" LDFLAGS=--coverage
   X="OPTFLAG=O0 REQCPU=sse2 avx2 avx512"
-  for t in daal oneapi_c; do make -f makefile $t PLAT=lnx32e COMPILER=gnu CXX=$D/tcxx OPTFLAG=O0 "REQCPU=sse2 avx2 avx512" -j80; done
+  for t in daal oneapi_c; do make -f makefile $t PLAT=lnx32e COMPILER=gnu CXX=$D/tcxx OPTFLAG=O0 "REQCPU=sse2 avx2 avx512" -j${JOBS:-32}; done
 else
-  for t in daal oneapi_c; do make -f makefile $t PLAT=lnx32e COMPILER=gnu CXX=$D/tcxx -j80; done
+  for t in daal oneapi_c; do make -f makefile $t PLAT=lnx32e COMPILER=gnu CXX=$D/tcxx -j${JOBS:-32}; done
 fi

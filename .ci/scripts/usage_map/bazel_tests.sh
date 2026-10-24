@@ -16,13 +16,18 @@
 #===============================================================================
 # oneDAL's own Bazel tests (//cpp/oneapi/dal:tests) on the cov2 commit with gcc --coverage.
 # gcda go to cov-cov2/u/bazel_onedal-tests via GCOV_PREFIX; never set MKLROOT/TBBROOT here.
+# Writes bazel-tests.json ({seconds, rc}) and bazel-tests.log for collect_bazel.py.
 set -x
 U=${USAGE_MAP_WORK:-$PWD}
 unset MKLROOT TBBROOT
 export CC=gcc
 mkdir -p $U/cov-cov2/u/bazel_onedal-tests
 cd $U/oneDAL-bzt
-time ${BAZEL:-bazel} --output_user_root=$U/bzroot test //cpp/oneapi/dal:tests \
+t0=$(date +%s)
+${BAZEL:-bazel} --output_user_root=$U/bzroot test //cpp/oneapi/dal:tests \
   --cpu=avx2 --copt=--coverage --copt=-O0 --linkopt=--coverage --spawn_strategy=local \
-  --jobs=48 --local_test_jobs=16 --test_output=errors --keep_going \
-  --test_env=GCOV_PREFIX=$U/cov-cov2/u/bazel_onedal-tests --test_env=GCOV_PREFIX_STRIP=0
+  --jobs=${JOBS:-32} --local_test_jobs=16 --test_output=errors --keep_going \
+  --test_env=GCOV_PREFIX=$U/cov-cov2/u/bazel_onedal-tests --test_env=GCOV_PREFIX_STRIP=0 2>&1 | tee $U/bazel-tests.log
+rc=${PIPESTATUS[0]}
+printf '{"seconds": %d, "rc": %d}\n' $(( $(date +%s) - t0 )) $rc > $U/bazel-tests.json
+exit $rc

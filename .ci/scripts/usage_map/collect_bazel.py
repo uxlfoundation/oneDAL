@@ -36,6 +36,8 @@ import collect  # noqa: E402
 
 EXEC = glob.glob(f"{collect.U}/bzroot/*/execroot/_main")[0]
 GCDA = f"{collect.U}/cov-cov2/u/{UNIT}/proc/self/cwd/"
+RUN = f"{collect.U}/bazel-tests.json"       # seconds, rc: written by bazel_tests.sh
+LOG = f"{collect.U}/bazel-tests.log"        # bazel output of the same run
 
 
 def main():
@@ -45,11 +47,30 @@ def main():
         gcnos += [os.path.join(d, f) for f in fs if f.endswith(".gcno")]
     collect.gcov_one = lambda gcno, _root: _gcov(gcno)
     collect.collect(UNIT, gcnos)
-    # Register the unit so report2.py reads its coverage as consumer onedal-tests.
+    # Register the unit in units-cov2.json, in the shape run_units.py writes, so report2.py
+    # reads its coverage as consumer onedal-tests with its time and outcome.
     path = f"{collect.U}/units-{collect.B}.json"
     units = json.load(open(path)) if os.path.exists(path) else []
-    units = [u for u in units if u.get("uid") != UNIT] + [{"uid": UNIT, "consumer": "onedal-tests"}]
-    json.dump(units, open(path, "w"), indent=1)
+    rec = dict(id=f"bazel:{UNIT.removeprefix('bazel_')}", uid=UNIT, consumer="onedal-tests", kind="bazel",
+               **run_record(units))
+    units = [u for u in units if u.get("uid") != UNIT] + [rec]
+    with open(path + ".tmp", "w") as fh:
+        json.dump(units, fh, indent=1)
+    os.replace(path + ".tmp", path)
+
+
+def run_record(units):
+    """seconds, rc, summary of the last bazel_tests.sh run. Without bazel-tests.json, keep the
+    values already recorded for this unit (a run whose timing was not saved)."""
+    if os.path.exists(RUN):
+        meta = json.load(open(RUN))
+        log = open(LOG, errors="replace").read().splitlines() if os.path.exists(LOG) else []
+        summary = next((ln for ln in reversed(log) if ln.strip()), "")
+        return dict(seconds=meta["seconds"], rc=meta["rc"], summary=summary[-200:])
+    old = [u for u in units if u.get("uid") == UNIT and "seconds" in u]
+    if not old:
+        sys.exit(f"{RUN} missing and no recorded run for {UNIT}: run bazel_tests.sh first")
+    return {k: old[0][k] for k in ("seconds", "rc", "summary")}
 
 
 def _gcov(gcno):
