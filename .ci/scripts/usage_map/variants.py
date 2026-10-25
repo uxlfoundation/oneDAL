@@ -163,9 +163,11 @@ def main():
     isa_tot = defaultdict(lambda: [0, 0])
     for x in out:
         for v, d in x["fptype"].items():
-            fp_tot[v][0] += d["total"]; fp_tot[v][1] += d["run"]
+            fp_tot[v][0] += d["total"]
+            fp_tot[v][1] += d["run"]
         for v, d in x["isa_copies"].items():
-            isa_tot[v][0] += d["total"]; isa_tot[v][1] += d["run"]
+            isa_tot[v][0] += d["total"]
+            isa_tot[v][1] += d["run"]
     G_tot = sum(x["groups"] for x in out)
     G_run = sum(x["groups_run"] for x in out)
 

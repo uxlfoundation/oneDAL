@@ -89,7 +89,8 @@ for api, root in (("oneapi", f"{SRC}/oneapi/dal/algo"), ("daal", f"{SRC}/daal/sr
                 inc[(api, m.group(1))].add(me)
 
 # Real-run lines per kernel dir, sklearnex-run lines per component.
-kern = defaultdict(int); skl = defaultdict(int)
+kern = defaultdict(int)
+skl = defaultdict(int)
 for r in csv.DictReader(open(f"{U}/out-{B}/functions.csv")):
     g = r["groups"].split("+")
     for k, p in KERNELS.items():
@@ -109,7 +110,8 @@ for c in d["components"]:
     api, comp = c["api"], c["comp"]
     users, k = internal(api, comp)
     for s, v in c["subs"].items():
-        L = v["lines"]; dead = v["C"] + v["B"] + v["E"]
+        L = v["lines"]
+        dead = v["C"] + v["B"] + v["E"]
         if L < 50:
             continue
         # T2s needs sklearnex to run this sub itself: a oneAPI counterpart alone does not show
