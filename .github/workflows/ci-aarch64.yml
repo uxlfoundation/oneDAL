@@ -247,6 +247,21 @@ jobs:
           source .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
 
+      # Bazel disk cache kept in the Actions cache. Only pushes to main save it;
+      # pull requests restore main's copy and never write, so a PR cannot plant
+      # entries that a later run reads. The GC flags cap each leg at 2 GB (the
+      # repository shares one 10 GB Actions cache).
+      - name: Configure the Bazel disk cache
+        run: |
+          echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+
+      - name: Restore the Bazel disk cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-aarch64-${{ matrix.rng }}-${{ github.sha }}
+          restore-keys: bazel-disk-aarch64-${{ matrix.rng }}-
+
       - name: Checkout oneTBB
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -376,6 +391,20 @@ jobs:
           grep -qx 'libdir=${exec_prefix}/lib/arm' \
             bazel-bin/lib/pkgconfig/dal-dynamic-threading-host.pc
           grep -q 'lib/arm' bazel-bin/lib/cmake/oneDAL/oneDALConfig.cmake
+
+      # `shutdown` waits for the disk cache GC, so the saved copy is under the cap.
+      - name: Trim the Bazel disk cache
+        if: github.event_name == 'push'
+        run: |
+          bazel shutdown
+          du -sh "${{ runner.temp }}/bazel-disk"
+
+      - name: Save the Bazel disk cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-aarch64-${{ matrix.rng }}-${{ github.sha }}
 
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
