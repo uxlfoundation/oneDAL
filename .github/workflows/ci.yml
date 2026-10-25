@@ -228,12 +228,12 @@ jobs:
       # which supplies the Intel MPI that `test.sh --interface */mpi` activates.
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
+      # Packages go into the environment while it is inactive: installing into an active one
+      # reactivates it, and the impi_rt deactivate script fails under `bash -e` (`which fi_info`).
       - name: Create conda environment
         run: |
           source "${CONDA_SH}"
-          conda create -y -n "${CONDA_ENV}"
-          conda activate "${CONDA_ENV}"
-          conda install -y -c conda-forge \
+          conda create -y -n "${CONDA_ENV}" -c conda-forge \
               make \
               tbb tbb-devel \
               mkl mkl-devel mkl-static \
@@ -261,11 +261,11 @@ jobs:
       - name: Make onedal_dpc
         run: |
           source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          conda install -y -c conda-forge \
+          conda install -y -n "${CONDA_ENV}" -c conda-forge \
               mkl-dpcpp mkl-devel-dpcpp \
               dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
               onedpl-devel
+          conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --jobs 20
