@@ -156,18 +156,31 @@ def _patch_includes(ctx, compilation_context, includes=[],
 # that expand the ISA dispatch macros (dispatchers, ISA-conditional TUs) may
 # declare them as inputs; the per-cpu kernel TUs get the static header instead,
 # so that switching --cpu does not rebuild their objects.
-_CPU_LIST_HDRS = ["daal_kernel_defines.h"]
+# Paths are as written in `#include`, relative to an include directory.
+_CPU_LIST_HDRS = ["services/internal/daal_kernel_defines.h"]
+
+def _drop_dirs(dirs, dropped):
+    return depset([d for d in dirs.to_list() if d not in dropped])
 
 def _without_cpu_list_headers(compilation_context):
-    headers = [
-        h for h in compilation_context.headers.to_list()
-        if h.is_source or h.basename not in _CPU_LIST_HDRS
-    ]
+    headers = []
+    generated_roots = {}
+    for h in compilation_context.headers.to_list():
+        rel = [r for r in _CPU_LIST_HDRS if h.path.endswith("/" + r)]
+        if h.is_source or not rel:
+            headers.append(h)
+        else:
+            generated_roots[h.path[:-len(rel[0]) - 1]] = True
+
+    # Dropping the input is not enough: the generated include directory comes
+    # before the source one, so an unsandboxed compile (Windows, or
+    # --spawn_strategy=local) would still find the generated header there and
+    # fail with "undeclared inclusion". Drop that directory as well.
     return cc_common.create_compilation_context(
         headers = depset(headers),
-        system_includes = compilation_context.system_includes,
-        includes = compilation_context.includes,
-        quote_includes = compilation_context.quote_includes,
+        system_includes = _drop_dirs(compilation_context.system_includes, generated_roots),
+        includes = _drop_dirs(compilation_context.includes, generated_roots),
+        quote_includes = _drop_dirs(compilation_context.quote_includes, generated_roots),
         framework_includes = compilation_context.framework_includes,
         defines = compilation_context.defines,
         local_defines = compilation_context.local_defines,
