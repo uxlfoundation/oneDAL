@@ -8,5 +8,8 @@ daal_module(
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal/src/algorithms/regression:kernel",
         "@onedal//cpp/daal/src/algorithms/linear_model:kernel",
+        "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
     ],
 )
