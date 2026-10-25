@@ -83,6 +83,8 @@ def load_run(out_dir, warnings):
             data = json.load(fh)
     except json.JSONDecodeError as e:
         raise InputError(f"{dpath}: {e}")
+    if not isinstance(data, dict):
+        raise InputError(f"{dpath}: top level is {type(data).__name__}, expected an object")
     miss = REQ_DATA - data.keys()
     if miss:
         raise InputError(f"{dpath}: missing keys {sorted(miss)}")
@@ -103,11 +105,17 @@ def load_run(out_dir, warnings):
         hdr = next(rd, None)
         if hdr != REQ_FN_COLS:
             raise InputError(f"{fpath}: header {hdr} != {REQ_FN_COLS}")
-        for row in rd:
+        for n, row in enumerate(rd, start=2):
+            if len(row) != len(hdr):
+                raise InputError(f"{fpath}:{n}: {len(row)} columns, expected {len(hdr)}")
             r = dict(zip(hdr, row))
+            try:
+                line = int(r["line"])
+            except ValueError:
+                raise InputError(f"{fpath}:{n}: line {r['line']!r} is not an integer")
             k = (r["file"], r["function"])
             seen[k] += 1
-            funcs[(*k, seen[k])] = (r["class"], int(r["line"]), r["abi_exported"] == "1")
+            funcs[(*k, seen[k])] = (r["class"], line, r["abi_exported"] == "1")
     return {"data": data, "functions": funcs, "candidates": load_candidates(out_dir, warnings)}
 
 
@@ -271,6 +279,9 @@ def self_test():
         assert len(d["candidates_tier_changed"]) == 1, d["candidates_tier_changed"]
         assert len(d["units_seconds_changed"]) == 1, d["units_seconds_changed"]
         assert main([a, os.path.join(t, "missing")]) == 2, "missing input not rejected"
+        with open(os.path.join(b, "functions.csv"), "a") as fh:
+            fh.write("A,1,oneapi\n")
+        assert main([a, b]) == 2, "short functions.csv row not rejected"
     print("diff_runs: self-test ok")
     return 0
 

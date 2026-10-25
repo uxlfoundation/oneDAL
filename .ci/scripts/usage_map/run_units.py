@@ -110,7 +110,7 @@ def main():
     done = {x["id"]: x for x in json.load(open(path))} if os.path.exists(path) else {}
     # long pytest units first so the pool drains evenly
     us.sort(key=lambda u: (u["kind"] != "pytest", -done.get(u["id"], {}).get("seconds", 0)))
-    jobs = min(int(os.environ.get("JOBS", "24")), 32)      # the box is shared
+    jobs = max(1, min(int(os.environ.get("JOBS", "24")), 32))      # the box is shared
     with cf.ThreadPoolExecutor(jobs) as ex:
         for res in ex.map(run, us):
             done[res["id"]] = res

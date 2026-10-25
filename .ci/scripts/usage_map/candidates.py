@@ -130,6 +130,10 @@ for c in d["components"]:
         if k: note.append(f"kernel in {k} is run")
         cp = COUNTERPART.get(comp, comp)
         p = paths.get((api, comp, s))
+        if p and (not p.get("A_match") or not p.get("P_match")
+                  or p.get("A_check") != v["A"] or p.get("P_check") != v["P"]):
+            note.append("paths.json ignored: A/P line counts differ from this row; re-run path_attr.py")
+            p = None
         if t.startswith("T2s") and p and p["verdict"] == "confirmed":
             t = "T2s deprecate API now"
             note.append("entry path checked: every A line has an oneapi entry that sklearnex runs")
