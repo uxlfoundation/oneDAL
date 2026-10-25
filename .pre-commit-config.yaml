@@ -27,3 +27,16 @@ repos:
     rev: v3.11.2
     hooks:
       - id: editorconfig-checker
+  - repo: local
+    hooks:
+      # Bazel compiles the per-cpu kernel TUs (*_cpu.cpp, *_fpt_cpu.cpp) once
+      # per ISA against the static daal_kernel_defines.h, which defines every
+      # ISA, so that a --cpu change does not rebuild them (see
+      # _without_cpu_list_headers in dev/bazel/cc/compile.bzl). The macros that
+      # follow the --cpu list would silently see all ISAs there; use them in
+      # the dispatcher TUs instead.
+      - id: no-cpu-list-macros-in-per-cpu-tus
+        name: no --cpu list macros in per-cpu kernel TUs
+        language: pygrep
+        entry: '\b(DAAL_KERNEL_\w+|DAAL_DISPATCH_(FUNCTION|LAPACK)_BY_CPU|__DAAL_ALGORITHM_CONTAINER|__DAAL_INSTANTIATE_DISPATCH_(CONTAINER|IMPL))\b|daal_kernel_defines\.h'
+        files: ^cpp/.*_cpu\.cpp$
