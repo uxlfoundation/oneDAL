@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-"""diff_runs.py OLD_OUT NEW_OUT [--md PATH] [--json PATH] [--cap N]
+"""diff_runs.py OLD_OUT NEW_OUT [--md PATH] [--json PATH] [--cap N] | --self-test
 
 Compare two usage-map output directories (out-<build>/ written by report2.py and
 candidates.py) and report what changed: function class shifts, functions added or
@@ -233,7 +233,52 @@ def render_md(d, old_dir, new_dir, cap):
     return "\n".join(L) + "\n"
 
 
+def _write_fixture(d, fn_class, tier, seconds):
+    os.makedirs(d, exist_ok=True)
+    cnt = {c: 0 for c in CLASSES}
+    cnt[fn_class] = 1
+    data = {"schema_version": 1, "build": "fixture", "groups": [], "real": [], "public": [],
+            "filtered": [],
+            "units": [{"uid": "u1", "consumer": "sklearnex", "seconds": seconds, "rc": 0}],
+            "components": [{"api": "oneapi", "comp": "pca", "lines": 1, **cnt}],
+            "files": [{"api": "oneapi", "comp": "pca", "sub": "backend", "lines": 1,
+                       "file": "pca.cpp", **cnt}]}
+    with open(os.path.join(d, "data.json"), "w") as fh:
+        json.dump(data, fh)
+    with open(os.path.join(d, "functions.csv"), "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(REQ_FN_COLS)
+        w.writerow([fn_class, "1", "oneapi", "pca", "backend", "pca.cpp", "10", "1", "f()", ""])
+    with open(os.path.join(d, "candidates.json"), "w") as fh:
+        json.dump([{"tier": tier, "api": "oneapi", "component": "pca", "sub": "backend",
+                    "removable": 1}], fh)
+
+
+def self_test():
+    """Diff a fixture against itself (exit 0) and against a changed copy (exit 1)."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as t:
+        a, b, c = (os.path.join(t, x) for x in "abc")
+        _write_fixture(a, "A", "T1 drop", 10)
+        _write_fixture(b, "A", "T1 drop", 10)
+        _write_fixture(c, "E", "T3 trim", 20)
+        assert main([a, b, "--md", os.path.join(t, "s.md")]) == 0, "identical runs differ"
+        jp = os.path.join(t, "d.json")
+        assert main([a, c, "--md", os.path.join(t, "d.md"), "--json", jp]) == 1, "no diff found"
+        with open(jp) as fh:
+            d = json.load(fh)
+        assert len(d["function_shifts"]) == 1, d["function_shifts"]
+        assert len(d["candidates_tier_changed"]) == 1, d["candidates_tier_changed"]
+        assert len(d["units_seconds_changed"]) == 1, d["units_seconds_changed"]
+        assert main([a, os.path.join(t, "missing")]) == 2, "missing input not rejected"
+    print("diff_runs: self-test ok")
+    return 0
+
+
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv == ["--self-test"]:
+        return self_test()
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("old")
     ap.add_argument("new")

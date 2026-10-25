@@ -3,5 +3,6 @@
   "oneapi:cosine_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
   "oneapi:correlation_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
   "oneapi:minkowski_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
-  "oneapi:chebyshev_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"}
+  "oneapi:chebyshev_distance": {"intent": "grow", "why": "candidate backend for unpatched estimators (KDTree, KernelDensity, ...)"},
+  "oneapi:linear_kernel": {"intent": "keep", "why": "public onedal.primitives.linear_kernel API"}
 }
