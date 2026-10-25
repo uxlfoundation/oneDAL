@@ -225,6 +225,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             deps = [ ":" + module_name ],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["host", iface_access_tag],
+            build_from_sources = private,
             args = test_args,
         )
         tests_for_test_suite.append(name + "_host")
@@ -240,6 +241,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             ],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["dpc", iface_access_tag],
+            build_from_sources = private,
             args = test_args,
         )
         tests_for_test_suite.append(name + "_dpc")
