@@ -254,9 +254,6 @@ jobs:
     platform.type : 'lnx32e'
     BAZEL_CACHE_DIR: $(Pipeline.Workspace)/.bazel-cache
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
-    # A full job writes ~4.5Gb of cache entries; at the old 4Gb ceiling the
-    # cache was deleted at the end of every run and never restored warm.
-    BAZEL_CACHE_MAX_SIZE_KB: 10485760 # Size in kilobytes ~ 10Gb
   steps:
   - script: |
       .ci/env/apt.sh opencl
@@ -299,16 +296,9 @@ jobs:
     displayName: 'bazel-cache'
 
   - script: |
-      if [ -f "${BAZEL_CACHE_DIR}/cache-clean-timestamp" ]; then
-        echo
-        echo "Last time the cache is cleaned:"
-        cat "${BAZEL_CACHE_DIR}/cache-clean-timestamp"
-        echo
-      fi
-
       # Create `.bazelrc` and set cache directory
       # Minimal CPU instruction set in Azure is AVX2
-      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --cpu=avx2" > ~/.bazelrc
+      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2" > ~/.bazelrc
 
       # Display oneDAL build configuration
       bazel build @config//:dump
@@ -571,28 +561,11 @@ jobs:
     displayName: 'Check ISA coverage'
 
   - script: |
-      # Clear cache if its size exceeds some predefined value
-      cache_size=$(du -sk "${BAZEL_CACHE_DIR}" | cut -f1)
-      cache_size_mb=$(du -sm "${BAZEL_CACHE_DIR}" | cut -f1)
-      echo "Bazel cache dir is ${BAZEL_CACHE_DIR}"
-      echo "Bazel cache size is ${cache_size_mb}Mb"
-      if [ ${cache_size} -ge ${BAZEL_CACHE_MAX_SIZE_KB} ]; then
-          echo "Run cache cleanup..."
-          echo "Current cache directory content:"
-          ls -1 "${BAZEL_CACHE_DIR}"
-          echo "--------------------------------"
-          echo "Run bazel clean with expunge"
-          echo "Remove cache directory"
-          rm -r "${BAZEL_CACHE_DIR}"
-          mkdir -p "${BAZEL_CACHE_DIR}"
-          echo "Write timestamp to the cache"
-          date > "${BAZEL_CACHE_DIR}/cache-clean-timestamp"
-          echo "Current cache directory content:"
-          ls -1 "${BAZEL_CACHE_DIR}"
-          echo "--------------------------------"
-      else
-          echo "No need for cleanup"
-      fi
+      # The disk cache GC flags in ~/.bazelrc trim the cache to its size cap once
+      # the server is idle; `shutdown` waits for that collection, so Cache@2 saves
+      # the most recently used entries instead of an emptied directory.
+      bazel shutdown
+      echo "Bazel cache size is $(du -sm "${BAZEL_CACHE_DIR}" | cut -f1)Mb"
     displayName: 'bazel-cache-limit'
 
 - job: 'LinuxBazelGNU_OpenBLAS_rv64'
@@ -716,7 +689,6 @@ jobs:
     BAZELISK_VERSION: 'v1.28.1'
     BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
-    BAZEL_CACHE_MAX_SIZE_KB: 10485760 # Size in kilobytes ~ 10Gb; the MD + MDd builds exceed 4Gb, which deleted the cache every run
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
@@ -748,7 +720,7 @@ jobs:
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
       set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
-      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --cpu=avx2> "%USERPROFILE%\.bazelrc"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2> "%USERPROFILE%\.bazelrc"
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
@@ -906,42 +878,13 @@ jobs:
     displayName: 'cpp-examples-thread-release-dynamic'
   - powershell: |
       $ErrorActionPreference = "Stop"
-      if (Test-Path "$(BAZEL_CACHE_DIR)\cache-clean-timestamp") {
-          Write-Host ""
-          Write-Host "Last time the cache is cleaned:"
-          Get-Content "$(BAZEL_CACHE_DIR)\cache-clean-timestamp"
-          Write-Host ""
-      }
-
-      $cacheSizeKb = 0
-      if (Test-Path "$(BAZEL_CACHE_DIR)") {
-          $cacheBytes = (Get-ChildItem "$(BAZEL_CACHE_DIR)" -Recurse -Force -ErrorAction SilentlyContinue |
-              Measure-Object -Property Length -Sum).Sum
-          if ($null -eq $cacheBytes) {
-              $cacheBytes = 0
-          }
-          $cacheSizeKb = [int64]($cacheBytes / 1KB)
-      }
-      $cacheSizeMb = [int64]($cacheSizeKb / 1KB)
-      Write-Host "Bazel cache dir is $(BAZEL_CACHE_DIR)"
-      Write-Host "Bazel cache size is ${cacheSizeMb}Mb"
-      if ($cacheSizeKb -ge [int64]"$(BAZEL_CACHE_MAX_SIZE_KB)") {
-          Write-Host "Run cache cleanup..."
-          Write-Host "Current cache directory content:"
-          Get-ChildItem "$(BAZEL_CACHE_DIR)" -Force | Select-Object -ExpandProperty Name
-          Write-Host "--------------------------------"
-          Write-Host "Remove cache directory"
-          Remove-Item "$(BAZEL_CACHE_DIR)" -Recurse -Force
-          New-Item "$(BAZEL_CACHE_DIR)" -ItemType Directory -Force | Out-Null
-          Write-Host "Write timestamp to the cache"
-          Get-Date | Out-File "$(BAZEL_CACHE_DIR)\cache-clean-timestamp"
-          Write-Host "Current cache directory content:"
-          Get-ChildItem "$(BAZEL_CACHE_DIR)" -Force | Select-Object -ExpandProperty Name
-          Write-Host "--------------------------------"
-      }
-      else {
-          Write-Host "No need for cleanup"
-      }
+      # The disk cache GC flags in .bazelrc trim the cache to its size cap once the
+      # server is idle; `shutdown` waits for that collection, so Cache@2 saves the
+      # most recently used entries instead of an emptied directory.
+      & "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      $cacheBytes = (Get-ChildItem "$(BAZEL_CACHE_DIR)" -Recurse -Force -ErrorAction SilentlyContinue |
+          Measure-Object -Property Length -Sum).Sum
+      Write-Host "Bazel cache size is $([int64]($cacheBytes / 1MB))Mb"
     displayName: 'bazel-cache-limit'
 
 # Both MSVC runtimes merged into a single release tree by one command
@@ -987,7 +930,7 @@ jobs:
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
       set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
-      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --cpu=avx2> "%USERPROFILE%\.bazelrc"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2> "%USERPROFILE%\.bazelrc"
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
