@@ -152,6 +152,20 @@ def _add_sycl_linkage(repo_ctx, cc):
     else:
         return []
 
+def _add_new_offload_driver_link(repo_ctx, dpcc):
+    flags = add_compiler_option_if_supported(repo_ctx, dpcc, "--offload-new-driver")
+    if not flags:
+        return []
+
+    # The legacy driver adds the PVC JIT option
+    # -ze-intel-enable-auto-large-GRF-mode to the embedded device image on its
+    # own; the new driver drops it. Pass it explicitly so the kernels are
+    # JIT-compiled with the same options as before.
+    return flags + [
+        "-Xsycl-target-backend=spir64",
+        "-ze-intel-enable-auto-large-GRF-mode",
+    ]
+
 def configure_cc_toolchain_lnx(repo_ctx, reqs):
     if reqs.os_id != "lnx":
         auto_configure_fail("Cannot configure Linux toolchain for '{}'".format(reqs.os_id))
@@ -322,6 +336,15 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
+                # Device link with the new offloading driver. The legacy driver
+                # runs clang-offload-bundler, llvm-objcopy and
+                # spirv-to-ir-wrapper once for every input object, including the
+                # host-only DAAL objects that carry no device code. On
+                # libonedal_dpc.so that is ~8.5k serial subprocesses. With this
+                # flag the host-only objects are skipped and the DPC objects
+                # keep their existing (legacy) format. Link actions only; compile
+                # actions are unchanged.
+                _add_new_offload_driver_link(repo_ctx, tools.dpcc) +
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.dpcc,
