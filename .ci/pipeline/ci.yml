@@ -892,9 +892,10 @@ jobs:
   # Analysis-only check of both MSVC-runtime configurations. The pull-request
   # run does not build the debug runtime (`-MDd`); Intel's internal nightly CI
   # does, and so does `WindowsBazelReleaseAll` below on manual runs. The debug
-  # runtime is driven by two settings that have to agree — the `msvc_runtime_debug` toolchain feature and the
-  # `@config//:msvc_runtime` build setting — and a mismatch is reported during
-  # analysis (see `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
+  # runtime is driven by two settings that have to agree — the
+  # `msvc_runtime_debug` toolchain feature and the `@config//:msvc_runtime`
+  # build setting — and a mismatch is reported during analysis (see
+  # `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
   # surfaces that in seconds rather than after a full icx compile, and also
   # proves the //:release_all transitions are well-formed.
   - script: |
