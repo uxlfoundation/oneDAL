@@ -340,7 +340,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 # runs clang-offload-bundler, llvm-objcopy and
                 # spirv-to-ir-wrapper once for every input object, including the
                 # host-only DAAL objects that carry no device code. On
-                # libonedal_dpc.so that is ~8.5k serial subprocesses. With this
+                # libonedal_dpc.so that is ~9.3k serial subprocesses. With this
                 # flag the host-only objects are skipped and the DPC objects
                 # keep their existing (legacy) format. Link actions only; compile
                 # actions are unchanged.
