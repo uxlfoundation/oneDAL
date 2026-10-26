@@ -314,8 +314,9 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
-  same subdirectories: headers under `include`, libraries under `lib/intel64` (`lib/arm`, `lib/riscv64`, `lib/ARM64` on the other targets, as in Make), environment
-  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
+  same subdirectories: headers under `include`, libraries under `lib/<arch>`, environment
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`. `<arch>` is
+  `intel64`, or `arm`, `riscv64` and `ARM64` (Windows ARM64) on the other targets, as in Make.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
     ```sh
@@ -374,8 +375,8 @@ Two constraints worth knowing before reaching for the debug runtime:
   compile against one CRT while naming libraries and picking dependencies for
   the other.
 
-`//:release_all` takes the libraries under `lib/intel64` and `redist/intel64`
-from both builds; everything else — headers, datasets, examples, env scripts,
+`//:release_all` takes the libraries under `lib/<arch>` and `redist/<arch>`
+(`<arch>` as above) from both builds; everything else — headers, datasets, examples, env scripts,
 CMake config — comes from the release-CRT build, since those are identical
 between flavours. The pkg-config files describe the release CRT; debug-CRT
 consumers should use `oneDALConfig.cmake`, which appends its own
