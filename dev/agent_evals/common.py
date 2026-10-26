@@ -179,10 +179,17 @@ def files_restored(repo, paths):
 
 
 def diff_lines(ws, base, files):
+    """Changed lines of files against base; a new (untracked) file counts all its lines, as `git diff` ignores it."""
     if not files:
         return 0
-    ds = git(ws, "diff", "--shortstat", base, "--", *files, check=False).stdout
-    return sum(int(x) for x in re.findall(r"(\d+) (?:insertion|deletion)", ds))
+    new = set(git(ws, "ls-files", "--others", "--exclude-standard", check=False).stdout.split())
+    tracked = [f for f in files if f not in new]
+    n = 0
+    if tracked:
+        ds = git(ws, "diff", "--shortstat", base, "--", *tracked, check=False).stdout
+        n = sum(int(x) for x in re.findall(r"(\d+) (?:insertion|deletion)", ds))
+    return n + sum(len((ws / f).read_text(errors="replace").splitlines()) for f in files
+                   if f in new and (ws / f).is_file())
 
 
 def clang_format_ok(repo, files):

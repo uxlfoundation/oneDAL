@@ -59,15 +59,6 @@ def in_base(repo, base, f):
     return common.git(repo, "cat-file", "-e", f"{base}:{f}", check=False).returncode == 0
 
 
-def authored_lines(ws, base, files):
-    """Changed lines of tracked files plus every line of new (untracked) files."""
-    repo = ws
-    new = set(common.git(repo, "ls-files", "--others", "--exclude-standard", check=False).stdout.split())
-    n = diff_lines(ws, base, [f for f in files if f not in new])
-    return n + sum(len((repo / f).read_text(errors="replace").splitlines()) for f in files
-                   if f in new and (repo / f).is_file())
-
-
 def run_targets(rd, ws, targets, log):
     """bazel test; returns (rc, n_executed). rc 0 pass, 1 build failure, 3 test failure, 4 no tests."""
     rc, text = bazel(rd, ws, "test " + " ".join(targets) + " --nocache_test_results --test_output=errors", log)
@@ -93,7 +84,7 @@ def g_mutation(rd, ws, t, tr):
     out = {"pass": False, "targets": targets, "src_modified": src_modified, "authored_files": authored,
            "n_tests": sum(len(TEST_MACRO.findall((repo / f).read_text(errors="replace")))
                           for f in authored if f.endswith((".cpp", ".hpp")) and (repo / f).exists()),
-           "diff_lines": authored_lines(ws, base, authored), "format_ok": clang_format_ok(repo, authored)}
+           "diff_lines": diff_lines(ws, base, authored), "format_ok": clang_format_ok(repo, authored)}
 
     if not isinstance(targets, list) or not targets or not all(isinstance(x, str) for x in targets):
         return {**out, "why": "no targets reported"}
