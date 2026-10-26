@@ -21,6 +21,25 @@ Two abicheck jobs in `../workflows/ci.yml` compare a PR's Linux build with the
 published baseline for the last release (`2026.0.0`). abicheck is pinned to
 `44d86bc112ebe606d0653fb7e9c9e1bd63f37e23` in both jobs and in the baseline workflow.
 
+## How this differs from the libabigail check
+
+`ABI Conformance(avx2)` (`LinuxABICheck`, libabigail `abidiff`) stays as it is. The abicheck
+jobs complement it; they do not replace it.
+
+| | `ABI Conformance(avx2)` (`LinuxABICheck`) | `Abicheck (multilib)` (`LinuxAbicheckScan`) | `Abicheck L2 (<library>)` (`LinuxAbicheckL2Scan`) |
+|---|---|---|---|
+| tool | libabigail `abidiff`, via `.ci/scripts/abi_check.sh` | abicheck Action, `mode: compare` | abicheck Action, `mode: compare` |
+| compares | this PR's build against the last completed `main` build (Actions cache) | this PR's six `.so` files, as one bundle, against the `2026.0.0` release | this PR's public headers (`icpx`/castxml) plus exports, one library per leg, against the `2026.0.0` release |
+| reference | moving: the latest green `main` | fixed: the last release | fixed: the last release |
+| evidence | ELF exports (no debug info is shipped) | ELF exports and metadata from the real binaries | the same, plus the public-header AST |
+| filtering | `.github/.abignore` | `policy.yaml` | `policy.yaml` |
+| blocks a PR | yes; skipped when the `API/ABI breaking change` label is set | yes (BREAKING, exit 4); the label relaxes gating, the report still runs | no (`continue-on-error`) |
+
+The two evidence sources answer different questions. `abidiff` answers whether this PR changed
+the ABI relative to `main`, but its reference moves with every merge, so drift that builds up
+over a release cycle never shows. The abicheck gates answer whether this build can replace the
+installed release, library by library, with every policy downgrade backed by evidence.
+
 | File | Role |
 |---|---|
 | `abicheck.yml` | build config for both jobs (`bundle.system_providers`, `scope.on_incomplete: block`) |
