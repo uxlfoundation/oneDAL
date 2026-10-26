@@ -918,11 +918,11 @@ jobs:
       if (-not (Test-Path $libDir)) { throw "Missing directory: $libDir" }
       # Read the ABI major from the same constant the build uses, so an ABI bump
       # does not have to be repeated here to keep this check honest.
-      $configBzl = "dev\bazel\config\config.bzl"
-      $majorMatch = Select-String -Path $configBzl -Pattern '^_BINARY_MAJOR\s*=\s*"(\d+)"'
-      if (-not $majorMatch) { throw "Could not read _BINARY_MAJOR from $configBzl" }
+      $versionBzl = "dev\bazel\version.bzl"
+      $majorMatch = Select-String -Path $versionBzl -Pattern '^\s*binary_major\s*=\s*"(\d+)"'
+      if (-not $majorMatch) { throw "Could not read binary_major from $versionBzl" }
       $major = $majorMatch.Matches[0].Groups[1].Value
-      Write-Host "ABI major from ${configBzl}: $major"
+      Write-Host "ABI major from ${versionBzl}: $major"
       # The full set of debug-runtime artifacts, matching what the Make build
       # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
       # The DPC++ library is included because `--release_dpc` defaults to True
