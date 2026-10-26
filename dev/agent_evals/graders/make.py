@@ -51,7 +51,9 @@ def o_make(rd, repo, t):
                LD_LIBRARY_PATH=f"{deps}/lib:{os.environ.get('LD_LIBRARY_PATH', '')}")
     cmd = [*MAKE_CMD, f"-j{os.cpu_count()}"]
     with open(rd / "oracle_make.log", "w") as log:
-        subprocess.run(cmd, cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=3600)
+        rc = subprocess.run(cmd, cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=3600).returncode
+    if rc:  # without this the oracle would answer with a path to a library that was never built
+        raise RuntimeError(f"reference make failed (rc={rc}), see {rd / 'oracle_make.log'}")
     lib = next(iter(sorted(repo.glob("__release_lnx_gnu/daal/latest/lib/intel64/libonedal_core.so*"))), None)
     return '```json\n{"path": "' + str(lib) + '", "command": "' + " ".join(cmd) + '"}\n```'
 
