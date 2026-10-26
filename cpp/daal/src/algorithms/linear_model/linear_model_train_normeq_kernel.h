@@ -138,8 +138,8 @@ class DualKernel
     typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
 
 public:
-    static Status compute(const NumericTable & xTable, const NumericTable & yTable, NumericTable & betaTable, bool interceptFlag,
-                          const KernelHelperIface<algorithmFPType, cpu> & helper);
+    static Status compute(const NumericTable & xTable, const NumericTable & yTable, NumericTable & betaTable, NumericTable & xxtTable,
+                          NumericTable & dualCoefTable, bool interceptFlag, const KernelHelperIface<algorithmFPType, cpu> & helper);
 };
 
 /**

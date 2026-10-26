@@ -26,7 +26,6 @@
 
 #include "src/algorithms/service_kernel_math.h"
 #include "src/externals/service_blas.h"
-#include "src/externals/service_lapack.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_stat.h"
 #include "src/services/service_profiler.h"
@@ -191,6 +190,8 @@ Status FinalizeKernel<algorithmFPType, cpu>::solveSystem(DAAL_INT p, algorithmFP
  * @param[in]   yTable          Input data table with responses of size nRows x nResponses.
  * @param[out]  betaTable       Output data table for coefficients of size nResponses x (nFeatures + 1).
  *                              The first column corresponds to the intercept (if interceptFlag is true) or zero otherwise.
+ * @param[out]  xxtTable        Data table for storing X * X^t of size nRows x nRows.
+ * @param[out]  dualCoefTable   Data table for storing dual coefficients of size nResponses x nRows.
  * @param[in]  interceptFlag    Flag indicating whether to include an intercept term.
  * @param[in]  helper           Helper object containing ridge parameter if needed and other kernel-related information.
  *
@@ -198,8 +199,10 @@ Status FinalizeKernel<algorithmFPType, cpu>::solveSystem(DAAL_INT p, algorithmFP
  */
 template <typename algorithmFPType, CpuType cpu>
 Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, const NumericTable & yTable, NumericTable & betaTable,
-                                                 bool interceptFlag, const KernelHelperIface<algorithmFPType, cpu> & helper)
+                                                 NumericTable & xxtTable, NumericTable & dualCoefTable, bool interceptFlag,
+                                                 const KernelHelperIface<algorithmFPType, cpu> & helper)
 {
+    DAAL_PROFILER_TASK(computeDual);
     const DAAL_INT nRows(xTable.getNumberOfRows());
     const DAAL_INT nFeatures(xTable.getNumberOfColumns());
     const DAAL_INT nResponses(yTable.getNumberOfColumns());
@@ -239,6 +242,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     algorithmFPType * yMean = yMeanArray.get();
     if (interceptFlag)
     {
+        DAAL_PROFILER_TASK(computeDual.computeMeans);
         DAAL_CHECK_MALLOC(xMean);
         DAAL_CHECK_MALLOC(yMean);
         if (daal::internal::StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(x, nFeatures, nRows, xMean)) return helper.getInternalErrorCode();
@@ -248,13 +252,33 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     /* Compute X * X^t */
     const algorithmFPType one(1);
     const DAAL_INT incOne(1);
-    TArray<algorithmFPType, cpu> xxtArray(nRows * nRows);
-    algorithmFPType * xxt = xxtArray.get();
-    DAAL_CHECK_MALLOC(xxt);
-    BlasInst<algorithmFPType, cpu>::xsyrk("U", "T", &nRows, &nFeatures, &one, x, &nFeatures, &zero, xxt, &nRows);
+    /* Use the storage provided by the caller if it has the size of the dual problem (nRows x nRows),
+       otherwise (e.g. the model's X^t * X table in the classic API) use a temporary buffer */
+    const bool useXXtTable =
+        (xxtTable.getNumberOfRows() == static_cast<size_t>(nRows)) && (xxtTable.getNumberOfColumns() == static_cast<size_t>(nRows));
+    WriteOnlyRowsType xxtBlock;
+    TArray<algorithmFPType, cpu> xxtArray;
+    algorithmFPType * xxt = nullptr;
+    if (useXXtTable)
+    {
+        xxtBlock.set(xxtTable, 0, nRows);
+        DAAL_CHECK_BLOCK_STATUS(xxtBlock);
+        xxt = xxtBlock.get();
+    }
+    else
+    {
+        xxt = xxtArray.reset(nRows * nRows);
+        DAAL_CHECK_MALLOC(xxt);
+    }
+
+    {
+        DAAL_PROFILER_TASK(computeDual.computeXXt);
+        BlasInst<algorithmFPType, cpu>::xsyrk("U", "T", &nRows, &nFeatures, &one, x, &nFeatures, &zero, xxt, &nRows);
+    }
 
     if (interceptFlag)
     {
+        DAAL_PROFILER_TASK(computeDual.centerXXt);
         /* Compute centered left hand side:
            Xc * Xc^t = X * X^t - u * 1^t - 1 * u^t + c * 1 * 1^t, where u = X * xMean and c = xMean^t * xMean */
         TArray<algorithmFPType, cpu> uArray(nRows);
@@ -273,42 +297,60 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
 
     /* Form right hand side, the solver works on dualCoef of size nResponses x nRows,
        where i-th row represents the dual coefficients for the i-th observation */
-    TArray<algorithmFPType, cpu> dualCoefArray(nRows * nResponses);
-    algorithmFPType * dualCoef = dualCoefArray.get();
-    DAAL_CHECK_MALLOC(dualCoef);
-    for (DAAL_INT i = 0; i < nRows; ++i)
+    const bool useDualCoefTable =
+        (dualCoefTable.getNumberOfRows() == static_cast<size_t>(nResponses)) && (dualCoefTable.getNumberOfColumns() == static_cast<size_t>(nRows));
+    WriteOnlyRowsType dualCoefBlock;
+    TArray<algorithmFPType, cpu> dualCoefArray;
+    algorithmFPType * dualCoef = nullptr;
+    if (useDualCoefTable)
     {
-        if (interceptFlag)
+        // If dualCoefTable comes from oneDAL API, use it to store the dual coefficients directly.
+        dualCoefBlock.set(dualCoefTable, 0, nResponses);
+        DAAL_CHECK_BLOCK_STATUS(dualCoefBlock);
+        dualCoef = dualCoefBlock.get();
+    }
+    else
+    {
+        // If dualCoefTable comes from legacy DAAL API, allocate memory for storing the dual coefficients.
+        dualCoef = dualCoefArray.reset(nRows * nResponses);
+        DAAL_CHECK_MALLOC(dualCoef);
+    }
+    {
+        DAAL_PROFILER_TASK(computeDual.formRightHandSide);
+        for (DAAL_INT i = 0; i < nRows; ++i)
         {
-            MathInst<algorithmFPType, cpu>::vSubI(nResponses, y + i * nResponses, incOne, yMean, incOne, dualCoef + i, nRows);
-        }
-        else
-        {
-            for (DAAL_INT j = 0; j < nResponses; ++j)
+            if (interceptFlag)
             {
-                dualCoef[j * nRows + i] = y[i * nResponses + j];
+                MathInst<algorithmFPType, cpu>::vSubI(nResponses, y + i * nResponses, incOne, yMean, incOne, dualCoef + i, nRows);
+            }
+            else
+            {
+                for (DAAL_INT j = 0; j < nResponses; ++j)
+                {
+                    dualCoef[j * nRows + i] = y[i * nResponses + j];
+                }
             }
         }
     }
 
-    /* The solver overwrites input matrix, so we create a copy */
-    TArray<algorithmFPType, cpu> xxtCopyArray(nRows * nRows);
-    algorithmFPType * xxtCopy = xxtCopyArray.get();
-    DAAL_CHECK_MALLOC(xxtCopy);
-    const size_t xxtSizeInBytes = nRows * nRows * sizeof(algorithmFPType);
-    DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xxtCopy, xxtSizeInBytes, xxt, xxtSizeInBytes), services::ErrorMemoryCopyFailedInternal);
-
     Status st;
-    DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, false));
+    {
+        DAAL_PROFILER_TASK(computeDual.solveSystem);
+        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxt, nResponses, dualCoef, false));
+    }
 
     /* betaBuffer = Xc^t * dualCoef */
     TArray<algorithmFPType, cpu> betaBufferArray(nFeatures * nResponses);
     algorithmFPType * betaBuffer = betaBufferArray.get();
     DAAL_CHECK_MALLOC(betaBuffer);
-    BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nResponses, &nRows, &one, x, &nFeatures, dualCoef, &nRows, &zero, betaBuffer,
-                                          &nFeatures);
+    {
+        DAAL_PROFILER_TASK(computeDual.computePrimalCoefficients);
+        BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nResponses, &nRows, &one, x, &nFeatures, dualCoef, &nRows, &zero, betaBuffer,
+                                              &nFeatures);
+    }
 
     /* Each beta row is [intercept, coefficients] */
+    DAAL_PROFILER_TASK(computeDual.computeInterceptAndWriteBetas);
     WriteOnlyRows<algorithmFPType, cpu> betaBlock(betaTable, 0, nResponses);
     DAAL_CHECK_BLOCK_STATUS(betaBlock);
     algorithmFPType * beta = betaBlock.get();

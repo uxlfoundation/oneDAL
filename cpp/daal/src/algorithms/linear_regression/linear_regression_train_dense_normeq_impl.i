@@ -69,7 +69,7 @@ Status BatchKernel<algorithmFPType, training::normEqDense, cpu>::compute(const N
     else
     {
         // Use dual problem solver
-        st = DualKernelType::compute(x, y, beta, interceptFlag, linearHelper);
+        st = DualKernelType::compute(x, y, beta, xtx, xty, interceptFlag, linearHelper);
     }
     return st;
 }
