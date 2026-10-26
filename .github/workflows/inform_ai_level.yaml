@@ -1,0 +1,11 @@
+on:
+  workflow_run:
+    workflows: CI
+    types:
+      - completed
+
+jobs:
+  assign_level:
+    
+  
+
