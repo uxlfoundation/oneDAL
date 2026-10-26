@@ -222,11 +222,12 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         quote_includes = quote_includes,
     )
     dep_compilation_contexts = [ dep_compilation_context ]
-    cpu_dep_compilation_contexts = [ _without_cpu_list_headers(dep_compilation_context) ]
 
     if sources_by_category.cpu_files or sources_by_category.fpt_cpu_files:
         cpu_defines = utils.normalize_dict(cpu_defines, cpus, default=[])
         cpu_feature_configs = _configure_cpu_features(ctx, toolchain, cpus)
+        # Flattens the transitive headers, so build it only for the modules that have per-cpu sources.
+        cpu_dep_compilation_contexts = [ _without_cpu_list_headers(dep_compilation_context) ]
     if sources_by_category.fpt_files or sources_by_category.fpt_cpu_files:
         fpt_defines = utils.normalize_dict(fpt_defines, fpts, default=[])
 
