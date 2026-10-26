@@ -553,7 +553,7 @@ bazel test --config=host-public //cpp/oneapi/dal:tests
 ```
 
 Test is categorized to public or private using the `private` flag of the
-`dal_tst_suite` rule. By default, all test suites are public, if the new test
+`dal_test_suite` rule. By default, all test suites are public, if the new test
 suite for the private functionality is defined, the flag should be turned on.
 ```py
 dal_test_suite(
