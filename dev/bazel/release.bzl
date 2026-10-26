@@ -350,7 +350,7 @@ def _copy_lib(ctx, prefix, version_info):
         else:
             # Static libs (.a), DLLs (.dll), import libs (.lib).
             # Windows release layout: place DAAL runtime DLLs under
-            # redist/intel64 (not lib/intel64) and derive each DLL's
+            # redist/<arch> (not lib/<arch>) and derive each DLL's
             # import library `<name>_dll.lib` via dumpbin+lib /def — the
             # makefile route (`-IMPLIB:<name>_dll.lib`) is unreachable
             # through Bazel's cc_common.link() so we generate the import
