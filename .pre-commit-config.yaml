@@ -39,4 +39,4 @@ repos:
         name: no --cpu list macros in per-cpu kernel TUs
         language: pygrep
         entry: '\b(DAAL_KERNEL_\w+|DAAL_DISPATCH_(FUNCTION|LAPACK)_BY_CPU|__DAAL_ALGORITHM_CONTAINER|__DAAL_INSTANTIATE_DISPATCH_(CONTAINER|IMPL))\b|daal_kernel_defines\.h'
-        files: ^cpp/.*_cpu\.cpp$
+        files: ^cpp/.*_(cpu|nrh|hsw|skx)\.cpp$
