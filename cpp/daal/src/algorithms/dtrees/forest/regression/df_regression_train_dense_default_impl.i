@@ -1416,7 +1416,7 @@ public:
         const size_t nBlocks                = nRows / blockSize + !!(nRows % blockSize);
         RegErr<intermSummFPType, cpu> * acc = oobData();
         daal::SafeStatus safeStat;
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::static_threader_for(nBlocks, [&](size_t iBlock, size_t /*tid*/) {
             const size_t iStart = iBlock * blockSize;
             const size_t iEnd   = (iStart + blockSize < nRows) ? iStart + blockSize : nRows;
             ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(x), iStart, iEnd - iStart);
