@@ -6,7 +6,7 @@ daal_module(
     auto = True,
     deps = [
         "@onedal//cpp/daal:core",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
     ],
 )

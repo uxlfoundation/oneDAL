@@ -6,7 +6,7 @@ daal_module(
     auto = True,
     deps = [
         "@onedal//cpp/daal:core",
-        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
         "@onedal//cpp/daal/src/algorithms/covariance:kernel",
+        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
     ],
 )
