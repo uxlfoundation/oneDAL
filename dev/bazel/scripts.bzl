@@ -83,7 +83,6 @@ def generate_modulefile(name, out = "modulefiles/dal", **kwargs):
 
 def _generate_cmake_config_impl(ctx):
     vi = ctx.attr._version_info[VersionInfo]
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
     out = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.expand_template(
         template = ctx.file.template,
@@ -93,7 +92,7 @@ def _generate_cmake_config_impl(ctx):
             "@VERSIONS_SET@": "FALSE",
             "@DAL_VER_MAJOR_BIN@": "",
             "@DAL_VER_MINOR_BIN@": "",
-            "@ARCH_DIR_ONEDAL@": release_arch_dir(ctx, is_windows),
+            "@ARCH_DIR_ONEDAL@": release_arch_dir(ctx),
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
             "@oneDAL_VERSION@": "",
@@ -159,7 +158,7 @@ def _generate_pkgconfig_impl(ctx):
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    arch_dir = release_arch_dir(ctx, is_windows)
+    arch_dir = release_arch_dir(ctx)
 
     if is_windows:
         # A debug MSVC runtime renames every oneDAL library (`onedal_cored.lib`)

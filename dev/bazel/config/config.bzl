@@ -192,9 +192,10 @@ cpu_info = rule(
 RELEASE_ARCH_ATTRS = {
     "_aarch64_constraint": attr.label(default = "@platforms//cpu:aarch64"),
     "_riscv64_constraint": attr.label(default = "@platforms//cpu:riscv64"),
+    "_windows_constraint": attr.label(default = "@platforms//os:windows"),
 }
 
-def release_arch_dir(ctx, is_windows):
+def release_arch_dir(ctx):
     """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`.
 
     `lib/<dir>` holds the libraries and, on Windows, `redist/<dir>` the DLLs.
@@ -202,6 +203,7 @@ def release_arch_dir(ctx, is_windows):
     for `lnxarm`, `riscv64` for `lnxriscv64` and `ARM64` for `winarm`. The
     rule needs `RELEASE_ARCH_ATTRS`.
     """
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
     if ctx.target_platform_has_constraint(ctx.attr._aarch64_constraint[platform_common.ConstraintValueInfo]):
         return "ARM64" if is_windows else "arm"
     if ctx.target_platform_has_constraint(ctx.attr._riscv64_constraint[platform_common.ConstraintValueInfo]):

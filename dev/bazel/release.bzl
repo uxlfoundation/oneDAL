@@ -299,7 +299,7 @@ def _copy_lib(ctx, prefix, version_info):
     copied as-is like static libraries.
     """
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    arch_dir = release_arch_dir(ctx, is_windows)
+    arch_dir = release_arch_dir(ctx)
     lib_prefix = paths.join(prefix, "lib", arch_dir)
     redist_prefix = paths.join(prefix, "redist", arch_dir)
     libs = _collect_default_files(ctx.attr.lib)
@@ -828,7 +828,7 @@ def _release_all_impl(ctx):
     # the debug TBB DLLs an `-MDd` consumer loads carry their own names.
     files += _copy_from_release_tree(
         ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
-        only_dirs = _runtime_specific_dirs(release_arch_dir(ctx, is_windows)),
+        only_dirs = _runtime_specific_dirs(release_arch_dir(ctx)),
         staged = staged_components,
     )
     return [DefaultInfo(files = depset(files))]
