@@ -274,8 +274,8 @@ jobs:
       set -eu
       # The hosted image starts with ~9Gb free on `/` (there is no separate
       # resource disk: `/mnt` is the same filesystem), and the job needs more
-      # than that once the output base is kept between steps instead of being
-      # expunged. Drop SDKs this job never uses.
+      # than that for the output base kept between steps. Drop SDKs this job
+      # never uses.
       df -h /
       for d in /usr/local/lib/android /usr/share/dotnet /opt/ghc \
                /usr/local/.ghcup /usr/share/swift /opt/hostedtoolcache/CodeQL; do
@@ -358,10 +358,9 @@ jobs:
       # before the build would repoint `@mkl` at the oneAPI installation and
       # invalidate the dependency for this step only.
       #
-      # Same disk cache as every other step: `--build_parameters_lib=no` shares
-      # every compile action with the default `release` below (2800 of 2800 hit
-      # locally), and switching `--disk_cache` off for one build and back on for
-      # the next discards the action cache, which rebuilt the whole release.
+      # Same disk cache as every other step: `--build_parameters_lib=no` leaves
+      # every compile action identical to the default `release` build below, so
+      # the two share their cache entries.
       bazel build :release --release_dpc=false --build_parameters_lib=no
       # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
       # oneAPI environment as an installed package user. `setvars.sh` reads
@@ -518,9 +517,8 @@ jobs:
     displayName: 'daal-tests-algorithms'
 
   - script: |
-      # Links 118 test binaries (~1.5Gb). The output base is kept from the steps
-      # above, so the libraries they built are reused here instead of being
-      # rebuilt with the cache switched off.
+      # Links 118 test binaries (~1.5Gb). The libraries built by the steps above
+      # are reused from the output base.
       free -m
       df -h /
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
@@ -563,7 +561,7 @@ jobs:
   - script: |
       # The disk cache GC flags in ~/.bazelrc trim the cache to its size cap once
       # the server is idle; `shutdown` waits for that collection, so Cache@2 saves
-      # the most recently used entries instead of an emptied directory.
+      # the most recently used entries.
       bazel shutdown
       echo "Bazel cache size is $(du -sm "${BAZEL_CACHE_DIR}" | cut -f1)Mb"
     displayName: 'bazel-cache-limit'
@@ -880,7 +878,7 @@ jobs:
       $ErrorActionPreference = "Stop"
       # The disk cache GC flags in .bazelrc trim the cache to its size cap once the
       # server is idle; `shutdown` waits for that collection, so Cache@2 saves the
-      # most recently used entries instead of an emptied directory.
+      # most recently used entries.
       & "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       $cacheBytes = (Get-ChildItem "$(BAZEL_CACHE_DIR)" -Recurse -Force -ErrorAction SilentlyContinue |
           Measure-Object -Property Length -Sum).Sum

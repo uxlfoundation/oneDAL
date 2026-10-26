@@ -43,11 +43,11 @@ test --test_env=LD_LIBRARY_PATH
 # bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
 # actions that go through cmd-style helpers.
 #
-# Windows only: every `--action_env` value is part of every action key, so
-# forwarding the shell PATH on Linux made any PATH difference (a conda env,
-# `setvars.sh`, another terminal, another CI image) rebuild the whole tree
-# and kept caches from being shared between machines. `build:windows` is
-# applied automatically through --enable_platform_specific_config.
+# Windows only: every `--action_env` value is part of every action key. Linux
+# actions do not take PATH from the shell, so the action keys do not depend on
+# the shell's PATH (a conda env, `setvars.sh`, another terminal, another CI
+# image) and caches are shared between machines. `build:windows` is applied
+# automatically through --enable_platform_specific_config.
 common --enable_platform_specific_config
 build:windows --action_env=VCTOOLSINSTALLDIR
 build:windows --action_env=INCLUDE
