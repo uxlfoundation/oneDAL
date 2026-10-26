@@ -359,6 +359,11 @@ jobs:
             runner: ubuntu-24.04
             compiler: clang
             cached: true
+          - leg: clang-libcxx
+            runner: ubuntu-24.04
+            compiler: clang
+            stdlib: libc++
+            cached: true
           - leg: gcc11
             runner: ubuntu-22.04
             compiler: gcc
@@ -389,6 +394,11 @@ jobs:
             exit 1
           fi
           clang --version
+      - name: Install libc++
+        if: matrix.stdlib == 'libc++'
+        run: |
+          clang_major=$(clang -dumpversion | cut -d. -f1)
+          sudo apt-get install -y "libc++-${clang_major}-dev" "libc++abi-${clang_major}-dev"
       - name: Install Bazel
         run: |
           source .ci/env/bazelisk.sh
@@ -411,8 +421,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
-          key: bazel-disk-${{ matrix.runner }}-${{ matrix.compiler }}-${{ steps.deps.outputs.hash }}
-          restore-keys: bazel-disk-${{ matrix.runner }}-${{ matrix.compiler }}-
+          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ steps.deps.outputs.hash }}
+          restore-keys: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-
       - name: bazel-configure
         if: matrix.cached
         run: |
@@ -421,6 +431,9 @@ jobs:
             echo "build --cpu=avx2"
             echo "build --repository_cache=${BAZEL_REPO_CACHE}"
             echo "build --disk_cache=${BAZEL_DISK_CACHE}"
+            if [ "${{ matrix.stdlib }}" = "libc++" ]; then
+              echo "build --cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++"
+            fi
           } > ~/.bazelrc
           bazel build @config//:dump
           cat bazel-bin/external/+declare_onedal_config+config/config.json
@@ -447,6 +460,10 @@ jobs:
           if grep -q "clang version" comment.txt; then built_by=clang; else built_by=gcc; fi
           if [ "${built_by}" != "${{ matrix.compiler }}" ]; then
             echo "Expected a ${{ matrix.compiler }} build, got ${built_by}" >&2
+            exit 1
+          fi
+          if [ "${{ matrix.stdlib }}" = "libc++" ] && ! readelf -d "${lib_dir}/libonedal_core.so" | grep -q 'libc++'; then
+            echo "libonedal_core.so is not linked against libc++" >&2
             exit 1
           fi
       - name: Check ISA coverage
@@ -494,4 +511,4 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
-          key: bazel-disk-${{ matrix.runner }}-${{ matrix.compiler }}-${{ steps.deps.outputs.hash }}
+          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ steps.deps.outputs.hash }}

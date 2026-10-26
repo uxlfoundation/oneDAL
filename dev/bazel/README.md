@@ -138,11 +138,17 @@ DPC++ Compiler, `icpx`.
 
 The C++ compiler can be forcibly changed using environment variable `CC`. It
 takes `gcc`, `clang` or `icx`, a versioned name such as `clang-19`, or a full
-path.
+path. That compiler must be installed: Bazel downloads only the pinned gcc
+described in [Quick start](#quick-start-on-linux), and only when no compiler is
+found.
 ```sh
 export CC=gcc
 bazel <bazel-command> ... # Will use GCC for normal C++ code
 ```
+
+To build with clang and LLVM libc++, pass
+`--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
+linked against libstdc++, so it must be installed too.
 
 On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
