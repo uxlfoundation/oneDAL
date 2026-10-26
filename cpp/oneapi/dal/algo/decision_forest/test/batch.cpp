@@ -349,6 +349,15 @@ DF_BATCH_CLS_TEST("df cls engine type selects the random stream") {
     this->check_engine_type_changes_forest(engine_type::mt2203, engine_type::philox4x32x10);
 }
 
+DF_BATCH_CLS_TEST("df cls same seed gives the same forest") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto splitter = GENERATE(splitter_mode::best, splitter_mode::random);
+    CAPTURE(static_cast<int>(splitter));
+    this->check_same_seed_same_forest(splitter);
+}
+
 DF_BATCH_CLS_TEST("df cls trees draw different random streams") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
@@ -555,6 +564,15 @@ DF_BATCH_REG_TEST("df reg engine type selects the random stream") {
     SKIP_IF(this->not_float64_friendly());
 
     this->check_engine_type_changes_forest(engine_type::mt2203, engine_type::philox4x32x10);
+}
+
+DF_BATCH_REG_TEST("df reg same seed gives the same forest") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto splitter = GENERATE(splitter_mode::best, splitter_mode::random);
+    CAPTURE(static_cast<int>(splitter));
+    this->check_same_seed_same_forest(splitter);
 }
 
 DF_BATCH_REG_TEST("df reg trees draw different random streams") {
