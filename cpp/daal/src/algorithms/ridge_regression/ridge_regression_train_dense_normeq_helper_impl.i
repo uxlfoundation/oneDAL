@@ -42,12 +42,9 @@ template <typename algorithmFPType, CpuType cpu>
 Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny,
                                                             algorithmFPType * b, bool interceptFlag) const
 {
-    /* Ridge parameters are stored as a 1 x nResponses table (one value per response) or a 1 x 1 table */
-    const size_t nRidge = _ridge.getNumberOfRows() * _ridge.getNumberOfColumns();
-    ReadRows<algorithmFPType, cpu> ridgeBlock(const_cast<NumericTable &>(_ridge), 0, _ridge.getNumberOfRows());
-    DAAL_CHECK_BLOCK_STATUS(ridgeBlock);
+    size_t nRidge = _ridge.getNumberOfRows();
+    ReadRows<algorithmFPType, cpu> ridgeBlock(const_cast<NumericTable &>(_ridge), 0, nRidge);
     const algorithmFPType * ridge = ridgeBlock.get();
-    DAAL_CHECK(nRidge == 1 || nRidge == static_cast<size_t>(ny), services::ErrorIncorrectNumberOfColumns);
 
     const DAAL_INT pToFix = (interceptFlag ? p - 1 : p);
 
@@ -68,22 +65,10 @@ Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const al
         algorithmFPType * bPtr    = b;
         const size_t aSizeInBytes = p * p * sizeof(algorithmFPType);
 
-        /* The solver overwrites aCopy, so if the caller passed the same buffer as a and aCopy,
-           save the original matrix to restore it for each response */
-        const algorithmFPType * aOrig = a;
-        TArray<algorithmFPType, cpu> aSavedArray;
-        if (a == aCopy)
-        {
-            algorithmFPType * aSaved = aSavedArray.reset(p * p);
-            DAAL_CHECK_MALLOC(aSaved);
-            DAAL_CHECK(!daal::services::internal::daal_memcpy_s(aSaved, aSizeInBytes, a, aSizeInBytes), services::ErrorMemoryCopyFailedInternal);
-            aOrig = aSaved;
-        }
-
         /* b is of size ny x p, the j-th row contains the right hand side for the j-th response */
         for (DAAL_INT j = 0; j < ny; j++, bPtr += p)
         {
-            result |= daal::services::internal::daal_memcpy_s(aCopy, aSizeInBytes, aOrig, aSizeInBytes);
+            result |= daal::services::internal::daal_memcpy_s(aCopy, aSizeInBytes, a, aSizeInBytes);
             for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
             {
                 aCopy[idx] += ridge[j];

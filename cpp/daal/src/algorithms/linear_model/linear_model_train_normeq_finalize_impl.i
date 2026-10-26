@@ -336,7 +336,13 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     Status st;
     {
         DAAL_PROFILER_TASK(computeDual.solveSystem);
-        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxt, nResponses, dualCoef, false));
+        /* The solver overwrites input matrix, so we create a copy */
+        TArray<algorithmFPType, cpu> xxtCopyArray(nRows * nRows);
+        algorithmFPType * xxtCopy = xxtCopyArray.get();
+        DAAL_CHECK_MALLOC(xxtCopy);
+        const size_t xxtSizeInBytes = nRows * nRows * sizeof(algorithmFPType);
+        DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xxtCopy, xxtSizeInBytes, xxt, xxtSizeInBytes), services::ErrorMemoryCopyFailedInternal);
+        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, false));
     }
 
     /* betaBuffer = Xc^t * dualCoef */
