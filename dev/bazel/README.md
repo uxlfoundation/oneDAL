@@ -830,7 +830,7 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
-| `REQCPU="avx2 avx512"`         | `--cpu="avx2 avx512"`                                        | ISA selection; space-separated, `sse2` baseline always added (`PLAT` selects the platform, not the ISA) |
+| `REQCPU="avx2 avx512"`         | `--cpu="avx2 avx512"`                                        | ISA selection; space-separated, `sse2` baseline added on x86 only (`PLAT` selects the platform, not the ISA) |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
 | `MSVC_RUNTIME_VERSION=release` | `<default>`                                                  | Windows release CRT (`-MD`); unsuffixed library names                      |
 | `MSVC_RUNTIME_VERSION=debug`   | `--config=mdd`                                               | Windows debug CRT (`-MDd`); `d`-suffixed library names                     |
