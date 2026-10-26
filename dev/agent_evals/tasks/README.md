@@ -29,12 +29,16 @@ The key format is in [`../README.md`](../README.md#tasks). This page explains th
   no git history and without `dev/agent_evals`. With history it could read the fix, and with this directory it
   could read the answer.
 - **A hidden check the agent never sees.** For a fix it is the test that came with the upstream fix, or one written
-  for the task. The grader copies it into the agent's tree only while grading, then removes it.
+  for the task. The grader copies it into the agent's tree only while grading, then removes it. Such files are kept
+  under `tasks/<id>/hidden/<repo path>` (or `oracle/`, for the mutation tasks). A Bazel `BUILD` file is stored as
+  `BUILD.oracle`, so the task tree holds no Bazel package; the grader strips the `.oracle` suffix when it copies the
+  file over the agent's tree.
 - **Pass means more than "the new test passes".** Fix and feature tasks are gated on `strict_pass`: the hidden
   tests pass *and* the existing tests of the same component (`regression_targets`) still pass. A fix that breaks
   something else does not count.
 - **CPU only, no oneAPI compilers.** Targets are `*_host` Bazel tests, so they build with gcc on a plain Linux box
   or a CI runner. Several prompts say so, because otherwise agents spend their time trying to install `icpx`.
+  GPU and SYCL targets are not in this set yet; they are a planned follow-up.
 - **Self-checked.** `dokimi repo tasks check` proves for every task that the untouched tree fails and the reference
   solution passes. A task that cannot show both is broken, however reasonable it looks.
 
