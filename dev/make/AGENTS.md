@@ -12,6 +12,6 @@ Fragments included by the root `makefile`, which drives the production build (se
 
 ## Rules for Changes
 - Compile flags go in `COPT`, link flags in `LOPT`.
-- Library binary versions come from `MAJORBINARY` / `MINORBINARY` in `makefile.ver`. The Bazel build mirrors them in `dev/bazel/repos.bzl`; change both together.
+- Library binary versions come from `MAJORBINARY` / `MINORBINARY` in `makefile.ver`. The Bazel build reads them from `dev/bazel/version.bzl`; change both together.
 - Export and symbol-visibility changes here need the matching change in the Bazel build (`dev/bazel/`), and vice versa.
 - Shell and batch script rules are in the root `AGENTS.md`.
