@@ -20,6 +20,7 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <list>
 #include <random>
@@ -354,29 +355,36 @@ public:
     }
 
     /// Trains a forest twice with the same seed and checks that the trees and the inference
-    /// results are bitwise identical.
+    /// results are bitwise identical. The response follows a strong pattern, and the features
+    /// repeat it as exact, scaled, mirrored and near duplicates on a coarse grid, so split gains
+    /// and thresholds tie and any order-dependent choice changes the forest.
     ///
-    /// @param[in] splitter The splitter mode of the forest.
-    void check_same_seed_same_forest(splitter_mode splitter) {
+    /// @param[in] splitter    The splitter mode of the forest.
+    /// @param[in] class_count The number of classes; ignored for regression.
+    void check_same_seed_same_forest(splitter_mode splitter, std::int64_t class_count = 2) {
         constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
-        constexpr std::int64_t row_count = 1000;
+        constexpr std::int64_t row_count = 64;
         constexpr std::int64_t column_count = 6;
-        constexpr std::int64_t class_count = 3;
 
         auto x_arr = array<Float>::empty(row_count * column_count);
         auto y_arr = array<Float>::empty(row_count);
         Float* x_ptr = x_arr.get_mutable_data();
         Float* y_ptr = y_arr.get_mutable_data();
         std::mt19937 rng(2024);
-        std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+        std::uniform_int_distribution<int> grid(-8, 8);
         for (std::int64_t i = 0; i < row_count; ++i) {
-            float v[column_count];
+            const float u = grid(rng) / 8.0f;
+            const float v = grid(rng) / 8.0f;
+            const float row[column_count] = { u, u, 2.0f * u, -u, u + 1e-4f * grid(rng), v };
             for (std::int64_t j = 0; j < column_count; ++j) {
-                v[j] = dist(rng);
-                x_ptr[i * column_count + j] = v[j];
+                x_ptr[i * column_count + j] = row[j];
             }
-            y_ptr[i] = is_cls ? static_cast<Float>((v[0] + v[1] > 0.0f) + (v[2] > 0.3f))
-                              : static_cast<Float>(v[0] * v[1] + v[2] + 0.1f * dist(rng));
+            // s lies in [-1.5, 1.5]
+            const float s = u + 0.5f * v;
+            const auto cls = std::min<std::int64_t>(
+                static_cast<std::int64_t>((s + 1.5f) / 3.0f * float(class_count)),
+                class_count - 1);
+            y_ptr[i] = is_cls ? static_cast<Float>(cls) : static_cast<Float>(s);
         }
         const auto x = dal::homogen_table::wrap(x_arr, row_count, column_count);
         const auto y = dal::homogen_table::wrap(y_arr, row_count, 1);
@@ -385,8 +393,8 @@ public:
         if constexpr (is_cls) {
             desc.set_class_count(class_count);
         }
-        desc.set_tree_count(32);
-        desc.set_features_per_node(3);
+        desc.set_tree_count(8);
+        desc.set_features_per_node(4);
         desc.set_bootstrap(true);
         desc.set_seed(777);
         desc.set_splitter_mode(splitter);

@@ -354,8 +354,9 @@ DF_BATCH_CLS_TEST("df cls same seed gives the same forest") {
     SKIP_IF(this->not_float64_friendly());
 
     const auto splitter = GENERATE(splitter_mode::best, splitter_mode::random);
-    CAPTURE(static_cast<int>(splitter));
-    this->check_same_seed_same_forest(splitter);
+    const std::int64_t class_count = GENERATE(2, 3);
+    CAPTURE(static_cast<int>(splitter), class_count);
+    this->check_same_seed_same_forest(splitter, class_count);
 }
 
 DF_BATCH_CLS_TEST("df cls trees draw different random streams") {
