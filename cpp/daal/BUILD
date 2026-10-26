@@ -184,6 +184,8 @@ daal_module(
     # Match Make STDALLOC=yes: separately built threading objects keep TBB
     # scalable allocation while core objects switch away from MKL allocation.
     stdalloc = False,
+    # Make builds these as THR_TBB.objs, outside GCOV_BUILD-scoped CORE.objs_a/y.
+    define_gcov_build = False,
     visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
@@ -311,6 +313,19 @@ daal_dynamic_lib(
         # `core_threading_win_dll.o` lands in the dynamic core; the real
         # TBB-backed threading objects live in onedal_thread.dll.
         "@platforms//os:windows": [":services_win_dll_shim"],
+        "//conditions:default": [],
+    }) + select({
+        # The ref backend's BLAS/LAPACK entry points are called straight from
+        # the core algorithm objects (svd, lbfgs, mse, ...), and a Windows DLL
+        # must resolve every symbol at link time -- unlike ELF, where they stay
+        # undefined in libonedal_core.so and bind to libonedal_thread.so at
+        # load. Link the math backend here too, as the makefile rule for
+        # `$(WORKDIR.lib)/$(core_y)` does through
+        # `daaldep.math_backend.shared_link_deps`. `openblas.lib` is a static
+        # archive, and each DLL keeps the symbols it pulls in to itself, so
+        # onedal_thread.<major>.dll linking the same archive is not a duplicate
+        # definition.
+        "@config//:backend_ref_windows": [":mathbackend_thread"],
         "//conditions:default": [],
     }),
 )

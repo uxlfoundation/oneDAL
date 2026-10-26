@@ -321,6 +321,15 @@ jobs:
 
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
+
+      echo "Checking code-coverage rejection with the GCC-only Bazel toolchain"
+      if coverage_error=$(bazel build --nobuild :release --code_coverage=true 2>&1); then
+        echo "ERROR: code coverage unexpectedly accepted the GCC host compiler"
+        exit 1
+      fi
+      printf '%s\n' "${coverage_error}"
+      grep -F -- "--code_coverage=true requires host compiler ID 'icx' or 'icpx'" <<< "${coverage_error}"
+      grep -F -- "detected compiler ID: 'gcc'" <<< "${coverage_error}"
     displayName: 'Bazel config smoke checks'
 
   - script: |
@@ -731,6 +740,33 @@ jobs:
         readelf -h "${lib}" | grep -q "RISC-V" || { echo "##vso[task.logissue type=error]${lib} is not a RISC-V ELF"; exit 1; }
       done
     displayName: 'Verify RISC-V ELF output'
+
+- job: 'LinuxBazelCoverage'
+  timeoutInMinutes: 0
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dpcpp
+    displayName: 'icx installation'
+  - script: |
+      source .ci/env/bazelisk.sh
+      echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
+    displayName: 'install-bazel'
+  - script: |
+      set -eo pipefail
+      source /opt/intel/oneapi/setvars.sh
+      export CC=icx
+      dev/bazel/tests/code_coverage_test.sh --cpu=avx2
+    displayName: 'Bazel CPU code-coverage smoke build'
+  - script: |
+      set -eo pipefail
+      source /opt/intel/oneapi/setvars.sh
+      export CC=icx
+      dev/bazel/tests/code_coverage_test.sh --dpc --cpu=avx2
+    # The DPC++ build is checked only in manually queued pipelines.
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
+    displayName: 'Bazel DPC++ code-coverage smoke build'
 
 - job: 'LinuxReleaseCompare'
   dependsOn:

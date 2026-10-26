@@ -186,6 +186,15 @@ dal_dynamic_lib(
             "@onedal//cpp/daal:services_win_dll_shim",
         ],
         "//conditions:default": [],
+    }) + select({
+        # Same reason the "mkl_embed" tag above is kept for the MKL backend: the
+        # oneAPI CPU kernels reference the math backend directly, and a Windows
+        # DLL has to resolve those references at link time. OpenBLAS is not
+        # tagged "mkl_embed", so name it here. `openblas.lib` is a static
+        # archive, so this embeds the BLAS/LAPACK entry points the oneAPI
+        # kernels use, the way `mkl_embed` does for the MKL backend.
+        "@config//:backend_ref_windows": ["@openblas//:openblas"],
+        "//conditions:default": [],
     }),
     dpc_host_deps = select({
         "@platforms//os:windows": [

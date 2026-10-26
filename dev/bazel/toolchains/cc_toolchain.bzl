@@ -72,9 +72,14 @@ onedal_cc_toolchain = repository_rule(
         "PATH",
         "INCLUDE",
         "LIB",
-        # Opt-in switch for the Intel oneAPI Windows toolchain:
-        # ONEDAL_WIN_COMPILER=icx selects icx/icpx; anything else falls
-        # back to the rules_cc MSVC cl auto-config.
+        # Opt-in switch for the LLVM-driver Windows toolchains:
+        # ONEDAL_WIN_COMPILER=icx selects icx/icpx, =clang selects clang-cl,
+        # anything else falls back to the rules_cc MSVC cl auto-config.
+        # Targeting Windows ARM64 always uses clang-cl.
         "ONEDAL_WIN_COMPILER",
+        # Windows host-arch detection (see detect_host_arch in common.bzl); the
+        # toolchain repo must re-evaluate when these change.
+        "PROCESSOR_ARCHITECTURE",
+        "PROCESSOR_ARCHITEW6432",
     ],
 )
