@@ -70,13 +70,18 @@ def _find_tools(repo_ctx, reqs):
     # binutils (`ar`, `strip`) as well as the compiler itself; without it,
     # cross-compiling with CC=aarch64-linux-gnu-gcc would silently pick up
     # the exec host's native `ar`/`strip`, producing wrong-arch archives.
-    cross_prefix = get_cross_tool_prefix(repo_ctx)
-    ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
-    # Use CC as given so that a versioned name (gcc-14, clang-19) or a full
-    # path selects that exact compiler.
-    cc_name = repo_ctx.os.environ.get("CC") or (cross_prefix + reqs.compiler_id)
-    cc_path, _ = _find_tool(repo_ctx, cc_name, mandatory = True)
-    strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
+    if reqs.downloaded_tools:
+        ar_path = reqs.downloaded_tools.ar
+        cc_path = reqs.downloaded_tools.cc
+        strip_path = reqs.downloaded_tools.strip
+    else:
+        cross_prefix = get_cross_tool_prefix(repo_ctx)
+        ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
+        # Use CC as given so that a versioned name (gcc-14, clang-19) or a full
+        # path selects that exact compiler.
+        cc_name = repo_ctx.os.environ.get("CC") or (cross_prefix + reqs.compiler_id)
+        cc_path, _ = _find_tool(repo_ctx, cc_name, mandatory = True)
+        strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     if dpcpp_found:
         # The llvm-ar tool is used because Bazel prepends directory names with +,

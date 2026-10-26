@@ -307,6 +307,44 @@ jobs:
   # - quickstart: no caches and no ~/.bazelrc, so every archive is downloaded
   #   from its pinned URL, and the README quick start commands run as written,
   #   building //:release for all ISAs.
+  LinuxBazelNoCompiler:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
+    container: ubuntu:24.04
+    name: LinuxBazelNoCompiler
+    timeout-minutes: 180
+    steps:
+      - name: Install Bazelisk prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates wget
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check that no compiler is installed
+        run: |
+          for tool in cc c++ gcc g++ clang icx ld as ar; do
+            if command -v "${tool}"; then
+              echo "${tool} is installed" >&2
+              exit 1
+            fi
+          done
+          if [ -e /usr/include/stdio.h ]; then
+            echo "libc headers are installed" >&2
+            exit 1
+          fi
+      - name: Install Bazel
+        run: |
+          . .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: Bazel release
+        run: |
+          echo "build --cpu=avx2" > ~/.bazelrc
+          bazel build //:release
+          grep -c "conda-forge gcc" bazel-bin/release/daal/latest/lib/intel64/libonedal_core.so
+      - name: Bazel tests
+        run: bazel test //cpp/oneapi/dal/algo/kmeans:tests --test_output=errors
+
   LinuxBazelNoOneAPI:
     if: github.repository == 'uxlfoundation/oneDAL'
     strategy:

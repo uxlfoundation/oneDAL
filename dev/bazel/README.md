@@ -45,10 +45,10 @@
    ```
 
 ## Quick start on Linux
-On an x86-64 host, Bazelisk, a C++ compiler, `unzip` and `unzstd` (from
-zstd) are all that is needed; the last two extract the MKL `.conda` archives.
-Bazel downloads MKL, TBB and the other dependencies with fallback archives
-itself, at the versions pinned in `MODULE.bazel` and `dev/bazel/deps/`; see
+On an x86-64 host, Bazelisk and the CA certificates it needs to download Bazel
+are all that is needed. Bazel downloads MKL, TBB and the other dependencies with
+fallback archives itself, at the versions pinned in `MODULE.bazel` and
+`dev/bazel/deps/`; see
 [Prebuilt dependency roots](#prebuilt-dependency-roots) for the ones that need
 a local installation.
 ```sh
@@ -59,6 +59,11 @@ bazel test //cpp/oneapi/dal/algo/kmeans:tests
   install exactly that version.
 - Compiler: gcc 11 or newer, or clang 14 or newer. These are the oldest
   versions tested; gcc 10 fails to build (its `<cpuid.h>` has no `__cpuidex`).
+  If neither `CC` is set nor icx, gcc or clang is in `PATH`, Bazel downloads
+  the conda-forge gcc pinned in `dev/bazel/deps/gcc.bzl`, with its own binutils
+  and glibc 2.28 sysroot. `--repo_env=ONEDAL_DOWNLOAD_CC=1` uses it even when a
+  compiler is installed. Binaries it builds need a libstdc++ from gcc 13 or
+  newer at run time.
 - DPC++: without the Intel(R) oneAPI DPC++ Compiler (`icpx`) in `PATH`, the
   DPC++ libraries are left out of the release and the DPC++ tests and examples
   are reported as `SKIPPED`. To build them, source `setvars.sh` from a oneAPI
