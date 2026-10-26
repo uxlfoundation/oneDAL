@@ -710,8 +710,8 @@ Build the full release artifact with all ISA variants (sse2, avx2, avx512):
 bazel build //:release --cpu=all
 ```
 
-By default, `--cpu=auto` builds the baseline `sse2` variant plus the detected
-host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
+By default, `--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the
+detected host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
 restrict coverage (e.g., for faster CI):
 
 ```sh
