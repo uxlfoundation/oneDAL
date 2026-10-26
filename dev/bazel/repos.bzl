@@ -23,6 +23,19 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
 _BINARY_MAJOR = "4"
 _BINARY_MINOR = "0"
 
+def _extract_conda(repo_ctx, archive, output):
+    """Unpacks a `.conda` package: a zip holding `pkg-*.tar.zst` and `info-*.tar.zst`.
+
+    Only the `pkg-` tarball carries the package files. Bazel extracts both
+    formats itself, so no host `unzip` or `zstd` is needed.
+    """
+    staging = repo_ctx.path(str(archive) + ".d")
+    repo_ctx.extract(archive = archive, output = staging, type = "zip")
+    for entry in staging.readdir():
+        if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
+            repo_ctx.extract(archive = entry, output = output, type = "tar.zst")
+    repo_ctx.delete(staging)
+
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     # Workaround Python wheel extraction. Bazel cannot determine file
     # type automatically as does not support wheels out-of-the-box.
@@ -35,10 +48,7 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     )
 
     if filename.endswith(".conda"):
-        repo_ctx.execute(["unzip", downloaded_path, "-d", output])
-        for entry in repo_ctx.path(output).readdir():
-            if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
-                repo_ctx.execute(["sh", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
+        _extract_conda(repo_ctx, downloaded_path, output)
 
     elif filename.endswith(".whl") or filename.endswith(".zip"):
         repo_ctx.download_and_extract(
@@ -424,6 +434,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
 
 repos = struct(
     archive = _archive,
+    extract_conda = _extract_conda,
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
     prebuilt_libs_repo_impl = _prebuilt_libs_repo_impl,
     create_symlinks = _create_symlinks,
