@@ -24,8 +24,10 @@ from common import bazel, last_json, resolve_in_run
 
 def g_bazel_cmd(rd, ws, t, tr):
     """Re-run the single `bazel test` command the agent reported; the expected target must PASS."""
-    j = last_json(tr["answer"]) or {}
-    cmd = (j.get("command") or "").strip()
+    j = last_json(tr["answer"])
+    j = j if isinstance(j, dict) else {}  # an answer that is not an object is a failed answer, not an ungraded run
+    cmd = j.get("command") if isinstance(j.get("command"), str) else ""
+    cmd = cmd.strip()
     out = {"reported_command": cmd}
     if not re.match(r"^bazel\s+test\b", cmd) or any(c in cmd for c in ";&|`$<>\r\n"):
         return {**out, "pass": False, "why": "no/invalid bazel test command"}
@@ -44,8 +46,9 @@ def g_artifact_path(rd, ws, t, tr):
     t["path_must_contain"] is a substring the unresolved path must contain (the release layout directory).
     The path is resolved inside rd (resolve_in_run), so a run copied or archived elsewhere grades the same.
     """
-    j = last_json(tr["answer"]) or {}
-    p = Path(j.get("path") or "/nonexistent")
+    j = last_json(tr["answer"])
+    j = j if isinstance(j, dict) else {}
+    p = Path(j.get("path") if isinstance(j.get("path"), str) and j.get("path") else "/nonexistent")
     real = resolve_in_run(p, rd, ws)
     ok = bool(real and real.is_file() and re.match(t.get("artifact_re", r"libonedal_core\.so"), real.name)
               and t.get("path_must_contain", "release") in str(p) and open(real, "rb").read(4) == b"\x7fELF")

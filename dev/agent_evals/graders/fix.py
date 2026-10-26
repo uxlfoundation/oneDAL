@@ -53,7 +53,8 @@ def g_test_pass(rd, ws, t, tr):
         out["diff_lines"] = diff_lines(ws, tr["start_sha"], src_changed)
         if t.get("root_cause"):
             rcf = t["root_cause"]
-            out["root_cause_fixed"] = rcf["must_contain"] in (repo / rcf["file"]).read_text()
+            p = repo / rcf["file"]  # a missing file counts as not fixed, as in graders/fix_hidden.py
+            out["root_cause_fixed"] = p.is_file() and rcf["must_contain"] in p.read_text()
     return out
 
 
