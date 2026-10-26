@@ -600,8 +600,8 @@ cc_test = rule(
         # The transition is on the edges rather than on the test itself, so
         # that the test binary and its logs stay in the top-level output
         # directory (`bazel-out/<cpu>-opt/testlogs`).
-        "deps": attr.label_list(cfg = _test_link_mode_transition),
-        "data": attr.label_list(allow_files=True, cfg = _test_link_mode_transition),
+        "deps": attr.label_list(cfg=_test_link_mode_transition),
+        "data": attr.label_list(allow_files=True, cfg=_test_link_mode_transition),
         "user_link_flags": attr.string_list(),
         "build_from_sources": attr.bool(default=False),
         "_is_test": attr.bool(default=True),
