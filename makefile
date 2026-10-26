@@ -1133,8 +1133,10 @@ _release_nuspec: update_headers_version _release_cmake_configs
 .PHONY: clean cleanrel cleanall
 # Every compiler gets its own __work<suffix> and __release_<os><suffix> directory, so clean them all,
 # but keep the dependency sources that CI scripts unpack into __work (e.g. __work/openblas).
-clean:    ; -rm -rf $(WORKDIR) $(wildcard $(DIR)/__work_* $(DIR)/__work/md $(DIR)/__work/mdd)
-cleanrel: ; -rm -rf $(RELEASEDIR) $(wildcard $(DIR)/__release_$(_OS) $(DIR)/__release_$(_OS)_*)
+# The suffixes are the CMPLRDIRSUFF.<compiler> values from dev/make/compiler_definitions/*.mk; icx has none.
+CMPLRDIRSUFFs := _gnu _clang _dpcpp _vc
+clean:    ; -rm -rf $(sort $(WORKDIR) $(wildcard $(addprefix $(DIR)/__work,$(CMPLRDIRSUFFs)) $(DIR)/__work/md $(DIR)/__work/mdd))
+cleanrel: ; -rm -rf $(sort $(RELEASEDIR) $(wildcard $(DIR)/__release_$(_OS) $(addprefix $(DIR)/__release_$(_OS),$(CMPLRDIRSUFFs))))
 cleanall: clean cleanrel
 
 define help
