@@ -314,10 +314,6 @@ jobs:
     container: ubuntu:24.04
     name: LinuxBazelNoCompiler
     timeout-minutes: 180
-    # Container steps default to dash, and .ci/env/bazelisk.sh is a bash script.
-    defaults:
-      run:
-        shell: bash
     steps:
       - name: Install Bazelisk prerequisites
         run: |
@@ -339,7 +335,7 @@ jobs:
           fi
       - name: Install Bazel
         run: |
-          . .ci/env/bazelisk.sh
+          .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
       - name: Bazel release
         run: |
