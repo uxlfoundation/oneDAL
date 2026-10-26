@@ -1356,6 +1356,17 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitCategoricalFeat
     return false;
 }
 
+// One bit per tree and row, set if the row is OOB for the tree. Does not own the bits, so thread contexts share the main context's masks.
+template <CpuType cpu>
+struct OOBRowMask
+{
+    unsigned char * bits = nullptr;
+    size_t bytesPerTree  = 0; // ceil(nRows / 8)
+
+    void set(size_t iTree, size_t iRow) { bits[iTree * bytesPerTree + iRow / 8] |= static_cast<unsigned char>(1u << (iRow % 8)); }
+    bool test(size_t iTree, size_t iRow) const { return bits[iTree * bytesPerTree + iRow / 8] & (1u << (iRow % 8)); }
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // TreeThreadCtx class for regression
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1368,7 +1379,7 @@ public:
     // The tasks only record which rows are OOB for their tree, the predictions are summed by predictOOB
     static constexpr bool oobPredictedInTask = false;
 
-    TreeThreadCtx(algorithmFPType * _varImp = nullptr) : super(_varImp), _oobMask(nullptr), _oobMaskBytesPerTree(0) {}
+    TreeThreadCtx(algorithmFPType * _varImp = nullptr) : super(_varImp) {}
 
     // Main context, owns the OOB row masks and the prediction sums
     bool init(const decision_forest::training::Parameter & par, const NumericTable * x, size_t /*nClasses*/)
@@ -1377,30 +1388,28 @@ public:
         if (!(par.resultsToCompute
               & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorR2 | computeOutOfBagErrorPrediction)))
             return true;
-        const size_t nRows   = x->getNumberOfRows();
-        _oobMaskBytesPerTree = nRows / 8 + !!(nRows % 8);
-        if (!_oobMaskBytesPerTree || this->nTrees > std::numeric_limits<size_t>::max() / _oobMaskBytesPerTree) return false;
-        _oobMaskBuf.reset(this->nTrees * _oobMaskBytesPerTree);
-        _oobMask     = _oobMaskBuf.get();
-        this->oobBuf = service_calloc<byte, cpu>(sizeof(RegErr<intermSummFPType, cpu>) * nRows);
-        return _oobMask && this->oobBuf;
+        const size_t nRows    = x->getNumberOfRows();
+        _oobMask.bytesPerTree = nRows / 8 + !!(nRows % 8);
+        if (!_oobMask.bytesPerTree || this->nTrees > std::numeric_limits<size_t>::max() / _oobMask.bytesPerTree) return false;
+        _oobMaskBuf.reset(this->nTrees * _oobMask.bytesPerTree);
+        _oobMask.bits = _oobMaskBuf.get();
+        this->oobBuf  = service_calloc<byte, cpu>(sizeof(RegErr<intermSummFPType, cpu>) * nRows);
+        return _oobMask.bits && this->oobBuf;
     }
 
     // Thread context, shares the per-fit state of the main context
     bool init(const decision_forest::training::Parameter & /*par*/, const NumericTable * /*x*/, size_t /*nClasses*/, const TreeThreadCtx & main)
     {
         super::init(main);
-        _oobMask             = main._oobMask;
-        _oobMaskBytesPerTree = main._oobMaskBytesPerTree;
+        _oobMask = main._oobMask;
         return true;
     }
 
     // Only the task building tree iTree writes its mask
     void recordOOBRows(size_t iTree, const IndexType * aInd, size_t n)
     {
-        if (!_oobMask) return;
-        unsigned char * mask = oobMaskOfTree(iTree);
-        for (size_t i = 0; i < n; ++i) mask[aInd[i] / 8] |= static_cast<unsigned char>(1u << (aInd[i] % 8));
+        if (!_oobMask.bits) return;
+        for (size_t i = 0; i < n; ++i) _oobMask.set(iTree, aInd[i]);
     }
 
     void reduceTo(TreeThreadCtx & /*other*/, size_t /*nSamples*/) const {}
@@ -1409,7 +1418,7 @@ public:
     template <typename ModelType>
     Status predictOOB(const ModelType & md, const NumericTable * x, const dtrees::internal::FeatureTypes & featTypes)
     {
-        if (!_oobMask) return Status();
+        if (!_oobMask.bits) return Status();
         const size_t nRows                  = x->getNumberOfRows();
         const size_t nCols                  = x->getNumberOfColumns();
         const size_t blockSize              = 256;
@@ -1423,11 +1432,10 @@ public:
             DAAL_CHECK_BLOCK_STATUS_THR(xBD);
             for (size_t iTree = 0; iTree < this->nTrees; ++iTree)
             {
-                const unsigned char * mask = oobMaskOfTree(iTree);
-                const auto & tree          = *md.at(iTree);
+                const auto & tree = *md.at(iTree);
                 for (size_t i = iStart; i < iEnd; ++i)
                 {
-                    if (!isOOB(mask, i)) continue;
+                    if (!_oobMask.test(iTree, i)) continue;
                     const dtrees::internal::DecisionTreeNode * pNode =
                         dtrees::prediction::internal::findNode<algorithmFPType, typename ModelType::TreeType, cpu>(tree, featTypes,
                                                                                                                    xBD.get() + (i - iStart) * nCols);
@@ -1489,13 +1497,8 @@ public:
 private:
     RegErr<intermSummFPType, cpu> * oobData() const { return reinterpret_cast<RegErr<intermSummFPType, cpu> *>(this->oobBuf); }
 
-    unsigned char * oobMaskOfTree(size_t iTree) const { return _oobMask + iTree * _oobMaskBytesPerTree; }
-    static bool isOOB(const unsigned char * mask, size_t iRow) { return mask[iRow / 8] & (1u << (iRow % 8)); }
-
-    // One bit per row and tree, packed 8 rows per byte: bit iRow of tree iTree's mask is set if the row is OOB for that tree
     TArrayCalloc<unsigned char, cpu> _oobMaskBuf; // main context only
-    unsigned char * _oobMask;                     // nTrees masks of _oobMaskBytesPerTree bytes each
-    size_t _oobMaskBytesPerTree;                  // ceil(nRows / 8)
+    OOBRowMask<cpu> _oobMask;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
