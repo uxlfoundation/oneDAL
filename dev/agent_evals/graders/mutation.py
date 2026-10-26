@@ -95,13 +95,13 @@ def g_mutation(rd, ws, t, tr):
         return {**out, "why": "no test or BUILD file added/changed in the package"}
 
     saved = {f: (repo / f).read_bytes() if (repo / f).exists() else None for f in src_modified}
-    in_base_modified = [f for f in src_modified if in_base(repo, base, f)]
-    if in_base_modified:
-        common.git(repo, "checkout", base, "--", *in_base_modified)
-    for f in src_modified:  # a library source the agent added has no base version to check out
-        if f not in in_base_modified:
-            (repo / f).unlink(missing_ok=True)
-    try:
+    try:  # from here on the agent's tree is restored even if the checkout below fails
+        in_base_modified = [f for f in src_modified if in_base(repo, base, f)]
+        if in_base_modified:
+            common.git(repo, "checkout", base, "--", *in_base_modified)
+        for f in src_modified:  # a library source the agent added has no base version to check out
+            if f not in in_base_modified:
+                (repo / f).unlink(missing_ok=True)
         rc, n_exec = run_targets(rd, ws, targets, rd / "grade.log")
         out.update(baseline_rc=rc, baseline_executed=n_exec, baseline_pass=rc == 0 and n_exec > 0)
         if not out["baseline_pass"]:
