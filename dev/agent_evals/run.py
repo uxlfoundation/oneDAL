@@ -60,7 +60,10 @@ def main():
                 bazel(rd, rd / "workspace", "shutdown", rd / "shutdown.log")
     elif a.cmd == "oracle":
         rd = a.run_dir.resolve()
-        contract.oracle(rd, rd / "workspace", json.loads((rd / "task.json").read_text()))
+        try:
+            contract.oracle(rd, rd / "workspace", json.loads((rd / "task.json").read_text()))
+        finally:  # the reference build (release_path) starts a Bazel server in this run's output base
+            bazel(rd, rd / "workspace", "shutdown", rd / "shutdown.log")
 
 
 if __name__ == "__main__":
