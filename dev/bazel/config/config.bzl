@@ -15,10 +15,8 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
+load("@onedal//dev/bazel:version.bzl", "VERSION")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_host_arch", "detect_target_arch")
-
-_BINARY_MAJOR = "4"
-_BINARY_MINOR = "0"
 
 ConfigFlagInfo = provider(
     fields = [
@@ -188,6 +186,28 @@ cpu_info = rule(
     },
 )
 
+# Attributes `release_arch_dir` reads. Merge into a rule's attrs with `|`.
+RELEASE_ARCH_ATTRS = {
+    "_aarch64_constraint": attr.label(default = "@platforms//cpu:aarch64"),
+    "_riscv64_constraint": attr.label(default = "@platforms//cpu:riscv64"),
+    "_windows_constraint": attr.label(default = "@platforms//os:windows"),
+}
+
+def release_arch_dir(ctx):
+    """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`.
+
+    `lib/<dir>` holds the libraries and, on Windows, `redist/<dir>` the DLLs.
+    Values match `dev/make/function_definitions/<PLAT>.mk`: `intel64`, `arm`
+    for `lnxarm`, `riscv64` for `lnxriscv64` and `ARM64` for `winarm`. The
+    rule needs `RELEASE_ARCH_ATTRS`.
+    """
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    if ctx.target_platform_has_constraint(ctx.attr._aarch64_constraint[platform_common.ConstraintValueInfo]):
+        return "ARM64" if is_windows else "arm"
+    if ctx.target_platform_has_constraint(ctx.attr._riscv64_constraint[platform_common.ConstraintValueInfo]):
+        return "riscv64"
+    return "intel64"
+
 VersionInfo = provider(
     fields = [
         "major",
@@ -312,14 +332,14 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
-            "%{version_major}":         "2026",
-            "%{version_minor}":         "3",
-            "%{version_update}":        "0",
+            "%{version_major}":         VERSION.major,
+            "%{version_minor}":         VERSION.minor,
+            "%{version_update}":        VERSION.update,
             "%{version_build}":         utils.datestamp(repo_ctx),
             "%{version_buildrev}":      "work",
-            "%{version_status}":        "P",
-            "%{version_binary_major}":  _BINARY_MAJOR,
-            "%{version_binary_minor}":  _BINARY_MINOR,
+            "%{version_status}":        VERSION.status,
+            "%{version_binary_major}":  VERSION.binary_major,
+            "%{version_binary_minor}":  VERSION.binary_minor,
         },
     )
 declare_onedal_config = repository_rule(
