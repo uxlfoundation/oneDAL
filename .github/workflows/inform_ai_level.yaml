@@ -16,7 +16,7 @@ jobs:
     if: github.event.workflow_run.event == 'pull_request'
     env:
       # Comment posted to the PR; the level is tracked in a hidden marker.
-      AI_LEVEL_MESSAGE: "Disclose AI use in the PR description. Please include information on how AI was used along with harness and LLM characteristics. Comments to reviewers should be human-generated."
+      AI_LEVEL_MESSAGE: "Disclose AI use in the PR description. If applicable, include information on how AI was used along with harness and LLM characteristics. Comments to reviewers should be human-generated."
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
