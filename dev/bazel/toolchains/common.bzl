@@ -72,6 +72,9 @@ def detect_compiler(repo_ctx, os_id):
 # (e.g. `aarch64-linux-gnu-gcc`).
 _ARCH_ID_BY_TRIPLE_PREFIX = {
     "aarch64": "arm",
+    # Not a GNU triple machine name, but clang accepts `arm64-pc-windows-msvc`
+    # and that is the spelling a Windows user is most likely to write.
+    "arm64": "arm",
     "riscv64": "riscv64",
     "x86_64": "intel64",
     "amd64": "intel64",
@@ -86,6 +89,14 @@ _ARCH_ID_BY_UNAME["arm64"] = "arm"
 
 def _arch_id_from_uname(value):
     return _ARCH_ID_BY_UNAME.get(value)
+
+# Same arch IDs keyed by Windows' `PROCESSOR_ARCHITECTURE` /
+# `PROCESSOR_ARCHITEW6432` values, which is how Make detects the Windows host
+# arch too (see .ci/scripts/build.bat and .ci/env/openblas.bat).
+_ARCH_ID_BY_PROCESSOR_ARCHITECTURE = {
+    "AMD64": "intel64",
+    "ARM64": "arm",
+}
 
 def _triple_prefix_to_triple(basename):
     """Recovers the triple prefix from a cross-compiler binary name by dropping
@@ -114,6 +125,26 @@ def _detect_cross_compiler(repo_ctx):
                 return _triple_prefix_to_triple(basename), arch_id
     return None, None
 
+def _detect_target_flag_arch(repo_ctx):
+    """Returns the arch ID named by an explicit `--target=<triple>` in `CC`/`CXX`,
+    or `None`.
+
+    clang/clang-cl select the target through this flag instead of a triple-
+    prefixed binary name, which is how Make cross-compiles on Windows
+    (`COMPILER.win.clang.target = --target=aarch64-pc-windows-msvc` in
+    dev/make/compiler_definitions/clang.ref.arm.mk). Unlike a triple prefix it
+    says nothing about the *tool* names, so it is deliberately kept out of
+    `_detect_cross_compiler` / `get_cross_tool_prefix`.
+    """
+    for env_var in ["CC", "CXX"]:
+        for arg in repo_ctx.os.environ.get(env_var, "").split(" "):
+            if arg.startswith("--target="):
+                machine = arg[len("--target="):].split("-")[0]
+                arch_id = _ARCH_ID_BY_TRIPLE_PREFIX.get(machine)
+                if arch_id:
+                    return arch_id
+    return None
+
 def get_cross_tool_prefix(repo_ctx):
     """Returns the cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`)
     if `CC`/`CXX` point at a cross-compiler, otherwise `""`.
@@ -133,11 +164,26 @@ ARCH_ID_TO_PLATFORM_CPU = {
 
 def detect_host_arch(repo_ctx, os_id):
     """Detects the oneDAL arch ID (intel64/arm/riscv64) of the exec host,
-    matching dev/make/identify_os.sh's `uname -m` based detection.
+    matching dev/make/identify_os.sh's `uname -m` based detection on Linux and
+    `.ci/scripts/build.bat`'s `PROCESSOR_ARCHITECTURE` check on Windows.
     """
+    if os_id == "win":
+        # `PROCESSOR_ARCHITECTURE` reports the architecture of the *current
+        # process*. `PROCESSOR_ARCHITEW6432` carries the machine arch, but only
+        # for a 32-bit process on a 64-bit Windows, so it is read first and is
+        # not a general answer: a 64-bit x86_64 process emulated on an ARM64
+        # host reports AMD64 with nothing to correct it, and this detection then
+        # yields `intel64`. State the target explicitly in that case with a
+        # `--target=` triple in `CC`/`CXX`, which `detect_target_arch` honours
+        # over this. `--platforms` does not help: repository rules never see it.
+        for env_var in ["PROCESSOR_ARCHITEW6432", "PROCESSOR_ARCHITECTURE"]:
+            value = repo_ctx.os.environ.get(env_var, "").strip().upper()
+            arch_id = _ARCH_ID_BY_PROCESSOR_ARCHITECTURE.get(value)
+            if arch_id:
+                return arch_id
+        return "intel64"
     if os_id != "lnx":
-        # Only Linux ships non-x86 oneDAL support today (see identify_os.sh);
-        # other OSes always target intel64.
+        # macOS ships x86-only oneDAL support (see identify_os.sh).
         return "intel64"
     result = repo_ctx.execute(["uname", "-m"])
     arch_id = _arch_id_from_uname(result.stdout.strip()) if result.return_code == 0 else None
@@ -147,11 +193,12 @@ def detect_target_arch(repo_ctx, host_arch_id):
     """Detects the oneDAL target arch ID (intel64/arm/riscv64) for the configured compiler.
 
     A `CC`/`CXX` pointing at a cross-compiler triple (e.g. `aarch64-linux-gnu-gcc`)
-    determines the target arch; otherwise the target is assumed to match the
-    exec host (a native, non-cross build).
+    or carrying an explicit `--target=<triple>` (clang/clang-cl) determines the
+    target arch; otherwise the target is assumed to match the exec host (a
+    native, non-cross build).
     """
     _, arch_id = _detect_cross_compiler(repo_ctx)
-    return arch_id or host_arch_id
+    return arch_id or _detect_target_flag_arch(repo_ctx) or host_arch_id
 
 def get_starlark_dict(dictionary):
     entries = [ "\"{}\":\"{}\"".format(k, v) for k, v in dictionary.items() ]
@@ -251,10 +298,34 @@ def _get_unfiltered_default_compiler_options(reqs, is_dpcc, category):
     compiler_id = reqs.dpc_compiler_id if is_dpcc else reqs.compiler_id
     return get_default_flags(reqs.target_arch_id, reqs.os_id, compiler_id, category)
 
+# Options that must never be dropped by the support probe. It compiles a test
+# file with one option at a time, so `-march=armv8-a+sve` is probed against the
+# compiler's *default* target -- x86_64 when cross-compiling from an x86_64 host
+# -- where it warns and would be filtered out. Silently dropping either of these
+# yields a wrong-arch or SVE-less build instead of an error; Make passes both
+# unconditionally (COMPILER.win.clang / COMPILER.all.gnu).
+_UNFILTERED_OPTION_PREFIXES = [
+    "--target=",
+    "-march=",
+    # Not emitted today, but it is the other way to name an aarch64 target
+    # (`-mcpu=` sets the architecture there, not only the tuning), so the probe
+    # must not be the thing that decides whether it survives.
+    "-mcpu=",
+]
+
+def _is_unfiltered_option(option):
+    for prefix in _UNFILTERED_OPTION_PREFIXES:
+        if option.startswith(prefix):
+            return True
+    return False
+
 def _filter_out_unsupported_compiler_options(repo_ctx, cc, options):
     filtered_options = []
     for option in options:
-        filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
+        if _is_unfiltered_option(option):
+            filtered_options.append(option)
+        else:
+            filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
     return filtered_options
 
 

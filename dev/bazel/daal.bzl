@@ -31,7 +31,7 @@ load("@onedal//dev/bazel/config:config.bzl",
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
                 local_defines=[], copts=[], visibility_hidden=True,
-                stdalloc=True, **kwargs):
+                stdalloc=True, define_gcov_build=True, **kwargs):
     if auto:
         auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
         auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
@@ -68,6 +68,7 @@ def daal_module(name, features=[], lib_tag="daal",
             "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": [],
         })),
+        define_gcov_build = define_gcov_build,
         local_defines = select({
             "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
             "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
@@ -139,7 +140,7 @@ def _daal_generate_version_impl(ctx):
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
-        "// Product version is specified in dev/bazel/config.bzl file\n" +
+        "// Product version is specified in dev/bazel/version.bzl file\n" +
         "\n" +
         "#define MAJORVERSION {}\n".format(vi.major) +
         "#define MINORVERSION {}\n".format(vi.minor) +
