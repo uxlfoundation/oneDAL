@@ -180,9 +180,9 @@ Status FinalizeKernel<algorithmFPType, cpu>::solveSystem(DAAL_INT p, algorithmFP
 }
 
 /**
- * Solves regression problem through the dual system: (X * X^t + ridge * I) * alpha = y.
+ * Solves regression problem through the dual system: (X * X^t + lambda * I) * dualCoef = y.
  *
- * The resulting coefficients beta = X^t * alpha.
+ * The resulting coefficients beta = X^t * dualCoef.
  *
  * The intercept case is solved for centered X and y so that the intercept is not penalized.
  *

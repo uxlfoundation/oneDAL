@@ -50,7 +50,7 @@ Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const al
 
     Status st;
     int result = 0;
-    if (nRidge == 1)
+    if (nRidge * _ridge.getNumberOfColumns() == 1)
     {
         for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
         {
