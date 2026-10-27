@@ -301,11 +301,10 @@ jobs:
   # A machine with only Bazelisk and a distribution compiler, no oneAPI: Bazel
   # downloads every dependency and skips the DPC++ targets, since icpx is not
   # in PATH.
-  # - gcc, clang, gcc11: cached, AVX2-only builds plus a wider test set. The
+  # - gcc, clang, gcc11: AVX2-only builds plus a wider test set. The
   #   clang leg removes the gcc drivers, so the toolchain has to find clang by
   #   itself; gcc11 is the oldest supported gcc (Ubuntu 22.04 default).
-  # - quickstart: no caches and no ~/.bazelrc, so every archive is downloaded
-  #   from its pinned URL, and the README quick start commands run as written,
+  # - quickstart: no ~/.bazelrc, so the README quick start commands run as written,
   #   building //:release for all ISAs.
   LinuxBazelNoCompiler:
     if: github.repository == 'uxlfoundation/oneDAL'
@@ -354,31 +353,22 @@ jobs:
           - leg: gcc
             runner: ubuntu-24.04
             compiler: gcc
-            cached: true
           - leg: clang
             runner: ubuntu-24.04
             compiler: clang
-            cached: true
           - leg: clang-libcxx
             runner: ubuntu-24.04
             compiler: clang
             stdlib: libc++
-            cached: true
           - leg: gcc11
             runner: ubuntu-22.04
             compiler: gcc
-            cached: true
           - leg: quickstart
             runner: ubuntu-24.04
             compiler: gcc
-            cached: false
     runs-on: ${{ matrix.runner }}
     name: LinuxBazelNoOneAPI(${{ matrix.leg }})
     timeout-minutes: 180
-    env:
-      # actions/cache rejects paths with '..', so keep the caches under $HOME.
-      BAZEL_REPO_CACHE: /home/runner/.cache/bazel-repo
-      BAZEL_DISK_CACHE: /home/runner/.cache/bazel-disk
 
     steps:
       - name: Checkout oneDAL
@@ -405,28 +395,12 @@ jobs:
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
       - name: System Info
         run: .ci/scripts/describe_system.sh
-      # Everything Bazel downloads is pinned in the files hashed into the cache keys.
-      - name: Restore Bazel repository cache
-        if: matrix.cached
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.BAZEL_REPO_CACHE }}
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
-      - name: Restore Bazel disk cache
-        if: matrix.cached
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.BAZEL_DISK_CACHE }}
-          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
-          restore-keys: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-
       - name: bazel-configure
-        if: matrix.cached
+        if: matrix.leg != 'quickstart'
         run: |
           # Minimal CPU instruction set on the runners is AVX2
           {
             echo "build --cpu=avx2"
-            echo "build --repository_cache=${BAZEL_REPO_CACHE}"
-            echo "build --disk_cache=${BAZEL_DISK_CACHE}"
             if [ "${{ matrix.stdlib }}" = "libc++" ]; then
               echo "build --cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++"
             fi
@@ -434,7 +408,7 @@ jobs:
           bazel build @config//:dump
           cat bazel-bin/external/+declare_onedal_config+config/config.json
       - name: Check that Bazel starts from scratch
-        if: ${{ !matrix.cached }}
+        if: matrix.leg == 'quickstart'
         run: |
           for path in ~/.bazelrc ~/.cache/bazel; do
             if [ -e "${path}" ]; then
@@ -463,15 +437,15 @@ jobs:
             exit 1
           fi
       - name: Check ISA coverage
-        if: ${{ !matrix.cached }}
+        if: matrix.leg == 'quickstart'
         run: dev/bazel/tests/isa_coverage_test.sh bazel-bin/release/daal/latest/lib/intel64/libonedal_core.so
       - name: Quick start tests
-        if: ${{ !matrix.cached }}
+        if: matrix.leg == 'quickstart'
         run: bazel test //cpp/oneapi/dal/algo/kmeans:tests
       # No --config: the DPC++ tests are skipped rather than failing to build.
       # test_mpi_communicator_host runs two ranks with the downloaded Intel MPI.
       - name: Bazel tests
-        if: matrix.cached
+        if: matrix.leg != 'quickstart'
         run: |
           bazel test \
             //cpp/oneapi/dal/algo/kmeans:tests \
@@ -482,7 +456,7 @@ jobs:
             --test_output=errors
           bazel test --config=host //cpp/oneapi/dal/algo/kmeans:tests
       - name: DPC++ targets fail clearly without icpx
-        if: matrix.cached
+        if: matrix.leg != 'quickstart'
         run: |
           expect_failure() {
             local log="$1" pattern="$2"
@@ -502,9 +476,3 @@ jobs:
             build //cpp/oneapi/dal/algo/kmeans:test_batch_dpc
           expect_failure config_dpc.log "icpx is not found" \
             test --config=dpc //cpp/oneapi/dal/algo/kmeans:tests
-      - name: Save Bazel disk cache
-        if: matrix.cached && github.event_name != 'pull_request'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.BAZEL_DISK_CACHE }}
-          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
