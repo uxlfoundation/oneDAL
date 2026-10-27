@@ -14,6 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
+name: Inform AI level
+
 on:
   workflow_run:
     workflows: CI
