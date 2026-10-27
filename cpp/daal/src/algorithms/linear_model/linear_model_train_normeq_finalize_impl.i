@@ -26,7 +26,6 @@
 
 #include "src/algorithms/service_kernel_math.h"
 #include "src/externals/service_blas.h"
-#include "src/externals/service_math.h"
 #include "src/externals/service_stat.h"
 #include "src/services/service_profiler.h"
 
@@ -318,18 +317,16 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     }
     {
         DAAL_PROFILER_TASK(computeDual.formRightHandSide);
-        for (DAAL_INT i = 0; i < nRows; ++i)
+        /* dualCoef = y^t */
+        BlasInst<algorithmFPType, cpu>::xomatcopy("R", "T", &nRows, &nResponses, &one, y, &nResponses, dualCoef, &nRows);
+        if (interceptFlag)
         {
-            if (interceptFlag)
+            for (DAAL_INT j = 0; j < nResponses; ++j)
             {
-                MathInst<algorithmFPType, cpu>::vSubI(nResponses, y + i * nResponses, incOne, yMean, incOne, dualCoef + i, nRows);
-            }
-            else
-            {
-                for (DAAL_INT j = 0; j < nResponses; ++j)
-                {
-                    dualCoef[j * nRows + i] = y[i * nResponses + j];
-                }
+                algorithmFPType * dualCoefRow = dualCoef + j * nRows;
+                const algorithmFPType yMeanJ  = yMean[j];
+                PRAGMA_OMP_SIMD
+                for (DAAL_INT i = 0; i < nRows; ++i) dualCoefRow[i] -= yMeanJ;
             }
         }
     }
