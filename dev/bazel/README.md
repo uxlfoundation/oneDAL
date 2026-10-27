@@ -88,6 +88,14 @@ validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
    bazelisk.exe test //cpp/daal/src/algorithms/dtrees/gbt/regression:test_gbt_regression_model_builder_unit_host --verbose_failures --test_output=errors
    ```
 
+   On Windows `.bazelrc` runs tests from the exec root
+   (`--test_env=RUNTEST_PRESERVE_CWD=1`) rather than from
+   `<test>.exe.runfiles\_main`: Windows cannot start a process in a working
+   directory over 260 characters, and under a long output base the runfiles
+   directory of a long test name exceeds that. Paths that Bazel opens itself
+   have no such limit, so keep the output base short for the other tools
+   (`startup --output_user_root=C:\b`, as `.ci/pipeline/ci.yml` does).
+
 ### Compiler choice
 Be default our build system configures Bazel to use Intel(R) C++ Compiler
 in case of normal C++ code and Intel(R) oneAPI DPC++ Compiler in case of

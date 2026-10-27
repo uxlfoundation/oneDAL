@@ -59,6 +59,15 @@ test --test_env=Path
 # (redist/intel64, lib/intel64) for runtime DLL lookups on Windows.
 test --test_env=DALROOT
 
+# Enables the `:windows` configs below.
+common --enable_platform_specific_config
+
+# Run tests from the exec root instead of `<test>.exe.runfiles\_main`.
+# CreateProcessW rejects a working directory over MAX_PATH (260), which the
+# runfiles directory of a long test name exceeds under a long output base.
+# The tests do not read their inputs relative to the working directory.
+test:windows --test_env=RUNTEST_PRESERVE_CWD=1
+
 # This variable is used to determine location of datasets for testing
 test --test_env=DAAL_DATASETS
 
