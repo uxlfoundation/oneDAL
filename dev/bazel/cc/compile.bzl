@@ -152,6 +152,45 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
+# Longest object param file path under `bazel-out/<config>/bin` allowed on
+# Windows. MSVC tools cannot open paths over MAX_PATH (260), and the output base
+# and config dir take up to ~165 of them in CI.
+_WIN_MAX_OBJ_PATH = 95
+
+def _short_name(ctx):
+    # Unique within the package unless two target names collide in 24 bits,
+    # which Bazel reports as conflicting actions.
+    return "%x" % (hash(ctx.label.name) & 0xffffff)
+
+def _stage_sources(ctx, name, srcs):
+    """Give each source a short name, so its object gets one too.
+
+    Objects are named after the source basename, as Make does in its flat
+    object directories.
+
+    @param ctx    Rule context.
+    @param name   Short name of the target.
+    @param srcs   Source files of the target.
+    @return       Dict from a source path to its staged file.
+    """
+    staged = {}
+    for f in srcs:
+        if f.path in staged:
+            continue
+        short = ctx.actions.declare_file("_s/{}/{}.{}".format(
+            name, len(staged), f.extension))
+        ctx.actions.symlink(output = short, target_file = f)
+        staged[f.path] = short
+    return staged
+
+def _check_obj_paths(ctx, compilation_output):
+    for obj in compilation_output.objects + compilation_output.pic_objects:
+        path = obj.short_path + ".params"
+        if len(path) > _WIN_MAX_OBJ_PATH:
+            fail(("{} is {} chars, over the {} allowed on Windows (MAX_PATH). " +
+                  "Shorten the package or target name of {}.").format(
+                path, len(path), _WIN_MAX_OBJ_PATH, ctx.label))
+
 def _compile_wrapper(name, ctx, toolchain, feature_config,
                      disallow_nopic_outputs = True, **kwargs):
     return cc_common.compile(
@@ -177,9 +216,18 @@ def _configure_cpu_features(ctx, toolchain, cpus):
 def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
              cpus=[], fpts=[], cpu_defines={}, fpt_defines={},
              srcs=[], local_defines=[], includes=[], system_includes=[],
-             quote_includes=[], **kwargs):
+             quote_includes=[], short_paths=False, **kwargs):
 
     sources_by_category = _categorize_sources(srcs)
+    if short_paths:
+        name = _short_name(ctx)
+        staged = _stage_sources(ctx, name, srcs)
+        fpt_tags = {fpt: {"f32": "f", "f64": "d"}.get(fpt, fpt) for fpt in fpts}
+        cpu_tags = {cpu: str(i) for i, cpu in enumerate(cpus)}
+    else:
+        staged = {f.path: f for f in srcs}
+        fpt_tags = {fpt: fpt for fpt in fpts}
+        cpu_tags = {cpu: cpu for cpu in cpus}
     dep_compilation_context = onedal_cc_common.merge_compilation_contexts(compilation_contexts)
     dep_compilation_context = _patch_includes(
         ctx, dep_compilation_context,
@@ -201,7 +249,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
     # Compile normal files
     compilation_context, compulation_output = _compile_wrapper(
         name, ctx, toolchain, feature_config,
-        srcs = sources_by_category.normal_files,
+        srcs = [staged[f.path] for f in sources_by_category.normal_files],
         local_defines = local_defines,
         compilation_contexts = dep_compilation_contexts,
         **kwargs,
@@ -213,8 +261,8 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
     if sources_by_category.fpt_files:
         for fpt in fpts:
             compilation_context, compulation_output = _compile_wrapper(
-                name + "_" + fpt, ctx, toolchain, feature_config,
-                srcs = sources_by_category.fpt_files,
+                name + "_" + fpt_tags[fpt], ctx, toolchain, feature_config,
+                srcs = [staged[f.path] for f in sources_by_category.fpt_files],
                 local_defines = local_defines + fpt_defines[fpt],
                 compilation_contexts = dep_compilation_contexts,
                 **kwargs,
@@ -235,8 +283,8 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
             # source-file split, so fall back to the general `_cpu` files.
             srcs = cpu_to_file_dict.get(cpu, sources_by_category.cpu_files) if cpu_to_file_dict else sources_by_category.cpu_files
             compilation_context, compulation_output = _compile_wrapper(
-                name + "_" + cpu, ctx, toolchain, cpu_feature_configs[cpu],
-                srcs = srcs,
+                name + "_" + cpu_tags[cpu], ctx, toolchain, cpu_feature_configs[cpu],
+                srcs = [staged[f.path] for f in srcs],
                 local_defines = local_defines + cpu_defines[cpu],
                 compilation_contexts = dep_compilation_contexts,
                 **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),
@@ -249,8 +297,9 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         for cpu in cpus:
             for fpt in fpts:
                 compilation_context, compulation_output = _compile_wrapper(
-                    name + "_" + fpt + "_" + cpu, ctx, toolchain, cpu_feature_configs[cpu],
-                    srcs = sources_by_category.fpt_cpu_files,
+                    name + "_" + fpt_tags[fpt] + "_" + cpu_tags[cpu], ctx, toolchain,
+                    cpu_feature_configs[cpu],
+                    srcs = [staged[f.path] for f in sources_by_category.fpt_cpu_files],
                     local_defines = local_defines + cpu_defines[cpu] + fpt_defines[fpt],
                     compilation_contexts = dep_compilation_contexts,
                     **_get_cpu_compile_kwargs(toolchain, cpu, kwargs),
@@ -264,6 +313,8 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
     compilation_output = cc_common.merge_compilation_outputs(
         compilation_outputs = compilation_outputs,
     )
+    if short_paths:
+        _check_obj_paths(ctx, compilation_output)
     return compilation_context, compilation_output
 
 compile = struct(
