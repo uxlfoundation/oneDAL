@@ -273,7 +273,8 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
 
     {
         DAAL_PROFILER_TASK(computeDual.computeXXt);
-        BlasInst<algorithmFPType, cpu>::xsyrk("U", "T", &nRows, &nFeatures, &one, x, &nFeatures, &zero, xxt, &nRows);
+        /* Compute X * X^t using GEMM as GEMM is faster than SYRK when nRows << nFeatures */
+        BlasInst<algorithmFPType, cpu>::xgemm("T", "N", &nRows, &nRows, &nFeatures, &one, x, &nFeatures, x, &nFeatures, &zero, xxt, &nRows);
     }
 
     if (interceptFlag)
