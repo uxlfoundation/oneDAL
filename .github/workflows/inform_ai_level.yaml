@@ -16,7 +16,7 @@ jobs:
     if: github.event.workflow_run.event == 'pull_request'
     env:
       # Comment posted to the PR; the level is tracked in a hidden marker.
-      AI_LEVEL_MESSAGE: ""
+      AI_LEVEL_MESSAGE: "Disclose AI use in the PR description. Please include information on how AI was used along with harness and LLM characteristics. Comments to reviewers should be human-generated."
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -129,8 +129,8 @@ jobs:
             const level = process.env.LEVEL;
             const issue_number = Number(process.env.PR_NUMBER);
             const marker = /<!-- ai-level: (\w+) -->/;
-            const alert = { blue: 'NOTE', green: 'TIP', yellow: 'WARNING', red: 'CAUTION' };
-            const body = `<!-- ai-level: ${level} -->\n> [!${alert[level]}]\n> ${level}\n\n${process.env.AI_LEVEL_MESSAGE}`;
+            const alert = { blue: 'allowed with minimal human oversight', green: 'allowed with added testing', yellow: 'allowed with manual verification by the submitter', red: 'not allowed' };
+            const body = `<!-- ai-level: ${level} -->\n> [!NOTE]\n> level ${level}: AI usage ${note[level]}.\n\n${process.env.AI_LEVEL_MESSAGE}`;
 
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
