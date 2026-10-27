@@ -58,6 +58,28 @@ def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
     )
     return str(repo_ctx.path("dpc_link_win.bat"))
 
+def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
+    """Finds an LLVM tool of the icx toolchain, or the MSVC tool it replaces.
+
+    oneAPI ships its LLVM tools in `compiler/`, a subdirectory of the icx
+    directory that is not on PATH. The MSVC fallbacks are not long-path aware.
+
+    @param cc_path   Path of icx.
+    @param name      LLVM tool, such as `lld-link`.
+    @param fallback  MSVC tool to use when `name` is not found, such as `link`.
+    @return          Path of the tool to use.
+    """
+    path, found = _find_tool(repo_ctx, name, mandatory = False)
+    if found:
+        return path
+    bundled = repo_ctx.path(cc_path).dirname.get_child("compiler").get_child(name + ".exe")
+    if bundled.exists:
+        return str(bundled)
+    print("{} not found; falling back to MSVC {}.exe, which is not long-path aware".format(
+        name, fallback))
+    path, _ = _find_tool(repo_ctx, fallback, mandatory = True)
+    return path
+
 def _find_tools_icx(repo_ctx):
     # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
     # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
@@ -70,23 +92,11 @@ def _find_tools_icx(repo_ctx):
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
     dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, dpcc_path) if dpcpp_found else dpcc_path
-    # Host link tool: prefer lld-link.exe (ships next to icx in oneAPI),
-    # fall back to MSVC's link.exe — both accept the same flag syntax and
-    # multi-line response files.
-    cc_link_path, lld_found = _find_tool(repo_ctx, "lld-link", mandatory = False)
-    if not lld_found:
-        cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
-    # Static archiver: llvm-lib, then MSVC lib. oneAPI ships llvm-lib in
-    # `compiler/`, a subdirectory of the icx directory that is not on PATH.
-    ar_path, llvm_lib_found = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
-    if not llvm_lib_found:
-        bundled = repo_ctx.path(cc_path).dirname.get_child("compiler").get_child("llvm-lib.exe")
-        if bundled.exists:
-            ar_path = str(bundled)
-        else:
-            print("llvm-lib not found; falling back to MSVC lib.exe, " +
-                  "which is not long-path aware")
-            ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
+    # Host link tool: lld-link.exe, or MSVC's link.exe; both accept the same
+    # flag syntax and multi-line response files.
+    cc_link_path = _find_llvm_tool(repo_ctx, cc_path, "lld-link", "link")
+    # Static archiver: llvm-lib, or MSVC's lib.
+    ar_path = _find_llvm_tool(repo_ctx, cc_path, "llvm-lib", "lib")
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,
