@@ -132,16 +132,30 @@ validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
    ```
 
 ### Compiler choice
-For C++ code Bazel uses the first of `icx`, `gcc` and `clang` found in `PATH`
-on Linux (`icx`, then `cl` on Windows). DPC++ code needs the Intel(R) oneAPI
-DPC++ Compiler, `icpx`.
+DPC++ code needs the Intel(R) oneAPI DPC++ Compiler, `icpx`. For C++ code
+Bazel picks the compiler on Linux as follows:
 
-To choose the C++ compiler, set `CC` to `gcc`, `clang`, `icx`, a versioned
-name such as `clang-19`, or a full path. Bazel does not download the compiler
-named in `CC`, so it must be installed.
+1. If `CC` is set, Bazel uses that compiler and never downloads one. `CC` is
+   a name such as `gcc`, `clang`, `icx` or a versioned `clang-19`, which is
+   looked up in `PATH`, or a full path. If it is not found, the build fails
+   with `Cannot find <CC>; try to correct your $PATH`. Bazel tells gcc, clang
+   and icx apart by the `CC` name, so a name that contains none of them is
+   rejected.
+2. Otherwise, with `--repo_env=ONEDAL_DOWNLOAD_CC=1` on an x86-64 host, Bazel
+   downloads the conda-forge gcc pinned in `dev/bazel/deps/gcc.bzl`.
+3. Otherwise it uses the first of `icx`, `gcc` and `clang` found in `PATH`.
+4. If none is found, an x86-64 host downloads that gcc too. Other hosts fail
+   with `Cannot find gcc`.
+
+On Windows Bazel uses `icx` if it is in `PATH` and MSVC `cl` otherwise.
+`ONEDAL_WIN_COMPILER` (`icx`, `clang` for clang-cl, or `cl`) or `CC`
+overrides that.
+
+Changing `CC`, `PATH` or `ONEDAL_DOWNLOAD_CC` makes Bazel detect the compiler
+again on the next build.
 ```sh
-export CC=gcc
-bazel <bazel-command> ... # Will use GCC for normal C++ code
+export CC=clang-19   # must already be installed and in PATH
+bazel <bazel-command> ... # Will use clang 19 for normal C++ code
 ```
 
 To build with clang and LLVM libc++, pass
