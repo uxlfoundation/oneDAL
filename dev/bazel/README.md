@@ -136,11 +136,9 @@ For C++ code Bazel uses the first of `icx`, `gcc` and `clang` found in `PATH`
 on Linux (`icx`, then `cl` on Windows). DPC++ code needs the Intel(R) oneAPI
 DPC++ Compiler, `icpx`.
 
-The C++ compiler can be forcibly changed using environment variable `CC`. It
-takes `gcc`, `clang` or `icx`, a versioned name such as `clang-19`, or a full
-path. That compiler must be installed: Bazel downloads only the pinned gcc
-described in [Quick start](#quick-start-on-linux), and only when no compiler is
-found.
+To choose the C++ compiler, set `CC` to `gcc`, `clang`, `icx`, a versioned
+name such as `clang-19`, or a full path. Bazel does not download the compiler
+named in `CC`, so it must be installed.
 ```sh
 export CC=gcc
 bazel <bazel-command> ... # Will use GCC for normal C++ code
