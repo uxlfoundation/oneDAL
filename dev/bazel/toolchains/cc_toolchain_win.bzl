@@ -77,13 +77,15 @@ def _find_tools_icx(repo_ctx):
     if not lld_found:
         cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
     # Static archiver: llvm-lib, then MSVC lib. oneAPI ships llvm-lib in
-    # `bin/compiler`, which is not on PATH, as on Linux for llvm-ar.
+    # `compiler/`, a subdirectory of the icx directory that is not on PATH.
     ar_path, llvm_lib_found = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
     if not llvm_lib_found:
         bundled = repo_ctx.path(cc_path).dirname.get_child("compiler").get_child("llvm-lib.exe")
         if bundled.exists:
             ar_path = str(bundled)
         else:
+            print("llvm-lib not found; falling back to MSVC lib.exe, " +
+                  "which is not long-path aware")
             ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
     return struct(
         cc = cc_path,
