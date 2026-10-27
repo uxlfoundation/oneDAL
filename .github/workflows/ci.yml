@@ -316,12 +316,14 @@ jobs:
         run: |
           .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
-      - name: Bazel test
+      - name: Bazel tests
+        run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/pca:tests
+      - name: Bazel example
         run: bazel test --cpu=avx2 //examples/oneapi/cpp:pca
 
   # A machine with only Bazelisk and a distribution compiler, no oneAPI. Each leg
-  # runs one example; the clang legs remove the gcc drivers, so the toolchain has
-  # to find clang by itself.
+  # runs the tests and the example of one algorithm; the clang legs remove the gcc
+  # drivers, so the toolchain has to find clang by itself.
   LinuxBazelNoOneAPI:
     if: github.repository == 'uxlfoundation/oneDAL'
     strategy:
@@ -330,18 +332,18 @@ jobs:
         include:
           - leg: gcc
             runner: ubuntu-24.04
-            target: //examples/oneapi/cpp:decision_forest
+            algo: decision_forest
           - leg: clang
             runner: ubuntu-24.04
-            target: //examples/oneapi/cpp:kmeans
+            algo: kmeans
           - leg: clang-libcxx
             runner: ubuntu-24.04
-            target: //examples/oneapi/cpp:linear_regression
+            algo: linear_regression
             flags: --cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++
           # The oldest supported gcc (Ubuntu 22.04 default).
           - leg: gcc11
             runner: ubuntu-22.04
-            target: //examples/oneapi/cpp:covariance
+            algo: covariance
     runs-on: ${{ matrix.runner }}
     name: LinuxBazelNoOneAPI(${{ matrix.leg }})
     timeout-minutes: 180
@@ -363,5 +365,7 @@ jobs:
         run: |
           .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
-      - name: Bazel test
-        run: bazel test --cpu=avx2 ${{ matrix.flags }} ${{ matrix.target }}
+      - name: Bazel tests
+        run: bazel test --cpu=avx2 ${{ matrix.flags }} //cpp/oneapi/dal/algo/${{ matrix.algo }}:tests
+      - name: Bazel example
+        run: bazel test --cpu=avx2 ${{ matrix.flags }} //examples/oneapi/cpp:${{ matrix.algo }}
