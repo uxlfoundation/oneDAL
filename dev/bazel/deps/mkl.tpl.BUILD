@@ -30,6 +30,9 @@ cc_library(
         "%{repo_root}/lib/libmkl_intel_ilp64.a",
         "%{repo_root}/lib/libmkl_tbb_thread.a",
         "-Wl,--end-group",
+        # The TBB threading layer needs libstdc++. Named by file because clang
+        # rewrites -lstdc++ to -lc++ under -stdlib=libc++.
+        "-l:libstdc++.so.6",
         "-lpthread",
         "-lm",
         "-ldl",
