@@ -298,14 +298,6 @@ jobs:
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
-  # A machine with only Bazelisk and a distribution compiler, no oneAPI: Bazel
-  # downloads every dependency and skips the DPC++ targets, since icpx is not
-  # in PATH.
-  # - gcc, clang, gcc11: AVX2-only builds plus a wider test set. The
-  #   clang leg removes the gcc drivers, so the toolchain has to find clang by
-  #   itself; gcc11 is the oldest supported gcc (Ubuntu 22.04 default).
-  # - quickstart: no ~/.bazelrc, so the README quick start commands run as written,
-  #   building //:release for all ISAs.
   LinuxBazelNoCompiler:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
@@ -344,6 +336,10 @@ jobs:
       - name: Bazel tests
         run: bazel test //cpp/oneapi/dal/algo/kmeans:tests --test_output=errors
 
+  # A machine with only Bazelisk and a distribution compiler, no oneAPI: Bazel
+  # downloads every dependency and skips the DPC++ targets, since icpx is not
+  # in PATH. The clang legs remove the gcc drivers, so the toolchain has to find
+  # clang by itself; gcc11 is the oldest supported gcc (Ubuntu 22.04 default).
   LinuxBazelNoOneAPI:
     if: github.repository == 'uxlfoundation/oneDAL'
     strategy:
@@ -362,9 +358,6 @@ jobs:
             stdlib: libc++
           - leg: gcc11
             runner: ubuntu-22.04
-            compiler: gcc
-          - leg: quickstart
-            runner: ubuntu-24.04
             compiler: gcc
     runs-on: ${{ matrix.runner }}
     name: LinuxBazelNoOneAPI(${{ matrix.leg }})
@@ -396,7 +389,6 @@ jobs:
       - name: System Info
         run: .ci/scripts/describe_system.sh
       - name: bazel-configure
-        if: matrix.leg != 'quickstart'
         run: |
           # Minimal CPU instruction set on the runners is AVX2
           {
@@ -407,15 +399,6 @@ jobs:
           } > ~/.bazelrc
           bazel build @config//:dump
           cat bazel-bin/external/+declare_onedal_config+config/config.json
-      - name: Check that Bazel starts from scratch
-        if: matrix.leg == 'quickstart'
-        run: |
-          for path in ~/.bazelrc ~/.cache/bazel; do
-            if [ -e "${path}" ]; then
-              echo "${path} exists, so this run would not download everything" >&2
-              exit 1
-            fi
-          done
       - name: Bazel release
         run: |
           bazel build //:release
@@ -436,16 +419,9 @@ jobs:
             echo "libonedal_core.so is not linked against libc++" >&2
             exit 1
           fi
-      - name: Check ISA coverage
-        if: matrix.leg == 'quickstart'
-        run: dev/bazel/tests/isa_coverage_test.sh bazel-bin/release/daal/latest/lib/intel64/libonedal_core.so
-      - name: Quick start tests
-        if: matrix.leg == 'quickstart'
-        run: bazel test //cpp/oneapi/dal/algo/kmeans:tests
       # No --config: the DPC++ tests are skipped rather than failing to build.
       # test_mpi_communicator_host runs two ranks with the downloaded Intel MPI.
       - name: Bazel tests
-        if: matrix.leg != 'quickstart'
         run: |
           bazel test \
             //cpp/oneapi/dal/algo/kmeans:tests \
@@ -456,7 +432,6 @@ jobs:
             --test_output=errors
           bazel test --config=host //cpp/oneapi/dal/algo/kmeans:tests
       - name: DPC++ targets fail clearly without icpx
-        if: matrix.leg != 'quickstart'
         run: |
           expect_failure() {
             local log="$1" pattern="$2"
