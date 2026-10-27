@@ -21,7 +21,7 @@
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_dispatch.h"
 #include "src/threading/threading.h"
-#include "service_numeric_table.h"
+#include "src/data_management/service_numeric_table.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/data_management/finiteness_checker.h"
 

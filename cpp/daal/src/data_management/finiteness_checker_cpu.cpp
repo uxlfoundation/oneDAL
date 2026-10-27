@@ -21,11 +21,11 @@
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_dispatch.h"
 #include "src/threading/threading.h"
-#include "service_numeric_table.h"
+#include "src/data_management/service_numeric_table.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/data_management/finiteness_checker.h"
 
-#include "finiteness_checker_impl.i"
+#include "src/data_management/finiteness_checker_impl.i"
 
 namespace daal
 {
@@ -165,7 +165,7 @@ double computeSumSOASIMD(NumericTable & table, bool & sumIsFinite, services::Sta
     #if defined(TARGET_ARM)
         #if (__CPUID__(DAAL_CPU) == __sve__)
 
-            #include "finiteness_checker_sve_impl.i"
+            #include "src/data_management/finiteness_checker_sve_impl.i"
 
         #endif // __CPUID__(DAAL_CPU) == __sve__
     #endif
@@ -268,12 +268,12 @@ bool checkFinitenessSOASIMD(NumericTable & table, bool allowNaN, services::Statu
 }
     #if (__CPUID__(DAAL_CPU) == __avx512__)
 
-        #include "finiteness_checker_avx512_impl.i"
+        #include "src/data_management/finiteness_checker_avx512_impl.i"
 
     #endif // __CPUID__(DAAL_CPU) == __avx512__
     #if (__CPUID__(DAAL_CPU) == __avx2__)
 
-        #include "finiteness_checker_avx2_impl.i"
+        #include "src/data_management/finiteness_checker_avx2_impl.i"
 
     #endif // __CPUID__(DAAL_CPU) == __avx2__
 

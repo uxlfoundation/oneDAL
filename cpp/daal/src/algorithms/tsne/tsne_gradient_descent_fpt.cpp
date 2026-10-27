@@ -22,7 +22,7 @@
 */
 
 #include "algorithms/tsne/tsne_gradient_descent.h"
-#include "tsne_gradient_descent_kernel.h"
+#include "src/algorithms/tsne/tsne_gradient_descent_kernel.h"
 
 namespace daal
 {

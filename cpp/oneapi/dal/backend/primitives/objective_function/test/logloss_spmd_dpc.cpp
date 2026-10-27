@@ -14,7 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "spmd_fixture.hpp"
+#include "oneapi/dal/backend/primitives/objective_function/test/spmd_fixture.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 
