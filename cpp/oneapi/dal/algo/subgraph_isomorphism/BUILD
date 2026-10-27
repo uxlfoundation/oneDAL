@@ -21,4 +21,7 @@ dal_test_suite(
     dal_deps = [
         ":subgraph_isomorphism",
     ],
+    # Does not start under a long output base: the runfiles manifest path
+    # exceeds MAX_PATH.
+    not_on_windows = ["test/subgraph_isomorphism_test.cpp"],
 )

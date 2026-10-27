@@ -165,12 +165,20 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         **kwargs
     )
 
+def _not_on_windows():
+    # Test suites skip incompatible tests, so the test is reported as
+    # SKIPPED on Windows and runs everywhere else.
+    return select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })
+
 def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              extra_deps=[], host_hdrs=[], host_srcs=[], host_deps=[],
              dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=[ "c++", "dpc++" ],
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
-             use_onedal_release_libs=True, **kwargs):
+             use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
     # TODO: Check `compile_as` parameter
     # TODO: Refactor this rule once decision on the tests structure is made
     if not framework in ["catch2", "none"]:
@@ -226,6 +234,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["host", iface_access_tag],
             args = test_args,
+            target_compatible_with = target_compatible_with,
         )
         tests_for_test_suite.append(name + "_host")
     if "dpc++" in compile_as:
@@ -241,6 +250,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["dpc", iface_access_tag],
             args = test_args,
+            target_compatible_with = target_compatible_with,
         )
         tests_for_test_suite.append(name + "_dpc")
     native.test_suite(
@@ -249,7 +259,13 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
     )
 
 def dal_test_suite(name, srcs=[], tests=[],
-                   compile_as=[ "c++", "dpc++" ], **kwargs):
+                   compile_as=[ "c++", "dpc++" ], not_on_windows=[], **kwargs):
+    """
+    @param not_on_windows  Entries of `srcs` whose tests are skipped on Windows.
+    """
+    for test_file in not_on_windows:
+        if test_file not in srcs:
+            fail("'{}' in not_on_windows is not in srcs of '{}'".format(test_file, name))
     targets = []
     for test_file in srcs:
         target = test_file.replace(".cpp", "").replace("/", "_")
@@ -268,6 +284,7 @@ def dal_test_suite(name, srcs=[], tests=[],
             name = target,
             srcs = [test_file],
             compile_as = compile_as,
+            target_compatible_with = _not_on_windows() if test_file in not_on_windows else [],
             **kwargs,
         )
         targets.append(":" + target)

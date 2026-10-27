@@ -22,4 +22,7 @@ dal_test_suite(
     dal_deps = [
         ":connected_components",
     ],
+    # Does not start under a long output base: the runfiles manifest path
+    # exceeds MAX_PATH.
+    not_on_windows = ["test/connected_components_test.cpp"],
 )
