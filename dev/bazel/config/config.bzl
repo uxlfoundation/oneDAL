@@ -15,10 +15,8 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
+load("@onedal//dev/bazel:version.bzl", "VERSION")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_host_arch", "detect_target_arch")
-
-_BINARY_MAJOR = "4"
-_BINARY_MINOR = "0"
 
 ConfigFlagInfo = provider(
     fields = [
@@ -312,14 +310,14 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
-            "%{version_major}":         "2026",
-            "%{version_minor}":         "3",
-            "%{version_update}":        "0",
+            "%{version_major}":         VERSION.major,
+            "%{version_minor}":         VERSION.minor,
+            "%{version_update}":        VERSION.update,
             "%{version_build}":         utils.datestamp(repo_ctx),
             "%{version_buildrev}":      "work",
-            "%{version_status}":        "P",
-            "%{version_binary_major}":  _BINARY_MAJOR,
-            "%{version_binary_minor}":  _BINARY_MINOR,
+            "%{version_status}":        VERSION.status,
+            "%{version_binary_major}":  VERSION.binary_major,
+            "%{version_binary_minor}":  VERSION.binary_minor,
         },
     )
 declare_onedal_config = repository_rule(
