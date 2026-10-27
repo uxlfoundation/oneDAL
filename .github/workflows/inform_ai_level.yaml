@@ -147,7 +147,7 @@ jobs:
             const level = process.env.LEVEL;
             const issue_number = Number(process.env.PR_NUMBER);
             const marker = /<!-- ai-level: (\w+) -->/;
-            const alert = { blue: 'allowed with minimal human oversight', green: 'allowed with added testing', yellow: 'allowed with manual verification by the submitter', red: 'not allowed' };
+            const note = { blue: 'allowed with minimal human oversight', green: 'allowed with added testing', yellow: 'allowed with manual verification by the submitter', red: 'not allowed' };
             const body = `<!-- ai-level: ${level} -->\n> [!NOTE]\n> level ${level}: AI usage ${note[level]}.\n\n${process.env.AI_LEVEL_MESSAGE}`;
 
             const comments = await github.paginate(github.rest.issues.listComments, {
