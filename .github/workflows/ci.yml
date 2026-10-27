@@ -405,23 +405,19 @@ jobs:
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
       - name: System Info
         run: .ci/scripts/describe_system.sh
-      # Everything Bazel downloads is pinned in these files.
-      - name: Hash Bazel dependencies
-        if: matrix.cached
-        id: deps
-        run: echo "hash=${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'dev/bazel/deps/*.bzl') }}" >> "$GITHUB_OUTPUT"
+      # Everything Bazel downloads is pinned in the files hashed into the cache keys.
       - name: Restore Bazel repository cache
         if: matrix.cached
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BAZEL_REPO_CACHE }}
-          key: bazel-repo-${{ runner.os }}-${{ steps.deps.outputs.hash }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
       - name: Restore Bazel disk cache
         if: matrix.cached
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
-          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ steps.deps.outputs.hash }}
+          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
           restore-keys: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-
       - name: bazel-configure
         if: matrix.cached
@@ -511,4 +507,4 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
-          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ steps.deps.outputs.hash }}
+          key: bazel-disk-${{ matrix.runner }}-${{ matrix.leg }}-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
