@@ -806,7 +806,9 @@ jobs:
     BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
-    BAZEL_OUTPUT_USER_ROOT: 'C:\b'
+    # As long as the internal CI's root, so MAX_PATH failures in `lib.exe`
+    # and other tools that are not long-path aware show up here too.
+    BAZEL_OUTPUT_USER_ROOT: 'C:\b\output_user_root_padded_to_the_internal_windows_ci_path_length_'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
