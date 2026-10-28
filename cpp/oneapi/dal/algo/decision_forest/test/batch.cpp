@@ -662,6 +662,36 @@ DF_BATCH_REG_TEST("df reg oob r2 without oob rows") {
     REQUIRE(std::isnan(oob_r2));
 }
 
+DF_BATCH_REG_TEST("df reg oob r2 with a nan response") {
+    SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB R2
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    constexpr std::int64_t row_count = 10;
+    constexpr std::int64_t column_count = 3;
+    constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+
+    static const float train_arr[] = { 0.1f,  0.25f, 1.f,   0.15f, 0.35f, 3.f,   0.25f, 0.55f,
+                                       2.f,   0.3f,  0.65f, nan,   0.4f,  0.85f, 4.f,   0.45f,
+                                       0.95f, 6.f,   0.55f, 1.15f, 5.f,   0.6f,  1.25f, 7.f,
+                                       0.7f,  1.45f, 9.f,   0.8f,  1.65f, 8.f };
+
+    const te::dataframe data{ array<float>::wrap(train_arr, row_count * column_count),
+                              row_count,
+                              column_count };
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_error_metric_mode(error_metric_mode::out_of_bag_error_r2);
+
+    const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+
+    REQUIRE(train_result.get_oob_err_r2().has_data());
+    const double oob_r2 = dal::row_accessor<const double>(train_result.get_oob_err_r2()).pull()[0];
+    // responses are not checked for finiteness, so the denominator is NaN and R2 stays undefined
+    REQUIRE(std::isnan(oob_r2));
+}
+
 DF_BATCH_REG_TEST_NIGHTLY_EXT("df reg default flow") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
