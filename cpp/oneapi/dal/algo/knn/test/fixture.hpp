@@ -153,24 +153,21 @@ public:
 
         const auto [responses] = unpack_result(result);
 
-        const auto gtruth = naive_knn_search(train_data, infer_data);
-
         INFO("check if data shape is expected");
         REQUIRE(train_data.get_column_count() == infer_data.get_column_count());
         REQUIRE(infer_data.get_row_count() == responses.get_row_count());
         REQUIRE(responses.get_column_count() == 1);
-        REQUIRE(infer_data.get_row_count() == gtruth.get_row_count());
-        REQUIRE(train_data.get_row_count() == gtruth.get_column_count());
 
         const auto m = infer_data.get_row_count();
 
-        const auto indices = naive_knn_search(train_data, infer_data);
+        // Only the nearest index is compared, so the reference takes the
+        // argmin of each distance row instead of sorting the whole row.
+        const auto indices = naive_nearest_indices(train_data, infer_data);
+        const auto te_indices = row_accessor<const float_t>(responses).pull();
 
         for (std::int64_t j = 0; j < m; ++j) {
-            const auto gt_indices_row = row_accessor<const float_t>(indices).pull({ j, j + 1 });
-            const auto te_indices_row = row_accessor<const float_t>(responses).pull({ j, j + 1 });
-            const auto l = gt_indices_row[0];
-            const auto r = te_indices_row[0];
+            const auto l = float_t(indices[j]);
+            const auto r = te_indices[j];
             if (l != r) {
                 CAPTURE(j, l, r);
                 FAIL("Indices of nearest neighbors are unequal");
@@ -178,50 +175,32 @@ public:
         }
     }
 
-    static auto naive_knn_search(const table& train_data, const table& infer_data) {
-        const auto distances_matrix = distances(train_data, infer_data);
-        const auto indices_matrix = argsort(distances_matrix);
-
-        return indices_matrix;
-    }
-
-    static auto distances(const table& train_data, const table& infer_data) {
+    static auto naive_nearest_indices(const table& train_data, const table& infer_data) {
         const auto m = train_data.get_row_count();
         const auto n = infer_data.get_row_count();
         const auto d = infer_data.get_column_count();
 
-        auto distances_arr = array<float_t>::zeros(m * n);
-        auto* distances_ptr = distances_arr.get_mutable_data();
+        const auto train = row_accessor<const float_t>(train_data).pull();
+        const auto infer = row_accessor<const float_t>(infer_data).pull();
 
+        std::vector<std::int32_t> indices(n);
         for (std::int64_t j = 0; j < n; ++j) {
-            const auto queue_row = row_accessor<const float_t>(infer_data).pull({ j, j + 1 });
+            const float_t* query_row = &infer[j * d];
+            float_t min_distance = std::numeric_limits<float_t>::max();
             for (std::int64_t i = 0; i < m; ++i) {
-                const auto train_row = row_accessor<const float_t>(train_data).pull({ i, i + 1 });
+                const float_t* train_row = &train[i * d];
+                float_t distance = 0;
                 for (std::int64_t s = 0; s < d; ++s) {
-                    const auto diff = queue_row[s] - train_row[s];
-                    distances_ptr[j * m + i] += diff * diff;
+                    const auto diff = query_row[s] - train_row[s];
+                    distance += diff * diff;
+                }
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    indices[j] = std::int32_t(i);
                 }
             }
         }
-        return de::homogen_table_builder{}.reset(distances_arr, n, m).build();
-    }
-
-    static auto argsort(const table& distances) {
-        const auto n = distances.get_row_count();
-        const auto m = distances.get_column_count();
-
-        auto indices = array<std::int32_t>::zeros(m * n);
-        auto indices_ptr = indices.get_mutable_data();
-        for (std::int64_t j = 0; j < n; ++j) {
-            const auto dist_row = row_accessor<const float_t>(distances).pull({ j, j + 1 });
-            auto idcs_row = &indices_ptr[j * m];
-            std::iota(idcs_row, idcs_row + m, std::int32_t(0));
-            const auto compare = [&](std::int32_t x, std::int32_t y) -> bool {
-                return dist_row[x] < dist_row[y];
-            };
-            std::sort(idcs_row, idcs_row + m, compare);
-        }
-        return de::homogen_table_builder{}.reset(indices, n, m).build();
+        return indices;
     }
 
     static auto arange(std::int64_t from, std::int64_t to) {

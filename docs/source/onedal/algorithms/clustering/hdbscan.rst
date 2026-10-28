@@ -90,9 +90,55 @@ Using the Excess of Mass (EOM) method [Campello2013]_, compute the stability of 
 cluster in the condensed tree, then select the set of clusters that maximizes total
 stability. Selected clusters provide the flat clustering output.
 
+With ``cluster_selection_method = leaf`` the leaves of the condensed cluster tree
+are selected instead. The root is not a leaf of that tree, so a condensed tree
+that never splits into two clusters of ``min_cluster_size`` observations selects
+nothing and the whole dataset is noise.
+
+The root cluster is a candidate for EOM only when ``allow_single_cluster`` is
+set. When it wins and is the only selected cluster, the flat clustering has no
+sibling to separate noise from signal, so an observation is kept only if the
+:math:`\lambda` at which it fell out of the tree reaches a threshold:
+:math:`1 / \texttt{cluster\_selection\_epsilon}` when an epsilon is set, and the
+root's own death :math:`\lambda` otherwise, which keeps only the observations
+that persist to the very end.
+
 Each cluster gets a unique identifier, an integer from :math:`0` to
 :math:`\text{cluster\_count} - 1`. Observations not belonging to any cluster
 are assigned :math:`-1` (noise).
+
+**(6) Membership probabilities (optional):**
+When the ``probabilities`` result option is requested, each observation also gets a
+membership strength in its cluster. With :math:`\lambda_i = 1 / d_i`, where
+:math:`d_i` is the mutual reachability distance at which observation :math:`x_i`
+fell out of the condensed tree, and :math:`\lambda_C^{\max}` the largest such value
+over the selected cluster :math:`C` the observation was assigned to,
+
+.. math::
+   p_i = \frac{\min(\lambda_i, \lambda_C^{\max})}{\lambda_C^{\max}}
+
+so the most persistent members of a cluster get :math:`1` and the ones that detach
+right after the cluster is born get a value close to :math:`0`. Noise observations
+get :math:`0`. A cluster that never loses an observation has
+:math:`\lambda_C^{\max} = 0`; all of its members then get :math:`1`.
+
+**(7) Single linkage tree (optional):**
+When the ``single_linkage_tree`` result option is requested, the dendrogram of
+step (4) is reported as well, before it is condensed: an
+:math:`(n - 1) \times 4` table with one row per merge in ascending distance
+order, holding ``[left, right, distance, size]``. An id below :math:`n` is an
+original observation and id :math:`n + k` is the cluster formed by row
+:math:`k`, so row :math:`n - 2` is the root and spans all :math:`n`
+observations. The table is empty when :math:`n < 2`. The ids share the table's
+floating-point type, so they are exact as long as :math:`2n` fits the mantissa:
+always in double precision, and up to :math:`n = 2^{23}` in single precision.
+A larger :math:`n` in single precision raises ``oneapi::dal::domain_error``.
+
+The dendrogram is the full hierarchy the flat clustering was cut out of, so a
+caller can re-cut it at any distance :math:`\varepsilon` and obtain the
+clustering DBSCAN would produce at that :math:`\varepsilon` -- keeping the
+merges below the cut and labelling the resulting components -- without running
+the algorithm again.
 
 
 .. _hdbscan_c_math_brute_force:
@@ -155,6 +201,27 @@ become ineffective.
 The ball tree method is preferred over k-d tree when the number of features
 exceeds approximately 20, as it maintains effective pruning regardless of
 dimensionality.
+
+
+.. _hdbscan_c_math_gpu:
+
+Computation on GPU
+~~~~~~~~~~~~~~~~~~
+
+On GPU, the three methods share one implementation that builds the exact
+minimum spanning tree; as on CPU, only ``brute_force`` also divides the core
+distances by ``alpha``. Each call takes one of two paths:
+
+- The :math:`n \times n` matrix path described for *brute_force*, used for the
+  Cosine distance, and for the other metrics when :math:`p \geq 16` and the
+  matrix and its work buffers fit in half of the device memory.
+- Otherwise, a bounding-box tree over the k-d ordered observations, searched
+  exactly for the core distances and in every Boruvka round. For
+  ``min_samples`` above 256 the core distances come from a blocked brute-force
+  k-NN search instead, whose block size is ``distance_block_size``.
+
+Cosine raises ``oneapi::dal::domain_error`` when the matrix does not fit on the device.
+Cluster extraction runs on the host.
 
 
 ---------------------

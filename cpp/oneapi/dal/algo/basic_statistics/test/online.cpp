@@ -62,6 +62,31 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     this->online_general_checks(data, weights, compute_mode, nBlocks);
 }
 
+// A one-row block used to make the online variance NaN.
+TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
+                     "basic_statistics online with one-row blocks",
+                     "[basic_statistics][integration][online]",
+                     basic_statistics_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    const float_t data[] = { 1, 2, 3, 6 };
+    const auto desc =
+        this->get_descriptor(result_options::sum_squares_centered | result_options::variance);
+
+    bs::partial_compute_result<> partial;
+    for (std::int64_t row = 0; row < 2; ++row) {
+        partial = this->partial_compute(desc, partial, homogen_table::wrap(data + 2 * row, 1, 2));
+    }
+    const auto result = this->finalize_compute(desc, partial);
+
+    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
+    const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
+    REQUIRE(ssc[0] == 2);
+    REQUIRE(ssc[1] == 8);
+    REQUIRE(variance[0] == 2);
+    REQUIRE(variance[1] == 8);
+}
+
 /// Sweep the result option masks that the common flow above does not reach.
 ///
 /// The partial descriptor derived by `get_desc_to_compute` must request a superset

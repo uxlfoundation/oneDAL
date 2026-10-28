@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/algo/hdbscan/common.hpp"
+#include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/exceptions.hpp"
 
@@ -28,34 +29,8 @@ using daal_pairwise_distance_t = daal::algorithms::internal::PairwiseDistanceTyp
 
 /// Convert a oneAPI HDBSCAN `distance_metric` value to the DAAL pairwise tag.
 ///
-/// Used by the CPU backends to forward the user-facing oneAPI metric enum to
-/// the shared DAAL `PairwiseDistanceType` consumed by `HDBSCANBatchKernel`.
-/// Every enumerator in `distance_metric` is mapped explicitly; any value that
-/// does not correspond to a known enumerator raises `invalid_argument` so a
-/// new metric added to the header without updating this switch is surfaced as
-/// a loud runtime error rather than silently routed to euclidean.
-///
-/// Method-specific compatibility for cosine (only valid with
-/// `method::brute_force` -- the kd/ball-tree traversals rely on the metric
-/// being an L_p distance for their pruning bounds) is enforced in two places
-/// so no call route silently falls through to euclidean:
-///
-///   (1) Public entry: `check_preconditions` in
-///       `cpp/oneapi/dal/algo/hdbscan/detail/compute_ops.hpp` throws
-///       `dal::invalid_argument(error_messages::hdbscan_metric_not_compatible_with_kd_tree())`
-///       when `method::kd_tree` or `method::ball_tree` is combined with
-///       `distance_metric::cosine`. This is the path every public
-///       `dal::compute()` call takes.
-///
-///   (2) DAAL kernel: the per-metric `switch` in `HDBSCANBatchKernel::compute`
-///       for the kd-tree (`hdbscan_kd_tree_batch_impl.i:638`) and ball-tree
-///       (`hdbscan_ball_tree_batch_impl.i:844`) impls enumerates every
-///       supported `PairwiseDistanceType` and returns
-///       `services::Status(services::ErrorMethodNotSupported)` for
-///       `case cosine:` / `default:`. This is defense-in-depth for any
-///       future direct-DAAL entry that bypasses `check_preconditions`; the
-///       DAAL Status is then propagated through the oneAPI backend as an
-///       `unimplemented` exception.
+/// Cosine is only valid with `method::brute_force`; `check_preconditions` rejects it for the
+/// tree methods before this point.
 ///
 /// @param[in] m oneAPI metric tag
 ///
@@ -69,6 +44,20 @@ inline daal_pairwise_distance_t convert_metric(distance_metric m) {
         case distance_metric::cosine: return daal_pairwise_distance_t::cosine;
     }
     throw invalid_argument(dal::detail::error_messages::unknown_distance_type());
+}
+
+/// Convert a DAAL HDBSCAN status to an exception, raising non-finite input as the GPU does.
+///
+/// The kernels report non-finite input, and only that, as `ErrorIncorrectInputNumericTable`.
+///
+/// @param[in] s Status returned by a DAAL HDBSCAN kernel
+inline void kernel_status_to_exception(const daal::services::Status& s) {
+    dal::backend::interop::status_to_exception(s, [](const daal::services::Status& s) {
+        if (daal::services::internal::get_error_id(s) ==
+            daal::services::ErrorIncorrectInputNumericTable) {
+            throw domain_error(dal::detail::error_messages::hdbscan_input_data_is_not_finite());
+        }
+    });
 }
 
 } // namespace oneapi::dal::hdbscan::backend

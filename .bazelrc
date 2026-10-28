@@ -19,6 +19,7 @@ build --flag_alias=enable_assert=@config//:enable_assert
 build --flag_alias=stdalloc=@config//:stdalloc
 build --flag_alias=rng_backend=@config//:rng_backend
 build --flag_alias=build_parameters_lib=@config//:build_parameters_lib
+build --flag_alias=code_coverage=@config//:code_coverage
 build --flag_alias=msvc_runtime=@config//:msvc_runtime
 
 # Always pass this env variable to test rules, because SYCL
@@ -41,10 +42,17 @@ test --test_env=LD_LIBRARY_PATH
 # dumpbin/lib look up VCTOOLSINSTALLDIR to add the MSVC HostX64\x64
 # bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
 # actions that go through cmd-style helpers.
-build --action_env=VCTOOLSINSTALLDIR
-build --action_env=INCLUDE
-build --action_env=LIB
-build --action_env=PATH
+#
+# Windows only: every `--action_env` value is part of every action key. Linux
+# actions do not take PATH from the shell, so the action keys do not depend on
+# the shell's PATH (a conda env, `setvars.sh`, another terminal, another CI
+# image) and caches are shared between machines. `build:windows` is applied
+# automatically through --enable_platform_specific_config.
+common --enable_platform_specific_config
+build:windows --action_env=VCTOOLSINSTALLDIR
+build:windows --action_env=INCLUDE
+build:windows --action_env=LIB
+build:windows --action_env=PATH
 
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
@@ -152,8 +160,16 @@ build:release-dpc \
 # highest ISA (auto-detected). Use this to speed up iterative builds.
 # NOT suitable for release/packaging.
 #   bazel build //cpp/oneapi/dal:tests --config=dev
+#
+# `--cpu` selects the contents of a generated header that every kernel
+# includes, at one output path for every value, so switching between
+# `--config=dev` and the default rebuilt ~1160 actions each way. The platform
+# suffix gives the dev ISA set its own output tree; switching back and forth
+# then rebuilds nothing. Pass a suffix the same way when building another
+# `--cpu` value side by side (e.g. `--cpu=all --platform_suffix=isa-all`).
 build:dev \
-    --cpu=auto
+    --cpu=auto \
+    --platform_suffix=dev
 
 
 # =============================================================================
@@ -204,8 +220,7 @@ build:dbg \
 # Adds -g to the default opt build; preserves -O2/-O3 optimization.
 #   bazel build //:release --config=dbg-symbols
 build:dbg-symbols \
-    --copt=-g \
-    --cxxopt=-g
+    --copt=-g
 
 
 # Configuration: 'asan'
@@ -269,7 +284,8 @@ build:ubsan \
 #   bazel build //:release --copt=-march=native
 #   bazel build //:release --copt=-O2
 #   bazel build //:release --linkopt=-Wl,--as-needed
-# Or persist in user-local ~/.bazelrc:
+# Or persist them per-checkout in user.bazelrc, which is imported below and is
+# git-ignored, or globally in ~/.bazelrc:
 #   build --copt=-your-flag
 # Bazel combines repeated --copt/--cxxopt/--linkopt values from configs and
 # user flags; avoid passing conflicting flags such as multiple optimization
@@ -305,3 +321,10 @@ build:type \
 # typically via %ONEAPI_ROOT%\setvars.bat). To fall back to the stock
 # rules_cc MSVC cl auto-config, set ONEDAL_WIN_COMPILER=cl in the
 # environment (or pass --repo_env=ONEDAL_WIN_COMPILER=cl to bazel).
+
+# =============================================================================
+# Per-checkout overrides. Keeps machine-specific settings -- typically
+# --jobs / --local_ram_resources on a shared or memory-constrained box -- out of
+# this file. Optional: bazel ignores the import when the file is absent.
+# =============================================================================
+try-import %workspace%/user.bazelrc

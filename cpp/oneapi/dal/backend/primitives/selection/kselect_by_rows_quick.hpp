@@ -18,13 +18,9 @@
 
 #include <limits>
 
-#include <daal/src/externals/service_rng.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/src/algorithms/engines/engine_batch_impl.h>
-
 #include "oneapi/dal/backend/primitives/selection/row_partitioning_kernel.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows_base.hpp"
-#include "oneapi/dal/backend/primitives/rng/rnd_seq.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
@@ -42,9 +38,17 @@ class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
     using naive_dp_t = data_provider_t<Float, false>;
 
 public:
+    /// Upper bound on the random pivot sequence the kernel draws from
+    static constexpr std::int64_t max_rnd_seq_size = 1024;
+
     kselect_by_rows_quick() = delete;
-    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape)
-            : rnd_seq_(queue, std::min(shape[1], max_rnd_seq_size_)) {
+    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape) {
+        // A fixed seed keeps the pivot choice deterministic across runs.
+        const std::int64_t rnd_seq_count = std::min(shape[1], max_rnd_seq_size);
+        rnd_seq_ = ndarray<Float, 1>::empty(queue, { rnd_seq_count }, sycl::usm::alloc::shared);
+        host_engine engine(default_seed);
+        uniform<Float>(rnd_seq_count, rnd_seq_.get_mutable_data(), engine, Float(0), Float(1));
+
         data_ = ndarray<Float, 2>::empty(queue, shape, sycl::usm::alloc::device);
         indices_ = ndarray<std::int32_t, 2>::empty(queue, shape, sycl::usm::alloc::device);
     }
@@ -145,13 +149,14 @@ private:
 
         auto* data_tmp_ptr = data_.get_mutable_data();
         const auto data_tmp_str = data_.get_leading_stride();
-        auto cpy_event = queue.submit([&](sycl::handler& cgh) {
-            cgh.depends_on(deps);
-            const auto range = make_range_2d(row_count, col_count);
-            cgh.parallel_for(range, [=](sycl::id<2> idx) {
-                *(data_tmp_ptr + idx[0] * data_tmp_str + idx[1]) = dp.at(idx[0], idx[1]);
-            });
-        });
+        const auto cpy_event = parallel_for_2d_by_row_blocks(
+            queue,
+            row_count,
+            col_count,
+            [=](std::int64_t row, std::int64_t col) {
+                data_tmp_ptr[row * data_tmp_str + col] = dp.at(row, col);
+            },
+            deps);
 
         auto indices_tmp_ptr = indices_.get_mutable_data();
 
@@ -241,9 +246,9 @@ private:
                               std::int32_t rnd_period,
                               std::int32_t row_count,
                               std::int32_t k,
-                              std::int32_t inp_stride,
-                              std::int32_t out_ids_stride,
-                              std::int32_t out_dst_stride) {
+                              std::int64_t inp_stride,
+                              std::int64_t out_ids_stride,
+                              std::int64_t out_dst_stride) {
         auto sg = item.get_sub_group();
         const std::int32_t row_id =
             item.get_global_id(1) * sg.get_group_range()[0] + sg.get_group_id()[0];
@@ -252,9 +257,9 @@ private:
         if (row_id >= num_rows)
             return;
 
-        const std::int32_t offset_in = row_id * inp_stride;
-        [[maybe_unused]] const std::int32_t offset_ids_out = row_id * out_ids_stride;
-        [[maybe_unused]] const std::int32_t offset_dst_out = row_id * out_dst_stride;
+        const std::int64_t offset_in = row_id * inp_stride;
+        [[maybe_unused]] const std::int64_t offset_ids_out = row_id * out_ids_stride;
+        [[maybe_unused]] const std::int64_t offset_dst_out = row_id * out_dst_stride;
         std::int32_t partition_start = 0;
         std::int32_t partition_end = row_count;
         std::int32_t rnd_count = 0;
@@ -304,9 +309,7 @@ private:
         }
     }
     static constexpr std::uint32_t preffered_sg_size = 16;
-    static constexpr std::int64_t max_rnd_seq_size_ = 1024;
-    std::int64_t rnd_seq_size_ = max_rnd_seq_size_;
-    rnd_seq<Float> rnd_seq_;
+    ndarray<Float, 1> rnd_seq_;
     ndarray<Float, 2> data_;
     ndarray<std::int32_t, 2> indices_;
     sycl::event last_call_;

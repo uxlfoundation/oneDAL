@@ -25,9 +25,7 @@ CMPLRDIRSUFF.dpcpp = _dpcpp
 
 CORE.SERV.COMPILER.dpcpp = generic
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
-
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Oz Og
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
@@ -51,18 +49,15 @@ endif
 ifeq ($(OS_is_win),true)
     ifeq ($(filter $(OPTFLAG),Ob Od Oi Os Ot Ox Oy),$(OPTFLAG))
         -optlevel.dpcpp = -O2
-    else ifeq ($(OPTFLAG),Ofast)
-        -optlevel.dpcpp = -O3 -ffast-math
     else
         -optlevel.dpcpp = -$(OPTFLAG)
     endif
 else
-    ifeq ($(OPTFLAG),Ofast)
-        -optlevel.dpcpp = -O3 -ffast-math -D_FORTIFY_SOURCE=2
-    else ifeq ($(OPTFLAG),O0)
+    # -U first: a different level from CXXFLAGS would otherwise be a -Werror redefinition.
+    ifeq ($(OPTFLAG),O0)
         -optlevel.dpcpp = -$(OPTFLAG)
     else
-        -optlevel.dpcpp = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+        -optlevel.dpcpp = -$(OPTFLAG) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
     endif
 endif
 
@@ -77,7 +72,6 @@ COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
                      -Werror -Wreturn-type -fsycl-device-code-split=per_kernel
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
                      -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel
-linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)

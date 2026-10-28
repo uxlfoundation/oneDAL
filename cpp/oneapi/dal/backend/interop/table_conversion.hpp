@@ -27,6 +27,10 @@
 #include "oneapi/dal/table/backend/interop/host_csr_table_adapter.hpp"
 #include "oneapi/dal/backend/interop/csr_block_owner.hpp"
 
+#ifdef ONEDAL_DATA_PARALLEL
+#include "oneapi/dal/backend/transfer.hpp"
+#endif
+
 namespace oneapi::dal::backend::interop {
 
 template <typename Data>
@@ -45,6 +49,21 @@ inline auto empty_daal_homogen_table(std::int64_t column_count) {
         daal::data_management::NumericTable::notAllocate);
 }
 
+/// Puts a DAAL `HomogenNumericTable<Data>` view over an existing `dal::array`,
+/// without copying the data.
+/// The data ownership becomes shared between the newly created `HomogenNumericTable<Data>`
+/// and the input ``dal::array``: The memory is freed when the last owner on either side lets go.
+///
+/// @tparam Data Element type of the array and the resulting table.
+///
+/// @param[in,out] data      Array of size `row_count x column_count` with the table data in row-major order.
+///                          Must be mutable unless `allow_copy` is true.
+/// @param[in] row_count     Number of rows in the resulting table.
+/// @param[in] column_count  Number of columns in the resulting table.
+/// @param[in] allow_copy    If true, the array is copied when its data is read-only as DAAL tables need
+///                           a writable data pointer.
+///
+/// @return DAAL table that uses the array's memory, or an empty pointer if the array is empty.
 template <typename Data>
 inline auto convert_to_daal_homogen_table(array<Data>& data,
                                           std::int64_t row_count,
@@ -53,6 +72,12 @@ inline auto convert_to_daal_homogen_table(array<Data>& data,
     if (!data.get_count()) {
         return daal::services::SharedPtr<daal::data_management::HomogenNumericTable<Data>>();
     }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    if (data.get_queue().has_value()) {
+        data = to_host_sync(data);
+    }
+#endif
 
     if (allow_copy) {
         data.need_mutable_data();
@@ -120,10 +145,29 @@ inline daal::data_management::NumericTablePtr wrap_by_host_soa_adapter(const hom
     }
 }
 
+/// Converts `dal::homogen_table` into a shared pointer to a DAAL NumericTable.
+/// The data of the resulting table always resides in host memory.
+///
+/// Row-major and column-major tables of `float`, `double` or `int32_t` are wrapped by read-only adapters;
+/// other tables are copied into a new DAAL `HomogenNumericTable<Data>`.
+///
+/// @note The resulting DAAL table may share memory with the input table if it is of a compatible type and layout.
+///
+/// @tparam Data          Element type of the DAAL table when a copy is made. Wrapped tables keep the
+///                       data type of the source table.
+///
+/// @param[in] table      Table to convert. Its data must be accessible on the host unless `need_copy` is true.
+/// @param[in] need_copy  If true, the data is always copied to host memory instead of being wrapped.
+///
+/// @return A shared pointer to a DAAL NumericTable that either references the data of `table` or holds a copy of it.
 template <typename Data>
 inline daal::data_management::NumericTablePtr convert_to_daal_table(const homogen_table& table,
                                                                     bool need_copy = false) {
+#ifdef ONEDAL_DATA_PARALLEL
+    if (need_copy || table.get_queue().has_value()) {
+#else
     if (need_copy) {
+#endif
         return copy_to_daal_homogen_table<Data>(table);
     }
     if (table.get_data_layout() == data_layout::row_major) {
@@ -153,6 +197,14 @@ inline auto convert_to_daal_csr_table(array<T>& data,
     if (!data.get_count() || !column_indices.get_count() || !row_indices.get_count()) {
         return daal::services::SharedPtr<daal::data_management::CSRNumericTable>();
     }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    if (data.get_queue().has_value()) {
+        data = to_host_sync(data);
+        column_indices = to_host_sync(column_indices);
+        row_indices = to_host_sync(row_indices);
+    }
+#endif
 
     if (allow_copy) {
         data.need_mutable_data();
@@ -233,10 +285,15 @@ inline daal::data_management::CSRNumericTablePtr wrap_by_host_csr_adapter(const 
 template <typename Float>
 inline daal::data_management::CSRNumericTablePtr convert_to_daal_table(const csr_table& table,
                                                                        bool need_copy = false) {
-    if (need_copy)
+#ifdef ONEDAL_DATA_PARALLEL
+    if (need_copy || table.get_queue().has_value()) {
+#else
+    if (need_copy) {
+#endif
         // Always copy the table, and do not try to wrap it, if need_copy is specified by the caller.
         // Because the table's data can be allocated on device and it will lead to crash in wrap_by_host_csr_adapter
         return copy_to_daal_csr_table<Float>(table);
+    }
 
     auto wrapper = wrap_by_host_csr_adapter(table);
     // copy the table if wrap failed

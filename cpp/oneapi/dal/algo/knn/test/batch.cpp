@@ -197,6 +197,67 @@ KNN_CLS_SYNTHETIC_TEST("knn nearest points test random uniform 16390x20x5") {
     this->exact_nearest_indices_check(x_train_table, x_infer_table, infer_result);
 }
 
+// With a large k the distance finalize step is big enough to go parallel. It runs inside the
+// outer loop over query blocks, whose thread-local k-NN buffers a nested loop would clobber.
+KNN_CLS_SYNTHETIC_TEST("knn brute force distances with a large k over many query blocks") {
+    SKIP_IF(!this->is_brute_force);
+    SKIP_IF(this->get_policy().is_gpu());
+    SKIP_IF(this->not_float64_friendly());
+
+    constexpr std::int64_t train_row_count = 1024;
+    constexpr std::int64_t infer_row_count = 16384;
+    constexpr std::int64_t column_count = 8;
+    constexpr std::int64_t k = 512;
+
+    CAPTURE(train_row_count, infer_row_count, column_count, k);
+
+    const auto train_dataframe = GENERATE_DATAFRAME(
+        te::dataframe_builder{ train_row_count, column_count }.fill_uniform(-0.2, 0.5));
+    const table x_train_table = train_dataframe.get_table(this->get_homogen_table_id());
+    const auto infer_dataframe = GENERATE_DATAFRAME(
+        te::dataframe_builder{ infer_row_count, column_count }.fill_uniform(-0.3, 1.));
+    const table x_infer_table = infer_dataframe.get_table(this->get_homogen_table_id());
+
+    const table y_train_table = this->arange(train_row_count);
+
+    const auto knn_desc = this->get_descriptor(train_row_count, k);
+
+    auto train_result = this->train(knn_desc, x_train_table, y_train_table);
+    auto infer_result = this->infer(knn_desc, x_infer_table, train_result.get_model());
+
+    const auto distances = infer_result.get_distances();
+    REQUIRE(distances.get_row_count() == infer_row_count);
+    REQUIRE(distances.get_column_count() == k);
+
+    const auto train = row_accessor<const float_t>(x_train_table).pull();
+    const auto infer = row_accessor<const float_t>(x_infer_table).pull();
+    const auto result = row_accessor<const float_t>(distances).pull();
+    const double tol = std::is_same_v<float_t, float> ? 1e-4 : 1e-9;
+
+    std::vector<double> reference(train_row_count);
+    for (std::int64_t j = 0; j < infer_row_count; ++j) {
+        for (std::int64_t i = 0; i < train_row_count; ++i) {
+            double sum = 0.0;
+            for (std::int64_t s = 0; s < column_count; ++s) {
+                const double diff =
+                    double(infer[j * column_count + s]) - double(train[i * column_count + s]);
+                sum += diff * diff;
+            }
+            reference[i] = sum;
+        }
+        std::partial_sort(reference.begin(), reference.begin() + k, reference.end());
+        for (std::int64_t kk = 0; kk < k; ++kk) {
+            // Squared, so that rounding near zero distance is not amplified by the root.
+            const double expected = reference[kk];
+            const double actual = double(result[j * k + kk]) * double(result[j * k + kk]);
+            if (std::abs(actual - expected) > tol * std::max(1.0, expected)) {
+                CAPTURE(j, kk, expected, actual);
+                FAIL("k-NN distance differs from the exact one");
+            }
+        }
+    }
+}
+
 KNN_KDTREE_SINGLE_RUN_TEST("knn nearest points test random uniform 1'000'000x20x10") {
     // this test triggers issue with KD-Tree training on large datasets
     // that leads to crash due to use-after-free in multithreaded execution

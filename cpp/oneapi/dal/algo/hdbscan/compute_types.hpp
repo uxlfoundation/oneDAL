@@ -122,8 +122,8 @@ public:
         return *this;
     }
 
-    /// A $k \\times p$ table with cluster centroids (mean of member points).
-    /// $k$ is the number of clusters.
+    /// A $k \\times p$ table with cluster centroids: the mean of the member points weighted by
+    /// their membership probability. $k$ is the number of clusters.
     const table& get_cluster_centers() const;
 
     auto& set_cluster_centers(const table& value) {
@@ -131,12 +131,36 @@ public:
         return *this;
     }
 
-    /// A $k \\times p$ table with cluster medoids (member point minimizing
-    /// intra-cluster distance). $k$ is the number of clusters.
+    /// A $k \\times p$ table with cluster medoids: the member point minimizing the sum of its
+    /// distances, in the fitted metric, to the other members weighted by their membership
+    /// probability. $k$ is the number of clusters.
     const table& get_medoid_centers() const;
 
     auto& set_medoid_centers(const table& value) {
         set_medoid_centers_impl(value);
+        return *this;
+    }
+
+    /// An $n \\times 1$ table with the membership strength of each sample
+    /// $x_i$ in the cluster it was assigned to, in $[0, 1]$. A value of 1 means
+    /// the point persisted to the very end of its cluster, values near 0 mean
+    /// it detached almost immediately, and noise points get 0.
+    const table& get_probabilities() const;
+
+    auto& set_probabilities(const table& value) {
+        set_probabilities_impl(value);
+        return *this;
+    }
+
+    /// An $(n - 1) \\times 4$ table with the single-linkage dendrogram the flat
+    /// clustering was cut out of, one row per merge in ascending distance order:
+    /// ``[left, right, distance, size]``. Ids below $n$ are original
+    /// observations, id $n + k$ is the cluster formed by row $k$. Empty when
+    /// $n < 2$.
+    const table& get_single_linkage_tree() const;
+
+    auto& set_single_linkage_tree(const table& value) {
+        set_single_linkage_tree_impl(value);
         return *this;
     }
 
@@ -157,6 +181,8 @@ protected:
     void set_core_observations_impl(const table&);
     void set_cluster_centers_impl(const table&);
     void set_medoid_centers_impl(const table&);
+    void set_probabilities_impl(const table&);
+    void set_single_linkage_tree_impl(const table&);
     void set_result_options_impl(const result_option_id&);
 
 private:

@@ -79,9 +79,10 @@ public:
                 const Float r = rhs_row[col];
                 const auto rerr =
                     std::abs(l - r) / std::max<double>({ double(1), std::abs(l), std::abs(r) });
-                CAPTURE(row, col, l, r, rerr);
-                if (rerr > 1e-4)
+                if (rerr > 1e-4) {
+                    CAPTURE(row, col, l, r, rerr);
                     FAIL();
+                }
             }
         }
     }
@@ -102,9 +103,17 @@ public:
                 const Float gtr = reference.get(row, col);
                 const auto rerr = std::abs(res - gtr) /
                                   std::max<double>({ double(1), std::abs(res), std::abs(gtr) });
-                CAPTURE(row_count, col_count, x_data.get_column_count(), row, col, res, gtr, rerr);
-                if (rerr > 1e-4)
+                if (rerr > 1e-4) {
+                    CAPTURE(row_count,
+                            col_count,
+                            x_data.get_column_count(),
+                            row,
+                            col,
+                            res,
+                            gtr,
+                            rerr);
                     FAIL();
+                }
             }
         }
     }

@@ -22,13 +22,8 @@
 
 namespace oneapi::dal::hdbscan::backend {
 
-/// HDBSCAN GPU compute kernel functor.
-///
-/// Specialized per (Float, Method, Task) tuple by the per-method TUs in
-/// `compute_kernel_brute_force_dpc.cpp` / `compute_kernel_kd_tree_dpc.cpp` /
-/// `compute_kernel_ball_tree_dpc.cpp`. Each specialization runs the GPU
-/// HDBSCAN pipeline directly on SYCL using the helpers in
-/// `backend/gpu/kernel_impl.hpp`.
+/// HDBSCAN GPU compute kernel functor, specialized in `compute_kernel_brute_force_dpc.cpp` and
+/// `compute_kernel_tree_dpc.cpp`; every method runs `compute_gpu` from `compute_pipeline.hpp`.
 ///
 /// @tparam Float  Floating-point type
 /// @tparam Method Method tag (`method::brute_force`, `method::kd_tree`, `method::ball_tree`)
@@ -41,7 +36,7 @@ struct compute_kernel_gpu {
     /// @param[in] params Algorithm descriptor
     /// @param[in] input  Compute input (carries the data table)
     ///
-    /// @return Compute result containing the response and cluster-count tables
+    /// @return Compute result with the requested outputs
     compute_result<Task> operator()(const dal::backend::context_gpu& ctx,
                                     const detail::descriptor_base<Task>& params,
                                     const compute_input<Task>& input) const;

@@ -10,7 +10,7 @@
 - **Naming**: `snake_case` for types, functions, variables and constants (`train_ops`, `get_data()`, `row_count`); private members take a trailing underscore (`store_`, `comm_`)
 - **GPU**: Intel SYCL with USM for CPU/GPU operations
 - **Namespace**: `oneapi::dal::v1` (stable), `preview` (experimental)
-- **Interface**: Never mix DAAL and oneAPI patterns in same file
+- **Interface**: Never mix DAAL and oneAPI patterns in same file, except in bridge code (CPU and GPU backends, table adapters, `detail/` helpers) that calls DAAL and converts `services::Status` with `interop::status_to_exception`; see `cpp/AGENTS.md`
 
 ## 🚀 Essential Commands
 

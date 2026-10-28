@@ -110,7 +110,8 @@ def _normalize_cpu_files(general_cpu_files, special_cpu_files):
     return normalized_cpu_files
 
 def _normalize_includes(ctx, includes, extra=[]):
-    inc_dir = paths.dirname(ctx.build_file_path) + "/"
+    # `workspace_root` keeps the paths valid for packages in external repositories.
+    inc_dir = paths.join(ctx.label.workspace_root, ctx.label.package) + "/"
     gen_dir = ctx.genfiles_dir.path + "/" + inc_dir
     normalized_includes = (utils.add_prefix(gen_dir, includes) +
                            utils.add_prefix(inc_dir, includes))

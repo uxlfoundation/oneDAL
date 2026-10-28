@@ -428,24 +428,36 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
         if (_cd.nVectors > 0)
         {
             algorithmFPType nVectorsM1 = (algorithmFPType)(_cd.nVectors - 1);
+            /* The variance of one row is NaN after the merge above, while its centered sum of squares is exactly 0 */
+            const bool singleRow = (_cd.nVectors == 1);
             if (!isOnline)
             {
-                PRAGMA_OMP_SIMD
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t i = 0; i < _cd.nFeatures; i++)
+                if (singleRow)
                 {
-                    _sumSqCen[i] = _cd.variance[i] * nVectorsM1;
+                    daal::services::internal::service_memset<algorithmFPType, cpu>(_sumSqCen, algorithmFPType(0), _cd.nFeatures);
+                }
+                else
+                {
+                    PRAGMA_OMP_SIMD
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t i = 0; i < _cd.nFeatures; i++)
+                    {
+                        _sumSqCen[i] = _cd.variance[i] * nVectorsM1;
+                    }
                 }
             }
             else /* isOnline */
             {
                 if (nObs == 0)
                 {
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t i = 0; i < _cd.nFeatures; i++)
+                    if (!singleRow)
                     {
-                        _sumSqCen[i] += _cd.variance[i] * nVectorsM1;
+                        PRAGMA_OMP_SIMD
+                        PRAGMA_VECTOR_ALWAYS
+                        for (size_t i = 0; i < _cd.nFeatures; i++)
+                        {
+                            _sumSqCen[i] += _cd.variance[i] * nVectorsM1;
+                        }
                     }
                 }
                 else /* if (nObs != 0) */
@@ -454,16 +466,31 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                     algorithmFPType invNVectors     = 1.0 / (algorithmFPType)_cd.nVectors;
                     algorithmFPType coeff           = (algorithmFPType)(nObs * _cd.nVectors) / (algorithmFPType)(nObs + _cd.nVectors);
 
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t i = 0; i < _cd.nFeatures; i++)
+                    if (singleRow)
                     {
-                        algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
-                        algorithmFPType mean2 = (_sums[i] - _cd.prevSums[i]) * invNVectors;
+                        PRAGMA_OMP_SIMD
+                        PRAGMA_VECTOR_ALWAYS
+                        for (size_t i = 0; i < _cd.nFeatures; i++)
+                        {
+                            algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
+                            algorithmFPType mean2 = _sums[i] - _cd.prevSums[i];
 
-                        algorithmFPType ssqdm2 = _cd.variance[i] * nVectorsM1;
+                            _sumSqCen[i] += coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2);
+                        }
+                    }
+                    else
+                    {
+                        PRAGMA_OMP_SIMD
+                        PRAGMA_VECTOR_ALWAYS
+                        for (size_t i = 0; i < _cd.nFeatures; i++)
+                        {
+                            algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
+                            algorithmFPType mean2 = (_sums[i] - _cd.prevSums[i]) * invNVectors;
 
-                        _sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
+                            algorithmFPType ssqdm2 = _cd.variance[i] * nVectorsM1;
+
+                            _sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
+                        }
                     }
                 } /* if (nObs != 0) */
             } /* isOnline */
