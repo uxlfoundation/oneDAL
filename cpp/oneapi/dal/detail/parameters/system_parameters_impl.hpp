@@ -34,6 +34,9 @@ public:
 
     cpu_extension get_top_enabled_cpu_extension() const;
     std::uint32_t get_max_number_of_threads() const;
+    std::uint64_t get_l1_cache_size() const;
+    std::uint64_t get_l2_cache_size() const;
+    std::uint64_t get_ll_cache_size() const;
 
 #ifdef ONEDAL_DATA_PARALLEL
     std::uint32_t get_max_workgroup_size(sycl::queue& queue) const;

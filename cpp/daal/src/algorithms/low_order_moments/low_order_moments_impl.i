@@ -567,24 +567,36 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t 
     if (nVectors > 0)
     {
         const algorithmFPType nVectorsM1 = (algorithmFPType)(nVectors - 1);
+        /* The sample variance of one row is 0 / 0, while its centered sum of squares is exactly 0 */
+        const bool singleRow = (nVectors == 1);
         if (!isOnline)
         {
-            PRAGMA_OMP_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0; i < nFeatures; i++)
+            if (singleRow)
             {
-                sumSqCen[i] = variance[i] * nVectorsM1;
+                daal::services::internal::service_memset<algorithmFPType, cpu>(sumSqCen, algorithmFPType(0), nFeatures);
+            }
+            else
+            {
+                PRAGMA_OMP_SIMD
+                PRAGMA_VECTOR_ALWAYS
+                for (size_t i = 0; i < nFeatures; i++)
+                {
+                    sumSqCen[i] = variance[i] * nVectorsM1;
+                }
             }
             return;
         }
 
         if (prevNVectors == 0)
         {
-            PRAGMA_OMP_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0; i < nFeatures; i++)
+            if (!singleRow)
             {
-                sumSqCen[i] += variance[i] * nVectorsM1;
+                PRAGMA_OMP_SIMD
+                PRAGMA_VECTOR_ALWAYS
+                for (size_t i = 0; i < nFeatures; i++)
+                {
+                    sumSqCen[i] += variance[i] * nVectorsM1;
+                }
             }
         }
         else
@@ -593,14 +605,27 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t 
             const algorithmFPType invNVectors     = 1.0 / (algorithmFPType)nVectors;
             const algorithmFPType coeff           = (algorithmFPType)(prevNVectors * nVectors) / (algorithmFPType)(prevNVectors + nVectors);
 
-            for (size_t i = 0; i < nFeatures; i++)
+            if (singleRow)
             {
-                algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
-                algorithmFPType mean2 = (sums[i] - prevSums[i]) * invNVectors;
+                for (size_t i = 0; i < nFeatures; i++)
+                {
+                    algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
+                    algorithmFPType mean2 = sums[i] - prevSums[i];
 
-                algorithmFPType ssqdm2 = variance[i] * nVectorsM1;
+                    sumSqCen[i] += coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2);
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < nFeatures; i++)
+                {
+                    algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
+                    algorithmFPType mean2 = (sums[i] - prevSums[i]) * invNVectors;
 
-                sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2));
+                    algorithmFPType ssqdm2 = variance[i] * nVectorsM1;
+
+                    sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2));
+                }
             }
         }
     }

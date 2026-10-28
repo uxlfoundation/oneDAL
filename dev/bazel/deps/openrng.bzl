@@ -22,6 +22,7 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # expected to be prebuilt and pointed to via OPENRNGROOT; Bazel does not build
 # it from source.
 openrng_repo = repos.prebuilt_libs_repo_rule(
+    root_env_var = "OPENRNGROOT",
     includes = [
         "include",
     ],

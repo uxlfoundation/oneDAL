@@ -1596,7 +1596,8 @@ public:
         _nClasses = nClasses;
         using namespace decision_forest::training;
         if (par.resultsToCompute
-            & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorR2 | computeOutOfBagErrorDecisionFunction))
+            & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorAccuracy | computeOutOfBagErrorR2
+               | computeOutOfBagErrorDecisionFunction))
         {
             size_t sz    = sizeof(OOBClassificationData) * nClasses * x->getNumberOfRows();
             this->oobBuf = service_calloc<byte, cpu>(sz);
@@ -1799,6 +1800,10 @@ services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::c
     const services::SharedPtr<NumericTable> normalizedWeights = normalizeWeights<algorithmFPType, cpu>(w, s);
     if (!s) return s;
     if (normalizedWeights) w = normalizedWeights.get();
+
+    const services::SharedPtr<NumericTable> responses = convertResponses<algorithmFPType, cpu>(y, s);
+    if (!s) return s;
+    y = responses.get();
 
     if (par.splitter == decision_forest::training::SplitterMode::best)
     {

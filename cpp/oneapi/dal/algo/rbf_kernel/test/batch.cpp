@@ -87,9 +87,17 @@ public:
                 const auto gtr = reference.get(row, col);
                 const auto rerr = std::abs(res - gtr) /
                                   std::max<double>({ double(1), std::abs(res), std::abs(gtr) });
-                CAPTURE(row_count, col_count, x_data.get_column_count(), row, col, res, gtr, rerr);
-                if (rerr > 1e-4)
+                if (rerr > 1e-4) {
+                    CAPTURE(row_count,
+                            col_count,
+                            x_data.get_column_count(),
+                            row,
+                            col,
+                            res,
+                            gtr,
+                            rerr);
                     FAIL();
+                }
             }
         }
     }

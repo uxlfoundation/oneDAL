@@ -21,7 +21,7 @@ Installs the pinned Windows Bazelisk executable for CI.
 .DESCRIPTION
 This is the PowerShell counterpart of `.ci/env/bazelisk.sh`. The Windows
 nightly job cannot use that POSIX-shell helper, so this script downloads the
-Windows asset, verifies the SHA256 digest published in the GitHub release, and
+Windows asset, verifies it against the SHA256 digest pinned below, and
 makes `bazel.exe` available to later workflow steps.
 
 When GitHub Actions provides `GITHUB_PATH`, the installation directory is
@@ -31,41 +31,61 @@ updated, which also makes the script convenient for local CI reproduction.
 
 $ErrorActionPreference = "Stop"
 
-$bazeliskVersion = "v1.29.0"
-$assetName = "bazelisk-windows-amd64.exe"
+$bazeliskVersion = "v1.30.0"
+$hostArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$assetSuffix = switch ($hostArch.ToUpperInvariant()) {
+    "ARM64" { "arm64" }
+    "AMD64" { "amd64" }
+    default { throw "Unsupported Windows host architecture for Bazelisk: $hostArch" }
+}
+$assetName = "bazelisk-windows-$assetSuffix.exe"
 $installDir = Join-Path (Get-Location) "bazel\bin"
 $bazelPath = Join-Path $installDir "bazel.exe"
 
-$headers = @{
-    Accept = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
+# Release asset digests, pinned so the install makes no rate-limited GitHub API
+# call. Add the digests for every new $bazeliskVersion:
+#   gh api repos/bazelbuild/bazelisk/releases/tags/<version> --jq '.assets[] | "\(.name) \(.digest)"'
+$pinnedDigests = @{
+    "v1.30.0/bazelisk-windows-amd64.exe" = "5d14a31e9d8a363c48ba1900dbd56764d730835232eb0d113cce255856ffe3ef"
+    "v1.30.0/bazelisk-windows-arm64.exe" = "cb832b1d157e0dc5f89108da426f9c6fe087f5b15873e072480ec49cc5afe488"
+}
+$expectedHash = $pinnedDigests["$bazeliskVersion/$assetName"]
+if (-not $expectedHash) {
+    throw ("No pinned SHA256 for $assetName at $bazeliskVersion in .ci/env/bazelisk.ps1. Add it from: " +
+           "gh api repos/bazelbuild/bazelisk/releases/tags/$bazeliskVersion --jq '.assets[] | `"\(.name) \(.digest)`"'")
 }
 
-if ($env:GITHUB_TOKEN) {
-    # Authentication is optional, but avoids GitHub API rate limits in CI.
-    $headers.Authorization = "Bearer $env:GITHUB_TOKEN"
+# Release downloads fail transiently in CI (dropped connections, 5xx), so retry
+# them with exponential backoff, as `.ci/env/bazelisk.sh` does.
+$fetchAttempts = if ($env:BAZELISK_FETCH_ATTEMPTS) { [int]$env:BAZELISK_FETCH_ATTEMPTS } else { 5 }
+$fetchDelay = if ($env:BAZELISK_FETCH_DELAY) { [int]$env:BAZELISK_FETCH_DELAY } else { 5 }
+if ($fetchAttempts -lt 1 -or $fetchDelay -lt 0) {
+    throw "BAZELISK_FETCH_ATTEMPTS must be at least 1 and BAZELISK_FETCH_DELAY non-negative"
 }
 
-$release = Invoke-RestMethod `
-    -Headers $headers `
-    -Uri "https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$bazeliskVersion"
-
-$asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
-if (-not $asset) {
-    throw "Could not find $assetName in Bazelisk release $bazeliskVersion"
-}
-
+$downloadUrl = "https://github.com/bazelbuild/bazelisk/releases/download/$bazeliskVersion/$assetName"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $bazelPath
-
-if (-not $asset.digest.StartsWith("sha256:")) {
-    # Do not install an asset that cannot be checked against release metadata.
-    throw "Unexpected Bazelisk digest format: $($asset.digest)"
+$delay = $fetchDelay
+for ($attempt = 1; ; $attempt++) {
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $bazelPath
+        break
+    }
+    catch {
+        if ($attempt -ge $fetchAttempts) {
+            throw "Giving up after $attempt attempts to download $assetName. Last error: $($_.Exception.Message)"
+        }
+        Write-Host "Attempt $attempt of $fetchAttempts to download $assetName failed: $($_.Exception.Message)"
+        Write-Host "Retrying in $delay s"
+        Start-Sleep -Seconds $delay
+        $delay = $delay * 2
+    }
 }
 
-$expectedHash = $asset.digest.Substring("sha256:".Length)
 $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bazelPath).Hash.ToLowerInvariant()
 if ($actualHash -ne $expectedHash.ToLowerInvariant()) {
+    # Do not leave an unverified executable where the caller would add it to PATH.
+    Remove-Item -LiteralPath $bazelPath -Force -ErrorAction SilentlyContinue
     throw "Bazelisk SHA256 mismatch. Expected $expectedHash, got $actualHash"
 }
 

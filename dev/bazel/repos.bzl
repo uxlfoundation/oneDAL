@@ -15,9 +15,11 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
-
-_BINARY_MAJOR = "4"
-_BINARY_MINOR = "0"
+load("@onedal//dev/bazel:version.bzl", "VERSION")
+load("@onedal//dev/bazel/toolchains:common.bzl",
+    "detect_host_arch",
+    "detect_target_arch",
+)
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     # Workaround Python wheel extraction. Bazel cannot determine file
@@ -67,50 +69,45 @@ def _select_by_os(repo_ctx, name, os_id):
                 return win_value
     return getattr(repo_ctx.attr, name)
 
-def _create_download_info(repo_ctx, os_id):
-    url = _select_by_os(repo_ctx, "url", os_id)
-    urls = _select_by_os(repo_ctx, "urls", os_id)
-    sha256 = _select_by_os(repo_ctx, "sha256", os_id)
-    sha256s = _select_by_os(repo_ctx, "sha256s", os_id)
-    strip_prefix = _select_by_os(repo_ctx, "strip_prefix", os_id)
-    strip_prefixes = _select_by_os(repo_ctx, "strip_prefixes", os_id)
-    if url and urls:
-        fail("Either `url` or `urls` attribute must be set")
-    if sha256 and sha256s:
-        fail("Either `sha256` or `sha256s` attribute must be set")
-    if strip_prefix and strip_prefixes:
-        fail("Either `strip_prefix` or `strip_prefixes` attribute must be set")
-    if url:
-        return struct(
-            urls = [url],
-            sha256s = [sha256],
-            strip_prefixes = [strip_prefix],
-        )
-    else:
-        return struct(
-            urls = urls,
-            sha256s = sha256s,
-            strip_prefixes = (
-                strip_prefixes if strip_prefixes else
-                len(urls) * [strip_prefix]
-            ),
-        )
+def _archive(url, sha256, strip_prefix = ""):
+    """Describe one downloadable archive of a prebuilt dependency.
+
+    The repository rule stores the coordinates as three parallel string lists,
+    because that is the only list type a rule attribute can hold. Authors pass
+    them as a list of these structs instead, so that a URL never drifts apart
+    from its own hash and prefix when a dependency is bumped.
+
+    Args:
+        url: Location of the archive. `.conda`, `.whl` and `.zip` are unpacked
+             by `_download_and_extract`; anything else is left to Bazel.
+        sha256: Expected hash of the archive.
+        strip_prefix: Directory prefix to drop while unpacking. Empty for
+                      packages that already unpack into the required layout.
+
+    Returns:
+        A struct holding the three coordinates.
+    """
+    return struct(url = url, sha256 = sha256, strip_prefix = strip_prefix)
+
+def _unzip_archives(archives):
+    return struct(
+        urls = [a.url for a in archives],
+        sha256s = [a.sha256 for a in archives],
+        strip_prefixes = [a.strip_prefix for a in archives],
+    )
 
 def _normalize_download_info(repo_ctx, os_id):
-    info = _create_download_info(repo_ctx, os_id)
-    expected_len = len(info.urls)
-    if len(info.sha256s) != expected_len:
+    urls = _select_by_os(repo_ctx, "urls", os_id)
+    sha256s = _select_by_os(repo_ctx, "sha256s", os_id)
+    strip_prefixes = _select_by_os(repo_ctx, "strip_prefixes", os_id)
+    if len(sha256s) != len(urls):
         fail("sha256 hashes count does not match URLs count")
-    if len(info.strip_prefixes) != expected_len:
+    if len(strip_prefixes) != len(urls):
         fail("strip_prefixes count does not match URLs count")
-    result = []
-    for url, sha256, strip_prefix in zip(info.urls, info.sha256s, info.strip_prefixes):
-        result.append(struct(
-            url = url,
-            sha256 = sha256,
-            strip_prefix = strip_prefix
-        ))
-    return result
+    return [
+        struct(url = url, sha256 = sha256, strip_prefix = strip_prefix)
+        for url, sha256, strip_prefix in zip(urls, sha256s, strip_prefixes)
+    ]
 
 def _split_glob_entry(root, entry_fmt, mapping):
     """Split a globbed entry into the directory to scan and the basename pattern."""
@@ -252,25 +249,62 @@ def _download(repo_ctx, os_id):
         )
     return str(output)
 
+def _check_download_arch(repo_ctx, os_id):
+    """Fails instead of downloading a package built for another architecture.
+
+    Every default URL in MODULE.bazel points at an x86_64 package, so on an
+    ARM64 host an unset root env var used to silently produce a repo full of
+    wrong-arch binaries that only failed much later, at link time.
+
+    The comparison is against the *target* arch, not the host: a cross-compile
+    from x86_64 to AArch64/RISC-V64 needs target-arch dependencies just as much
+    as a native ARM64 build does, and an ARM64 host targeting intel64 needs the
+    x86_64 package. The target is derived from `CC`/`CXX` exactly as the
+    toolchain derives it (see detect_target_arch).
+    """
+    download_arch = _select_by_os(repo_ctx, "download_arch", os_id)
+    target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+    if download_arch and download_arch != target_arch:
+        fail(("Cannot supply the {} dependency by download for this target: the " +
+              "configured package is built for {}, the target is {}. Build it " +
+              "from source and point {} at the result.").format(
+            repo_ctx.name, download_arch, target_arch,
+            repo_ctx.attr.root_env_var or "the dependency root env var",
+        ))
+
+def _release_arch_dir(repo_ctx, os_id):
+    """Returns the arch directory of the target's release tree: `intel64`, `arm`,
+    `riscv64`, or `ARM64` on Windows ARM64. Matches `release_arch_dir` in
+    dev/bazel/config/config.bzl, which names the same directory in the build
+    that produces the tree.
+    """
+    arch_id = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+    if arch_id == "arm" and os_id == "win":
+        return "ARM64"
+    return arch_id
+
 def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
     if root:
+        # A local installation is used as it is, so there is no archive layout to map from.
         mapping = {}
+    elif _select_by_os(repo_ctx, "urls", os_id):
+        _check_download_arch(repo_ctx, os_id)
+        root = _download(repo_ctx, os_id)
+        mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
     else:
-        if _select_by_os(repo_ctx, "url", os_id) or _select_by_os(repo_ctx, "urls", os_id):
-            root = _download(repo_ctx, os_id)
-            mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
-        elif repo_ctx.attr.fallback_root:
-            root = repo_ctx.attr.fallback_root
-        else:
-            fail("Cannot locate {} dependency".format(repo_ctx.name))
+        fail("Cannot locate {} dependency: neither ${} is set nor archives are declared".format(
+            repo_ctx.name,
+            repo_ctx.attr.root_env_var,
+        ))
     substitutions = {
         "%{os}": os_id,
         "%{repo_root}": str(repo_ctx.path("")),
+        "%{arch_dir}": _release_arch_dir(repo_ctx, os_id),
     }
-    substitutions["%{version_binary_major}"] = _BINARY_MAJOR
-    substitutions["%{version_binary_minor}"] = _BINARY_MINOR
+    substitutions["%{version_binary_major}"] = VERSION.binary_major
+    substitutions["%{version_binary_minor}"] = VERSION.binary_minor
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
     # `optional_libs` holds the libraries a package ships only in some layouts,
@@ -300,28 +334,82 @@ def _prebuilt_libs_repo_impl(repo_ctx):
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
                              required_any_libs=[], required_any_libs_description="",
                              win_required_any_libs=[],
-                             root_env_var="", fallback_root="",
-                             url="", sha256="", strip_prefix="",
-                             local_mapping={}, download_mapping={},
+                             root_env_var="", archives=[],
+                             download_arch="intel64", win_download_arch="",
+                             download_mapping={},
                              win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
-                             win_url="", win_urls=[], win_sha256="", win_sha256s=[],
-                             win_strip_prefix="", win_strip_prefixes=[], win_download_mapping={}):
+                             win_archives=[], win_download_mapping={}):
+    """Declare a repository rule for a dependency shipped as prebuilt binaries.
+
+    Everything that describes one dependency -- the environment variable that
+    points at a local installation, the archives to fall back on, the file
+    layout and the BUILD template -- is passed here as a default, so that the
+    dependency is fully described by its own `dev/bazel/deps/<dep>.bzl` file and
+    `MODULE.bazel` only has to name it.
+
+    Args:
+        includes: Include directories to symlink into the repository, relative
+                  to the dependency root. Entries may contain `*` globs and
+                  `%{...}` substitutions.
+        libs: Libraries to symlink. Missing entries are an error.
+        build_template: BUILD file template for the repository.
+        bins: Executables and runtime libraries to symlink.
+        optional_libs: Libraries to symlink only if the dependency ships them.
+        required_any_libs: Libraries of which at least one must be present; every
+                           present one is symlinked.
+        required_any_libs_description: Names the `required_any_libs` set in the
+                                       error raised when none is present.
+        win_required_any_libs: Windows override for `required_any_libs`.
+        root_env_var: Environment variable holding a local installation root.
+                      When set in the environment it wins over `archives`.
+        archives: `repos.archive()` entries to download when no local
+                  installation is pointed to. A dependency that declares none
+                  is therefore only resolvable through `root_env_var`.
+        download_arch: oneDAL arch ID the `archives` are built for. A download
+                       is refused when it does not match the target the
+                       toolchain derives, so a Windows ARM64 build cannot
+                       silently link an x86 package. Empty disables the check.
+        win_download_arch: Windows override for `download_arch`; defaults to
+                           `download_arch`.
+        download_mapping: Maps the layout the entries above are written in (LHS)
+                          onto the layout the downloaded archives actually have
+                          (RHS), e.g. `{"lib/intel64": "lib/"}`.
+        win_includes: Windows override for `includes`.
+        win_libs: Windows override for `libs`.
+        win_bins: Windows override for `bins`.
+        win_build_template: Windows override for `build_template`.
+        win_archives: Windows override for `archives`.
+        win_download_mapping: Windows override for `download_mapping`.
+
+    Returns:
+        The repository rule.
+    """
+    download_info = _unzip_archives(archives)
+    win_download_info = _unzip_archives(win_archives)
     return repository_rule(
         implementation = _prebuilt_libs_repo_impl,
         environ = [
             root_env_var,
+            # Host- and target-arch detection, used to reject a wrong-arch
+            # download (see _check_download_arch). `CC`/`CXX` name the target
+            # through a triple prefix or `--target=`, the PROCESSOR_* pair is
+            # the Windows host arch.
+            "CC",
+            "CXX",
+            "PROCESSOR_ARCHITECTURE",
+            "PROCESSOR_ARCHITEW6432",
         ],
         local = True,
         configure = True,
         attrs = {
             "root_env_var": attr.string(default=root_env_var),
-            "fallback_root": attr.string(default=fallback_root),
-            "url": attr.string(default=url),
-            "urls": attr.string_list(default=[]),
-            "sha256": attr.string(default=sha256),
-            "sha256s": attr.string_list(default=[]),
-            "strip_prefix": attr.string(default=strip_prefix),
-            "strip_prefixes": attr.string_list(default=[]),
+            "urls": attr.string_list(default=download_info.urls),
+            "sha256s": attr.string_list(default=download_info.sha256s),
+            "strip_prefixes": attr.string_list(default=download_info.strip_prefixes),
+            # oneDAL arch ID the configured download archives are built for.
+            # Empty disables the check.
+            "download_arch": attr.string(default=download_arch),
+            "win_download_arch": attr.string(default=win_download_arch or download_arch),
             "includes": attr.string_list(default=includes),
             "libs": attr.string_list(default=libs),
             "optional_libs": attr.string_list(default=optional_libs),
@@ -336,19 +424,16 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "win_bins": attr.string_list(default=win_bins),
             "win_build_template": attr.label(allow_files=True,
                                              default=Label(win_build_template or build_template)),
-            "win_url": attr.string(default=win_url),
-            "win_urls": attr.string_list(default=win_urls),
-            "win_sha256": attr.string(default=win_sha256),
-            "win_sha256s": attr.string_list(default=win_sha256s),
-            "win_strip_prefix": attr.string(default=win_strip_prefix),
-            "win_strip_prefixes": attr.string_list(default=win_strip_prefixes),
-            "_local_mapping": attr.string_dict(default=local_mapping),
+            "win_urls": attr.string_list(default=win_download_info.urls),
+            "win_sha256s": attr.string_list(default=win_download_info.sha256s),
+            "win_strip_prefixes": attr.string_list(default=win_download_info.strip_prefixes),
             "_download_mapping": attr.string_dict(default=download_mapping),
             "_win_download_mapping": attr.string_dict(default=win_download_mapping),
         }
     )
 
 repos = struct(
+    archive = _archive,
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
     prebuilt_libs_repo_impl = _prebuilt_libs_repo_impl,
     create_symlinks = _create_symlinks,

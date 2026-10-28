@@ -23,6 +23,9 @@
 */
 #include "services/daal_defines.h"
 
+// 4 levels of cache can be detected: L1, L2, LLC, and eDRAM
+// eDRAM size is not used in the current implementation as it is not available
+// on modern CPUs
 #define MAX_CACHE_LEVELS      4
 #define DEFAULT_L1_CACHE_SIZE 32 * 1024
 #define DEFAULT_L2_CACHE_SIZE 256 * 1024
@@ -1610,79 +1613,78 @@ unsigned _internal_daal_GetStatus()
 
     #define _CPUID_CACHE_INFO 0x4U
 
-static __inline void get_cache_info(int cache_num, int * type, int * level, long long * sets, int * line_size, int * partitions, int * ways)
-{
-    static uint32_t abcd[4];
-    run_cpuid(_CPUID_CACHE_INFO, cache_num, abcd);
-    const uint32_t eax = abcd[0];
-    const uint32_t ebx = abcd[1];
-    const uint32_t ecx = abcd[2];
-    const uint32_t edx = abcd[3];
-    *type              = _CPUID_CACHE_INFO_GET_TYPE(eax);
-    *level             = _CPUID_CACHE_INFO_GET_LEVEL(eax);
-    *sets              = _CPUID_CACHE_INFO_GET_SETS(ecx);
-    *line_size         = _CPUID_CACHE_INFO_GET_LINE_SIZE(ebx);
-    *partitions        = _CPUID_CACHE_INFO_GET_PARTITIONS(ebx);
-    *ways              = _CPUID_CACHE_INFO_GET_WAYS(ebx);
-}
-
     #define _CPUID_CACHE_INFO_TYPE_NULL 0
     #define _CPUID_CACHE_INFO_TYPE_DATA 1
     #define _CPUID_CACHE_INFO_TYPE_INST 2
     #define _CPUID_CACHE_INFO_TYPE_UNIF 3
 
-static __inline void detect_data_caches(int cache_sizes_len, volatile long long * cache_sizes)
+struct CacheSizeInfo
 {
-    int cache_num = 0, cache_sizes_idx = 0;
-    while (cache_sizes_idx < cache_sizes_len)
+    CacheSizeInfo() { detect_data_caches(MAX_CACHE_LEVELS, values); }
+
+    long long getCacheSize(int cache_level) const
     {
-        int type, level, line_size, partitions, ways;
-        long long sets, size;
-        get_cache_info(cache_num++, &type, &level, &sets, &line_size, &partitions, &ways);
-
-        if (type == _CPUID_CACHE_INFO_TYPE_NULL) break;
-        if (type == _CPUID_CACHE_INFO_TYPE_INST) continue;
-
-        size                           = ways * partitions * line_size * sets;
-        cache_sizes[cache_sizes_idx++] = size;
+        if (cache_level < 1 || cache_level > MAX_CACHE_LEVELS) return -1;
+        return values[cache_level - 1];
     }
-}
 
-volatile static bool cache_sizes_read                   = false;
-volatile static long long cache_sizes[MAX_CACHE_LEVELS] = { DEFAULT_L1_CACHE_SIZE, DEFAULT_L2_CACHE_SIZE, DEFAULT_LL_CACHE_SIZE, 0 };
+private:
+    long long values[MAX_CACHE_LEVELS] = { DEFAULT_L1_CACHE_SIZE, DEFAULT_L2_CACHE_SIZE, DEFAULT_LL_CACHE_SIZE, 0 };
 
-static __inline void update_cache_sizes()
-{
-    if (cache_sizes_read) return;
-
-    if (!cache_sizes_read) detect_data_caches(MAX_CACHE_LEVELS, cache_sizes);
-    cache_sizes_read = true;
-}
-
-long long getCacheSize(int cache_num)
-{
-    if (cache_num < 1 || cache_num > MAX_CACHE_LEVELS)
-        return -1;
-    else
+    void get_cache_info(int cache_num, int * type, int * level, long long * sets, int * line_size, int * partitions, int * ways)
     {
-        update_cache_sizes();
-        return cache_sizes[cache_num - 1];
+        uint32_t abcd[4];
+        run_cpuid(_CPUID_CACHE_INFO, cache_num, abcd);
+        const uint32_t eax = abcd[0];
+        const uint32_t ebx = abcd[1];
+        const uint32_t ecx = abcd[2];
+        const uint32_t edx = abcd[3];
+        *type              = _CPUID_CACHE_INFO_GET_TYPE(eax);
+        *level             = _CPUID_CACHE_INFO_GET_LEVEL(eax);
+        *sets              = _CPUID_CACHE_INFO_GET_SETS(ecx);
+        *line_size         = _CPUID_CACHE_INFO_GET_LINE_SIZE(ebx);
+        *partitions        = _CPUID_CACHE_INFO_GET_PARTITIONS(ebx);
+        *ways              = _CPUID_CACHE_INFO_GET_WAYS(ebx);
     }
+
+    void detect_data_caches(int cache_sizes_len, long long * cache_sizes)
+    {
+        int cache_num = 0, cache_sizes_idx = 0;
+        while (cache_sizes_idx < cache_sizes_len)
+        {
+            int type, level, line_size, partitions, ways;
+            long long sets, size;
+            get_cache_info(cache_num++, &type, &level, &sets, &line_size, &partitions, &ways);
+
+            if (type == _CPUID_CACHE_INFO_TYPE_NULL) break;
+            if (type == _CPUID_CACHE_INFO_TYPE_INST) continue;
+
+            size                           = ways * partitions * line_size * sets;
+            cache_sizes[cache_sizes_idx++] = size;
+        }
+    }
+};
+
+static const CacheSizeInfo & getCacheSizeInfo()
+{
+    // Use static variable initialization to ensure cache sizes are detected only once even in multithreaded environments
+    static CacheSizeInfo sizes;
+    return sizes;
 }
 
-size_t getL1CacheSize()
+DAAL_EXPORT size_t getL1CacheSize()
 {
-    return getCacheSize(1);
+    return getCacheSizeInfo().getCacheSize(1);
 }
 
-size_t getL2CacheSize()
+DAAL_EXPORT size_t getL2CacheSize()
 {
-    return getCacheSize(2);
+    return getCacheSizeInfo().getCacheSize(2);
 }
 
-size_t getLLCacheSize()
+DAAL_EXPORT size_t getLLCacheSize()
 {
-    return getCacheSize(3);
+    return getCacheSizeInfo().getCacheSize(3);
 }
 
 void glktsn::freeArrays()
@@ -1743,17 +1745,17 @@ namespace services
 {
 namespace internal
 {
-size_t getL1CacheSize()
+DAAL_EXPORT size_t getL1CacheSize()
 {
     return DEFAULT_L1_CACHE_SIZE;
 }
 
-size_t getL2CacheSize()
+DAAL_EXPORT size_t getL2CacheSize()
 {
     return DEFAULT_L2_CACHE_SIZE;
 }
 
-size_t getLLCacheSize()
+DAAL_EXPORT size_t getLLCacheSize()
 {
     return DEFAULT_LL_CACHE_SIZE; //estimate based on mac pro
 }

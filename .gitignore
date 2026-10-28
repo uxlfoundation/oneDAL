@@ -12,6 +12,9 @@ __deps*
 # Bazel directories
 bazel-*
 
+# Per-checkout Bazel overrides, try-import'ed from .bazelrc
+user.bazelrc
+
 # Visual Studio related files, e.g., ".vscode"
 .vs*
 *.code-workspace

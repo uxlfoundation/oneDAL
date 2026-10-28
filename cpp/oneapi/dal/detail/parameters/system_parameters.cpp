@@ -16,6 +16,18 @@
 
 #include "oneapi/dal/detail/parameters/system_parameters.hpp"
 
+// --gc-sections drops the reference to std::ios_base_library_init() that GCC 13+
+// <iostream> emits to require GLIBCXX_3.4.32. A pointer in a retained section
+// keeps that import with every linker; lld ignores -Wl,-u for a shared symbol.
+#if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 13 && !defined(__SYCL_DEVICE_ONLY__) && \
+    defined(__has_attribute)
+#if __has_attribute(retain)
+extern void onedal_ios_base_library_init() __asm__("_ZSt21ios_base_library_initv");
+__attribute__((used, retain)) static void (*const onedal_keep_ios_base_library_init)() =
+    &onedal_ios_base_library_init;
+#endif
+#endif
+
 namespace oneapi::dal {
 
 namespace detail {
@@ -30,6 +42,18 @@ cpu_extension system_parameters::get_top_enabled_cpu_extension() const {
 
 std::uint32_t system_parameters::get_max_number_of_threads() const {
     return impl_->get_max_number_of_threads();
+}
+
+std::uint64_t system_parameters::get_l1_cache_size() const {
+    return impl_->get_l1_cache_size();
+}
+
+std::uint64_t system_parameters::get_l2_cache_size() const {
+    return impl_->get_l2_cache_size();
+}
+
+std::uint64_t system_parameters::get_ll_cache_size() const {
+    return impl_->get_ll_cache_size();
 }
 
 std::string system_parameters::dump() const {

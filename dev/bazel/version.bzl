@@ -1,6 +1,5 @@
-#!/bin/bash
 #===============================================================================
-# Copyright 2014 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,16 +14,17 @@
 # limitations under the License.
 #===============================================================================
 
-output=$1
+"""Product and library binary versions of the Bazel build.
 
-shift
-input=$*
+The one place to bump them. `makefile.ver` carries the same values for the
+Make build until it is removed.
+"""
 
-mri="CREATE ${output}\n"
-for lib in $input
-do
-    mri+="ADDLIB ${lib}\n"
-done
-mri+="SAVE\n"
-
-printf "${mri[@]}" | %{ar_path} -M
+VERSION = struct(
+    major = "2026",
+    minor = "3",
+    update = "0",
+    status = "P",
+    binary_major = "4",
+    binary_minor = "0",
+)

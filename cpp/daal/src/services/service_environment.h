@@ -18,6 +18,8 @@
 #ifndef __SERVICE_ENVIRONMENT_H__
 #define __SERVICE_ENVIRONMENT_H__
 
+#include "services/daal_defines.h"
+
 namespace daal
 {
 namespace services
@@ -25,11 +27,11 @@ namespace services
 namespace internal
 {
 //returns size of L1 cache in bytes
-size_t getL1CacheSize();
+DAAL_EXPORT size_t getL1CacheSize();
 //returns size of L2 cache in bytes
-size_t getL2CacheSize();
+DAAL_EXPORT size_t getL2CacheSize();
 //returns size of LL (last level) cache in bytes
-size_t getLLCacheSize();
+DAAL_EXPORT size_t getLLCacheSize();
 
 //returns number of elements that fit into the memory of given size
 //param sizeofAnElement - size of an element in bytes

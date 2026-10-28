@@ -217,6 +217,13 @@ MSG(hdbscan_alpha_leq_zero, "HDBSCAN alpha must be greater than zero")
 MSG(hdbscan_leaf_size_lt_one, "HDBSCAN leaf_size must be at least 1")
 MSG(hdbscan_distance_block_size_lt_zero,
     "HDBSCAN distance_block_size must be non-negative (0 = auto)")
+MSG(hdbscan_brute_force_matrix_does_not_fit_on_device,
+    "HDBSCAN brute_force with the cosine metric needs an n x n distance matrix that does not "
+    "fit in device memory")
+MSG(hdbscan_input_data_is_not_finite,
+    "Input data contains NaN or infinite values, so the minimum spanning tree is incomplete")
+MSG(hdbscan_single_linkage_tree_needs_float64,
+    "HDBSCAN single_linkage_tree needs float64 for more than 2^23 rows")
 
 /* k-NN */
 MSG(knn_kd_tree_method_is_not_implemented_for_gpu,
@@ -313,6 +320,10 @@ MSG(nu_svm_thunder_method_is_not_implemented_for_gpu,
 MSG(polynomial_kernel_is_not_implemented_for_gpu, "Polynomial kernel is not implemented for GPU")
 MSG(sigmoid_kernel_is_not_implemented_for_gpu, "Sigmoid kernel is not implemented for GPU")
 MSG(sigma_leq_zero, "Sigma lower than or equal to zero")
+MSG(svm_csr_table_is_not_implemented_for_gpu,
+    "SVM with sparse (CSR) data is not implemented for GPU")
+MSG(svm_multiclass_model_not_implemented_for_gpu,
+    "Input model carries multi-class support vectors, which is not implemented for GPU")
 MSG(svm_multiclass_not_implemented_for_gpu,
     "SVM with multiclass support is not implemented for GPU")
 MSG(svm_nu_classification_task_is_not_implemented_for_gpu,

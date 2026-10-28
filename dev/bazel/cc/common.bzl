@@ -19,7 +19,6 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
-    "paths",
     "sets",
 )
 

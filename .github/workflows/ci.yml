@@ -121,7 +121,7 @@ jobs:
         run: rm -rf __release_lnx_main
       - name: Archive build
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: __release_lnx
           path: ./__release_lnx
@@ -175,19 +175,9 @@ jobs:
       - name: Check Cache
         id: get-cache-key
         run: |
-          # `gh cache list` reports every scope in the repository, not only the
-          # ones this run can restore from. Without `--ref` the newest matching
-          # key can belong to another pull request's scope, which `cache/restore`
-          # cannot read: the restore then misses silently and the check below
-          # compares against an empty directory. Only main-scoped entries are
-          # both restorable here and produced by a build of main.
-          CACHE_KEY=$(gh cache list --ref refs/heads/main --sort created_at --limit 1 --key __release_lnx --json key --jq '.[0].key')
-          if [ -z "${CACHE_KEY}" ] || [ "${CACHE_KEY}" = "null" ]; then
-            echo "::error::No __release_lnx cache found on refs/heads/main. Rerun the 'CI' workflow on main via workflow dispatch to regenerate it."
-            exit 1
-          fi
-          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
-          echo $CACHE_KEY
+          # The merge commit's first parent is the main commit this build contains.
+          # The clone is shallow, so read it from the commit object, not `HEAD^1`.
+          .ci/scripts/abi_baseline_key.sh "$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download oneDAL main build
@@ -238,12 +228,12 @@ jobs:
       # which supplies the Intel MPI that `test.sh --interface */mpi` activates.
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
+      # Packages go into the environment while it is inactive: installing into an active one
+      # reactivates it, and the impi_rt deactivate script fails under `bash -e` (`which fi_info`).
       - name: Create conda environment
         run: |
           source "${CONDA_SH}"
-          conda create -y -n "${CONDA_ENV}"
-          conda activate "${CONDA_ENV}"
-          conda install -y -c conda-forge \
+          conda create -y -n "${CONDA_ENV}" -c conda-forge \
               make \
               tbb tbb-devel \
               mkl mkl-devel mkl-static \
@@ -271,11 +261,11 @@ jobs:
       - name: Make onedal_dpc
         run: |
           source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          conda install -y -c conda-forge \
+          conda install -y -n "${CONDA_ENV}" -c conda-forge \
               mkl-dpcpp mkl-devel-dpcpp \
               dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
               onedpl-devel
+          conda activate "${CONDA_ENV}"
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --jobs 20

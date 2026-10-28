@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/csr.hpp"
@@ -267,6 +269,53 @@ inline csr_table dense_to_explicit_csr(const Float* dense,
             const std::int64_t i = r * column_count + c;
             data_ptr[i] = dense[i];
             cols_ptr[i] = c + shift;
+        }
+    }
+    offs_ptr[row_count] = nnz + shift;
+
+    return csr_table::wrap(data, cols, offs, column_count, indexing);
+}
+
+/// Build a CSR table that stores only the non-zero elements of a dense host buffer, so the
+/// per-row counts follow the data, unlike `dense_to_explicit_csr`.
+///
+/// @tparam Float        Floating-point type of the table values
+/// @param dense         Row-major host buffer of `row_count x column_count` values
+/// @param row_count     Number of rows in `dense`
+/// @param column_count  Number of columns in `dense`
+/// @param indexing      Indexing of the produced table, `zero_based` or `one_based`
+/// @return              A CSR table of size `row_count x column_count` holding the non-zeros
+///                      of `dense`; `dense` must have at least one
+template <typename Float>
+inline csr_table dense_to_sparse_csr(const Float* dense,
+                                     std::int64_t row_count,
+                                     std::int64_t column_count,
+                                     sparse_indexing indexing) {
+    const std::int64_t element_count = row_count * column_count;
+    const std::int64_t nnz = std::count_if(dense, dense + element_count, [](Float v) {
+        return v != Float(0);
+    });
+    // `dal::array<T>::empty(0)` throws, so an all-zero buffer has no CSR encoding here.
+    REQUIRE(nnz > 0);
+    const std::int64_t shift = (indexing == sparse_indexing::one_based) ? 1 : 0;
+
+    auto data = dal::array<Float>::empty(nnz);
+    auto cols = dal::array<std::int64_t>::empty(nnz);
+    auto offs = dal::array<std::int64_t>::empty(row_count + 1);
+    auto data_ptr = data.get_mutable_data();
+    auto cols_ptr = cols.get_mutable_data();
+    auto offs_ptr = offs.get_mutable_data();
+
+    std::int64_t pos = 0;
+    for (std::int64_t r = 0; r < row_count; ++r) {
+        offs_ptr[r] = pos + shift;
+        for (std::int64_t c = 0; c < column_count; ++c) {
+            const Float v = dense[r * column_count + c];
+            if (v != Float(0)) {
+                data_ptr[pos] = v;
+                cols_ptr[pos] = c + shift;
+                ++pos;
+            }
         }
     }
     offs_ptr[row_count] = nnz + shift;

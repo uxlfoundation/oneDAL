@@ -31,24 +31,32 @@ namespace hdbscan
 namespace internal
 {
 
-/// Union-Find (disjoint-set) with path halving + union-by-rank.
-///
-/// Shared across all three HDBSCAN CPU backends (brute-force / kd-tree /
-/// ball-tree). Only phase 1 of Boruvka's MST (nearest-different-component MRD
-/// search) legitimately differs across methods -- the union-find and the
-/// per-round reduce / merge / component-id refresh sequence below is identical.
-/// Holds bare pointers; caller owns the two `DAAL_INT[nRows]` backing arrays.
+/// Union-find with path halving and union by rank over caller-owned arrays of length `nRows`.
 struct UnionFind
 {
     DAAL_INT * parent; ///< `parent[i]` is the parent index; roots satisfy `parent[i] == i`
     DAAL_INT * rank;   ///< Rank per root; ties broken by union-by-rank
 
-    /// Path-halving find.
+    /// Find without path compression, safe to call concurrently on a shared instance.
     ///
     /// @param[in] x Element id
     ///
     /// @return Root id of the set containing `x`
     DAAL_INT find(DAAL_INT x) const
+    {
+        while (parent[x] != x)
+        {
+            x = parent[x];
+        }
+        return x;
+    }
+
+    /// Path-halving find; not safe to call concurrently on a shared instance.
+    ///
+    /// @param[in] x Element id
+    ///
+    /// @return Root id of the set containing `x`
+    DAAL_INT findCompress(DAAL_INT x)
     {
         while (parent[x] != x)
         {
@@ -76,12 +84,7 @@ struct UnionFind
     }
 };
 
-/// Reduce per-point candidate edges to per-component best edges.
-///
-/// Phase 2 of a Boruvka round: for each point `i`, `pointBestMrd[i]` /
-/// `pointBestIdx[i]` are the best different-component candidate found in
-/// phase 1. Reduces them into a per-component slot (indexed by
-/// `componentOf[i]`), keeping the smallest MRD per component.
+/// Reduce per-point candidate edges to the smallest-MRD edge of each component.
 ///
 /// @tparam FPType Floating-point type used for edge weights (MRD)
 ///
@@ -97,8 +100,7 @@ static void reduceComponentBestEdges(size_t nRows, const DAAL_INT * componentOf,
                                      FPType * compBestMrd, DAAL_INT * compBestFrom, DAAL_INT * compBestTo)
 {
     const FPType inf = daal::services::internal::MaxVal<FPType>::get();
-    // Callers pass `TArrayScalable`-backed / `TArray`-backed starts, so the base
-    // pointer is aligned to `DAAL_MALLOC_DEFAULT_ALIGNMENT`.
+    // The arrays come from TArray / TArrayScalable, aligned to DAAL_MALLOC_DEFAULT_ALIGNMENT.
     PRAGMA_OMP_SIMD_ARGS(aligned(compBestMrd, compBestFrom, compBestTo : DAAL_MALLOC_DEFAULT_ALIGNMENT))
     for (size_t i = 0; i < nRows; i++)
     {
@@ -119,13 +121,8 @@ static void reduceComponentBestEdges(size_t nRows, const DAAL_INT * componentOf,
     }
 }
 
-/// Emit the per-component best edges into the MST and merge components.
-///
-/// Phase 3 of a Boruvka round. Iterates every component slot: if it holds a
-/// candidate whose endpoints resolve to two different UF roots, appends the
-/// edge to the MST arrays, unions the roots, and decrements `numComponents`.
-/// Ties (both endpoints already in the same component after another edge from
-/// the same round unified them) are skipped.
+/// Append each component's best edge to the MST and merge its endpoints' sets, skipping edges
+/// whose endpoints an earlier edge of the same round already joined.
 ///
 /// @tparam FPType Floating-point type used for edge weights (MRD)
 ///
@@ -152,8 +149,8 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
         if (compBestFrom[c] < 0) continue;
         const DAAL_INT u  = compBestFrom[c];
         const DAAL_INT v  = compBestTo[c];
-        const DAAL_INT ru = uf.find(u);
-        const DAAL_INT rv = uf.find(v);
+        const DAAL_INT ru = uf.findCompress(u);
+        const DAAL_INT rv = uf.findCompress(v);
         if (ru == rv) continue;
 
         mstFrom[edgesAdded]    = u;
@@ -168,20 +165,19 @@ static size_t mergeComponentsEmitEdges(size_t nRows, const FPType * compBestMrd,
     return addedThisRound;
 }
 
-/// Refresh per-point component ids after phase 3 unified some roots.
-///
-/// Phase 4 of a Boruvka round. Parallelized because the map is O(N) with
-/// independent entries.
+/// Recompute each point's component id and flatten the forest so every point points at its root.
 ///
 /// @tparam cpu CPU dispatch tag
 ///
-/// @param[in]  nRows       Number of points
-/// @param[in]  uf          Union-find state
-/// @param[out] componentOf Per-point component id (written for every entry)
+/// @param[in]     nRows       Number of points
+/// @param[in,out] uf          Union-find state; its forest is left fully flattened
+/// @param[out]    componentOf Per-point component id (written for every entry)
 template <daal::internal::CpuType cpu>
-static void refreshComponentIds(size_t nRows, const UnionFind & uf, DAAL_INT * componentOf)
+static void refreshComponentIds(size_t nRows, UnionFind & uf, DAAL_INT * componentOf)
 {
     daal::threader_for(nRows, 1, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
+    DAAL_INT * const parent = uf.parent;
+    daal::threader_for(nRows, 1, [&](size_t i) { parent[i] = componentOf[i]; });
 }
 
 } // namespace internal

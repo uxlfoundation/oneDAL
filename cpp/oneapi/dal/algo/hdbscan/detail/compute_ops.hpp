@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <type_traits>
 
 #include "oneapi/dal/algo/hdbscan/compute_types.hpp"
@@ -49,6 +50,14 @@ struct compute_ops {
                       std::is_same_v<method_t, method::ball_tree>) {
             if (params.get_metric() == distance_metric::cosine) {
                 throw invalid_argument(msg::hdbscan_metric_not_compatible_with_kd_tree());
+            }
+        }
+        // The tree stores node ids up to 2n - 2 as Float, exact in float32 only up to 2^24.
+        if constexpr (std::is_same_v<float_t, float>) {
+            constexpr std::int64_t max_exact_id = std::int64_t(1) << 24;
+            if (params.get_result_options().test(result_options::single_linkage_tree) &&
+                2 * input.get_data().get_row_count() > max_exact_id) {
+                throw domain_error(msg::hdbscan_single_linkage_tree_needs_float64());
             }
         }
     }

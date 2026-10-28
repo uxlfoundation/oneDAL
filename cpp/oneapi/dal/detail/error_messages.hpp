@@ -244,6 +244,9 @@ public:
     MSG(hdbscan_alpha_leq_zero);
     MSG(hdbscan_leaf_size_lt_one);
     MSG(hdbscan_distance_block_size_lt_zero);
+    MSG(hdbscan_brute_force_matrix_does_not_fit_on_device);
+    MSG(hdbscan_input_data_is_not_finite);
+    MSG(hdbscan_single_linkage_tree_needs_float64);
 
     /* k-NN */
     MSG(knn_kd_tree_method_is_not_implemented_for_gpu);
@@ -329,6 +332,8 @@ public:
     MSG(polynomial_kernel_is_not_implemented_for_gpu);
     MSG(sigmoid_kernel_is_not_implemented_for_gpu);
     MSG(sigma_leq_zero);
+    MSG(svm_csr_table_is_not_implemented_for_gpu);
+    MSG(svm_multiclass_model_not_implemented_for_gpu);
     MSG(svm_multiclass_not_implemented_for_gpu);
     MSG(svm_nu_classification_task_is_not_implemented_for_gpu);
     MSG(svm_nu_regression_task_is_not_implemented_for_gpu);

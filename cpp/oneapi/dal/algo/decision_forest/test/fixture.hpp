@@ -22,6 +22,7 @@
 
 #include <cmath>
 #include <list>
+#include <vector>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
 
@@ -279,6 +280,76 @@ public:
             return true;
         });
         return node_count;
+    }
+
+    /// Trains a bootstrapped forest of `tree_count` trees with `engine` and returns the leaf sizes
+    /// of each tree in traversal order, which identify its bootstrap sample and splits.
+    ///
+    /// @param[in] engine     The engine type of the forest.
+    /// @param[in] tree_count The number of trees.
+    std::vector<std::vector<std::int64_t>> train_leaf_sizes(engine_type engine,
+                                                            std::int64_t tree_count) {
+        constexpr std::int64_t row_count = 256;
+
+        auto x_arr = array<float>::empty(row_count);
+        auto y_arr = array<float>::empty(row_count);
+        float* x_ptr = x_arr.get_mutable_data();
+        float* y_ptr = y_arr.get_mutable_data();
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            x_ptr[i] = static_cast<float>(i);
+            y_ptr[i] = static_cast<float>(i % 2);
+        }
+        const auto x = dal::homogen_table::wrap(x_ptr, row_count, 1);
+        const auto y = dal::homogen_table::wrap(y_ptr, row_count, 1);
+
+        auto desc = this->get_default_descriptor();
+        if constexpr (std::is_same_v<Task, decision_forest::task::classification>) {
+            desc.set_class_count(2);
+        }
+        desc.set_tree_count(tree_count);
+        desc.set_features_per_node(1);
+        desc.set_bootstrap(true);
+        desc.set_engine_type(engine);
+        const auto model = this->train(desc, x, y).get_model();
+
+        struct leaf_size_collector {
+            std::vector<std::int64_t>* out;
+            bool operator()(const leaf_node_info<Task>& info) {
+                out->push_back(info.get_sample_count());
+                return true;
+            }
+            bool operator()(const split_node_info<Task>& info) {
+                return true;
+            }
+        };
+
+        std::vector<std::vector<std::int64_t>> trees(tree_count);
+        for (std::int64_t t = 0; t < tree_count; ++t) {
+            model.traverse_depth_first(t, leaf_size_collector{ &trees[t] });
+        }
+        return trees;
+    }
+
+    /// Checks that the trees of a bootstrapped forest are not all the same, which they are when
+    /// every tree draws from the same random stream.
+    ///
+    /// @param[in] engine The engine type of the forest.
+    void check_trees_draw_different_streams(engine_type engine) {
+        const auto trees = train_leaf_sizes(engine, 4);
+        bool all_same = true;
+        for (std::size_t t = 1; t < trees.size(); ++t) {
+            all_same = all_same && (trees[t] == trees[0]);
+        }
+        REQUIRE(!all_same);
+    }
+
+    /// Checks that two engines with the same seed train different forests, so the descriptor's
+    /// engine type reaches the training kernel.
+    ///
+    /// @param[in] first  One engine type.
+    /// @param[in] second Another engine type.
+    void check_engine_type_changes_forest(engine_type first, engine_type second) {
+        REQUIRE(train_leaf_sizes(first, 4) != train_leaf_sizes(second, 4));
     }
 
     // Trains a single fully-grown tree with and without a min_weight_fraction

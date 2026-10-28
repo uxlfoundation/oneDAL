@@ -16,9 +16,10 @@
 *******************************************************************************/-->
 # Bazel Guide
 ## Install Bazel on Linux
-1. Download Bazelisk
+1. Download Bazelisk. `.ci/env/bazelisk.sh` does the same with a pinned
+   version and a checksum check, and is what CI runs.
    ```sh
-   wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
+   wget -O bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.30.0/bazelisk-linux-amd64
    ```
    > Note: If you are using proxy don't forget to set
    `http_proxy` and `https_proxy` environment variables
@@ -47,15 +48,20 @@
 Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
 and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
 Running DPC++ examples and tests on Windows still needs separate device/runtime
-validation.
+validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
+[Windows ARM64](#windows-arm64).
 
 1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
 
 2. Download Bazelisk for Windows and put it into a directory on `PATH`, or keep
-   it in the repository root as `bazelisk.exe`.
+   it in the repository root as `bazelisk.exe`. `.ci/env/bazelisk.ps1` does this
+   with a pinned version and a checksum check, and is what CI runs; it also picks
+   the `arm64` asset on an ARM64 host, which the command below does by hand.
    ```bat
-   set BAZELISK_VERSION=v1.28.1
-   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-amd64.exe
+   set BAZELISK_VERSION=v1.30.0
+   set BAZELISK_ARCH=amd64
+   if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set BAZELISK_ARCH=arm64
+   curl.exe -L -o bazelisk.exe https://github.com/bazelbuild/bazelisk/releases/download/%BAZELISK_VERSION%/bazelisk-windows-%BAZELISK_ARCH%.exe
    bazelisk.exe version
    ```
 
@@ -93,6 +99,32 @@ The C++ compiler can be forcibly changed using environment variable `CC`.
 export CC=gcc
 bazel <bazel-command> ... # Will use GCC for normal C++ code
 ```
+
+### Prebuilt dependency roots
+Each prebuilt dependency is described by its own file in `dev/bazel/deps/`: an
+environment variable that points at a local installation, and the archives to
+fall back on when that variable is not set. `MODULE.bazel` only names the
+repositories.
+
+| Dependency        | Environment variable | Fallback archives |
+| ----------------- | -------------------- | ----------------- |
+| `@mkl`            | `MKLROOT`            | yes               |
+| `@tbb`            | `TBBROOT`            | yes               |
+| `@mpi`            | `MPIROOT`            | yes               |
+| `@ccl`            | `CCL_ROOT`           | yes               |
+| `@dpl`            | `DPL_ROOT`           | yes               |
+| `@openmp`         | `GOMPROOT`           | yes               |
+| `@openblas`       | `OPENBLASROOT`       | no                |
+| `@openrng`        | `OPENRNGROOT`        | no                |
+| `@onedal_release` | `DALROOT`            | no                |
+
+The dependencies without fallback archives are only resolvable through their
+variable and fail the build with an explicit message when it is unset.
+
+These variables are watched, so setting, changing or unsetting one re-fetches
+the repository on the next Bazel command rather than on the next server
+restart. Sourcing `setvars.sh` in a shell that already has a warm Bazel server
+therefore repoints `@mkl` and `@tbb` at the oneAPI installation immediately.
 
 ## Common Bazel commands
 The most used Bazel commands are `build`, `test` and `run`.
@@ -199,18 +231,19 @@ The most used Bazel commands are `build`, `test` and `run`.
 
 - `--cpu` CPU instruction sets to compile library for. \
   Possible values:
-  - `auto` _(default)_ Automatically detects highest available instruction set
-    on the local machine. If detection failed, uses `avx2`.
+  - `auto` _(default)_ Automatically detects the highest instruction set
+    available on the local machine and builds it together with the `sse2`
+    dispatch baseline, which is always included on x86.
   - `modern` Compiles for `sse2`, `avx2`, `avx512`.
   - `all` Compiles for all instruction sets listed below.
-  - Any comma-separated combination of the following values:
+  - Any space-separated combination of the following values:
     - `sse2`
     - `avx2`
     - `avx512`
 
    Example:
    ```sh
-   bazel test --cpu="avx2,avx512" //cpp/oneapi/dal:tests
+   bazel test --cpu="avx2 avx512" //cpp/oneapi/dal:tests
    ```
 
 - `--test_external_datasets` A switch that enables
@@ -281,8 +314,9 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
-  same subdirectories: headers under `include`, libraries under `lib/intel64`, environment
-  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
+  same subdirectories: headers under `include`, libraries under `lib/<arch>`, environment
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`. `<arch>` is
+  `intel64`, or `arm`, `riscv64` and `ARM64` (Windows ARM64) on the other targets, as in Make.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
     ```sh
@@ -341,8 +375,8 @@ Two constraints worth knowing before reaching for the debug runtime:
   compile against one CRT while naming libraries and picking dependencies for
   the other.
 
-`//:release_all` takes the libraries under `lib/intel64` and `redist/intel64`
-from both builds; everything else — headers, datasets, examples, env scripts,
+`//:release_all` takes the libraries under `lib/<arch>` and `redist/<arch>`
+(`<arch>` as above) from both builds; everything else — headers, datasets, examples, env scripts,
 CMake config — comes from the release-CRT build, since those are identical
 between flavours. The pkg-config files describe the release CRT; debug-CRT
 consumers should use `oneDALConfig.cmake`, which appends its own
@@ -369,8 +403,14 @@ Scripts that need a fixed path should use `//:release` on those platforms.
 
 Nightly CI builds Make and Bazel releases on both Linux and Windows, then uses
 `dev/release_tests/compare_release_trees.py` at check level 4 to compare their
-package trees, metadata, and exported symbols. Linux invokes the comparator
-directly; Windows uses `.ci/scripts/compare_windows_release.ps1`. Windows also
+package trees, metadata, and exported symbols. On Linux level 4 additionally
+compares each shared library's `DT_NEEDED` list and undefined dynamic symbols,
+and checks that a runtime the Make release stages in a sibling component tree
+(such as `<release>/tbb/latest/lib`) is shipped by the Bazel release as well: a
+library whose exports match but whose recorded dependencies do not cannot be
+loaded by a consumer. Linux uses `.ci/scripts/compare_linux_release.sh`
+and Windows uses `.ci/scripts/compare_windows_release.ps1`; each takes the two
+release directories from its caller. Windows also
 runs `.ci/scripts/test_bazel_release_cmake_example.ps1` to verify that a CMake
 consumer can build and run against the Bazel package.
 
@@ -381,7 +421,10 @@ driver in DPC++ link actions while moving large object lists to a response
 file. Each script contains detailed usage and maintenance comments.
 
 When package contents change, update the Bazel packaging rules or the common
-comparator rather than hiding differences in a platform wrapper.
+comparator rather than hiding differences in a platform wrapper. The same goes
+for the build itself: prefer a Bazel action to a helper script. The scripts that
+remain are listed in `dev/bazel/TODO.md` together with what each of them is
+waiting on.
 
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
@@ -535,9 +578,6 @@ dal_test_suite(
      bazel test --test_link_mode=release_dynamic //cpp/oneapi/dal:tests
      ```
 
-## What is missing in this guide
-- How to get make-like release structure
-
 ## Standard-library allocator
 
 For Linux DAAL core objects, this is equivalent to the allocator-selection
@@ -671,8 +711,8 @@ Build the full release artifact with all ISA variants (sse2, avx2, avx512):
 bazel build //:release --cpu=all
 ```
 
-By default, `--cpu=auto` builds the baseline `sse2` variant plus the detected
-host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
+By default, `--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the
+detected host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
 restrict coverage (e.g., for faster CI):
 
 ```sh
@@ -787,17 +827,88 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | `REQSAN=memory`                | `--config=msan`                                              | MemorySanitizer (Clang/LLVM + lld; instrumented dependencies recommended)  |
 | `REQSAN=type`                  | `--config=type`                                              | TypeSanitizer; Clang-only; GCC/ICPX unsupported                            |
 | `STDALLOC=yes`                  | `--stdalloc=true`                                            | Allocator-selection equivalent for Linux DAAL core objects; threading objects unchanged. Make ICX also adds `-static-libstdc++` |
+| `CODE_COVERAGE=yes`            | `--code_coverage=true`                                       | Linux with host compiler ID `icx`/`icpx`; Make-equivalent action-local flags |
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
-| `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
+| `REQCPU="avx2 avx512"`         | `--cpu="avx2 avx512"`                                        | ISA selection; space-separated, `sse2` baseline added on x86 only (`PLAT` selects the platform, not the ISA) |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
 | `MSVC_RUNTIME_VERSION=release` | `<default>`                                                  | Windows release CRT (`-MD`); unsuffixed library names                      |
 | `MSVC_RUNTIME_VERSION=debug`   | `--config=mdd`                                               | Windows debug CRT (`-MDd`); `d`-suffixed library names                     |
 | Both runtimes in one tree      | `bazel build //:release_all`                                 | Windows only; equals `//:release` elsewhere                                |
 | `PLAT=lnxarm`                  | `--platforms=@config//:linux_aarch64 CC=aarch64-linux-gnu-gcc`| Cross-compile to Linux AArch64 (ref backend only)                          |
 | `PLAT=lnxriscv64`              | `--platforms=@config//:linux_riscv64 CC=riscv64-linux-gnu-gcc`| Cross-compile to Linux RISC-V64 (ref backend only)                         |
+| `PLAT=winarm`                  | `--platforms=@config//:windows_arm64`                        | Windows ARM64 with `clang-cl` (ref backend only); off an ARM64 host also `CC="clang-cl --target=aarch64-pc-windows-msvc"` |
+| `COMPILER=clang` (Windows)     | `ONEDAL_WIN_COMPILER=clang bazel build ...`                   | `clang-cl` + `lld-link` + `llvm-lib`; implied when targeting Windows ARM64, untested on x86_64 (Make has no `COMPILER.win.clang` for it either) |
 | `RNG_BACKEND=openrng`          | `--rng_backend=openrng --backend_config=ref`                  | Use OpenRNG instead of the ref RNG (ref backend only; needs `OPENRNGROOT`) |
+
+With `--code_coverage=true`, Bazel keeps instrumentation on oneDAL-owned
+actions instead of forwarding global `--copt`/`--linkopt` values into external
+dependencies. The action-level parity with `makefile` and the compiler
+definitions under `dev/make/compiler_definitions/` is:
+
+| oneDAL action | Added options |
+|---------------|---------------|
+| ICX compile | `-coverage` |
+| DAAL core compile (the Bazel counterpart of Make `CORE.objs_a/y`) | `-DGCOV_BUILD` in addition to `-coverage` |
+| DPC++ compile | None |
+| ICX dynamic-library/module link | `-coverage` |
+| DPC++ dynamic-library/module link | `-Xscoverage` |
+| Static-library archive | None |
+| ICX executable/test link | `-coverage` |
+| DPC++ executable/test link | `-Xscoverage` |
+
+`GCOV_BUILD` is deliberately independent of compiler instrumentation: it is
+opted in by `daal_module`, and explicitly excluded from separately built DAAL
+threading modules. oneAPI DAL, DPC++, tests, examples, and tools use the default
+off setting. This mirrors the Make target-specific assignment on
+`CORE.objs_a/y`; Make's compiler-level coverage option still applies to other
+host compilations.
+
+Make's compiler drivers add the coverage runtime on dynamic links. Bazel
+applies the corresponding driver option to dynamic-library, module, executable,
+and test link actions; executable/test links need it to resolve the coverage
+runtime from instrumented objects. Static archives remain flag-free. The flag
+is rejected on non-Linux platforms and unless the detected host compiler ID is
+`icx` or `icpx`.
+
+### Recovering coverage data
+
+Instrumented objects are not a coverage report by themselves. `-coverage` writes
+a `.gcno` notes file beside each object file, and a test writes its `.gcda`
+counters to the object's build-time path; neither is a declared action output, so
+default sandboxing discards both and a plain `--code_coverage=true` build yields
+binaries no report can be made from. Measured on the pinned Bazel version: the
+only `.gcno` left is under `sandbox/sandbox_stash/`, never in `bazel-out`.
+
+Local execution keeps both:
+
+```bash
+bazel test //cpp/daal/...:all --code_coverage=true --spawn_strategy=local
+```
+
+The notes files then sit in `bazel-out/<config>/bin/_objs/<module>/`, the counters
+under the test's runfiles at the mirrored `_objs` path; `gcov` produces a report
+once a `.gcda` sits beside its `.gcno`. This is independent of Bazel's built-in
+`--collect_code_coverage`, which uses its own toolchain feature and is unchanged
+by this flag.
+
+`dev/bazel/tests/code_coverage_test.sh` is the smoke for both halves, selected
+by `--dpc`.
+
+The `LinuxBazelCoverage` CI job runs the default host mode on every pull request: it
+builds `//cpp/daal:core_static` and `//cpp/daal:thread_static` with
+`--code_coverage=true`, inspects `bazel aquery` output to confirm DAAL core
+compile actions carry `-coverage`/`-DGCOV_BUILD` while the separately built
+threading module does not, and asserts the `.gcno` notes files survive into the
+output tree.
+
+`--dpc` verifies the DPC++ link-specific `-Xscoverage` option instead: it builds
+`//cpp/oneapi/dal/table:table_dpc` and, through analysis only, checks the
+released `//cpp/oneapi/dal:dynamic_dpc` link as well. The same job runs it
+only on a manually queued pipeline. There is deliberately no cron for it: an
+Azure schedule queues the whole pipeline, which would re-run every other job
+nightly for this one check.
 
 ## Cross-compiling to ARM/RISC-V
 
@@ -823,3 +934,43 @@ validated on ARM), also set `--rng_backend=openrng` and point `OPENRNGROOT` at a
 OpenRNG install built with `.ci/env/openrng.sh`. `--rng_backend=openrng` only takes
 effect together with `--backend_config=ref`; it is silently ignored on the MKL
 backend, whose build never compiles the ref RNG shim that OpenRNG replaces.
+
+## Windows ARM64
+
+Windows ARM64 is the Bazel counterpart of the Makefile's `PLAT=winarm` and, like
+it, supports the `ref` backend only, with a single fixed SVE ISA variant and the
+LLVM toolchain from `dev/make/compiler_definitions/clang.ref.arm.mk`: `clang-cl`
+driving `--target=aarch64-pc-windows-msvc -march=armv8-a+sve`, `lld-link` and
+`llvm-lib`. That toolchain is selected automatically whenever the target arch is
+ARM64 -- a compiler named through `ONEDAL_WIN_COMPILER` or `CC`/`CXX` may only be
+clang-cl there, anything else fails with a diagnostic, because neither MSVC `cl`
+nor `icx` builds this target.
+
+The default target is the host arch, read from `PROCESSOR_ARCHITEW6432` /
+`PROCESSOR_ARCHITECTURE`, so an ARM64 host targets ARM64 and
+`--platforms=@config//:windows_arm64` only makes that explicit. That pair of
+variables answers for a 32-bit process on 64-bit Windows; a 64-bit x86_64
+process emulated on an ARM64 host reports `AMD64`, so state the target
+explicitly there with `CC`/`CXX` set to
+`clang-cl --target=aarch64-pc-windows-msvc`. `--platforms` alone is not enough:
+the target arch is detected in repository rules, which never see `--platforms`,
+so without the `--target=` flag the toolchain is configured for x86_64.
+
+Cross-compiling from an x86_64 host is **untested**: it needs the same
+`--target=aarch64-pc-windows-msvc` in `CC`/`CXX` next to
+`--platforms=@config//:windows_arm64`, and also
+`vcvarsall x64_arm64` and ARM64 builds of oneTBB and OpenBLAS, and no CI lane
+covers it. CI covers the native ARM64 path only.
+
+```bat
+rem From a Developer Command Prompt for arm64 (clang-cl uses the MSVC headers,
+rem libraries and CRT that vcvarsall exports), with %ProgramFiles%\LLVM\bin on PATH
+bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+  //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
+```
+
+`OPENBLASROOT` and `TBBROOT` must point at ARM64 builds of those dependencies;
+`.ci/env/openblas.bat` and `.ci/env/tbb.bat` produce them. The default download
+URLs in `MODULE.bazel` are all x86_64 packages, so leaving these unset fails the
+repository rule instead of silently linking wrong-arch binaries.
+`.github/workflows/ci-win.yml` runs this lane on a native ARM64 runner.

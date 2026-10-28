@@ -68,9 +68,11 @@ public:
             for (std::int64_t i = 0; i < n_; ++i) {
                 const std::int64_t idx = (i + j) % k_;
                 const std::int64_t val = k_ - idx;
-                CAPTURE(i, j, idx, val);
-                CAPTURE(ids.at(j, i), dst.at(j, i));
-                REQUIRE(TestType(val) == dst.at(j, i));
+                if (TestType(val) != dst.at(j, i)) {
+                    CAPTURE(i, j, idx, val);
+                    CAPTURE(ids.at(j, i), dst.at(j, i));
+                    REQUIRE(TestType(val) == dst.at(j, i));
+                }
             }
         }
     }
@@ -82,9 +84,11 @@ public:
             for (std::int64_t i = 0; i < n_; ++i) {
                 const std::int64_t idx = (i + j) % k_;
                 const std::int64_t val = j + idx;
-                CAPTURE(i, j, idx, val);
-                CAPTURE(ids.at(j, i), dst.at(j, i));
-                REQUIRE(TestType(val) == dst.at(j, i));
+                if (TestType(val) != dst.at(j, i)) {
+                    CAPTURE(i, j, idx, val);
+                    CAPTURE(ids.at(j, i), dst.at(j, i));
+                    REQUIRE(TestType(val) == dst.at(j, i));
+                }
             }
         }
     }
