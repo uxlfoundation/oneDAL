@@ -16,7 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
-load("@onedal//dev/bazel/config:config.bzl", "VersionInfo")
+load("@onedal//dev/bazel/config:config.bzl", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 # Resolve @config//:cpu to its Bzlmod canonical label at load time.
@@ -298,9 +298,10 @@ def _copy_lib(ctx, prefix, version_info):
     macOS .dylib versioning is not yet implemented; .dylib files are currently
     copied as-is like static libraries.
     """
-    lib_prefix = paths.join(prefix, "lib", "intel64")
-    redist_prefix = paths.join(prefix, "redist", "intel64")
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    arch_dir = release_arch_dir(ctx)
+    lib_prefix = paths.join(prefix, "lib", arch_dir)
+    redist_prefix = paths.join(prefix, "redist", arch_dir)
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
 
@@ -349,7 +350,7 @@ def _copy_lib(ctx, prefix, version_info):
         else:
             # Static libs (.a), DLLs (.dll), import libs (.lib).
             # Windows release layout: place DAAL runtime DLLs under
-            # redist/intel64 (not lib/intel64) and derive each DLL's
+            # redist/<arch> (not lib/<arch>) and derive each DLL's
             # import library `<name>_dll.lib` via dumpbin+lib /def — the
             # makefile route (`-IMPLIB:<name>_dll.lib`) is unreachable
             # through Bazel's cc_common.link() so we generate the import
@@ -639,7 +640,7 @@ _release = rule(
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
-    },
+    } | RELEASE_ARCH_ATTRS,
 )
 
 def _headers_filter_impl(ctx):
@@ -676,7 +677,8 @@ _MSVC_RUNTIME_DEBUG_FEATURE = "msvc_runtime_debug"
 # the two trees can be merged without output collisions. Note this must stay
 # narrower than `lib/`: `lib/pkgconfig` and `lib/cmake` hold identically
 # named files in both flavours and are taken from the release build only.
-_RUNTIME_SPECIFIC_DIRS = ["lib/intel64/", "redist/intel64/"]
+def _runtime_specific_dirs(arch_dir):
+    return ["lib/{}/".format(arch_dir), "redist/{}/".format(arch_dir)]
 
 def _force_msvc_runtime(settings, debug):
     """Pin the MSVC runtime configuration, ignoring any inherited setting.
@@ -826,7 +828,7 @@ def _release_all_impl(ctx):
     # the debug TBB DLLs an `-MDd` consumer loads carry their own names.
     files += _copy_from_release_tree(
         ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
-        only_dirs = _RUNTIME_SPECIFIC_DIRS,
+        only_dirs = _runtime_specific_dirs(release_arch_dir(ctx)),
         staged = staged_components,
     )
     return [DefaultInfo(files = depset(files))]
@@ -846,7 +848,7 @@ _release_all = rule(
             mandatory = True,
             cfg = _force_msvc_runtime_debug_transition,
             doc = "Release tree built against the debug MSVC runtime. " +
-                  "Only its lib/intel64 and redist/intel64 contents are " +
+                  "Only its lib/<arch> and redist/<arch> contents are " +
                   "used; ignored entirely on non-Windows platforms.",
         ),
         "_windows_constraint": attr.label(
@@ -855,7 +857,7 @@ _release_all = rule(
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
-    },
+    } | RELEASE_ARCH_ATTRS,
 )
 
 def release_all(name, release_target):
@@ -864,7 +866,7 @@ def release_all(name, release_target):
     Builds `release_target` twice — once against the release CRT (`-MD`) and
     once against the debug CRT (`-MDd`) — and merges the results. The debug
     libraries carry a `d` suffix (`onedal_cored.lib`), mirroring the Makefile,
-    so both sets live side by side in `lib/intel64` and `redist/intel64`.
+    so both sets live side by side in `lib/<arch>` and `redist/<arch>`.
 
     On non-Windows platforms the runtime distinction does not exist and the
     output is equivalent to `release_target` alone.

@@ -25,7 +25,8 @@
 #define __SERVICE_SPBLAS_MKL_H__
 
 #include "services/daal_defines.h"
-#include <mkl.h>
+#include <mkl_spblas.h>
+#include <mkl_service.h>
 
 namespace daal
 {
