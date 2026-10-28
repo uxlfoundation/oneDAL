@@ -53,7 +53,7 @@ def _drop_build_rpath(repo_ctx, prefix):
     content = repo_ctx.read(specs)
     start = content.find("%{!static:-rpath ")
     if start < 0:
-        return
+        fail("No build-prefix rpath in {}; the conda gcc package layout has changed".format(specs))
     end = content.find("}", start)
     repo_ctx.file(specs, content[:start] + content[end + 1:], executable = False)
 

@@ -308,7 +308,10 @@ The most used Bazel commands are `build`, `test` and `run`.
   Possible values:
   - `auto` _(default)_ Automatically detects the highest instruction set
     available on the local machine and builds it together with the `sse2`
-    dispatch baseline, which is always included on x86.
+    dispatch baseline, which is always included on x86. The detector is
+    compiled with the C++ compiler of the selected toolchain (`CXX`, the
+    driver matching `CC`, or the first of `icpx`, `g++`, `clang++` in `PATH`);
+    without one, `auto` falls back to `avx2` with a warning.
   - `modern` Compiles for `sse2`, `avx2`, `avx512`.
   - `all` Compiles for all instruction sets listed below.
   - Any space-separated combination of the following values:
