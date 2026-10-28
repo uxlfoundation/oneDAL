@@ -15,13 +15,11 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
+load("@onedal//dev/bazel:version.bzl", "VERSION")
 load("@onedal//dev/bazel/toolchains:common.bzl",
     "detect_host_arch",
     "detect_target_arch",
 )
-
-_BINARY_MAJOR = "4"
-_BINARY_MINOR = "0"
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     # Workaround Python wheel extraction. Bazel cannot determine file
@@ -274,6 +272,17 @@ def _check_download_arch(repo_ctx, os_id):
             repo_ctx.attr.root_env_var or "the dependency root env var",
         ))
 
+def _release_arch_dir(repo_ctx, os_id):
+    """Returns the arch directory of the target's release tree: `intel64`, `arm`,
+    `riscv64`, or `ARM64` on Windows ARM64. Matches `release_arch_dir` in
+    dev/bazel/config/config.bzl, which names the same directory in the build
+    that produces the tree.
+    """
+    arch_id = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+    if arch_id == "arm" and os_id == "win":
+        return "ARM64"
+    return arch_id
+
 def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
@@ -292,9 +301,10 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     substitutions = {
         "%{os}": os_id,
         "%{repo_root}": str(repo_ctx.path("")),
+        "%{arch_dir}": _release_arch_dir(repo_ctx, os_id),
     }
-    substitutions["%{version_binary_major}"] = _BINARY_MAJOR
-    substitutions["%{version_binary_minor}"] = _BINARY_MINOR
+    substitutions["%{version_binary_major}"] = VERSION.binary_major
+    substitutions["%{version_binary_minor}"] = VERSION.binary_minor
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
     # `optional_libs` holds the libraries a package ships only in some layouts,

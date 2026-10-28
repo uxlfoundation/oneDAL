@@ -448,6 +448,13 @@ jobs:
       exit $status
     displayName: 'Check staged runtime dependencies'
 
+  - script: |
+      # Checks the `.so` -> `.so.<major>` -> `.so.<major>.<minor>` chain and the
+      # SONAMEs, `env/vars.sh`, the pkg-config files, the modulefile, and that no
+      # external headers leaked into `include/`.
+      dev/bazel/tests/release_structure_test.sh "$(DALROOT)"
+    displayName: 'Check release structure'
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
@@ -882,13 +889,11 @@ jobs:
         echo OK: tbb\latest\lib\vc_mt\%%f
       )
     displayName: 'Check staged runtime dependencies'
-  # Debug MSVC runtime (Make MSVC_RUNTIME_VERSION=debug): checks that the
-  # `-MDd` build links and that its libraries land under the `d`-suffixed
-  # names, so an MD and an MDd release can share one tree. Built after the
-  # release tree above is copied out, since it reuses bazel-bin/release.
-  # Analysis-only check of both MSVC-runtime configurations, ahead of the MDd
-  # build below. The debug runtime is driven by two settings that have to
-  # agree — the `msvc_runtime_debug` toolchain feature and the
+  # Analysis-only check of both MSVC-runtime configurations. The pull-request
+  # run does not build the debug runtime (`-MDd`); Intel's internal nightly CI
+  # does through its Make build, and `WindowsBazelReleaseAll` below does on
+  # manual and scheduled runs. The debug runtime is driven by two settings
+  # that have to agree — the `msvc_runtime_debug` toolchain feature and the
   # `@config//:msvc_runtime` build setting — and a mismatch is reported during
   # analysis (see `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
   # surfaces that in seconds rather than after a full icx compile, and also
@@ -898,66 +903,6 @@ jobs:
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --nobuild --verbose_failures || exit /b 1
     displayName: 'analyze-msvc-runtime-configs'
-  - script: |
-      call %TEMP%\oneapi\setvars.bat --force
-      rem Clear the staged tree the MD build left behind. Bazel only replaces
-      rem the files the current build declares, so onedal_core.lib and friends
-      rem would still sit next to onedal_cored.lib and the name check below
-      rem could not tell a leftover from a library that failed to pick up the
-      rem `d` suffix. The MD tree itself is already copied out to
-      rem $(release.dir), and the deleted outputs are re-staged on demand.
-      if exist "bazel-bin\release\daal" rmdir /S /Q "bazel-bin\release\daal"
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --verbose_failures --jobs=$(BAZEL_JOBS)
-    displayName: 'release-mdd'
-  - powershell: |
-      $ErrorActionPreference = "Stop"
-      $root = "bazel-bin\release\daal\latest"
-      $libDir = Join-Path $root "lib\intel64"
-      $redistDir = Join-Path $root "redist\intel64"
-      if (-not (Test-Path $libDir)) { throw "Missing directory: $libDir" }
-      # Read the ABI major from the same constant the build uses, so an ABI bump
-      # does not have to be repeated here to keep this check honest.
-      $configBzl = "dev\bazel\config\config.bzl"
-      $majorMatch = Select-String -Path $configBzl -Pattern '^_BINARY_MAJOR\s*=\s*"(\d+)"'
-      if (-not $majorMatch) { throw "Could not read _BINARY_MAJOR from $configBzl" }
-      $major = $majorMatch.Matches[0].Groups[1].Value
-      Write-Host "ABI major from ${configBzl}: $major"
-      # The full set of debug-runtime artifacts, matching what the Make build
-      # produces for MSVC_RUNTIME_VERSION=debug (makefile:337-347, 962-970).
-      # The DPC++ library is included because `--release_dpc` defaults to True
-      # (dev/bazel/config/config.tpl.BUILD) and this job does not turn it off,
-      # so //:release ships `onedal_dpc` through `:release_dpc_windows` in
-      # //BUILD. Only the dynamic flavour: Windows gets no static DPC library
-      # and no parameters libraries at all, so `onedal_dpcd.lib` and
-      # `onedal_parameters_dpcd.lib` are absent by design, in both CRT flavours.
-      $expectedLib = @("onedal_cored.lib", "onedal_threadd.lib", "onedald.lib",
-                       "onedal_cored_dll.lib", "onedal_cored_dll.$major.lib",
-                       "onedald_dll.lib", "onedald_dll.$major.lib",
-                       "onedal_dpcd_dll.lib", "onedal_dpcd_dll.$major.lib")
-      $expectedRedist = @("onedal_cored.$major.dll", "onedal_threadd.$major.dll",
-                          "onedald.$major.dll", "onedal_dpcd.$major.dll")
-      $missing = @()
-      $missing += $expectedLib | Where-Object { -not (Test-Path (Join-Path $libDir $_)) }
-      $missing += $expectedRedist | Where-Object { -not (Test-Path (Join-Path $redistDir $_)) }
-      # The import library for the threading DLL is deliberately not shipped,
-      # mirroring the Make package (release.bzl _THREAD_STEMS).
-      $unexpected = @("onedal_core.lib", "onedal_thread.lib", "onedal.lib",
-                      "onedal_dpc_dll.lib", "onedal_threadd_dll.lib") |
-          Where-Object { Test-Path (Join-Path $libDir $_) }
-      if ($missing -or $unexpected) {
-          Write-Host "lib\intel64:"
-          Get-ChildItem $libDir | ForEach-Object { Write-Host "  $($_.Name)" }
-          if (Test-Path $redistDir) {
-              Write-Host "redist\intel64:"
-              Get-ChildItem $redistDir | ForEach-Object { Write-Host "  $($_.Name)" }
-          }
-          if ($missing) { Write-Host "MISSING: $($missing -join ', ')" }
-          if ($unexpected) { Write-Host "UNEXPECTED: $($unexpected -join ', ')" }
-          throw "Debug-runtime release tree does not match the expected name set."
-      }
-      Write-Host "Debug-runtime library names OK."
-    displayName: 'Verify debug-runtime library names'
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel icx build'
@@ -1031,8 +976,8 @@ jobs:
 # than the plain single-flavour path.
 #
 # Deliberately NOT part of the pull-request run: it builds the whole Windows
-# release twice, and adding that to `WindowsBazel` — which already builds MD
-# and MDd — pushed that job past the six-hour hosted-agent limit and lost the
+# release twice, and adding that to `WindowsBazel` — which then built MD and
+# MDd — pushed that job past the six-hour hosted-agent limit and lost the
 # agent mid-compile. The PR run keeps the cheap
 # `bazel build //:release_all --nobuild` analysis check, which catches a
 # malformed transition in seconds; this job validates the staged output and
