@@ -40,7 +40,7 @@ using namespace daal::algorithms::linear_model::normal_equations::training::inte
 
 template <typename algorithmFPType, CpuType cpu>
 Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny,
-                                                            algorithmFPType * b, bool interceptFlag) const
+                                                            algorithmFPType * b, bool interceptFlag, bool isDualSystem) const
 {
     size_t nRidge = _ridge.getNumberOfRows();
     ReadRows<algorithmFPType, cpu> ridgeBlock(const_cast<NumericTable &>(_ridge), 0, nRidge);
@@ -57,7 +57,7 @@ Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const al
             aCopy[idx] += *ridge;
         }
 
-        st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode());
+        st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem);
         DAAL_CHECK_STATUS_VAR(st);
     }
     else
@@ -76,7 +76,7 @@ Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const al
 
             DAAL_INT one(1);
 
-            st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, one, bPtr, getInternalErrorCode());
+            st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, one, bPtr, getInternalErrorCode(), isDualSystem);
             DAAL_CHECK_STATUS_VAR(st);
         }
     }

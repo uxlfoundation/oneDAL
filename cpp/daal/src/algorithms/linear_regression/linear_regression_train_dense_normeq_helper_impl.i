@@ -41,9 +41,9 @@ using namespace daal::algorithms::linear_model::normal_equations::training::inte
 
 template <typename algorithmFPType, CpuType cpu>
 Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny,
-                                                            algorithmFPType * b, bool inteceptFlag) const
+                                                            algorithmFPType * b, bool inteceptFlag, bool isDualSystem) const
 {
-    return FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode());
+    return FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem);
 }
 
 template <typename algorithmFPType, CpuType cpu>

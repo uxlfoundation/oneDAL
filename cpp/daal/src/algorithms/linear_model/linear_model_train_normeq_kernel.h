@@ -66,10 +66,11 @@ public:
      *                      On input, the right hand sides of the system of linear equations
      *                      On output, the regression coefficients
      * \param[in] interceptFlag Flag. If true, then it is required to compute an intercept term
+     * \param[in] isDualSystem  Flag. If true, the system is the dual one with the left hand side X * X^t
      * \return Status of the computations
      */
     virtual Status computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny, algorithmFPType * b,
-                                    bool inteceptFlag) const = 0;
+                                    bool inteceptFlag, bool isDualSystem) const = 0;
 
     virtual ErrorID getInternalErrorCode() const = 0;
 };
@@ -122,9 +123,10 @@ public:
      *                          On output, the regression coefficients
      * \param[in] internalError Error code that have to be returned in case incorrect parameters
      *                          are passed into lapack routines
+     * \param[in] isDualSystem  Flag. If true, the system is the dual one with the left hand side X * X^t
      * \return Status of the computations
      */
-    static Status solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b, const ErrorID & internalError);
+    static Status solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b, const ErrorID & internalError, bool isDualSystem);
 };
 
 /**

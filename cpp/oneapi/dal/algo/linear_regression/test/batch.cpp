@@ -62,6 +62,17 @@ TEMPLATE_LIST_TEST_M(lr_batch_test, "LR with non-PSD matrix", "[lr][batch-nonpsd
     this->run_and_check_linear_indefinite_multioutput();
 }
 
+TEMPLATE_LIST_TEST_M(lr_batch_test,
+                     "LR with rank(X) < X.row_count() < X.column_count()",
+                     "[lr][batch-wide-rank-deficient]",
+                     lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    this->generate(777);
+
+    this->run_and_check_linear_indefinite_duplicate_rows();
+}
+
 TEMPLATE_LIST_TEST_M(lr_batch_test, "RR common flow", "[rr][batch]", lr_types) {
     SKIP_IF(this->not_float64_friendly());
 

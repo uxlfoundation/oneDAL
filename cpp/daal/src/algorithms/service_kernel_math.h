@@ -817,7 +817,7 @@ bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t n
 }
 
 template <typename FPType, CpuType cpu>
-bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
+bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1))
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveEquationsSystemWithSpectralDecomposition, n, nX);
     /* Storage for the eigenvalues.
@@ -892,7 +892,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     'std::numeric_limits' in order to avoid potential template instantiation errors with some types. */
     const FPType eps = std::is_same<FPType, float>::value ? 1.1920929e-07 : 2.220446049250313e-16;
     if (eigenvalues[n - 1] <= eps) return false;
-    const double component_threshold = eps * eigenvalues[n - 1];
+    const double component_threshold = cutoffFactor * eps * eigenvalues[n - 1];
     DAAL_INT num_discarded;
     for (num_discarded = 0; num_discarded < static_cast<DAAL_INT>(n) - 1; num_discarded++)
     {
@@ -967,8 +967,9 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     return true;
 }
 
+/* cutoffFactor scales the relative threshold below which eigenvalues are discarded in the spectral decomposition fallback */
 template <typename FPType, CpuType cpu>
-bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
+bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1))
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveSymmetricEquationsSystem, n, nX);
     /* Copy data for fallback from Cholesky to spectral decomposition */
@@ -1003,7 +1004,7 @@ bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, 
         bool status = false;
         {
             DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.spectralDecomposition);
-            status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential);
+            status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential, cutoffFactor);
         }
         if (status)
         {

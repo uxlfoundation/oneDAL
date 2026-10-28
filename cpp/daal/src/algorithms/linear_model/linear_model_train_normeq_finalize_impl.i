@@ -114,7 +114,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
 
             {
                 DAAL_PROFILER_TASK(computeFinalize.computeBetasImpl);
-                DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag));
+                DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag, false));
             }
         }
     }
@@ -166,9 +166,11 @@ Status FinalizeKernel<algorithmFPType, cpu>::copyDataToTable(const algorithmFPTy
 
 template <typename algorithmFPType, CpuType cpu>
 Status FinalizeKernel<algorithmFPType, cpu>::solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b,
-                                                         const ErrorID & internalError)
+                                                         const ErrorID & internalError, bool isDualSystem)
 {
-    if (daal::algorithms::internal::solveSymmetricEquationsSystem<algorithmFPType, cpu>(a, b, p, ny, false))
+    /* The rounding noise in the eigenvalues of the centered X * X^t is about p * eps * lambda_max */
+    const algorithmFPType cutoffFactor = isDualSystem ? static_cast<algorithmFPType>(p) : algorithmFPType(1);
+    if (daal::algorithms::internal::solveSymmetricEquationsSystem<algorithmFPType, cpu>(a, b, p, ny, false, cutoffFactor))
     {
         return Status();
     }
@@ -340,7 +342,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
         DAAL_CHECK_MALLOC(xxtCopy);
         const size_t xxtSizeInBytes = nRows * nRows * sizeof(algorithmFPType);
         DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xxtCopy, xxtSizeInBytes, xxt, xxtSizeInBytes), services::ErrorMemoryCopyFailedInternal);
-        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, false));
+        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, false, true));
     }
 
     /* betaBuffer = Xc^t * dualCoef */
