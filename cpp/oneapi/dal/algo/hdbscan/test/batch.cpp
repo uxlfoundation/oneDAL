@@ -18,6 +18,8 @@
 #include "oneapi/dal/test/engine/blobs.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
+#include "daal/include/services/env_detect.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -544,6 +546,58 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                          this->get_single_linkage_tree(ref),
                          row_count,
                          te::get_tolerance<Float>(1e-2, 1e-9));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan tree methods: Prim's MST is the same for every thread count",
+                     "[hdbscan][batch]",
+                     hdbscan_tree_types) {
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // 2400 rows x 64 columns: the early Prim steps scan in parallel, the late ones serially.
+    constexpr std::int64_t per_cluster = 600;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 64;
+    const std::int64_t row_count = per_cluster * cluster_count;
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(10.0),
+                                            /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+    const auto desc = this->template get_method_descriptor<Method>(10, 5).set_result_options(
+        result_options::responses | result_options::single_linkage_tree);
+
+    auto* const env = daal::services::Environment::getInstance();
+    const std::size_t default_thread_count = env->getNumberOfThreads();
+    const auto compute_with_threads = [&](std::size_t thread_count) {
+        env->setNumberOfThreads(thread_count);
+        auto result = this->compute(desc, x);
+        env->setNumberOfThreads(default_thread_count);
+        return result;
+    };
+    const auto serial = compute_with_threads(1);
+    const auto parallel = compute_with_threads(4);
+
+    // The scan reduces its blocks in block order, so the edges are the same whatever runs them.
+    const auto serial_tree = this->get_single_linkage_tree(serial);
+    const auto parallel_tree = this->get_single_linkage_tree(parallel);
+    REQUIRE(serial_tree.get_count() == parallel_tree.get_count());
+    std::int64_t first_difference = -1;
+    for (std::int64_t e = 0; e < row_count - 1 && first_difference < 0; e++) {
+        if (serial_tree[4 * e + 2] != parallel_tree[4 * e + 2]) {
+            first_difference = e;
+        }
+    }
+    CAPTURE(first_difference);
+    REQUIRE(first_difference < 0);
+    check_same_hierarchy(parallel_tree,
+                         serial_tree,
+                         row_count,
+                         te::get_tolerance<Float>(1e-6, 1e-12));
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
