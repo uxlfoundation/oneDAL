@@ -23,8 +23,12 @@ def _get_dpcpp_compiler_root(repo_ctx):
 
 def _opencl_repo_impl(repo_ctx):
     dpcpp_root = _get_dpcpp_compiler_root(repo_ctx)
+    linkopts = ["-lOpenCL"]
     if dpcpp_root:
         lib_dir = paths.join(dpcpp_root, "lib")
+        # Lets the linker resolve what these libraries need from the compiler's
+        # own lib directory (libz for libur_loader under conda-forge).
+        linkopts.append("-Wl,-rpath-link," + lib_dir)
         libs = [
             "libOpenCL*.so*",
             "libsvml.so",
@@ -38,6 +42,7 @@ def _opencl_repo_impl(repo_ctx):
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/deps:opencl.tpl.BUILD"),
+        substitutions = {"%{linkopts}": repr(linkopts)},
     )
 
 opencl_repo = repository_rule(

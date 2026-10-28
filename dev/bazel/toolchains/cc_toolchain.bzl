@@ -72,6 +72,9 @@ onedal_cc_toolchain = repository_rule(
         "PATH",
         "INCLUDE",
         "LIB",
+        # Intel compiler config files; they can change the sysroot and include paths.
+        "ICXCFG",
+        "ICPXCFG",
         # Opt-in switch for the LLVM-driver Windows toolchains:
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx, =clang selects clang-cl,
         # anything else falls back to the rules_cc MSVC cl auto-config.

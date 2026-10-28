@@ -11,6 +11,9 @@ cc_library(
     includes = [
         "include",
     ],
+    # Makes rules_cc pass `includes` as -isystem, as cc_module's `system_includes`
+    # does for oneDPL; conda's SYCL headers live here and must not fail -Werror.
+    features = ["system_include_paths"],
 )
 
 cc_library(
