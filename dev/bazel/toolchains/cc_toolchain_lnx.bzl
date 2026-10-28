@@ -157,13 +157,14 @@ def _add_new_offload_driver_link(repo_ctx, dpcc):
     if not flags:
         return []
 
-    # The legacy driver adds the PVC JIT option
-    # -ze-intel-enable-auto-large-GRF-mode to the embedded device image on its
-    # own; the new driver drops it. Pass it explicitly so the kernels are
-    # JIT-compiled with the same options as before.
+    # The legacy driver embeds -ftarget-register-alloc-mode=pvc:<opt> in the
+    # device image, so the PVC-only JIT option is applied to PVC devices alone.
+    # The new driver embeds no GRF option on its own, so pass it in that same
+    # form. A bare -ze-intel-enable-auto-large-GRF-mode for every device breaks
+    # the CPU OpenCL JIT ("Unrecognized build options").
     return flags + [
         "-Xsycl-target-backend=spir64",
-        "-ze-intel-enable-auto-large-GRF-mode",
+        "-ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode",
     ]
 
 def configure_cc_toolchain_lnx(repo_ctx, reqs):

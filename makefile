@@ -828,6 +828,10 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
     $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
+# New offloading driver for the DPC libraries only; see dev/make/compiler_definitions/dpcpp.mk
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -840,6 +844,9 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(WORKDIR.lib)/$(oneapi_y.dpc) \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win

@@ -80,13 +80,11 @@ link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 # Device link with the new offloading driver, as in the Bazel toolchain
 # (dev/bazel/toolchains/cc_toolchain_lnx.bzl). The legacy driver unbundles every
 # input object, including the host-only DAAL objects; the new one skips them.
-# Link actions only; compile actions and object formats are unchanged. The
-# legacy driver adds -ze-intel-enable-auto-large-GRF-mode to the device image on
-# its own and the new one drops it, so it is passed explicitly. Skipped if icpx
-# does not support the option.
+# Link actions only; compile actions and object formats are unchanged. The flags
+# are set per DPC library target in makefile, not here, because LOPT is the link
+# options variable and this one is global. Empty if icpx does not support the
+# option.
 offload.new.driver.lnx.dpcpp := $(if $(OS_is_lnx),$(shell icpx -fsycl --offload-new-driver -fsyntax-only -x c++ /dev/null >/dev/null 2>&1 && echo yes))
-link.dynamic.lnx.dpcpp += $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
-                          -Xsycl-target-backend=spir64 -ze-intel-enable-auto-large-GRF-mode,)
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
