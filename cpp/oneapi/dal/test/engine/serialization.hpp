@@ -148,8 +148,10 @@ public:
     explicit mock_output_archive(const mock_archive_state& state) : state_(state) {}
 
     void operator()(const void* data, data_type dtype, std::int64_t count = 1) {
-        state_.get().reserve(state_.get().size() + count);
-
+        // No `reserve(size + count)` here: an exact reservation on every call
+        // defeats the geometric growth of the vector, so each call reallocated
+        // and moved every entry written so far -- quadratic in the size of the
+        // archive, and most of the run time of the decision forest model tests.
         for (std::int64_t i = 0; i < count; i++) {
             save(i, data, dtype);
         }

@@ -26,7 +26,7 @@
 
 #include "services/daal_defines.h"
 #include "src/services/service_topo.h"
-#include <mkl.h>
+#include <mkl_types.h>
 #include <mkl_service.h>
 #include <string.h>
 #ifdef USE_STD_ALLOC

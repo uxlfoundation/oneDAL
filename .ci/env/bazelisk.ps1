@@ -31,8 +31,14 @@ updated, which also makes the script convenient for local CI reproduction.
 
 $ErrorActionPreference = "Stop"
 
-$bazeliskVersion = "v1.29.0"
-$assetName = "bazelisk-windows-amd64.exe"
+$bazeliskVersion = "v1.30.0"
+$hostArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$assetSuffix = switch ($hostArch.ToUpperInvariant()) {
+    "ARM64" { "arm64" }
+    "AMD64" { "amd64" }
+    default { throw "Unsupported Windows host architecture for Bazelisk: $hostArch" }
+}
+$assetName = "bazelisk-windows-$assetSuffix.exe"
 $installDir = Join-Path (Get-Location) "bazel\bin"
 $bazelPath = Join-Path $installDir "bazel.exe"
 
@@ -40,8 +46,8 @@ $bazelPath = Join-Path $installDir "bazel.exe"
 # call. Add the digests for every new $bazeliskVersion:
 #   gh api repos/bazelbuild/bazelisk/releases/tags/<version> --jq '.assets[] | "\(.name) \(.digest)"'
 $pinnedDigests = @{
-    "v1.29.0/bazelisk-windows-amd64.exe" = "092a8738d5b41aae7a85c42cc961b1034e3389aba43ffc20c0fabda7b43e095b"
-    "v1.29.0/bazelisk-windows-arm64.exe" = "8bc42bd5d7857f18a21440b906469bb6c7cf91a7c72364d4b1e5ec56a76fe94f"
+    "v1.30.0/bazelisk-windows-amd64.exe" = "5d14a31e9d8a363c48ba1900dbd56764d730835232eb0d113cce255856ffe3ef"
+    "v1.30.0/bazelisk-windows-arm64.exe" = "cb832b1d157e0dc5f89108da426f9c6fe087f5b15873e072480ec49cc5afe488"
 }
 $expectedHash = $pinnedDigests["$bazeliskVersion/$assetName"]
 if (-not $expectedHash) {

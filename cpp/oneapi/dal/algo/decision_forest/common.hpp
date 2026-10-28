@@ -613,7 +613,9 @@ public:
     }
 
     /// Engine method for the random numbers generator used by the algorithm
-    /// @remark default = engine_method::philox4x32x10
+    /// @remark default = engine_type::philox4x32x10
+    /// @remark On builds with the reference RNG backend (OpenBLAS builds), `mt2203` avoids a
+    ///         per-tree skip-ahead whose cost grows with the number of trees and rows.
     engine_type get_engine_type() const {
         return base_t::get_engine_type();
     }

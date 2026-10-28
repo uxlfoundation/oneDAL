@@ -219,8 +219,6 @@ public:
                 const auto lval = larr[r * c_count + c];
                 const auto rval = rarr[r * c_count + c];
 
-                CAPTURE(r_count, c_count, r, c, lval, rval);
-
                 const auto aerr = std::abs(lval - rval);
                 if (aerr < tol)
                     continue;
@@ -230,7 +228,13 @@ public:
                                             std::abs(rval) });
 
                 const auto rerr = aerr / den;
-                CAPTURE(aerr, rerr, den, r, c, lval, rval);
+                if (rerr < tol)
+                    continue;
+
+                // CAPTURE formats its values as soon as it is reached, not when
+                // an assertion fails; reached for every element, it dominated
+                // the run time of every test using this check.
+                CAPTURE(r_count, c_count, r, c, lval, rval, aerr, rerr, den);
                 REQUIRE(rerr < tol);
             }
         }

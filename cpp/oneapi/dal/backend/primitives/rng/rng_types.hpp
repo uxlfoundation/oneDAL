@@ -14,10 +14,22 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "oneapi/dal/rng.hpp"
 #pragma once
 
+#include <cstdint>
+#include <stdexcept>
+
+#include <daal/include/algorithms/engines/mt2203/mt2203.h>
+#include <daal/include/algorithms/engines/mcg59/mcg59.h>
+#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
+#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
+#include <daal/include/algorithms/engines/mt19937/mt19937.h>
+
+#include "oneapi/dal/rng.hpp"
+
 namespace oneapi::dal::backend::primitives {
+
+constexpr std::int64_t default_seed = dal::detail::default_seed;
 
 /// Enum class representing different random number generation (RNG) engine methods.
 ///
@@ -32,7 +44,7 @@ namespace oneapi::dal::backend::primitives {
 /// - `philox4x32x10`: Counter-based RNG engine optimized for parallel computations.
 enum class engine_type_internal { mt2203, mcg59, mt19937, mrg32k3a, philox4x32x10 };
 
-inline engine_type_internal convert_engine_method(engine_type method) {
+constexpr engine_type_internal convert_engine_method(engine_type method) {
     switch (method) {
         case engine_type::mt2203:
             return ::oneapi::dal::backend::primitives::engine_type_internal::mt2203;
@@ -47,4 +59,37 @@ inline engine_type_internal convert_engine_method(engine_type method) {
         default: throw std::runtime_error("Unsupported engine type in generate_rng");
     }
 }
+
+/// `dal::detail::default_engine_type`, philox4x32x10: counter-based, so `skip_ahead` is O(1).
+constexpr engine_type_internal default_engine_type_internal =
+    convert_engine_method(dal::detail::default_engine_type);
+
+/// Creates the DAAL(host) engine that corresponds to the requested method.
+/// @param[in] seed    The initial seed for the random number generator.
+/// @param[in] method  The engine method.
+inline daal::algorithms::engines::EnginePtr make_daal_engine(std::int64_t seed,
+                                                             engine_type_internal method) {
+    switch (method) {
+        case engine_type_internal::mt2203:
+            return daal::algorithms::engines::mt2203::Batch<>::create(seed);
+        case engine_type_internal::mcg59:
+            return daal::algorithms::engines::mcg59::Batch<>::create(seed);
+        case engine_type_internal::mrg32k3a:
+            return daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
+        case engine_type_internal::philox4x32x10:
+            return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
+        case engine_type_internal::mt19937:
+            return daal::algorithms::engines::mt19937::Batch<>::create(seed);
+        default: throw std::invalid_argument("Unsupported engine type");
+    }
+}
+
+/// Creates the DAAL(host) engine that corresponds to the requested method.
+/// @param[in] seed    The initial seed for the random number generator.
+/// @param[in] method  The engine method.
+inline daal::algorithms::engines::EnginePtr make_daal_engine(std::int64_t seed,
+                                                             engine_type method) {
+    return make_daal_engine(seed, convert_engine_method(method));
+}
+
 } // namespace oneapi::dal::backend::primitives

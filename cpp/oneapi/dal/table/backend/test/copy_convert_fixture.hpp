@@ -154,8 +154,10 @@ public:
         for (std::int64_t i = 0l; i < count; ++i) {
             const result_t res_val = res_ptr[i];
             const result_t gtr_val = gtr_ptr[i];
-            CAPTURE(i, res_val, gtr_val);
-            REQUIRE(res_val == gtr_val);
+            if (res_val != gtr_val) {
+                CAPTURE(i, res_val, gtr_val);
+                REQUIRE(res_val == gtr_val);
+            }
         }
     }
 
@@ -177,8 +179,10 @@ public:
             const result_t gtr_val = gtr_ptr[i];
             const result_t res_val = res_ptr[j];
 
-            CAPTURE(i, j, row, col, res_val, gtr_val);
-            REQUIRE(res_val == gtr_val);
+            if (res_val != gtr_val) {
+                CAPTURE(i, j, row, col, res_val, gtr_val);
+                REQUIRE(res_val == gtr_val);
+            }
         }
     }
 

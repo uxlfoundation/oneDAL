@@ -362,6 +362,21 @@ jobs:
             --test_output=errors \
             -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
 
+      # The arch dir of the release metadata follows ARCH_DIR_ONEDAL (`lib/arm`
+      # here, as in Make's lnxarm release). The full `//:release` tree cannot
+      # be built on AArch64 yet: the public oneapi headers pull the DPC++
+      # targets, and with them MKL, into the analysis even with
+      # `--release_dpc=false`.
+      - name: bazel build release metadata
+        run: |
+          set -euo pipefail
+          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            //:release_pkgconfig_dynamic_threading_host //:release_cmake_config
+          grep -qx 'libdir=${exec_prefix}/lib/arm' \
+            bazel-bin/lib/pkgconfig/dal-dynamic-threading-host.pc
+          grep -q 'lib/arm' bazel-bin/lib/cmake/oneDAL/oneDALConfig.cmake
+
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
   # running a matrix CI, and allows changing the CI without needing to change

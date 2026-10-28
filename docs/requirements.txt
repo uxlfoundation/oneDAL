@@ -1,7 +1,7 @@
 alabaster==1.0.0
 Babel==2.18.0
 beautifulsoup4==4.15.0
-certifi==2026.7.22
+certifi==2026.10.19
 chardet==7.6.0
 click==8.5.0
 colorama==0.4.6
@@ -9,7 +9,7 @@ docutils~=0.21.2
 defusedxml==0.7.1
 idna==3.19
 imagesize==2.0.1
-importlib-metadata==9.0.1
+importlib-metadata==10.1.0
 importlib-resources==7.1.0
 Jinja2==3.1.6
 lxml==6.1.2
@@ -33,7 +33,7 @@ sphinx-tabs==3.5.0
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
-sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-jsmath==2.0.0
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 typing-extensions==4.16.0
