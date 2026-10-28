@@ -409,6 +409,8 @@ struct MinkowskiDist
                    FPType * outDists) const
     {
         if (count <= 0) return;
+        // nCols >= 1: the oneAPI entry rejects a table without columns before any kernel runs.
+        DAAL_ASSERT(nCols > 0);
         const size_t rowsPerBuf = powBufSize / nCols;
         if (twoP > 0 || rowsPerBuf < 2)
         {
