@@ -228,8 +228,8 @@ public:
         return *this;
     }
 
-    /// The degree :math:`p` of the Minkowski distance. Ignored by every other
-    /// metric.
+    /// The degree :math:`p` of the Minkowski distance. It must be positive and
+    /// finite for every metric; only the Minkowski metric reads it.
     /// @invariant :expr:`degree > 0`
     double get_degree() const {
         return base_t::get_degree();

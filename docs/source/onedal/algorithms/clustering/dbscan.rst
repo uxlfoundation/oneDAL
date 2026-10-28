@@ -65,8 +65,11 @@ Manhattan, Euclidean and Chebyshev distances are also exposed as their own
 supported on CPU and GPU, in both memory modes.
 
 ``epsilon`` is interpreted in the units of the selected metric, so it generally
-has to be re-tuned after changing the metric. As in scikit-learn, an all-zero
-observation is at Cosine distance :math:`1` from every other observation.
+has to be re-tuned after changing the metric. ``degree`` must be positive and
+finite for every metric and is read only by the Minkowski metric. As in
+scikit-learn, an all-zero observation is at Cosine distance :math:`1` from every
+other observation, while every observation, including an all-zero one, belongs
+to its own neighborhood.
 
 ---------------------
 Programming Interface

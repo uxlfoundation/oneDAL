@@ -268,7 +268,8 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     using float_t = std::tuple_element_t<0, TestType>;
 
     // Two zero rows, at cosine distance 1 from every other row including each other, then two
-    // collinear rows. Reference: sklearn.cluster.DBSCAN(eps, min_samples=m, metric="cosine").
+    // collinear rows. Reference: sklearn.cluster.DBSCAN(eps, min_samples=m, metric="cosine") on
+    // its unchunked path, where the self-distance is forced to 0 and a zero row is its own neighbor.
     constexpr float_t narrow_data[] = { 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0 };
     const auto x_narrow = homogen_table::wrap(narrow_data, 4, 2);
     constexpr float_t wide_data[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
