@@ -15,162 +15,64 @@
 #===============================================================================
 
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Only non-default settings, plus a few defaults the review workflow relies on.
 # Reference: https://docs.coderabbit.ai/reference/configuration
 
-language: en-US
-tone_instructions: ""
-early_access: false
-# Without inheritance, settings omitted here use CodeRabbit defaults, not the org UI settings
 inheritance: false
 
 reviews:
   profile: chill
-  request_changes_workflow: false
-  allow_author_approval: true
 
-  # Summary and walkthrough comment
-  high_level_summary: true
-  high_level_summary_instructions: ""
-  high_level_summary_in_walkthrough: false
-  collapse_walkthrough: true
-  changed_files_summary: true
-  sequence_diagrams: true
-  estimate_code_review_effort: true
-  assess_linked_issues: true
-  related_issues: true
-  related_prs: true
-  suggested_labels: true
-  auto_apply_labels: false
-  suggested_reviewers: true
-  auto_assign_reviewers: false
-  in_progress_fortune: true
-  poem: false
+  # Keep the PR description author-owned; pr-checklist.yml reads it
+  high_level_summary_in_walkthrough: true
+  sequence_diagrams: false
+  related_prs: false
+  # CODEOWNERS assigns reviewers
+  suggested_reviewers: false
+  in_progress_fortune: false
 
-  # Status reporting
-  review_status: true
-  review_info: true
-  review_details: false
-  review_progress: true
-  commit_status: true
-  fail_commit_status: false
-
-  # Inline comments
-  enable_prompt_for_ai_agents: true
-
-  abort_on_close: true
-  path_filters: []
-  path_instructions: []
+  path_filters:
+    - "!**/*.csv"
+    - "!data/**"
 
   auto_review:
-    enabled: true
-    auto_incremental_review: true
-    auto_pause_after_reviewed_commits: 5
+    # Review once when the PR opens or leaves draft; later pushes only on `@coderabbitai review`
+    auto_incremental_review: false
     drafts: false
-    base_branches: []
-    labels: []
-    ignore_title_keywords: []
-    ignore_usernames: []
-    description_keyword: ""
+    ignore_usernames:
+      - "renovate[bot]"
+      - "dependabot[bot]"
+      - "mergify[bot]"
 
+  # Tests and docstrings stay author-written
   finishing_touches:
     docstrings:
-      enabled: true
-    unit_tests:
-      enabled: true
-    simplify:
       enabled: false
-    autofix:
-      enabled: true
-    fix_ci:
-      enabled: true
-    resolve_merge_conflict:
-      enabled: true
+    unit_tests:
+      enabled: false
 
   pre_merge_checks:
     docstrings:
-      mode: warning
-      threshold: 80
+      mode: "off"
     title:
-      mode: warning
-      requirements: ""
-    description:
-      mode: warning
-    issue_assessment:
-      mode: warning
-    custom_checks: []
+      mode: "off"
 
-  slop_detection:
-    enabled: true
-
-  # Tools that match file types in this repository; the rest are on by default but find nothing to lint
   tools:
-    ast-grep:
-      enabled: true
-      essential_rules: true
-    clang:
-      enabled: true
-    cppcheck:
-      enabled: true
-    ruff:
-      enabled: true
+    # ruff covers these for the few Python scripts here
     flake8:
-      enabled: true
+      enabled: false
     pylint:
-      enabled: true
-    shellcheck:
-      enabled: true
-    blinter:
-      enabled: true
-    psscriptanalyzer:
-      enabled: true
-    checkmake:
-      enabled: true
-    markdownlint:
-      enabled: true
-    yamllint:
-      enabled: true
-    actionlint:
-      enabled: true
-    zizmor:
-      enabled: true
+      enabled: false
+    # Prose linters; grammar nits in docs and comments are noise
     languagetool:
-      enabled: true
-      level: default
+      enabled: false
     vale:
-      enabled: true
-    gitleaks:
-      enabled: true
-    trufflehog:
-      enabled: true
-    semgrep:
-      enabled: true
-    opengrep:
-      enabled: true
-    osvScanner:
-      enabled: true
-    skillspector:
-      enabled: true
-    presidio:
-      enabled: true
-    github-checks:
-      enabled: true
+      enabled: false
 
 chat:
-  auto_reply: true
-  allow_non_org_members: true
-  art: true
+  art: false
 
 knowledge_base:
-  opt_out: false
-  web_search:
-    enabled: true
-  # AGENTS.md, CLAUDE.md and Copilot instruction files are detected without listing them
+  # Reads AGENTS.md, CLAUDE.md and Copilot instruction files (default)
   code_guidelines:
     enabled: true
-    filePatterns: []
-  learnings:
-    scope: auto
-  issues:
-    scope: auto
-  pull_requests:
-    scope: auto
