@@ -404,6 +404,35 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     REQUIRE(message == expected);
 }
 
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: finite input whose distances overflow is reported as overflow",
+                     "[hdbscan][batch]",
+                     hdbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    // The GPU still reports this as non-finite input.
+    SKIP_IF(!this->get_policy().is_cpu());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Every value is finite, but the squared differences overflow.
+    const Float scale = std::numeric_limits<Float>::max() / Float(10);
+    Float data[] = { 0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 0.0, 0.2, 0.15, 0.15,
+                     5.0, 5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2, 5.15, 5.15 };
+    for (auto& value : data) {
+        value *= scale;
+    }
+    const auto x = homogen_table::wrap(data, 10, 2);
+
+    const std::string expected = dal::detail::error_messages::hdbscan_distances_overflow();
+    std::string message;
+    try {
+        this->compute(this->get_descriptor(3, 3), x);
+    }
+    catch (const domain_error& e) {
+        message = e.what();
+    }
+    REQUIRE(message == expected);
+}
+
 // =========================================================================
 // Cross-method consistency
 // =========================================================================

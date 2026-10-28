@@ -48,7 +48,8 @@ inline daal_pairwise_distance_t convert_metric(distance_metric m) {
 
 /// Convert a DAAL HDBSCAN status to an exception, raising non-finite input as the GPU does.
 ///
-/// The kernels report non-finite input, and only that, as `ErrorIncorrectInputNumericTable`.
+/// The kernels report a non-finite input or MST, and only that, as
+/// `ErrorIncorrectInputNumericTable`.
 ///
 /// @param[in] s Status returned by a DAAL HDBSCAN kernel
 inline void kernel_status_to_exception(const daal::services::Status& s) {

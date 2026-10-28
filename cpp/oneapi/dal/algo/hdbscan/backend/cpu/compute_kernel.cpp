@@ -22,6 +22,7 @@
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/table/homogen.hpp"
 
+#include <daal/include/data_management/data/internal/finiteness_checker.h>
 #include <daal/src/algorithms/hdbscan/hdbscan_kernel.h>
 
 #include <algorithm>
@@ -103,24 +104,31 @@ static result_t compute_kernel_impl(const context_cpu& ctx,
     const auto daal_single_linkage_tree =
         interop::convert_to_daal_homogen_table(arr_single_linkage_tree, edge_count, 4);
 
-    kernel_status_to_exception(
-        interop::call_daal_kernel<Float, batch_kernel<Method>::template type>(
-            ctx,
-            daal_data.get(),
-            daal_responses.get(),
-            daal_cluster_count.get(),
-            daal_probabilities.get(),
-            daal_single_linkage_tree.get(),
-            static_cast<size_t>(desc.get_min_cluster_size()),
-            static_cast<size_t>(std::min(desc.get_min_samples(), row_count)),
-            convert_metric(desc.get_metric()),
-            desc.get_degree(),
-            desc.get_cluster_selection() == cluster_selection_method::leaf ? 1 : 0,
-            desc.get_allow_single_cluster(),
-            desc.get_cluster_selection_epsilon(),
-            static_cast<size_t>(desc.get_max_cluster_size()),
-            desc.get_alpha(),
-            static_cast<size_t>(desc.get_leaf_size())));
+    const auto status = interop::call_daal_kernel<Float, batch_kernel<Method>::template type>(
+        ctx,
+        daal_data.get(),
+        daal_responses.get(),
+        daal_cluster_count.get(),
+        daal_probabilities.get(),
+        daal_single_linkage_tree.get(),
+        static_cast<size_t>(desc.get_min_cluster_size()),
+        static_cast<size_t>(std::min(desc.get_min_samples(), row_count)),
+        convert_metric(desc.get_metric()),
+        desc.get_degree(),
+        desc.get_cluster_selection() == cluster_selection_method::leaf ? 1 : 0,
+        desc.get_allow_single_cluster(),
+        desc.get_cluster_selection_epsilon(),
+        static_cast<size_t>(desc.get_max_cluster_size()),
+        desc.get_alpha(),
+        static_cast<size_t>(desc.get_leaf_size()));
+    // Finite input gives a non-finite MST only when the distances overflow.
+    if (!status.ok() &&
+        daal::services::internal::get_error_id(status) ==
+            daal::services::ErrorIncorrectInputNumericTable &&
+        daal::data_management::internal::allValuesAreFinite<Float>(*daal_data, false)) {
+        throw domain_error(dal::detail::error_messages::hdbscan_distances_overflow());
+    }
+    kernel_status_to_exception(status);
 
     const std::int64_t cluster_count = arr_cluster_count.get_data()[0];
     auto results = result_t().set_cluster_count(cluster_count).set_result_options(options);

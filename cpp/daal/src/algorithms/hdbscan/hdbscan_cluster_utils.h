@@ -106,7 +106,8 @@ static services::Status sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algor
 /// @param[in] edgeCount  Expected number of edges, `nRows - 1`
 /// @param[in] mstWeights Edge weights, length `edgeCount`
 ///
-/// @return `ErrorIncorrectInputNumericTable` otherwise; both happen only for non-finite input
+/// @return `ErrorIncorrectInputNumericTable` if edges are missing or a weight is not finite, which
+///         happens only for non-finite input or overflowing distances; an empty status otherwise
 template <typename algorithmFPType>
 static services::Status checkMst(size_t edgesAdded, size_t edgeCount, const algorithmFPType * mstWeights)
 {

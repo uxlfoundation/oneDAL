@@ -222,6 +222,7 @@ MSG(hdbscan_brute_force_matrix_does_not_fit_on_device,
     "fit in device memory")
 MSG(hdbscan_input_data_is_not_finite,
     "Input data contains NaN or infinite values, so the minimum spanning tree is incomplete")
+MSG(hdbscan_distances_overflow, "Distances between input points overflow the floating-point range")
 MSG(hdbscan_single_linkage_tree_needs_float64,
     "HDBSCAN single_linkage_tree needs float64 for more than 2^23 rows")
 
