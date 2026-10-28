@@ -75,3 +75,10 @@ knowledge_base:
   # Reads AGENTS.md, CLAUDE.md and Copilot instruction files (default)
   code_guidelines:
     enabled: true
+  linked_repositories:
+    - repository: "uxlfoundation/scikit-learn-intelex"
+      instructions: >-
+        Python frontend for oneDAL; its onedal/ package binds the oneDAL C++ API with pybind11.
+        Flag oneDAL API, parameter or behavior changes that would break it.
+        Its .github/workflows/ci.yml downloads build and oneDAL_env artifacts from oneDAL's
+        nightly-build.yml by workflow and artifact name, so flag renames or layout changes there.
