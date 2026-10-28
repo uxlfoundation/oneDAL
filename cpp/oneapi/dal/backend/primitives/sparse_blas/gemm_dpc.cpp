@@ -31,6 +31,11 @@ sycl::event gemm(sycl::queue& queue,
     ONEDAL_ASSERT(b.get_dimension(1) == c.get_dimension(1));
     ONEDAL_ASSERT(c.has_mutable_data());
 
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    // See the note in gemv_dpc.cpp: oneMath's `spmm` is a different interface
+    // generation, not a different spelling of this call.
+    throw unimplemented(dal::detail::error_messages::sparse_blas_not_available_in_math_backend());
+#else
     if (co == ndorder::c) {
         return mkl::sparse::gemm(queue,
                                  order_as_layout(co),
@@ -63,6 +68,7 @@ sycl::event gemm(sycl::queue& queue,
     }
     ONEDAL_ASSERT(false);
     return sycl::event();
+#endif // ONEDAL_MATH_BACKEND_ONEMATH
 }
 
 #define INSTANTIATE(F, bo, co)                                                    \

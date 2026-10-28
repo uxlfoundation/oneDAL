@@ -318,6 +318,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch][external-dataset]",
                      kmeans_types_csr) {
     SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(!te::device_sparse_blas_supported());
     SKIP_IF(this->not_float64_friendly());
 
     using Float = std::tuple_element_t<0, TestType>;
@@ -393,6 +394,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types_csr) {
     SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(!te::device_sparse_blas_supported());
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->get_policy().is_gpu());
     using Float = std::tuple_element_t<0, TestType>;
@@ -444,6 +446,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types_csr) {
     SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(!te::device_sparse_blas_supported());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
@@ -526,6 +529,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types_csr) {
     SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(!te::device_sparse_blas_supported());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
@@ -665,6 +669,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      kmeans_types_csr) {
     SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(!te::device_sparse_blas_supported());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 

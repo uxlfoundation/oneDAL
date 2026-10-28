@@ -262,9 +262,17 @@ protected:
     table X_test_;
 };
 
+// `method::sparse` reaches the sparse BLAS primitives, which the oneMath
+// backend does not provide -- see `te::device_sparse_blas_supported()`.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using log_reg_types = COMBINE_TYPES((float, double),
+                                    (logistic_regression::method::dense_batch),
+                                    (logistic_regression::task::classification));
+#else
 using log_reg_types = COMBINE_TYPES((float, double),
                                     (logistic_regression::method::dense_batch,
                                      logistic_regression::method::sparse),
                                     (logistic_regression::task::classification));
+#endif
 
 } // namespace oneapi::dal::logistic_regression::test

@@ -77,6 +77,10 @@ onedal_cc_toolchain = repository_rule(
         # anything else falls back to the rules_cc MSVC cl auto-config.
         # Targeting Windows ARM64 always uses clang-cl.
         "ONEDAL_WIN_COMPILER",
+        # Comma-separated SYCL target triples for the DPC++ compile and link
+        # actions, e.g. ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda. Empty leaves
+        # the compiler at its default (Intel SPIR-V).
+        "ONEDAL_SYCL_TARGETS",
         # Windows host-arch detection (see detect_host_arch in common.bzl); the
         # toolchain repo must re-evaluate when these change.
         "PROCESSOR_ARCHITECTURE",

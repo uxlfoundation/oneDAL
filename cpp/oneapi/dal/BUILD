@@ -48,9 +48,25 @@ dal_module(
         "@onedal//cpp/daal:data_management",
     ],
     dpc_deps = [
-        "@mkl//:mkl_dpc",
+        ":math_backend_dpc",
         "@dpl//:headers",
     ],
+)
+
+# SYCL math library the device primitives are linked against, chosen by
+# `--dpc_math_backend`. Both targets expose the same oneMKL DPC++ interface and
+# carry the `defines` that `dal/backend/math_backend.hpp` switches on, so the
+# device sources are identical for either library.
+#
+# An `alias` rather than a `select()` in `dpc_deps` above: `dal_module` walks
+# its dependency lists at macro-evaluation time, where a `select` is still
+# opaque.
+alias(
+    name = "math_backend_dpc",
+    actual = select({
+        "@config//:dpc_math_backend_onemath": "@onemath//:onemath_dpc",
+        "//conditions:default": "@mkl//:mkl_dpc",
+    }),
 )
 
 dal_collect_modules(
