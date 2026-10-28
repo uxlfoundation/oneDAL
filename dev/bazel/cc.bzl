@@ -229,6 +229,7 @@ def _cc_module_impl(ctx):
         system_includes = ctx.attr.system_includes,
         quote_includes = ctx.attr.quote_includes,
         disallow_nopic_outputs = not is_windows,
+        short_paths = is_windows,
     )
     if compilation_outputs.objects and compilation_outputs.pic_objects:
         fail("Non-PIC object files found, oneDAL assumes " +
