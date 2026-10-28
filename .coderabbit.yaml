@@ -33,7 +33,6 @@ reviews:
 
   path_filters:
     - "!**/*.csv"
-    - "!data/**"
 
   auto_review:
     # Review once when the PR opens or leaves draft; later pushes only on `@coderabbitai review`
