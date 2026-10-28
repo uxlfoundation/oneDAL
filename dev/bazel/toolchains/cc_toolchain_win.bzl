@@ -14,6 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc/private/toolchain:windows_cc_configure.bzl", "configure_windows_toolchain")
 load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "get_starlark_list",
 )
@@ -202,8 +203,60 @@ def _is_icx_requested(repo_ctx):
     # Fall back to icx if the compiler is available.
     return repo_ctx.which("icx") != None
 
+# The rule each rules_cc toolchain .bzl file provides to BUILD.windows.tpl.
+_RULES_CC_TOOLCHAIN_CONFIGS = {
+    "windows_cc_toolchain_config.bzl": "cc_toolchain_config",
+    "armeabi_cc_toolchain_config.bzl": "armeabi_cc_toolchain_config",
+}
+
 def _configure_cc_toolchain_win_cl(repo_ctx):
-    """Default Windows toolchain: delegate to rules_cc's MSVC cl auto-config."""
+    """MSVC cl: rules_cc's auto-config, run for the Visual Studio the shell was set up with.
+
+    rules_cc takes the newest Visual Studio from vswhere unless BAZEL_VC or
+    BAZEL_VS is set. With two installed, that is not the one vcvarsall.bat put
+    on PATH and INCLUDE, and the toolchain came out with the cl.exe of one and
+    the include directories of neither. VCINSTALLDIR is what vcvarsall.bat
+    exports, so it stands in for BAZEL_VC. rules_cc's BUILD and the files it
+    references go to the `msvc` package, so that `//:all` registers only the
+    toolchain of the root package.
+    """
+    env = dict(repo_ctx.os.environ)
+    vc_dir = env.get("VCINSTALLDIR", "").rstrip("\\/")
+    if vc_dir and not env.get("BAZEL_VC") and not env.get("BAZEL_VS"):
+        env["BAZEL_VC"] = vc_dir
+
+    # The scripts rules_cc runs (get_env.bat, main.cpp) stay in the root, where
+    # it executes them; what the BUILD refers to moves with it.
+    def file(path, *args, **kwargs):
+        prefix = "msvc/" if path.startswith("builtin_include_directory_paths") else ""
+        repo_ctx.file(prefix + path, *args, **kwargs)
+
+    def template(path, *args, **kwargs):
+        repo_ctx.template("msvc/" + path, *args, **kwargs)
+
+    # rules_cc's toolchain .bzl files load @bazel_features, which only rules_cc's
+    # own repository mapping resolves, so they are loaded through @rules_cc
+    # instead of being copied here.
+    def symlink(target, link_name):
+        symbol = _RULES_CC_TOOLCHAIN_CONFIGS.get(link_name)
+        if symbol:
+            repo_ctx.file("msvc/" + link_name, (
+                'load("@rules_cc//cc/private/toolchain:{file}", _impl = "{symbol}")\n' +
+                "{symbol} = _impl\n"
+            ).format(file = link_name, symbol = symbol))
+        else:
+            repo_ctx.symlink(target, "msvc/" + link_name)
+
+    configure_windows_toolchain(struct(
+        os = struct(environ = env, name = repo_ctx.os.name, arch = repo_ctx.os.arch),
+        attr = repo_ctx.attr,
+        execute = repo_ctx.execute,
+        path = repo_ctx.path,
+        which = repo_ctx.which,
+        file = file,
+        template = template,
+        symlink = symlink,
+    ))
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win.tpl.BUILD"),
