@@ -360,16 +360,10 @@ def _prepare_include_path(repo_ctx, path):
       repo_ctx: repository_ctx object.
       path: an include path to be sanitized.
     Returns:
-      Sanitized include path that can be written to the crosstoot. Resulting path
-      is absolute if it is outside the repository and relative otherwise.
+      Absolute include path. The compiler is always run by its absolute path, so
+      it reports absolute paths even for a compiler downloaded into this repository.
     """
     path = path.strip()
     if path.endswith(_MAC_FRAMEWORK_SUFFIX):
         path = path[:-_MAC_FRAMEWORK_SUFFIX_LEN].strip()
-
-    # We're on UNIX, so the path delimiter is '/'.
-    repo_root = str(repo_ctx.path(".")) + "/"
-    path = str(repo_ctx.path(path))
-    if path.startswith(repo_root):
-        return path[len(repo_root):]
-    return path
+    return str(repo_ctx.path(path))
