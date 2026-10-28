@@ -60,7 +60,8 @@ public:
      * Computes regression coefficients by solving the system of linear equations
      * \param[in] p         Size of the system of linear equations
      * \param[in] a         Matrix of size P x P with semifinished left hand side of the system
-     * \param[in,out] aCopy Auxiliary matrix of size P x P with a copy of the matrix a
+     * \param[in,out] aCopy Auxiliary matrix of size P x P with a copy of the matrix a.
+     *                      If ny == 1, it may point to the same memory as a
      * \param[in] ny        Number of right hand sides of the system
      * \param[in,out] b     Matrix of size Ny x P.
      *                      On input, the right hand sides of the system of linear equations

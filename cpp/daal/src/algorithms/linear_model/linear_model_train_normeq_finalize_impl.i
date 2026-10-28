@@ -336,12 +336,17 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     Status st;
     {
         DAAL_PROFILER_TASK(computeDual.solveSystem);
-        /* The solver overwrites input matrix, so we create a copy */
-        TArray<algorithmFPType, cpu> xxtCopyArray(nRows * nRows);
-        algorithmFPType * xxtCopy = xxtCopyArray.get();
-        DAAL_CHECK_MALLOC(xxtCopy);
-        const size_t xxtSizeInBytes = nRows * nRows * sizeof(algorithmFPType);
-        DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xxtCopy, xxtSizeInBytes, xxt, xxtSizeInBytes), services::ErrorMemoryCopyFailedInternal);
+        TArray<algorithmFPType, cpu> xxtCopyArray;
+        algorithmFPType * xxtCopy = xxt;
+        if (nResponses > 1)
+        {
+            /* The case of nResponses == 1 is solved in place, as X * X^t is not used after the solve. */
+            xxtCopy = xxtCopyArray.reset(nRows * nRows);
+            DAAL_CHECK_MALLOC(xxtCopy);
+            const size_t xxtSizeInBytes = nRows * nRows * sizeof(algorithmFPType);
+            DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xxtCopy, xxtSizeInBytes, xxt, xxtSizeInBytes),
+                       services::ErrorMemoryCopyFailedInternal);
+        }
         DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, false, true));
     }
 
