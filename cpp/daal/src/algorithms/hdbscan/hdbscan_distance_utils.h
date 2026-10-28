@@ -110,16 +110,18 @@ static inline size_t alignedRowStride(size_t nCols)
 /// Fill the symmetric `nRows x nRows` distance matrix with a metric functor; the upper triangle
 /// is computed and mirrored, and the diagonal is zero.
 ///
-/// @tparam FPType   Floating-point type
-/// @tparam cpu      CPU dispatch tag
-/// @tparam DistFunc Metric functor exposing `pointDist(a, b, nCols)`
+/// @tparam FPType       Floating-point type
+/// @tparam cpu          CPU dispatch tag
+/// @tparam useBlockDist Compute each row with one `blockDist` call instead of `pointDist` per pair;
+///                      `blockDist` must accept unaligned rows and no norms
+/// @tparam DistFunc     Metric functor exposing `pointDist(a, b, nCols)`
 ///
 /// @param[in]  data     Row-major input buffer of size `nRows x nCols`
 /// @param[in]  nRows    Number of rows
 /// @param[in]  nCols    Number of features per row
 /// @param[in]  distFunc Distance functor instance
 /// @param[out] outDist  Row-major output, length `nRows x nRows`
-template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
+template <typename FPType, daal::internal::CpuType cpu, bool useBlockDist = false, typename DistFunc>
 static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, const DistFunc & distFunc, FPType * outDist)
 {
     // Rows per parallel task.
@@ -133,11 +135,19 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
         {
             const FPType * row_i = data + i * nCols;
             FPType * dist_row    = outDist + i * nRows;
-            for (size_t j = i; j < nRows; j++)
+            if constexpr (useBlockDist)
             {
-                const FPType d         = distFunc.template pointDist<cpu>(row_i, data + j * nCols, nCols);
-                dist_row[j]            = d;
-                outDist[j * nRows + i] = d;
+                distFunc.template blockDist<cpu>(row_i, row_i, nullptr, static_cast<DAAL_INT>(nRows - i), nCols, nCols, dist_row + i);
+                for (size_t j = i + 1; j < nRows; j++) outDist[j * nRows + i] = dist_row[j];
+            }
+            else
+            {
+                for (size_t j = i; j < nRows; j++)
+                {
+                    const FPType d         = distFunc.template pointDist<cpu>(row_i, data + j * nCols, nCols);
+                    dist_row[j]            = d;
+                    outDist[j * nRows + i] = d;
+                }
             }
             dist_row[i] = FPType(0);
         }
@@ -324,17 +334,28 @@ struct ManhattanDist
 
 /// Minkowski distance functor of arbitrary degree `p > 0`.
 ///
+/// A multiple of 1/2 up to `maxDegree` is raised by multiplication and `sqrt`; any other `p`
+/// stages the terms in a buffer so one `vPowx` call covers many of them.
+///
 /// @tparam FPType Floating-point type
 template <typename FPType>
 struct MinkowskiDist
 {
+    static constexpr int maxDegree     = 8;   ///< Largest degree raised without `vPowx`
+    static constexpr size_t powBufSize = 256; ///< Terms per `vPowx` call
+
     double p;    ///< Minkowski degree
     double invp; ///< Cached `1.0 / p`
+    int twoP;    ///< `2p` if `p` is a multiple of 1/2 in `[1, maxDegree]`, else 0
 
     /// Construct a Minkowski functor of given degree.
     ///
     /// @param[in] degree Minkowski exponent `p > 0`
-    MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
+    MinkowskiDist(double degree) : p(degree), invp(1.0 / degree), twoP(0)
+    {
+        const double twice = 2.0 * degree;
+        if (degree >= 1.0 && degree <= maxDegree && static_cast<double>(static_cast<int>(twice)) == twice) twoP = static_cast<int>(twice);
+    }
 
     /// Compute `(sum_d |a_d - b_d|^p) ^ (1/p)`.
     ///
@@ -346,16 +367,10 @@ struct MinkowskiDist
     template <daal::internal::CpuType cpu>
     FPType pointDist(const FPType * a, const FPType * b, size_t nCols) const
     {
-        const FPType pFP    = static_cast<FPType>(p);
-        const FPType invpFP = static_cast<FPType>(invp);
-        FPType sum          = FPType(0);
-        for (size_t d = 0; d < nCols; d++)
-        {
+        return root<cpu>(powSum<cpu>(nCols, [&](size_t d) {
             const FPType diff = a[d] - b[d];
-            const FPType absd = (diff < FPType(0)) ? -diff : diff;
-            sum += daal::internal::MathInst<FPType, cpu>::sPowx(absd, pFP);
-        }
-        return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
+            return (diff < FPType(0)) ? -diff : diff;
+        }));
     }
 
     /// Minimum Minkowski distance from a query to a bbox `[lo, hi]`.
@@ -369,24 +384,18 @@ struct MinkowskiDist
     template <daal::internal::CpuType cpu>
     FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols) const
     {
-        const FPType pFP    = static_cast<FPType>(p);
-        const FPType invpFP = static_cast<FPType>(invp);
-        FPType sum          = FPType(0);
-        for (size_t d = 0; d < nCols; d++)
-        {
+        return root<cpu>(powSum<cpu>(nCols, [&](size_t d) {
             const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
             const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
-            const FPType excess  = belowLo + aboveHi;
-            sum += daal::internal::MathInst<FPType, cpu>::sPowx(excess, pFP);
-        }
-        return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
+            return belowLo + aboveHi;
+        }));
     }
 
     /// Pivot-to-block Minkowski distance.
     ///
-    /// Same rationale as ManhattanDist::blockDist -- no BLAS factorization.
+    /// Short rows are packed several to a `vPowx` call, and the roots take one call per block.
     ///
-    /// @tparam cpu CPU dispatch tag (unused for this metric)
+    /// @tparam cpu CPU dispatch tag
     ///
     /// @param[in]  pivotPt     Pivot row, length `nCols`
     /// @param[in]  scratchRows Row-major batch, size `count x rowStride`
@@ -399,7 +408,102 @@ struct MinkowskiDist
     void blockDist(const FPType * pivotPt, const FPType * scratchRows, const FPType * /*rowNorms2*/, DAAL_INT count, size_t nCols, size_t rowStride,
                    FPType * outDists) const
     {
-        for (DAAL_INT i = 0; i < count; i++) outDists[i] = pointDist<cpu>(pivotPt, scratchRows + i * rowStride, nCols);
+        if (count <= 0) return;
+        // nCols >= 1: the oneAPI entry rejects a table without columns before any kernel runs.
+        DAAL_ASSERT(nCols > 0);
+        const size_t rowsPerBuf = powBufSize / nCols;
+        if (twoP > 0 || rowsPerBuf < 2)
+        {
+            for (DAAL_INT i = 0; i < count; i++)
+            {
+                const FPType * row = scratchRows + i * rowStride;
+                outDists[i]        = powSum<cpu>(nCols, [&](size_t d) {
+                    const FPType diff = pivotPt[d] - row[d];
+                    return (diff < FPType(0)) ? -diff : diff;
+                });
+            }
+        }
+        else
+        {
+            FPType buf[powBufSize];
+            const size_t nRows = static_cast<size_t>(count);
+            for (size_t i0 = 0; i0 < nRows; i0 += rowsPerBuf)
+            {
+                const size_t nBufRows = (nRows - i0 < rowsPerBuf) ? nRows - i0 : rowsPerBuf;
+                for (size_t r = 0; r < nBufRows; r++)
+                {
+                    const FPType * row = scratchRows + (i0 + r) * rowStride;
+                    for (size_t d = 0; d < nCols; d++)
+                    {
+                        const FPType diff  = pivotPt[d] - row[d];
+                        buf[r * nCols + d] = (diff < FPType(0)) ? -diff : diff;
+                    }
+                }
+                daal::internal::MathInst<FPType, cpu>::vPowx(nBufRows * nCols, buf, static_cast<FPType>(p), buf);
+                for (size_t r = 0; r < nBufRows; r++)
+                {
+                    FPType sum = FPType(0);
+                    for (size_t d = 0; d < nCols; d++) sum += buf[r * nCols + d];
+                    outDists[i0 + r] = sum;
+                }
+            }
+        }
+
+        if (twoP == 4)
+        {
+            daal::internal::MathInst<FPType, cpu>::vSqrt(count, outDists, outDists);
+        }
+        else if (twoP != 2)
+        {
+            daal::internal::MathInst<FPType, cpu>::vPowx(count, outDists, static_cast<FPType>(invp), outDists);
+        }
+    }
+
+private:
+    /// `sum_d term(d)^p` over `nCols` non-negative terms.
+    ///
+    /// @tparam cpu  CPU dispatch tag
+    /// @tparam Term Callable returning the `d`-th term
+    ///
+    /// @param[in] nCols Number of terms
+    /// @param[in] term  Term generator
+    template <daal::internal::CpuType cpu, typename Term>
+    FPType powSum(size_t nCols, const Term & term) const
+    {
+        FPType sum = FPType(0);
+        if (twoP > 0)
+        {
+            for (size_t d = 0; d < nCols; d++)
+            {
+                const FPType t = term(d);
+                FPType powered = (twoP % 2) ? daal::internal::MathInst<FPType, cpu>::sSqrt(t) : FPType(1);
+                for (int k = 0; k < twoP / 2; k++) powered *= t;
+                sum += powered;
+            }
+            return sum;
+        }
+        FPType buf[powBufSize];
+        for (size_t d0 = 0; d0 < nCols; d0 += powBufSize)
+        {
+            const size_t len = (nCols - d0 < powBufSize) ? nCols - d0 : powBufSize;
+            for (size_t d = 0; d < len; d++) buf[d] = term(d0 + d);
+            daal::internal::MathInst<FPType, cpu>::vPowx(len, buf, static_cast<FPType>(p), buf);
+            for (size_t d = 0; d < len; d++) sum += buf[d];
+        }
+        return sum;
+    }
+
+    /// `sum^(1/p)`
+    ///
+    /// @tparam cpu CPU dispatch tag
+    ///
+    /// @param[in] sum Sum of powered terms
+    template <daal::internal::CpuType cpu>
+    FPType root(FPType sum) const
+    {
+        if (twoP == 2) return sum;
+        if (twoP == 4) return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
+        return daal::internal::MathInst<FPType, cpu>::sPowx(sum, static_cast<FPType>(invp));
     }
 };
 
