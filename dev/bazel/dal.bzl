@@ -252,9 +252,6 @@ def dal_test_suite(name, srcs=[], tests=[],
                    compile_as=[ "c++", "dpc++" ], **kwargs):
     targets = []
     for test_file in srcs:
-        # TODO: On Windows the test does not start when
-        # `<package>/<target>.exe.runfiles/MANIFEST` exceeds MAX_PATH under a
-        # long output base. Keep test file names short until that is fixed.
         target = test_file.replace(".cpp", "").replace("/", "_")
         if target.endswith("_dpc"):
             is_dpc_only = ("dpc++" in compile_as) and (not "c++" in compile_as)
