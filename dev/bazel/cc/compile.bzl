@@ -47,6 +47,19 @@ _MSVC_CPU_FLAGS = {
     "avx512": ["/arch:AVX2"],
 }
 
+# MSVC's traditional preprocessor expands __VA_ARGS__ as a single token, which breaks the
+# test engine's COMBINE_TYPES; icx and clang-cl conform without a switch.
+_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor"]
+
+def _get_msvc_compile_kwargs(toolchain, kwargs):
+    if toolchain.compiler != "msvc-cl":
+        return kwargs
+    msvc_kwargs = dict(kwargs)
+    msvc_kwargs["user_compile_flags"] = (
+        kwargs.get("user_compile_flags", []) + _MSVC_COMPILE_FLAGS
+    )
+    return msvc_kwargs
+
 def _get_cpu_compile_kwargs(toolchain, cpu, kwargs):
     if toolchain.compiler != "msvc-cl":
         return kwargs
@@ -241,6 +254,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
              srcs=[], local_defines=[], includes=[], system_includes=[],
              quote_includes=[], short_paths=False, **kwargs):
 
+    kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
     if short_paths:
         name = _short_name(ctx)
