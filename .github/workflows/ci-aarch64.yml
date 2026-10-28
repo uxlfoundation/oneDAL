@@ -416,9 +416,12 @@ jobs:
   # the repository's 10 GB cache quota is shared. Keep only the newest entry per
   # RNG. This runs as its own job so that only it holds `actions: write`; the
   # build legs, which also run PR code, keep read-only permissions.
+  # `!cancelled()` rather than the default `success()`: when one RNG leg fails
+  # on main, the other leg's save still needs pruning. Keeping the newest entry
+  # per RNG stays safe either way.
   prune-bazel-disk-cache:
     needs: bazel-build-and-test
-    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -435,7 +438,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -o pipefail
-          gh cache list --key "bazel-disk-aarch64-${{ matrix.rng }}-" --limit 100 \
+          gh cache list --key "bazel-disk-aarch64-${{ matrix.rng }}-" --ref refs/heads/main --limit 1000 \
             --json id,createdAt --jq 'sort_by(.createdAt) | reverse | .[1:] | .[].id' \
             | while read -r id; do gh cache delete "$id"; done
 
