@@ -52,7 +52,8 @@ TEST("hdbscan: host extraction reads an immutable MST", "[hdbscan][cpu]") {
 }
 
 TEST("hdbscan: host extraction rejects an invalid MST", "[hdbscan][cpu]") {
-    constexpr std::int64_t row_count = 4;
+    // static: MSVC (C3493) does not let a captureless lambda use a local constexpr.
+    static constexpr std::int64_t row_count = 4;
     const auto extract = [](std::int32_t last_to, double last_weight) {
         const std::int32_t from[] = { 0, 2, 1 };
         const std::int32_t to[] = { 1, 3, last_to };

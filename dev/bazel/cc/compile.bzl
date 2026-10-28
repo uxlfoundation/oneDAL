@@ -154,6 +154,16 @@ def _patch_includes(ctx, compilation_context, includes=[],
 
 def _compile_wrapper(name, ctx, toolchain, feature_config,
                      disallow_nopic_outputs = True, **kwargs):
+    if toolchain.compiler == "msvc-cl":
+        # The traditional MSVC preprocessor forwards `__VA_ARGS__` as a single
+        # argument, which breaks the argument-counting macros of the test
+        # engine (`COMBINE_TYPES` in cpp/oneapi/dal/test/engine/type_traits.hpp).
+        # The rules_cc MSVC auto-config does not read get_default_flags(), so
+        # the conforming preprocessor is requested here.
+        kwargs = dict(kwargs)
+        kwargs["user_compile_flags"] = (
+            kwargs.get("user_compile_flags", []) + ["/Zc:preprocessor"]
+        )
     return cc_common.compile(
         name = name,
         actions = ctx.actions,
