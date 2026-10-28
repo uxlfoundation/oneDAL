@@ -318,7 +318,7 @@ public:
                 out->push_back(info.get_sample_count());
                 return true;
             }
-            bool operator()(const split_node_info<Task>& info) {
+            bool operator()(const split_node_info<Task>&) {
                 return true;
             }
         };
@@ -408,7 +408,7 @@ public:
                 out->push_back(info);
                 return true;
             }
-            bool operator()(const split_node_info<Task>& info) {
+            bool operator()(const split_node_info<Task>&) {
                 return true;
             }
         };

@@ -612,9 +612,10 @@ DF_BATCH_REG_TEST("df reg random splitter leaf statistics match a sequential pas
     this->check_random_split_leaf_statistics(GENERATE_COPY(2048, 8191), false);
 }
 
-// The GPU regression statistics are unweighted: weights enter only the minimum leaf weight and the
-// impurity decrease, so the leaves keep the unweighted mean and variance of their rows.
-DF_BATCH_REG_TEST("df reg random splitter leaf statistics ignore non-uniform weights on GPU") {
+// Known divergence from CPU, tracked in #3949: the GPU regression statistics are unweighted, so the
+// leaves keep the unweighted mean and variance of their rows. A fix makes this test fail.
+DF_BATCH_REG_TEST(
+    "df reg random splitter leaf statistics are unweighted on GPU (known divergence from CPU)") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(!this->is_gpu());
