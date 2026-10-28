@@ -314,8 +314,9 @@ The most used Bazel commands are `build`, `test` and `run`.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
-  same subdirectories: headers under `include`, libraries under `lib/intel64`, environment
-  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`.
+  same subdirectories: headers under `include`, libraries under `lib/<arch>`, environment
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`. `<arch>` is
+  `intel64`, or `arm`, `riscv64` and `ARM64` (Windows ARM64) on the other targets, as in Make.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
     ```sh
@@ -374,8 +375,8 @@ Two constraints worth knowing before reaching for the debug runtime:
   compile against one CRT while naming libraries and picking dependencies for
   the other.
 
-`//:release_all` takes the libraries under `lib/intel64` and `redist/intel64`
-from both builds; everything else — headers, datasets, examples, env scripts,
+`//:release_all` takes the libraries under `lib/<arch>` and `redist/<arch>`
+(`<arch>` as above) from both builds; everything else — headers, datasets, examples, env scripts,
 CMake config — comes from the release-CRT build, since those are identical
 between flavours. The pkg-config files describe the release CRT; debug-CRT
 consumers should use `oneDALConfig.cmake`, which appends its own
@@ -710,8 +711,8 @@ Build the full release artifact with all ISA variants (sse2, avx2, avx512):
 bazel build //:release --cpu=all
 ```
 
-By default, `--cpu=auto` builds the baseline `sse2` variant plus the detected
-host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
+By default, `--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the
+detected host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
 restrict coverage (e.g., for faster CI):
 
 ```sh
@@ -830,7 +831,7 @@ to run them against a specific binary, such as a downloaded `bazelisk`.
 | `COMPILER=gnu`                 | `CC=gcc bazel build ...`                                     | Override compiler via `CC` env                                             |
 | `OPTFLAG=O2`                   | `--copt=-O2`                                                 | Override optimization level                                                |
 | `COPT=-flag`                   | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only)         | Arbitrary compiler flag                                                    |
-| `PLAT=<isa>`                   | `--cpu=<isa>`                                                | ISA selection                                                              |
+| `REQCPU="avx2 avx512"`         | `--cpu="avx2 avx512"`                                        | ISA selection; space-separated, `sse2` baseline added on x86 only (`PLAT` selects the platform, not the ISA) |
 | Full CPU ISA release coverage  | `bazel build //:release --cpu=all`                           | Build all supported CPU ISA variants                                       |
 | `MSVC_RUNTIME_VERSION=release` | `<default>`                                                  | Windows release CRT (`-MD`); unsuffixed library names                      |
 | `MSVC_RUNTIME_VERSION=debug`   | `--config=mdd`                                               | Windows debug CRT (`-MDd`); `d`-suffixed library names                     |

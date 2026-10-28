@@ -212,10 +212,17 @@ def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
     """Compute the list of default C++ include directories."""
     result = repo_ctx.execute([cc, "-E", lang_flag, "-", "-v"] + additional_flags)
     index0 = result.stderr.rfind(_INC_DIR_MARKER_BEGIN)
-    index1 = result.stderr.find("\n", index0)
     index2 = result.stderr.rfind(_INC_DIR_MARKER_END)
+    if index0 == -1 or index2 == -1:
+        # The probe failed (e.g. `tool_not_found.sh` standing in for a missing
+        # DPC++ compiler). Parsing its output anyway yields an empty entry,
+        # which `_prepare_include_path` turns into this repository's absolute
+        # path; that lands in `builtin_include_directory_paths`, an input of
+        # every compile action, and ties every action key to the output base.
+        return []
+    index1 = result.stderr.find("\n", index0)
     inc_dirs = result.stderr[index1:index2].strip()
-    return [ _prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") ]
+    return [ _prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") if p.strip() ]
 
 def get_tmp_dpcpp_inc_directories(repo_ctx, tools):
     return ["/tmp"] if tools.dpc_compiler_version >= "20210803" else []

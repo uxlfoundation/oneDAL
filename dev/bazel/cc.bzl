@@ -255,6 +255,12 @@ def _cc_module_impl(ctx):
             tag = ctx.attr.lib_tag,
             linking_context = linking_context,
         ))
+    if not ctx.attr.export_hdrs:
+        # Dependents compile against the deps' headers only. The module's own
+        # headers, private ones included, stay out of their action inputs.
+        compilation_context = onedal_cc_common.merge_compilation_contexts(
+            dep_compilation_contexts,
+        )
     module_info = ModuleInfo(
         compilation_context = compilation_context,
         tagged_linking_contexts = tagged_linking_contexts,
@@ -272,6 +278,7 @@ _cc_module = rule(
         "srcs": attr.label_list(allow_files=True),
         "hdrs": attr.label_list(allow_files=True),
         "private_hdrs": attr.label_list(allow_files=True),
+        "export_hdrs": attr.bool(default=True),
         "deps": attr.label_list(),
         "copts": attr.string_list(),
         "defines": attr.string_list(),
