@@ -100,6 +100,8 @@ static services::Status sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algor
 
 /// Check that Boruvka produced a complete MST with finite weights, which `sortMstEdges` needs.
 ///
+/// An edge that closes a cycle is rejected later by `buildDendrogramFromSortedMst`.
+///
 /// @tparam algorithmFPType Floating-point type of the weights
 ///
 /// @param[in] edgesAdded Number of edges Boruvka added
@@ -135,6 +137,9 @@ static services::Status checkMst(size_t edgesAdded, size_t edgeCount, const algo
 /// @param[out] nodeWeight Edge weight that created each internal node, length `totalNodes`
 /// @param[in]  totalNodes Size of every output array (`2 * nRows - 1`)
 /// @param[out] root       Root node id, or -1 if the MST is empty
+///
+/// @return `ErrorIncorrectValueInTheNumericTable` if an edge joins two points that are already in
+///         one component, so the edges do not form a tree
 template <typename algorithmFPType, CpuType cpu>
 static services::Status buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, const DAAL_INT * mstTo, const algorithmFPType * mstWeights,
                                                      size_t nRows, size_t edgeCount, DAAL_INT * nodeSize, DAAL_INT * leftChild, DAAL_INT * rightChild,
@@ -186,7 +191,7 @@ static services::Status buildDendrogramFromSortedMst(const DAAL_INT * mstFrom, c
     {
         const DAAL_INT ru = ufFind(mstFrom[e]);
         const DAAL_INT rv = ufFind(mstTo[e]);
-        if (ru == rv) continue;
+        if (ru == rv) return services::Status(services::ErrorIncorrectValueInTheNumericTable);
 
         const DAAL_INT nodeId  = static_cast<DAAL_INT>(nRows + e);
         const DAAL_INT newSize = compSize[ru] + compSize[rv];
@@ -246,8 +251,6 @@ static services::Status orientDendrogramLikePrim(const DAAL_INT * mstFrom, const
     firstLeaf[root] = 0;
     for (DAAL_INT v = root; v >= firstNode; --v)
     {
-        // A merge that union-find skipped leaves a forest, which has no single order to follow.
-        if (leftChild[v] < 0) return services::Status();
         firstLeaf[leftChild[v]]  = firstLeaf[v];
         firstLeaf[rightChild[v]] = firstLeaf[v] + nodeSize[leftChild[v]];
     }
@@ -349,8 +352,8 @@ static services::Status buildCondensedTree(DAAL_INT root, size_t nRows, DAAL_INT
             }
             else
             {
-                if (rightChild[nid] >= 0) leafStack[stackTop++] = rightChild[nid];
-                if (leftChild[nid] >= 0) leafStack[stackTop++] = leftChild[nid];
+                leafStack[stackTop++] = rightChild[nid];
+                leafStack[stackTop++] = leftChild[nid];
             }
         }
     };
@@ -392,7 +395,6 @@ static services::Status buildCondensedTree(DAAL_INT root, size_t nRows, DAAL_INT
 
         const DAAL_INT lc = leftChild[nid];
         const DAAL_INT rc = rightChild[nid];
-        if (lc < 0 || rc < 0) continue;
 
         const DAAL_INT ls            = nodeSize[lc];
         const DAAL_INT rs            = nodeSize[rc];

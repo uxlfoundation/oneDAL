@@ -73,4 +73,30 @@ TEST("hdbscan: host extraction rejects an invalid MST", "[hdbscan][cpu]") {
     REQUIRE_THROWS_AS(extract(2, std::numeric_limits<double>::quiet_NaN()), domain_error);
 }
 
+TEST("hdbscan: host extraction rejects an MST with a cycle", "[hdbscan][cpu]") {
+    // Both inputs have nRows - 1 finite edges, but one edge closes a cycle and a point stays
+    // disconnected, so the edges do not form a spanning tree.
+    constexpr std::int64_t row_count = 4;
+    const auto extract = [](const std::int32_t* from, const std::int32_t* to) {
+        const double weights[] = { 0.1, 0.2, 0.3 };
+        return backend::extract_clusters_from_mst<double>(
+            dal::backend::context_cpu{},
+            make_descriptor(),
+            array<std::int32_t>::wrap(from, row_count - 1),
+            array<std::int32_t>::wrap(to, row_count - 1),
+            array<double>::wrap(weights, row_count - 1),
+            row_count,
+            false,
+            false);
+    };
+
+    const std::int32_t duplicated_from[] = { 0, 1, 2 };
+    const std::int32_t duplicated_to[] = { 1, 0, 3 };
+    REQUIRE_THROWS_AS(extract(duplicated_from, duplicated_to), domain_error);
+
+    const std::int32_t cyclic_from[] = { 0, 1, 2 };
+    const std::int32_t cyclic_to[] = { 1, 2, 0 };
+    REQUIRE_THROWS_AS(extract(cyclic_from, cyclic_to), domain_error);
+}
+
 } // namespace oneapi::dal::hdbscan::backend::test

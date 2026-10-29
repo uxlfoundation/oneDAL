@@ -80,8 +80,7 @@ services::Status HDBSCANExtractClustersKernel<algorithmFPType, cpu>::compute(con
             mstTo[e]      = static_cast<DAAL_INT>(to[e]);
             mstWeights[e] = weight[e];
         }
-        const services::Status mstStatus = checkMst(edgeCount, edgeCount, mstWeights);
-        DAAL_CHECK_STATUS_VAR(mstStatus);
+        DAAL_CHECK(!data_management::internal::valuesAreNotFinite(mstWeights, edgeCount, false), services::ErrorIncorrectInputNumericTable);
     }
 
     WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
