@@ -18,6 +18,8 @@ name: CI Conda Recipe
 
 on:
   pull_request:
+    # ready_for_review starts the jobs a draft skipped.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
     paths:
@@ -37,8 +39,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Draft pull requests skip this job; it runs once the PR is marked ready.
   LinuxCondaRecipe:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
