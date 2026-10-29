@@ -98,48 +98,21 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
             }
         }
 
-        /* R'*beta = Y*Q'. If R is singular, use the minimum-norm solution from its SVD, dropping
-         * singular values <= eps * max(S) (as gelsd does). */
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nBetasIntercept, nBetasIntercept);
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nBetasIntercept * nBetasIntercept, sizeof(algorithmFPType));
-        const size_t rSize        = size_t(nBetasIntercept) * size_t(nBetasIntercept);
-        const size_t rSizeInBytes = rSize * sizeof(algorithmFPType);
-
-        TArrayScalable<algorithmFPType, cpu> aArray(rSize);
-        TArrayScalable<algorithmFPType, cpu> sArray(nBetasIntercept);
-        algorithmFPType * a = aArray.get();
-        algorithmFPType * s = sArray.get();
-        DAAL_CHECK_MALLOC(a);
-        DAAL_CHECK_MALLOC(s);
-
-        /* gesvd destroys its input */
-        int copyResult = daal::services::internal::daal_memcpy_s(a, rSizeInBytes, r, rSizeInBytes);
-        DAAL_CHECK(!copyResult, services::ErrorMemoryCopyFailedInternal);
-
+        /* R'*beta = Y*Q'. R is triangular, so a negligible diagonal element means it is singular. In that case the
+         * minimum-norm solution from the SVD of R is used, dropping singular values <= eps * max(S) as gelsd does. */
         const algorithmFPType eps = daal::services::internal::EpsilonVal<algorithmFPType>::get();
-
-        DAAL_INT info(0);
-        DAAL_INT lwork(-1);
-        algorithmFPType workQuery(0);
-        algorithmFPType dummy(0);
-
-        /* Singular values only, to detect numerical rank deficiency */
-        LapackInst<algorithmFPType, cpu>::xgesvd('N', 'N', nBetasIntercept, nBetasIntercept, a, nBetasIntercept, s, &dummy, 1, &dummy, 1, &workQuery,
-                                                 lwork, &info);
-        DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
-        lwork = static_cast<DAAL_INT>(workQuery);
+        algorithmFPType maxDiag(0);
+        algorithmFPType minDiag(0);
+        for (DAAL_INT i = 0; i < nBetasIntercept; ++i)
         {
-            TArrayScalable<algorithmFPType, cpu> workArray(lwork);
-            algorithmFPType * work = workArray.get();
-            DAAL_CHECK_MALLOC(work);
-            LapackInst<algorithmFPType, cpu>::xgesvd('N', 'N', nBetasIntercept, nBetasIntercept, a, nBetasIntercept, s, &dummy, 1, &dummy, 1, work,
-                                                     lwork, &info);
-            DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
+            const algorithmFPType diag    = r[i * nBetasIntercept + i];
+            const algorithmFPType absDiag = diag < 0 ? -diag : diag;
+            if (absDiag > maxDiag) maxDiag = absDiag;
+            if (i == 0 || absDiag < minDiag) minDiag = absDiag;
         }
 
-        /* Singular values are sorted in decreasing order */
-        const algorithmFPType tol = eps * s[0];
-        if (s[nBetasIntercept - 1] > tol)
+        DAAL_INT info(0);
+        if (minDiag > eps * algorithmFPType(nBetasIntercept) * maxDiag)
         {
             char up     = 'U';
             char trans  = 'T';
@@ -151,21 +124,33 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
         }
         else
         {
+            DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nBetasIntercept, nBetasIntercept);
+            DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nBetasIntercept * nBetasIntercept, sizeof(algorithmFPType));
+            const size_t rSize        = size_t(nBetasIntercept) * size_t(nBetasIntercept);
+            const size_t rSizeInBytes = rSize * sizeof(algorithmFPType);
+
+            TArrayScalable<algorithmFPType, cpu> aArray(rSize);
             TArrayScalable<algorithmFPType, cpu> uArray(rSize);
             TArrayScalable<algorithmFPType, cpu> vtArray(rSize);
-            DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nResponses, nBetasIntercept);
+            TArrayScalable<algorithmFPType, cpu> sArray(nBetasIntercept);
             TArrayScalable<algorithmFPType, cpu> tmpArray(nResponses * nBetasIntercept);
+            algorithmFPType * a   = aArray.get();
             algorithmFPType * u   = uArray.get();
             algorithmFPType * vt  = vtArray.get();
+            algorithmFPType * s   = sArray.get();
             algorithmFPType * tmp = tmpArray.get();
+            DAAL_CHECK_MALLOC(a);
             DAAL_CHECK_MALLOC(u);
             DAAL_CHECK_MALLOC(vt);
+            DAAL_CHECK_MALLOC(s);
             DAAL_CHECK_MALLOC(tmp);
 
-            copyResult = daal::services::internal::daal_memcpy_s(a, rSizeInBytes, r, rSizeInBytes);
+            /* gesvd destroys its input */
+            const int copyResult = daal::services::internal::daal_memcpy_s(a, rSizeInBytes, r, rSizeInBytes);
             DAAL_CHECK(!copyResult, services::ErrorMemoryCopyFailedInternal);
 
-            lwork = -1;
+            DAAL_INT lwork(-1);
+            algorithmFPType workQuery(0);
             LapackInst<algorithmFPType, cpu>::xgesvd('A', 'A', nBetasIntercept, nBetasIntercept, a, nBetasIntercept, s, u, nBetasIntercept, vt,
                                                      nBetasIntercept, &workQuery, lwork, &info);
             DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
@@ -178,11 +163,11 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
                                                      nBetasIntercept, work, lwork, &info);
             DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
 
-            /* Store 1/s[j] for the retained singular values and 0 for the discarded ones */
-            const algorithmFPType tolFull = eps * s[0];
+            /* Singular values are sorted in decreasing order. Store 1/s[j] for the retained ones and 0 for the discarded ones */
+            const algorithmFPType tol = eps * s[0];
             for (DAAL_INT j = 0; j < nBetasIntercept; ++j)
             {
-                s[j] = (s[j] > tolFull) ? (algorithmFPType(1.0) / s[j]) : algorithmFPType(0.0);
+                s[j] = (s[j] > tol) ? (algorithmFPType(1.0) / s[j]) : algorithmFPType(0.0);
             }
 
             const algorithmFPType one(1.0);
