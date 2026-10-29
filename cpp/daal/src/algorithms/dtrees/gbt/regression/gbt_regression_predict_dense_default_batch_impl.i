@@ -452,6 +452,15 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(Numeri
     SafeStatus safeStat;
     services::Status s;
 
+    if (!predShapContributions && !predShapInteractions && nTreesTotal > dim.nRowsTotal)
+    {
+        ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, dim.nRowsTotal);
+        DAAL_CHECK_BLOCK_STATUS(xBD);
+        return gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu, DimType::minTreesInBlock>(
+            nTreesTotal, dim.nRowsTotal, algorithmFPType(predictionBias), resMatrix.get(),
+            [&](size_t iFirstTree, size_t nTrees, algorithmFPType * res) { predict(iFirstTree, nTrees, dim.nRowsTotal, xBD.get(), res, dim); });
+    }
+
     const size_t predictionIndex = resultNColumns - 1;
     for (size_t iTree = 0ul; iTree < nTreesTotal; iTree += dim.nTreesInBlock)
     {
@@ -530,9 +539,16 @@ template <bool hasUnorderedFeatures, bool hasAnyMissing>
 algorithmFPType PredictRegressionTask<algorithmFPType, cpu>::predictByTrees(size_t iFirstTree, size_t nTrees, const algorithmFPType * x,
                                                                             const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
-    algorithmFPType val = 0;
-    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees; iTree < iLastTree; ++iTree)
-        val += gbt::prediction::internal::predictForTree<algorithmFPType, TreeType, cpu>(*_aTree[iTree], _featHelper, x, dispatcher);
+    constexpr size_t blockSize = DimType::treeVectorBlockSize;
+    algorithmFPType val        = 0;
+    algorithmFPType v[blockSize];
+    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees; iTree < iLastTree; iTree += blockSize)
+    {
+        const size_t nInBlock = services::internal::min<cpu, size_t>(blockSize, iLastTree - iTree);
+        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, blockSize>(
+            _aTree.get() + iTree, nInBlock, _featHelper, x, v, dispatcher);
+        for (size_t k = 0; k < nInBlock; ++k) val += v[k];
+    }
     return val;
 }
 

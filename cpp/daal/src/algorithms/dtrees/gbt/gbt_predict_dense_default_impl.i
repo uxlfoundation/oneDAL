@@ -32,8 +32,11 @@
 #include "src/algorithms/dtrees/dtrees_train_data_helper.i"
 #include "src/algorithms/dtrees/gbt/gbt_internal.h"
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
+#include "src/services/service_arrays.h"
 #include "src/services/service_defines.h"
 #include "src/services/service_environment.h"
+#include "src/services/service_utils.h"
+#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -226,39 +229,78 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
     }
 }
 
-template <typename algorithmFPType, typename DecisionTreeType, CpuType cpu, bool hasUnorderedFeatures, bool hasAnyMissing>
-inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureTypes & featTypes, const algorithmFPType * x,
-                                      const PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
+// Traverses nTrees <= maxTrees trees for a single row, interleaving the trees to hide memory latency.
+// Leaves below the dense layers point to themselves, so extra updateIndex steps for shallower trees are no-ops.
+template <typename algorithmFPType, typename DecisionTreeType, CpuType cpu, bool hasUnorderedFeatures, bool hasAnyMissing, size_t maxTrees>
+inline void predictForTreesVector(const DecisionTreeType * const * trees, size_t nTrees, const FeatureTypes & featTypes, const algorithmFPType * x,
+                                  algorithmFPType v[], const PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
-    const ModelFPType * const values        = (const ModelFPType *)t.getSplitPoints() - 1;
-    const FeatureIndexType * const leftIds  = t.getLeftChildIndexes() - 1;
-    const FeatureIndexType * const fIndexes = t.getFeatureIndexesForSplit() - 1;
-    const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
-
-    const FeatureIndexType maxLvl         = t.getMaxLvl();
-    const FeatureIndexType numDenseLayers = t.getNumDenseLayers();
-    const size_t nNodes                   = t.getNumberOfNodes();
-
-    FeatureIndexType i = 1;
-    for (FeatureIndexType itr = 0; itr < std::min(numDenseLayers, maxLvl); itr++)
+    DAAL_ASSERT(nTrees <= maxTrees)
+    const ModelFPType * values[maxTrees];
+    const FeatureIndexType * leftIds[maxTrees];
+    const FeatureIndexType * fIndexes[maxTrees];
+    const int * defaultLeft[maxTrees];
+    FeatureIndexType i[maxTrees];
+    FeatureIndexType nDenseLvl = trees[0]->getMaxLvl();
+    FeatureIndexType maxLvl    = 0;
+    for (size_t k = 0; k < nTrees; ++k)
     {
-        const FeatureIndexType splitFeature = fIndexes[i];
-        i = updateIndexDense<algorithmFPType>(i, x[splitFeature], values, defaultLeft, featTypes, splitFeature, dispatcher);
-        // After itr, node depth is itr + 1
-        // Node indexes on level k are in range [2^k, 2^(k + 1) - 1]
-        DAAL_ASSERT(i >= (static_cast<size_t>(1) << (itr + 1)))
-        DAAL_ASSERT(i < (static_cast<size_t>(1) << (itr + 2)))
+        const DecisionTreeType & t = *trees[k];
+        values[k]                  = t.getSplitPoints() - 1;
+        leftIds[k]                 = t.getLeftChildIndexes() - 1;
+        fIndexes[k]                = t.getFeatureIndexesForSplit() - 1;
+        defaultLeft[k]             = t.getDefaultLeftForSplit() - 1;
+        i[k]                       = 1;
+        const FeatureIndexType lvl = t.getMaxLvl();
+        nDenseLvl =
+            services::internal::min<cpu, FeatureIndexType>(nDenseLvl, services::internal::min<cpu, FeatureIndexType>(t.getNumDenseLayers(), lvl));
+        maxLvl = services::internal::max<cpu, FeatureIndexType>(maxLvl, lvl);
     }
-
-    // TODO: Implement performance optimization for deep but sparse trees
-    for (FeatureIndexType itr = numDenseLayers; itr < maxLvl; itr++)
+    for (FeatureIndexType itr = 0; itr < nDenseLvl; itr++)
     {
-        const FeatureIndexType splitFeature = fIndexes[i];
-        i = updateIndex<algorithmFPType>(i, x[splitFeature], values, leftIds, defaultLeft, featTypes, splitFeature, dispatcher);
-        DAAL_ASSERT(i <= nNodes)
+        PRAGMA_OMP_SIMD
+        for (size_t k = 0; k < nTrees; ++k)
+        {
+            const FeatureIndexType splitFeature = fIndexes[k][i[k]];
+            i[k] = updateIndexDense<algorithmFPType>(i[k], x[splitFeature], values[k], defaultLeft[k], featTypes, splitFeature, dispatcher);
+        }
     }
+    for (FeatureIndexType itr = nDenseLvl; itr < maxLvl; itr++)
+    {
+        PRAGMA_OMP_SIMD
+        for (size_t k = 0; k < nTrees; ++k)
+        {
+            const FeatureIndexType splitFeature = fIndexes[k][i[k]];
+            i[k] = updateIndex<algorithmFPType>(i[k], x[splitFeature], values[k], leftIds[k], defaultLeft[k], featTypes, splitFeature, dispatcher);
+            DAAL_ASSERT(i[k] <= trees[k]->getNumberOfNodes())
+        }
+    }
+    for (size_t k = 0; k < nTrees; ++k) v[k] = values[k][i[k]];
+}
 
-    return values[i];
+// Tree-parallel prediction: predictBlock(iFirstTree, nTrees, out) accumulates a block of trees into zeroed out, blocks are reduced into res
+template <typename algorithmFPType, CpuType cpu, size_t minTreesInBlock, typename F>
+services::Status predictByTreeBlocks(size_t nTrees, size_t nVals, algorithmFPType bias, algorithmFPType * res, const F & predictBlock)
+{
+    const size_t nBlocks =
+        services::internal::max<cpu, size_t>(1, services::internal::min<cpu, size_t>(daal::threader_get_threads_number(), nTrees / minTreesInBlock));
+    daal::services::internal::TArrayCalloc<algorithmFPType, cpu> partial(nBlocks * nVals);
+    DAAL_CHECK_MALLOC(partial.get());
+    const auto blockBody = [&](size_t iBlock, size_t) {
+        const size_t iFirstTree = iBlock * nTrees / nBlocks;
+        predictBlock(iFirstTree, (iBlock + 1) * nTrees / nBlocks - iFirstTree, partial.get() + iBlock * nVals);
+    };
+    if (nBlocks > 1)
+        daal::static_threader_for(nBlocks, blockBody);
+    else
+        blockBody(0, 0);
+    for (size_t i = 0; i < nVals; ++i)
+    {
+        algorithmFPType sum = bias;
+        for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock) sum += partial[iBlock * nVals + i];
+        res[i] = sum;
+    }
+    return services::Status();
 }
 
 template <typename algorithmFPType>
@@ -280,6 +322,10 @@ struct TileDimensions
     static constexpr size_t vectorBlockSizeStep      = 16;
     // optimalBlockSizeFactor is selected from benchmarking
     static constexpr size_t optimalBlockSizeFactor = 5;
+    // number of trees traversed simultaneously for a single row
+    static constexpr size_t treeVectorBlockSize = 32;
+    // minimal number of trees per thread in tree-parallel prediction, smaller blocks don't amortize threading overhead
+    static constexpr size_t minTreesInBlock = 128;
 
     TileDimensions(const NumericTable & data, size_t nTrees, size_t nNodes)
         : nTreesTotal(nTrees), nRowsTotal(data.getNumberOfRows()), nCols(data.getNumberOfColumns())

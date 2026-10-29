@@ -267,6 +267,7 @@ protected:
      * \param isResValidPtr Result pointer is valid yes/no (write result to the pointer if yes, skip if no)
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
      * \param vectorBlockSize Vector instruction block size
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -276,8 +277,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool hasUnorderedFeatures, bool hasAnyMissing, bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -286,6 +287,7 @@ protected:
      * \param isResValidPtr Result pointer is valid yes/no (write result to the pointer if yes, skip if no)
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
      * \param vectorBlockSize Vector instruction block size
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -295,8 +297,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool hasAnyMissing, bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -304,6 +306,7 @@ protected:
      * \param isResValidPtr Result pointer is valid yes/no (write result to the pointer if yes, skip if no)
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
      * \param vectorBlockSize Vector instruction block size
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -313,8 +316,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -322,6 +325,7 @@ protected:
      * \param isResValidPtr Result pointer is valid yes/no (write result to the pointer if yes, skip if no)
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
      * \param vectorBlockSizeFactor Vector instruction block size - recursively decremented until it becomes equal to dim.vectorBlockSizeFactor or equal to DimType::minVectorBlockSizeFactor
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -331,8 +335,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res, const DimType & dim, BooleanConstant<true> keepLooking);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res, const DimType & dim, BooleanConstant<true> keepLooking);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -340,6 +344,7 @@ protected:
      * \param isResValidPtr Result pointer is valid yes/no (write result to the pointer if yes, skip if no)
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
      * \param vectorBlockSizeFactor Vector instruction block size - recursively decremented until it becomes equal to dim.vectorBlockSizeFactor or equal to DimType::minVectorBlockSizeFactor
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -351,14 +356,15 @@ protected:
      * \param keepLooking
      */
     template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res, const DimType & dim, BooleanConstant<false> keepLooking);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res, const DimType & dim, BooleanConstant<false> keepLooking);
 
     /**
      * \brief Traverse a number of trees to get prediction results
      *
      * \param isResValidPtr Result pointer is valid yes/no (write result to the pointer if yes, skip if no)
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -369,13 +375,14 @@ protected:
      * \param dim DimType helper
      */
     template <bool isResValidPtr, bool reuseBuffer>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res, const DimType & dim);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res, const DimType & dim);
 
     /**
      * \brief Traverse a number of trees to get prediction results
      *
      * \param reuseBuffer Re-use buffer yes/no (will fill buffer with zero if yes, shift buff pointer if no)
+     * \param iFirstTree Index of the first tree contributing to prediction
      * \param nTrees Number of trees contributing to prediction
      * \param nClasses Number of data classes
      * \param nRows Number of rows in observation data for which prediction is run
@@ -386,8 +393,8 @@ protected:
      * \param dim DimType helper
      */
     template <bool reuseBuffer>
-    inline void predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
-                        algorithmFPType * res, const DimType & dim);
+    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                        algorithmFPType * buff, algorithmFPType * res, const DimType & dim);
 
     /**
      * \brief Get index of element with maximum value / activation
@@ -602,15 +609,16 @@ bool PredictMulticlassTask<algorithmFPType, cpu>::checkForMissing(const algorith
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool hasUnorderedFeatures, bool hasAnyMissing, bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res)
 {
     dispatcher_t<hasUnorderedFeatures, hasAnyMissing> dispatcher;
     size_t iRow = 0;
     for (; iRow + vectorBlockSize <= nRows; iRow += vectorBlockSize)
     {
         algorithmFPType * val = updateBuffer(buff, iRow * nClasses, nClasses * vectorBlockSize, BooleanConstant<reuseBuffer>());
-        predictByTreesVector<hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(val, 0, nTrees, nClasses, x + iRow * nColumns, dispatcher);
+        predictByTreesVector<hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(val, iFirstTree, nTrees, nClasses, x + iRow * nColumns,
+                                                                                   dispatcher);
         for (size_t i = 0; i < vectorBlockSize; ++i)
         {
             updateResult(res, val, iRow, i, nClasses, BooleanConstant<isResValidPtr>());
@@ -619,98 +627,102 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t 
     for (; iRow < nRows; ++iRow)
     {
         algorithmFPType * val = updateBuffer(buff, iRow * nClasses, nClasses, BooleanConstant<reuseBuffer>());
-        predictByTrees(val, 0, nTrees, nClasses, x + iRow * nColumns, dispatcher);
+        predictByTrees(val, iFirstTree, nTrees, nClasses, x + iRow * nColumns, dispatcher);
         updateResult(res, val, iRow, 0, nClasses, BooleanConstant<isResValidPtr>());
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool hasAnyMissing, bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res)
 {
     if (this->_featHelper.hasUnorderedFeatures())
     {
-        predict<true, hasAnyMissing, isResValidPtr, reuseBuffer, vectorBlockSize>(nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predict<true, hasAnyMissing, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
     else
     {
-        predict<false, hasAnyMissing, isResValidPtr, reuseBuffer, vectorBlockSize>(nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predict<false, hasAnyMissing, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res)
 {
     const bool hasAnyMissing = checkForMissing(x, nTrees, nRows, nColumns);
     if (hasAnyMissing)
     {
-        predict<true, isResValidPtr, reuseBuffer, vectorBlockSize>(nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predict<true, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
     else
     {
-        predict<false, isResValidPtr, reuseBuffer, vectorBlockSize>(nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predict<false, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res, const DimType & dim,
-                                                          BooleanConstant<true> keepLooking)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res,
+                                                          const DimType & dim, BooleanConstant<true> keepLooking)
 {
     constexpr size_t vectorBlockSizeStep = DimType::vectorBlockSizeStep;
     if (dim.vectorBlockSizeFactor == vectorBlockSizeFactor)
     {
-        predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
     else
     {
-        predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor - 1>(nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
+        predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor - 1>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
                                                                        BooleanConstant<vectorBlockSizeFactor != DimType::minVectorBlockSizeFactor>());
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res, const DimType & dim,
-                                                          BooleanConstant<false> keepLooking)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res,
+                                                          const DimType & dim, BooleanConstant<false> keepLooking)
 {
     constexpr size_t vectorBlockSizeStep = DimType::vectorBlockSizeStep;
-    predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(nTrees, nClasses, nRows, nColumns, x, buff, res);
+    predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res, const DimType & dim)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res,
+                                                          const DimType & dim)
 {
     constexpr size_t maxVectorBlockSizeFactor = DimType::maxVectorBlockSizeFactor;
     if (maxVectorBlockSizeFactor > 1)
     {
-        predict<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(nTrees, nClasses, nRows, nColumns, x, buff, res, dim, BooleanConstant<true>());
+        predict<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
+                                                                      BooleanConstant<true>());
     }
     else
     {
-        predict<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(nTrees, nClasses, nRows, nColumns, x, buff, res, dim, BooleanConstant<false>());
+        predict<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
+                                                                      BooleanConstant<false>());
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool reuseBuffer>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                                                          algorithmFPType * buff, algorithmFPType * res, const DimType & dim)
+void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
+                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res,
+                                                          const DimType & dim)
 {
     if (res)
     {
-        predict<true, reuseBuffer>(nTrees, nClasses, nRows, nColumns, x, buff, res, dim);
+        predict<true, reuseBuffer>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim);
     }
     else
     {
-        predict<false, reuseBuffer>(nTrees, nClasses, nRows, nColumns, x, buff, res, dim);
+        predict<false, reuseBuffer>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim);
     }
 }
 
@@ -764,10 +776,14 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predictByTrees(algorithmFPType
                                                                  const algorithmFPType * x,
                                                                  const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
-    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees; iTree < iLastTree; ++iTree)
+    constexpr size_t blockSize = DimType::treeVectorBlockSize;
+    algorithmFPType v[blockSize];
+    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees; iTree < iLastTree; iTree += blockSize)
     {
-        val[iTree % nClasses] +=
-            gbt::prediction::internal::predictForTree<algorithmFPType, TreeType, cpu>(*this->_aTree[iTree], this->_featHelper, x, dispatcher);
+        const size_t nInBlock = services::internal::min<cpu, size_t>(blockSize, iLastTree - iTree);
+        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, blockSize>(
+            this->_aTree.get() + iTree, nInBlock, this->_featHelper, x, v, dispatcher);
+        for (size_t k = 0; k < nInBlock; ++k) val[(iTree + k) % nClasses] += v[k];
     }
 }
 
@@ -798,7 +814,32 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::predictByAllTrees(
     const size_t nCols(_data->getNumberOfColumns());
     const size_t nRows(_data->getNumberOfRows());
     daal::SafeStatus safeStat;
-    if (_prob)
+    if (nTreesTotal > nRows)
+    {
+        ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, nRows);
+        DAAL_CHECK_BLOCK_STATUS(xBD);
+        TArray<algorithmFPType, cpu> valPtr(nRows * nClasses);
+        algorithmFPType * val = valPtr.get();
+        DAAL_CHECK_MALLOC(val);
+        services::Status s = gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu, DimType::minTreesInBlock>(
+            nTreesTotal, nRows * nClasses, algorithmFPType(bias), val, [&](size_t iFirstTree, size_t nTrees, algorithmFPType * out) {
+                predict<false>(iFirstTree, nTrees, nClasses, nRows, nCols, xBD.get(), out, nullptr, dim);
+            });
+        DAAL_CHECK_STATUS_VAR(s);
+        if (resBD.get())
+        {
+            for (size_t iRow = 0; iRow < nRows; ++iRow) resBD.get()[iRow] = getMaxClass(val + iRow * nClasses, nClasses);
+        }
+        if (_prob)
+        {
+            WriteOnlyRows<algorithmFPType, cpu> probBD(_prob, 0, nRows);
+            DAAL_CHECK_BLOCK_STATUS(probBD);
+            daal::algorithms::optimization_solver::cross_entropy_loss::internal::CrossEntropyLossKernel<
+                algorithmFPType, daal::algorithms::optimization_solver::cross_entropy_loss::defaultDense, cpu>::softmaxThreaded(val, probBD.get(),
+                                                                                                                                nRows, nClasses);
+        }
+    }
+    else if (_prob)
     {
         WriteOnlyRows<algorithmFPType, cpu> probBD(_prob, 0, dim.nRowsTotal);
         DAAL_CHECK_BLOCK_STATUS(probBD);
@@ -817,7 +858,7 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::predictByAllTrees(
             DAAL_CHECK_BLOCK_STATUS_THR(xBD);
             algorithmFPType * res = resBD.get() ? resBD.get() + iStartRow : nullptr;
 
-            predict<false>(nTreesTotal, nClasses, nRowsToProcess, nCols, xBD.get(), valL, res, dim);
+            predict<false>(0, nTreesTotal, nClasses, nRowsToProcess, nCols, xBD.get(), valL, res, dim);
         });
         algorithmFPType * prob_pred = probBD.get();
         daal::algorithms::optimization_solver::cross_entropy_loss::internal::CrossEntropyLossKernel<
@@ -835,7 +876,7 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::predictByAllTrees(
             DAAL_CHECK_BLOCK_STATUS_THR(xBD);
             algorithmFPType * res = resBD.get() + iStartRow;
 
-            predict<true, true>(nTreesTotal, nClasses, nRowsToProcess, nCols, xBD.get(), val, res, dim);
+            predict<true, true>(0, nTreesTotal, nClasses, nRowsToProcess, nCols, xBD.get(), val, res, dim);
         });
     }
 
