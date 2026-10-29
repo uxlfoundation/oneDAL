@@ -80,7 +80,9 @@ public:
 
         if (std::any_of(row_offsets_ptr,
                         row_offsets_ptr + row_offsets.get_count(),
-                        [min_index](std::int64_t offset) { return offset < min_index; })) {
+                        [min_index](std::int64_t offset) {
+                            return offset < min_index;
+                        })) {
             throw dal::domain_error(error_msg::row_offsets_lt_min_value());
         }
 
