@@ -94,6 +94,11 @@ onedal_cc_toolchain = repository_rule(
         # anything else falls back to the rules_cc MSVC cl auto-config.
         # Targeting Windows ARM64 always uses clang-cl.
         "ONEDAL_WIN_COMPILER",
+        # The Visual Studio rules_cc configures for cl: the one vcvarsall.bat
+        # set up (VCINSTALLDIR), unless BAZEL_VC or BAZEL_VS names another.
+        "BAZEL_VC",
+        "BAZEL_VS",
+        "VCINSTALLDIR",
         # Windows host-arch detection (see detect_host_arch in common.bzl); the
         # toolchain repo must re-evaluate when these change.
         "PROCESSOR_ARCHITECTURE",
