@@ -37,6 +37,11 @@ concurrency:
 jobs:
   LinuxCondaRecipe:
     if: github.repository == 'uxlfoundation/oneDAL'
+    # At most one run of this job across all PRs and main; the others wait in order.
+    concurrency:
+      group: heavy-LinuxCondaRecipe-${{ matrix.cxx_compiler }}
+      cancel-in-progress: false
+      queue: max
     strategy:
       fail-fast: false
       matrix:
