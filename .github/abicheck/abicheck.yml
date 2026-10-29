@@ -1,0 +1,6 @@
+# Build config for both abicheck jobs (ci.yml).
+bundle:
+  # MKL SYCL libs come from the oneAPI install, not from this bundle.
+  system_providers: [libmkl_sycl_blas, libmkl_sycl_lapack, libmkl_sycl_rng, libmkl_sycl_sparse]
+scope:
+  on_incomplete: block   # default is warn: a partial bundle must not pass

@@ -1,0 +1,156 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Rebuilds a release tag and attaches the two abicheck baseline-sets that
+# ci.yml's LinuxAbicheckScan (binary) and LinuxAbicheckL2Scan (headers) read.
+# Rotation and rationale: .github/abicheck/README.md.
+name: Publish Abicheck Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_tag:
+        description: "oneDAL release tag to publish as the abicheck baseline"
+        required: true
+        default: "2026.0.0"
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # gh release upload only
+
+env:
+  # Bump when an abicheck upgrade invalidates published sets. gen3: 44d86bc11
+  # spells an undeduced auto return "auto" (gen2 header sets say "AutoType").
+  # ci.yml reads the same generation; move it with the new digests after a publish.
+  ABICHECK_BASELINE_GENERATION: "3"
+  ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
+  TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}
+
+jobs:
+  PublishBaseline:
+    # Forks may dispatch it to publish onto their own releases.
+    if: github.repository == 'uxlfoundation/oneDAL' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      # The tag at the workspace root: the manifests record `git rev-parse HEAD`.
+      - name: Checkout oneDAL at the baseline tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+
+      # Same targets and ISA as LinuxMakeDPCPP. setvars.sh picks the newest
+      # (runtime-only) compiler/MKL/TBB trees apt.sh drags in, so re-point each at
+      # the version the tag's apt.sh pins (fails: icx not found, no libmkl_*.a).
+      - name: Build daal + oneapi_c + oneapi_dpc (avx2)
+        run: |
+          set -eo pipefail
+          source /opt/intel/oneapi/setvars.sh
+          for c in compiler:intel-oneapi-compiler-dpcpp-cpp mkl:intel-oneapi-mkl-devel tbb:intel-oneapi-tbb-devel; do
+            v=$(sed -n "s/.*${c#*:}=\([0-9]*\.[0-9]*\)\..*/\1/p" .ci/env/apt.sh | head -1)
+            source "/opt/intel/oneapi/${c%%:*}/${v:?no pin for $c}/env/vars.sh"
+          done
+          for t in daal oneapi_c oneapi_dpc; do
+            .ci/scripts/build.sh --compiler icx --optimizations avx2 --target $t
+            rm -rf __work
+          done
+
+      # stage_binary: bundle analysis needs real ELF on the old side.
+      - name: Build the binary-depth baseline-set
+        id: bset-binary
+        uses: abicheck/abicheck/actions/baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        with:
+          output-dir: __abi_baseline_binary
+          project-ref: ${{ env.TAG }}
+          profile: linux-x86_64-icx-avx2-nodbg-binary
+          depth: binary
+          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          generator-git-sha: 44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+          validation: strict
+          snapshot-compression: zstd
+          install-deps: false
+          libraries: |
+            [
+              {"name": "libonedal.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal.so", "stage_binary": true},
+              {"name": "libonedal_core.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_core.so", "stage_binary": true},
+              {"name": "libonedal_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so", "stage_binary": true},
+              {"name": "libonedal_parameters.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so", "stage_binary": true},
+              {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "stage_binary": true},
+              {"name": "libonedal_thread.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_thread.so", "stage_binary": true}
+            ]
+
+      - name: Build the header-depth baseline-set
+        id: bset-headers
+        uses: abicheck/abicheck/actions/baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        with:
+          output-dir: __abi_baseline_headers
+          project-ref: ${{ env.TAG }}
+          profile: linux-x86_64-icx-avx2-nodbg-headers
+          depth: headers
+          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          generator-git-sha: 44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+          validation: strict
+          snapshot-compression: zstd
+          libraries: |
+            [
+              {"name": "libonedal.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
+              {"name": "libonedal_core.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_core.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
+              {"name": "libonedal_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
+              {"name": "libonedal_parameters.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
+              {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"}
+            ]
+
+      - name: Package the binary-depth baseline-set
+        id: archive-binary
+        uses: abicheck/abicheck/actions/stage-baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        with:
+          baseline-path: ${{ steps.bset-binary.outputs.baseline-path }}
+          asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
+          profile: linux-x86_64-icx-avx2-nodbg-binary
+          generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+
+      - name: Package the header-depth baseline-set
+        id: archive-headers
+        uses: abicheck/abicheck/actions/stage-baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        with:
+          baseline-path: ${{ steps.bset-headers.outputs.baseline-path }}
+          asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
+          profile: linux-x86_64-icx-avx2-nodbg-headers
+          generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+
+      # No --clobber: a published set is immutable; republish = bump the generation.
+      - name: Publish baseline-set archives to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY"
+          "${{ steps.archive-binary.outputs.archive-path }}"
+          "${{ steps.archive-headers.outputs.archive-path }}"
+
+      # Copy these into ABICHECK_BASELINE_DIGEST in ci.yml when rotating.
+      - name: Report the archive digests
+        run: |
+          {
+            echo "| asset | sha256 |"
+            echo "|---|---|"
+            echo "| \`${{ steps.archive-binary.outputs.archive-path }}\` | \`sha256:${{ steps.archive-binary.outputs.archive-sha256 }}\` |"
+            echo "| \`${{ steps.archive-headers.outputs.archive-path }}\` | \`sha256:${{ steps.archive-headers.outputs.archive-sha256 }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

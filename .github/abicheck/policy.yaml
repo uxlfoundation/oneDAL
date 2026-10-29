@@ -1,0 +1,70 @@
+# Reclassify rules for both abicheck jobs (ci.yml). Each rule needs a narrowing
+# selector next to `binding:`; abicheck refuses a binding-only rule.
+# Every weak-* rule matches only WEAK exports, so a STRONG (GLOBAL) loss still gates.
+# They are the 2026.0.0 -> -fvisibility-inlines-hidden (#3604) delta; delete
+# them when the baseline moves to 2026.1.0 or later.
+# unused_rules: warn, not block: both jobs and all five L2 legs share this file,
+# and seven of the eight rules match nothing on at least one of them; warn lists them.
+base_policy: strict_abi
+unused_rules: warn
+reclassify:
+  - id: weak-func-hidden
+    label: weak-func-hidden
+    kind: func_removed_elf_only
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    expires: 2027-04-01
+    reason: WEAK COMDAT inline now hidden by #3604; installed headers have no extern template, so callers emit their own copy.
+  - id: weak-var-hidden
+    label: weak-var-hidden
+    kind: var_removed
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    expires: 2027-04-01
+    reason: WEAK template static data member hidden by #3604 (radix_sort_indices_inplace byte_range_).
+  - id: weak-var-hidden-elf
+    label: weak-var-hidden-elf
+    kind: var_removed_elf_only
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    expires: 2027-04-01
+    reason: Same members as weak-var-hidden, reported without a header declaration.
+  - id: weak-inst-hidden
+    label: weak-inst-hidden
+    kind: instantiation_missing_from_binary
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    expires: 2027-04-01
+    reason: WEAK template instantiation hidden by #3604.
+  - id: weak-template-leak
+    label: weak-template-leak
+    kind: internal_template_leaks_via_public_api
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    expires: 2027-04-01
+    reason: The same WEAK instantiations, reported by the internal-template detector.
+  - id: weak-visibility-hidden
+    label: weak-visibility-hidden
+    kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    expires: 2027-04-01
+    reason: Headers-depth view of the #3604 demotion (declared WEAK inline, default -> hidden).
+  - id: csr-setarrays-still-declared
+    label: csr-setarrays-still-declared
+    symbol_pattern: '_ZN4daal15data_management10interface115CSRNumericTable9setArrays.*'
+    to: risk
+    expires: 2027-04-01
+    reason: Headers depth only. The WEAK instantiation is hidden by #3604, but setArrays<T> is still an inline member template in csr_numeric_table.h; reported as func_removed (core) or inline_function_removed (other legs).
+  - id: threader-internal-3471
+    label: threader-internal-3471
+    symbol_pattern: '^_daal_(static_)?threader_for.*'
+    to: risk
+    expires: 2027-04-01
+    reason: 'internal C-linkage entry points of libonedal_thread, no installed header; accepted in #3471, same deselection as .github/.abignore'
