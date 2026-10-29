@@ -64,6 +64,11 @@ concurrency:
 jobs:
   LinuxMakeDPCPP:
     if: github.repository == 'uxlfoundation/oneDAL'
+    # At most one run of this job across all PRs and main; the others wait in order.
+    concurrency:
+      group: heavy-LinuxMakeDPCPP-${{ matrix.ISA }}
+      cancel-in-progress: false
+      queue: max
     strategy:
       fail-fast: false
       matrix:
@@ -209,6 +214,11 @@ jobs:
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
     if: github.repository == 'uxlfoundation/oneDAL'
+    # At most one run of this job across all PRs and main; the others wait in order.
+    concurrency:
+      group: heavy-LinuxMakeGNU_MKL_Conda
+      cancel-in-progress: false
+      queue: max
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
