@@ -266,6 +266,7 @@ def dal_test_suite(name, srcs=[], tests=[],
     for test_file in not_on_windows:
         if test_file not in srcs:
             fail("'{}' in not_on_windows is not in srcs of '{}'".format(test_file, name))
+    target_compatible_with = kwargs.pop("target_compatible_with", [])
     targets = []
     for test_file in srcs:
         target = test_file.replace(".cpp", "").replace("/", "_")
@@ -284,7 +285,8 @@ def dal_test_suite(name, srcs=[], tests=[],
             name = target,
             srcs = [test_file],
             compile_as = compile_as,
-            target_compatible_with = _not_on_windows() if test_file in not_on_windows else [],
+            target_compatible_with = target_compatible_with +
+                                     (_not_on_windows() if test_file in not_on_windows else []),
             **kwargs,
         )
         targets.append(":" + target)

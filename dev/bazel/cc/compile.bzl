@@ -171,6 +171,42 @@ def _patch_includes(ctx, compilation_context, includes=[],
 # to ~165 of them in CI.
 _WIN_MAX_OBJ_PATH = 95
 
+def _longest_obj_path(ctx, name, sources, fpts, cpus):
+    """Upper bound on the object path length, `.params` included, with real names.
+
+    Counts the longer Linux `.pic.o` suffix, so the bound also holds for `.obj`.
+
+    @param ctx      Rule context.
+    @param name     Compile name of the target.
+    @param sources  Result of `_categorize_sources`.
+    @param fpts     Floating-point types of the per-fpt compile calls.
+    @param cpus     CPU variants of the per-cpu compile calls.
+    @return         Length in characters.
+    """
+    prefix = ctx.label.package
+    if ctx.label.workspace_name:
+        prefix = "../{}/{}".format(ctx.label.workspace_name, prefix)
+    special_cpu_files = []
+    for files in (sources.special_cpu_files or {}).values():
+        special_cpu_files += files
+    fpt_suffixes = ["_" + fpt for fpt in fpts]
+    cpu_suffixes = ["_" + cpu for cpu in cpus]
+    calls = [
+        (sources.normal_files, [""]),
+        (sources.fpt_files, fpt_suffixes),
+        (sources.cpu_files + special_cpu_files, cpu_suffixes),
+        (sources.fpt_cpu_files, [f + c for f in fpt_suffixes for c in cpu_suffixes]),
+    ]
+    longest = 0
+    for files, suffixes in calls:
+        if not files or not suffixes:
+            continue
+        stem = max([len(f.basename) - len(f.extension) - 1 for f in files])
+        suffix = max([len(x) for x in suffixes])
+        longest = max(longest, len(prefix) + len("/_objs/") + len(name) + suffix +
+                      len("/") + stem + len(".pic.o.params"))
+    return longest
+
 def _short_name(ctx):
     # Unique within the package unless two target names collide in 24 bits,
     # which Bazel reports as conflicting actions.
@@ -216,7 +252,11 @@ def _staged_srcs(staged, files, short_paths, kwargs):
     if not short_paths:
         return srcs, kwargs
     kwargs = dict(kwargs)
-    kwargs["additional_inputs"] = kwargs.get("additional_inputs", []) + files
+    inputs = kwargs.get("additional_inputs", [])
+    if type(inputs) == "depset":
+        kwargs["additional_inputs"] = depset(files, transitive = [inputs])
+    else:
+        kwargs["additional_inputs"] = inputs + files
     return srcs, kwargs
 
 def _check_obj_paths(ctx, compilation_output):
@@ -224,7 +264,7 @@ def _check_obj_paths(ctx, compilation_output):
         path = obj.short_path + ".params"
         if len(path) > _WIN_MAX_OBJ_PATH:
             fail(("{} is {} chars, over the {} allowed on Windows (MAX_PATH). " +
-                  "Shorten the package or target name of {}.").format(
+                  "Shorten the package path of {}.").format(
                 path, len(path), _WIN_MAX_OBJ_PATH, ctx.label))
 
 def _compile_wrapper(name, ctx, toolchain, feature_config,
@@ -256,6 +296,10 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
 
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
+    check_obj_paths = short_paths
+    # Stand-ins only for targets whose real object paths would not fit.
+    if short_paths and _longest_obj_path(ctx, name, sources_by_category, fpts, cpus) <= _WIN_MAX_OBJ_PATH:
+        short_paths = False
     if short_paths:
         name = _short_name(ctx)
         staged = _stage_sources(ctx, name, srcs)
@@ -357,7 +401,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
     compilation_output = cc_common.merge_compilation_outputs(
         compilation_outputs = compilation_outputs,
     )
-    if short_paths:
+    if check_obj_paths:
         _check_obj_paths(ctx, compilation_output)
     return compilation_context, compilation_output
 
