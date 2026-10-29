@@ -383,7 +383,9 @@ public:
 
         const auto make_desc = [&](double fraction) {
             auto desc = this->get_default_descriptor();
-            if constexpr (is_cls) {
+            // Not `is_cls`: MSVC (C2131) does not treat a constexpr local
+            // reached through a [&] capture as a constant expression.
+            if constexpr (std::is_same_v<Task, decision_forest::task::classification>) {
                 desc.set_class_count(class_count);
             }
             desc.set_tree_count(1);
