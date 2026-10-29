@@ -1,0 +1,106 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: PR CI
+
+# Pull request CI. FormatterChecks and the gcc Bazel job run first, and the
+# test workflows start only after both pass, so a change that breaks the build
+# does not hold the other runners. Pushes to main start ci.yml, ci-win.yml and
+# ci-aarch64.yml directly, without the gate.
+
+on:
+  pull_request:
+    # ready_for_review starts the jobs a draft skipped.
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+    # Skip PR builds for changes that cannot affect the library build or tests.
+    # Pushes to main are not filtered.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'dev/agent_evals/**'
+      - 'conda-recipe/**'
+      - 'third-party-programs.txt'
+      - '.ci/pipeline/docs.yml'
+      - '.github/CODEOWNERS'
+      - '.github/renovate.json'
+      - '.github/.licenserc.yaml'
+      - '.github/.mergify.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/instructions/**'
+      - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-nightly.yml'
+      - '.github/workflows/docs-release.yml'
+      - '.github/workflows/label-enforcement.yml'
+      - '.github/workflows/nightly-build.yml'
+      - '.github/workflows/nightly-test.yml'
+      - '.github/workflows/openssf-scorecard.yml'
+      - '.github/workflows/pr-checklist.yml'
+      - '.github/workflows/renovate-validation.yml'
+      - '.github/workflows/skywalking-eyes.yml'
+      - '.github/workflows/slack-pr-notification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  FormatterChecks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pre-commit
+        run: |
+          python3 -m venv venv
+          venv/bin/pip install --upgrade pip
+          venv/bin/pip install pre-commit
+      - name: pre-commit checks
+        run: venv/bin/pre-commit run --all-files --show-diff-on-failure
+
+  gate:
+    name: Gate
+    uses: ./.github/workflows/ci.yml
+    with:
+      part: gate
+
+  linux:
+    name: Linux
+    needs: [FormatterChecks, gate]
+    uses: ./.github/workflows/ci.yml
+    with:
+      part: tests
+
+  windows:
+    name: Windows
+    needs: [FormatterChecks, gate]
+    uses: ./.github/workflows/ci-win.yml
+
+  aarch64:
+    name: AArch64
+    needs: [FormatterChecks, gate]
+    # A called workflow may not ask for more than its caller grants.
+    permissions: read-all
+    uses: ./.github/workflows/ci-aarch64.yml

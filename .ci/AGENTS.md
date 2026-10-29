@@ -8,7 +8,7 @@ This document describes the CI infrastructure for oneDAL (Intel Data Analytics L
 - `.ci/pipeline/ci.yml`: the Azure DevOps pipeline (build matrix, `FormatterChecks`); `docs.yml` builds the docs.
 - `.ci/env/`: dependency installers. `apt.sh` takes a component name (`dev-base`, `mkl`, ...); `tbb`, `openblas` and `bazelisk` each have `.sh` and Windows variants.
 - `.ci/scripts/`: `build.sh` / `build.bat` (compiler, optimization, backend and cross-compile options), `test.sh` / `test.bat`, `abi_check.sh`, and the Windows release checks (`compare_windows_release.ps1`, `test_bazel_release_cmake_example.ps1`).
-- `.github/workflows/`: GitHub Actions. `ci.yml`, `ci-win.yml` and `ci-aarch64.yml` build and test; `nightly-build.yml` produces artifacts other repositories download (see `.github/AGENTS.md`).
+- `.github/workflows/`: GitHub Actions. `ci.yml`, `ci-win.yml` and `ci-aarch64.yml` build and test. Pull requests run them through `ci-pr.yml`, which starts them only after `FormatterChecks` and `LinuxBazelNoOneAPI(gcc)` pass; in Azure the test jobs wait for `FormatterChecks` and `LinuxBazel` the same way. `nightly-build.yml` produces artifacts other repositories download (see `.github/AGENTS.md`).
 
 ## CI/CD Architecture
 

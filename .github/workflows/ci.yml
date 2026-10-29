@@ -17,37 +17,13 @@
 name: CI
 
 on:
-  pull_request:
-    branches:
-      - main
-    # Skip PR builds for changes that cannot affect the library build or tests.
-    # Pushes to main are not filtered.
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - 'dev/agent_evals/**'
-      - 'conda-recipe/**'
-      - 'third-party-programs.txt'
-      - '.ci/pipeline/docs.yml'
-      - '.github/CODEOWNERS'
-      - '.github/renovate.json'
-      - '.github/.licenserc.yaml'
-      - '.github/.mergify.yml'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/instructions/**'
-      - '.github/workflows/check-intel-urls.yml'
-      - '.github/workflows/ci-conda-recipe.yml'
-      - '.github/workflows/coverity.yml'
-      - '.github/workflows/docker-validation-nightly.yml'
-      - '.github/workflows/docs-release.yml'
-      - '.github/workflows/label-enforcement.yml'
-      - '.github/workflows/nightly-build.yml'
-      - '.github/workflows/nightly-test.yml'
-      - '.github/workflows/openssf-scorecard.yml'
-      - '.github/workflows/pr-checklist.yml'
-      - '.github/workflows/renovate-validation.yml'
-      - '.github/workflows/skywalking-eyes.yml'
-      - '.github/workflows/slack-pr-notification.yml'
+  # Pull requests run this workflow through ci-pr.yml, in two parts.
+  workflow_call:
+    inputs:
+      part:
+        description: "'gate' runs only the gate job, 'tests' all other jobs"
+        type: string
+        required: true
   push:
     branches:
       - main
@@ -57,15 +33,17 @@ on:
 permissions:
   contents: read
 
+# A literal name: in a called workflow `github.workflow` is the caller's.
 # A PR push cancels the older run of that PR. A push to main waits behind the
 # running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: CI-${{ github.event.pull_request.number || github.ref }}${{ inputs.part }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Draft pull requests skip the heaviest jobs; they run once the PR is marked ready.
   LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate' && !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
@@ -163,6 +141,7 @@ jobs:
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
+      inputs.part != 'gate' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-26.04
     env:
@@ -210,7 +189,7 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate' && !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
@@ -301,7 +280,7 @@ jobs:
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxBazelNoCompiler:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate'
     runs-on: ubuntu-24.04
     # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
     container: ubuntu:24.04
@@ -327,16 +306,13 @@ jobs:
 
   # A machine with only Bazelisk and a distribution compiler, no oneAPI. Each leg
   # runs the tests and the example of one algorithm; the clang legs remove the gcc
-  # drivers, so the toolchain has to find clang by itself.
+  # drivers, so the toolchain has to find clang by itself. The gcc leg is the job below.
   LinuxBazelNoOneAPI:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate'
     strategy:
       fail-fast: false
       matrix:
         include:
-          - leg: gcc
-            runner: ubuntu-24.04
-            algo: decision_forest
           - leg: clang
             runner: ubuntu-24.04
             algo: kmeans
@@ -390,10 +366,35 @@ jobs:
             echo "Expected a ${expected} build, got ${built_by}" >&2
             exit 1
           fi
-      # The gcc leg also covers the release, the DAAL and MPI tests, and the
-      # DPC++ checks; the other legs stay at one algorithm each.
+
+  # The gcc leg of LinuxBazelNoOneAPI, and the pull request gate. It also covers
+  # the release, the DAAL and MPI tests, and the DPC++ checks.
+  LinuxBazelNoOneAPI_gcc:
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'tests'
+    runs-on: ubuntu-24.04
+    name: LinuxBazelNoOneAPI(gcc)
+    timeout-minutes: 180
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Bazel
+        run: |
+          .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: Bazel tests
+        run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/decision_forest:tests
+      - name: Bazel example
+        run: bazel test --cpu=avx2 //examples/oneapi/cpp:decision_forest
+      - name: Check the compiler
+        run: |
+          readelf -p .comment bazel-bin/cpp/oneapi/dal/algo/decision_forest/test_batch_host | tee comment.txt
+          if grep -q "clang version" comment.txt; then
+            echo "Expected a gcc build, got clang" >&2
+            exit 1
+          fi
       - name: Bazel release
-        if: matrix.leg == 'gcc'
         run: |
           bazel build --cpu=avx2 //:release
           lib_dir=bazel-bin/release/daal/latest/lib/intel64
@@ -409,7 +410,6 @@ jobs:
       # No --config: the DPC++ tests are skipped rather than failing to build.
       # test_mpi_communicator_host runs two ranks with the downloaded Intel MPI.
       - name: Bazel DAAL and MPI tests
-        if: matrix.leg == 'gcc'
         run: |
           bazel test --cpu=avx2 \
             //cpp/oneapi/dal:test_mpi_communicator_host \
@@ -418,7 +418,6 @@ jobs:
             --test_output=errors
           bazel test --cpu=avx2 --config=host //cpp/oneapi/dal/algo/kmeans:tests
       - name: DPC++ targets fail clearly without icpx
-        if: matrix.leg == 'gcc'
         run: |
           expect_failure() {
             local log="$1" pattern="$2"
