@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <chrono>
 #include <memory>
 
 #include "example_util/utils.hpp"
@@ -34,7 +35,11 @@ int main(int argc, char** argv) {
     const auto tc_desc = descriptor<float, method::ordered_count, task::local_and_global>();
 
     // compute local and global triangles
+    const auto t1 = std::chrono::steady_clock::now();
     const auto result_vertex_ranking = dal::preview::vertex_ranking(tc_desc, graph);
+    const auto t2 = std::chrono::steady_clock::now();
+    const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    std::cout << "Triangle counting compute time: " << dt << " ms" << std::endl;
 
     // extract the result
     std::cout << "Global triangles: " << result_vertex_ranking.get_global_rank() << std::endl;
