@@ -50,12 +50,12 @@ Training method: *Normal Equation*
   - When the intercept terms :math:`(\beta_{0*})` are not included:
 
     The Normal Equation method computes the coefficients :math:`(\beta_{1j}, \ldots, \beta_{pj})` by solving
-    the equation :math:`(X^T X \beta_j = X^T y_j`.
+    the equation :math:`(X^T X + \alpha I) \beta_j = X^T y_j`.
 
   - When the intercept terms :math:`(\beta_{0*})` are included:
 
     The Normal Equation method computes the coefficients :math:`(\beta_{0j}, \beta_{1j}, \ldots, \beta_{pj})`
-    by solving the equation :math:`\tilde{X}^T \tilde{X} \beta_j = \tilde{X}^T y_j`,
+    by solving the equation :math:`(\tilde{X}^T \tilde{X} + \alpha I) \beta_j = \tilde{X}^T y_j`,
     where :math:`\tilde{X}` is the :math:`X` matrix augmented with a column of ones for the intercept.
 
 * If the number of observations :math:`n` is less than the number of features :math:`p`:
@@ -64,7 +64,7 @@ Training method: *Normal Equation*
 
   The intercept term is handled by applying centering to the data and the response variable.
 
-  :math:`(X_c X_c^T) \text{dual}_j = y_c`,
+  :math:`X_c X_c^T \text{dual}_j = y_c`,
   where :math:`X_c` and :math:`y_c` are the centered data and response variable, respectively.
 
   :math:`x_{c,ij} = x_{ij} - \frac{1}{n} \sum_{i=1}^{n} x_{ij}`,
