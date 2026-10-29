@@ -110,15 +110,19 @@ struct train_context {
 
     Index class_count_ = 0;
     Index row_count_ = 0;
-    Index row_total_count_ = 0;
     Index column_count_ = 0;
     Index total_bins_ = 0;
     Index tree_count_ = 0;
 
-    Index global_row_offset_ = 0;
-
     Index selected_ftr_count_ = 0;
+    // Number of rows selected for one tree out of the rows owned by this rank.
+    // It is the stride of the per-tree row order buffers, so every allocation
+    // that scales with the number of observations scales with this value only.
     Index selected_row_count_ = 0;
+    // Number of rows selected for one tree over all ranks. It is used for the
+    // statistics that are reduced over the ranks (the row count and the impurity
+    // of a root node) and to size the per-rank RNG substreams. It must never be
+    // used as an allocation size or as a buffer stride.
     Index selected_row_total_count_ = 0;
     Index min_observations_in_leaf_node_ = 0;
     Index max_tree_depth_ = 0;
