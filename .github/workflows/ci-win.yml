@@ -66,12 +66,12 @@ env:
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
-# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
-# Does not apply to the main branch. Matters on the scarce ARM64 runners, where
-# this workflow is the only consumer, and the three-hour Bazel job holds one.
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
+# Matters on the scarce ARM64 runners, where this workflow is the only consumer.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:

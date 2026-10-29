@@ -58,11 +58,11 @@ env:
   OPENBLAS_VERSION: v0.3.34
   OPENRNG_VERSION: 'v24.04'
 
-# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
-# Does not apply to the main branch.
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Declare default permissions as read only.
 permissions: read-all
