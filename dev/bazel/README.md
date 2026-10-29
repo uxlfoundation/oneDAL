@@ -278,6 +278,9 @@ The most used Bazel commands are `build`, `test` and `run`.
   - `release_static` Links tests against static libraries found in `$DALROOT`.
   - `release_dynamic` Links tests against dynamic libraries found in `$DALROOT`.
 
+  Private tests (`private = True`) are built from sources in both release
+  modes, because `$DALROOT` does not ship the headers they include.
+
    Example:
    ```sh
    export DALROOT=`pwd`/__release_lnx/daal/latest
@@ -551,7 +554,7 @@ bazel test --config=host-public //cpp/oneapi/dal:tests
 ```
 
 Test is categorized to public or private using the `private` flag of the
-`dal_tst_suite` rule. By default, all test suites are public, if the new test
+`dal_test_suite` rule. By default, all test suites are public, if the new test
 suite for the private functionality is defined, the flag should be turned on.
 ```py
 dal_test_suite(
