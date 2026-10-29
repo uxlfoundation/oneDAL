@@ -66,6 +66,14 @@ public:
                                                                       dim,
                                                                       eigenvalues_nd,
                                                                       {});
+
+            // `syevd` allocates the LAPACK scratchpad itself, so it must not hand back an event
+            // that is still in flight: `sycl::free` does not synchronize, and the scratchpad would
+            // be released from under the decomposition.
+            const auto status =
+                syevd_event.template get_info<sycl::info::event::command_execution_status>();
+            REQUIRE(status == sycl::info::event_command_status::complete);
+
             syevd_event.wait_and_throw();
             const auto eigenvectors =
                 la::matrix<Float>::wrap_nd(data_or_eigenvectors_nd.to_host(this->get_queue()));

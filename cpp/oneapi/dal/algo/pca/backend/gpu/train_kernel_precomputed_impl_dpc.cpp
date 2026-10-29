@@ -65,10 +65,11 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
     }
     if (desc.get_result_options().test(result_options::eigenvectors |
                                        result_options::eigenvalues)) {
-        auto [eigvals, syevd_event] = syevd_computation(q_, data_nd, {});
+        auto [eigvals, eigvecs, trace, syevd_event] =
+            compute_eigenpairs(q_, data_nd, component_count, {});
 
         auto [reordered_eigvals, reordered_eigenvectors] =
-            reorder_eigenpairs_descending(q_, eigvals, data_nd, component_count, { syevd_event });
+            reorder_eigenpairs_descending(q_, eigvals, eigvecs, component_count, { syevd_event });
 
         if (desc.get_result_options().test(result_options::eigenvalues)) {
             result.set_eigenvalues(

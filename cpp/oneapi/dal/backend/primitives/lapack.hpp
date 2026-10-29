@@ -20,3 +20,4 @@
 #include "oneapi/dal/backend/primitives/lapack/misc.hpp"
 #include "oneapi/dal/backend/primitives/lapack/gesvd.hpp"
 #include "oneapi/dal/backend/primitives/lapack/syevd.hpp"
+#include "oneapi/dal/backend/primitives/lapack/syevx.hpp"

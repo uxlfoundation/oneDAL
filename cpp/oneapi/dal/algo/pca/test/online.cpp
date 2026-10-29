@@ -62,6 +62,36 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
 }
 
 TEMPLATE_LIST_TEST_M(pca_online_test,
+                     "pca online with fewer components matches full decomposition",
+                     "[pca][integration][online]",
+                     pca_types_cov) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t block_count = 3;
+    const std::int64_t column_count = 200;
+    const auto data = this->get_separated_spectrum_data(4 * column_count, column_count);
+    using Float = std::tuple_element_t<0, TestType>;
+    const auto blocks = te::split_table_by_rows<Float>(this->get_policy(), data, block_count);
+
+    const auto train_online = [&](std::int64_t component_count) {
+        const auto desc = this->get_descriptor(component_count, true)
+                              .set_normalization_mode(pca::normalization::mean_center);
+        auto partial_result = dal::pca::partial_train_result();
+        for (std::int64_t i = 0; i < block_count; ++i) {
+            partial_result = this->partial_train(desc, partial_result, blocks[i]);
+        }
+        return this->finalize_train(desc, partial_result);
+    };
+
+    const auto full = train_online(0);
+    const std::int64_t component_count =
+        GENERATE_COPY(1, 2, 10, column_count / 4, column_count / 2, column_count - 1, column_count);
+    const auto truncated = train_online(component_count);
+
+    this->check_truncated_matches_full(truncated, full, component_count, column_count);
+}
+
+TEMPLATE_LIST_TEST_M(pca_online_test,
                      "pca fill_uniform flow cov",
                      "[pca][integration][online]",
                      pca_types_cov) {
