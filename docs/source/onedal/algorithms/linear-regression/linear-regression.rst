@@ -30,15 +30,55 @@ Mathematical Formulation
 .. _linreg_t_math:
 
 Training
----------
+--------
 
 Given a :math:`(x_{11}, \ldots, x_{1p}, y_1, \ldots, x_{n1}, \ldots, x_{np}, y_n)` set  of
-training data, :math:`n \gg p`. The :math:`X` matrix of the :math:`n \times p` size contains
+training data. The :math:`X` matrix of the :math:`n \times p` size contains
 :math:`x_{ij}`, :math:`i=1, \ldots, n`, :math:`j = 1, \ldots, p` observations of independent
 variables.
 
 To estimate the coefficients :math:`(\beta_{0j}, \ldots, \beta_{pj})`,
 you can use the Normal Equation method.
+
+Training method: *Normal Equation*
+++++++++++++++++++++++++++++++++++
+
+* If the number of observations :math:`n` is greater than or equal to the number of features :math:`p`:
+
+  The least squares solution coefficients are computed.
+
+  - When the intercept terms :math:`(\beta_{0*})` are not included:
+
+    The Normal Equation method computes the coefficients :math:`(\beta_{1j}, \ldots, \beta_{pj})` by solving
+    the equation :math:`(X^T X \beta_j = X^T y_j`.
+
+  - When the intercept terms :math:`(\beta_{0*})` are included:
+
+    The Normal Equation method computes the coefficients :math:`(\beta_{0j}, \beta_{1j}, \ldots, \beta_{pj})`
+    by solving the equation :math:`\tilde{X}^T \tilde{X} \beta_j = \tilde{X}^T y_j`,
+    where :math:`\tilde{X}` is the :math:`X` matrix augmented with a column of ones for the intercept.
+
+* If the number of observations :math:`n` is less than the number of features :math:`p`:
+
+  The dual problem is solved to compute the coefficients.
+
+  The intercept term is handled by applying centering to the data and the response variable.
+
+  :math:`(X_c X_c^T) \text{dual}_j = y_c`,
+  where :math:`X_c` and :math:`y_c` are the centered data and response variable, respectively.
+
+  :math:`x_{c,ij} = x_{ij} - \frac{1}{n} \sum_{i=1}^{n} x_{ij}`,
+  :math:`y_{c,ij} = y_{ij} - \frac{1}{n} \sum_{i=1}^{n} y_{ij}`.
+
+  The dual coefficients :math:`\text{dual}_j` are then used to compute the primal coefficients :math:`\beta_j` as
+
+  :math:`\beta_j = X_c^T \text{dual}_j`
+
+  and the intercept :math:`\beta_{0j}` is computed as
+
+  :math:`\beta_{0j} = \bar{y}_j - \bar{x}_j^T \beta_j`
+  where :math:`\bar{y}_j` is the mean of the original response variable :math:`y_j`, and :math:`\bar{x}_j`
+  is the mean vector of the original features.
 
 .. _linreg_p_math:
 
