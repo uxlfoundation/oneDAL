@@ -38,7 +38,7 @@ struct IdxValType
 
     bool operator<(const IdxValType & o) const { return o.value == value ? index < o.index : value < o.value; }
     bool operator>(const IdxValType & o) const { return o.value == value ? index > o.index : value > o.value; }
-    bool operator<=(const IdxValType & o) const { return value < o.value || (value == o.value && index == o.index); }
+    bool operator<=(const IdxValType & o) const { return !(o < *this); }
 };
 typedef void (*functype)(int64_t i, const void * a);
 typedef void (*functype_int64ptr)(const int64_t * i, const void * a);
