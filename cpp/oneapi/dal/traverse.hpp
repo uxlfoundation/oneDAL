@@ -30,4 +30,13 @@ auto traverse(Args &&...args) {
     return detail::traverse_dispatch(std::forward<Args>(args)...);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+/// GPU/DPC++ overload accepting a SYCL queue
+template <typename... Args>
+auto traverse(sycl::queue &queue, Args &&...args) {
+    const auto policy = dal::detail::data_parallel_policy(queue);
+    return detail::traverse_dispatch(policy, std::forward<Args>(args)...);
+}
+#endif
+
 } // namespace oneapi::dal::preview
