@@ -42,7 +42,7 @@ bazel test --config=host //cpp/oneapi/dal:tests               # oneAPI interface
 bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests   # DPC++ on GPU
 ```
 
-Without `--config`, Bazel builds and runs all tests, including DPC++ ones that need the Intel DPC++ compiler. See `dev/bazel/README.md`.
+Without `--config`, Bazel builds and runs all tests, including DPC++ ones that need the Intel DPC++ compiler; without `icpx` in `PATH` they are skipped. See `dev/bazel/README.md`.
 
 ### Full build (Make)
 

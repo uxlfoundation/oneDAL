@@ -106,7 +106,12 @@ def dal_collect_modules(name, root, modules, dal_deps=[], **kwargs):
 def dal_public_includes(name, dal_deps=[], **kwargs):
     headers_filter(
         name = name,
-        deps = dal_deps + _get_dpc_deps(dal_deps),
+        # A DPC++ module declares the same public headers as its host module,
+        # so the host modules alone give the full set when DPC++ is skipped.
+        deps = dal_deps + select({
+            "@config//:release_dpc_enabled": _get_dpc_deps(dal_deps),
+            "//conditions:default": [],
+        }),
         include = [
             "oneapi/",
         ],
@@ -585,6 +590,7 @@ def _dal_cc_test(name, mpi=False, ccl = False, mpi_ranks=0, **kwargs):
             mpi_ranks = mpi_ranks,
             mpiexec = "@mpi//:mpiexec",
             fi = "@mpi//:fi",
+            libfabric = "@mpi//:libfabric_runtime",
         )
     elif ccl:
         if mpi_ranks <= 0:
@@ -600,6 +606,7 @@ def _dal_cc_test(name, mpi=False, ccl = False, mpi_ranks=0, **kwargs):
             mpi_ranks = mpi_ranks,
             mpiexec = "@mpi//:mpiexec",
             fi = "@mpi//:fi",
+            libfabric = "@mpi//:libfabric_runtime",
         )
     else:
         cc_test(

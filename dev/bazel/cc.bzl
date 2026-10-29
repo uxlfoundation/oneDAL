@@ -315,7 +315,14 @@ _cc_module = rule(
     fragments = ["cpp"],
 )
 
-def cc_module(name, hdrs=[], deps=[], **kwargs):
+def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
+    # With --release_dpc=false, the default when icpx is not in PATH, skip
+    # DPC++ modules and everything that depends on them.
+    if "dpc++" in kwargs.get("features", []):
+        target_compatible_with = target_compatible_with + select({
+            "@config//:release_dpc_disabled": ["@config//:dpc_needs_icpx_in_PATH"],
+            "//conditions:default": [],
+        })
     # Workaround restriction on possible extensions for cc_common.compile:
     # > The list of possible extensions for 'public_hdrs' is:
     #   .h,.hh,.hpp,.ipp,.hxx,.h++,.inc,.inl,.tlh,.tli,.H,.tcc
@@ -329,6 +336,7 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
         deps = deps + ([
             ":__{}_headers__".format(name),
         ] if hdrs else []),
+        target_compatible_with = target_compatible_with,
         **kwargs,
     )
 
