@@ -80,6 +80,11 @@ jobs:
   # marked ready for review.
   build-and-test:
     if: '!github.event.pull_request.draft'
+    # At most one run of this job across all PRs and main; the others wait in order.
+    concurrency:
+      group: heavy-Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}
+      cancel-in-progress: false
+      queue: max
     strategy:
       fail-fast: false
       matrix:
