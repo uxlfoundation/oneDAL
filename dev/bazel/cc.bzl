@@ -255,6 +255,12 @@ def _cc_module_impl(ctx):
             tag = ctx.attr.lib_tag,
             linking_context = linking_context,
         ))
+    if not ctx.attr.export_hdrs:
+        # Dependents compile against the deps' headers only. The module's own
+        # headers, private ones included, stay out of their action inputs.
+        compilation_context = onedal_cc_common.merge_compilation_contexts(
+            dep_compilation_contexts,
+        )
     module_info = ModuleInfo(
         compilation_context = compilation_context,
         tagged_linking_contexts = tagged_linking_contexts,
@@ -272,6 +278,7 @@ _cc_module = rule(
         "srcs": attr.label_list(allow_files=True),
         "hdrs": attr.label_list(allow_files=True),
         "private_hdrs": attr.label_list(allow_files=True),
+        "export_hdrs": attr.bool(default=True),
         "deps": attr.label_list(),
         "copts": attr.string_list(),
         "defines": attr.string_list(),
@@ -575,13 +582,35 @@ def _cc_exec_impl(ctx):
     )
     return [default_info]
 
+_TEST_LINK_MODE_SETTING = str(Label("@config//:test_link_mode"))
+
+def _test_link_mode_transition_impl(settings, attr):
+    # A private test reaches internals the release package does not ship: its
+    # include tree leaves out `backend/` and DAAL source headers, and those
+    # symbols are not exported from the shared libraries. A release link mode
+    # replaces the test's `dal_deps` with the package, so such a test is always
+    # built from sources, as in the `dev` link mode.
+    if attr.build_from_sources:
+        return {_TEST_LINK_MODE_SETTING: "dev"}
+    return {_TEST_LINK_MODE_SETTING: settings[_TEST_LINK_MODE_SETTING]}
+
+_test_link_mode_transition = transition(
+    implementation = _test_link_mode_transition_impl,
+    inputs = [_TEST_LINK_MODE_SETTING],
+    outputs = [_TEST_LINK_MODE_SETTING],
+)
+
 cc_test = rule(
     implementation = _cc_exec_impl,
     attrs = {
         "lib_tags": attr.string_list(),
-        "deps": attr.label_list(),
-        "data": attr.label_list(allow_files=True),
+        # The transition is on the edges rather than on the test itself, so
+        # that the test binary and its logs stay in the top-level output
+        # directory (`bazel-out/<cpu>-opt/testlogs`).
+        "deps": attr.label_list(cfg=_test_link_mode_transition),
+        "data": attr.label_list(allow_files=True, cfg=_test_link_mode_transition),
         "user_link_flags": attr.string_list(),
+        "build_from_sources": attr.bool(default=False),
         "_is_test": attr.bool(default=True),
         "_linux_constraint": attr.label(
             default = "@platforms//os:linux",
