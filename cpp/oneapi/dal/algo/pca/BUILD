@@ -51,6 +51,8 @@ dal_test_suite(
     name = "interface_tests",
     srcs = glob([
         "test/*.cpp",
+    ], exclude=[
+        "test/online_spmd.cpp",
     ]),
     hdrs = glob([
     "test/*.hpp",
@@ -61,10 +63,27 @@ dal_test_suite(
     framework = "catch2",
 )
 
+# Host SPMD finalize is not implemented, so this test only runs on a device.
+dal_test_suite(
+    name = "online_spmd_tests",
+    framework = "catch2",
+    compile_as = [ "dpc++" ],
+    hdrs = glob([
+        "test/*.hpp",
+    ]),
+    srcs = [
+        "test/online_spmd.cpp",
+    ],
+    dal_deps = [
+        ":pca",
+    ],
+)
+
 dal_test_suite(
     name = "tests",
     tests = [
         ":backend_tests",
         ":interface_tests",
+        ":online_spmd_tests",
     ],
 )

@@ -43,13 +43,14 @@ ccl_repo = repos.prebuilt_libs_repo_rule(
 def _get_fi_providers_dir(fi_files):
     if len(fi_files) == 0:
         fail("No fabrin interface files provided for MPI")
-    fi_dir = fi_files[0].dirname
+    # Runfiles paths: external repositories are siblings of the main one there.
+    fi_dir = fi_files[0].short_path.rpartition("/")[0]
     for fi in fi_files:
-        if fi.dirname != fi_dir:
+        if fi.short_path.rpartition("/")[0] != fi_dir:
             fail("All fabric interface files must reside in the same directory")
     return fi_dir
 
-def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
+def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir, libfabric):
     exec_wrapper = ctx.actions.declare_file(ctx.label.name)
     content = (
         "#!/bin/bash\n" +
@@ -60,8 +61,15 @@ def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
         "   script_path=\"${BASH_SOURCE[0]}\"\n" +
         "   cd ${script_path}${runfiles_suffix}\n" +
         "fi\n" +
-        "export FI_PROVIDER_PATH=\"{}\"\n".format(fi_dir) +
-        "{} -n {} {} \"$@\"\n".format(mpiexec.path,
+        "export FI_PROVIDER_PATH=\"$(pwd)/{}\"\n".format(fi_dir) +
+        # The ranks run on one node. Without this, Intel MPI may pick a NIC
+        # provider (seen: verbs/psm3 on CI VMs) that cannot open an endpoint.
+        "export I_MPI_FABRICS=\"${I_MPI_FABRICS:-shm}\"\n" +
+        # libmpi dlopens libfabric.so.1 and has no RUNPATH of its own.
+        "export LD_LIBRARY_PATH=\"$(pwd)/{}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}\"\n".format(
+            libfabric.short_path.rpartition("/")[0]) +
+        # Catch2 seeds each rank on its own; the ranks must generate the same data.
+        "{} -n {} {} --rng-seed \"${{RANDOM}}\" \"$@\"\n".format(mpiexec.short_path,
                                       ctx.attr.mpi_ranks,
                                       executable.short_path)
     )
@@ -74,11 +82,11 @@ def _ccl_test_impl(ctx):
     mpiexec = ctx.files.mpiexec[0]
     fi_files = ctx.files.fi
     fi_dir = _get_fi_providers_dir(fi_files)
-    exec_wrapper = _generate_mpiexec_wrapper(ctx, mpiexec, exec, fi_dir)
+    exec_wrapper = _generate_mpiexec_wrapper(ctx, mpiexec, exec, fi_dir, ctx.file.libfabric)
     return DefaultInfo(
         files = depset([ exec_wrapper ]),
         runfiles = ctx.runfiles(
-            files = fi_files + [ exec ],
+            files = fi_files + [ exec, ctx.file.libfabric ],
             transitive_files = ctx.attr.mpiexec.default_runfiles.files,
         ),
         executable = exec_wrapper,
@@ -87,14 +95,17 @@ def _ccl_test_impl(ctx):
 ccl_test = rule(
     implementation = _ccl_test_impl,
     attrs = {
+        # The test binary itself: built for the target like any other test,
+        # so it shares the build with the rest of the test suite.
         "src": attr.label(mandatory=True,
                           executable=True,
-                          cfg="exec"),
+                          cfg="target"),
         "mpi_ranks": attr.int(mandatory=True),
         "mpiexec": attr.label(mandatory=True,
                               executable=True,
                               cfg="exec"),
         "fi": attr.label(mandatory=True),
+        "libfabric": attr.label(mandatory=True, allow_single_file=True),
     },
     test = True,
 )

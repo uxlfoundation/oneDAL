@@ -44,6 +44,49 @@
    bazel --version
    ```
 
+## Quick start on Linux
+On an x86-64 host, Bazelisk and the CA certificates it needs to download Bazel
+are all that is needed. Bazel downloads MKL, TBB and the other dependencies with
+fallback archives itself, at the versions pinned in `MODULE.bazel` and
+`dev/bazel/deps/`; see
+[Prebuilt dependency roots](#prebuilt-dependency-roots) for the ones that need
+a local installation.
+```sh
+bazel build //:release
+bazel test //cpp/oneapi/dal/algo/kmeans:tests
+```
+- Bazel: use Bazelisk, which runs the version pinned in `.bazelversion`, or
+  install exactly that version.
+- Compiler: gcc 11 or newer, or clang 14 or newer. These are the oldest
+  versions tested; gcc 10 fails to build (its `<cpuid.h>` has no `__cpuidex`).
+  If neither `CC` is set nor icx, gcc or clang is in `PATH`, Bazel downloads
+  the conda-forge gcc pinned in `dev/bazel/deps/gcc.bzl`, with its own binutils
+  and glibc 2.28 sysroot. `--repo_env=ONEDAL_DOWNLOAD_CC=1` uses it even when a
+  compiler is installed. Binaries it builds need a libstdc++ from gcc 13 or
+  newer at run time.
+- DPC++: without the Intel(R) oneAPI DPC++ Compiler (`icpx`) in `PATH`, the
+  DPC++ libraries are left out of the release and the DPC++ tests and examples
+  are reported as `SKIPPED`. To build them, source `setvars.sh` from a oneAPI
+  installation first; see [Compiler choice](#compiler-choice).
+- AArch64 and RISC-V64 hosts: the MKL and TBB archives are x86-64 only, so
+  these hosts need the `ref` backend with a local OpenBLAS; see
+  [Cross-compiling to ARM/RISC-V](#cross-compiling-to-armrisc-v).
+  `.github/workflows/ci-aarch64.yml` also builds TBB and sets `TBBROOT` for
+  the tests.
+
+### Proxy and offline use
+Downloads honour `https_proxy` / `HTTPS_PROXY`. Bazel keeps every downloaded
+archive in its repository cache, so a machine without network access can build
+from a cache copied from one that has it:
+```sh
+bazel build //:release --repository_cache=<copied-repository-cache>
+```
+The cache lives under `<output_user_root>/cache/repos` unless
+`--repository_cache` moves it. Alternatively, `--distdir=<dir>` takes the
+prebuilt archives from a directory, each named like the last component of its
+URL in `dev/bazel/deps/*.bzl`; the checksum is still verified. Bazelisk itself
+downloads Bazel once into `~/.cache/bazelisk`.
+
 ## Install Bazel on Windows
 Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
 and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
@@ -89,16 +132,48 @@ validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
    ```
 
 ### Compiler choice
-Be default our build system configures Bazel to use Intel(R) C++ Compiler
-in case of normal C++ code and Intel(R) oneAPI DPC++ Compiler in case of
-DPC++. If Intel(R) C++ Compiler is not available in the `$PATH`, Bazel
-tries to find default compiler for specific OS, e.g., GCC for Linux.
+DPC++ code needs the Intel(R) oneAPI DPC++ Compiler, `icpx`. For C++ code
+Bazel picks the compiler on Linux as follows:
 
-The C++ compiler can be forcibly changed using environment variable `CC`.
+1. If `CC` is set, Bazel uses that compiler and never downloads one. `CC` is
+   a name such as `gcc`, `clang`, `icx` or a versioned `clang-19`, which is
+   looked up in `PATH`, or a full path. If it is not found, the build fails
+   with `Cannot find <CC>; try to correct your $PATH`. Bazel tells gcc, clang
+   and icx apart by the `CC` name, so a name that contains none of them is
+   rejected.
+2. Otherwise, with `--repo_env=ONEDAL_DOWNLOAD_CC=1` on an x86-64 host, Bazel
+   downloads the conda-forge gcc pinned in `dev/bazel/deps/gcc.bzl`.
+3. Otherwise it uses the first of `icx`, `gcc` and `clang` found in `PATH`.
+4. If none is found, an x86-64 host downloads that gcc too. Other hosts fail
+   with `Cannot find gcc`.
+
+On Windows Bazel uses `icx` if it is in `PATH` and MSVC `cl` otherwise.
+`ONEDAL_WIN_COMPILER` (`icx`, `clang` for clang-cl, or `cl`) or `CC`
+overrides that.
+
+Changing `CC`, `PATH` or `ONEDAL_DOWNLOAD_CC` makes Bazel detect the compiler
+again on the next build.
 ```sh
-export CC=gcc
-bazel <bazel-command> ... # Will use GCC for normal C++ code
+export CC=clang-19   # must already be installed and in PATH
+bazel <bazel-command> ... # Will use clang 19 for normal C++ code
 ```
+
+To build with clang and LLVM libc++, pass
+`--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
+linked against libstdc++, so it must be installed too.
+
+On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
+false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
+`bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
+target by name fails with an `incompatible` error that names
+`dpc_needs_icpx_in_PATH`. `--release_dpc=true` builds them regardless, and their
+compile actions fail with `icpx is not found!` if the compiler is missing.
+`--config=dpc` (and `dpc-public`, `dpc-private`) sets `--release_dpc=true`, so
+without icpx it fails that way instead of skipping every test.
+
+Since the default follows `PATH`, a release or packaging job that must ship the
+DPC++ libraries should pass `--release_dpc=true` (or `--config=release-dpc`):
+a missing icpx then fails the build instead of producing a CPU-only package.
 
 ### Prebuilt dependency roots
 Each prebuilt dependency is described by its own file in `dev/bazel/deps/`: an
@@ -233,7 +308,10 @@ The most used Bazel commands are `build`, `test` and `run`.
   Possible values:
   - `auto` _(default)_ Automatically detects the highest instruction set
     available on the local machine and builds it together with the `sse2`
-    dispatch baseline, which is always included on x86.
+    dispatch baseline, which is always included on x86. The detector is
+    compiled with the C++ compiler of the selected toolchain (`CXX`, the
+    driver matching `CC`, or the first of `icpx`, `g++`, `clang++` in `PATH`);
+    without one, `auto` falls back to `avx2` with a warning.
   - `modern` Compiles for `sse2`, `avx2`, `avx512`.
   - `all` Compiles for all instruction sets listed below.
   - Any space-separated combination of the following values:
@@ -278,6 +356,9 @@ The most used Bazel commands are `build`, `test` and `run`.
   - `release_static` Links tests against static libraries found in `$DALROOT`.
   - `release_dynamic` Links tests against dynamic libraries found in `$DALROOT`.
 
+  Private tests (`private = True`) are built from sources in both release
+  modes, because `$DALROOT` does not ship the headers they include.
+
    Example:
    ```sh
    export DALROOT=`pwd`/__release_lnx/daal/latest
@@ -310,7 +391,7 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```sh
   bazel build //:release
   ```
-  This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries by default.
+  This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries when `icpx` is in `PATH`.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
@@ -322,7 +403,7 @@ The most used Bazel commands are `build`, `test` and `run`.
     ```sh
     bazel build //:release --cpu=avx2
     ```
-  - To disable building DPC++ libraries, use `--release_dpc=false`:
+  - To disable building DPC++ libraries when `icpx` is available, use `--release_dpc=false`:
     ```sh
     bazel build //:release --release_dpc=false
     ```
@@ -447,7 +528,8 @@ waiting on.
   bazel test //cpp/oneapi/dal:tests
   ```
 
-  This will run all tests including HOST and DPC++ interfaces. In case of DPC++
+  This will run all tests including HOST and DPC++ interfaces; the DPC++ ones
+  are skipped when `icpx` is not in `PATH`. In case of DPC++
   tests, queue will be created depending machine configuration. If there is a
   GPU, `sycl::gpu_selector_v` is used, otherwise queue is created with
   `sycl::cpu_selector_v`.
@@ -551,7 +633,7 @@ bazel test --config=host-public //cpp/oneapi/dal:tests
 ```
 
 Test is categorized to public or private using the `private` flag of the
-`dal_tst_suite` rule. By default, all test suites are public, if the new test
+`dal_test_suite` rule. By default, all test suites are public, if the new test
 suite for the private functionality is defined, the flag should be turned on.
 ```py
 dal_test_suite(

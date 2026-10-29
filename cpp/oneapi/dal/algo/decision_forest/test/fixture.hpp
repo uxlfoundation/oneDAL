@@ -358,9 +358,11 @@ public:
     // Unit weights are used so the weighted path is exercised while the effect
     // mimics a plain sample-count limit.
     void check_min_weight_fraction_reduces_node_count(splitter_mode splitter_mode_val) {
-        constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
-        constexpr std::int64_t row_count = 256;
-        constexpr std::int64_t class_count = 2;
+        // Static, so the lambda below reads them as constants: MSVC rejects a captured
+        // constexpr local in `if constexpr`.
+        static constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
+        static constexpr std::int64_t row_count = 256;
+        static constexpr std::int64_t class_count = 2;
         constexpr double min_weight_fraction = 0.1;
 
         static float x_arr[row_count];
@@ -383,9 +385,7 @@ public:
 
         const auto make_desc = [&](double fraction) {
             auto desc = this->get_default_descriptor();
-            // Not `is_cls`: MSVC (C2131) does not treat a constexpr local
-            // reached through a [&] capture as a constant expression.
-            if constexpr (std::is_same_v<Task, decision_forest::task::classification>) {
+            if constexpr (is_cls) {
                 desc.set_class_count(class_count);
             }
             desc.set_tree_count(1);
