@@ -1168,6 +1168,40 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: allow_single_cluster selects the root when min_cluster_size "
+                     "exceeds the row count",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x = make_table<Float>(single_root_data, single_root_row_count, 2);
+
+    // Every point falls out of the root at the same lambda, so scikit-learn keeps them all in
+    // one cluster with membership 1.
+    const std::int64_t min_cluster_size = GENERATE(17, 100);
+    CAPTURE(min_cluster_size);
+    const std::vector<std::int32_t> ref_labels(single_root_row_count, 0);
+    const std::vector<double> ref_probabilities(single_root_row_count, 1.0);
+
+    const auto desc =
+        this->get_descriptor(min_cluster_size,
+                             3,
+                             result_options::responses | result_options::probabilities)
+            .set_allow_single_cluster(true);
+    const auto result = this->compute(desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    this->check_responses_against_ref(result.get_responses(),
+                                      ref_labels.data(),
+                                      single_root_row_count);
+    this->check_close(this->get_probabilities(result),
+                      ref_probabilities.data(),
+                      single_root_row_count,
+                      te::get_tolerance<Float>(1e-4, 1e-7));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan: leaf selection never picks the root cluster",
                      "[hdbscan][batch][single-cluster]",
                      hdbscan_types) {
