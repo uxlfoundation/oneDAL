@@ -239,20 +239,46 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
 
     TArrayCalloc<algorithmFPType, cpu> xMeanArray(interceptFlag ? nFeatures : 0);
     TArrayCalloc<algorithmFPType, cpu> yMeanArray(interceptFlag ? nResponses : 0);
+    TArray<algorithmFPType, cpu> xcArray(interceptFlag ? nRows * nFeatures : 0);
+    TArray<algorithmFPType, cpu> ycArray(interceptFlag ? nRows * nResponses : 0);
     algorithmFPType * xMean = xMeanArray.get();
     algorithmFPType * yMean = yMeanArray.get();
+    algorithmFPType * xcBuf = xcArray.get();
+    algorithmFPType * ycBuf = ycArray.get();
+    const algorithmFPType one(1);
+    const algorithmFPType negOne(-1);
+    const DAAL_INT incOne(1);
     if (interceptFlag)
     {
         DAAL_PROFILER_TASK(computeDual.computeMeans);
+        TArray<algorithmFPType, cpu> onesArray(nRows);
+        algorithmFPType * ones = onesArray.get();
         DAAL_CHECK_MALLOC(xMean);
         DAAL_CHECK_MALLOC(yMean);
+        DAAL_CHECK_MALLOC(xcBuf);
+        DAAL_CHECK_MALLOC(ycBuf);
+        DAAL_CHECK_MALLOC(ones);
         if (daal::internal::StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(x, nFeatures, nRows, xMean)) return helper.getInternalErrorCode();
         if (daal::internal::StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(y, nResponses, nRows, yMean)) return helper.getInternalErrorCode();
+
+        daal::services::internal::service_memset<algorithmFPType, cpu>(ones, one, nRows);
+        DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xcBuf, nRows * nFeatures * sizeof(algorithmFPType), x,
+                                                            nRows * nFeatures * sizeof(algorithmFPType)),
+                   services::ErrorMemoryCopyFailedInternal);
+        DAAL_CHECK(!daal::services::internal::daal_memcpy_s(ycBuf, nRows * nResponses * sizeof(algorithmFPType), y,
+                                                            nRows * nResponses * sizeof(algorithmFPType)),
+                   services::ErrorMemoryCopyFailedInternal);
+        /* Center the columns of X: Xc = X - 1 * xMean^t, a rank-1 update of the column-major nFeatures x nRows view of X */
+        BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nRows, &incOne, &negOne, xMean, &nFeatures, ones, &incOne, &one, xcBuf,
+                                              &nFeatures);
+        /* Center the columns of Y: Yc = Y - 1 * yMean^t, a rank-1 update of the column-major nResponses x nRows view of Y */
+        BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nResponses, &nRows, &incOne, &negOne, yMean, &nResponses, ones, &incOne, &one, ycBuf,
+                                              &nResponses);
     }
+    const algorithmFPType * xc = interceptFlag ? xcBuf : x;
+    const algorithmFPType * yc = interceptFlag ? ycBuf : y;
 
     /* Compute X * X^t */
-    const algorithmFPType one(1);
-    const DAAL_INT incOne(1);
     /* Use the storage provided by the caller if it has the size of the dual problem (nRows x nRows),
        otherwise (e.g. the model's X^t * X table in the classic API) use a temporary buffer */
     const bool useXXtTable =
@@ -275,26 +301,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     {
         DAAL_PROFILER_TASK(computeDual.computeXXt);
         /* Compute X * X^t using GEMM as GEMM is faster than SYRK when nRows << nFeatures */
-        BlasInst<algorithmFPType, cpu>::xgemm("T", "N", &nRows, &nRows, &nFeatures, &one, x, &nFeatures, x, &nFeatures, &zero, xxt, &nRows);
-    }
-
-    if (interceptFlag)
-    {
-        DAAL_PROFILER_TASK(computeDual.centerXXt);
-        /* Compute centered left hand side:
-           Xc * Xc^t = X * X^t - u * 1^t - 1 * u^t + c * 1 * 1^t, where u = X * xMean and c = xMean^t * xMean */
-        TArray<algorithmFPType, cpu> uArray(nRows);
-        algorithmFPType * u = uArray.get();
-        DAAL_CHECK_MALLOC(u);
-        BlasInst<algorithmFPType, cpu>::xgemv("T", &nFeatures, &nRows, &one, x, &nFeatures, xMean, &incOne, &zero, u, &incOne);
-        algorithmFPType c = BlasInst<algorithmFPType, cpu>::xxdot(&nFeatures, xMean, &incOne, xMean, &incOne);
-
-        /* Only the lower triangle is used by the solver */
-        for (DAAL_INT j = 0; j < nRows; ++j)
-        {
-            PRAGMA_OMP_SIMD_ARGS(aligned(u : DAAL_MALLOC_DEFAULT_ALIGNMENT))
-            for (DAAL_INT i = 0; i <= j; ++i) xxt[j * nRows + i] += c - u[i] - u[j];
-        }
+        BlasInst<algorithmFPType, cpu>::xgemm("T", "N", &nRows, &nRows, &nFeatures, &one, xc, &nFeatures, xc, &nFeatures, &zero, xxt, &nRows);
     }
 
     /* Form right hand side, the solver works on dualCoef of size nResponses x nRows,
@@ -319,18 +326,8 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     }
     {
         DAAL_PROFILER_TASK(computeDual.formRightHandSide);
-        /* dualCoef = y^t */
-        BlasInst<algorithmFPType, cpu>::xomatcopy("R", "T", &nRows, &nResponses, &one, y, &nResponses, dualCoef, &nRows);
-        if (interceptFlag)
-        {
-            for (DAAL_INT j = 0; j < nResponses; ++j)
-            {
-                algorithmFPType * dualCoefRow = dualCoef + j * nRows;
-                const algorithmFPType yMeanJ  = yMean[j];
-                PRAGMA_OMP_SIMD
-                for (DAAL_INT i = 0; i < nRows; ++i) dualCoefRow[i] -= yMeanJ;
-            }
-        }
+        /* dualCoef = Yc^t */
+        BlasInst<algorithmFPType, cpu>::xomatcopy("R", "T", &nRows, &nResponses, &one, yc, &nResponses, dualCoef, &nRows);
     }
 
     Status st;
@@ -356,7 +353,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     DAAL_CHECK_MALLOC(betaBuffer);
     {
         DAAL_PROFILER_TASK(computeDual.computePrimalCoefficients);
-        BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nResponses, &nRows, &one, x, &nFeatures, dualCoef, &nRows, &zero, betaBuffer,
+        BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nResponses, &nRows, &one, xc, &nFeatures, dualCoef, &nRows, &zero, betaBuffer,
                                               &nFeatures);
     }
 
@@ -371,14 +368,6 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
         algorithmFPType intercept = zero;
         if (interceptFlag)
         {
-            /* Adjust coefficients for the mean of X */
-            algorithmFPType dualSum = zero;
-            PRAGMA_OMP_SIMD_ARGS(reduction(+ : dualSum))
-            for (DAAL_INT i = 0; i < nRows; ++i) dualSum += dualCoef[j * nRows + i];
-
-            const algorithmFPType negDualSum = -dualSum;
-            BlasInst<algorithmFPType, cpu>::xxaxpy(&nFeatures, &negDualSum, xMean, &incOne, coef, &incOne);
-
             intercept = yMean[j] - BlasInst<algorithmFPType, cpu>::xxdot(&nFeatures, xMean, &incOne, coef, &incOne);
         }
         beta[j * nBetas] = intercept;

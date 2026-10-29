@@ -887,12 +887,20 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     }
     if (info) return false;
 
-    /* Components with small singular values get eliminated using the exact same logic as 'gelsd' with default parameters
+    /* Errors in symmetric eigenproblems are bounded by the following formula:
+    | lambda_i - lambda_i^true | ≤ p(n) * eps * | max_j { lambda_j } |,
+    where p(n) is a moderately growing polynomial depending on the matrix size n;
+    eps is the machine precision.
+
+    https://netlib.org/lapack/lug_old/node85.html#SECTION03471000000000000000
+
     Note: these are hard-coded versions of machine epsilon for single and double precision. They aren't obtained through
     'std::numeric_limits' in order to avoid potential template instantiation errors with some types. */
     const FPType eps = std::is_same<FPType, float>::value ? 1.1920929e-07 : 2.220446049250313e-16;
     if (eigenvalues[n - 1] <= eps) return false;
-    const double component_threshold = cutoffFactor * eps * eigenvalues[n - 1];
+    const double lambda_err = cutoffFactor * eps * eigenvalues[n - 1];
+    /* Discard components with eigenvalues below the threshold */
+    const double component_threshold = lambda_err < 1e-12 ? 1e-12 : lambda_err;
     DAAL_INT num_discarded;
     for (num_discarded = 0; num_discarded < static_cast<DAAL_INT>(n) - 1; num_discarded++)
     {
