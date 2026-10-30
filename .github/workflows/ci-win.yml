@@ -218,6 +218,38 @@ jobs:
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
 
+      # Bazel reads ~/.bazelrc from %USERPROFILE%. The cache path is written with
+      # forward slashes: Bazel's rc parser does not treat backslashes as separators.
+      # The fingerprint covers the clang-cl that compiles here; `action_env=PATH`
+      # already puts the runner image's PATH into every action key.
+      - name: Configure the Bazel disk cache
+        id: bazel-disk
+        shell: pwsh
+        run: |
+          $cache = "${{ runner.temp }}".Replace('\', '/') + '/bazel-disk'
+          Add-Content -Path "$HOME/.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s"
+          $repo = "${{ runner.temp }}".Replace('\', '/') + '/bazel-repo'
+          Add-Content -Path "$HOME/.bazelrc" -Value "common --repository_cache=$repo"
+          $versions = (& "$env:ProgramFiles\LLVM\bin\clang-cl.exe" --version) -join "`n"
+          $hash = [System.Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($versions))
+          $fp = ([BitConverter]::ToString($hash) -replace '-', '').ToLower().Substring(0, 16)
+          "fingerprint=$fp" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Restore the Bazel disk cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-win-arm64-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+          restore-keys: bazel-disk-win-arm64-${{ steps.bazel-disk.outputs.fingerprint }}-
+      # Downloads pinned by these files (MKL, TBB, compilers, ...). The key holds their
+      # hash, so it changes only with them; the disk cache key changes with every commit.
+      - name: Restore the Bazel repository cache
+        id: repo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-repo
+          key: bazel-repo-win-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
       # Both `@openblas` and `@tbb` default to x86_64 packages (`@openblas` has
       # no download at all), so an ARM64 build of each has to be supplied
       # through OPENBLASROOT / TBBROOT. Without them the repo rules now fail
@@ -314,6 +346,46 @@ jobs:
           bazel test --platforms=@config//:windows_arm64 --backend_config=ref ^
             --test_link_mode=dev --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
+
+      - name: Trim the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: cmd
+        run: bazel shutdown
+
+      - name: Save the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-win-arm64-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+      - name: Save the Bazel repository cache
+        # Only pushes to main write, and only when this hash has no entry yet.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.repo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-repo
+          key: bazel-repo-win-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
+  # Keeps the newest entry per fingerprint; see `prune-bazel-disk-cache` in ci.yml.
+  prune-bazel-disk-cache:
+    needs: bazel-build
+    if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete older Bazel disk caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eo pipefail
+          # Disk entries: newest per fingerprint. Repository entries: newest overall.
+          for prefix in bazel-disk-win-arm64- bazel-repo-win-arm64-; do
+            gh cache list --key "$prefix" --ref refs/heads/main --limit 1000 --json id,key,createdAt \
+              | jq -r 'group_by(.key | sub("-[0-9a-f]{40,64}$"; "")) | .[] | sort_by(.createdAt) | reverse | .[1:] | .[].id' \
+              | while read -r id; do gh cache delete "$id"; done
+          done
 
   # x86_64 with plain MSVC `cl` (rules_cc's MSVC configuration, see
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
