@@ -163,6 +163,10 @@ T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
     {
         return nullptr;
     }
+    if (daal::internal::is_memory_tracking_enabled())
+    {
+        daal::internal::profiler_record_alloc(ptr, size * sizeof(T), daal::internal::profiler_memory_kind::host);
+    }
 
     if constexpr (std::is_trivially_default_constructible_v<T>)
     {
@@ -216,7 +220,12 @@ void service_free(T * ptr)
 template <typename T, CpuType cpu>
 T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
-    return (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
+    T * ptr = (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
+    if (daal::internal::is_memory_tracking_enabled())
+    {
+        daal::internal::profiler_record_alloc(ptr, size * sizeof(T), daal::internal::profiler_memory_kind::host);
+    }
+    return ptr;
 }
 
 /// Frees the memory allocated with `service_scalable_malloc` or `service_scalable_calloc`.
@@ -228,6 +237,10 @@ T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
 template <typename T, CpuType cpu>
 void service_scalable_free(T * ptr)
 {
+    if (daal::internal::is_memory_tracking_enabled())
+    {
+        daal::internal::profiler_record_free(ptr);
+    }
     threaded_scalable_free(ptr);
 }
 
