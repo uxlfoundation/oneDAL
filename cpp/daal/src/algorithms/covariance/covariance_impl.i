@@ -481,6 +481,8 @@ static inline size_t getBlockSize(size_t nrows)
     #define DAAL_CPU_TYPE sve
 #elif defined(TARGET_RISCV64)
     #define DAAL_CPU_TYPE rv64
+#elif defined(TARGET_LOONGARCH64)
+    #define DAAL_CPU_TYPE la64
 #endif
 
 template <>

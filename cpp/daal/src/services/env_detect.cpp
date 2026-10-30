@@ -38,6 +38,8 @@
     #define DAAL_HOST_CPUID daal::services::Environment::sve
 #elif defined(TARGET_RISCV64)
     #define DAAL_HOST_CPUID daal::services::Environment::rv64
+#elif defined(TARGET_LOONGARCH64)
+    #define DAAL_HOST_CPUID daal::services::Environment::la64
 #endif
 
 static daal::services::Environment::LibraryThreadingType daal_thr_set = (daal::services::Environment::LibraryThreadingType)-1;

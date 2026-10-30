@@ -22,6 +22,8 @@ if [ "${os}" = "Linux" ]; then
     echo lnx32e
   elif [ "${ARCH}" = "aarch64" ]; then
     echo lnxarm
+  elif [ "${ARCH}" = "loongarch64" ]; then
+    echo lnxloongarch64
   else
     echo "Unknown architecture: ${ARCH}"
     exit 1

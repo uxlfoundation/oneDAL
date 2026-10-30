@@ -92,6 +92,8 @@ public:
         sve = 2, /*!< ARM(R) processors based on Arm's Scalable Vector Extension (SVE) */
 #elif defined(TARGET_RISCV64)
         rv64 = 1
+#elif defined(TARGET_LOONGARCH64)
+        la64 = 1
 #endif
     };
 

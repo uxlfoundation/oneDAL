@@ -38,6 +38,8 @@
     #include "src/services/internal/aarch64/aarch64_kernel_defines.h"
 #elif defined(TARGET_RISCV64)
     #include "src/services/internal/riscv64/riscv64_kernel_defines.h"
+#elif defined(TARGET_LOONGARCH64)
+    #include "src/services/internal/loongarch64/loongarch64_kernel_defines.h"
 #endif
 
 #define DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, cpuType, ...) ContainerTemplate<__VA_ARGS__, cpuType>

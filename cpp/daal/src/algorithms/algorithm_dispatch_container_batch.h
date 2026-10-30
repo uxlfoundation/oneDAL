@@ -53,6 +53,9 @@ class AlgorithmDispatchContainer<batch, SVEContainer DAAL_KERNEL_SVE_ONLY(sveCon
 #elif defined(TARGET_RISCV64)
 template <typename RV64Container DAAL_KERNEL_RV64_ONLY(typename rv64Container)>
 class AlgorithmDispatchContainer<batch, RV64Container DAAL_KERNEL_RV64_ONLY(rv64Container)> : public AlgorithmContainerImpl<batch>
+#elif defined(TARGET_LOONGARCH64)
+template <typename LA64Container DAAL_KERNEL_LA64_ONLY(typename la64Container)>
+class AlgorithmDispatchContainer<batch, LA64Container DAAL_KERNEL_LA64_ONLY(la64Container)> : public AlgorithmContainerImpl<batch>
 #endif
 {
 public:
