@@ -20,9 +20,13 @@ on:
   pull_request:
     branches:
       - main
+    # The recipe builds with the makefile, so its flags and compiler probes
+    # are inputs too (#3933 broke the dpcpp-2025 lane without running it).
     paths:
       - 'conda-recipe/**'
       - '.github/workflows/ci-conda-recipe.yml'
+      - 'makefile'
+      - 'dev/make/**'
   push:
     branches:
       - main
