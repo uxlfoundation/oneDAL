@@ -84,7 +84,9 @@ bazel test --config=host //cpp/oneapi/dal/algo/pca:tests
 bazel build //:release
 ```
 
-Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets that need the Intel DPC++ compiler. `dev/bazel/README.md` lists every config.
+Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets, which are skipped when `icpx` is not in `PATH` (`--release_dpc` defaults to whether it is). `dev/bazel/README.md` lists every config.
+
+For the default CPU build on x86-64 Linux, Bazel downloads MKL, TBB and the other dependencies with fallback archives at the versions pinned in `MODULE.bazel` and `dev/bazel/deps/*.bzl`, so the host only needs Bazelisk, gcc or clang, `unzip` and `unzstd`. The `*ROOT` variables in the README point a dependency at a local install instead; OpenBLAS (`ref` backend), OpenRNG and `@onedal_release` have no fallback and always need one. A release or packaging job that must ship DPC++ passes `--release_dpc=true` (or `--config=release-dpc`), since the default follows whether `icpx` is in `PATH`.
 
 ## 🔧 Dependency Management
 
@@ -106,7 +108,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
 - Remove unused `load()` symbols.
 - Don't hardcode platform-specific paths; reference external libraries by their repository labels.
-- Library binary versions are `MAJORBINARY` / `MINORBINARY` in `makefile.ver`, mirrored by `_BINARY_MAJOR` / `_BINARY_MINOR` in `dev/bazel/repos.bzl`. Change both together; don't hardcode them anywhere else.
+- Product and library binary versions of the Bazel build live only in `dev/bazel/version.bzl`. Until Make is removed, `makefile.ver` carries the same values; bump both.
 
 ## 🧪 Testing and Validation
 - **Build Validation**: Ensure builds work on all supported platforms

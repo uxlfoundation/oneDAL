@@ -828,6 +828,10 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
     $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
+# New offloading driver for the DPC libraries only; see dev/make/compiler_definitions/dpcpp.mk
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -840,6 +844,9 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(WORKDIR.lib)/$(oneapi_y.dpc) \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
@@ -1131,8 +1138,12 @@ _release_nuspec: update_headers_version _release_cmake_configs
 #===============================================================================
 
 .PHONY: clean cleanrel cleanall
-clean:    ; -rm -rf $(WORKDIR)
-cleanrel: ; -rm -rf $(RELEASEDIR)
+# Every compiler gets its own __work<suffix> and __release_<os><suffix> directory, so clean them all,
+# but keep the dependency sources that CI scripts unpack into __work (e.g. __work/openblas).
+# The suffixes are the CMPLRDIRSUFF.<compiler> values from dev/make/compiler_definitions/*.mk; icx has none.
+CMPLRDIRSUFFs := _gnu _clang _dpcpp _vc
+clean:    ; -rm -rf $(sort $(WORKDIR) $(wildcard $(addprefix $(DIR)/__work,$(CMPLRDIRSUFFs)) $(DIR)/__work/md $(DIR)/__work/mdd))
+cleanrel: ; -rm -rf $(sort $(RELEASEDIR) $(wildcard $(DIR)/__release_$(_OS) $(addprefix $(DIR)/__release_$(_OS),$(CMPLRDIRSUFFs))))
 cleanall: clean cleanrel
 
 define help
@@ -1142,8 +1153,8 @@ Targets:
   _daal_core ... - build only a part of the product,
              without populating release directory (read makefile for details)
   _release - populate release directory
-  clean    - clean working directory $(WORKDIR)
-  cleanrel - clean release directory $(RELEASEDIR) (for entire OS!)
+  clean    - clean the working directories of every compiler and platform, e.g. $(WORKDIR)
+  cleanrel - clean the release directories of every compiler for this OS, e.g. $(RELEASEDIR)
   cleanall - clean both working and release directories
 Flags:
   COMPILER   - compiler to use ($(COMPILERs)) [default: $(COMPILER)]

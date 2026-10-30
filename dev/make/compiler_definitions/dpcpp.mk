@@ -77,6 +77,15 @@ link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
+# Device link with the new offloading driver, as in the Bazel toolchain
+# (dev/bazel/toolchains/cc_toolchain_lnx.bzl). The legacy driver unbundles every
+# input object, including the host-only DAAL objects; the new one skips them.
+# Link actions only; compile actions and object formats are unchanged. The flags
+# are set per DPC library target in makefile, not here, because LOPT is the link
+# options variable and this one is global. Empty if icpx does not support the
+# option.
+offload.new.driver.lnx.dpcpp := $(if $(OS_is_lnx),$(shell icpx -fsycl --offload-new-driver -fsyntax-only -x c++ /dev/null >/dev/null 2>&1 && echo yes))
+
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 
