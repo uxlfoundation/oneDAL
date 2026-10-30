@@ -34,7 +34,7 @@ public:
             return queue_sync_guard(nullptr, daal::internal::profiler::start_task(nullptr));
         }
         q.wait_and_throw();
-        return queue_sync_guard(&q, daal::internal::profiler::start_task(task_name));
+        return queue_sync_guard(&q, daal::internal::profiler::start_queue_task(task_name));
     }
 
     ~queue_sync_guard() {

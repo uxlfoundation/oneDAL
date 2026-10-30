@@ -273,9 +273,10 @@ DAAL_EXPORT void profiler_log(const char * text, std::size_t length);
 ///
 /// @param[in] task_name  Name of the task; a string literal, kept by address
 /// @param[in] threading  Whether the task is the body of a parallel region
+/// @param[in] on_queue   Whether the task waits for a SYCL queue at both ends, so its time is the device's
 ///
 /// @return The stack depth to pass to profiler_end_task()
-DAAL_EXPORT int profiler_begin_task(const char * task_name, bool threading);
+DAAL_EXPORT int profiler_begin_task(const char * task_name, bool threading, bool on_queue = false);
 
 /// Closes the task opened at `depth` on the calling thread, and any task still open above it.
 ///
@@ -294,6 +295,7 @@ struct profiler_report_row
     std::uint64_t self_ns; // wall time not spent in child tasks
     std::uint64_t max_ns;  // longest run
     std::uint64_t threads; // number of threads that ran the task
+    bool on_queue = false; // timed on a SYCL queue
     // Recorded allocations of the task and its children, by profiler_memory_kind.
     std::uint64_t alloc_bytes[2] = {};
     std::uint64_t alloc_count[2] = {};
@@ -354,6 +356,15 @@ public:
     {
         if (!task_name) return profiler_task();
         return profiler_task(profiler_begin_task(task_name, false));
+    }
+
+    /// Starts a task timed on a SYCL queue, which the caller waits for at both ends.
+    ///
+    /// @param[in] task_name  The name of the task, or nullptr for a task that records nothing
+    inline static profiler_task start_queue_task(const char * task_name)
+    {
+        if (!task_name) return profiler_task();
+        return profiler_task(profiler_begin_task(task_name, false, true));
     }
 
     /// Starts a task that is the body of a parallel region. Invoked by DAAL_PROFILER_THREADING_TASK.
