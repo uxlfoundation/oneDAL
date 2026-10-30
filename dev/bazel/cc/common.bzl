@@ -131,10 +131,16 @@ def _unpack_linking_contexts(linking_contexts):
     libs_to_link = []
     dynamic_libs_to_link = []
     static_libs_to_link = []
+    additional_inputs = []
     # IMPORTANT: We need to preserve order of objects when
     #            iterate over linking contexts
     for linking_context in linking_contexts:
         for linker_input in linking_context.linker_inputs.to_list():
+            # Files named by `user_link_flags` (e.g. `$(location)` archives in
+            # linkopts) are only reachable through `additional_inputs`; the
+            # rebuilt linker inputs must carry them or the link action cannot
+            # stage them.
+            additional_inputs.append(depset(linker_input.additional_inputs))
             for lib_to_link in linker_input.libraries:
                 if lib_to_link.objects:
                     objects += lib_to_link.objects
@@ -165,6 +171,7 @@ def _unpack_linking_contexts(linking_contexts):
         static_libraries_to_link = static_libs_to_link,
         libraries_to_link = libs_to_link,
         user_link_flags = utils.unique(link_flags),
+        additional_inputs = depset(transitive = additional_inputs).to_list(),
     )
 
 def _override_tags(tagged_linking_contexts, tag):
