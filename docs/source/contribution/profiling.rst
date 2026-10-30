@@ -26,11 +26,15 @@ You can get an application to print this information to a standard output
 device by enabling **Intel® oneAPI Data Analytics Library Verbose Mode**.
 All logs are printed to the `stderr` stream.
 
-When Verbose mode is active in oneDAL, every call of a verbose-enabled function finishes with 
-printing a human-readable line describing the call. Even if the application gets terminated during 
-the function call, information for that function will be printed. 
+When Verbose mode is active in oneDAL, every call of a verbose-enabled function finishes with
+printing a human-readable line describing the call. Even if the application gets terminated during
+the function call, information for that function will be printed.
 The first call to a verbose-enabled function also prints a version information line.
-The analyzer becomes available only at the end of the oneDAL workflow, when static objects are destroyed.
+The analyzer prints its report when the process exits, or earlier on request (see
+`Reports on request`_).
+
+All libraries of the process (``libonedal_core``, ``libonedal``, ``libonedal_dpc``) record into one
+tree, so a DAAL kernel called from a oneAPI algorithm is nested under that algorithm's task.
 
 For GPU applications, additional information (one or more GPU information lines) will also 
 be printed on the first call to a verbose-enabled function, following the version information lines printed
@@ -71,7 +75,9 @@ You can change the verbose mode either by setting the environment variable ``ONE
 +--------------------------+-----------------------------------------------+
 
 
-When enabled with timing, execution timing is taken synchronously, meaning previous kernel execution will block later kernels.
+A task given a SYCL queue waits for the queue when it starts and when it ends, so its time covers
+the device work submitted inside it and nothing submitted before it. Profiling therefore changes
+how device work overlaps; time a GPU workload without ``ONEDAL_VERBOSE`` for throughput figures.
 
 Logger
 ------
@@ -88,9 +94,13 @@ Example output (for ``cov_dense_batch``):
     auto oneapi::dal::covariance::backend::compute_kernel_dense_impl<float>::operator()(const descriptor_t &, const parameters_t &, const input_t &)::(anonymous class)::operator()() const [Float = float]
     Profiler task_name: gemm, q_
 
-Each entry shows the ``__PRETTY_FUNCTION__`` along with the corresponding ``PROFILER_TASK`` and its arguments.
+Each entry shows the file and line of the ``PROFILER_TASK``, its name and its arguments; level 5
+adds the ``__PRETTY_FUNCTION__``. Each call site is logged the first time it runs, and on every run
+at level 5, so a process whose ``stderr`` is a pipe nobody reads (a notebook kernel, for example)
+does not block once the pipe is full.
 
-The primary purpose of the Logger is debugging — especially useful for identifying the last called function before a segmentation fault or crash (if the function includes a profiler tag).
+The primary purpose of the Logger is debugging, especially identifying the last called function
+before a segmentation fault or crash (if the function includes a profiler tag).
 
 
 Tracer
@@ -104,10 +114,14 @@ Example output (for ``cov_dense_batch``):
 
     Covariance::prepareSums 8.40us
     Covariance::prepareCrossProduct 1.26us
-    THREADING computeSums.local finished on the main rank(time could be different for other ranks): 2.36us
-    THREADING computeSums.reduce finished on the main rank(time could be different for other ranks): 630ns
-    THREADING gemmSums finished on the main rank(time could be different for other ranks): 761ns
-    THREADING Covariance::updateDenseCrossProductAndSums finished on the main rank(time could be different for other ranks): 316.42us
+    computeSums.local 2.36us
+    computeSums.reduce 630ns
+    gemmSums 761ns
+    Covariance::updateDenseCrossProductAndSums 316.42us
+    CovarianceDenseBatchKernel::compute 782.13us
+
+A top-level task, that is an algorithm call, is traced on every run. A nested task is traced the
+first time its call path runs, and on every run at level 5. The analyzer has the totals.
 
 The Tracer is particularly useful in Jupyter Notebooks or general profiling scenarios where performance insights are needed.
 
@@ -122,25 +136,75 @@ Example output (for ``cov_dense_batch``):
 ::
 
     Algorithm tree analyzer
-    |-- CovarianceDenseBatchKernel::compute time: 782.13us 100.00% 1 times in a 0 region
-    |   |-- Covariance::prepareSums time: 19.51us 2.49% 1 times in a 0 region
-    |   |-- Covariance::prepareCrossProduct time: 1.35us 0.17% 1 times in a 0 region
-    |   |-- Covariance::updateDenseCrossProductAndSums time: 636.83us 81.42% 1 times in a 1 region
-    |   |-- computeSums.local time: 2.54us 0.33% 2 times in a 1 region
-    |   |-- computeSums.reduce time: 783ns 0.10% 2 times in a 1 region
-    |   |-- gemmSums time: 767ns 0.10% 1 times in a 1 region
-    |   |-- compute.finalizeCovariance time: 1.19us 0.15% 1 times in a 0 region
-    |---(end)
+    |-- CovarianceDenseBatchKernel::compute time: 782.13us 100.00% 1 times in a sequential region
+    |  |-- Covariance::prepareSums time: 19.51us 2.49% 1 times in a sequential region
+    |  |-- Covariance::prepareCrossProduct time: 1.35us 0.17% 1 times in a sequential region
+    |  |-- Covariance::updateDenseCrossProductAndSums time: 636.83us 81.42% 1 times in a sequential region
+    |  |  |-- computeSums.local time: 2.54us 0.33% 32 times in a parallel region on 16 threads
+    |  |  |-- computeSums.reduce time: 783ns 0.10% 16 times in a parallel region on 16 threads
+    |  |  |-- gemmSums time: 767ns 0.10% 16 times in a parallel region on 16 threads
+    |  |-- compute.finalizeCovariance time: 1.19us 0.15% 1 times in a sequential region
+    |--(end)
+    DAAL KERNEL_PROFILER: kernels total time 782.13us
 
-    ONEDAL KERNEL_PROFILER: kernels total time 501.60ms
+Each row is a call path: the same task name under different parents gives different rows, and the
+runs of a path are merged into one row with their count. A task that ran on a thread of a parallel
+region is nested under the task that started the region, whichever thread ran it. Its row is marked
+``parallel`` and shows the time of the busiest thread, so the times of the rows under a task do not
+exceed the task's own time; ``on N threads`` is the number of threads that ran it.
+A task given a SYCL queue is marked ``on a SYCL queue``: it waits for the queue at both ends, so
+its time is the device's. ``in a sequential region`` means one host thread outside any parallel
+loop.
 
 The Analyzer helps visualize nested kernel calls and their contribution to the total runtime. It's especially helpful for understanding which tasks call which kernels and how much time each part consumes.
+
+Memory
+~~~~~~
+
+With the Analyzer on, allocations made through oneDAL's allocators are recorded too: the DAAL
+heap (``daal_malloc``, which also backs oneAPI host arrays), the scalable allocator behind
+per-thread buffers, and USM through the oneAPI backend. A row that allocated shows, for host and
+device memory separately:
+
+- the bytes and blocks allocated by the task and the tasks under it;
+- ``peak``, the most memory live at once while the task ran, above the level at its start. Only
+  sequential rows have it, and it counts what other threads of the process allocate meanwhile;
+- ``held``, the bytes the task allocated that were not freed when the report was built.
+
+Example rows (for ``cov_dense_batch`` on a GPU):
+
+::
+
+    |-- covariance_algo_compute time: 195.19ms 85.54% 1 times on a SYCL queue, host memory 80B in 2 blocks peak 80B, device memory 8.67KB in 5 blocks peak 8.67KB
+    |  |-- compute_sums time: 91.44ms 40.07% 1 times on a SYCL queue, device memory 40B in 1 block peak 40B
+    ...
+    DAAL KERNEL_PROFILER: memory peak host 1.49MB, device 16.48KB
+
+The last line is the process-wide peak of recorded memory, including what the application allocated
+through oneDAL, such as input tables. Memory that oneMKL, TBB, the SYCL runtime or the driver
+allocate internally is not recorded; on CPU, oneMKL's BLAS buffers are often most of the process's
+memory. For process totals use a heap profiler such as ``valgrind --tool=massif`` or heaptrack, or
+a Level Zero tracer on GPU.
+
+Reports on request
+------------------
+
+The report is printed when the process exits. A process that does not exit, such as a notebook
+kernel, can ask for it at any point through a C entry point of ``libonedal_core``:
+
+.. code-block:: python
+
+    import ctypes
+    core = ctypes.CDLL("libonedal_core.so")
+    core._onedal_profiler_report(b"report.txt", 1)  # append the report to the file, then clear
+
+The first argument is the file to append to, or ``None`` for ``stderr``; a non-zero second argument
+drops everything recorded so far, so the next report covers only the calls made after it.
 
 
 
 General Notes on Verbose Mode
 -----------------------------
 
-Important: This means that the analyzer will not work properly in interactive environments like Jupyter Notebooks, 
-where the application may not fully terminate and static object destructors may never be called.
-To use the analyzer, run your application as a standalone script.
+The mode is read from ``ONEDAL_VERBOSE`` once, at the first profiled call, and cannot be changed
+afterwards in the same process. With the profiler off, each task costs one check of a cached flag.
