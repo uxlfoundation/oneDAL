@@ -98,7 +98,15 @@ def _info(msg):
 DEV_BUILD_DATE = "21990101"
 
 def _build_date(repo_ctx):
-    value = repo_ctx.os.environ.get("ONEDAL_BUILD_DATE", DEV_BUILD_DATE)
+    value = repo_ctx.os.environ.get("ONEDAL_BUILD_DATE")
+    if value == None:
+        # `--config=release-ship` sets ONEDAL_REQUIRE_BUILD_DATE so that a
+        # shipping build cannot pick up the placeholder by accident.
+        if repo_ctx.os.environ.get("ONEDAL_REQUIRE_BUILD_DATE"):
+            fail("ONEDAL_BUILD_DATE is unset, but --config=release-ship requires it: " +
+                 "pass --repo_env=ONEDAL_BUILD_DATE=YYYYMMDD, or drop --config=release-ship " +
+                 "for a dev or PR build (it keeps the {} placeholder).".format(DEV_BUILD_DATE))
+        return DEV_BUILD_DATE
     if len(value) != 8 or not value.isdigit():
         fail("ONEDAL_BUILD_DATE must be YYYYMMDD, got '{}'".format(value))
     return value

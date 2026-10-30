@@ -370,6 +370,8 @@ declare_onedal_config = repository_rule(
         "CXX",
         # Build date of a release (utils.bzl, `build_date`).
         "ONEDAL_BUILD_DATE",
+        # Set by --config=release-ship: a missing ONEDAL_BUILD_DATE fails the build.
+        "ONEDAL_REQUIRE_BUILD_DATE",
         # PATH, so that sourcing setvars.sh re-detects the DPC++ compiler.
         "PATH",
         # Windows host-arch detection (see toolchains/common.bzl).

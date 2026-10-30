@@ -169,6 +169,11 @@ in the release header) is `21990101` unless the build sets
 cacheable from one day to the next. Set the variable for every step of a job or for
 none: a job whose steps disagree re-keys the config between them and relinks.
 
+Shipping builds add `--config=release-ship`, which sets `ONEDAL_REQUIRE_BUILD_DATE`.
+With it, a build without `ONEDAL_BUILD_DATE` fails at the config repository instead of
+stamping the placeholder into the artifact. Release-only PR CI steps keep
+`--config=release-dpc` without it, so they still build with the placeholder.
+
 On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
