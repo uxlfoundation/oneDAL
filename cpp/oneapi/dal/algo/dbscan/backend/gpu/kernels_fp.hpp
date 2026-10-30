@@ -26,6 +26,19 @@ namespace oneapi::dal::dbscan::backend {
 namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
+/// How the neighborhood kernels accumulate a distance. Each form is monotone in the distance, so
+/// `epsilon` is mapped into it once. Cosine runs on unit rows as the negated dot product, so
+/// `1 - dot <= epsilon` becomes `-dot <= epsilon - 1`.
+enum class distance_kind { squared_l2, l1, lp, linf, neg_dot };
+
+/// The distance of the neighborhood search and `epsilon` in its accumulated form.
+template <typename Float>
+struct neighborhood_metric {
+    distance_kind kind;
+    Float degree;
+    Float threshold;
+};
+
 template <typename Float>
 struct kernels_fp {
     template <bool use_weights>
@@ -35,7 +48,7 @@ struct kernels_fp {
                                                         const pr::ndview<Float, 2>& weights,
                                                         pr::ndview<std::int32_t, 1>& cores,
                                                         pr::ndview<Float, 1>& neighbours,
-                                                        Float epsilon,
+                                                        const neighborhood_metric<Float>& metric,
                                                         std::int64_t min_observations,
                                                         const bk::event_vector& deps);
     static sycl::event get_cores_send_recv_replace(sycl::queue& queue,
@@ -44,7 +57,7 @@ struct kernels_fp {
                                                    const pr::ndview<Float, 2>& weights,
                                                    pr::ndview<std::int32_t, 1>& cores,
                                                    pr::ndview<Float, 1>& neighbours,
-                                                   Float epsilon,
+                                                   const neighborhood_metric<Float>& metric,
                                                    std::int64_t min_observations,
                                                    const bk::event_vector& deps = {});
     template <bool use_weights>
@@ -53,7 +66,7 @@ struct kernels_fp {
                                       const pr::ndview<Float, 2>& weights,
                                       pr::ndview<std::int32_t, 1>& cores,
                                       pr::ndview<Float, 1>& neighbours,
-                                      Float epsilon,
+                                      const neighborhood_metric<Float>& metric,
                                       std::int64_t min_observations,
                                       const bk::event_vector& deps);
 
@@ -62,7 +75,7 @@ struct kernels_fp {
                                  const pr::ndview<Float, 2>& weights,
                                  pr::ndview<std::int32_t, 1>& cores,
                                  pr::ndview<Float, 1>& neighbours,
-                                 Float epsilon,
+                                 const neighborhood_metric<Float>& metric,
                                  std::int64_t min_observations,
                                  const bk::event_vector& deps = {});
 
@@ -78,7 +91,7 @@ struct kernels_fp {
                                            pr::ndview<std::int32_t, 1>& responses,
                                            pr::ndview<std::int32_t, 1>& queue_size,
                                            pr::ndview<bool, 1>& indices_cores,
-                                           Float epsilon,
+                                           const neighborhood_metric<Float>& metric,
                                            std::int32_t cluster_id,
                                            const bk::event_vector& deps = {});
 

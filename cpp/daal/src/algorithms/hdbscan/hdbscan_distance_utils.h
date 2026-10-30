@@ -336,6 +336,27 @@ struct MinkowskiDist
     /// @param[in] degree Minkowski exponent `p > 0`
     MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
 
+    /// Compute `sum_d |a_d - b_d|^p`, the distance raised to `p`.
+    ///
+    /// @tparam cpu CPU dispatch tag
+    ///
+    /// @param[in]  a     First row, length `nCols`
+    /// @param[in]  b     Second row, length `nCols`
+    /// @param[in]  nCols Number of features
+    template <daal::internal::CpuType cpu>
+    FPType poweredPointDist(const FPType * a, const FPType * b, size_t nCols) const
+    {
+        const FPType pFP = static_cast<FPType>(p);
+        FPType sum       = FPType(0);
+        for (size_t d = 0; d < nCols; d++)
+        {
+            const FPType diff = a[d] - b[d];
+            const FPType absd = (diff < FPType(0)) ? -diff : diff;
+            sum += daal::internal::MathInst<FPType, cpu>::sPowx(absd, pFP);
+        }
+        return sum;
+    }
+
     /// Compute `(sum_d |a_d - b_d|^p) ^ (1/p)`.
     ///
     /// @tparam cpu CPU dispatch tag
@@ -346,16 +367,7 @@ struct MinkowskiDist
     template <daal::internal::CpuType cpu>
     FPType pointDist(const FPType * a, const FPType * b, size_t nCols) const
     {
-        const FPType pFP    = static_cast<FPType>(p);
-        const FPType invpFP = static_cast<FPType>(invp);
-        FPType sum          = FPType(0);
-        for (size_t d = 0; d < nCols; d++)
-        {
-            const FPType diff = a[d] - b[d];
-            const FPType absd = (diff < FPType(0)) ? -diff : diff;
-            sum += daal::internal::MathInst<FPType, cpu>::sPowx(absd, pFP);
-        }
-        return daal::internal::MathInst<FPType, cpu>::sPowx(sum, invpFP);
+        return daal::internal::MathInst<FPType, cpu>::sPowx(poweredPointDist<cpu>(a, b, nCols), static_cast<FPType>(invp));
     }
 
     /// Minimum Minkowski distance from a query to a bbox `[lo, hi]`.

@@ -14,7 +14,10 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <array>
+
 #include "oneapi/dal/algo/dbscan/test/fixture.hpp"
+#include "oneapi/dal/test/engine/blobs.hpp"
 
 namespace oneapi::dal::dbscan::test {
 
@@ -204,6 +207,95 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     const auto r = homogen_table::wrap(responses, 7, 1);
 
     this->run_checks(x, table{}, epsilon, min_observations, r);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan metrics match the definition on reference distances",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    struct metric_case {
+        distance_metric metric;
+        double degree;
+    };
+    const metric_case c = GENERATE(metric_case{ distance_metric::euclidean, 2.0 },
+                                   metric_case{ distance_metric::manhattan, 2.0 },
+                                   metric_case{ distance_metric::minkowski, 3.0 },
+                                   metric_case{ distance_metric::minkowski, 0.5 },
+                                   metric_case{ distance_metric::chebyshev, 2.0 },
+                                   metric_case{ distance_metric::cosine, 2.0 });
+    // 2 and 5 columns take the narrow and the wide GPU kernels; 20 also takes the early exit.
+    const std::int64_t column_count = GENERATE(2, 5, 20);
+    const bool weighted = GENERATE(false, true);
+    const bool mem_save_mode = GENERATE(false, true);
+    CAPTURE(static_cast<int>(c.metric), c.degree, column_count, weighted, mem_save_mode);
+
+    constexpr std::int64_t row_count = 120;
+    constexpr std::int64_t min_observations = 5;
+    const auto x = te::make_blobs<float_t>(40, 3, column_count, 4.0, 3.0);
+    std::vector<float_t> w(row_count, 1);
+    for (std::int64_t i = 0; weighted && i < row_count; i++) {
+        w[i] = float_t(1 + i % 3);
+    }
+
+    const auto dist = this->reference_distances(x, column_count, c.metric, c.degree);
+    const double epsilon = this->pick_epsilon(dist, row_count, 0.03);
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_mem_save_mode(mem_save_mode)
+            .set_metric(c.metric)
+            .set_degree(c.degree)
+            // The CPU fills the core flags only when the core indices are requested too.
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result =
+        te::compute(this->get_policy(),
+                    desc,
+                    homogen_table::wrap(x.data(), row_count, column_count),
+                    weighted ? table{ homogen_table::wrap(w.data(), row_count, 1) } : table{});
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan cosine metric handles zero rows like scikit-learn",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    // Two zero rows, at cosine distance 1 from every other row including each other, then two
+    // collinear rows. Reference: sklearn.cluster.DBSCAN(eps, min_samples=m, metric="cosine") on
+    // its unchunked path, where the self-distance is forced to 0 and a zero row is its own neighbor.
+    constexpr float_t narrow_data[] = { 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0 };
+    const auto x_narrow = homogen_table::wrap(narrow_data, 4, 2);
+    constexpr float_t wide_data[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0 };
+    const auto x_wide = homogen_table::wrap(wide_data, 4, 5);
+
+    struct zero_row_case {
+        double epsilon;
+        std::int64_t min_observations;
+        std::array<std::int32_t, 4> responses;
+    };
+    const zero_row_case c = GENERATE(zero_row_case{ 0.1, 1, { 0, 1, 2, 2 } },
+                                     zero_row_case{ 0.1, 2, { -1, -1, 0, 0 } },
+                                     zero_row_case{ 1.0, 4, { 0, 0, 0, 0 } });
+    const auto r = homogen_table::wrap(c.responses.data(), 4, 1);
+    // On CPU the two memory modes are separate distance code paths.
+    for (const auto& x : { x_narrow, x_wide }) {
+        for (bool mem_save_mode : { false, true }) {
+            CAPTURE(c.epsilon, c.min_observations, x.get_column_count(), mem_save_mode);
+            const auto desc = this->get_descriptor(c.epsilon, c.min_observations)
+                                  .set_mem_save_mode(mem_save_mode)
+                                  .set_metric(distance_metric::cosine);
+            const auto result = te::compute(this->get_policy(), desc, x, table{});
+            this->check_responses_against_ref(result.get_responses(), r);
+        }
+    }
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,

@@ -19,9 +19,11 @@
     Batch Processing:
 
     - :ref:`dpc_dbscan_brute_force_batch.cpp`
+    - :ref:`dpc_dbscan_brute_force_metrics_batch.cpp`
 
   .. group-tab:: oneAPI C++
 
     Batch Processing:
 
     - :ref:`cpp_dbscan_brute_force_batch.cpp`
+    - :ref:`cpp_dbscan_brute_force_metrics_batch.cpp`

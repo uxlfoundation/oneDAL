@@ -20,9 +20,14 @@
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
+#include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/backend/communicator.hpp"
+#include "oneapi/dal/detail/error_messages.hpp"
+#include "oneapi/dal/exceptions.hpp"
+
+#include <cmath>
 
 namespace oneapi::dal::dbscan::backend {
 
@@ -36,6 +41,49 @@ using dal::backend::context_gpu;
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
+
+/// Map the descriptor's metric and `epsilon` to the form the neighborhood kernels compare.
+template <typename Float>
+static neighborhood_metric<Float> make_neighborhood_metric(const descriptor_t& desc) {
+    const double eps = desc.get_epsilon();
+    const double degree = desc.get_degree();
+    switch (desc.get_metric()) {
+        case distance_metric::euclidean:
+            return { distance_kind::squared_l2, Float(2), static_cast<Float>(eps * eps) };
+        case distance_metric::manhattan: return { distance_kind::l1, Float(1), Float(eps) };
+        case distance_metric::minkowski:
+            return { distance_kind::lp, Float(degree), static_cast<Float>(std::pow(eps, degree)) };
+        case distance_metric::chebyshev: return { distance_kind::linf, Float(1), Float(eps) };
+        case distance_metric::cosine: return { distance_kind::neg_dot, Float(1), Float(eps - 1) };
+    }
+    throw invalid_argument(dal::detail::error_messages::unknown_distance_type());
+}
+
+/// Scale every row to unit L2 norm; zero rows stay zero, so their cosine distance to any other
+/// row is 1, as in scikit-learn.
+template <typename Float>
+static pr::ndarray<Float, 2> normalize_rows(sycl::queue& queue, const pr::ndview<Float, 2>& data) {
+    const std::int64_t row_count = data.get_dimension(0);
+    const std::int64_t column_count = data.get_dimension(1);
+    auto norms = pr::ndarray<Float, 1>::empty(queue, { row_count }, sycl::usm::alloc::device);
+    const auto norms_event = pr::compute_squared_l2_norms(queue, data, norms);
+    auto result =
+        pr::ndarray<Float, 2>::empty(queue, { row_count, column_count }, sycl::usm::alloc::device);
+    const Float* src = data.get_data();
+    const Float* norms_ptr = norms.get_data();
+    Float* dst = result.get_mutable_data();
+    queue
+        .submit([&](sycl::handler& cgh) {
+            cgh.depends_on(norms_event);
+            cgh.parallel_for(bk::make_range_2d(row_count, column_count), [=](sycl::id<2> id) {
+                const Float norm = sycl::sqrt(norms_ptr[id[0]]);
+                const std::int64_t k = id[0] * column_count + id[1];
+                dst[k] = norm > Float(0) ? src[k] / norm : Float(0);
+            });
+        })
+        .wait_and_throw();
+    return result;
+}
 
 template <typename Float>
 static result_t compute_kernel_dense_impl(const context_gpu& ctx,
@@ -86,7 +134,11 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         local_offset += global_rank_offsets.get_data()[i];
     }
 
+    const auto metric = make_neighborhood_metric<Float>(desc);
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
+    // The kernels measure distances on `dist_nd`; `data_nd` keeps the input for the results.
+    const auto dist_nd =
+        metric.kind == distance_kind::neg_dot ? normalize_rows<Float>(queue, data_nd) : data_nd;
 
     pr::ndarray<Float, 2> data_nd_replace;
     if (rank_count > 1) {
@@ -94,7 +146,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         data_nd_replace = pr::ndarray<Float, 2>::empty(queue,
                                                        { max_local_block_size, column_count },
                                                        sycl::usm::alloc::device);
-        bk::copy(queue, data_nd_replace.get_mutable_data(), data_nd.get_data(), data_copy_count, {})
+        bk::copy(queue, data_nd_replace.get_mutable_data(), dist_nd.get_data(), data_copy_count, {})
             .wait_and_throw();
     }
 
@@ -121,7 +173,6 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                  {})
             .wait_and_throw();
     }
-    const Float epsilon = desc.get_epsilon() * desc.get_epsilon();
     const std::int64_t min_observations = desc.get_min_observations();
 
     // array indicates if the point is a core or not
@@ -155,11 +206,11 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                         local_points_queue_size_event });
 
     auto get_cores_event = kernels_fp<Float>::get_cores(queue,
-                                                        data_nd,
+                                                        dist_nd,
                                                         weights_nd,
                                                         arr_cores,
                                                         arr_neighbours,
-                                                        epsilon,
+                                                        metric,
                                                         min_observations);
 
     for (std::int64_t j = 0; j < rank_count - 1; j++) {
@@ -187,24 +238,24 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         if (use_weights) {
             auto actual_weights = weights_nd_replace.get_row_slice(0, local_row_block_count);
             kernels_fp<Float>::get_cores_send_recv_replace(queue,
-                                                           data_nd,
+                                                           dist_nd,
                                                            actual_current_block,
                                                            actual_weights,
                                                            arr_cores,
                                                            arr_neighbours,
-                                                           epsilon,
+                                                           metric,
                                                            min_observations,
                                                            { get_cores_event })
                 .wait_and_throw();
         }
         else {
             kernels_fp<Float>::get_cores_send_recv_replace(queue,
-                                                           data_nd,
+                                                           dist_nd,
                                                            actual_current_block,
                                                            weights_nd,
                                                            arr_cores,
                                                            arr_neighbours,
-                                                           epsilon,
+                                                           metric,
                                                            min_observations,
                                                            { get_cores_event })
                 .wait_and_throw();
@@ -278,7 +329,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
             if (local_points_queue_size != 0) {
                 fill_queue_event =
                     kernels_fp<Float>::fill_current_points_queue(queue,
-                                                                 data_nd,
+                                                                 dist_nd,
                                                                  observation_indices,
                                                                  current_points_queue,
                                                                  local_points_queue_size_arr,
@@ -295,13 +346,13 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
             }
 
             kernels_fp<Float>::update_points_queue(queue,
-                                                   data_nd,
+                                                   dist_nd,
                                                    arr_cores,
                                                    current_points_queue,
                                                    arr_responses,
                                                    total_points_queue_size_arr,
                                                    observation_indices,
-                                                   epsilon,
+                                                   metric,
                                                    cluster_count - 1,
                                                    { fill_queue_event })
                 .wait_and_throw();
