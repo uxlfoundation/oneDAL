@@ -66,6 +66,7 @@ header:
     - '.github/CODEOWNERS'
     - '.github/pull_request_template.md'
     - '.github/renovate.json'
+    - '.ci/scripts/usage_map/intent.json'
     # Specific files
     - 'LICENSE'
     - 'AGENTS.md'
