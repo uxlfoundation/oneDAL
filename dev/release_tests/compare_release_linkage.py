@@ -378,12 +378,14 @@ def compare_shared_library_linkage(platform, make_root, bazel_root, files, limit
 
     `strict_undefined` decides whether a surviving undefined-symbol difference is
     counted. It is off by default, because the undefined half is an equality only
-    when both trees resolved the *same* third-party packages, and the Azure
-    gcc-vs-gcc pairing does not: Make builds against apt oneMKL 2026.1.0
-    (`.ci/env/apt.sh`) while `@mkl` pins conda-forge mkl-static 2025.2.0
-    (`MODULE.bazel`). oneDAL links oneMKL statically, so the two releases carry
-    different oneMKL objects, and the Bazel libraries reference
-    `dlopen`/`dlsym`/`dlclose`/`dlerror`/`printf` where the Make ones do not --
+    when both trees resolved the *same* third-party packages, which the Azure
+    gcc-vs-gcc pairing does not control: Make builds against apt oneMKL
+    (`.ci/env/apt.sh`), `@mkl` against the mkl-static wheel pinned in
+    `dev/bazel/deps/requirements_lock.txt`. oneDAL links oneMKL statically, so
+    when the two pins name different releases the libraries carry different
+    oneMKL objects; with 2026.1.0 apt against 2025.2.0 conda the Bazel
+    libraries referenced
+    `dlopen`/`dlsym`/`dlclose`/`dlerror`/`printf` where the Make ones did not --
     oneMKL's own static dispatcher, five differences on two libraries, no oneDAL
     defect. With the same oneMKL on both sides the sets match exactly, measured
     locally on a gcc/gcc pair. The DT_NEEDED half is unaffected by the skew and

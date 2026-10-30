@@ -23,12 +23,18 @@ on:
     paths:
       - .github/workflows/renovate-validation.yml
       - .github/renovate.json
+      - .ci/env/apt.sh
+      - .ci/env/tbb.sh
+      - dev/bazel/deps/**
   push:
     branches:
       - main
     paths:
       - .github/workflows/renovate-validation.yml
       - .github/renovate.json
+      - .ci/env/apt.sh
+      - .ci/env/tbb.sh
+      - dev/bazel/deps/**
 
 permissions:
   contents: read
@@ -48,3 +54,13 @@ jobs:
         uses: suzuki-shunsuke/github-action-renovate-config-validator@1e1604219a6b38ae9a10aff42a28a3656322c31a # v2.4.1
         with:
           config_file_path: .github/renovate.json
+  pins:
+    name: Make and Bazel dependency pins
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: oneMKL and oneTBB releases match
+        run: python3 dev/bazel/deps/check_pins.py
+      - name: conda pins of gcc.bzl are complete
+        run: python3 dev/bazel/deps/relock_conda.py --check

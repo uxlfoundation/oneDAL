@@ -196,6 +196,22 @@ repositories.
 The dependencies without fallback archives are only resolvable through their
 variable and fail the build with an explicit message when it is unset.
 
+The fallback wheels of `@mkl`, `@tbb`, `@dpl`, `@mpi` and `@ccl` are pinned,
+version and hashes, in `dev/bazel/deps/requirements_lock.txt` rather than in
+their `.bzl` files. Renovate updates that file in one `oneAPI` group with the
+`.ci/env/apt.sh` packages, and `dev/bazel/deps/check_pins.py` (run in CI) fails
+a pull request that leaves Make and Bazel on different oneMKL or oneTBB
+releases. To bump by hand, run `hashin <package>==<version> -r
+dev/bazel/deps/requirements_lock.txt` for each package of the library. The
+rule maps each locked hash to its platform through the PyPI JSON API and, when
+that is unreachable, by trying the locked hashes; a mirror that serves neither
+needs the wheels in `--repository_cache`.
+
+The GCC toolchain and `@openmp` (libgomp) are conda-forge packages pinned in
+`dev/bazel/deps/gcc.bzl`. Renovate bumps `_GCC_VERSION` there; the build strings
+and hashes then need `python3 dev/bazel/deps/relock_conda.py`, which CI checks
+with `--check`.
+
 These variables are watched, so setting, changing or unsetting one re-fetches
 the repository on the next Bazel command rather than on the next server
 restart. Sourcing `setvars.sh` in a shell that already has a warm Bazel server
