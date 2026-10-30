@@ -155,6 +155,34 @@ exceed the task's own time; ``on N threads`` is the number of threads that ran i
 
 The Analyzer helps visualize nested kernel calls and their contribution to the total runtime. It's especially helpful for understanding which tasks call which kernels and how much time each part consumes.
 
+Memory
+~~~~~~
+
+With the Analyzer on, allocations made through oneDAL's allocators are recorded too: the DAAL
+heap (``daal_malloc``, which also backs oneAPI host arrays), the scalable allocator behind
+per-thread buffers, and USM through the oneAPI backend. A row that allocated shows, for host and
+device memory separately:
+
+- the bytes and blocks allocated by the task and the tasks under it;
+- ``peak``, the most memory live at once while the task ran, above the level at its start. Only
+  sequential rows have it, and it counts what other threads of the process allocate meanwhile;
+- ``held``, the bytes the task allocated that were not freed when the report was built.
+
+Example rows (for ``cov_dense_batch`` on a GPU):
+
+::
+
+    |-- covariance_algo_compute time: 196.20ms 84.94% 1 times in a sequential region, host memory 80B in 2 blocks peak 80B, device memory 8.67KB in 5 blocks peak 8.67KB
+    |  |-- compute_sums time: 91.82ms 39.75% 1 times in a sequential region, device memory 40B in 1 block peak 40B
+    ...
+    DAAL KERNEL_PROFILER: memory peak host 1.49MB, device 16.48KB
+
+The last line is the process-wide peak of recorded memory, including what the application allocated
+through oneDAL, such as input tables. Memory that oneMKL, TBB, the SYCL runtime or the driver
+allocate internally is not recorded; on CPU, oneMKL's BLAS buffers are often most of the process's
+memory. For process totals use a heap profiler such as ``valgrind --tool=massif`` or heaptrack, or
+a Level Zero tracer on GPU.
+
 Reports on request
 ------------------
 
