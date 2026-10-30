@@ -68,6 +68,7 @@ struct node
     std::uint64_t total_ns = 0;
     std::uint64_t max_ns   = 0;
     bool threading         = false; // ran as the body of a parallel region
+    bool on_queue          = false; // timed on a SYCL queue
     bool traced            = false; // the tracer has written this path once
     // Written by any thread running a chunk under this task, hence atomic.
     std::atomic<std::uint64_t> alloc_bytes[memory_kinds] = {};
@@ -296,12 +297,13 @@ void close_task(thread_state & ts, const frame & f, std::uint64_t end)
     }
 }
 
-int begin_task(thread_state & ts, const char * name, bool threading)
+int begin_task(thread_state & ts, const char * name, bool threading, bool on_queue)
 {
     const node * parent = ts.stack.empty() ? nullptr : ts.stack.back().anchor;
     const bool in_chunk = !ts.stack.empty() && !ts.stack.back().task;
     node * n            = find_node(ts, parent, name);
     if (threading || in_chunk) n->threading = true;
+    if (on_queue) n->on_queue = true;
     frame f { n, n, 0 };
     f.parallel = threading || (!ts.stack.empty() && ts.stack.back().parallel);
     if (!f.parallel)
@@ -397,6 +399,7 @@ struct merged
     std::uint64_t time_ns = 0;
     std::uint64_t self_ns = 0;
     bool parallel         = false;
+    bool on_queue         = false;
     // Of the task alone until finish() adds the children in, except the peak.
     std::uint64_t alloc_bytes[memory_kinds] = {};
     std::uint64_t alloc_count[memory_kinds] = {};
@@ -483,6 +486,7 @@ std::unique_ptr<merged> build_tree()
             m->max_ns = std::max(m->max_ns, n->max_ns);
             m->seq    = std::min(m->seq, n->seq);
             m->parallel |= n->threading;
+            m->on_queue |= n->on_queue;
             add_time(*m, ts, n->total_ns);
             for (int k = 0; k < memory_kinds; ++k)
             {
@@ -523,6 +527,7 @@ void flatten(const merged & m, std::int64_t parent, std::int64_t depth, std::vec
         rows.push_back({ child->name, parent, depth, child->parallel, child->count, child->time_ns, child->self_ns, child->max_ns,
                          static_cast<std::uint64_t>(child->time_by_thread.size()) });
         profiler_report_row & row = rows.back();
+        row.on_queue              = child->on_queue;
         for (int k = 0; k < memory_kinds; ++k)
         {
             row.alloc_bytes[k] = child->alloc_bytes[k];
@@ -580,9 +585,9 @@ DAAL_EXPORT void profiler_log(const char * text, std::size_t length)
     std::fflush(stderr);
 }
 
-DAAL_EXPORT int profiler_begin_task(const char * task_name, bool threading)
+DAAL_EXPORT int profiler_begin_task(const char * task_name, bool threading, bool on_queue)
 {
-    return begin_task(this_thread(), task_name, threading);
+    return begin_task(this_thread(), task_name, threading, on_queue);
 }
 
 DAAL_EXPORT void profiler_end_task(int depth)
@@ -653,9 +658,13 @@ DAAL_EXPORT void profiler_print_report(std::ostream & out)
         std::string prefix;
         for (std::int64_t level = 0; level < row.depth; ++level) prefix += "|  ";
         out << prefix << "|-- " << row.name << " time: " << format_time(row.time_ns) << ' ' << std::fixed << std::setprecision(2)
-            << (total > 0 ? 100.0 * static_cast<double>(row.time_ns) / static_cast<double>(total) : 0.0) << "% " << row.count << " times in a "
-            << (row.parallel ? "parallel" : "sequential") << " region";
-        if (row.parallel) out << " on " << row.threads << " threads";
+            << (total > 0 ? 100.0 * static_cast<double>(row.time_ns) / static_cast<double>(total) : 0.0) << "% " << row.count << " times ";
+        if (row.parallel)
+            out << "in a parallel region on " << row.threads << " threads";
+        else if (row.on_queue)
+            out << "on a SYCL queue";
+        else
+            out << "in a sequential region";
         static const char * const kind_names[memory_kinds] = { "host", "device" };
         for (int k = 0; k < memory_kinds; ++k)
         {

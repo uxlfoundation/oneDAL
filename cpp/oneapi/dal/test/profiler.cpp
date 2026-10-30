@@ -303,8 +303,31 @@ TEST("profiler task given a queue covers the device work submitted inside it") {
     REQUIRE(rows[0].name == "device_task");
     REQUIRE(rows[0].count == 1);
     REQUIRE(rows[0].time_ns > 0);
+    REQUIRE(rows[0].on_queue);
 }
 #endif
+
+TEST("profiler labels a task timed on a SYCL queue apart from host tasks") {
+    start_recording();
+    {
+        auto host = prof::profiler::start_task("host_task");
+        auto queued = prof::profiler::start_queue_task("queue_task");
+    }
+    const rows_t rows = prof::profiler_report();
+    const auto host = find_row(rows, "host_task", -1);
+    const auto queued = find_row(rows, "queue_task", host);
+    REQUIRE(host >= 0);
+    REQUIRE(queued >= 0);
+    REQUIRE_FALSE(rows[host].on_queue);
+    REQUIRE(rows[queued].on_queue);
+    REQUIRE_FALSE(rows[queued].parallel);
+    std::ostringstream out;
+    prof::profiler_print_report(out);
+    const std::string text = out.str();
+    REQUIRE(text.find("host_task time: ") != std::string::npos);
+    REQUIRE(text.find("1 times in a sequential region") != std::string::npos);
+    REQUIRE(text.find("1 times on a SYCL queue") != std::string::npos);
+}
 
 constexpr int host_memory = static_cast<int>(prof::profiler_memory_kind::host);
 constexpr int device_memory = static_cast<int>(prof::profiler_memory_kind::device);
