@@ -351,7 +351,13 @@ def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
         name, pin.version, platform_tag))
 
 def _download_pypi(repo_ctx, os_id, package, lock, output):
-    """Downloads and unpacks the wheel of `package` pinned in the lock file."""
+    """Downloads and unpacks the wheel of `package` pinned in the lock file.
+
+    `os_id` picks the wheel's platform: "win" only for `win_pypi_packages`. A
+    dependency without them gets its Linux wheels on Windows too, as one
+    without `win_archives` gets its `archives`, so its templates see the layout
+    they were written for.
+    """
     name = _normalize_pypi_name(package)
     if name not in lock:
         fail("pypi package '{}' is not pinned in {}".format(package, repo_ctx.attr._pypi_lock))
@@ -380,8 +386,9 @@ def _download(repo_ctx, os_id):
     pypi_packages = _select_by_os(repo_ctx, "pypi_packages", os_id)
     if pypi_packages:
         lock = _parse_pypi_lock(repo_ctx.read(repo_ctx.attr._pypi_lock))
+        wheel_os = "win" if os_id == "win" and repo_ctx.attr.win_pypi_packages else "lnx"
         for package in pypi_packages:
-            _download_pypi(repo_ctx, os_id, package, lock, output)
+            _download_pypi(repo_ctx, wheel_os, package, lock, output)
     return str(output)
 
 def _check_download_arch(repo_ctx, os_id):
@@ -519,7 +526,9 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         win_bins: Windows override for `bins`.
         win_build_template: Windows override for `build_template`.
         win_archives: Windows override for `archives`.
-        win_pypi_packages: Windows override for `pypi_packages`.
+        win_pypi_packages: Windows override for `pypi_packages`, fetched as
+                           Windows wheels. Without it Windows gets the Linux
+                           wheels of `pypi_packages`, like `archives`.
         win_download_mapping: Windows override for `download_mapping`.
 
     Returns:

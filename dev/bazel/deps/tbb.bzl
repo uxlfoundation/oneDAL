@@ -23,6 +23,10 @@ tbb_repo = repos.prebuilt_libs_repo_rule(
         "tbb",
         "tbb-devel",
     ],
+    win_pypi_packages = [
+        "tbb",
+        "tbb-devel",
+    ],
     includes = [
         "include",
     ],
