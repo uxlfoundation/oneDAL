@@ -258,6 +258,7 @@ jobs:
         id: bazel-disk
         run: |
           echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          echo "common --repository_cache=${{ runner.temp }}/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ gcc -v; ld --version; ldd --version; } 2>&1 | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
 
@@ -267,6 +268,14 @@ jobs:
           path: ${{ runner.temp }}/bazel-disk
           key: bazel-disk-aarch64-${{ matrix.rng }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
           restore-keys: bazel-disk-aarch64-${{ matrix.rng }}-${{ steps.bazel-disk.outputs.fingerprint }}-
+      # Downloads pinned by these files (MKL, TBB, compilers, ...). The key holds their
+      # hash, so it changes only with them; the disk cache key changes with every commit.
+      - name: Restore the Bazel repository cache
+        id: repo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-repo
+          key: bazel-repo-linux-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
       - name: Checkout oneTBB
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -411,6 +420,13 @@ jobs:
         with:
           path: ${{ runner.temp }}/bazel-disk
           key: bazel-disk-aarch64-${{ matrix.rng }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+      - name: Save the Bazel repository cache
+        # Only pushes to main write, and only when this hash has no entry yet.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.repo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-repo
+          key: bazel-repo-linux-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
   # Every save on main adds an entry, since its key holds the commit SHA, and
   # the repository's 10 GB cache quota is shared. Keep only the newest entry per
@@ -439,6 +455,17 @@ jobs:
         run: |
           set -o pipefail
           gh cache list --key "bazel-disk-aarch64-${{ matrix.rng }}-" --ref refs/heads/main --limit 1000 \
+            --json id,createdAt --jq 'sort_by(.createdAt) | reverse | .[1:] | .[].id' \
+            | while read -r id; do gh cache delete "$id"; done
+      # One repository entry per arch and hash. Both RNG legs share it, so only one deletes.
+      - name: Delete older Bazel repository caches
+        if: matrix.rng == 'ref'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eo pipefail
+          gh cache list --key bazel-repo-linux-arm64- --ref refs/heads/main --limit 1000 \
             --json id,createdAt --jq 'sort_by(.createdAt) | reverse | .[1:] | .[].id' \
             | while read -r id; do gh cache delete "$id"; done
 
