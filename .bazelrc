@@ -54,12 +54,6 @@ build:windows --action_env=INCLUDE
 build:windows --action_env=LIB
 build:windows --action_env=PATH
 
-# Bazel builds no runfiles tree on Windows by default, only the manifest.
-# Tests and examples open their `data` by relative path from the runfiles
-# directory (examples' get_data_path tries DALROOT, then the working
-# directory), so without the tree they fail to find it when DALROOT is unset.
-build:windows --enable_runfiles
-
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
 # the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
