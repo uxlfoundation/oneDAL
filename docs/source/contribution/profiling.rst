@@ -152,6 +152,9 @@ runs of a path are merged into one row with their count. A task that ran on a th
 region is nested under the task that started the region, whichever thread ran it. Its row is marked
 ``parallel`` and shows the time of the busiest thread, so the times of the rows under a task do not
 exceed the task's own time; ``on N threads`` is the number of threads that ran it.
+A task given a SYCL queue is marked ``on a SYCL queue``: it waits for the queue at both ends, so
+its time is the device's. ``in a sequential region`` means one host thread outside any parallel
+loop.
 
 The Analyzer helps visualize nested kernel calls and their contribution to the total runtime. It's especially helpful for understanding which tasks call which kernels and how much time each part consumes.
 
@@ -172,8 +175,8 @@ Example rows (for ``cov_dense_batch`` on a GPU):
 
 ::
 
-    |-- covariance_algo_compute time: 196.20ms 84.94% 1 times in a sequential region, host memory 80B in 2 blocks peak 80B, device memory 8.67KB in 5 blocks peak 8.67KB
-    |  |-- compute_sums time: 91.82ms 39.75% 1 times in a sequential region, device memory 40B in 1 block peak 40B
+    |-- covariance_algo_compute time: 195.19ms 85.54% 1 times on a SYCL queue, host memory 80B in 2 blocks peak 80B, device memory 8.67KB in 5 blocks peak 8.67KB
+    |  |-- compute_sums time: 91.44ms 40.07% 1 times on a SYCL queue, device memory 40B in 1 block peak 40B
     ...
     DAAL KERNEL_PROFILER: memory peak host 1.49MB, device 16.48KB
 
