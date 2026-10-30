@@ -78,6 +78,13 @@ drop = yes
 symbol_name_regexp = ^_onedal_profiler_report$
 drop = yes
 
+; std::vector<std::string>::emplace_back was a weak instantiation leaked by the header-only
+; profiler; every consumer instantiates its own copy.
+[suppress_function]
+symbol_name_regexp = ^_ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE12emplace_backIJS5_EEERS5_DpOT_$
+change_kind = deleted-function
+drop = yes
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL 2026.0 REMOVALS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
