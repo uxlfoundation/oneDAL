@@ -162,6 +162,11 @@ To build with clang and LLVM libc++, pass
 `--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
 linked against libstdc++, so it must be installed too.
 
+The library's build date (`LibraryVersionInfo::build`, `__INTEL_DAAL_BUILD_DATE`
+in the release header) is `21990101` unless the build sets
+`--repo_env=ONEDAL_BUILD_DATE=YYYYMMDD`, which the release CI jobs pass. Leaving it
+at the placeholder keeps dev and test links cacheable from one day to the next.
+
 On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++

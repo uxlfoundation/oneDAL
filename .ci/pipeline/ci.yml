@@ -377,7 +377,9 @@ jobs:
     displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
-      bazel build :release --release_dpc=false
+      # The release carries today's build date; every other build keeps the
+      # placeholder (dev/bazel/utils.bzl, ONEDAL_BUILD_DATE).
+      bazel build :release --release_dpc=false --repo_env=ONEDAL_BUILD_DATE=$(date +%Y%m%d)
     displayName: 'release'
 
   - script: |
@@ -747,7 +749,8 @@ jobs:
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
+      for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "ONEDAL_BUILD_DATE=%%d"
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS) --repo_env=ONEDAL_BUILD_DATE=%ONEDAL_BUILD_DATE%
     displayName: 'release'
   - script: |
       rmdir /S /Q "$(release.dir)" 2>NUL
@@ -880,7 +883,8 @@ jobs:
     displayName: 'bazel-configure'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
+      for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "ONEDAL_BUILD_DATE=%%d"
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS) --repo_env=ONEDAL_BUILD_DATE=%ONEDAL_BUILD_DATE%
     displayName: 'release-all'
   - powershell: |
       $ErrorActionPreference = "Stop"
