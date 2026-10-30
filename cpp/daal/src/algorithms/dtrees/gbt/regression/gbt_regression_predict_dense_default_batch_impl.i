@@ -72,7 +72,8 @@ protected:
     template <bool hasUnorderedFeatures, bool hasAnyMissing>
     using dispatcher_t = gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing>;
 
-    services::Status runInternal(NumericTable * result, double predictionBias, bool predShapContributions, bool predShapInteractions);
+    services::Status runInternal(const gbt::internal::ModelImpl & model, NumericTable * result, double predictionBias, bool predShapContributions,
+                                 bool predShapInteractions);
     template <bool hasUnorderedFeatures, bool hasAnyMissing>
     algorithmFPType predictByTrees(size_t iFirstTree, size_t nTrees, const algorithmFPType * x,
                                    const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher);
@@ -80,20 +81,10 @@ protected:
     void predictByTreesVector(size_t iFirstTree, size_t nTrees, const algorithmFPType * x, algorithmFPType * res,
                               const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher);
 
-    inline size_t getNumberOfNodes(size_t nTrees)
-    {
-        size_t nNodesTotal = 0ul;
-        for (size_t iTree = 0ul; iTree < nTrees; ++iTree)
-        {
-            nNodesTotal += _aTree[iTree]->getNumberOfNodes();
-        }
-        return nNodesTotal;
-    }
-
-    inline bool checkForMissing(const algorithmFPType * x, size_t nTrees, size_t nRows, size_t nColumns) const
+    inline bool checkForMissing(const algorithmFPType * x, size_t iFirstTree, size_t nTrees, size_t nRows, size_t nColumns) const
     {
         size_t nLvlTotal = 0ul;
-        for (size_t iTree = 0ul; iTree < nTrees; ++iTree)
+        for (size_t iTree = iFirstTree; iTree < iFirstTree + nTrees; ++iTree)
         {
             nLvlTotal += _aTree[iTree]->getMaxLvl();
         }
@@ -143,7 +134,7 @@ protected:
     template <size_t vectorBlockSize>
     inline void predict(size_t iTree, size_t nTrees, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * res)
     {
-        const bool hasAnyMissing = checkForMissing(x, nTrees, nRows, nColumns);
+        const bool hasAnyMissing = checkForMissing(x, iTree, nTrees, nRows, nColumns);
         if (hasAnyMissing)
         {
             predict<true, vectorBlockSize>(iTree, nTrees, nRows, nColumns, x, res);
@@ -177,7 +168,7 @@ protected:
     inline services::Status predictContributions(size_t iTree, size_t nTrees, size_t nRowsData, const algorithmFPType * x, algorithmFPType * res,
                                                  int condition, FeatureIndexType conditionFeature, const DimType & dim)
     {
-        const bool hasAnyMissing = checkForMissing(x, nTrees, nRowsData, dim.nCols);
+        const bool hasAnyMissing = checkForMissing(x, iTree, nTrees, nRowsData, dim.nCols);
         if (hasAnyMissing)
         {
             return predictContributions<true>(iTree, nTrees, nRowsData, x, res, condition, conditionFeature, dim);
@@ -211,7 +202,7 @@ protected:
     inline services::Status predictContributionInteractions(size_t iTree, size_t nTrees, size_t nRowsData, const algorithmFPType * x,
                                                             const algorithmFPType * nominal, algorithmFPType * res, const DimType & dim)
     {
-        const bool hasAnyMissing = checkForMissing(x, nTrees, nRowsData, dim.nCols);
+        const bool hasAnyMissing = checkForMissing(x, iTree, nTrees, nRowsData, dim.nCols);
         if (hasAnyMissing)
         {
             return predictContributionInteractions<true>(iTree, nTrees, nRowsData, x, nominal, res, dim);
@@ -298,9 +289,7 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::run(const gbt::reg
     _aTree.reset(nTreesTotal);
     DAAL_CHECK_MALLOC(_aTree.get());
 
-    for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = m->at(i);
-
-    return runInternal(this->_res, m->getPredictionBias(), predShapContributions, predShapInteractions);
+    return runInternal(*m, this->_res, m->getPredictionBias(), predShapContributions, predShapInteractions);
 }
 
 /**
@@ -434,8 +423,8 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::predictContributio
 }
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(NumericTable * result, double predictionBias, bool predShapContributions,
-                                                                          bool predShapInteractions)
+services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(const gbt::internal::ModelImpl & model, NumericTable * result,
+                                                                          double predictionBias, bool predShapContributions, bool predShapInteractions)
 {
     // assert we're not requesting both contributions and interactions
     DAAL_ASSERT(!(predShapContributions && predShapInteractions));
@@ -444,22 +433,30 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(Numeri
     const int dataNColumns      = _data->getNumberOfColumns();
     const size_t resultNColumns = result->getNumberOfColumns();
     const size_t resultNRows    = result->getNumberOfRows();
+    const size_t nRowsData      = _data->getNumberOfRows();
 
-    DimType dim(*_data, nTreesTotal, getNumberOfNodes(nTreesTotal));
     WriteOnlyRows<algorithmFPType, cpu> resMatrix(result, 0, resultNRows); // select all rows for writing
     DAAL_CHECK_BLOCK_STATUS(resMatrix);
     services::internal::service_memset<algorithmFPType, cpu>(resMatrix.get(), 0, resultNRows * resultNColumns); // set nRows * nCols to 0
     SafeStatus safeStat;
     services::Status s;
 
-    if (!predShapContributions && !predShapInteractions && nTreesTotal > dim.nRowsTotal)
+    const size_t nTreeBlocks =
+        predShapContributions || predShapInteractions ? 0 : DimType::getNumberOfTreeParallelBlocks(nTreesTotal, nRowsData);
+    if (nTreeBlocks)
     {
-        ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, dim.nRowsTotal);
+        ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, nRowsData);
         DAAL_CHECK_BLOCK_STATUS(xBD);
-        return gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu, DimType::minTreesInBlock>(
-            nTreesTotal, dim.nRowsTotal, algorithmFPType(predictionBias), resMatrix.get(),
-            [&](size_t iFirstTree, size_t nTrees, algorithmFPType * res) { predict(iFirstTree, nTrees, dim.nRowsTotal, xBD.get(), res, dim); });
+        return gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu>(
+            model, _aTree.get(), nTreesTotal, nTreeBlocks, nRowsData, algorithmFPType(predictionBias), resMatrix.get(),
+            [&](size_t iFirstTree, size_t nTrees, algorithmFPType * res) {
+                const DimType dim(*_data, nTrees, _aTree.get() + iFirstTree);
+                predict(iFirstTree, nTrees, nRowsData, xBD.get(), res, dim);
+            });
     }
+
+    for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = model.at(i);
+    DimType dim(*_data, nTreesTotal, _aTree.get());
 
     const size_t predictionIndex = resultNColumns - 1;
     for (size_t iTree = 0ul; iTree < nTreesTotal; iTree += dim.nTreesInBlock)

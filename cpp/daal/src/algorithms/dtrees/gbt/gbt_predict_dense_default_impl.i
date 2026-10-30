@@ -278,17 +278,19 @@ inline void predictForTreesVector(const DecisionTreeType * const * trees, size_t
     for (size_t k = 0; k < nTrees; ++k) v[k] = values[k][i[k]];
 }
 
-// Tree-parallel prediction: predictBlock(iFirstTree, nTrees, out) accumulates a block of trees into zeroed out, blocks are reduced into res
-template <typename algorithmFPType, CpuType cpu, size_t minTreesInBlock, typename F>
-services::Status predictByTreeBlocks(size_t nTrees, size_t nVals, algorithmFPType bias, algorithmFPType * res, const F & predictBlock)
+// Tree-parallel prediction: each of nBlocks blocks collects its trees of the model into trees[iFirstTree, iFirstTree + nTrees),
+// predictBlock(iFirstTree, nTrees, out) accumulates them into zeroed out, blocks are reduced into res
+template <typename algorithmFPType, CpuType cpu, typename F>
+services::Status predictByTreeBlocks(const gbt::internal::ModelImpl & model, const gbt::internal::GbtDecisionTree ** trees, size_t nTrees,
+                                     size_t nBlocks, size_t nVals, algorithmFPType bias, algorithmFPType * res, const F & predictBlock)
 {
-    const size_t nBlocks =
-        services::internal::max<cpu, size_t>(1, services::internal::min<cpu, size_t>(daal::threader_get_threads_number(), nTrees / minTreesInBlock));
     daal::services::internal::TArrayCalloc<algorithmFPType, cpu> partial(nBlocks * nVals);
     DAAL_CHECK_MALLOC(partial.get());
     const auto blockBody = [&](size_t iBlock, size_t) {
         const size_t iFirstTree = iBlock * nTrees / nBlocks;
-        predictBlock(iFirstTree, (iBlock + 1) * nTrees / nBlocks - iFirstTree, partial.get() + iBlock * nVals);
+        const size_t iLastTree  = (iBlock + 1) * nTrees / nBlocks;
+        for (size_t iTree = iFirstTree; iTree < iLastTree; ++iTree) trees[iTree] = model.at(iTree);
+        predictBlock(iFirstTree, iLastTree - iFirstTree, partial.get() + iBlock * nVals);
     };
     if (nBlocks > 1)
         daal::static_threader_for(nBlocks, blockBody);
@@ -327,17 +329,32 @@ struct TileDimensions
     // minimal number of trees per thread in tree-parallel prediction, smaller blocks don't amortize threading overhead
     static constexpr size_t minTreesInBlock = 128;
 
-    TileDimensions(const NumericTable & data, size_t nTrees, size_t nNodes)
+    // Number of blocks in tree-parallel prediction of nRows, 0 if row-parallel prediction is preferable.
+    // Each thread visits only its slice of trees, so tree blocks are faster even with 2x fewer blocks than minimal row blocks
+    static size_t getNumberOfTreeParallelBlocks(size_t nTrees, size_t nRows)
+    {
+        const size_t nThreads = daal::threader_get_threads_number();
+        size_t nBlocks        = nTrees / minTreesInBlock;
+        if (nBlocks > nThreads) nBlocks = nThreads;
+        if (nBlocks < 1) nBlocks = 1;
+        return nRows < 2 * minVectorBlockSizeFactor * vectorBlockSizeStep * nBlocks ? nBlocks : 0;
+    }
+
+    TileDimensions(const NumericTable & data, size_t nTrees, const gbt::internal::GbtDecisionTree * const * trees)
         : nTreesTotal(nTrees), nRowsTotal(data.getNumberOfRows()), nCols(data.getNumberOfColumns())
     {
-        // Use smaller vectorBlockSize if trees fit to L2
-        // Each node contain 3 values
-        size_t nodesSize               = (sizeof(ModelFPType) + sizeof(FeatureIndexType) + sizeof(int)) * nNodes;
-        const bool treesFitToL2        = nodesSize < daal::services::internal::getL2CacheSize();
-        size_t flexibleBlockSizeFactor = treesFitToL2 ? optimalBlockSizeFactor : maxVectorBlockSizeFactor;
-
         // Decrease vectorBlockSize if number of rows is too small
         const size_t twoBlocksPerThreadFactor = nRowsTotal / (2 * daal::threader_get_threads_number() * vectorBlockSizeStep);
+        size_t flexibleBlockSizeFactor        = maxVectorBlockSizeFactor;
+        // Use smaller vectorBlockSize if trees fit to L2, the trees are visited only when it affects the result
+        if (twoBlocksPerThreadFactor > optimalBlockSizeFactor)
+        {
+            size_t nNodes = 0;
+            for (size_t iTree = 0; iTree < nTrees; ++iTree) nNodes += trees[iTree]->getNumberOfNodes();
+            // Each node contain 3 values
+            const size_t nodesSize = (sizeof(ModelFPType) + sizeof(FeatureIndexType) + sizeof(int)) * nNodes;
+            if (nodesSize < daal::services::internal::getL2CacheSize()) flexibleBlockSizeFactor = optimalBlockSizeFactor;
+        }
         if (flexibleBlockSizeFactor > twoBlocksPerThreadFactor) flexibleBlockSizeFactor = twoBlocksPerThreadFactor;
         if (flexibleBlockSizeFactor < minVectorBlockSizeFactor) flexibleBlockSizeFactor = minVectorBlockSizeFactor;
 
