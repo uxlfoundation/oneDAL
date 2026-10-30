@@ -60,16 +60,20 @@ public:
      * Computes regression coefficients by solving the system of linear equations
      * \param[in] p         Size of the system of linear equations
      * \param[in] a         Matrix of size P x P with semifinished left hand side of the system
-     * \param[in,out] aCopy Auxiliary matrix of size P x P with a copy of the matrix a
+     * \param[in,out] aCopy Auxiliary matrix of size P x P with a copy of the matrix a.
+     *                      If ny == 1, it may point to the same memory as a
      * \param[in] ny        Number of right hand sides of the system
      * \param[in,out] b     Matrix of size Ny x P.
      *                      On input, the right hand sides of the system of linear equations
      *                      On output, the regression coefficients
      * \param[in] interceptFlag Flag. If true, then it is required to compute an intercept term
+     * \param[in] isDualSystem  Flag. If true, the system is the dual one with the left hand side X * X^t
      * \return Status of the computations
      */
     virtual Status computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny, algorithmFPType * b,
-                                    bool inteceptFlag) const = 0;
+                                    bool inteceptFlag, bool isDualSystem) const = 0;
+
+    virtual ErrorID getInternalErrorCode() const = 0;
 };
 
 /**
@@ -120,9 +124,25 @@ public:
      *                          On output, the regression coefficients
      * \param[in] internalError Error code that have to be returned in case incorrect parameters
      *                          are passed into lapack routines
+     * \param[in] isDualSystem  Flag. If true, the system is the dual one with the left hand side X * X^t
      * \return Status of the computations
      */
-    static Status solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b, const ErrorID & internalError);
+    static Status solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b, const ErrorID & internalError, bool isDualSystem);
+};
+
+/**
+ * Implements the common part of the regression coefficients computation from partial result
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DualKernel
+{
+    typedef WriteRows<algorithmFPType, cpu> WriteRowsType;
+    typedef WriteOnlyRows<algorithmFPType, cpu> WriteOnlyRowsType;
+    typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
+
+public:
+    static Status compute(const NumericTable & xTable, const NumericTable & yTable, NumericTable & betaTable, NumericTable & xxtTable,
+                          NumericTable & dualCoefTable, bool interceptFlag, const KernelHelperIface<algorithmFPType, cpu> & helper);
 };
 
 /**

@@ -106,6 +106,11 @@ struct MklMath<double, cpu>
 
     static void vSub(SizeType n, const double * a, const double * b, double * y) { __DAAL_MKLFN_CALL_MATH(vdSub, ((int)n, a, b, y)); }
 
+    static void vSubI(SizeType n, const double * a, const SizeType inca, const double * b, const SizeType incb, double * y, const SizeType incy)
+    {
+        __DAAL_MKLFN_CALL_MATH(vdSubI, ((int)n, a, inca, b, incb, y, incy));
+    }
+
     static void vPowx(SizeType n, const double * in, double in1, double * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmdPowx, ((int)n, in, in1, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
@@ -231,6 +236,11 @@ struct MklMath<float, cpu>
     static void vAdd(SizeType n, const float * a, const float * b, float * y) { __DAAL_MKLFN_CALL_MATH(vsAdd, (n, a, b, y)); }
 
     static void vSub(SizeType n, const float * a, const float * b, float * y) { __DAAL_MKLFN_CALL_MATH(vsSub, ((int)n, a, b, y)); }
+
+    static void vSubI(SizeType n, const float * a, const SizeType inca, const float * b, const SizeType incb, float * y, const SizeType incy)
+    {
+        __DAAL_MKLFN_CALL_MATH(vsSubI, ((int)n, a, inca, b, incb, y, incy));
+    }
 
     static void vPowx(SizeType n, const float * in, float in1, float * out)
     {

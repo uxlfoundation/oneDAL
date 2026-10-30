@@ -817,7 +817,7 @@ bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t n
 }
 
 template <typename FPType, CpuType cpu>
-bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
+bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1))
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveEquationsSystemWithSpectralDecomposition, n, nX);
     /* Storage for the eigenvalues.
@@ -887,12 +887,20 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     }
     if (info) return false;
 
-    /* Components with small singular values get eliminated using the exact same logic as 'gelsd' with default parameters
+    /* Errors in symmetric eigenproblems are bounded by the following formula:
+    | lambda_i - lambda_i^true | ≤ p(n) * eps * | max_j { lambda_j } |,
+    where p(n) is a moderately growing polynomial depending on the matrix size n;
+    eps is the machine precision.
+
+    https://netlib.org/lapack/lug_old/node85.html#SECTION03471000000000000000
+
     Note: these are hard-coded versions of machine epsilon for single and double precision. They aren't obtained through
     'std::numeric_limits' in order to avoid potential template instantiation errors with some types. */
     const FPType eps = std::is_same<FPType, float>::value ? 1.1920929e-07 : 2.220446049250313e-16;
     if (eigenvalues[n - 1] <= eps) return false;
-    const double component_threshold = eps * eigenvalues[n - 1];
+    const double lambda_err = cutoffFactor * eps * eigenvalues[n - 1];
+    /* Discard components with eigenvalues below the threshold */
+    const double component_threshold = lambda_err < 1e-12 ? 1e-12 : lambda_err;
     DAAL_INT num_discarded;
     for (num_discarded = 0; num_discarded < static_cast<DAAL_INT>(n) - 1; num_discarded++)
     {
@@ -967,28 +975,48 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     return true;
 }
 
+/* cutoffFactor scales the relative threshold below which eigenvalues are discarded in the spectral decomposition fallback */
 template <typename FPType, CpuType cpu>
-bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
+bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1))
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveSymmetricEquationsSystem, n, nX);
     /* Copy data for fallback from Cholesky to spectral decomposition */
-    TArrayScalable<FPType, cpu> aCopy(n * n);
-    TArrayScalable<FPType, cpu> bCopy(n * nX);
+    TArrayScalable<FPType, cpu> aCopy;
+    TArrayScalable<FPType, cpu> bCopy;
+    {
+        DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.allocateCopies);
+        aCopy.reset(n * n);
+        bCopy.reset(n * nX);
+    }
     DAAL_CHECK_MALLOC(aCopy.get());
     DAAL_CHECK_MALLOC(bCopy.get());
 
-    int copy_status = services::internal::daal_memcpy_s(aCopy.get(), n * n * sizeof(FPType), a, n * n * sizeof(FPType));
-    copy_status += services::internal::daal_memcpy_s(bCopy.get(), n * nX * sizeof(FPType), b, n * nX * sizeof(FPType));
+    int copy_status = 0;
+    {
+        DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.copyInput);
+        copy_status = services::internal::daal_memcpy_s(aCopy.get(), n * n * sizeof(FPType), a, n * n * sizeof(FPType));
+        copy_status += services::internal::daal_memcpy_s(bCopy.get(), n * nX * sizeof(FPType), b, n * nX * sizeof(FPType));
+    }
 
     if (copy_status != 0) return false;
 
     /* Try to solve with Cholesky factorization */
-    if (!solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential))
+    bool choleskyStatus = false;
+    {
+        DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.cholesky);
+        choleskyStatus = solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential);
+    }
+    if (!choleskyStatus)
     {
         /* Fall back to spectral decomposition */
-        bool status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential);
+        bool status = false;
+        {
+            DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.spectralDecomposition);
+            status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential, cutoffFactor);
+        }
         if (status)
         {
+            DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.copyResult);
             status = status && (services::internal::daal_memcpy_s(b, n * nX * sizeof(FPType), bCopy.get(), n * nX * sizeof(FPType)) == 0);
         }
         return status;

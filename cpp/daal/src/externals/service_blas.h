@@ -103,6 +103,20 @@ struct Blas
 {
     typedef typename _impl<fpType, cpu>::SizeType SizeType;
 
+    static void xomatcopy(const char * ordering, const char * trans, const SizeType * rows, const SizeType * cols, const fpType * alpha,
+                          const fpType * a, const SizeType * lda, fpType * b, const SizeType * ldb)
+    {
+        _impl<fpType, cpu>::xomatcopy(ordering, trans, rows, cols, alpha, a, lda, b, ldb);
+    }
+
+    /* Returns 0 on success, non-zero if the internal buffer cannot be allocated */
+    static int xomatadd(const char * ordering, const char * transa, const char * transb, const SizeType * m, const SizeType * n, const fpType * alpha,
+                        const fpType * a, const SizeType * lda, const fpType * beta, const fpType * b, const SizeType * ldb, fpType * c,
+                        const SizeType * ldc)
+    {
+        return _impl<fpType, cpu>::xomatadd(ordering, transa, transb, m, n, alpha, a, lda, beta, b, ldb, c, ldc);
+    }
+
     static void xsyrk(const char * uplo, const char * trans, const SizeType * p, const SizeType * n, const fpType * alpha, const fpType * a,
                       const SizeType * lda, const fpType * beta, fpType * ata, const SizeType * ldata)
     {

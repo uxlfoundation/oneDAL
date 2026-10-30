@@ -257,6 +257,62 @@ public:
         REQUIRE(rr_norm_squared <= lr_norm_squared + tol);
     }
 
+    /// Checks the optimality conditions of min ||y - X * beta - b||^2 + alpha * ||beta||^2:
+    /// X' * r = alpha * beta and, with intercept, sum(r) = 0, where r = y - X * beta - b
+    void check_ridge_optimality(const table& x,
+                                const table& y,
+                                const train_result_t& result,
+                                double alpha,
+                                double tol = 1e-3) {
+        const auto s_count = x.get_row_count();
+        const auto f_count = x.get_column_count();
+        const auto r_count = y.get_column_count();
+
+        const auto x_arr = row_accessor<const float_t>(x).pull({ 0, -1 });
+        const auto y_arr = row_accessor<const float_t>(y).pull({ 0, -1 });
+        const auto beta_arr =
+            row_accessor<const float_t>(result.get_coefficients()).pull({ 0, -1 });
+
+        std::vector<double> bias(r_count, 0.0);
+        if (this->intercept_) {
+            const auto bias_arr =
+                row_accessor<const float_t>(result.get_intercept()).pull({ 0, -1 });
+            for (std::int64_t r = 0; r < r_count; ++r)
+                bias[r] = bias_arr[r];
+        }
+
+        constexpr double eps = std::numeric_limits<float_t>::epsilon();
+        for (std::int64_t r = 0; r < r_count; ++r) {
+            std::vector<double> residual(s_count);
+            double residual_sum = 0.0, residual_scale = eps;
+            for (std::int64_t s = 0; s < s_count; ++s) {
+                double pred = bias[r];
+                for (std::int64_t f = 0; f < f_count; ++f)
+                    pred += double(x_arr[s * f_count + f]) * beta_arr[r * f_count + f];
+                residual[s] = y_arr[s * r_count + r] - pred;
+                residual_sum += residual[s];
+                residual_scale += std::abs(y_arr[s * r_count + r]) + std::abs(bias[r]);
+            }
+            if (this->intercept_) {
+                CAPTURE(r, residual_sum, residual_scale);
+                REQUIRE(std::abs(residual_sum) / residual_scale < tol);
+            }
+
+            for (std::int64_t f = 0; f < f_count; ++f) {
+                const double penalty = alpha * beta_arr[r * f_count + f];
+                double gradient = -penalty, scale = eps + std::abs(penalty);
+                for (std::int64_t s = 0; s < s_count; ++s) {
+                    const double x_val = x_arr[s * f_count + f];
+                    gradient += x_val * residual[s];
+                    scale +=
+                        std::abs(x_val) * (std::abs(y_arr[s * r_count + r]) + std::abs(bias[r]));
+                }
+                CAPTURE(r, f, gradient, scale);
+                REQUIRE(std::abs(gradient) / scale < tol);
+            }
+        }
+    }
+
     std::tuple<table, table, table, table> prepare_inputs(std::int64_t seed = 888,
                                                           double tol = 1e-2) {
         using namespace ::oneapi::dal::detail;
@@ -299,6 +355,10 @@ public:
                                               ridge_train_res.get_coefficients(),
                                               tol);
         }
+
+        SECTION("Checking ridge optimality conditions") {
+            this->check_ridge_optimality(x_train, y_train, ridge_train_res, this->alpha_);
+        }
     }
 
     void run_and_check_linear(std::int64_t seed = 888, double tol = 1e-2) {
@@ -327,7 +387,7 @@ public:
 
     /* Note: difference between this test and the above, is that the linear system to solve
     here is not positive-definite, thus it has an infinite number of possible solutions. The
-    solution here is the one with minimum norm, which is typically more desirable. */
+    solution here is the one with minimum norm on GPU; and obtained through dual coefficients on CPU. */
     void run_and_check_linear_indefinite(double tol = 1e-3) {
         const auto dtype =
             std::is_same<float_t, double>::value ? data_type::float64 : data_type::float32;
@@ -353,12 +413,22 @@ public:
         const auto coefs = train_res.get_coefficients();
 
         if (desc.get_result_options().test(result_options::intercept)) {
-            const float_t expected_beta[] = { 0.27785494,
-                                              0.53011669,
-                                              0.34352259,
-                                              0.40506216,
-                                              -1.26026447 };
-            const float_t expected_intercept[] = { 1.24485441 };
+            const float_t expected_beta_primal[] = { 0.27785494,
+                                                     0.53011669,
+                                                     0.34352259,
+                                                     0.40506216,
+                                                     -1.26026447 };
+            const float_t expected_beta_dual[] = { 0.22642944,
+                                                   0.65675701,
+                                                   -0.40964003,
+                                                   0.29191640,
+                                                   -0.85383405 };
+            const float_t* expected_beta =
+                this->get_policy().is_gpu() ? expected_beta_primal : expected_beta_dual;
+            const float_t expected_intercept_primal[1] = { 1.24485441 };
+            const float_t expected_intercept_dual[1] = { 1.85851968 };
+            const float_t* expected_intercept =
+                this->get_policy().is_gpu() ? expected_intercept_primal : expected_intercept_dual;
             const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
                                                .set_data_type(dtype)
                                                .set_layout(data_layout::row_major)
@@ -408,17 +478,21 @@ public:
                               0.09716732,  -1.52593041, 1.1921661,  -0.67108968, 1.00026942 };
         const float_t y[] = { 0.13632112,  1.53203308, -0.65996941,
                               -0.31179486, 0.33776913, -2.2074711 };
+
+        constexpr std::int64_t nRows = 3;
+        constexpr std::int64_t nFeatures = 5;
+        constexpr std::int64_t nResponses = 2;
         auto X_tbl = oneapi::dal::detail::homogen_table_builder()
                          .set_data_type(dtype)
                          .set_layout(data_layout::row_major)
-                         .allocate(3, 5)
-                         .copy_data(X, 3, 5)
+                         .allocate(nRows, nFeatures)
+                         .copy_data(X, nRows, nFeatures)
                          .build();
         auto y_tbl = oneapi::dal::detail::homogen_table_builder()
                          .set_data_type(dtype)
                          .set_layout(data_layout::row_major)
-                         .allocate(3, 2)
-                         .copy_data(y, 3, 2)
+                         .allocate(nRows, nResponses)
+                         .copy_data(y, nRows, nResponses)
                          .build();
 
         auto desc = this->get_descriptor();
@@ -426,22 +500,32 @@ public:
         const auto coefs = train_res.get_coefficients();
 
         if (desc.get_result_options().test(result_options::intercept)) {
-            const float_t expected_beta[] = {
+            const float_t expected_beta_primal[] = {
                 -0.18692112, -0.20034801, -0.09590892, -0.13672683, 0.56229012,
                 -0.97006008, 1.39413595,  0.49238012,  1.11041239,  -0.79213452,
             };
-            const float_t expected_intercept[] = { -0.48964358, 0.96467681 };
+            const float_t expected_beta_dual[] = {
+                -0.16669371, -0.25015995, 0.20033555,  -0.09222276, 0.40242722,
+                -1.00991131, 1.49227351,  -0.09126926, 1.02273218,  -0.47717881,
+            };
+            const float_t* expected_beta =
+                this->get_policy().is_gpu() ? expected_beta_primal : expected_beta_dual;
+
+            const float_t expected_intercept_primal[] = { -0.48964358, 0.96467681 };
+            const float_t expected_intercept_dual[] = { -0.73101900, 1.44022530 };
+            const float_t* expected_intercept =
+                this->get_policy().is_gpu() ? expected_intercept_primal : expected_intercept_dual;
             const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
                                                .set_data_type(dtype)
                                                .set_layout(data_layout::row_major)
-                                               .allocate(2, 5)
-                                               .copy_data(expected_beta, 2, 5)
+                                               .allocate(nResponses, nFeatures)
+                                               .copy_data(expected_beta, nResponses, nFeatures)
                                                .build();
             const auto expected_intercept_tbl = oneapi::dal::detail::homogen_table_builder()
                                                     .set_data_type(dtype)
                                                     .set_layout(data_layout::row_major)
-                                                    .allocate(1, 2)
-                                                    .copy_data(expected_intercept, 1, 2)
+                                                    .allocate(1, nResponses)
+                                                    .copy_data(expected_intercept, 1, nResponses)
                                                     .build();
 
             const auto intercept = train_res.get_intercept();
@@ -461,8 +545,91 @@ public:
             const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
                                                .set_data_type(dtype)
                                                .set_layout(data_layout::row_major)
-                                               .allocate(2, 5)
-                                               .copy_data(expected_beta, 2, 5)
+                                               .allocate(nResponses, nFeatures)
+                                               .copy_data(expected_beta, nResponses, nFeatures)
+                                               .build();
+            SECTION("Checking coefficient values") {
+                check_if_close(coefs, expected_beta_tbl, tol);
+            }
+        }
+    }
+
+    void run_and_check_linear_indefinite_duplicate_rows(double tol = 1e-3) {
+        const auto dtype =
+            std::is_same<float_t, double>::value ? data_type::float64 : data_type::float32;
+        const float_t X[] = { -0.98912135, -0.36778665, 1.28792526, 0.19397442,  0.9202309,
+                              0.57710379,  -0.63646365, 0.54195222, -0.31659545, -0.32238912,
+                              0.09716732,  -1.52593041, 1.1921661,  -0.67108968, 1.00026942,
+                              0.09716732,  -1.52593041, 1.1921661,  -0.67108968, 1.00026942 };
+        const float_t y[] = { 0.13632112, 1.53203308, -0.65996941, 0.13632112 };
+        auto X_tbl = oneapi::dal::detail::homogen_table_builder()
+                         .set_data_type(dtype)
+                         .set_layout(data_layout::row_major)
+                         .allocate(4, 5)
+                         .copy_data(X, 4, 5)
+                         .build();
+        auto y_tbl = oneapi::dal::detail::homogen_table_builder()
+                         .set_data_type(dtype)
+                         .set_layout(data_layout::row_major)
+                         .allocate(4, 1)
+                         .copy_data(y, 4, 1)
+                         .build();
+
+        auto desc = this->get_descriptor();
+        auto train_res = this->train(desc, X_tbl, y_tbl);
+        const auto coefs = train_res.get_coefficients();
+
+        if (desc.get_result_options().test(result_options::intercept)) {
+            const float_t expected_beta_primal[] = { 0.33189732,
+                                                     0.34638406,
+                                                     0.3225527,
+                                                     0.27698867,
+                                                     -1.08721019 };
+            const float_t expected_beta_dual[] = { 0.28549183,
+                                                   0.46066211,
+                                                   -0.35708829,
+                                                   0.17488788,
+                                                   -0.72045438 };
+            const float_t* expected_beta =
+                this->get_policy().is_gpu() ? expected_beta_primal : expected_beta_dual;
+            const float_t expected_intercept_primal[1] = { 1.1233352056 };
+            const float_t expected_intercept_dual[1] = { 1.677096199 };
+            const float_t* expected_intercept =
+                this->get_policy().is_gpu() ? expected_intercept_primal : expected_intercept_dual;
+            const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
+                                               .set_data_type(dtype)
+                                               .set_layout(data_layout::row_major)
+                                               .allocate(1, 5)
+                                               .copy_data(expected_beta, 1, 5)
+                                               .build();
+            const auto expected_intercept_tbl = oneapi::dal::detail::homogen_table_builder()
+                                                    .set_data_type(dtype)
+                                                    .set_layout(data_layout::row_major)
+                                                    .allocate(1, 1)
+                                                    .copy_data(expected_intercept, 1, 1)
+                                                    .build();
+
+            const auto intercept = train_res.get_intercept();
+
+            SECTION("Checking intercept values") {
+                check_if_close(intercept, expected_intercept_tbl, tol);
+            }
+            SECTION("Checking coefficient values") {
+                check_if_close(coefs, expected_beta_tbl, tol);
+            }
+        }
+
+        else {
+            const float_t expected_beta[] = { 0.42603345,
+                                              0.11456461,
+                                              1.70124253,
+                                              0.48410585,
+                                              -1.83119492 };
+            const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
+                                               .set_data_type(dtype)
+                                               .set_layout(data_layout::row_major)
+                                               .allocate(1, 5)
+                                               .copy_data(expected_beta, 1, 5)
                                                .build();
             SECTION("Checking coefficient values") {
                 check_if_close(coefs, expected_beta_tbl, tol);
