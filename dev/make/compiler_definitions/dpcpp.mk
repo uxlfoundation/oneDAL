@@ -87,8 +87,8 @@ link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 # parse-only check passes on icpx 2025.3, whose clang-linker-wrapper then hands
 # -compress to the host ld ("unrecognized option '-compress'").
 offload.new.driver.lnx.dpcpp := $(if $(OS_is_lnx),$(shell \
-    d=$$(mktemp -d) && TMPDIR=$$d icpx $(linker.ld.flag) -fsycl --offload-new-driver --offload-compress \
-      -shared -fPIC -x c++ /dev/null -o $$d/probe.so >/dev/null 2>&1; rc=$$?; rm -rf $$d; \
+    d=$$(mktemp -d) && TMPDIR="$$d" icpx $(linker.ld.flag) -fsycl --offload-new-driver --offload-compress \
+      -shared -fPIC -x c++ /dev/null -o "$$d/probe.so" >/dev/null 2>&1; rc=$$?; rm -rf -- "$$d"; \
     [ $$rc = 0 ] && echo yes))
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
