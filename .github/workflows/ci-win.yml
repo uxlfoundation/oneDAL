@@ -66,12 +66,12 @@ env:
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
-# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
-# Does not apply to the main branch. Matters on the scarce ARM64 runners, where
-# this workflow is the only consumer, and the three-hour Bazel job holds one.
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
+# Matters on the scarce ARM64 runners, where this workflow is the only consumer.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:
@@ -303,6 +303,9 @@ jobs:
 
       # Same environment as `bazel build core_dynamic`: PATH is captured into
       # the generated toolchain, so any difference would rebuild everything.
+      # --enable_runfiles: Windows builds no runfiles tree by default, and the
+      # example finds its data CSVs only through it when DALROOT is unset. Set
+      # here, not in .bazelrc: the Azure lanes would copy MKL into every tree.
       - name: bazel test oneapi example
         shell: cmd
         env:
@@ -312,7 +315,7 @@ jobs:
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
           set PATH=%PATH%;C:\msys64\usr\bin
           bazel test --platforms=@config//:windows_arm64 --backend_config=ref ^
-            --test_link_mode=dev --test_output=errors ^
+            --test_link_mode=dev --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
   # x86_64 with plain MSVC `cl` (rules_cc's MSVC configuration, see
@@ -359,5 +362,5 @@ jobs:
           if errorlevel 1 exit /b 1
           rem A short output root keeps object paths under MAX_PATH, as in the
           rem Azure Bazel lane (.ci/pipeline/ci.yml, BAZEL_OUTPUT_USER_ROOT).
-          bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --test_output=errors ^
+          bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
