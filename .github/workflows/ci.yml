@@ -308,10 +308,11 @@ jobs:
     name: LinuxBazelNoCompiler
     timeout-minutes: 180
     steps:
+      # zstd is not in the base image; actions/cache compresses with it when present.
       - name: Install Bazelisk prerequisites
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates wget
+          apt-get install -y --no-install-recommends ca-certificates wget zstd
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -320,10 +321,33 @@ jobs:
         run: |
           .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      # The hermetic toolchain is an input of every action, so Bazel's keys cover
+      # it; the fingerprint only has to separate Bazel versions and images.
+      - name: Configure the Bazel disk cache
+        id: bazel-disk
+        run: |
+          echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=1G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          fingerprint=$({ cat .bazelversion; echo ubuntu-26.04; } | sha256sum | cut -c1-16)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel disk cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+          restore-keys: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-
       - name: Bazel tests
-        run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/pca:tests
+        run: bazel test --cpu=avx2 --nocache_test_results //cpp/oneapi/dal/algo/pca:tests
       - name: Bazel example
-        run: bazel test --cpu=avx2 //examples/oneapi/cpp:pca
+        run: bazel test --cpu=avx2 --nocache_test_results //examples/oneapi/cpp:pca
+      - name: Trim the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: bazel shutdown
+      - name: Save the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
 
   # A machine with only Bazelisk and a distribution compiler, no oneAPI. Each leg
   # runs the tests and the example of one algorithm; the clang legs remove the gcc
@@ -376,10 +400,25 @@ jobs:
         run: |
           .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      # Bazel does not hash the host compiler binary, so the key carries what this
+      # leg actually runs: the clang legs have no gcc driver, and the libc++ leg
+      # adds the libc++ packages. Each leg has its own key, since the compilers differ.
+      - name: Configure the Bazel disk cache
+        id: bazel-disk
+        run: |
+          echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=1G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          fingerprint=$({ clang --version 2>&1; gcc -v 2>&1; ld --version; ldd --version; dpkg -l 'libc++*' 'libstdc++*' 2>/dev/null | awk '/^ii/ {print $2, $3}'; } | sha256sum | cut -c1-16)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel disk cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-linux-${{ matrix.leg }}-${{ matrix.runner }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+          restore-keys: bazel-disk-linux-${{ matrix.leg }}-${{ matrix.runner }}-${{ steps.bazel-disk.outputs.fingerprint }}-
       - name: Bazel tests
-        run: bazel test --cpu=avx2 ${{ matrix.flags }} //cpp/oneapi/dal/algo/${{ matrix.algo }}:tests
+        run: bazel test --cpu=avx2 --nocache_test_results ${{ matrix.flags }} //cpp/oneapi/dal/algo/${{ matrix.algo }}:tests
       - name: Bazel example
-        run: bazel test --cpu=avx2 ${{ matrix.flags }} //examples/oneapi/cpp:${{ matrix.algo }}
+        run: bazel test --cpu=avx2 --nocache_test_results ${{ matrix.flags }} //examples/oneapi/cpp:${{ matrix.algo }}
       - name: Check the compiler
         run: |
           # The C runtime objects carry a GCC tag in every build, so look for clang.
@@ -411,12 +450,12 @@ jobs:
       - name: Bazel DAAL and MPI tests
         if: matrix.leg == 'gcc'
         run: |
-          bazel test --cpu=avx2 \
+          bazel test --cpu=avx2 --nocache_test_results \
             //cpp/oneapi/dal:test_mpi_communicator_host \
             //cpp/daal:tests \
             //examples/daal/cpp:kmeans \
             --test_output=errors
-          bazel test --cpu=avx2 --config=host //cpp/oneapi/dal/algo/kmeans:tests
+          bazel test --cpu=avx2 --nocache_test_results --config=host //cpp/oneapi/dal/algo/kmeans:tests
       - name: DPC++ targets fail clearly without icpx
         if: matrix.leg == 'gcc'
         run: |
@@ -438,3 +477,36 @@ jobs:
             build --cpu=avx2 //cpp/oneapi/dal/algo/kmeans:test_batch_dpc
           expect_failure config_dpc.log "icpx is not found" \
             test --cpu=avx2 --config=dpc //cpp/oneapi/dal/algo/kmeans:tests
+      - name: Trim the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: bazel shutdown
+      - name: Save the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-linux-${{ matrix.leg }}-${{ matrix.runner }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+
+  # Each main push saves one entry per leg under a SHA-keyed name, and the
+  # repository's 10 GB Actions cache quota is shared with the ABI baselines.
+  # Keep the newest entry per leg and fingerprint. Runs as its own job so that
+  # only it holds `actions: write`; the build jobs run PR code and keep read-only
+  # permissions. `!cancelled()` so one failed leg does not block the other pruning.
+  prune-bazel-disk-cache:
+    needs: [LinuxBazelNoCompiler, LinuxBazelNoOneAPI]
+    if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      # gh has no checkout here, so set the repository. `pipefail` makes a failed
+      # list fail the step instead of pruning nothing silently.
+      - name: Delete older Bazel disk caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -o pipefail
+          gh cache list --key bazel-disk-linux- --ref refs/heads/main --limit 1000 --json id,key,createdAt \
+            | jq -r 'group_by(.key | sub("-[0-9a-f]{40}$"; "")) | .[] | sort_by(.createdAt) | reverse | .[1:] | .[].id' \
+            | while read -r id; do gh cache delete "$id"; done
