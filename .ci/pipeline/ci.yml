@@ -720,8 +720,11 @@ jobs:
       restoreKeys: |
         "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
       path: $(BAZEL_CACHE_DIR)
+      # Diagnostic: true = exact key hit, inexact = restore-key fallback, anything else = miss.
+      cacheHitVar: BAZEL_CACHE_HIT
     displayName: 'bazel-cache'
   - script: |
+      echo Bazel cache restore result: "$(BAZEL_CACHE_HIT)"
       if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
@@ -747,8 +750,19 @@ jobs:
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS) --execution_log_compact_file="$(Build.ArtifactStagingDirectory)\release-exec-log.zst"
     displayName: 'release'
+  # Diagnostic only: publish the per-action execution log of the release build so
+  # cache misses can be explained from the action keys (inputs, args, env).
+  # Remove once the Windows disk-cache hit rate is understood.
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)\release-exec-log.zst'
+      artifact: 'windows-bazel-exec-log'
+      publishLocation: 'pipeline'
+    displayName: 'Publish Windows release execution log'
   - script: |
       rmdir /S /Q "$(release.dir)" 2>NUL
       mkdir "$(release.dir)"
