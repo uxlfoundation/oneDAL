@@ -362,6 +362,14 @@ DF_BATCH_CLS_TEST("df cls trees draw different random streams") {
     this->check_trees_draw_different_streams(engine);
 }
 
+DF_BATCH_CLS_TEST("df cls responses in the other float type") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_gpu());
+
+    this->check_other_dtype_responses_match();
+}
+
 // min_weight_fraction_in_leaf_node enforcement (classification).
 DF_BATCH_CLS_TEST("df cls min weight fraction reduces node count") {
     SKIP_IF(this->not_available_on_device());
@@ -568,6 +576,14 @@ DF_BATCH_REG_TEST("df reg trees draw different random streams") {
                                  engine_type::philox4x32x10);
     CAPTURE(static_cast<int>(engine));
     this->check_trees_draw_different_streams(engine);
+}
+
+DF_BATCH_REG_TEST("df reg responses in the other float type") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_gpu());
+
+    this->check_other_dtype_responses_match();
 }
 
 // min_weight_fraction_in_leaf_node enforcement (regression).

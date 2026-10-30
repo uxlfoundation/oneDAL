@@ -22,6 +22,8 @@
 
 #include <cmath>
 #include <list>
+#include <random>
+#include <type_traits>
 #include <vector>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
@@ -350,6 +352,78 @@ public:
     /// @param[in] second Another engine type.
     void check_engine_type_changes_forest(engine_type first, engine_type second) {
         REQUIRE(train_leaf_sizes(first, 4) != train_leaf_sizes(second, 4));
+    }
+
+    /// Checks that responses stored in the other float type give the same forest, OOB errors
+    /// and variable importance as Float responses. The values are float-representable, so the
+    /// conversion is exact and the two fits differ only in how the threads are scheduled.
+    void check_other_dtype_responses_match() {
+        using other_t = std::conditional_t<std::is_same_v<Float, float>, double, float>;
+        constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
+        constexpr std::int64_t row_count = 2000;
+        constexpr std::int64_t column_count = 4;
+        constexpr std::int64_t class_count = 3;
+
+        auto x_arr = array<Float>::zeros(row_count * column_count);
+        auto y_arr = array<Float>::zeros(row_count);
+        auto y_other_arr = array<other_t>::zeros(row_count);
+        Float* x_ptr = x_arr.get_mutable_data();
+
+        std::mt19937 rng(7777);
+        std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            float row[column_count];
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                row[j] = dist(rng);
+                x_ptr[i * column_count + j] = row[j];
+            }
+            const float y = is_cls ? static_cast<float>((row[0] + row[1] > 0.0f) + (row[2] > 0.5f))
+                                   : row[0] * row[0] + row[1] - 0.5f * row[2];
+            y_arr.get_mutable_data()[i] = y;
+            y_other_arr.get_mutable_data()[i] = y;
+        }
+        const auto x = dal::homogen_table::wrap(x_arr, row_count, column_count);
+        const auto y = dal::homogen_table::wrap(y_arr, row_count, 1);
+        const auto y_other = dal::homogen_table::wrap(y_other_arr, row_count, 1);
+
+        auto desc = this->get_default_descriptor();
+        if constexpr (is_cls) {
+            desc.set_class_count(class_count);
+        }
+        desc.set_tree_count(10);
+        desc.set_observations_per_tree_fraction(0.3);
+        desc.set_error_metric_mode(error_metric_mode::out_of_bag_error_per_observation);
+        desc.set_variable_importance_mode(variable_importance_mode::mdi);
+
+        const auto ref_result = this->train(desc, x, y);
+        const auto other_result = this->train(desc, x, y_other);
+
+        const auto ref_infer = this->infer(desc, ref_result.get_model(), x);
+        const auto other_infer = this->infer(desc, other_result.get_model(), x);
+
+        const auto ref_resp = dal::row_accessor<const double>(ref_infer.get_responses()).pull();
+        const auto other_resp = dal::row_accessor<const double>(other_infer.get_responses()).pull();
+        const auto ref_oob =
+            dal::row_accessor<const double>(ref_result.get_oob_err_per_observation()).pull();
+        const auto other_oob =
+            dal::row_accessor<const double>(other_result.get_oob_err_per_observation()).pull();
+        REQUIRE(ref_resp.get_count() == row_count);
+        REQUIRE(ref_oob.get_count() == row_count);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            CAPTURE(i);
+            REQUIRE(ref_resp[i] == other_resp[i]);
+            REQUIRE(ref_oob[i] == other_oob[i]);
+        }
+
+        const auto ref_imp =
+            dal::row_accessor<const double>(ref_result.get_var_importance()).pull();
+        const auto other_imp =
+            dal::row_accessor<const double>(other_result.get_var_importance()).pull();
+        REQUIRE(ref_imp.get_count() == column_count);
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            CAPTURE(j);
+            REQUIRE(ref_imp[j] == other_imp[j]);
+        }
     }
 
     // Trains a single fully-grown tree with and without a min_weight_fraction
