@@ -639,6 +639,11 @@ DAAL_EXPORT bool _daal_is_in_parallel()
 #endif
 }
 
+DAAL_EXPORT void _daal_threader_isolate(const void * a, daal::functype_isolate func)
+{
+    tbb::this_task_arena::isolate([&]() { func(a); });
+}
+
 DAAL_EXPORT void * _daal_threader_env()
 {
     static daal::ThreaderEnvironment env;
