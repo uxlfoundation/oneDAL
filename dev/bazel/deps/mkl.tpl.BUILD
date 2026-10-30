@@ -25,10 +25,13 @@ cc_library(
     linkopts = [
         # The source libraries have circular symbol dependencies. To successfully build this cc_library,
         # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
+        # `$(location)` keeps the archives execroot-relative. A `%{repo_root}`
+        # absolute path would embed the output base in every link action that
+        # takes MKL, so the link would miss the disk/remote cache across output bases.
         "-Wl,--start-group",
-        "%{repo_root}/lib/libmkl_core.a",
-        "%{repo_root}/lib/libmkl_intel_ilp64.a",
-        "%{repo_root}/lib/libmkl_tbb_thread.a",
+        "$(location lib/libmkl_core.a)",
+        "$(location lib/libmkl_intel_ilp64.a)",
+        "$(location lib/libmkl_tbb_thread.a)",
         "-Wl,--end-group",
         # The TBB threading layer needs libstdc++. Named by file because clang
         # rewrites -lstdc++ to -lc++ under -stdlib=libc++.
