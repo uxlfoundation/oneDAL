@@ -230,6 +230,33 @@ inline static bool is_analyzer_enabled()
     return profiler_value;
 }
 
+/// Whether allocations are recorded: whenever the analyzer report is on.
+inline static bool is_memory_tracking_enabled()
+{
+    return is_analyzer_enabled();
+}
+
+/// Where a recorded block lives. Host covers USM host memory too.
+enum class profiler_memory_kind : int
+{
+    host   = 0,
+    device = 1
+};
+
+/// Records a block oneDAL allocated, charged to the innermost task open on the calling thread or,
+/// in a chunk of a parallel region with no task open, to the task that started the region.
+///
+/// @param[in] ptr   Address of the block; nullptr is ignored
+/// @param[in] size  Size of the block in bytes
+/// @param[in] kind  Where the block lives
+DAAL_EXPORT void profiler_record_alloc(const void * ptr, std::size_t size, profiler_memory_kind kind);
+
+/// Records that a block is freed. Called before the block is released, so an address the
+/// allocator hands out again is not erased afterwards. Addresses never recorded are ignored.
+///
+/// @param[in] ptr  Address of the block
+DAAL_EXPORT void profiler_record_free(const void * ptr);
+
 /// Whether a call site is to be logged now: the first time `site` is seen, or always at level 5.
 ///
 /// @param[in] site  Key of the call site, such as "file:line"
@@ -267,6 +294,11 @@ struct profiler_report_row
     std::uint64_t self_ns; // wall time not spent in child tasks
     std::uint64_t max_ns;  // longest run
     std::uint64_t threads; // number of threads that ran the task
+    // Recorded allocations of the task and its children, by profiler_memory_kind.
+    std::uint64_t alloc_bytes[2] = {};
+    std::uint64_t alloc_count[2] = {};
+    std::uint64_t peak_bytes[2]  = {}; // live memory above the start of the task; sequential tasks only
+    std::uint64_t held_bytes[2]  = {}; // allocated by the task and not freed when the report is built
 };
 
 /// Returns the merged task tree recorded so far, parents before children. Open tasks are skipped.

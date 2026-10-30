@@ -306,4 +306,82 @@ TEST("profiler task given a queue covers the device work submitted inside it") {
 }
 #endif
 
+constexpr int host_memory = static_cast<int>(prof::profiler_memory_kind::host);
+constexpr int device_memory = static_cast<int>(prof::profiler_memory_kind::device);
+
+TEST("profiler charges recorded blocks to the open task and keeps the peak of a sequential task") {
+    start_recording();
+    // Only the addresses are recorded, so any distinct objects stand for the blocks.
+    char first = 0, second = 0, third = 0;
+    {
+        auto outer = prof::profiler::start_task("outer");
+        prof::profiler_record_alloc(&first, 1000, prof::profiler_memory_kind::host);
+        {
+            auto inner = prof::profiler::start_task("inner");
+            prof::profiler_record_alloc(&second, 4000, prof::profiler_memory_kind::host);
+            prof::profiler_record_free(&second);
+            prof::profiler_record_alloc(&third, 500, prof::profiler_memory_kind::device);
+        }
+        prof::profiler_record_free(&first);
+    }
+    const rows_t rows = prof::profiler_report();
+    const auto outer = find_row(rows, "outer", -1);
+    const auto inner = find_row(rows, "inner", outer);
+    REQUIRE(outer >= 0);
+    REQUIRE(inner >= 0);
+    // A row covers its children.
+    REQUIRE(rows[outer].alloc_bytes[host_memory] == 5000);
+    REQUIRE(rows[outer].alloc_count[host_memory] == 2);
+    REQUIRE(rows[outer].alloc_bytes[device_memory] == 500);
+    REQUIRE(rows[inner].alloc_bytes[host_memory] == 4000);
+    REQUIRE(rows[inner].alloc_count[host_memory] == 1);
+    // `first` and `second` were live together; `inner` started after `first`.
+    REQUIRE(rows[outer].peak_bytes[host_memory] == 5000);
+    REQUIRE(rows[inner].peak_bytes[host_memory] == 4000);
+    REQUIRE(rows[inner].peak_bytes[device_memory] == 500);
+    // `third` is still allocated, by `inner`.
+    REQUIRE(rows[inner].held_bytes[device_memory] == 500);
+    REQUIRE(rows[outer].held_bytes[device_memory] == 500);
+    REQUIRE(rows[outer].held_bytes[host_memory] == 0);
+    prof::profiler_record_free(&third);
+    REQUIRE(prof::profiler_report()[static_cast<std::size_t>(inner)].held_bytes[device_memory] ==
+            0);
+}
+
+TEST(
+    "profiler charges a block allocated in a chunk with no task open to the task that started the region") {
+    start_recording();
+    constexpr std::int64_t n = 64;
+    std::vector<char> blocks(n);
+    {
+        auto outer = prof::profiler::start_task("outer");
+        daal::threader_for(n, 1, [&](std::int64_t i) {
+            prof::profiler_record_alloc(&blocks[i], 100, prof::profiler_memory_kind::host);
+        });
+        daal::threader_for(n, 1, [&](std::int64_t i) {
+            prof::profiler_record_free(&blocks[i]);
+        });
+    }
+    const rows_t rows = prof::profiler_report();
+    REQUIRE(rows.size() == 1);
+    REQUIRE(rows[0].alloc_bytes[host_memory] == 100 * n);
+    REQUIRE(rows[0].alloc_count[host_memory] == n);
+    REQUIRE(rows[0].peak_bytes[host_memory] <= 100 * n);
+    REQUIRE(rows[0].held_bytes[host_memory] == 0);
+}
+
+TEST("profiler ignores a free of a block it never recorded") {
+    start_recording();
+    char block = 0, other = 0;
+    {
+        auto outer = prof::profiler::start_task("outer");
+        prof::profiler_record_alloc(&block, 64, prof::profiler_memory_kind::host);
+        prof::profiler_record_free(&other);
+    }
+    const rows_t rows = prof::profiler_report();
+    REQUIRE(rows.size() == 1);
+    REQUIRE(rows[0].held_bytes[host_memory] == 64);
+    prof::profiler_record_free(&block);
+}
+
 } // namespace oneapi::dal::test
