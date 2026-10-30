@@ -294,9 +294,12 @@ jobs:
       restoreKeys: |
         "$(BAZEL_VERSION)" | "$(Agent.OS)" | "v2"
       path: $(BAZEL_CACHE_DIR)
+      # Diagnostic, as on WindowsBazel: true = exact key hit, inexact = restore-key fallback.
+      cacheHitVar: BAZEL_CACHE_HIT
     displayName: 'bazel-cache'
 
   - script: |
+      echo "Bazel cache restore result: ${BAZEL_CACHE_HIT:-unset}"
       # Create `.bazelrc` and set cache directory
       # Minimal CPU instruction set in Azure is AVX2
       echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2" > ~/.bazelrc
@@ -377,8 +380,19 @@ jobs:
     displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
-      bazel build :release --release_dpc=false
+      bazel build :release --release_dpc=false --execution_log_compact_file="$(Build.ArtifactStagingDirectory)/release-exec-log.zst"
     displayName: 'release'
+
+  # Diagnostic only, as on WindowsBazel: per-action execution log of the release build.
+  # Remove once the disk-cache hit rate is understood.
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/release-exec-log.zst'
+      artifact: 'linux-bazel-exec-log'
+      publishLocation: 'pipeline'
+    displayName: 'Publish Linux release execution log'
 
   - script: |
       echo "Move Bazel release output to standalone directory"
