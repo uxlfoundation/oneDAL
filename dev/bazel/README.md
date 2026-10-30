@@ -164,8 +164,10 @@ linked against libstdc++, so it must be installed too.
 
 The library's build date (`LibraryVersionInfo::build`, `__INTEL_DAAL_BUILD_DATE`
 in the release header) is `21990101` unless the build sets
-`--repo_env=ONEDAL_BUILD_DATE=YYYYMMDD`, which the release CI jobs pass. Leaving it
-at the placeholder keeps dev and test links cacheable from one day to the next.
+`--repo_env=ONEDAL_BUILD_DATE=YYYYMMDD`, which the nightly release builds in
+`nightly-test.yml` pass. Leaving it at the placeholder keeps dev and test links
+cacheable from one day to the next. Set the variable for every step of a job or for
+none: a job whose steps disagree re-keys the config between them and relinks.
 
 On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
