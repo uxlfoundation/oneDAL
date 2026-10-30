@@ -57,7 +57,7 @@ constexpr size_t simdSearchBorders = 256;
 constexpr size_t simdSearchBlock   = 16;
 
 // A feature's sample is sorted as chunks of at least this many values, in parallel, when the group
-// has fewer features than threads. Initial value; the binning benchmark tunes it.
+// has fewer features than threads. Untuned initial value.
 constexpr size_t minSortChunk = size_t(1) << 16;
 
 // Data-bin cap of categorical features, which get one bin per category; the u16 limit is checked after.
@@ -370,12 +370,13 @@ namespace binner
  *  sorted[j] points into values or tmp; nNotNaN[j] counts its non-NaN values.
  */
 template <typename algorithmFPType, CpuType cpu>
-void sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, algorithmFPType * tmp, int32_t * scratch,
-               const algorithmFPType ** sorted, size_t * nNotNaN)
+services::Status sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, algorithmFPType * tmp, int32_t * scratch,
+                           const algorithmFPType ** sorted, size_t * nNotNaN)
 {
     const size_t chunk = (k + nChunks - 1) / nChunks;
     TArray<size_t, cpu> runBegin(nf * nChunks);
     TArray<size_t, cpu> runLen(nf * nChunks);
+    DAAL_CHECK_MALLOC(runBegin.get() && runLen.get());
     daal::threader_for(nf * nChunks, 1, [&](size_t t) {
         const size_t j     = t / nChunks;
         const size_t c     = t % nChunks;
@@ -393,6 +394,7 @@ void sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, al
     {
         const size_t nPairs = (nChunks + 2 * width - 1) / (2 * width);
         TArray<size_t, cpu> outBegin(nf * nPairs);
+        DAAL_CHECK_MALLOC(outBegin.get());
         for (size_t j = 0; j < nf; ++j)
         {
             size_t offset = 0;
@@ -426,6 +428,7 @@ void sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, al
         sorted[j]  = src + j * k + runBegin[j * nChunks];
         nNotNaN[j] = runLen[j * nChunks];
     }
+    return services::Status();
 }
 } // namespace binner
 
@@ -477,8 +480,9 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
             const size_t bySize    = k / minSortChunk ? k / minSortChunk : 1;
             nChunks                = byThreads < bySize ? byThreads : bySize;
         }
-        binner::sortGroup<algorithmFPType, cpu>(nf, k, nChunks, values, sampleScratch.tmp.get(), sampleScratch.payload.get(), sorted.get(),
-                                                nNotNaN.get());
+        st = binner::sortGroup<algorithmFPType, cpu>(nf, k, nChunks, values, sampleScratch.tmp.get(), sampleScratch.payload.get(), sorted.get(),
+                                                     nNotNaN.get());
+        DAAL_CHECK_STATUS_VAR(st);
         SafeStatus safeStat;
         daal::threader_for(nf, 1, [&](size_t j) {
             const size_t f = f0 + j;

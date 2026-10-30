@@ -32,6 +32,7 @@
 #define TBB_PREVIEW_TASK_ARENA     1
 
 #include <algorithm> // std::min
+#include <new>       // std::nothrow
 #include <stdlib.h>  // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
@@ -987,13 +988,15 @@ private:
         }
     }
 
+    // A node without an arena (share 0, or a failed allocation) runs its work in the caller's arena.
     void rebuild(size_t nThreads)
     {
         for (size_t i = 0; i < _nodes.size(); ++i)
         {
-            const int share =
-                nThreads < _totalConcurrency ? std::max(1, static_cast<int>(_concurrency[i] * nThreads / _totalConcurrency)) : _concurrency[i];
-            _arenas[i] = ArenaPtr(new tbb::task_arena(tbb::task_arena::constraints {}.set_numa_id(_nodes[i]).set_max_concurrency(share)));
+            const int share = static_cast<int>(daal::numa_arena_share(_concurrency.get(), _nodes.size(), i, nThreads));
+            _arenas[i]      = share ? ArenaPtr(new (std::nothrow)
+                                                   tbb::task_arena(tbb::task_arena::constraints {}.set_numa_id(_nodes[i]).set_max_concurrency(share))) :
+                                      ArenaPtr();
         }
         _nThreads = nThreads;
     }
@@ -1025,10 +1028,11 @@ DAAL_EXPORT int _daal_threader_numa_count()
 
 DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
 {
-    NumaArenas & arenas = NumaArenas::instance();
-    if (!isThreadPinned() && node >= 0 && node < arenas.arenaCount())
+    NumaArenas & arenas              = NumaArenas::instance();
+    const NumaArenas::ArenaPtr arena = !isThreadPinned() && node >= 0 && node < arenas.arenaCount() ? arenas.arena(node) : NumaArenas::ArenaPtr();
+    if (arena)
     {
-        arenas.arena(node)->execute([&]() { func(a); });
+        arena->execute([&]() { func(a); });
     }
     else
     {

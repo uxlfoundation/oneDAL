@@ -410,9 +410,12 @@ dal_collect_test_suites(
     name = "tests",
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
-        "dtrees/gbt/regression"
+        "dtrees/engine",
+        "dtrees/forest/test",
+        "dtrees/gbt/regression",
     ],
     tests = [
+        "@onedal//cpp/daal/src/externals/test:tests",
         "@onedal//cpp/daal/src/threading/test:tests",
     ],
 )

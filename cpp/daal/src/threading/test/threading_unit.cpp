@@ -576,6 +576,44 @@ TEST("loops run through threader_execute_in_numa cover their space with arena-re
     REQUIRE(!threadIdOutOfRange.load(std::memory_order_relaxed));
 }
 
+TEST("NUMA arena shares add up to the thread count and follow each node's concurrency", "[threading][unit]")
+{
+    auto shares = [](const std::vector<int> & concurrency, size_t nThreads) {
+        std::vector<size_t> result;
+        for (size_t i = 0; i < concurrency.size(); ++i) result.push_back(numa_arena_share(concurrency.data(), concurrency.size(), i, nThreads));
+        return result;
+    };
+    // Rounding each node down on its own would give 1 + 1 here.
+    REQUIRE(shares({ 56, 56 }, 3) == std::vector<size_t> { 1, 2 });
+    REQUIRE(shares({ 56, 56 }, 2) == std::vector<size_t> { 1, 1 });
+    REQUIRE(shares({ 56, 56 }, 112) == std::vector<size_t> { 56, 56 });
+    REQUIRE(shares({ 56, 56 }, 500) == std::vector<size_t> { 56, 56 });
+    // One thread each, then 6 more in proportion to 47 : 15.
+    REQUIRE(shares({ 48, 16 }, 8) == std::vector<size_t> { 5, 3 });
+    // Fewer threads than nodes: some nodes get none, and the total is still the thread count.
+    REQUIRE(shares({ 10, 10, 10, 10 }, 1) == std::vector<size_t> { 0, 0, 0, 1 });
+    REQUIRE(shares({ 10, 10, 10, 10 }, 2) == std::vector<size_t> { 0, 1, 0, 1 });
+    REQUIRE(shares({ 1, 1 }, 2) == std::vector<size_t> { 1, 1 });
+    for (const std::vector<int> & concurrency : { std::vector<int> { 7, 3, 5 }, std::vector<int> { 1, 64 }, std::vector<int> { 4, 4, 4, 4, 4 } })
+    {
+        size_t total = 0;
+        for (const int c : concurrency) total += size_t(c);
+        for (size_t nThreads = 1; nThreads <= total + 2; ++nThreads)
+        {
+            CAPTURE(nThreads);
+            const auto s = shares(concurrency, nThreads);
+            size_t sum   = 0;
+            for (size_t i = 0; i < s.size(); ++i)
+            {
+                REQUIRE(s[i] <= size_t(concurrency[i]));
+                if (nThreads >= concurrency.size()) REQUIRE(s[i] >= 1);
+                sum += s[i];
+            }
+            REQUIRE(sum == std::min(nThreads, total));
+        }
+    }
+}
+
 TEST("NUMA arenas share the thread count set by setNumberOfThreads", "[threading][unit]")
 {
     const int nodes = threader_numa_count();

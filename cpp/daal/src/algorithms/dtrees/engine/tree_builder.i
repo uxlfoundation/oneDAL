@@ -82,6 +82,7 @@ struct Candidate
 template <typename algorithmFPType, CpuType cpu>
 struct NodeScratch
 {
+    DAAL_NEW_DELETE();
     LargeArray<algorithmFPType, cpu> x;
     LargeArray<int32_t, cpu> order;
     LargeArray<double, cpu> w;
@@ -91,12 +92,13 @@ struct NodeScratch
     LargeArray<uint32_t, cpu> permutation;
     LargeArray<uint32_t, cpu> lanes; // histogram phase: the features of a pass
     size_t capacity = 0;
+    bool baseReady  = false; // set only once every base array is allocated, so a failed call is retried
 
     bool ensureBase(size_t nClasses, size_t nFeatures)
     {
-        if (permutation.get()) return true;
-        if (!permutation.reset(2 * nFeatures) || !lanes.reset(nFeatures)) return false;
-        return !nClasses || classWeights.reset(2 * nClasses);
+        if (baseReady) return true;
+        baseReady = permutation.reset(2 * nFeatures) && lanes.reset(nFeatures) && (!nClasses || classWeights.reset(2 * nClasses));
+        return baseReady;
     }
 
     bool ensureRows(size_t n, size_t nClasses)
@@ -152,6 +154,7 @@ inline void setBit(uint64_t * bits, size_t i)
 template <typename Record, CpuType cpu>
 struct NodeCarry
 {
+    DAAL_NEW_DELETE();
     NodeCarry * prev = nullptr;
     NodeCarry * next = nullptr;
     // Two lists of one bit per feature: constant by bins, for the histogram phase; constant by value, for
@@ -345,7 +348,7 @@ public:
         node.start      = item.start;
 
         item.weight = cost.weight();
-        if (leafBySize(item.n, item.weight, item.depth) || pure || node.impurity <= _params.impurityThreshold) return services::Status();
+        if (leafBySize(item.n, item.weight, item.depth) || pure || node.impurity < _params.impurityThreshold) return services::Status();
 
         Candidate best;
         services::Status s;
@@ -1058,6 +1061,7 @@ private:
         if (n < parallelSortRecords) return daal::algorithms::internal::qSort<algorithmFPType, int32_t, cpu>(n, values, order, true);
         // parallel_sort's comparison is undefined for NaN, so NaN keys leave first.
         const size_t m = daal::algorithms::internal::moveNaNsToEnd<algorithmFPType, int32_t, cpu>(n, values, order);
+        if (!m) return 0;
         TArray<daal::IdxValType<algorithmFPType>, cpu> pairs(m);
         if (!pairs.get()) return ~size_t(0);
         daal::threader_for(m, tableBlockRows, [&](size_t i) {

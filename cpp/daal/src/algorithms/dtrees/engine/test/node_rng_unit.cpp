@@ -129,4 +129,12 @@ TEST("child node keys of a full tree are distinct", "[unit]")
     REQUIRE(seen.size() == (size_t(1) << (depth + 1)) - 1);
 }
 
+TEST("draws from a stream that cannot be read end and report the error", "[unit]")
+{
+    CounterRng<cpu> rng; // never initialized: every read fails
+    CounterNodeDraws<cpu> draws(rng, 1);
+    REQUIRE(draws.below(3) < 3);
+    REQUIRE(!draws.status().ok());
+}
+
 } // namespace daal::algorithms::dtrees::engine::internal::test

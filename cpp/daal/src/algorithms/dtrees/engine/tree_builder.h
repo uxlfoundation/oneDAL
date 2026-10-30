@@ -63,7 +63,7 @@ struct TreeParams
     bool sizesInDraws          = false;
     double minLeafWeight       = 0; // weight on each side of a split
     double minWeightedDecrease = 0; // a split's weighted impurity decrease must reach this
-    double impurityThreshold   = 0; // nodes with impurity at or below this are leaves
+    double impurityThreshold   = 0; // nodes with impurity below this are leaves
     bool randomSplitter        = false;
     bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeStream
     size_t treesInFlight       = 0;

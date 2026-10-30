@@ -622,6 +622,31 @@ inline void threader_func_void(const void * a)
     func();
 }
 
+/// Threads of the arena of NUMA node `node`: `nThreads`, capped at the nodes' total concurrency, split in
+/// proportion to `concurrency` so that the arenas add up to it. Every node gets at least one thread when
+/// there are as many threads as nodes; with fewer, nodes get 0 or 1.
+///
+/// @param[in] concurrency Default concurrency of each of the `nNodes` nodes, each at least 1.
+inline size_t numa_arena_share(const int * concurrency, size_t nNodes, size_t node, size_t nThreads)
+{
+    size_t total = 0, before = 0;
+    for (size_t i = 0; i < nNodes; ++i)
+    {
+        total += static_cast<size_t>(concurrency[i]);
+        if (i < node) before += static_cast<size_t>(concurrency[i]);
+    }
+    const size_t own     = static_cast<size_t>(concurrency[node]);
+    const size_t threads = nThreads < total ? nThreads : total;
+    // Cumulative rounding: node i gets round(c_0..i) - round(c_0..i-1), so the shares sum to the target.
+    if (threads < nNodes) return (before + own) * threads / total - before * threads / total;
+    // One thread each, and the rest in proportion to the concurrency beyond one.
+    const size_t extra  = threads - nNodes;
+    const size_t weight = total - nNodes;
+    if (!weight) return 1;
+    const size_t beyond = before - node;
+    return 1 + (beyond + own - 1) * extra / weight - beyond * extra / weight;
+}
+
 /// Number of NUMA nodes the threading layer runs work on, at least 1.
 /// It is 1 on a single-node host, when the threading backend cannot detect the topology
 /// (oneTBB without `tbbbind`), and on a thread pinned by `enableThreadPinning`.
@@ -637,7 +662,8 @@ inline int threader_numa_count()
 /// thread pinned by `enableThreadPinning`, which keeps its CPU.
 ///
 /// Each arena's concurrency is the node's share of the thread count set by
-/// `setNumberOfThreads`; `threader_get_max_threads_number()` returns it inside `func`.
+/// `setNumberOfThreads` (`numa_arena_share`); `threader_get_max_threads_number()` returns it inside
+/// `func`. A node whose share is 0 has no arena, and `func` runs in the calling thread's arena.
 ///
 /// Thread indices are arena-relative: threads of different arenas share the indices
 /// `[0, threader_get_max_threads_number())`. A `static_tls` used from more than one arena

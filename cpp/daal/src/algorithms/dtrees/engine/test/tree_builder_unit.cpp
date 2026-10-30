@@ -33,6 +33,7 @@
 #include "src/algorithms/dtrees/engine/quantile_binner.h"
 
 #include "src/algorithms/dtrees/engine/tree_builder.h"
+#include "src/algorithms/dtrees/engine/tree_builder.i"
 
 namespace daal::algorithms::dtrees::engine::internal::test
 {
@@ -696,6 +697,41 @@ TEST("nodes above parallelSortRecords sort in parallel, NaN included, independen
     }
 }
 
+TEST("a feature that is all NaN on a node above parallelSortRecords does not fail the fit", "[unit]")
+{
+    Dataset d = regressionData(300000, 3, 83);
+    for (size_t i = 0; i < d.nRows; ++i) d.x[i * d.p + 1] = std::numeric_limits<double>::quiet_NaN();
+    TreeParams params;
+    params.maxDepth = 2;
+    const std::vector<std::vector<uint16_t> > noBootstrap;
+    const auto trees = train<RegCountRecord<double>, baseCpu>(d, params, 1, noBootstrap);
+    requireConsistent(d, trees[0], {});
+    const DecisionTreeNode * rows = rowsOf(trees[0]);
+    REQUIRE(rows[0].featureIndex >= 0);
+    REQUIRE(rows[0].featureIndex != 1);
+}
+
+TEST("a node whose impurity equals impurityThreshold is split", "[unit]")
+{
+    // Two balanced classes: the root's Gini impurity is exactly 0.5.
+    Dataset d;
+    d.nRows    = 100;
+    d.p        = 1;
+    d.nClasses = 2;
+    for (size_t i = 0; i < d.nRows; ++i)
+    {
+        d.x.push_back(double(i));
+        d.y.push_back(i < d.nRows / 2 ? 0. : 1.);
+    }
+    TreeParams params;
+    params.nClasses          = 2;
+    params.impurityThreshold = 0.5;
+    const std::vector<std::vector<uint16_t> > noBootstrap;
+    REQUIRE(rowsOf(train<ClsCountRecord, baseCpu>(d, params, 1, noBootstrap)[0])[0].featureIndex == 0);
+    params.impurityThreshold = std::nextafter(0.5, 1.);
+    REQUIRE(rowsOf(train<ClsCountRecord, baseCpu>(d, params, 1, noBootstrap)[0])[0].featureIndex == -1);
+}
+
 TEST("other engines draw from the calling thread's stream", "[unit]")
 {
     const Dataset d   = classificationData(1500, 6, 3, 71);
@@ -1025,6 +1061,17 @@ TEST("a fit on one NUMA node builds the trees of a fit on every node", "[unit]")
             requireSameTables(hostR[t], oneR[t]);
         }
     }
+}
+
+TEST("node scratch whose class weights fail to allocate is allocated again on the next call", "[unit]")
+{
+    exact::NodeScratch<double, baseCpu> scratch;
+    // The class weights are the last base array; 2^57 doubles cannot be allocated.
+    REQUIRE(!scratch.ensureBase(size_t(1) << 56, 4));
+    REQUIRE(scratch.ensureBase(2, 4));
+    REQUIRE(scratch.permutation.get());
+    REQUIRE(scratch.lanes.get());
+    REQUIRE(scratch.classWeights.get());
 }
 
 } // namespace daal::algorithms::dtrees::engine::internal::test

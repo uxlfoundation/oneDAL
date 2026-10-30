@@ -27,6 +27,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
 
 #include "src/externals/service_rng.h"
 #include "src/services/service_defines.h"
@@ -98,7 +99,7 @@ public:
     CounterStreams()
         : _streams([]() -> Stream * {
               const unsigned int seed[2] = { 0, 0 };
-              return new Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
+              return new (std::nothrow) Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
           })
     {}
     ~CounterStreams()
@@ -133,7 +134,7 @@ public:
     {
         const unsigned int seed[2] = { unsigned(key), unsigned(key >> 32) };
         delete _base;
-        _base = new Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
+        _base = new (std::nothrow) Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
         DAAL_CHECK_MALLOC(_base && _base->getState());
         // A skip with a nonzero high word tells whether the backend can address the whole counter.
         Stream probe(*_base);
@@ -145,6 +146,7 @@ public:
     /// Writes words [position, position + n) of stream streamId to out.
     services::Status read(uint64_t streamId, uint64_t position, size_t n, uint32_t * out) const
     {
+        DAAL_CHECK(_base, services::ErrorNullPtr);
         Stream * s = _streams->local();
         DAAL_CHECK_MALLOC(s && s->getState());
         // Skip of streamId * 2^66 + position words, as three 64-bit words.
@@ -220,7 +222,13 @@ private:
     {
         if (_used == _filled)
         {
-            _status |= _rng.read(_nodeKey, _position, nodeDrawBlock, _words);
+            const services::Status s = _rng.read(_nodeKey, _position, nodeDrawBlock, _words);
+            if (!s)
+            {
+                // All-ones words end boundedWord's rejection loop; the caller reports status().
+                _status |= s;
+                for (size_t i = 0; i < nodeDrawBlock; ++i) _words[i] = ~uint32_t(0);
+            }
             _position += nodeDrawBlock;
             _filled = nodeDrawBlock;
             _used   = 0;
