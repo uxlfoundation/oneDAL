@@ -46,7 +46,8 @@ PKG = re.compile(
 
 def latest_build(name, version, subdir, current_build):
     url = f"https://api.anaconda.org/package/conda-forge/{name}/files"
-    with urllib.request.urlopen(url, timeout=60) as response:
+    # The URL is a fixed https endpoint; `name` comes from gcc.bzl, not user input.
+    with urllib.request.urlopen(url, timeout=60) as response:  # nosec B310
         files = json.load(response)
     matching = [
         f
