@@ -326,7 +326,7 @@ jobs:
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
-          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=1G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk" >> ~/.bazelrc
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ cat .bazelversion; echo ubuntu-26.04; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
@@ -422,9 +422,15 @@ jobs:
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
-          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=1G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          case "${{ matrix.leg }}" in
+            clang) cap=150M ;;
+            clang-libcxx) cap=200M ;;
+            gcc11) cap=350M ;;
+            *) cap=400M ;;
+          esac
+          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=$cap --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
-          fingerprint=$({ clang --version 2>&1; gcc -v 2>&1; ld --version; ldd --version; dpkg -l 'libc++*' 'libstdc++*' 2>/dev/null | awk '/^ii/ {print $2, $3}'; } | sha256sum | cut -c1-16)
+          fingerprint=$({ clang --version 2>&1; gcc -v 2>&1; ld --version; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
       - name: Restore the Bazel disk cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

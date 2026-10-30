@@ -257,7 +257,7 @@ jobs:
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
-          echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=400M --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
           echo "common --repository_cache=${{ runner.temp }}/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ gcc -v; ld --version; ldd --version; } 2>&1 | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
