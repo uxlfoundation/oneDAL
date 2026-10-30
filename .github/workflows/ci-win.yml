@@ -62,16 +62,16 @@ env:
   TBB_VERSION: v2023.1.0
   OPENBLAS_VERSION: v0.3.34
   LLVM_VERSION: 22.1.8
-  CMAKE_VERSION: 4.4.4
+  CMAKE_VERSION: 4.4.5
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
-# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
-# Does not apply to the main branch. Matters on the scarce ARM64 runners, where
-# this workflow is the only consumer, and the three-hour Bazel job holds one.
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
+# Matters on the scarce ARM64 runners, where this workflow is the only consumer.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:
@@ -300,3 +300,64 @@ jobs:
               }
             }
           }
+
+      # Same environment as `bazel build core_dynamic`: PATH is captured into
+      # the generated toolchain, so any difference would rebuild everything.
+      - name: bazel test oneapi example
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\msys64\usr\bin\bash.exe'
+          ONEDAL_WIN_COMPILER: clang
+        run: |
+          CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+          set PATH=%PATH%;C:\msys64\usr\bin
+          bazel test --platforms=@config//:windows_arm64 --backend_config=ref ^
+            --test_link_mode=dev --test_output=errors ^
+            //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
+
+  # x86_64 with plain MSVC `cl` (rules_cc's MSVC configuration, see
+  # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
+  # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
+  bazel-msvc:
+    name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Bazelisk
+        shell: pwsh
+        run: .\.ci\env\bazelisk.ps1
+
+      # Located with vswhere rather than spelled out, so a runner image that
+      # moves to another Visual Studio release keeps working.
+      - name: Locate Visual Studio
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) {
+            Write-Host "::error::no Visual Studio with the x64 C++ tools found"
+            exit 1
+          }
+          "VS_INSTALL_DIR=$vs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: bazel test oneapi example
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
+          ONEDAL_WIN_COMPILER: cl
+        run: |
+          if not exist "%BAZEL_SH%" (
+            echo ::error::Bazel shell not found: %BAZEL_SH%
+            exit /b 1
+          )
+          CALL "%VS_INSTALL_DIR%\VC\Auxiliary\Build\vcvarsall.bat" x64
+          if errorlevel 1 exit /b 1
+          rem A short output root keeps object paths under MAX_PATH, as in the
+          rem Azure Bazel lane (.ci/pipeline/ci.yml, BAZEL_OUTPUT_USER_ROOT).
+          bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --test_output=errors ^
+            //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
