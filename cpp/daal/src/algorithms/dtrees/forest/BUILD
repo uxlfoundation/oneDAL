@@ -7,7 +7,7 @@ daal_module(
     deps = [
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal:engines",
-                "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
+        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
         # the tree engine the training kernels run on (df_forest_trainer.i)
         "@onedal//cpp/daal/src/algorithms/dtrees/engine:kernel",
         "@onedal//cpp/daal/src/algorithms/distributions:kernel",

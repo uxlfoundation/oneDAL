@@ -71,6 +71,7 @@ struct Candidate
     double threshold  = 0; // ordered: rows with x <= threshold go left; categorical: rows with x == threshold
     double proxy      = 0; // cost function proxy, larger is better (cost_function.h)
     double wLeft      = 0;
+    double sLeft      = 0;     // regression: weighted response sum going left, for the children's centers
     bool byBin        = false; // histogram split: rows route by bin, which agrees with threshold on the training rows
     uint32_t splitBin = 0;     // ordered: bins <= splitBin and the missing bin go left; categorical: bin == splitBin
 };
@@ -119,6 +120,21 @@ inline double midpoint(double a, double b)
 {
     const double t = a / 2 + b / 2;
     return (t >= b || t <= a) ? a : t;
+}
+
+/// A random threshold t, lo <= t < hi, uniform over the finite part of [lo, hi), for values in [lo, hi) with lo < hi
+/// and finite extremes flo and fhi (none if !anyFinite). t is finite, so -inf goes left, +inf right, and both sides
+/// are nonempty; u is a uniform draw in [0, 1).
+template <typename algorithmFPType>
+inline double randomThreshold(double lo, double hi, bool anyFinite, double flo, double fhi, double u)
+{
+    if (!anyFinite) return 0; // lo = -inf, hi = +inf
+    // Below flo when lo = -inf, so -inf alone can go left; up to fhi when hi = +inf, which then goes right.
+    const double a = std::isfinite(lo) ? lo : double(std::nextafter(algorithmFPType(flo), -std::numeric_limits<algorithmFPType>::infinity()));
+    const double b = std::isfinite(hi) ? hi : fhi;
+    // (1 - u) a + u b does not overflow for a and b of opposite signs near the type's limits.
+    const double t = (1 - u) * a + u * b;
+    return t >= a && (std::isfinite(hi) ? t < b : t <= b) ? t : a;
 }
 } // namespace exact
 
@@ -237,6 +253,8 @@ public:
         uint64_t key       = 0;
         double improvement = 0;
         double weight      = 0; // of the node's records, set by evaluate
+        double sum         = 0; // regression: their weighted response sum, set by evaluate
+        double center      = 0; // regression: the node's mean as its parent estimates it (MseCost::setCenter)
         Candidate split;
         NodeCarry<Record, cpu> * carry = nullptr; // owned; nullptr: the root lists and no histograms
     };
@@ -306,6 +324,7 @@ public:
         root     = WorkItem();
         root.n   = uint32_t(n);
         root.key = treeSeed;
+        if constexpr (!isClassification) root.center = _data.responses->responseMean();
         if (useHist(n))
         {
             root.carry = newCarry(ctx, nullptr);
@@ -327,6 +346,7 @@ public:
         // Node statistics from its records.
         Cost cost         = makeCost(*scratch);
         uint64_t nSamples = 0;
+        if constexpr (!isClassification) cost.setCenter(item.center);
         cost.startParent();
         for (size_t i = 0; i < item.n; ++i)
         {
@@ -348,6 +368,7 @@ public:
         node.start      = item.start;
 
         item.weight = cost.weight();
+        if constexpr (!isClassification) item.sum = cost.sum();
         if (leafBySize(item.n, item.weight, item.depth) || pure || node.impurity < _params.impurityThreshold) return services::Status();
 
         Candidate best;
@@ -399,6 +420,13 @@ public:
         right.n     = item.n - split.nLeft;
         right.depth = item.depth + 1;
         right.key   = childNodeKey<cpu>(item.key, 1);
+        if constexpr (!isClassification)
+        {
+            // Each child's mean from the split's sums, the center of its impurity pass.
+            const double wRight = item.weight - split.wLeft;
+            left.center         = split.wLeft > 0 ? split.sLeft / split.wLeft : item.center;
+            right.center        = wRight > 0 ? (item.sum - split.sLeft) / wRight : item.center;
+        }
 
         // Children that may split in the histogram phase get the node's constant lists, and with fusion their
         // first draws, histogrammed by the partition pass. Exact-phase nodes, most of a tree, get no carry and
@@ -659,6 +687,13 @@ private:
         else
             return Cost();
     }
+    static double leftSum(const Cost & cost)
+    {
+        if constexpr (isClassification)
+            return 0;
+        else
+            return cost.leftSum();
+    }
     static void addParent(Cost & cost, const Record & r)
     {
         if constexpr (isClassification)
@@ -862,6 +897,7 @@ private:
             best.splitBin  = uint32_t(b);
             best.nLeft     = uint32_t(nLeft);
             best.wLeft     = cost.leftWeight();
+            best.sLeft     = leftSum(cost);
             best.proxy     = proxy;
         };
 
@@ -895,10 +931,13 @@ private:
         {
             // Uniform in [upper border of the first nonempty bin, that of the last); the split goes after the
             // last bin whose border is <= the draw, so both sides are nonempty (defect 1).
-            const double lo = border[first];
-            const double hi = border[last];
-            double t        = lo + draws.unit() * (hi - lo);
-            if (t >= hi) t = lo;
+            // Borders ascend, so only border[first] can be -inf and only border[last] +inf.
+            const double lo      = border[first];
+            const double hi      = border[last];
+            const double flo     = std::isfinite(lo) ? lo : border[first + 1];
+            const double fhi     = std::isfinite(hi) ? hi : border[last - 1];
+            const bool anyFinite = std::isfinite(flo) && std::isfinite(fhi);
+            const double t       = exact::randomThreshold<algorithmFPType>(lo, hi, anyFinite, flo, fhi, draws.unit());
             size_t a = first, z = last; // border[a] <= t < border[z]
             while (z - a > 1)
             {
@@ -947,8 +986,8 @@ private:
         if (_params.randomSplitter && !categorical)
         {
             // One threshold uniform in [min, max) of the node's values; no sort (design 4.4).
-            bool any  = false;
-            double lo = 0, hi = 0;
+            bool any = false, anyFinite = false;
+            double lo = 0, hi = 0, flo = 0, fhi = 0;
             for (size_t i = 0; i < n; ++i)
             {
                 if (daal::algorithms::internal::isNaN<algorithmFPType, cpu>(values[i])) continue;
@@ -956,14 +995,17 @@ private:
                 lo             = any && lo <= v ? lo : v;
                 hi             = any && hi >= v ? hi : v;
                 any            = true;
+                if (!std::isfinite(v)) continue;
+                flo       = anyFinite && flo <= v ? flo : v;
+                fhi       = anyFinite && fhi >= v ? fhi : v;
+                anyFinite = true;
             }
             if (!any || lo == hi)
             {
                 constant = true;
                 return best;
             }
-            double t = lo + draws.unit() * (hi - lo);
-            if (t >= hi) t = lo;
+            const double t = exact::randomThreshold<algorithmFPType>(lo, hi, anyFinite, flo, fhi, draws.unit());
             cost.resetLeft();
             size_t nLeft = 0;
             for (size_t i = 0; i < n; ++i)
@@ -980,6 +1022,7 @@ private:
                 best.threshold = t;
                 best.nLeft     = uint32_t(nLeft);
                 best.wLeft     = cost.leftWeight();
+                best.sLeft     = leftSum(cost);
                 best.proxy     = cost.proxy();
             }
             return best;
@@ -1025,6 +1068,7 @@ private:
                             best.threshold = double(values[a]);
                             best.nLeft     = uint32_t(b - a);
                             best.wLeft     = cost.leftWeight();
+                            best.sLeft     = leftSum(cost);
                             best.proxy     = proxy;
                         }
                     }
@@ -1049,6 +1093,7 @@ private:
             best.threshold = exact::midpoint(double(values[i]), double(values[i + 1]));
             best.nLeft     = uint32_t(nLeft);
             best.wLeft     = cost.leftWeight();
+            best.sLeft     = leftSum(cost);
             best.proxy     = proxy;
         }
         return best;
@@ -1178,15 +1223,14 @@ private:
     {
         if constexpr (!isClassification)
         {
-            // Records hold the responses less ResponseSource::responseShift() (see computeShift); a leaf without
-            // records predicts the mean response.
+            // A leaf without records predicts the mean response.
             double w = 0, s = 0;
             for (size_t i = 0; i < n; ++i)
             {
                 w += recordWeight(r[i]);
                 s += recordWeight(r[i]) * recordResponse(r[i]);
             }
-            return w > 0 ? _data.responses->responseShift() + s / w : _data.responses->responseMean();
+            return w > 0 ? s / w : _data.responses->responseMean();
         }
         return 0;
     }

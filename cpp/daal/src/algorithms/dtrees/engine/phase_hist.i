@@ -46,7 +46,7 @@ namespace hist
 {
 using services::internal::TArray;
 
-// Lanes of a plane row are padded to 16, so each bin's row of u32 or f32 statistics starts on a cache line.
+// Lanes of a plane row are padded to 16, so each bin's row of u32 or f64 statistics starts on a cache line.
 constexpr size_t laneAlign = 16;
 
 /// Per-bin statistics of a record layout (design 4.10): record counts u32; class weights, or the regression
@@ -218,6 +218,28 @@ inline size_t chunkCount(size_t n, size_t chunkRows, size_t maxChunks)
     return c < 1 ? 1 : (c > maxChunks ? maxChunks : c);
 }
 
+// Bytes the partial planes of one chunked node may take. A node whose chunks would need more runs as fewer,
+// larger chunks, as many-class planes (1000 classes, 256 bins, 50 lanes: 131 MB) would otherwise take 8 GB.
+constexpr size_t partialPlaneBytes = size_t(1) << 28;
+
+/// Bytes of one set of planes of nLanes features with nBins bins.
+template <typename Record>
+inline size_t planeBytes(size_t nBins, size_t nLanes, size_t nClasses)
+{
+    const size_t n = nBins * ((nLanes + laneAlign - 1) / laneAlign * laneAlign);
+    const size_t s = Layout<Record>::classification ? nClasses * n : n;
+    return n * sizeof(uint32_t) + s * sizeof(typename Layout<Record>::Stat) + (Layout<Record>::classification ? 0 : n * sizeof(double));
+}
+
+/// nChunks, capped so that the partial planes of chunks 1.. take at most partialPlaneBytes. The cap depends on
+/// the plane shape only, so results still do not depend on the thread count.
+inline size_t chunksWithinBudget(size_t nChunks, size_t bytesPerChunk)
+{
+    if (!bytesPerChunk) return nChunks;
+    const size_t fit = 1 + partialPlaneBytes / bytesPerChunk;
+    return nChunks < fit ? nChunks : fit;
+}
+
 inline void chunkRange(size_t n, size_t nChunks, size_t c, size_t & begin, size_t & end)
 {
     const size_t size = (n + nChunks - 1) / nChunks;
@@ -265,6 +287,7 @@ services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins
     };
 
     DAAL_CHECK_MALLOC(out.init(nBins, nLanes, nClasses));
+    nChunks = chunksWithinBudget(nChunks, planeBytes<Record>(nBins, nLanes, nClasses));
     if (nChunks <= 1)
     {
         pass(0, n, out);
@@ -319,12 +342,15 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
     const size_t nLines = rowLines(features.get(), nFeatures, bins.binBytes(), lines.get());
 
     size_t nBins[2] = { 0, 0 };
+    size_t bytes    = 0;
     for (size_t s = 0; s < 2; ++s)
     {
         if (!targets[s].planes) continue;
         nBins[s] = planeBins(bins, targets[s].features, targets[s].nLanes);
         DAAL_CHECK_MALLOC(targets[s].planes->init(nBins[s], targets[s].nLanes, nClasses));
+        bytes += planeBytes<Record>(nBins[s], targets[s].nLanes, nClasses);
     }
+    nChunks       = chunksWithinBudget(nChunks, bytes);
     auto prefetch = [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(numaNode, in[i].row), lines.get(), nLines); };
 
     if (nChunks <= 1)

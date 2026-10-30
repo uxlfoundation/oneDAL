@@ -606,6 +606,44 @@ TEST("random thresholds are uniform over the node's range", "[unit]")
     REQUIRE(chiSquare(hits) < chiSquare7Dof999);
 }
 
+TEST("random thresholds on features with infinite values are finite and route as prediction does", "[unit]")
+{
+    const double inf = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    // Each case lists the feature's distinct values; rows cycle through them.
+    const std::vector<std::vector<double> > cases = {
+        { -inf, 1, 2, 3 }, { 1, 2, 3, inf }, { -inf, inf }, { -inf, 5, inf }, { -inf, 5 }, { 5, inf }, { -inf, 1, 2, inf, nan },
+    };
+    BinningParams binning;
+    binning.minBinSize = 1;
+    for (size_t k = 0; k < cases.size(); ++k)
+        for (bool hist : { false, true })
+        {
+            CAPTURE(k, hist);
+            Dataset d;
+            d.nRows    = 200;
+            d.p        = 1;
+            d.nClasses = 2;
+            for (size_t i = 0; i < d.nRows; ++i)
+            {
+                d.x.push_back(cases[k][i % cases[k].size()]);
+                d.y.push_back(double(i % 2));
+            }
+            TreeParams params;
+            params.nClasses       = 2;
+            params.randomSplitter = true;
+            params.maxDepth       = 1;
+            const std::vector<std::vector<uint16_t> > noBootstrap;
+            for (const auto & t : train<ClsCountRecord, baseCpu>(d, params, 50, noBootstrap, 777, hist ? &binning : nullptr))
+            {
+                const DecisionTreeNode * rows = rowsOf(t);
+                REQUIRE(rows[0].featureIndex == 0);
+                REQUIRE(!std::isnan(rows[0].featureValueOrResponse));
+                requireConsistent(d, t, {});
+            }
+        }
+}
+
 TEST("the random categorical split takes each category present with equal chance (defect 7)", "[unit]")
 {
     Dataset d;
@@ -1061,6 +1099,105 @@ TEST("a fit on one NUMA node builds the trees of a fit on every node", "[unit]")
             requireSameTables(hostR[t], oneR[t]);
         }
     }
+}
+
+TEST("MSE impurity from the center a parent estimates matches the variance", "[unit]")
+{
+    // Far from zero a child's center differs from its mean by rounding only, as both are sums of the same
+    // records; near zero the center may be further off.
+    struct Case
+    {
+        double base;
+        std::vector<double> offsets;
+    };
+    for (const Case & c : { Case { 5e8, { 0, 3e-7, -3e-7 } }, Case { 0, { 0, 0.3, -2 } } })
+    {
+        std::mt19937_64 gen(86);
+        std::uniform_real_distribution<double> unit(0, 1);
+        std::vector<double> y(10000);
+        for (auto & v : y) v = c.base + unit(gen);
+        double mean = 0;
+        for (double v : y) mean += v;
+        mean /= double(y.size());
+        double variance = 0;
+        for (double v : y) variance += (v - mean) * (v - mean);
+        variance /= double(y.size());
+        for (double offset : c.offsets)
+        {
+            CAPTURE(c.base, offset);
+            MseCost<baseCpu> cost;
+            cost.setCenter(mean + offset);
+            cost.startParent();
+            for (double v : y) cost.addParent(v, 1);
+            cost.finishParent();
+            REQUIRE(std::abs(cost.impurity() - variance) < 1e-9 * variance);
+        }
+    }
+}
+
+TEST("a subtree far from the global mean splits as it does near zero", "[unit]")
+{
+    // Half the rows at 0, half at 5e8 + x: the high child's responses sit 5e8 from zero against a spread of 1.
+    // It must split on x as the same rows do at 0.
+    const size_t n = 2000;
+    Dataset d;
+    d.nRows = n;
+    d.p     = 2;
+    std::mt19937_64 gen(85);
+    std::uniform_real_distribution<double> unit(0, 1);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const bool high = i % 2;
+        const double x  = unit(gen);
+        d.x.push_back(high ? 1 : 0);
+        d.x.push_back(x);
+        d.y.push_back(high ? 5e8 + (x < 0.5 ? 0 : 1) : 0);
+    }
+    TreeParams params;
+    params.maxDepth = 2;
+    const std::vector<std::vector<uint16_t> > noBootstrap;
+    const auto trees              = train<RegCountRecord<double>, baseCpu>(d, params, 1, noBootstrap);
+    const EmittedTree & t         = trees[0];
+    const DecisionTreeNode * rows = rowsOf(t);
+    REQUIRE(rows[0].featureIndex == 0);
+    // The child holding the high rows splits on feature 1 near 0.5.
+    const size_t high = rows[0].leftIndexOrClass + 1;
+    REQUIRE(rows[high].featureIndex == 1);
+    REQUIRE(std::abs(rows[high].featureValueOrResponse - 0.5) < 0.01);
+    requireConsistent(d, t, {});
+}
+
+TEST("the weighted Gini proxy stays accurate as the right side empties", "[unit]")
+{
+    // 10^6 rows of weight 0.1, which is inexact in binary, moved left one at a time: every update rounds.
+    const size_t n        = 1000000;
+    const size_t nClasses = 2;
+    std::vector<double> counts(2 * nClasses);
+    GiniCost<baseCpu> cost(nClasses, counts.data());
+    cost.startParent();
+    for (size_t i = 0; i < n; ++i) cost.addParent(uint32_t(i % 2), 0.1);
+    cost.finishParent();
+    cost.resetLeft();
+    std::vector<double> left(nClasses, 0);
+    double maxRelError = 0;
+    for (size_t i = 0; i + 1 < n; ++i)
+    {
+        cost.addLeft(uint32_t(i % 2), 0.1);
+        left[i % 2] += 0.1;
+        if (n - i > 10) continue;
+        // The proxy from the class weights directly, near the end where the right side holds a few rows.
+        double sqL = 0, sqR = 0;
+        for (size_t c = 0; c < nClasses; ++c)
+        {
+            const double r = cost.classWeights()[c] - left[c];
+            sqL += left[c] * left[c];
+            sqR += r * r;
+        }
+        const double exact = sqL / cost.leftWeight() + sqR / cost.rightWeight();
+        maxRelError        = std::max(maxRelError, std::abs(cost.proxy() - exact) / exact);
+    }
+    CAPTURE(maxRelError);
+    REQUIRE(maxRelError < 1e-9);
 }
 
 TEST("node scratch whose class weights fail to allocate is allocated again on the next call", "[unit]")

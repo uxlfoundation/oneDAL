@@ -472,6 +472,77 @@ TEST("a category outside the sample is added from the full column", "[unit]")
     requireConsistent(b.bins, data);
 }
 
+TEST("computeBorders from runs equals computeBorders of the values they hold", "[unit]")
+{
+    std::mt19937_64 gen(41);
+    for (size_t trial = 0; trial < 200; ++trial)
+    {
+        // Sorted values with repeats, as runs and expanded.
+        const size_t nRuns = 1 + gen() % 40;
+        std::vector<double> runValues, values;
+        std::vector<size_t> runEnds;
+        double v = double(gen() % 7) - 3;
+        for (size_t r = 0; r < nRuns; ++r)
+        {
+            v += 0.25 * double(1 + gen() % 8);
+            const size_t count = 1 + gen() % 12;
+            runValues.push_back(v);
+            values.insert(values.end(), count, v);
+            runEnds.push_back(values.size());
+        }
+        BinningParams params;
+        params.strategy       = gen() % 2 ? decision_forest::training::quantiles : decision_forest::training::averages;
+        params.minBinSize     = 1 + gen() % 6;
+        const size_t maxData  = 2 + gen() % 50;
+        const bool allowExact = gen() % 2;
+        const size_t nRows    = values.size() + gen() % 100;
+        CAPTURE(trial, nRuns, maxData, allowExact, params.minBinSize);
+        services::internal::TArray<double, baseCpu> a, b;
+        size_t nA = 0, nB = 0;
+        bool exactA = false, exactB = false;
+        REQUIRE(
+            QuantileBinner<double, baseCpu>::computeBorders(values.data(), values.size(), maxData, nRows, params, allowExact, a, nA, exactA).ok());
+        REQUIRE(QuantileBinner<double, baseCpu>::computeBordersFromRuns(runValues.data(), runEnds.data(), nRuns, maxData, nRows, params, allowExact,
+                                                                        b, nB, exactB)
+                    .ok());
+        REQUIRE(nA == nB);
+        REQUIRE(exactA == exactB);
+        for (size_t i = 0; i < nA; ++i) REQUIRE(a[i] == b[i]);
+    }
+}
+
+TEST("a full-column rebin in passes bins as one pass over the column does", "[unit]")
+{
+    SKIP_IF(!canSample());
+    constexpr size_t nRows = 40000, sampleRows = 4000, p = 2;
+    constexpr uint64_t seed = 9;
+    // Feature 0: categories 0, 1, 2 and two outside the sample; feature 1: NaN but for three rows outside the sample.
+    std::vector<double> data(nRows * p);
+    for (size_t r = 0; r < nRows; ++r)
+    {
+        data[r * p]     = double(r % 3);
+        data[r * p + 1] = nan;
+    }
+    const std::vector<size_t> outside = rowsOutsideSample(seed, nRows, sampleRows);
+    const size_t picks[]              = { outside[3], outside[outside.size() / 2], outside.back() };
+    data[picks[0] * p]                = 50;
+    data[picks[2] * p]                = 60;
+    for (size_t i = 0; i < 3; ++i) data[picks[i] * p + 1] = 1.5 + double(i);
+    NumericTablePtr x = makeTable(data, p, { 0 });
+    BinningParams params;
+    params.sampleRows = sampleRows;
+    Built<baseCpu> onePass, passes;
+    build(*x, params, seed, onePass);
+    params.columnChunkRows = tableBlockRows; // 10 passes
+    build(*x, params, seed, passes);
+    REQUIRE(onePass.status.ok());
+    REQUIRE(passes.status.ok());
+    REQUIRE(passes.bins.nBins(0) == 5);
+    REQUIRE(passes.bins.nBins(1) == 3);
+    requireEqual(onePass.bins, passes.bins);
+    requireConsistent(passes.bins, data);
+}
+
 TEST("sampled borders are within the DKW rank bound of the full column", "[unit]")
 {
     SKIP_IF(!canSample());

@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -78,31 +79,22 @@ TEST("weights are normalized to a maximum of 1, scaled by the count, and zero we
     double total = 0;
     REQUIRE(set.fill(counts.data(), src, 0, total).ok());
     REQUIRE(set.size() == 2);
-    // The weighted mean 4.75 / 1.75, rounded to a multiple of 4, the power of two below the range 6.
-    REQUIRE(src.responseShift() == 4);
     const auto * r = set.buffer(0);
-    REQUIRE((r[0].row == 0 && r[0].y == 1.5 - 4 && r[0].w == 0.5));
-    REQUIRE((r[1].row == 2 && r[1].y == 3 - 4 && r[1].w == 2.0));
+    REQUIRE((r[0].row == 0 && r[0].y == 1.5 && r[0].w == 0.5));
+    REQUIRE((r[1].row == 2 && r[1].y == 3 && r[1].w == 2.0));
     REQUIRE(total == 2.5);
 }
 
-TEST("regression records hold the responses less a shift on their grid", "[unit]")
+TEST("the mean response is weighted by the normalized weights", "[unit]")
 {
-    // Mean 1e8 + 1.5, range 3: the shift is a multiple of 2, so the shifted integers stay integers.
-    std::vector<double> y = { 1e8, 1e8 + 1, 1e8 + 2, 1e8 + 3 };
+    // Weights normalize to { 0.5, 0, 1, 0.25 }: (1.5 * 0.5 + 3 + 4 * 0.25) / 1.75.
+    std::vector<double> y = { 1.5, -2, 3, 4 };
+    std::vector<double> w = { 2, 0, 4, 1 };
     ResponseSource<double, cpu> src;
+    REQUIRE(src.build(*column(y), column(w).get(), false, NumaPlacement()).ok());
+    REQUIRE(std::abs(src.responseMean() - 4.75 / 1.75) < 1e-15);
     REQUIRE(src.build(*column(y), nullptr, false, NumaPlacement()).ok());
-    REQUIRE(src.responseShift() == 1e8 + 2);
-    ResponseSet<RegCountRecord<double>, cpu> set;
-    REQUIRE(set.allocate(y.size()).ok());
-    double total = 0;
-    REQUIRE(set.fill(nullptr, src, 0, total).ok());
-    for (size_t i = 0; i < y.size(); ++i) REQUIRE(set.buffer(0)[i].y == double(i) - 2);
-
-    // Constant responses shift to zero.
-    std::vector<double> c = { 7.25, 7.25 };
-    REQUIRE(src.build(*column(c), nullptr, false, NumaPlacement()).ok());
-    REQUIRE(src.responseShift() == 7.25);
+    REQUIRE(src.responseMean() == 6.5 / 4);
 }
 
 TEST("all-zero weights make the fit unweighted, as legacy", "[unit]")

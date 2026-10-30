@@ -185,33 +185,105 @@ void QuantileBinner<algorithmFPType, cpu>::searchBins(const double * inner, size
     for (size_t i = 0; i < n; ++i) bins[i] = uint32_t(binner::countBelow<cpu>(inner, nInner, double(x[i * xStride])));
 }
 
-template <typename algorithmFPType, CpuType cpu>
-services::Status QuantileBinner<algorithmFPType, cpu>::computeBorders(const algorithmFPType * s, size_t k, size_t maxDataBins, size_t nRows,
-                                                                      const BinningParams & params, bool allowExact, TArray<double, cpu> & borders,
-                                                                      size_t & nBins, bool & exact)
+namespace binner
 {
-    nBins = 0;
-    exact = false;
+/// Sorted non-NaN values as an array s[0, k).
+template <typename algorithmFPType>
+struct SortedValues
+{
+    const algorithmFPType * s;
+    size_t k;
+
+    size_t size() const { return k; }
+    double at(size_t i) const { return double(s[i]); }
+    size_t notAbove(double v) const { return countNotAbove(s, k, v); }
+    template <typename F>
+    size_t forEachDistinct(const F & f) const
+    {
+        size_t n = 0;
+        for (size_t i = 0; i < k; ++i)
+            if (!i || s[i] != s[i - 1])
+            {
+                f(double(s[i]));
+                ++n;
+            }
+        return n;
+    }
+};
+
+/// Sorted non-NaN values as runs of equal values: values[r] ascending, ends[r] the number of values in runs 0..r.
+struct SortedRuns
+{
+    const double * values;
+    const size_t * ends;
+    size_t nRuns;
+
+    size_t size() const { return nRuns ? ends[nRuns - 1] : 0; }
+    double at(size_t i) const
+    {
+        size_t lo = 0, n = nRuns; // the first run that ends after rank i
+        while (n > 0)
+        {
+            const size_t half = n / 2;
+            if (ends[lo + half] <= i)
+            {
+                lo += half + 1;
+                n -= half + 1;
+            }
+            else
+                n = half;
+        }
+        return values[lo];
+    }
+    size_t notAbove(double v) const
+    {
+        size_t lo = 0, n = nRuns; // runs whose value is at most v
+        while (n > 0)
+        {
+            const size_t half = n / 2;
+            if (!(v < values[lo + half]))
+            {
+                lo += half + 1;
+                n -= half + 1;
+            }
+            else
+                n = half;
+        }
+        return lo ? ends[lo - 1] : 0;
+    }
+    template <typename F>
+    size_t forEachDistinct(const F & f) const
+    {
+        for (size_t r = 0; r < nRuns; ++r) f(values[r]);
+        return nRuns;
+    }
+};
+
+/// Bins of one feature from its sorted non-NaN values; see QuantileBinner::computeBorders.
+template <typename Sorted, CpuType cpu>
+services::Status bordersOf(const Sorted & s, size_t maxDataBins, size_t nRows, const BinningParams & params, bool allowExact,
+                           TArray<double, cpu> & borders, size_t & nBins, bool & exact)
+{
+    nBins          = 0;
+    exact          = false;
+    const size_t k = s.size();
     if (!k) return services::Status();
 
-    size_t nDistinct = 1;
-    for (size_t i = 1; i < k; ++i) nDistinct += s[i] != s[i - 1];
+    const size_t nDistinct = s.forEachDistinct([](double) {});
 
     if (allowExact && nDistinct <= maxDataBins)
     {
         DAAL_CHECK_MALLOC(borders.reset(nDistinct));
-        size_t n     = 0;
-        borders[n++] = double(s[0]);
-        for (size_t i = 1; i < k; ++i)
-            if (s[i] != s[i - 1]) borders[n++] = double(s[i]);
+        size_t n = 0;
+        s.forEachDistinct([&](double v) { borders[n++] = v; });
         nBins = nDistinct;
         exact = true;
         return services::Status();
     }
 
     const size_t B    = maxDataBins ? maxDataBins : 1;
-    const double low  = double(s[0]);
-    const double high = double(s[k - 1]);
+    const double low  = s.at(0);
+    const double high = s.at(k - 1);
     TArray<double, cpu> candidates(B);
     DAAL_CHECK_MALLOC(candidates.get());
     size_t nCandidates = 0;
@@ -219,7 +291,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::computeBorders(const algo
     {
         // Quantiles: the smallest value with at least j / B of the sample at or below it.
         const double v =
-            params.strategy == decision_forest::training::averages ? low + (high - low) * double(j) / double(B) : double(s[(j * k + B - 1) / B - 1]);
+            params.strategy == decision_forest::training::averages ? low + (high - low) * double(j) / double(B) : s.at((j * k + B - 1) / B - 1);
         if (v < high && (!nCandidates || v > candidates[nCandidates - 1])) candidates[nCandidates++] = v;
     }
 
@@ -231,7 +303,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::computeBorders(const algo
     size_t closed      = 0;
     for (size_t i = 0; i < nCandidates; ++i)
     {
-        const size_t upto = binner::countNotAbove(s, k, candidates[i]);
+        const size_t upto = s.notAbove(candidates[i]);
         if (double(upto - closed) * scale >= double(params.minBinSize))
         {
             borders[n++] = candidates[i];
@@ -243,6 +315,24 @@ services::Status QuantileBinner<algorithmFPType, cpu>::computeBorders(const algo
     nBins        = n;
     return services::Status();
 }
+} // namespace binner
+
+template <typename algorithmFPType, CpuType cpu>
+services::Status QuantileBinner<algorithmFPType, cpu>::computeBorders(const algorithmFPType * s, size_t k, size_t maxDataBins, size_t nRows,
+                                                                      const BinningParams & params, bool allowExact, TArray<double, cpu> & borders,
+                                                                      size_t & nBins, bool & exact)
+{
+    return binner::bordersOf<binner::SortedValues<algorithmFPType>, cpu>({ s, k }, maxDataBins, nRows, params, allowExact, borders, nBins, exact);
+}
+
+template <typename algorithmFPType, CpuType cpu>
+services::Status QuantileBinner<algorithmFPType, cpu>::computeBordersFromRuns(const double * values, const size_t * ends, size_t nRuns,
+                                                                              size_t maxDataBins, size_t nRows, const BinningParams & params,
+                                                                              bool allowExact, TArray<double, cpu> & borders, size_t & nBins,
+                                                                              bool & exact)
+{
+    return binner::bordersOf<binner::SortedRuns, cpu>({ values, ends, nRuns }, maxDataBins, nRows, params, allowExact, borders, nBins, exact);
+}
 
 namespace binner
 {
@@ -250,8 +340,9 @@ namespace binner
 template <CpuType cpu>
 struct SampleRows
 {
-    bool all = true; // every row is in the sample
-    size_t k = 0;
+    bool all     = true; // every row from first on is in the sample
+    size_t first = 0;
+    size_t k     = 0;
     TArray<size_t, cpu> offset;
     TArray<uint32_t, cpu> rows;
 
@@ -260,8 +351,25 @@ struct SampleRows
         const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
         DAAL_CHECK_MALLOC(offset.reset(nBlocks + 1));
         for (size_t b = 0; b <= nBlocks; ++b) offset[b] = b * tableBlockRows < nRows ? b * tableBlockRows : nRows;
-        all = true;
-        k   = nRows;
+        all   = true;
+        first = 0;
+        k     = nRows;
+        return services::Status();
+    }
+
+    /// Rows [begin, end) of nRows; begin is a multiple of tableBlockRows.
+    services::Status selectRange(size_t nRows, size_t begin, size_t end)
+    {
+        const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
+        DAAL_CHECK_MALLOC(offset.reset(nBlocks + 1));
+        for (size_t b = 0; b <= nBlocks; ++b)
+        {
+            const size_t r = b * tableBlockRows;
+            offset[b]      = (r < begin ? begin : (r < end ? r : end)) - begin;
+        }
+        all   = true;
+        first = begin;
+        k     = end - begin;
         return services::Status();
     }
 
@@ -329,7 +437,7 @@ services::Status gatherSample(const data_management::NumericTable & x, const Sam
         const algorithmFPType * block = rows.get();
         for (size_t i = i0; i < i1; ++i)
         {
-            const size_t r                = sample.all ? i : size_t(sample.rows[i]);
+            const size_t r                = sample.all ? sample.first + i : size_t(sample.rows[i]);
             const algorithmFPType * value = block + (r - begin) * p + f0;
             for (size_t j = 0; j < nf; ++j) dst[j * k + i] = value[j];
         }
@@ -498,7 +606,91 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     };
 
     const size_t bytesPerValue = 2 * sizeof(algorithmFPType) + sizeof(int32_t);
-    const size_t groupSize     = binGroupFeatures(sample.k, bytesPerValue, nThreads);
+
+    // Rebins feature f from its full column in passes of at most columnChunkRows rows, so scratch stays within
+    // binSampleScratchBytes whatever nRows. Each pass is sorted and run-length encoded, and its runs merge into
+    // the column's distinct values with their counts, from which the borders are those of the sorted column.
+    // The rebin serves categorical misses and features the sample held no value of, so runs stay few.
+    auto binColumn = [&](size_t f) -> services::Status {
+        size_t chunkRows = params.columnChunkRows ? params.columnChunkRows : binSampleScratchBytes / bytesPerValue;
+        chunkRows        = chunkRows > tableBlockRows ? chunkRows / tableBlockRows * tableBlockRows : tableBlockRows;
+        if (chunkRows > nRows) chunkRows = nRows;
+        DAAL_CHECK_MALLOC(sampleScratch.ensure(chunkRows));
+        algorithmFPType * values = sampleScratch.values.get();
+        TArray<double, cpu> runValues[2];
+        TArray<size_t, cpu> runEnds[2];
+        TArray<double, cpu> passValues;
+        TArray<size_t, cpu> passEnds;
+        size_t nRuns = 0, nNotNaN = 0;
+        int cur = 0;
+        for (size_t begin = 0; begin < nRows; begin += chunkRows)
+        {
+            const size_t end = begin + chunkRows < nRows ? begin + chunkRows : nRows;
+            binner::SampleRows<cpu> rows;
+            services::Status st = rows.selectRange(nRows, begin, end);
+            DAAL_CHECK_STATUS_VAR(st);
+            st = binner::gatherSample<algorithmFPType, cpu>(x, rows, f, 1, values);
+            DAAL_CHECK_STATUS_VAR(st);
+            const size_t k                 = end - begin;
+            const size_t byThreads         = nThreads > 1 ? nThreads : 1;
+            const size_t bySize            = k / minSortChunk ? k / minSortChunk : 1;
+            const algorithmFPType * sorted = nullptr;
+            size_t m                       = 0;
+            st = binner::sortGroup<algorithmFPType, cpu>(1, k, byThreads < bySize ? byThreads : bySize, values, sampleScratch.tmp.get(),
+                                                         sampleScratch.payload.get(), &sorted, &m);
+            DAAL_CHECK_STATUS_VAR(st);
+            nNotNaN += m;
+            if (!m) continue;
+
+            // The pass's runs: passEnds[r] counts the pass's values in runs 0..r.
+            size_t nPass = 1;
+            for (size_t i = 1; i < m; ++i) nPass += sorted[i] != sorted[i - 1];
+            DAAL_CHECK_MALLOC(passValues.reset(nPass) && passEnds.reset(nPass));
+            size_t r      = 0;
+            passValues[0] = double(sorted[0]);
+            for (size_t i = 1; i < m; ++i)
+                if (sorted[i] != sorted[i - 1])
+                {
+                    passEnds[r++] = i;
+                    passValues[r] = double(sorted[i]);
+                }
+            passEnds[r] = m;
+
+            // Merge with the runs so far, adding the counts of equal values.
+            const int next = 1 - cur;
+            DAAL_CHECK_MALLOC(runValues[next].reset(nRuns + nPass) && runEnds[next].reset(nRuns + nPass));
+            size_t i = 0, j = 0, o = 0, total = 0;
+            while (i < nRuns || j < nPass)
+            {
+                const bool takeA = j == nPass || (i < nRuns && !(passValues[j] < runValues[cur][i]));
+                const bool takeB = i == nRuns || (j < nPass && !(runValues[cur][i] < passValues[j]));
+                double v         = 0;
+                if (takeA)
+                {
+                    v = runValues[cur][i];
+                    total += runEnds[cur][i] - (i ? runEnds[cur][i - 1] : 0);
+                    ++i;
+                }
+                if (takeB)
+                {
+                    v = passValues[j];
+                    total += passEnds[j] - (j ? passEnds[j - 1] : 0);
+                    ++j;
+                }
+                runValues[next][o] = v;
+                runEnds[next][o++] = total;
+            }
+            nRuns = o;
+            cur   = next;
+            // More categories than a u16 index holds: tooManyCategories reports the fit as unbinnable.
+            if (categorical[f] && nRuns >= maxU16Bins) break;
+        }
+        hasMissing[f]        = hasMissing[f] || nNotNaN < nRows;
+        const size_t maxData = categorical[f] ? unlimitedBins : params.maxBins - (hasMissing[f] && params.maxBins > 1 ? 1 : 0);
+        return computeBordersFromRuns(runValues[cur].get(), runEnds[cur].get(), nRuns, maxData, nRows, params, true, borders[f], nBins[f], exact[f]);
+    };
+
+    const size_t groupSize = binGroupFeatures(sample.k, bytesPerValue, nThreads);
     for (size_t f = 0; f < p; ++f) hasMissing[f] = false;
     for (size_t f0 = 0; f0 < p; f0 += groupSize)
     {
@@ -637,21 +829,13 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     }
     if (nRedo)
     {
-        binner::SampleRows<cpu> fullColumn;
-        bool fullSelected = false;
         for (size_t j = 0; j < nRedo; ++j)
         {
             const size_t f = features[j];
             // Categorical misses and samples with no value of the feature need the whole column.
             const bool needFull = categorical[f] || nBins[f] == 0;
-            if (needFull && !fullSelected)
-            {
-                s = fullColumn.selectAll(nRows);
-                DAAL_CHECK_STATUS_VAR(s);
-                fullSelected = true;
-            }
-            bool one = true;
-            s        = binFeatures(needFull ? fullColumn : sample, f, 1, &one);
+            bool one            = true;
+            s                   = needFull ? binColumn(f) : binFeatures(sample, f, 1, &one);
             DAAL_CHECK_STATUS_VAR(s);
             if (tooManyCategories(f)) return services::Status();
         }

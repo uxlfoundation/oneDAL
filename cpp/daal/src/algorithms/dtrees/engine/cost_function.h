@@ -94,6 +94,12 @@ inline uint32_t recordCount(const RegWeightRecord<algorithmFPType> &)
  *
  *  A side's state is its per-class weights, its weight, and the sum of squared class weights, kept
  *  incrementally so adding a row is O(1).
+ *
+ *  The right side's sum starts at the parent's and only shrinks, so with fractional weights its rounding
+ *  error, which grows with the number of updates, would come to dominate it near the end of a scan.
+ *  It is therefore summed again from the class weights whenever the right weight has halved since the
+ *  last exact sum: O(nClasses) a logarithmic number of times per scan, and an error relative to the
+ *  right side throughout. Count layouts sum integers exactly, so the resync does not change their splits.
  */
 template <CpuType cpu>
 class GiniCost
@@ -138,9 +144,10 @@ public:
     void resetLeft()
     {
         for (size_t c = 0; c < _nClasses; ++c) _left[c] = 0;
-        _wL  = 0;
-        _sqL = 0;
-        _sqR = _sq;
+        _wL     = 0;
+        _sqL    = 0;
+        _sqR    = _sq;
+        _wRSync = _w;
     }
 
     /// Moves a row of class c and weight a from the right side to the left.
@@ -151,6 +158,7 @@ public:
         _sqR += a * (a - 2 * r);
         _left[c] += a;
         _wL += a;
+        if (2 * (_w - _wL) < _wRSync) syncRight();
     }
 
     double leftWeight() const { return _wL; }
@@ -162,21 +170,42 @@ public:
 private:
     static double clip(double v) { return v > 0 ? v : 0; }
 
+    /// The right side's sum of squared class weights, from the class weights.
+    void syncRight()
+    {
+        _sqR = 0;
+        for (size_t c = 0; c < _nClasses; ++c)
+        {
+            const double r = _parent[c] - _left[c];
+            _sqR += r * r;
+        }
+        _wRSync = _w - _wL;
+    }
+
     size_t _nClasses;
     double * _left;
     double * _parent;
-    double _w   = 0;
-    double _sq  = 0;
-    double _wL  = 0;
-    double _sqL = 0;
-    double _sqR = 0;
+    double _w      = 0;
+    double _sq     = 0;
+    double _wL     = 0;
+    double _sqL    = 0;
+    double _sqR    = 0;
+    double _wRSync = 0; // right weight at the last exact sum
 };
 
 /**
  *  \brief Mean squared error
  *
- *  A side's state is its weight and weighted response sum; the parent also keeps the weighted sum of
- *  squares, for its impurity. Sums are in double whatever algorithmFPType is.
+ *  A side's state is its weight and weighted response sum, in double whatever algorithmFPType is.
+ *  Raw sums would cancel as (offset / spread)^2 for a node whose responses sit far from zero against their
+ *  spread, so both the split proxy and the impurity are centered:
+ *  - The proxy centers each side's sum on the parent's mean. That moves every candidate's proxy and the
+ *    parent's by the same constant, so the chosen split and its decrease do not change, and the scan's
+ *    rounding grows only as offset / spread.
+ *  - The impurity sums squared deviations from a center given before the pass (setCenter), the node's mean
+ *    as its parent's split sums estimate it, so the node's records are read once, and subtracts the squared
+ *    distance from the center to the node's mean. That mean's rounding grows with the offset, but the
+ *    center comes from sums of the same records, so the distance, and the correction's error, stay small.
  */
 template <CpuType cpu>
 class MseCost
@@ -184,36 +213,49 @@ class MseCost
 public:
     static constexpr bool classification = false;
 
+    /// The center of the next parent's deviations; 0 until set.
+    void setCenter(double c) { _center = c; }
     void startParent()
     {
-        _w  = 0;
-        _s  = 0;
-        _s2 = 0;
+        _w   = 0;
+        _s   = 0;
+        _dev = 0;
     }
     void addParent(double y, double a)
     {
+        const double d = y - _center;
         _w += a;
         _s += a * y;
-        _s2 += a * y * y;
+        _dev += a * d * d;
     }
-    void finishParent() {}
+    void finishParent() { _c = _w > 0 ? _s / _w : 0; }
 
     void setParent(const double * y, const double * w, size_t n)
     {
         startParent();
         for (size_t i = 0; i < n; ++i) addParent(y[i], w[i]);
+        finishParent();
+        setCenter(_c);
+        startParent();
+        for (size_t i = 0; i < n; ++i) addParent(y[i], w[i]);
+        finishParent();
     }
 
     double weight() const { return _w; }
-    double parentProxy() const { return _w > 0 ? _s * _s / _w : 0; }
+    double sum() const { return _s; }
+    double parentProxy() const
+    {
+        const double s = _s - _c * _w;
+        return _w > 0 ? s * s / _w : 0;
+    }
     double impurity() const
     {
         if (!(_w > 0)) return 0;
-        const double mean = _s / _w;
-        const double v    = _s2 / _w - mean * mean;
+        const double off = _c - _center;
+        const double v   = _dev / _w - off * off;
         return v > 0 ? v : 0;
     }
-    double mean() const { return _w > 0 ? _s / _w : 0; }
+    double mean() const { return _c; }
 
     void resetLeft()
     {
@@ -229,18 +271,23 @@ public:
     }
     double leftWeight() const { return _wL; }
     double rightWeight() const { return _w - _wL; }
+    double leftSum() const { return _sL; }
     double proxy() const
     {
-        const double sR = _s - _sL;
-        return _sL * _sL / _wL + sR * sR / (_w - _wL);
+        const double wR = _w - _wL;
+        const double sL = _sL - _c * _wL;
+        const double sR = (_s - _sL) - _c * wR;
+        return sL * sL / _wL + sR * sR / wR;
     }
 
 private:
-    double _w  = 0;
-    double _s  = 0;
-    double _s2 = 0;
-    double _wL = 0;
-    double _sL = 0;
+    double _w      = 0;
+    double _s      = 0;
+    double _c      = 0; // the parent's mean
+    double _center = 0; // the impurity pass's center
+    double _dev    = 0; // the parent's weighted sum of squared deviations from _center
+    double _wL     = 0;
+    double _sL     = 0;
 };
 
 } // namespace internal

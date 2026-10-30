@@ -99,4 +99,19 @@ TEST("count histograms sum counts as integers", "[unit]")
     REQUIRE(std::is_integral<hist::Layout<RegCountRecord<double> >::Stat>::value);
 }
 
+TEST("partial planes of a chunked node stay within partialPlaneBytes", "[unit]")
+{
+    using hist::chunksWithinBudget;
+    using hist::partialPlaneBytes;
+    // 1000 classes, 256 bins and 50 lanes, weighted: about 131 MB of planes per chunk.
+    const size_t manyClasses = hist::planeBytes<ClsWeightRecord<double> >(256, 50, 1000);
+    const size_t capped      = chunksWithinBudget(64, manyClasses);
+    REQUIRE((capped >= 1 && capped < 64));
+    REQUIRE((capped - 1) * manyClasses <= partialPlaneBytes);
+    // Small planes keep every chunk; no planes impose no cap.
+    REQUIRE(chunksWithinBudget(64, hist::planeBytes<ClsCountRecord>(256, 8, 2)) == 64);
+    REQUIRE(chunksWithinBudget(64, 0) == 64);
+    REQUIRE(chunksWithinBudget(1, manyClasses) == 1);
+}
+
 } // namespace daal::algorithms::dtrees::engine::internal::test

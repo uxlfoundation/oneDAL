@@ -77,6 +77,8 @@ struct BinningParams
     BinningStrategy strategy = decision_forest::training::quantiles;
     NumaPlacement placement; // NUMA nodes of the bins, a copy per node if it replicates
     size_t sampleRows = binSampleRows;
+    // Rows per pass when a feature is rebinned from its full column; 0: as many as binSampleScratchBytes holds.
+    size_t columnChunkRows = 0;
 };
 
 template <typename algorithmFPType, CpuType cpu>
@@ -104,6 +106,12 @@ public:
      */
     static services::Status computeBorders(const algorithmFPType * s, size_t k, size_t maxDataBins, size_t nRows, const BinningParams & params,
                                            bool allowExact, services::internal::TArray<double, cpu> & borders, size_t & nBins, bool & exact);
+
+    /// computeBorders of the sorted non-NaN values given as runs: values[r] ascending, ends[r] the number of
+    /// values in runs 0..r.
+    static services::Status computeBordersFromRuns(const double * values, const size_t * ends, size_t nRuns, size_t maxDataBins, size_t nRows,
+                                                   const BinningParams & params, bool allowExact, services::internal::TArray<double, cpu> & borders,
+                                                   size_t & nBins, bool & exact);
 
     /// bins[i] = number of the nInner sorted borders below x[i * xStride], for non-NaN x.
     static void searchBins(const double * inner, size_t nInner, const algorithmFPType * x, size_t n, size_t xStride, uint32_t * bins);

@@ -525,6 +525,41 @@ TEST("regression fits responses with a large offset as it fits them without", "[
     }
 }
 
+TEST("float regression keeps small responses beside large ones", "[unit]")
+{
+    // Half the rows at 5e8, half at 2 or 7 by feature 1. Stored relative to a constant near 2.7e8, the small
+    // responses would round to float's spacing of 32 there and become one value.
+    Dataset d;
+    d.n = 4000;
+    d.p = 2;
+    for (size_t i = 0; i < d.n; ++i)
+    {
+        const bool high = i % 2;
+        const bool x    = i % 4 >= 2;
+        d.x.push_back(high ? 1 : 0);
+        d.x.push_back(x ? 1 : 0);
+        d.y.push_back(high ? 5e8 : (x ? 7 : 2));
+    }
+    reg::training::Parameter pr;
+    pr.nTrees          = 5;
+    pr.featuresPerNode = 2;
+    for (bool hist : { true, false })
+    {
+        CAPTURE(hist);
+        const auto fit  = hist ? fitReg<reg::training::hist, float>(d, pr) : fitReg<reg::training::defaultDense, float>(d, pr);
+        double maxError = 0;
+        for (size_t i = 0; i < d.n; i += 2)
+        {
+            double sum = 0;
+            for (size_t t = 0; t < fit.model->size(); ++t)
+                sum += nodesOf(*fit.model, t)[leafOf(nodesOf(*fit.model, t), d.x.data() + i * d.p)].featureValueOrResponse;
+            maxError = std::max(maxError, std::abs(sum / double(fit.model->size()) - d.y[i]));
+        }
+        CAPTURE(maxError);
+        REQUIRE(maxError < 1);
+    }
+}
+
 TEST("trees whose in-bag rows all have zero weight are single leaves", "[unit]")
 {
     const Dataset c = makeData(100, 4, 3, 20);
