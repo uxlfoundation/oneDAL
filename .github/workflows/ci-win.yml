@@ -102,7 +102,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}\__deps\open_blas
-          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
 
       - name: Build OpenBLAS
         if: steps.cache-openblas.outputs.cache-hit != 'true'
@@ -117,7 +117,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}\__deps\open_blas
-          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
 
       - name: Build oneTBB
         shell: cmd
@@ -246,7 +246,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}\__deps\open_blas
-          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
 
       - name: Build OpenBLAS
         if: steps.cache-openblas.outputs.cache-hit != 'true'
@@ -274,7 +274,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}\__deps\open_blas
-          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-${{ hashFiles('.ci/env/openblas.bat') }}
 
       - name: Build oneTBB
         shell: cmd
