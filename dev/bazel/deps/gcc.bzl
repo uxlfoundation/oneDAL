@@ -20,6 +20,8 @@
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
+# Bumped by Renovate (conda datasource). Builds and hashes of the packages below
+# are re-pinned by `python3 dev/bazel/deps/relock_conda.py`.
 _GCC_VERSION = "14.3.0"
 _TRIPLE = "x86_64-conda-linux-gnu"
 _URL = "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda"
@@ -45,6 +47,10 @@ _PACKAGES = [
     _pkg("sysroot_linux-64", "2.28", "he3f20f0_9", "e2c4c08188bc543756ce2cf596b9547a241398b0ddce1cef77aa93847f22a97e", subdir = "noarch"),
     _pkg("kernel-headers_linux-64", "4.18.0", "he073ed8_9", "41557eeadf641de6aeae49486cef30d02a6912d8da98585d687894afd65b356a", subdir = "noarch"),
 ]
+
+# GNU OpenMP for `@openmp`, which takes it from this pin so that one Renovate
+# bump (and one relock_conda.py run) moves the compiler and its runtime together.
+LIBGOMP = [pkg for pkg in _PACKAGES if "/libgomp-" in pkg.url][0]
 
 def _drop_build_rpath(repo_ctx, prefix):
     # conda rewrites its build prefix at install time; here it would leak into
