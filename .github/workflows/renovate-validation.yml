@@ -60,7 +60,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: oneMKL and oneTBB releases match
         run: python3 dev/bazel/deps/check_pins.py
+      # Queries api.anaconda.org, so only when gcc.bzl itself changed: a conda-forge
+      # rebuild or an API outage must not fail an unrelated dependency change.
       - name: conda pins of gcc.bzl are complete
-        run: python3 dev/bazel/deps/relock_conda.py --check
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- dev/bazel/deps/gcc.bzl 2>/dev/null; then
+            echo "gcc.bzl unchanged; skipping"
+          else
+            python3 dev/bazel/deps/relock_conda.py --check
+          fi

@@ -63,12 +63,13 @@ def main():
     apt = APT.read_text()
     errors = []
     for library, (packages, apt_package) in LIBRARIES.items():
-        versions = {p: pins[p] for p in packages if p in pins}
+        missing = [p for p in packages if p not in pins]
+        if missing:
+            errors.append(f"{library}: {missing} not pinned in {LOCK.name}")
+            continue
+        versions = {p: pins[p] for p in packages}
         if len(set(versions.values())) > 1:
             errors.append(f"{library}: the wheels in {LOCK.name} disagree: {versions}")
-            continue
-        if not versions:
-            errors.append(f"{library}: none of {packages} is pinned in {LOCK.name}")
             continue
         if not apt_package:
             continue
