@@ -113,10 +113,28 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
-      # TODO: Cache openBLAS
+      # openBLAS install is keyed on its version, the build script and the
+      # runner label. Restored on every run; saved only from main (a pull
+      # request job never writes the main cache scope, see nightly-test.yml).
+      - name: Restore openBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
+
       - name: Build openBLAS
         run: |
-          .ci/env/openblas.sh
+          if [ "${{ steps.cache-openblas.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/openblas.sh
+          fi
+
+      - name: Save openBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
 
       - name: Install compiler
         if: matrix.os.cxx == 'clang'
@@ -190,10 +208,26 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
-      # TODO: Cache openBLAS
+      # See the openBLAS cache note in the LinuxMake job above.
+      - name: Restore openBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
+
       - name: Build openBLAS
         run: |
-          .ci/env/openblas.sh
+          if [ "${{ steps.cache-openblas.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/openblas.sh
+          fi
+
+      - name: Save openBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
 
       - name: Build openRNG
         run: |
@@ -262,10 +296,28 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=$(pwd)/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
+      # openBLAS is cached as in the LinuxMake jobs above. The root is exported
+      # on both paths, cache hit or build.
+      - name: Restore openBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
+
       - name: Build OpenBLAS
         run: |
-          .ci/env/openblas.sh
+          if [ "${{ steps.cache-openblas.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/openblas.sh
+          fi
           echo "OPENBLASROOT=$(pwd)/__deps/openblas_aarch64" >> "$GITHUB_ENV"
+
+      - name: Save openBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
 
       - name: Build OpenRNG
         if: matrix.rng == 'openrng'
