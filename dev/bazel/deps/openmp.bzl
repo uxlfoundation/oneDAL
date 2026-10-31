@@ -15,19 +15,15 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
+load("@onedal//dev/bazel/deps:gcc.bzl", "LIBGOMP")
 
-# GNU OpenMP (libgomp), required by the MKL `gnu_thread` layer.
-_VERSION = "14.2.0"
-
+# GNU OpenMP (libgomp), required by the MKL `gnu_thread` layer. Pinned with the
+# conda-forge gcc in gcc.bzl.
 openmp_repo = repos.prebuilt_libs_repo_rule(
     root_env_var = "GOMPROOT",
     archives = [
-        repos.archive(
-            url = "https://anaconda.org/conda-forge/libgomp/{v}/download/linux-64/libgomp-{v}-h77fa898_1.conda".format(v = _VERSION),
-            sha256 = "1911c29975ec99b6b906904040c855772ccb265a1c79d5d75c8ceec4ed89cd63",
-            # The .conda package already unpacks into the required layout.
-            strip_prefix = "",
-        ),
+        # The .conda package already unpacks into the required layout.
+        repos.archive(url = LIBGOMP.url, sha256 = LIBGOMP.sha256),
     ],
     includes = [
         "include",
