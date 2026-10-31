@@ -44,7 +44,7 @@ TEST("create tables that have one-based indexing and various types of incorrect 
     const std::int64_t column_indices_lt_min[] = { 1, 2, 4, 3, 0, 4, 2 };
     const std::int64_t column_indices_gt_max[] = { 1, 2, 5, 3, 2, 4, 2 };
     const std::int64_t row_offsets[] = { 1, 4, 5, 7, 8 };
-    const std::int64_t row_offsets_lt_min[] = { 0, 4, 5, 7, 8 };
+    const std::int64_t row_offsets_lt_min[] = { 0, 3, 5, 6, 7 };
     const std::int64_t row_offsets_gt_max[] = { 1, 4, 9, 7, 8 };
     const std::int64_t row_offsets_not_ascending[] = { 1, 4, 7, 5, 8 };
     constexpr std::int64_t row_count{ 4 };

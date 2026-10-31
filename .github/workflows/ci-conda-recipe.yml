@@ -23,6 +23,8 @@ on:
     paths:
       - 'conda-recipe/**'
       - '.github/workflows/ci-conda-recipe.yml'
+      - 'makefile'
+      - 'dev/make/**'
   push:
     branches:
       - main
