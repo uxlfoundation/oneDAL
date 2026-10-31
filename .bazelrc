@@ -159,6 +159,15 @@ test:dpc-private \
 build:release-dpc \
     --release_dpc=true
 
+# Configuration: 'release-ship'
+# Shipping release builds. The build date must come from ONEDAL_BUILD_DATE:
+# without it the build fails instead of stamping the 21990101 placeholder.
+# PR CI keeps using release-dpc alone, so its release steps still work unset.
+#   bazel build //:release --config=release-dpc --config=release-ship \
+#       --cpu=avx2 --repo_env=ONEDAL_BUILD_DATE=20261029
+build:release-ship \
+    --repo_env=ONEDAL_REQUIRE_BUILD_DATE=1
+
 # Configuration: 'dev'
 # Fast local development build — compiles only for the host machine's
 # highest ISA (auto-detected). Use this to speed up iterative builds.

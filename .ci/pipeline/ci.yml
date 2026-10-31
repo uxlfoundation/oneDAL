@@ -377,6 +377,10 @@ jobs:
     displayName: 'Folded parameter-layout packaged consumer smoke'
 
   - script: |
+      # No ONEDAL_BUILD_DATE here: every step of this job keeps the placeholder
+      # (dev/bazel/utils.bzl). Passing a date in one step and not in the next
+      # re-keys :version_info and relinks every test between the steps. The
+      # release with today's date is built by nightly-test.yml, one build per job.
       bazel build :release --release_dpc=false
     displayName: 'release'
 
@@ -747,6 +751,7 @@ jobs:
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
+      REM Placeholder build date for every step of this job; see LinuxBazel 'release'.
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release'
   - script: |
@@ -880,6 +885,7 @@ jobs:
     displayName: 'bazel-configure'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
+      REM Placeholder build date, as in WindowsBazel 'release'; the real date is set in nightly-test.yml.
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release-all'
   - powershell: |
