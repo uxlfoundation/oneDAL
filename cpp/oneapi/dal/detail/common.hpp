@@ -473,7 +473,10 @@ template <typename Alloc>
 static constexpr auto allocate(Alloc& alloc, std::int64_t count) {
     using allocator_traits_t =
         typename std::allocator_traits<Alloc>::template rebind_traits<typename Alloc::value_type>;
-    typename allocator_traits_t::pointer ptr = allocator_traits_t::allocate(alloc, count);
+    // Zero-size requests are allocated as one element: some allocators (MSVC STL) return nullptr
+    // for them, and an array with a null data pointer cannot give its mutable data.
+    typename allocator_traits_t::pointer ptr =
+        allocator_traits_t::allocate(alloc, count > 0 ? count : 1);
     if (ptr == nullptr) {
         throw host_bad_alloc();
     }
@@ -487,7 +490,7 @@ static constexpr void deallocate(Alloc& alloc,
     using allocator_traits_t =
         typename std::allocator_traits<Alloc>::template rebind_traits<typename Alloc::value_type>;
     if (ptr != nullptr) {
-        allocator_traits_t::deallocate(alloc, ptr, count);
+        allocator_traits_t::deallocate(alloc, ptr, count > 0 ? count : 1);
     }
 }
 
