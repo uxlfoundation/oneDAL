@@ -78,6 +78,14 @@ public:
         const std::int64_t max_index =
             (indexing == sparse_indexing::zero_based) ? column_count - 1 : column_count;
 
+        if (std::any_of(row_offsets_ptr,
+                        row_offsets_ptr + row_offsets.get_count(),
+                        [min_index](std::int64_t offset) {
+                            return offset < min_index;
+                        })) {
+            throw dal::domain_error(error_msg::row_offsets_lt_min_value());
+        }
+
         const auto status = backend::check_bounds(column_indices, min_index, max_index);
         if (status == backend::out_of_bound_type::less_than_min) {
             throw dal::domain_error(error_msg::column_indices_lt_min_value());
