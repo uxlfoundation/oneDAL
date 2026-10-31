@@ -1,0 +1,76 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# No-LLM checks for dev/agent_evals with dokimi's reusable repo-eval workflow
+# (https://github.com/intel/dokimi/blob/main/.github/workflows/repo-eval.yml), pinned by commit SHA.
+# Nothing here calls a model or needs a token.
+#  - `dokimi repo validate` (a gate) and `dokimi repo scan` (report only): on every change to the eval directory or
+#    to agent guidance, a few minutes.
+#  - `dokimi repo tasks check` (untouched workspace must fail, reference solution must pass) in the eval image:
+#    weekly and on demand for every task; on a pull request only for the tasks it touches, or for one task per
+#    grader (smoke-tasks) when the entry points, a grader, the manifest or this file change.
+name: Agent evals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dev/agent_evals/**'
+      - '**/AGENTS.md'
+      - '.github/instructions/**'
+      - '.github/copilot-instructions.md'
+      - 'CONTRIBUTING.md'
+      - '.github/workflows/agent-evals.yml'
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: 'Space-separated task ids for the self-check (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  repo-eval:
+    name: dokimi
+    if: github.repository == 'uxlfoundation/oneDAL' || github.event_name != 'schedule'
+    permissions:
+      contents: read
+    # intel/dokimi main; keep the two SHAs equal, and update them together with any change the new version needs in
+    # repo-eval.yaml or the tasks
+    uses: intel/dokimi/.github/workflows/repo-eval.yml@09be35bf0a1e887ba7b146357b839052c830c3b9
+    with:
+      dokimi-ref: 09be35bf0a1e887ba7b146357b839052c830c3b9
+      manifest: dev/agent_evals/repo-eval.yaml
+      tasks: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.tasks || 'all') || 'changed' }}
+      smoke-tasks: >-
+        build_kmeans_host build_make_gnu build_release_host fix_finiteness_mut fix_avx2_dispatch
+        review_seeded_fc review_replay_pr3580 test_add_chebyshev
+      # fix_cel_thread_race needs 4+ Intel CPUs (its task.json `host`); a hosted runner may be AMD or smaller, where
+      # its null run would pass. dokimi then reports it unsupported, with the reason, and this passes the job.
+      allow-unsupported: true
+      # the caches start empty on a hosted runner: null and oracle run with network
+      warm: true
+      runs-on: ubuntu-24.04
+      max-parallel: 4  # shares the org runner pool with the main CI
+      timeout-minutes: 180
