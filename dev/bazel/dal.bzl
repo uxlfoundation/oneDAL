@@ -395,7 +395,12 @@ def _test_deps_on_daal():
 
 def _test_runtime_data():
     return _select({
-        "@config//:test_link_mode_dev": [],
+        # The dev threading layer links TBB through import libraries on
+        # Windows; the loader finds tbb12.dll only next to the test exe,
+        # where _copy_windows_runtime_files puts the DLLs of `data`.
+        "@config//:test_link_mode_dev": [
+            "@tbb//:tbb_runtime",
+        ],
         "@config//:test_link_mode_release_static": [],
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:core_dynamic_runtime",
