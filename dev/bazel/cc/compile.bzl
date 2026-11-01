@@ -293,7 +293,7 @@ def _configure_cpu_features(ctx, toolchain, cpus):
 def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
              cpus=[], fpts=[], cpu_defines={}, fpt_defines={},
              srcs=[], local_defines=[], includes=[], system_includes=[],
-             quote_includes=[], short_paths=False, **kwargs):
+             quote_includes=[], short_paths=False, drop_mkl_ilp64=False, **kwargs):
 
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
@@ -317,9 +317,12 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         system_includes = system_includes,
         quote_includes = quote_includes,
         # @mkl//:mkl_static propagates MKL_ILP64 through the DAAL deps, but
-        # Make compiles DPC objects with MKL_LP64 only (ONEAPI.objs_y.dpc).
-        drop_defines = ["MKL_ILP64"] if cc_common.is_enabled(
-            feature_configuration = feature_config, feature_name = "dpc++") else [],
+        # Make compiles DPC library objects with MKL_LP64 only
+        # (ONEAPI.objs_y.dpc). Only the DPC library modules ask for this
+        # (`drop_mkl_ilp64`); a DPC test that links the ILP64 archives itself
+        # keeps MKL_ILP64, or its MKL calls would use 32-bit integers against
+        # 64-bit symbols (see cpp/oneapi/dal/test/engine/mkl).
+        drop_defines = ["MKL_ILP64"] if drop_mkl_ilp64 else [],
     )
     dep_compilation_contexts = [ dep_compilation_context ]
 

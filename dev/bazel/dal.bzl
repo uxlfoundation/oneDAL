@@ -599,6 +599,10 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "//conditions:default": [],
         }),
         deps = _expand_select(deps),
+        # DPC++ library objects match Make's LP64 DPC objects. A DPC test
+        # module can link ILP64 MKL itself (mkl_core in its extra_deps), so it
+        # keeps the MKL_ILP64 define it inherits.
+        drop_mkl_ilp64 = is_dpc and not kwargs.get("testonly", False),
         **kwargs,
     )
 

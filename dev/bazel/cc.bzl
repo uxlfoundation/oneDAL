@@ -219,6 +219,7 @@ def _cc_module_impl(ctx):
         cpus = ctx.attr._cpus[CpuInfo].enabled,
         cpu_defines = ctx.attr.cpu_defines,
         fpt_defines = ctx.attr.fpt_defines,
+        drop_mkl_ilp64 = ctx.attr.drop_mkl_ilp64,
         srcs = ctx.files.srcs,
         public_hdrs = ctx.files.hdrs,
         private_hdrs = ctx.files.private_hdrs,
@@ -280,6 +281,9 @@ _cc_module = rule(
         "hdrs": attr.label_list(allow_files=True),
         "private_hdrs": attr.label_list(allow_files=True),
         "export_hdrs": attr.bool(default=True),
+        # Set for DPC++ library modules (see dal.bzl `_dal_module`): their
+        # objects are compiled without MKL_ILP64, as Make's DPC objects are.
+        "drop_mkl_ilp64": attr.bool(default=False),
         "deps": attr.label_list(),
         "copts": attr.string_list(),
         "defines": attr.string_list(),
