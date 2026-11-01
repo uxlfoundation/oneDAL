@@ -574,9 +574,13 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         },
         copts = copts + select({
             # `-EHsc` mirrors `$(-EHsc)` on the oneAPI objects in makefile:708,
-            # 720 and 733. Make does not add it to DAAL core, threading or the
-            # examples, and those are not built through this macro. Tests are,
-            # so they keep exception handling for Catch2, which is not shipped.
+            # 720 and 733. Make's icx build adds it to those objects only; its
+            # vc build adds it to every object (COMPILER.win.vc,
+            # vc.mkl.32e.mk:42), which dev/bazel/cc/compile.bzl handles. Examples
+            # and tests go through this macro (via dal_test) and keep exception
+            # handling: tests need it for Catch2, which is not shipped. The
+            # shipped examples set /EHsc themselves in
+            # examples/cmake/setup_examples.cmake (WIN32 branch).
             "@platforms//os:windows": ["/utf-8", "-EHsc"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
