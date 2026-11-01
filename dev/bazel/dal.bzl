@@ -150,7 +150,7 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
                     dpc_deps=[], dpc_host_deps=[], extra_deps=[], lib_tags=["dal"],
-                    dpc_lib_tags=None, features=[], **kwargs):
+                    dpc_lib_tags=None, dpc_linkopts=[], features=[], **kwargs):
     cc_dynamic_lib(
         name = name,
         lib_name = lib_name,
@@ -158,6 +158,10 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         deps = dal_deps + extra_deps + host_deps,
         **kwargs
     )
+    # `dpc_linkopts` go to the DPC library only. Make puts its DPC-only link
+    # options on LOPT of those targets (e.g. makefile:821, 851).
+    dpc_kwargs = dict(kwargs)
+    dpc_kwargs["linkopts"] = kwargs.get("linkopts", []) + dpc_linkopts
     cc_dynamic_lib(
         name = name + "_dpc",
         features = features + [ "dpc++" ],
@@ -167,7 +171,7 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         # into a DPC library. Never forward ordinary host_deps here: doing so
         # folds host parameter objects into the DPC library as duplicates.
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + dpc_host_deps,
-        **kwargs
+        **dpc_kwargs
     )
 
 def _not_on_windows():

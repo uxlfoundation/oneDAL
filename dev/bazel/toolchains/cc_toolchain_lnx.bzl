@@ -173,9 +173,21 @@ def _add_sycl_linkage(repo_ctx, cc):
         return []
 
 def _add_new_offload_driver_link(repo_ctx, dpcc):
-    flags = add_compiler_option_if_supported(repo_ctx, dpcc, "--offload-new-driver")
-    if not flags:
+    # Gate on a shared-link probe with --offload-compress as well, the same
+    # probe Make runs (dev/make/compiler_definitions/dpcpp.mk:84-92). The DPC
+    # library targets pass --offload-compress (cpp/oneapi/dal/BUILD,
+    # dpc_linkopts). A compile-only check is not enough: on icpx 2025.3
+    # clang-linker-wrapper then hands -compress to the host ld and the link fails.
+    probe_so = repo_ctx.path("offload_new_driver_probe.so")
+    result = repo_ctx.execute([
+        dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
+        "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
+        "-o", str(probe_so),
+    ])
+    repo_ctx.delete(probe_so)
+    if result.return_code != 0:
         return []
+    flags = ["--offload-new-driver"]
 
     # The legacy driver embeds -ftarget-register-alloc-mode=pvc:<opt> in the
     # device image, so the PVC-only JIT option is applied to PVC devices alone.
