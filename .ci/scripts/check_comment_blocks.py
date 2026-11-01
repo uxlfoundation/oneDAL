@@ -27,9 +27,10 @@ so an existing long block passes until a PR edits it.
 
 Not counted, and ending a block: a shebang on line 1, Doxygen comments (``///``,
 ``//!``), tool pragmas (``// clang-format off``, ``// NOLINT``, ``# noqa`` and the
-like). ``/* */`` comments are not read. A block holding a license header line is
-skipped. A ruler line such as ``//-----`` stays in its block but does not count,
-so a banner is one line.
+like). ``/* */`` comments are not read, and a ``//`` line inside one is not a
+comment line. A block holding a license header line is skipped. A ruler line
+such as ``//-----`` stays in its block but does not count, so a banner is one
+line.
 
     python .ci/scripts/check_comment_blocks.py --base origin/main --head HEAD
 
@@ -97,6 +98,41 @@ def _python_comments(text: str) -> set[int] | None:
     return found
 
 
+def _slash_comments(text: str) -> set[int]:
+    """Lines that start with a ``//`` comment, outside any ``/* */`` comment or string literal."""
+    found: set[int] = set()
+    line, i, n = 1, 0, len(text)
+    in_block, quote, line_start = False, "", True  # line_start: only blanks so far on this line
+    while i < n:
+        c, nxt = text[i], (text[i + 1] if i + 1 < n else "")
+        if c == "\n":
+            line, quote, line_start = line + 1, "", not in_block
+            i += 1
+        elif in_block:
+            in_block = not (c == "*" and nxt == "/")
+            line_start = False
+            i += 1 if in_block else 2
+        elif quote:
+            if c == "\\" and nxt not in ("\n", ""):
+                i += 2
+            else:
+                quote = "" if c == quote else quote
+                i += 1
+        elif c == "/" and nxt == "/":
+            if line_start:
+                found.add(line)
+            end = text.find("\n", i)
+            i, line_start = (n if end < 0 else end), False
+        elif c == "/" and nxt == "*":
+            in_block, line_start = True, False
+            i += 2
+        else:
+            quote = c if c in "\"'" else quote
+            line_start = line_start and c.isspace()
+            i += 1
+    return found
+
+
 def _exempt(number: int, stripped: str) -> bool:
     return (
         (number == 1 and stripped.startswith("#!"))
@@ -110,6 +146,8 @@ def comment_lines(text: str, path: str) -> set[int]:
     # Not splitlines(): it also splits on form feeds, so line numbers would drift from git's.
     lines, mark = text.split("\n"), marker(path)
     found = _python_comments(text) if path.endswith(".py") else None
+    if found is None and mark == "//":
+        found = _slash_comments(text)
     if found is None:
         found = {i for i, line in enumerate(lines, 1) if line.lstrip().startswith(mark)}
     return {i for i in found if not _exempt(i, lines[i - 1].strip())}

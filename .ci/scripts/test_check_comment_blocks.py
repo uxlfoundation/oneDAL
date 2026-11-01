@@ -125,6 +125,49 @@ def test_two_lines_pass_even_when_both_are_new():
     assert ccb.long_blocks("// one\n// two\nint x;\n", "f.cpp", {1, 2}) == []
 
 
+# The header layout of cpp/daal/src/data_management/service_numeric_table.h, lines 1-22.
+DAAL_HEADER = """/* file: service_numeric_table.h */
+/*******************************************************************************
+* Copyright 2014 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
+
+/*
+//++
+//  CPU-specified homogeneous numeric table
+//--
+*/
+"""
+
+def test_lines_inside_a_c_block_comment_are_not_read():
+    # The header's `//` lines sit inside a /* */ block; editing them must not flag them.
+    assert ccb.comment_lines(DAAL_HEADER, "f.h") == set()
+    assert ccb.long_blocks(DAAL_HEADER, "f.h", set(range(18, 23))) == []
+
+
+def test_a_slash_pair_in_a_string_does_not_open_a_block_comment():
+    text = 'char *s = "/*";\n// a\n// b\n// c\nint x;\n'
+    assert ccb.blocks(ccb.comment_lines(text, "f.cpp")) == [(2, 4)]
+    assert ccb.long_blocks(text, "f.cpp", {2}) == [(2, 4, 3)]
+
+
+def test_a_line_comment_after_a_block_comment_closes_counts_from_its_line():
+    text = "/*\n a\n*/\n// b\n// c\n// d\nint x;\n"
+    assert ccb.blocks(ccb.comment_lines(text, "f.cpp")) == [(4, 6)]
+    assert ccb.long_blocks(text, "f.cpp", {4}) == [(4, 6, 3)]
+
+
 def _git_repo(path: Path) -> None:
     for cmd in (
         ["init", "-q"],
