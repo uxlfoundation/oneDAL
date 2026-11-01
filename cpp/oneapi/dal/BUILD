@@ -167,9 +167,16 @@ dal_dynamic_lib(
     # libonedal_dpc.so never contains those objects. Adding the tag here would
     # fold them into onedal_dpc, duplicating the definitions and diverging from
     # the Make release the comparator checks against.
+    # Linux DPC takes no DAAL core and no static MKL. Make links the DPC
+    # library against `daaldep.math_backend.dpc_link_deps`, which is the
+    # dynamic SYCL MKL set (deps.mkl.mk:91-106). DAAL comes from
+    # libonedal_core.so. The "daal" tag copied DAAL object files into
+    # libonedal_dpc.so, and the "mkl_embed" tag linked the ILP64 static MKL
+    # archives into it. MKL still reaches the DPC link, untagged, through
+    # `@mkl//:mkl_dpc`, so both tags are dropped for Linux.
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal", "parameters"],
-        "//conditions:default": ["dal", "daal", "mkl_embed"],
+        "//conditions:default": ["dal"],
     }) + parameters_lib_disabled(["parameters"]),
     dal_deps = [
         ":core",
