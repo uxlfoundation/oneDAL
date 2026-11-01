@@ -83,7 +83,10 @@ filegroup(
 
 daal_module(
     name = "includes",
+    # The generated header follows --cpu; the static one (all ISAs, the source
+    # file) is what the per-cpu kernel TUs see, see dev/bazel/cc/compile.bzl.
     hdrs = [ ":kernel_defines",
+             "include/services/internal/daal_kernel_defines.h",
     ],
     includes = [ "." ],
     defines = [

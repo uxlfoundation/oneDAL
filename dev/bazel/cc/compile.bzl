@@ -165,6 +165,40 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
+# Generated headers whose contents follow the --cpu list. Only compile actions
+# that expand the ISA dispatch macros (dispatchers, ISA-conditional TUs) may
+# declare them as inputs; the per-cpu kernel TUs get the static header instead,
+# so that switching --cpu does not rebuild their objects.
+# Paths are as written in `#include`, relative to an include directory.
+_CPU_LIST_HDRS = ["services/internal/daal_kernel_defines.h"]
+
+def _drop_dirs(dirs, dropped):
+    return depset([d for d in dirs.to_list() if d not in dropped])
+
+def _without_cpu_list_headers(compilation_context):
+    headers = []
+    generated_roots = {}
+    for h in compilation_context.headers.to_list():
+        rel = [r for r in _CPU_LIST_HDRS if h.path.endswith("/" + r)]
+        if h.is_source or not rel:
+            headers.append(h)
+        else:
+            generated_roots[h.path[:-len(rel[0]) - 1]] = True
+
+    # Dropping the input is not enough: the generated include directory comes
+    # before the source one, so an unsandboxed compile (Windows, or
+    # --spawn_strategy=local) would still find the generated header there and
+    # fail with "undeclared inclusion". Drop that directory as well.
+    return cc_common.create_compilation_context(
+        headers = depset(headers),
+        system_includes = _drop_dirs(compilation_context.system_includes, generated_roots),
+        includes = _drop_dirs(compilation_context.includes, generated_roots),
+        quote_includes = _drop_dirs(compilation_context.quote_includes, generated_roots),
+        framework_includes = compilation_context.framework_includes,
+        defines = compilation_context.defines,
+        local_defines = compilation_context.local_defines,
+    )
+
 # Longest object path under `bazel-out/<config>/bin`, plus the `.params`
 # suffix, allowed on Windows. MSVC tools do not open paths over MAX_PATH (260)
 # whatever LongPathsEnabled says, and the output base and config dir take up
@@ -321,6 +355,8 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
     if sources_by_category.cpu_files or sources_by_category.fpt_cpu_files:
         cpu_defines = utils.normalize_dict(cpu_defines, cpus, default=[])
         cpu_feature_configs = _configure_cpu_features(ctx, toolchain, cpus)
+        # Flattens the transitive headers, so build it only for the modules that have per-cpu sources.
+        cpu_dep_compilation_contexts = [ _without_cpu_list_headers(dep_compilation_context) ]
     if sources_by_category.fpt_files or sources_by_category.fpt_cpu_files:
         fpt_defines = utils.normalize_dict(fpt_defines, fpts, default=[])
 
@@ -372,7 +408,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
                 name + "_" + cpu_tags[cpu], ctx, toolchain, cpu_feature_configs[cpu],
                 srcs = call_srcs,
                 local_defines = local_defines + cpu_defines[cpu],
-                compilation_contexts = dep_compilation_contexts,
+                compilation_contexts = cpu_dep_compilation_contexts,
                 **_get_cpu_compile_kwargs(toolchain, cpu, call_kwargs),
             )
             compilation_contexts.append(compilation_context)
@@ -389,7 +425,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
                     cpu_feature_configs[cpu],
                     srcs = call_srcs,
                     local_defines = local_defines + cpu_defines[cpu] + fpt_defines[fpt],
-                    compilation_contexts = dep_compilation_contexts,
+                    compilation_contexts = cpu_dep_compilation_contexts,
                     **_get_cpu_compile_kwargs(toolchain, cpu, call_kwargs),
                 )
                 compilation_contexts.append(compilation_context)
