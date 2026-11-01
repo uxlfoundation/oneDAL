@@ -150,6 +150,25 @@ DAAL_HEADER = """/* file: service_numeric_table.h */
 */
 """
 
+HASH_LICENSE = [
+    "# " + "=" * 20,
+    "# Copyright contributors to the oneDAL project",
+    "#",
+    '# Licensed under the Apache License, Version 2.0 (the "License");',
+    "# you may not use this file except in compliance with the License.",
+    "# You may obtain a copy of the License at",
+    "#",
+    "#     http://www.apache.org/licenses/LICENSE-2.0",
+    "#",
+    "# Unless required by applicable law or agreed to in writing, software",
+    '# distributed under the License is distributed on an "AS IS" BASIS,',
+    "# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    "# See the License for the specific language governing permissions and",
+    "# limitations under the License.",
+    "# " + "=" * 20,
+]
+
+
 def test_lines_inside_a_c_block_comment_are_not_read():
     # The header's `//` lines sit inside a /* */ block; editing them must not flag them.
     assert ccb.comment_lines(DAAL_HEADER, "f.h") == set()
@@ -166,6 +185,23 @@ def test_a_line_comment_after_a_block_comment_closes_counts_from_its_line():
     text = "/*\n a\n*/\n// b\n// c\n// d\nint x;\n"
     assert ccb.blocks(ccb.comment_lines(text, "f.cpp")) == [(4, 6)]
     assert ccb.long_blocks(text, "f.cpp", {4}) == [(4, 6, 3)]
+
+
+def test_lines_appended_after_a_license_header_are_checked():
+    text = "\n".join(HASH_LICENSE + ["# one", "# two", "# three", "x = 1"]) + "\n"
+    assert ccb.long_blocks(text, "f.py", {16, 17, 18}) == [(16, 18, 3)]
+    assert ccb.long_blocks(text, "f.py", set(range(1, 16))) == []
+
+
+def test_lines_appended_after_a_license_header_without_its_ruler_are_checked():
+    text = "\n".join(HASH_LICENSE[:-1] + ["# one", "# two", "# three", "x = 1"]) + "\n"
+    assert ccb.long_blocks(text, "f.py", {15, 16, 17}) == [(15, 17, 3)]
+
+
+def test_lines_above_a_license_header_are_checked():
+    text = "\n".join(["# one", "# two", "# three"] + HASH_LICENSE + ["x = 1"]) + "\n"
+    # The header's opening ruler (line 4) ends the run above it; it does not count.
+    assert ccb.long_blocks(text, "f.py", {1, 2, 3}) == [(1, 4, 3)]
 
 
 def _git_repo(path: Path) -> None:

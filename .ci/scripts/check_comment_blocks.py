@@ -28,9 +28,10 @@ so an existing long block passes until a PR edits it.
 Not counted, and ending a block: a shebang on line 1, Doxygen comments (``///``,
 ``//!``), tool pragmas (``// clang-format off``, ``// NOLINT``, ``# noqa`` and the
 like). ``/* */`` comments are not read, and a ``//`` line inside one is not a
-comment line. A block holding a license header line is skipped. A ruler line
-such as ``//-----`` stays in its block but does not count, so a banner is one
-line.
+comment line. A license header (its notice through the closing ruler) is
+skipped; lines just before or after it are checked as their own block. A ruler
+line such as ``//-----`` stays in its block but does not count, so a banner is
+one line.
 
     python .ci/scripts/check_comment_blocks.py --base origin/main --head HEAD
 
@@ -54,6 +55,7 @@ SLASH_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".hxx", ".cl", ".i"
 HASH_SUFFIXES = {".py", ".sh", ".yml", ".yaml", ".toml", ".mk", ".cmake", ".bzl", ".bazel"}
 HASH_NAMES = {"BUILD", "WORKSPACE", "CMakeLists.txt", "Dockerfile"}
 _LICENSE = re.compile(r"(//|#)\s*(Copyright\b|SPDX-License-Identifier:|Licensed under the)")
+_NOTICE_END = re.compile(r"(//|#)\s*limitations under the License\.$")
 _PRAGMA = re.compile(
     r"(//|#)\s*(clang-format\b|NOLINT|NOSONAR|IWYU\b|noqa\b|type:|pragma:|fmt:|"
     r"nosec\b|isort:|shellcheck\s|yamllint\s|buildifier:|-\*-)"
@@ -164,16 +166,30 @@ def blocks(numbers: set[int]) -> list[tuple[int, int]]:
     return runs
 
 
+def _outside_license(lines: list[str], first: int, last: int) -> list[tuple[int, int]]:
+    """The runs of the block ``first..last`` that are not its license header (notice and ruler)."""
+    notice = [n for n in range(first, last + 1) if _LICENSE.match(lines[n - 1].strip())]
+    if not notice:
+        return [(first, last)]
+    start = notice[0]
+    end = next(
+        (n for n in range(start, last + 1) if _NOTICE_END.match(lines[n - 1].strip())),
+        notice[-1],
+    )
+    if end < last and _RULER.match(lines[end].strip()):
+        end += 1
+    return [run for run in ((first, start - 1), (end + 1, last)) if run[0] <= run[1]]
+
+
 def long_blocks(text: str, path: str, changed: set[int]) -> list[tuple[int, int, int]]:
     """(first, last, length) of the blocks over ``MAX_LINES`` that hold a line of ``changed``."""
     lines, found = text.split("\n"), []
-    for first, last in blocks(comment_lines(text, path)):
-        body = [lines[n - 1].strip() for n in range(first, last + 1)]
-        if any(_LICENSE.match(line) for line in body):
-            continue
-        size = sum(not _RULER.match(line) for line in body)
-        if size > MAX_LINES and any(first <= n <= last for n in changed):
-            found.append((first, last, size))
+    for block_first, block_last in blocks(comment_lines(text, path)):
+        for first, last in _outside_license(lines, block_first, block_last):
+            body = [lines[n - 1].strip() for n in range(first, last + 1)]
+            size = sum(not _RULER.match(line) for line in body)
+            if size > MAX_LINES and any(first <= n <= last for n in changed):
+                found.append((first, last, size))
     return found
 
 
