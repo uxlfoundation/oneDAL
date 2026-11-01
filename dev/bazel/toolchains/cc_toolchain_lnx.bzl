@@ -211,7 +211,23 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # Default compilations/link options
     cxx_opts = []
     link_opts = []
-    dynamic_link_libs = ["-lstdc++", "-lm", "-ldl"]
+    # libpthread.so.0 and libdl.so.2 must stay NEEDED even when no symbol is
+    # taken from them. Use the exact sonames: on glibc >= 2.34 `-lpthread` and
+    # `-ldl` resolve to empty static stubs (libpthread.a, libdl.a) and add no
+    # NEEDED, while --as-needed drops the .so stubs when unused. On glibc < 2.34
+    # (documented floor: Ubuntu 18.04/20.04) pthread_* live only in
+    # libpthread.so.0, so a libonedal*.so without that NEEDED fails to resolve
+    # unless the host process already loaded it. Make puts -lpthread on every
+    # libonedal link (dev/make/function_definitions/lnx32e.mk) and -ldl with
+    # the SYCL MKL libs (dev/make/deps.mkl.mk).
+    dynamic_link_libs = [
+        "-lstdc++",
+        "-lm",
+        "-Wl,--no-as-needed",
+        "-l:libpthread.so.0",
+        "-l:libdl.so.2",
+        "-Wl,--as-needed",
+    ]
 
     # Paths to tools/compiler includes
     tools = _find_tools(repo_ctx, reqs)
