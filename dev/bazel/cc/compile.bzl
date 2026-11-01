@@ -49,7 +49,10 @@ _MSVC_CPU_FLAGS = {
 
 # MSVC's traditional preprocessor expands __VA_ARGS__ as a single token, which breaks the
 # test engine's COMBINE_TYPES; icx and clang-cl conform without a switch.
-_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor"]
+# Make's COMPILER.win.vc (dev/make/compiler_definitions/vc.mkl.32e.mk:42)
+# passes `-EHsc` to every object, DAAL core included, unlike icx. Set it here
+# so the vc build does not depend on what rules_cc adds by default.
+_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor", "/EHsc"]
 
 def _get_msvc_compile_kwargs(toolchain, kwargs):
     if toolchain.compiler != "msvc-cl":

@@ -569,7 +569,11 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
         },
         copts = copts + select({
-            "@platforms//os:windows": ["/utf-8"],
+            # `-EHsc` mirrors `$(-EHsc)` on the oneAPI objects in makefile:708,
+            # 720 and 733. Make does not add it to DAAL core, threading or the
+            # examples, and those are not built through this macro. Tests are,
+            # so they keep exception handling for Catch2, which is not shipped.
+            "@platforms//os:windows": ["/utf-8", "-EHsc"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = local_defines + select({
