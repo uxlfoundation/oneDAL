@@ -148,8 +148,12 @@ def _generate_nuspec_impl(ctx):
     picks which one to stage on which OS.
     """
     vi = ctx.attr._version_info[VersionInfo]
+    # identify_os.sh gives mac32e on macOS, which prepare_dal_nuget.sh maps to
+    # osx-x64 / osx (its `elif` branch for mac32e).
     if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
         platform, tbb_platform = "win-x64", "win"
+    elif ctx.target_platform_has_constraint(ctx.attr._osx_constraint[platform_common.ConstraintValueInfo]):
+        platform, tbb_platform = "osx-x64", "osx"
     else:
         platform, tbb_platform = "linux", "linux"
     out = ctx.actions.declare_file("inteldal.{}.nuspec".format(ctx.attr.distr_type))
@@ -185,6 +189,9 @@ _generate_nuspec = rule(
         ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
+        ),
+        "_osx_constraint": attr.label(
+            default = "@platforms//os:osx",
         ),
     },
 )
