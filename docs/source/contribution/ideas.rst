@@ -90,24 +90,3 @@ a factorization of the precision from the Cholesky of the covariance, such as su
 and used for Mahalanobis distance calculations by adding a new method.
 
 `(Link to github issue for discussion) <https://github.com/uxlfoundation/oneDAL/issues/3067>`__
-
-SVD fallback from QR factorization (medium)
--------------------------------------------
-
-While scikit-learn-intelex uses the normal-equations method for linear regression, oneDAL also offers a QR-based
-algorithm, but this algorithm only works for inputs that have more rows than columns and no linear dependencies nor
-constant columns. It would be ideal to make this algorithm also support non-full-rank inputs by outputting the
-minimum-norm solution just like in the normal-equations method.
-
-In theory, the QR algorithm's result could be post-processed to discard columns with linear dependencies and end up
-with a solution where some coefficients are undefined (e.g. as done by the R software), but in order to match the
-behavior of the normal-equations method (i.e. produce the minimum-norm solution, rather than the minimum-rank solution),
-a better alternative could be to fall back to spectral decomposition done through singular value decomposition on the
-original matrix :math:`\mathbf{X}` instead, in order to retain the enhanced numerical accuracy that the QR method
-would have.
-
-The idea would be to implement a fallback mechanism that would first try out QR, and if that fails, then resort to
-SVD instead. Perhaps even the ``GELSD`` routine in LAPACK could be used directly. Note that QR will invariably fail when
-there are more columns than rows, so in such case it should go for SVD-based procedures directly.
-
-`(Link to github issue for discussion) <https://github.com/uxlfoundation/oneDAL/issues/3068>`__
