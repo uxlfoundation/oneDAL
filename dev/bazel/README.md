@@ -209,8 +209,12 @@ needs the wheels in `--repository_cache`.
 
 The GCC toolchain and `@openmp` (libgomp) are conda-forge packages pinned in
 `dev/bazel/deps/gcc.bzl`. Renovate bumps `_GCC_VERSION` there; the build strings
-and hashes then need `python3 dev/bazel/deps/relock_conda.py`, which CI checks
-with `--check`.
+and hashes are re-pinned by `python3 dev/bazel/deps/relock_conda.py`, which the
+`relock-conda` workflow runs on the Renovate branch and CI checks with `--check`.
+GitHub reads workflows from the pushed commit, so a GCC branch cut before this
+workflow landed does not relock until it merges `main`: merge `main` into the
+branch once (a rebase also works), then the next push runs the workflow.
+A new GCC major opens a PR only once approved on the Dependency Dashboard.
 
 These variables are watched, so setting, changing or unsetting one re-fetches
 the repository on the next Bazel command rather than on the next server

@@ -1,5 +1,6 @@
 {
   "extends": ["config:recommended", ":preserveSemverRanges"],
+  "labels": ["dependencies"],
   "pip_requirements": {
     "managerFilePatterns": [
       "/(^|/)docs/requirements.txt$/",
@@ -17,6 +18,12 @@
       "groupName": "Dockerfile",
       "schedule": ["before 2am on the first day of the month"],
       "matchFileNames": ["**/*.Dockerfile"]
+    },
+    {
+      "description": "A new GCC major changes the libstdc++ the release libraries need at run time; open its PR only when approved on the Dependency Dashboard",
+      "matchPackageNames": ["conda-forge/gcc_impl_linux-64"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
     },
     {
       "description": "Move the oneAPI toolchain for Make (apt, oneTBB source tag) and Bazel (PyPI wheels) in one PR; dev/bazel/deps/check_pins.py fails the PR when one side is missing",
@@ -42,7 +49,7 @@
   ],
   "customManagers": [
     {
-      "description": "Bazel GCC toolchain; the PR then needs python3 dev/bazel/deps/relock_conda.py",
+      "description": "Bazel GCC toolchain; the relock-conda workflow then re-pins the builds and hashes",
       "customType": "regex",
       "managerFilePatterns": ["/^dev\\/bazel\\/deps\\/gcc\\.bzl$/"],
       "matchStrings": ["_GCC_VERSION[ \\t]*=[ \\t]*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],

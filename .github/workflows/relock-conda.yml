@@ -1,0 +1,72 @@
+#===============================================================================
+# Copyright Contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Renovate bumps _GCC_VERSION in dev/bazel/deps/gcc.bzl but cannot compute the
+# conda build strings and hashes that go with it. This job runs relock_conda.py
+# on the Renovate branch and pushes the result as a second commit.
+#
+# Runs on pushes to branches of this repository only (Renovate creates its
+# branches here), never on fork code. After the commit Renovate treats the branch
+# as edited and stops rebasing it; tick its rebase box in the PR to start over,
+# and this job re-pins the new push.
+#
+# A push made with GITHUB_TOKEN starts no other workflow, so no GitHub check
+# runs on the re-pinned commit. Set the RELOCK_PUSH_TOKEN secret to a fine-grained
+# PAT with contents: write on this repository to get them; without it, close and
+# reopen the PR to start the checks. Use a PAT, not a GitHub App installation
+# token: those expire after one hour, and a non-empty secret is used instead of
+# GITHUB_TOKEN, so an expired one fails the push.
+name: relock-conda
+
+on:
+  push:
+    branches:
+      - renovate/conda-forge-gcc_impl_linux-64-*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  relock:
+    name: Re-pin the conda packages of gcc.bzl
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Re-pin
+        run: python3 dev/bazel/deps/relock_conda.py
+      - name: Push
+        env:
+          TOKEN: ${{ secrets.RELOCK_PUSH_TOKEN || github.token }}
+        run: |
+          if git diff --quiet; then
+            echo "gcc.bzl already re-pinned"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -s -am "build(bazel): re-pin the conda packages of gcc.bzl"
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
