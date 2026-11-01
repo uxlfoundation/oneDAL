@@ -219,6 +219,7 @@ def _cc_module_impl(ctx):
         cpus = ctx.attr._cpus[CpuInfo].enabled,
         cpu_defines = ctx.attr.cpu_defines,
         fpt_defines = ctx.attr.fpt_defines,
+        drop_mkl_ilp64 = ctx.attr.drop_mkl_ilp64,
         srcs = ctx.files.srcs,
         public_hdrs = ctx.files.hdrs,
         private_hdrs = ctx.files.private_hdrs,
@@ -280,6 +281,9 @@ _cc_module = rule(
         "hdrs": attr.label_list(allow_files=True),
         "private_hdrs": attr.label_list(allow_files=True),
         "export_hdrs": attr.bool(default=True),
+        # Set for DPC++ library modules (see dal.bzl `_dal_module`): their
+        # objects are compiled without MKL_ILP64, as Make's DPC objects are.
+        "drop_mkl_ilp64": attr.bool(default=False),
         "deps": attr.label_list(),
         "copts": attr.string_list(),
         "defines": attr.string_list(),
@@ -376,12 +380,38 @@ def _cc_static_lib_impl(ctx):
     )
     return [default_info, cc_info]
 
-cc_static_lib = rule(
+_STATIC_EXPORT_FREE_SETTING = str(Label("@config//:static_export_free"))
+
+def _static_export_free_transition_impl(settings, attr):
+    # On Windows a static archive must hold objects compiled as for a static
+    # build, without the DLL export defines (`__DAAL_IMPLEMENTATION`,
+    # `__ONEDAL_ENABLE_EXPORT__`). Otherwise every object carries
+    # `__declspec(dllexport)` and a `/EXPORT:` directive, which bloats the
+    # archive (e.g. onedal_core.lib). Make's static objects are built without
+    # these defines. The transition is applied only when `static_export_free`
+    # resolves to True,
+    # which the `cc_static_lib` macro sets for Windows targets. Everywhere else
+    # it returns the current value, so Linux configurations and their
+    # actions are unchanged and nothing is compiled twice.
+    if attr.static_export_free:
+        return {_STATIC_EXPORT_FREE_SETTING: True}
+    return {_STATIC_EXPORT_FREE_SETTING: settings[_STATIC_EXPORT_FREE_SETTING]}
+
+_static_export_free_transition = transition(
+    implementation = _static_export_free_transition_impl,
+    inputs = [_STATIC_EXPORT_FREE_SETTING],
+    outputs = [_STATIC_EXPORT_FREE_SETTING],
+)
+
+_cc_static_lib = rule(
     implementation = _cc_static_lib_impl,
     attrs = {
         "lib_name": attr.string(),
         "lib_tags": attr.string_list(),
-        "deps": attr.label_list(mandatory=True),
+        # Transitioned: the deps (and their own deps) are compiled export-free
+        # when `static_export_free` is set.
+        "deps": attr.label_list(mandatory=True, cfg=_static_export_free_transition),
+        "static_export_free": attr.bool(default=False),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
@@ -398,6 +428,18 @@ cc_static_lib = rule(
     fragments = ["cpp"],
 )
 
+
+def cc_static_lib(name, **kwargs):
+    # Windows static archives are built export-free (see the transition above);
+    # Linux archives are not, so Linux keeps exactly the configuration it had.
+    _cc_static_lib(
+        name = name,
+        static_export_free = select({
+            "@platforms//os:windows": True,
+            "//conditions:default": False,
+        }),
+        **kwargs
+    )
 
 def _copy_windows_release_file(ctx, src, out_name, extra_inputs = []):
     """Copy a linker output under the file name the release layout expects.

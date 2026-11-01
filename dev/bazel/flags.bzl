@@ -55,14 +55,12 @@ lnx_cc_flags = {
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    # C++ exception handling. The Makefile passes `-EHsc` for every oneAPI
-    # object on Windows (makefile:152, used at makefile:692/704/717); without
-    # it clang-cl defaults to exceptions disabled and any `throw` in
-    # cpp/oneapi/dal/detail/common.hpp is a hard error. This used to be
-    # supplied implicitly as a side effect of `-Qopenmp-simd` (which turns on
-    # -fexceptions in clang), so it only surfaced once that flag became
-    # release-runtime-only. Pass it explicitly instead of relying on that.
-    "-EHsc",
+    # No `-EHsc` here, on purpose. Make adds it only to the oneAPI objects
+    # (makefile:167, used at makefile:708/720/733) and compiles DAAL core and
+    # threading without it. `dal_module` (dev/bazel/dal.bzl) adds it for the
+    # oneAPI modules. The MSVC `vc` path is different: Make's COMPILER.win.vc
+    # has `-EHsc` on every object, which is handled in dev/bazel/cc/compile.bzl.
+    #
     # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
     # Windows too, so the released `.lib` files never reference `__svml_*`.
     # (`-Zl` itself, the other half of the makefile's variable, is deliberately
@@ -103,11 +101,8 @@ win_clang_common_flags = [
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
-    # C++ exception handling. The makefile adds `-EHsc` by `OS_is_win` alone,
-    # not by the compiler, so the clang-cl toolchain needs it as much as the icx
-    # one: without it clang-cl rejects every `throw` in
-    # cpp/oneapi/dal/detail/common.hpp.
-    "-EHsc",
+    # No `-EHsc` here, as for icx: Make's COMPILER.win.clang has none, and its
+    # oneAPI objects get it from makefile:167 (`dal_module` adds it).
     # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
     # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
     # config already emits `-MD`/`-MDd` from the `msvc_runtime_debug` feature

@@ -326,6 +326,9 @@ jobs:
       # separation, folded-target rejection, and the Windows unsupported value.
       dev/bazel/tests/parameters_layout_test.sh
 
+      # Analysis-only: the DPC++ library compiles LP64, the DPC MKL test helper keeps ILP64.
+      dev/bazel/tests/dpc_mkl_defines_test.sh
+
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
 

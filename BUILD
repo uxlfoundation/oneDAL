@@ -13,6 +13,7 @@ load("@onedal//dev/bazel/config:selects.bzl",
 load("@onedal//dev/bazel:scripts.bzl",
     "generate_cmake_config",
     "generate_modulefile",
+    "generate_nuspec",
     "generate_pkgconfig",
     "generate_vars_sh",
 )
@@ -77,19 +78,24 @@ generate_cmake_config(
     out = "lib/cmake/oneDAL/oneDALConfigVersion.cmake",
 )
 
-filegroup(
+# Expanded like deploy/nuget/prepare_dal_nuget.sh (makefile:1134). The Linux
+# or Windows file is chosen by the target platform.
+generate_nuspec(
     name = "release_nuspec_devel",
-    srcs = ["deploy/nuget/inteldal.nuspec.tpl"],
+    template = "deploy/nuget/inteldal.nuspec.tpl",
+    distr_type = "devel",
 )
 
-filegroup(
+generate_nuspec(
     name = "release_nuspec_redist",
-    srcs = ["deploy/nuget/inteldal.nuspec.tpl"],
+    template = "deploy/nuget/inteldal.nuspec.tpl",
+    distr_type = "redist",
 )
 
-filegroup(
+generate_nuspec(
     name = "release_nuspec_static",
-    srcs = ["deploy/nuget/inteldal.nuspec.tpl"],
+    template = "deploy/nuget/inteldal.nuspec.tpl",
+    distr_type = "static",
 )
 
 filegroup(

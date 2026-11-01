@@ -49,7 +49,10 @@ _MSVC_CPU_FLAGS = {
 
 # MSVC's traditional preprocessor expands __VA_ARGS__ as a single token, which breaks the
 # test engine's COMBINE_TYPES; icx and clang-cl conform without a switch.
-_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor"]
+# Make's COMPILER.win.vc (dev/make/compiler_definitions/vc.mkl.32e.mk:42)
+# passes `-EHsc` to every object, DAAL core included, unlike icx. Set it here
+# so the vc build does not depend on what rules_cc adds by default.
+_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor", "/EHsc"]
 
 def _get_msvc_compile_kwargs(toolchain, kwargs):
     if toolchain.compiler != "msvc-cl":
@@ -141,7 +144,7 @@ def _filter_out_includes(includes, filter):
     return filtered
 
 def _patch_includes(ctx, compilation_context, includes=[],
-                    system_includes=[], quote_includes=[]):
+                    system_includes=[], quote_includes=[], drop_defines=[]):
     system_includes = _normalize_includes(
         ctx,
         system_includes,
@@ -161,7 +164,8 @@ def _patch_includes(ctx, compilation_context, includes=[],
         includes = depset(includes),
         quote_includes = depset(quote_includes),
         framework_includes = compilation_context.framework_includes,
-        defines = compilation_context.defines,
+        defines = depset([d for d in compilation_context.defines.to_list()
+                          if d not in drop_defines]) if drop_defines else compilation_context.defines,
         local_defines = compilation_context.local_defines,
     )
 
@@ -292,7 +296,7 @@ def _configure_cpu_features(ctx, toolchain, cpus):
 def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
              cpus=[], fpts=[], cpu_defines={}, fpt_defines={},
              srcs=[], local_defines=[], includes=[], system_includes=[],
-             quote_includes=[], short_paths=False, **kwargs):
+             quote_includes=[], short_paths=False, drop_mkl_ilp64=False, **kwargs):
 
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
@@ -315,6 +319,13 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         includes = includes,
         system_includes = system_includes,
         quote_includes = quote_includes,
+        # @mkl//:mkl_static propagates MKL_ILP64 through the DAAL deps, but
+        # Make compiles DPC library objects with MKL_LP64 only
+        # (ONEAPI.objs_y.dpc). Only the DPC library modules ask for this
+        # (`drop_mkl_ilp64`); a DPC test that links the ILP64 archives itself
+        # keeps MKL_ILP64, or its MKL calls would use 32-bit integers against
+        # 64-bit symbols (see cpp/oneapi/dal/test/engine/mkl).
+        drop_defines = ["MKL_ILP64"] if drop_mkl_ilp64 else [],
     )
     dep_compilation_contexts = [ dep_compilation_context ]
 
