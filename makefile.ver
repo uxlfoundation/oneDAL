@@ -59,11 +59,13 @@ $(VERSION_DATA_FILE): | $(WORKDIR)/.
 	@bash -c 'echo "$$DAAL_VERSION_DATA"' > $@
 
 # update public headers in release directory with actual version data
+# (under make -j the recursive call from the header copy rule and the
+# _release_nuspec prerequisite can run this at once, so each run writes its own temp file)
 update_headers_version:
 	@relfile=$(RELEASEDIR.include)/services/library_version_info.h && \
 	workfile=$(CPPDIR.daal)/include/services/library_version_info.h && \
-	file=$$relfile && \
-	if [ -e "$$relfile" ]; then file=$$file.tmp; fi && mark="#define __INTEL_DAAL" && \
+	file=$$relfile.tmp.$$$$ && trap 'rm -f "$$file"' EXIT && trap 'exit 1' INT TERM && \
+	rm -f $$relfile.tmp && mark="#define __INTEL_DAAL" && \
         sed $(sed.-b) \
 		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
 		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
@@ -74,7 +76,7 @@ update_headers_version:
 		-e "s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" \
 	        $$workfile > $$file && \
 	if ! cmp -s $$file $$relfile; then \
-		mv $$file $$relfile; \
-	elif [ -e "$$relfile.tmp" ]; then \
-		rm $$relfile.tmp; \
+		mv -f $$file $$relfile; \
+	else \
+		rm -f $$file; \
 	fi
