@@ -9,7 +9,7 @@ docutils~=0.21.2
 defusedxml==0.7.1
 idna==3.19
 imagesize==2.0.1
-importlib-metadata==9.0.1
+importlib-metadata==10.1.0
 importlib-resources==7.1.0
 Jinja2==3.1.6
 lxml==6.1.2

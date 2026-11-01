@@ -23,6 +23,8 @@ on:
     paths:
       - 'conda-recipe/**'
       - '.github/workflows/ci-conda-recipe.yml'
+      - 'makefile'
+      - 'dev/make/**'
   push:
     branches:
       - main
@@ -30,9 +32,11 @@ on:
 permissions:
   contents: read
 
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   LinuxCondaRecipe:

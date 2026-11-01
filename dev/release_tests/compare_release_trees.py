@@ -732,9 +732,11 @@ def main():
         help=(
             "count undefined dynamic symbol differences as failures. Off by "
             "default: the two trees need not resolve the same third-party "
-            "packages, and in Azure they do not -- Make builds against apt "
-            "oneMKL 2026.1.0 while `@mkl` pins conda-forge mkl-static 2025.2.0, "
-            "and oneMKL is linked statically. Use it where both toolchain and "
+            "packages -- Make builds against apt oneMKL (.ci/env/apt.sh), "
+            "`@mkl` against the wheels pinned in "
+            "dev/bazel/deps/requirements_lock.txt, and oneMKL is linked "
+            "statically, so the two match only while both pins are on one "
+            "release. Use it where both toolchain and "
             "dependency versions are controlled (see "
             "compare_shared_library_linkage)"
         ),

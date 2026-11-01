@@ -1,7 +1,10 @@
 {
   "extends": ["config:recommended", ":preserveSemverRanges"],
   "pip_requirements": {
-    "managerFilePatterns": ["/(^|/)docs/requirements.txt$/"]
+    "managerFilePatterns": [
+      "/(^|/)docs/requirements.txt$/",
+      "/^dev\\/bazel\\/deps\\/requirements_lock\\.txt$/"
+    ]
   },
   "packageRules": [
     {
@@ -16,16 +19,36 @@
       "matchFileNames": ["**/*.Dockerfile"]
     },
     {
+      "description": "Move the oneAPI toolchain for Make (apt, oneTBB source tag) and Bazel (PyPI wheels) in one PR; dev/bazel/deps/check_pins.py fails the PR when one side is missing",
       "matchPackageNames": [
         "intel-oneapi-compiler-dpcpp-cpp",
         "intel-oneapi-mkl-devel",
-        "intel-oneapi-tbb-devel"
+        "intel-oneapi-tbb-devel",
+        "uxlfoundation/oneTBB",
+        "mkl",
+        "mkl-static",
+        "mkl-include",
+        "mkl-devel",
+        "onemkl-sycl-*",
+        "tbb",
+        "tbb-devel",
+        "onedpl-devel",
+        "impi-rt",
+        "impi-devel",
+        "oneccl"
       ],
-      "matchUpdateTypes": ["major", "minor"],
-      "groupName": "intel-oneapi-apt"
+      "groupName": "oneAPI"
     }
   ],
   "customManagers": [
+    {
+      "description": "Bazel GCC toolchain; the PR then needs python3 dev/bazel/deps/relock_conda.py",
+      "customType": "regex",
+      "managerFilePatterns": ["/^dev\\/bazel\\/deps\\/gcc\\.bzl$/"],
+      "matchStrings": ["_GCC_VERSION[ \\t]*=[ \\t]*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "conda-forge/gcc_impl_linux-64",
+      "datasourceTemplate": "conda"
+    },
     {
       "customType": "regex",
       "managerFilePatterns": ["/^\\.ci\\/env\\/editorconfig-checker\\.sh$/"],
