@@ -129,6 +129,75 @@ def generate_cmake_config(name, template, out, **kwargs):
     )
 
 # ---------------------------------------------------------------------------
+# NuGet nuspec
+# ---------------------------------------------------------------------------
+
+# Content summary per distribution type, as in deploy/nuget/prepare_dal_nuget.sh.
+_NUSPEC_CONTENT = {
+    "redist": "dynamic libraries and headers",
+    "devel": "dynamic and static libraries and headers",
+    "static": "static libraries and headers",
+}
+
+def _generate_nuspec_impl(ctx):
+    """Expand deploy/nuget/inteldal.nuspec.tpl as prepare_dal_nuget.sh does.
+
+    The script maps the Linux platform to `linux` (TBB `linux`) and the Windows
+    platform to `win-x64` (TBB `win`), then runs one `sed` over the template.
+    Both the Linux and the Windows file come from this rule; `release_extra_file`
+    picks which one to stage on which OS.
+    """
+    vi = ctx.attr._version_info[VersionInfo]
+    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+        platform, tbb_platform = "win-x64", "win"
+    else:
+        platform, tbb_platform = "linux", "linux"
+    out = ctx.actions.declare_file("inteldal.{}.nuspec".format(ctx.attr.distr_type))
+    ctx.actions.expand_template(
+        template = ctx.file.template,
+        output = out,
+        substitutions = {
+            "__DISTRTYPE__": ctx.attr.distr_type,
+            "__PLATFORM__": platform,
+            "__TBB_PLATFORM__": tbb_platform,
+            # prepare_dal_nuget.sh builds the version from the header's
+            # major, minor and update numbers.
+            "__VERSION__": "{}.{}.{}".format(vi.major, vi.minor, vi.update),
+            "__CONTENT__": _NUSPEC_CONTENT[ctx.attr.distr_type],
+        },
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+_generate_nuspec = rule(
+    implementation = _generate_nuspec_impl,
+    attrs = {
+        "template": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "distr_type": attr.string(
+            mandatory = True,
+            values = ["redist", "devel", "static"],
+        ),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
+    },
+)
+
+def generate_nuspec(name, template, distr_type, **kwargs):
+    _generate_nuspec(
+        name = name,
+        template = template,
+        distr_type = distr_type,
+        **kwargs
+    )
+
+# ---------------------------------------------------------------------------
 # pkg-config
 # ---------------------------------------------------------------------------
 
