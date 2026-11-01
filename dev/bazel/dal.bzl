@@ -572,11 +572,14 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "@platforms//os:windows": ["/utf-8"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
-        local_defines = local_defines + [
+        local_defines = local_defines + select({
             # Enable ONEDAL_EXPORT visibility annotations, matching Make's
             # -D__ONEDAL_ENABLE_EXPORT__ flag for cpp/oneapi/dal .so objects.
-            "__ONEDAL_ENABLE_EXPORT__",
-        ] + ([
+            # Export-free Windows static archives omit it, as Make's `objs_a`
+            # objects do (see `cc_static_lib`).
+            "@config//:static_export_free_enabled": [],
+            "//conditions:default": ["__ONEDAL_ENABLE_EXPORT__"],
+        }) + ([
             "ONEDAL_DATA_PARALLEL"
         ] if is_dpc else []) + select({
             "@config//:test_fp64_disabled": [
