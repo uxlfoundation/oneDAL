@@ -24,9 +24,11 @@
 # and this job re-pins the new push.
 #
 # A push made with GITHUB_TOKEN starts no other workflow, so no GitHub check
-# runs on the re-pinned commit. Set the RELOCK_PUSH_TOKEN secret (a GitHub App
-# token or fine-grained PAT with contents: write on this repository) to get
-# them; without it, close and reopen the PR to start the checks.
+# runs on the re-pinned commit. Set the RELOCK_PUSH_TOKEN secret to a fine-grained
+# PAT with contents: write on this repository to get them; without it, close and
+# reopen the PR to start the checks. Use a PAT, not a GitHub App installation
+# token: those expire after one hour, and a non-empty secret is used instead of
+# GITHUB_TOKEN, so an expired one fails the push.
 name: relock-conda
 
 on:
