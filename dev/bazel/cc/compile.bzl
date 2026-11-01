@@ -141,7 +141,7 @@ def _filter_out_includes(includes, filter):
     return filtered
 
 def _patch_includes(ctx, compilation_context, includes=[],
-                    system_includes=[], quote_includes=[]):
+                    system_includes=[], quote_includes=[], drop_defines=[]):
     system_includes = _normalize_includes(
         ctx,
         system_includes,
@@ -161,7 +161,8 @@ def _patch_includes(ctx, compilation_context, includes=[],
         includes = depset(includes),
         quote_includes = depset(quote_includes),
         framework_includes = compilation_context.framework_includes,
-        defines = compilation_context.defines,
+        defines = depset([d for d in compilation_context.defines.to_list()
+                          if d not in drop_defines]) if drop_defines else compilation_context.defines,
         local_defines = compilation_context.local_defines,
     )
 
@@ -315,6 +316,10 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         includes = includes,
         system_includes = system_includes,
         quote_includes = quote_includes,
+        # @mkl//:mkl_static propagates MKL_ILP64 through the DAAL deps, but
+        # Make compiles DPC objects with MKL_LP64 only (ONEAPI.objs_y.dpc).
+        drop_defines = ["MKL_ILP64"] if cc_common.is_enabled(
+            feature_configuration = feature_config, feature_name = "dpc++") else [],
     )
     dep_compilation_contexts = [ dep_compilation_context ]
 
