@@ -95,12 +95,29 @@ jobs:
         shell: pwsh
         run: .\.ci\env\cmake_ninja.ps1 -Arch ${{ matrix.os.arch }}
 
+      # openBLAS install is keyed on the build script and the runner. Saved only
+      # from main; pull request jobs restore it and never write the main scope.
+      - name: Restore OpenBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}\__deps\open_blas
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-vs-${{ env.VS_VER }}-${{ hashFiles('.ci/env/openblas.bat') }}
+
       - name: Build OpenBLAS
+        if: steps.cache-openblas.outputs.cache-hit != 'true'
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.os.arch }}
           set PATH=%ProgramFiles%\LLVM\bin;%PATH%
           .ci\env\openblas.bat
+
+      - name: Save OpenBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}\__deps\open_blas
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-vs-${{ env.VS_VER }}-${{ hashFiles('.ci/env/openblas.bat') }}
 
       - name: Build oneTBB
         shell: cmd
@@ -223,20 +240,41 @@ jobs:
       # through OPENBLASROOT / TBBROOT. Without them the repo rules now fail
       # outright instead of producing wrong-arch binaries (see
       # `_check_download_arch` in dev/bazel/repos.bzl).
+      # Build and export are split so a cache hit still exports OPENBLASROOT.
+      - name: Restore OpenBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}\__deps\open_blas
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-vs-${{ env.VS_VER }}-${{ hashFiles('.ci/env/openblas.bat') }}
+
       - name: Build OpenBLAS
+        if: steps.cache-openblas.outputs.cache-hit != 'true'
         shell: cmd
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
           if errorlevel 1 exit /b 1
           rem `CALL` is required: without it cmd transfers control to the child
-          rem script and never comes back, silently skipping the GITHUB_ENV write.
+          rem script and never comes back, silently skipping the GITHUB_ENV write
+          rem in the next step.
           CALL .ci\env\openblas.bat
           if errorlevel 1 exit /b 1
+
+      - name: Export OpenBLAS root
+        shell: cmd
+        run: |
           rem The static archive is what @openblas links (dev/bazel/deps/openblas.bzl);
           rem assert it here so a half-installed tree fails at this step instead of
           rem inside the repository rule.
           if not exist "%CD%\__deps\open_blas\lib\openblas.lib" exit /b 1
           echo OPENBLASROOT=%CD%\__deps\open_blas>> "%GITHUB_ENV%"
+
+      - name: Save OpenBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}\__deps\open_blas
+          key: openblas-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENBLAS_VERSION }}-llvm-${{ env.LLVM_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-ninja-${{ env.NINJA_VERSION }}-vs-${{ env.VS_VER }}-${{ hashFiles('.ci/env/openblas.bat') }}
 
       - name: Build oneTBB
         shell: cmd
