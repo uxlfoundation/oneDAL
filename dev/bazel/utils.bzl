@@ -90,8 +90,27 @@ def _info(msg):
 # Other functions
 # ===============
 
-def _datestamp(repo_ctx):
-    return repo_ctx.execute(["date", "+%Y%m%d"]).stdout.strip()
+# Build date of the library, `YYYYMMDD`. A release sets it with
+# `--repo_env=ONEDAL_BUILD_DATE=YYYYMMDD`; every other build keeps the
+# placeholder that the in-tree headers already carry. A date from the clock
+# would change once a day and re-key every object and test link that depends
+# on the version header (see `:version_info` in cpp/daal/BUILD).
+DEV_BUILD_DATE = "21990101"
+
+def _build_date(repo_ctx):
+    value = repo_ctx.os.environ.get("ONEDAL_BUILD_DATE")
+    if value == None:
+        # `--config=release-ship` sets ONEDAL_REQUIRE_BUILD_DATE so that a
+        # shipping build cannot pick up the placeholder by accident.
+        if repo_ctx.os.environ.get("ONEDAL_REQUIRE_BUILD_DATE"):
+            fail("ONEDAL_BUILD_DATE is unset, but ONEDAL_REQUIRE_BUILD_DATE (set by " +
+                 "--config=release-ship, or --repo_env directly) requires it: " +
+                 "pass --repo_env=ONEDAL_BUILD_DATE=YYYYMMDD, or drop the gate " +
+                 "for a dev or PR build (it keeps the {} placeholder).".format(DEV_BUILD_DATE))
+        return DEV_BUILD_DATE
+    if len(value) != 8 or not value.isdigit():
+        fail("ONEDAL_BUILD_DATE must be YYYYMMDD, got '{}'".format(value))
+    return value
 
 utils = struct(
     unique = _unique,
@@ -104,5 +123,5 @@ utils = struct(
     remove_substring = _remove_substring,
     warn = _warn,
     info = _info,
-    datestamp = _datestamp,
+    build_date = _build_date,
 )

@@ -209,7 +209,7 @@ jobs:
       - name: Bazel release
         run: |
           source /opt/intel/oneapi/setvars.sh
-          bazel build //:release --config=release-dpc --cpu=avx2
+          bazel build //:release --config=release-dpc --cpu=avx2 --repo_env=ONEDAL_BUILD_DATE=$(date +%Y%m%d) --repo_env=ONEDAL_REQUIRE_BUILD_DATE=1
       - name: Compare make and Bazel releases
         run: |
           source /opt/intel/oneapi/setvars.sh
@@ -297,7 +297,8 @@ jobs:
           set PATH=C:\msys64\usr\bin;%PATH%
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          bazel build //:release --config=release-dpc --cpu=avx2
+          for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "ONEDAL_BUILD_DATE=%%d"
+          bazel build //:release --config=release-dpc --cpu=avx2 --repo_env=ONEDAL_BUILD_DATE=%ONEDAL_BUILD_DATE% --repo_env=ONEDAL_REQUIRE_BUILD_DATE=1
       - name: Compare make and Bazel releases
         shell: cmd
         run: |

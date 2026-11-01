@@ -162,6 +162,20 @@ To build with clang and LLVM libc++, pass
 `--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
 linked against libstdc++, so it must be installed too.
 
+The library's build date (`LibraryVersionInfo::build`, `__INTEL_DAAL_BUILD_DATE`
+in the release header) is `21990101` unless the build sets
+`--repo_env=ONEDAL_BUILD_DATE=YYYYMMDD`, which the nightly release builds in
+`nightly-test.yml` pass. Leaving it at the placeholder keeps dev and test links
+cacheable from one day to the next. Set the variable for every step of a job or for
+none: a job whose steps disagree re-keys the config between them and relinks.
+
+Shipping builds set the gate `ONEDAL_REQUIRE_BUILD_DATE=1` (repo env), either directly or
+through `--config=release-ship`, which the nightly builds do not use: a `workflow_run`
+checks out an older head, and older `.bazelrc` files have no such config. With the gate, a
+build without `ONEDAL_BUILD_DATE` fails at the config repository instead of stamping the
+placeholder into the artifact. Release-only PR CI steps keep `--config=release-dpc`
+without the gate, so they still build with the placeholder.
+
 On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
@@ -408,6 +422,14 @@ The most used Bazel commands are `build`, `test` and `run`.
   bazel build //:release
   ```
   This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries when `icpx` is in `PATH`.
+
+  A release that is meant to ship also sets the build date and the gate, so it cannot carry the `21990101` placeholder:
+  ```sh
+  bazel build //:release --config=release-ship --repo_env=ONEDAL_BUILD_DATE=YYYYMMDD
+  # the same gate without the config, for checkouts that predate release-ship:
+  bazel build //:release --repo_env=ONEDAL_BUILD_DATE=YYYYMMDD --repo_env=ONEDAL_REQUIRE_BUILD_DATE=1
+  ```
+  Without the date, the second form fails at the config repository; without the gate, the build stamps `21990101`.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
