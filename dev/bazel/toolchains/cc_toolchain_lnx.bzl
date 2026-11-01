@@ -159,7 +159,9 @@ def _get_gcc_toolchain_path(repo_ctx, cc):
     return str(gcc.dirname.dirname.realpath) if gcc else None
 
 def _add_gcc_toolchain_if_needed(repo_ctx, cc):
-    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if ("clang" in cc) or ("icpx" in cc) else None
+    # Pin icx to the same gcc as icpx (the one on PATH), as Make does. Without it, icx's cc
+    # actions fall back to icx's default gcc lookup, which can be a different install.
+    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if ("clang" in cc) or ("icx" in cc) or ("icpx" in cc) else None
     if gcc_toolchain:
         return ["--gcc-toolchain=" + gcc_toolchain]
     else:
