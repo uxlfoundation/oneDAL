@@ -247,6 +247,36 @@ jobs:
           source .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
 
+      # Bazel disk cache kept in the Actions cache. Only pushes to main save it;
+      # pull requests restore main's copy and never write, so a PR cannot plant
+      # entries that a later run reads. The GC flags cap each leg at 2 GB (the
+      # repository shares one 10 GB Actions cache).
+      # The key carries a toolchain fingerprint: Bazel does not track the host
+      # compiler binary, so a runner image that updates GCC at the same path
+      # would otherwise reuse outputs built by the previous compiler.
+      - name: Configure the Bazel disk cache
+        id: bazel-disk
+        run: |
+          echo "build --disk_cache=${{ runner.temp }}/bazel-disk --experimental_disk_cache_gc_max_size=400M --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          echo "common --repository_cache=${{ runner.temp }}/bazel-repo" >> ~/.bazelrc
+          fingerprint=$({ gcc -v; ld --version; ldd --version; } 2>&1 | sha256sum | cut -c1-16)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Bazel disk cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-aarch64-${{ matrix.rng }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+          restore-keys: bazel-disk-aarch64-${{ matrix.rng }}-${{ steps.bazel-disk.outputs.fingerprint }}-
+      # Downloads pinned by these files (MKL, TBB, compilers, ...). The key holds their
+      # hash, so it changes only with them; the disk cache key changes with every commit.
+      - name: Restore the Bazel repository cache
+        id: repo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-repo
+          key: bazel-repo-linux-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
       - name: Checkout oneTBB
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -376,6 +406,68 @@ jobs:
           grep -qx 'libdir=${exec_prefix}/lib/arm' \
             bazel-bin/lib/pkgconfig/dal-dynamic-threading-host.pc
           grep -q 'lib/arm' bazel-bin/lib/cmake/oneDAL/oneDALConfig.cmake
+
+      # `shutdown` waits for the disk cache GC, so the saved copy is under the cap.
+      - name: Trim the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          bazel shutdown
+          du -sh "${{ runner.temp }}/bazel-disk"
+
+      - name: Save the Bazel disk cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-disk
+          key: bazel-disk-aarch64-${{ matrix.rng }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
+      - name: Save the Bazel repository cache
+        # Only pushes to main write, and only when this hash has no entry yet.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.repo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/bazel-repo
+          key: bazel-repo-linux-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
+  # Every save on main adds an entry, since its key holds the commit SHA, and
+  # the repository's 10 GB cache quota is shared. Keep only the newest entry per
+  # RNG. This runs as its own job so that only it holds `actions: write`; the
+  # build legs, which also run PR code, keep read-only permissions.
+  # `!cancelled()` rather than the default `success()`: when one RNG leg fails
+  # on main, the other leg's save still needs pruning. Keeping the newest entry
+  # per RNG stays safe either way.
+  prune-bazel-disk-cache:
+    needs: bazel-build-and-test
+    if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    strategy:
+      matrix:
+        rng: [ ref, openrng ]
+    steps:
+      # gh resolves the repository from the working directory when GH_REPO is
+      # unset, and this job has no checkout, so set it. `pipefail` makes a
+      # failed list fail the step rather than silently prune nothing.
+      - name: Delete older Bazel disk caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -o pipefail
+          gh cache list --key "bazel-disk-aarch64-${{ matrix.rng }}-" --ref refs/heads/main --limit 1000 \
+            --json id,createdAt --jq 'sort_by(.createdAt) | reverse | .[1:] | .[].id' \
+            | while read -r id; do gh cache delete "$id"; done
+      # One repository entry per arch and hash. Both RNG legs share it, so only one deletes.
+      - name: Delete older Bazel repository caches
+        if: matrix.rng == 'ref'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eo pipefail
+          gh cache list --key bazel-repo-linux-arm64- --ref refs/heads/main --limit 1000 \
+            --json id,createdAt --jq 'sort_by(.createdAt) | reverse | .[1:] | .[].id' \
+            | while read -r id; do gh cache delete "$id"; done
 
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
