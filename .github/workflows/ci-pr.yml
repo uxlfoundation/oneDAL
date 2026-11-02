@@ -1,0 +1,94 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: PR CI
+
+# Pull request CI. The label check and LinuxBazelNoCompiler run first, and the
+# test workflows start only after both pass, so a change that does not build
+# does not hold the other runners. Pushes to main start ci.yml, ci-win.yml and
+# ci-aarch64.yml directly, without the gate.
+
+on:
+  pull_request:
+    # ready_for_review starts the jobs a draft skipped; labeled and unlabeled
+    # rerun the gate, since the label check is part of it.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches:
+      - main
+    # Skip PR builds for changes that cannot affect the library build or tests.
+    # Pushes to main are not filtered.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'dev/agent_evals/**'
+      - 'conda-recipe/**'
+      - 'third-party-programs.txt'
+      - '.ci/pipeline/docs.yml'
+      - '.github/CODEOWNERS'
+      - '.github/renovate.json'
+      - '.github/.licenserc.yaml'
+      - '.github/.mergify.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/instructions/**'
+      - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-nightly.yml'
+      - '.github/workflows/docs-release.yml'
+      - '.github/workflows/nightly-build.yml'
+      - '.github/workflows/nightly-test.yml'
+      - '.github/workflows/openssf-scorecard.yml'
+      - '.github/workflows/pr-checklist.yml'
+      - '.github/workflows/renovate-validation.yml'
+      - '.github/workflows/skywalking-eyes.yml'
+      - '.github/workflows/slack-pr-notification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  labels:
+    name: Labels
+    uses: ./.github/workflows/label-enforcement.yml
+
+  gate:
+    name: Gate
+    uses: ./.github/workflows/ci.yml
+    with:
+      part: gate
+
+  linux:
+    name: Linux
+    needs: [labels, gate]
+    uses: ./.github/workflows/ci.yml
+    with:
+      part: tests
+
+  windows:
+    name: Windows
+    needs: [labels, gate]
+    uses: ./.github/workflows/ci-win.yml
+
+  aarch64:
+    name: AArch64
+    needs: [labels, gate]
+    # A called workflow may not ask for more than its caller grants.
+    permissions: read-all
+    uses: ./.github/workflows/ci-aarch64.yml
