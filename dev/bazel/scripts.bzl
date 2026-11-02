@@ -157,7 +157,8 @@ def _generate_nuspec_impl(ctx):
         platform = "win-arm64" if _has(ctx.attr._aarch64_constraint) else "win-x64"
         tbb_platform = "win"
     elif _has(ctx.attr._osx_constraint):
-        # identify_os.sh gives mac32e on macOS (osx-x64 / osx in the script).
+        # identify_os.sh gives mac32e on every macOS (osx-x64 / osx in the
+        # script); Make has no macOS ARM64 platform.
         platform, tbb_platform = "osx-x64", "osx"
     elif _has(ctx.attr._aarch64_constraint):
         platform, tbb_platform = "linux-arm64", "linux"

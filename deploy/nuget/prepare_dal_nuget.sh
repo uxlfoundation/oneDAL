@@ -94,8 +94,8 @@ create_package() {
         platform=win-arm64
         tbb_platform=win
         rls_prefix=${rls_dir}/daal/latest
-        dynamic_lib_path=redist/arm
-        static_lib_path=lib/arm
+        dynamic_lib_path=redist/ARM64
+        static_lib_path=lib/ARM64
         lib_prefix=onedal
     else
         echo "Unknown platform ${platform}"
