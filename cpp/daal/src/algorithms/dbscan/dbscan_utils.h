@@ -459,28 +459,11 @@ public:
 
     services::Status query(size_t * indices, size_t n, Neighborhood<FPType, cpu> * neighs, bool doReset = false)
     {
-        // Each distance is in the same form as the matching `queryFull` engine, so both paths share `poweredEpsilon`.
-        switch (_metric)
-        {
-        case PairwiseDistanceType::euclidean: return queryImpl(distancePow2<FPType, cpu>, indices, n, neighs, doReset);
-        case PairwiseDistanceType::manhattan:
-        case PairwiseDistanceType::minkowski:
-        {
-            const double p = (_metric == PairwiseDistanceType::manhattan) ? 1.0 : (double)_p;
-            const MinkowskiDistances<FPType, cpu> metric(*_inTable, *_outTable, true, p);
-            return queryImpl([&](const FPType * a, const FPType * b, size_t dim) { return metric.computeDistance(a, b, dim); }, indices, n, neighs,
-                             doReset);
-        }
-        case PairwiseDistanceType::chebyshev:
-        {
-            const ChebyshevDistances<FPType, cpu> metric(*_inTable, *_outTable);
-            return queryImpl([&](const FPType * a, const FPType * b, size_t dim) { return metric.computeDistance(a, b, dim); }, indices, n, neighs,
-                             doReset);
-        }
-        case PairwiseDistanceType::cosine: return queryImpl(ZeroRowCosineDistances<FPType, cpu>::computeDistance, indices, n, neighs, doReset);
-        }
-
-        return services::Status(services::ErrorMethodNotSupported);
+        // The same engine as `queryFull`, so both paths share `poweredEpsilon`.
+        services::SharedPtr<PairwiseDistances<FPType, cpu> > metric(createPairwiseDistances<FPType, cpu>(*_inTable, *_outTable, _metric, (double)_p));
+        DAAL_CHECK_MALLOC(metric.get());
+        return queryImpl([&](const FPType * a, const FPType * b, size_t dim) { return metric->computeDistance(a, b, dim); }, indices, n, neighs,
+                         doReset);
     }
 
 private:
