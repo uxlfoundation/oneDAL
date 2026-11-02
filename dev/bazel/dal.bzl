@@ -151,6 +151,13 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
                     dpc_deps=[], dpc_host_deps=[], extra_deps=[], lib_tags=["dal"],
                     dpc_lib_tags=None, dpc_linkopts=[], features=[], **kwargs):
+    # Every oneAPI DLL carries the version resource of onedal_dll.rc (dll.res,
+    # makefile:870, 874).
+    kwargs.setdefault("rc_file", "@onedal//cpp/oneapi/dal:onedal_dll.rc")
+    kwargs.setdefault("rc_headers", [
+        "@onedal//cpp/daal:src/services/daal_version.h",
+        "@onedal//cpp/daal:version",
+    ])
     cc_dynamic_lib(
         name = name,
         lib_name = lib_name,
@@ -162,6 +169,8 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
     # options on LOPT of those targets (e.g. makefile:821, 851).
     dpc_kwargs = dict(kwargs)
     dpc_kwargs["linkopts"] = kwargs.get("linkopts", []) + dpc_linkopts
+    # The DPC DLLs name themselves onedal_dpc in their resource (makefile:875).
+    dpc_kwargs["rc_defines"] = kwargs.get("rc_defines", []) + ["ONEDAL_DLL_RC_DATA_PARALLEL"]
     cc_dynamic_lib(
         name = name + "_dpc",
         features = features + [ "dpc++" ],

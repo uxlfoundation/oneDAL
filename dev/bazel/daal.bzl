@@ -123,6 +123,12 @@ _MKL_EXCLUDE_LIBS_FLAGS = select({
 
 def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
     linkopts = kwargs.pop("linkopts", [])
+    # Core and threading DLLs share services/dll.rc (makefile:586, 918).
+    kwargs.setdefault("rc_file", "@onedal//cpp/daal:src/services/dll.rc")
+    kwargs.setdefault("rc_headers", [
+        "@onedal//cpp/daal:src/services/daal_version.h",
+        "@onedal//cpp/daal:version",
+    ])
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,

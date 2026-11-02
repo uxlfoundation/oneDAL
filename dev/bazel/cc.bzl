@@ -477,6 +477,34 @@ def _copy_windows_release_file(ctx, src, out_name, extra_inputs = []):
     return out
 
 
+def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, out_name):
+    """Compile a Windows resource script the way Make does (`RC.COMPILE`, common.mk:83).
+
+    clang uses `llvm-rc`; icx and MSVC use `rc.exe`, both from PATH like the
+    other Windows tools here. The directory of each header in `rc_headers` is
+    an include path, so `daal_version.h` and the generated `daal_version_gen.h`
+    resolve without listing them.
+    """
+    out = ctx.actions.declare_file(out_name)
+    rc_tool = "llvm-rc" if cc_toolchain.compiler.split("-")[0] == "clang" else "rc.exe"
+    include_dirs = []
+    for header in rc_headers:
+        if header.dirname not in include_dirs:
+            include_dirs.append(header.dirname)
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [rc_file] + rc_headers,
+        outputs = [out],
+        arguments = ["/d", "/c", rc_tool] +
+                    ["-D" + define for define in defines] +
+                    ["-I" + d.replace("/", "\\") for d in include_dirs] +
+                    ["-fo" + out.path.replace("/", "\\"), rc_file.path.replace("/", "\\")],
+        use_default_shell_env = True,
+        mnemonic = "WindowsResource",
+        progress_message = "Compiling resource script %s" % rc_file.short_path,
+    )
+    return out
+
 def _cc_dynamic_lib_impl(ctx):
     is_windows = _is_windows(ctx)
     _validate_build_parameters_lib(ctx, is_windows)
@@ -519,6 +547,19 @@ def _cc_dynamic_lib_impl(ctx):
         "-Wl,--version-script,{}".format(script.path)
         for script in ctx.files.linker_scripts
     ]
+    # Make links the version resource into every Windows DLL (dll.res,
+    # makefile:586, 870, 874). It is only linked into this DLL, not handed on
+    # to dependents, so it stays out of the returned linking context.
+    res_files = []
+    if is_windows and ctx.file.rc_file:
+        res_files.append(_compile_windows_resource(
+            ctx,
+            toolchain,
+            ctx.file.rc_file,
+            ctx.files.rc_headers,
+            ctx.attr.rc_defines,
+            rt_name + ".res",
+        ))
     linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = link_name,
@@ -527,9 +568,9 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags,
+        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
         is_windows = is_windows,
-        additional_inputs = ctx.files.linker_scripts,
+        additional_inputs = ctx.files.linker_scripts + res_files,
         dll_to_implib_tool = ctx.file._dll_to_implib if is_windows else None,
     )
     default_files = dynamic_outputs.files
@@ -573,6 +614,15 @@ cc_dynamic_lib = rule(
             doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
         ),
         "linker_scripts": attr.label_list(allow_files=True),
+        "rc_file": attr.label(
+            allow_single_file = [".rc"],
+            doc = "Windows resource script for the version resource (Make's dll.rc).",
+        ),
+        "rc_headers": attr.label_list(
+            allow_files = True,
+            doc = "Headers that `rc_file` includes; their directories are include paths.",
+        ),
+        "rc_defines": attr.string_list(),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),

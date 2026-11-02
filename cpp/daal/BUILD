@@ -354,6 +354,8 @@ daal_dynamic_lib(
     name = "thread_dynamic",
     lib_name = "onedal_thread",
     linker_scripts = [":thread_dynamic.lds"],
+    # Make's dll_tbb.res (makefile:919).
+    rc_defines = ["_DAAL_THR_TBB"],
     deps = [
         ":threading_tbb",
     ],
