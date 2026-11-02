@@ -22,14 +22,6 @@ config_setting(
     constraint_values = ["@platforms//os:windows"],
 )
 
-config_setting(
-    name = "release_dpc_windows",
-    constraint_values = ["@platforms//os:windows"],
-    flag_values = {
-        "@config//:release_dpc": "True",
-    },
-)
-
 generate_vars_sh(
     name = "release_vars_sh",
     out = "env/vars.sh",
@@ -172,9 +164,6 @@ release(
         "@onedal//cpp/oneapi/dal:static_parameters",
         "@onedal//cpp/oneapi/dal:dynamic_parameters",
     ]) + select({
-        ":release_dpc_windows": [
-            "@onedal//cpp/oneapi/dal:dynamic_dpc",
-        ],
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],

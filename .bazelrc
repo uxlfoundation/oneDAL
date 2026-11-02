@@ -37,11 +37,9 @@ test --test_env=FI_PROVIDER_PATH
 # the required environment variable to tests for compatibility:
 test --test_env=LD_LIBRARY_PATH
 
-# Forward MSVC tooling env into Bazel-spawned build actions on Windows.
-# `dll_to_implib.bat` (release.bzl) and other actions that need
-# dumpbin/lib look up VCTOOLSINSTALLDIR to add the MSVC HostX64\x64
-# bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
-# actions that go through cmd-style helpers.
+# Forward the MSVC tooling env into Bazel-spawned build actions on Windows:
+# INCLUDE and LIB for the compile and link actions, PATH for the `cmd.exe`
+# copies of the release rule and the DPC++ link launcher.
 #
 # Windows only: every `--action_env` value is part of every action key. Linux
 # actions do not take PATH from the shell, so the action keys do not depend on
@@ -49,7 +47,6 @@ test --test_env=LD_LIBRARY_PATH
 # image) and caches are shared between machines. `build:windows` is applied
 # automatically through --enable_platform_specific_config.
 common --enable_platform_specific_config
-build:windows --action_env=VCTOOLSINSTALLDIR
 build:windows --action_env=INCLUDE
 build:windows --action_env=LIB
 build:windows --action_env=PATH
@@ -186,14 +183,12 @@ build:dev \
 # Configuration: 'mdd'
 # Link against the debug MSVC runtime (`-MDd`) and the `_debug` TBB variants.
 # All libraries get a `d` suffix — `onedal_cored.lib`, `onedal_cored.4.dll` —
-# so an MD and an MDd build can share one release tree.
-# Sets both the toolchain feature (which selects `-MDd`) and the build setting
-# (which `select()`s on dependencies read); they must stay in sync.
+# so an MD and an MDd build can share one release tree. The toolchain, the
+# library names and the dependency `select()`s all read this one setting.
 #   bazel build //:release --config=mdd
 #   bazel build //:release --config=mdd --config=dbg   # MDd + debug info
 # Default (no --config=mdd) is the release runtime, `-MD`, unsuffixed names.
 build:mdd \
-    --features=msvc_runtime_debug \
     --msvc_runtime=debug
 
 # To build BOTH runtimes into a single release tree in one command, use the

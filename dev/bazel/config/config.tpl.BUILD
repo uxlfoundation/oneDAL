@@ -76,10 +76,9 @@ config_setting(
 # `MSVC_RUNTIME_VERSION`. Deliberately independent of `--compilation_mode`
 # (Make `REQDBG`): the CRT flavour changes the library file names and the
 # `msvcrt`/`tbb` variants that get linked, while REQDBG only adds debug
-# info and assertions. Ignored on non-Windows platforms.
-#
-# Keep in sync with the `msvc_runtime_debug` toolchain feature — use
-# `--config=mdd` (see .bazelrc), which sets both.
+# info and assertions. Ignored on non-Windows platforms. The Windows
+# toolchain config enables its `msvc_runtime_debug` feature from this
+# setting (`--config=mdd` in .bazelrc).
 config_flag(
     name = "msvc_runtime",
     build_setting_default = "release",

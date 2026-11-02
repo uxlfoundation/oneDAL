@@ -77,6 +77,36 @@ lto_index_actions = [
     ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
 ]
 
+def _compiler_tools(cc_path, dpcc_path):
+    """Describe the host and DPC++ drivers an action can run.
+
+    Args:
+        cc_path: path to the host compiler driver.
+        dpcc_path: path to the DPC++ compiler driver; empty when none was found.
+
+    Returns:
+        The `tool` list. The DPC++ driver serves the actions of targets with
+        the `dpc++` feature, the host driver every other one. Without a DPC++
+        driver the host driver stands in, so that a header-only `cc_library`
+        with the feature (`@ccl//:headers`) still resolves the `$(CC)` make
+        variable; `_init_cc_rule` in `dev/bazel/cc.bzl` refuses to compile
+        DPC++ sources with it through the `has_dpc_compiler` feature.
+    """
+    return [
+        tool(
+            path = cc_path,
+            with_features = [with_feature_set(not_features = ["dpc++"])],
+        ),
+        tool(
+            path = dpcc_path or cc_path,
+            with_features = [with_feature_set(features = ["dpc++"])],
+        ),
+    ]
+
+def _has_dpc_compiler_feature(dpcc_path):
+    """Record whether the toolchain was configured with a DPC++ compiler."""
+    return feature(name = "has_dpc_compiler", enabled = bool(dpcc_path))
+
 def _cpp_link_static_library_action(ar_path):
     """Describe the static library archiving action.
 
@@ -325,6 +355,8 @@ COMMON_ATTRS = {
 }
 
 common = struct(
+    compiler_tools = _compiler_tools,
+    has_dpc_compiler_feature = _has_dpc_compiler_feature,
     cpp_link_static_library_action = _cpp_link_static_library_action,
     supports_dynamic_linker_feature = _supports_dynamic_linker_feature,
     do_not_link_dynamic_dependencies_feature =

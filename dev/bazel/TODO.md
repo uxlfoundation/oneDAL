@@ -32,6 +32,15 @@
   detects the highest instruction set available on the host and adds the `sse2`
   baseline.
 
+- [x] **Import libraries, CRLF staging and missing tools without scripts.** The
+  Windows toolchain config enables `targets_windows` and
+  `supports_interface_shared_libraries`, so `cc_common.link()` declares the
+  import library and passes `/IMPLIB:`; the release rule converts line endings
+  with `expand_template`; a toolchain configured without `icpx` registers no
+  DPC++ tool and `dev/bazel/cc.bzl` reports that during analysis. The MSVC
+  runtime is one setting, `--msvc_runtime`, read by the toolchain config as
+  well as by the library names and the dependency `select()`s.
+
 ### TODO:
 
 - [ ] **Extend compiler support matrix.** Current status:
@@ -65,21 +74,13 @@
   when the compiler behind that path changes. Registering a downloaded toolchain
   would fix both.
 
-- [ ] **Remove the remaining helper scripts.** Four are left, and each waits on
-  something Bazel or rules_cc does not expose:
-  - `toolchains/tools/dll_to_implib.bat` — `cc_common.link()` does not register
-    `supports_interface_shared_libraries` for this toolchain config and cannot
-    declare `-IMPLIB:`'s side-effect file as an output, so the import library is
-    derived from `dumpbin` output after the link.
-  - `toolchains/tools/copy_crlf.bat` — the release tree needs CRLF text files
-    and no Bazel action rewrites line endings.
-  - `toolchains/tools/dpc_link_win.ps1` and its `.tpl.bat` launcher — keeps the
-    Intel driver in DPC++ link actions while spilling long object lists into a
-    response file, which the driver needs and Bazel's own param-file support
-    does not provide for a wrapped tool.
-  - `toolchains/tools/tool_not_found.tpl.sh` and `.tpl.bat` — stand in for an
-    optional tool that is not installed, today only the DPC++ compiler, and
-    fail the action that reaches them. The failure belongs in analysis instead:
-    `@config` already knows whether DPC++ was found, so a DPC++ target could
-    `select()` onto an error target the way `daal_module` does for `--stdalloc`
-    on non-Linux.
+- [ ] **Remove the last helper script.** `toolchains/tools/dpc_link_win.ps1`
+  and its `.tpl.bat` launcher keep the Intel driver in DPC++ link actions while
+  moving the object list into a response file of their own: the driver flattens
+  every argument into one line of the response file it hands to MSVC `link`,
+  which rejects lines over 131071 characters (LNK1170). DLL links no longer
+  need it, since `dev/bazel/cc/link.bzl` archives their objects into
+  `<name>_objects.lib` first; DPC++ executables still pass their objects
+  directly. Two script-free options, both needing a Windows DPC++ run to
+  validate: archive the objects of executables the same way, or link through
+  `lld-link` (`-fuse-ld=lld`), which has no line limit.

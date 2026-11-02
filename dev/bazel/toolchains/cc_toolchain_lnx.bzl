@@ -48,18 +48,13 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
         tool_path = repo_ctx.path(tool_name) if repo_ctx.path(tool_name).exists else None
     else:
         tool_path = repo_ctx.which(tool_name)
-    is_found = tool_path != None
-    if not is_found:
+    if tool_path == None:
         if mandatory:
             auto_configure_fail("Cannot find {}; try to correct your $PATH".format(tool_name))
-        else:
-            repo_ctx.template(
-                "tool_not_found.sh",
-                Label("@onedal//dev/bazel/toolchains/tools:tool_not_found.tpl.sh"),
-                {"%{tool_name}": tool_name},
-            )
-            tool_path = repo_ctx.path("tool_not_found.sh")
-    return str(tool_path), is_found
+        # The toolchain config registers no tool for the actions of a missing
+        # optional tool, so a target that needs it fails during analysis.
+        return "", False
+    return str(tool_path), True
 
 def find_tool(repo_ctx, tool_name, mandatory = False):
     return _find_tool(repo_ctx, tool_name, mandatory)
@@ -101,7 +96,23 @@ def _find_tools(repo_ctx, reqs):
     )
 
 def _preapre_builtin_include_directory_paths(repo_ctx, tools):
-    required_tmp_includes = get_tmp_dpcpp_inc_directories(repo_ctx, tools) if tools.is_dpc_found else []
+    dpcc_include_directories = (
+        get_cxx_inc_directories(
+            repo_ctx,
+            tools.dpcc,
+            "-xc++",
+            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc),
+        ) +
+        get_cxx_inc_directories(
+            repo_ctx,
+            tools.dpcc,
+            "-xc++",
+            get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc) +
+            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
+            _add_sycl_linkage(repo_ctx, tools.dpcc),
+        ) +
+        get_tmp_dpcpp_inc_directories(repo_ctx, tools)
+    ) if tools.is_dpc_found else []
 
     # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++.
     cc_flags = _add_gcc_toolchain_if_needed(repo_ctx, tools.cc)
@@ -118,21 +129,7 @@ def _preapre_builtin_include_directory_paths(repo_ctx, tools):
             get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags + libcxx_flags) +
             get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags + libcxx_flags) if libcxx_flags else []
         ) +
-        get_cxx_inc_directories(
-            repo_ctx,
-            tools.dpcc,
-            "-xc++",
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc),
-        ) +
-        get_cxx_inc_directories(
-            repo_ctx,
-            tools.dpcc,
-            "-xc++",
-            get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc) +
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
-            _add_sycl_linkage(repo_ctx, tools.dpcc) if tools.is_dpc_found else [],
-        ) +
-        required_tmp_includes,
+        dpcc_include_directories,
     )
     write_builtin_include_directory_paths(repo_ctx, tools.cc, builtin_include_directories)
     return builtin_include_directories
@@ -208,7 +205,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # overrides GCC's configured target linker (for example riscv64-linux-gnu-ld).
     cross_compiling = get_cross_tool_prefix(repo_ctx) != ""
     bin_search_flag_cc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.cc)
-    bin_search_flag_dpcc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.dpcc)
+    bin_search_flag_dpcc = [] if cross_compiling or not tools.is_dpc_found else _get_bin_search_flag(repo_ctx, tools.dpcc)
 
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
