@@ -286,10 +286,12 @@ public:
             return;
         }
         if (!_isValid) return;
-        const size_t size                = static_cast<size_t>(_nRows) * _nRows;
+        const size_t size                = static_cast<size_t>(_nRows) * _nRows * sizeof(algorithmFPType);
         const algorithmFPType * otherXXt = other->_xxt;
-        PRAGMA_OMP_SIMD
-        for (size_t i = 0; i < size; ++i) _xxt[i] += otherXXt[i];
+        if (!daal::services::internal::daal_memcpy_s(_xxt, size, otherXXt, size))
+        {
+            _isValid = false;
+        }
     }
 
 private:
@@ -519,7 +521,23 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
         BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &incOne, &nResponses, &nFeatures, &negOne, xMean, &incOne, beta + 1, &nBetas, &one, yMean,
                                               &incOne);
     }
-    for (DAAL_INT j = 0; j < nResponses; ++j) beta[j * nBetas] = interceptFlag ? yMean[j] : zero;
+
+    if (nResponses == 1)
+    {
+        beta[0] = interceptFlag ? yMean[0] : zero;
+    }
+    else
+    {
+        if (interceptFlag)
+        {
+            BlasInst<algorithmFPType, cpu>::xomatcopy("R", "N", &nRows, &incOne, &one, yMean, &incOne, beta, &nBetas);
+        }
+        else
+        {
+            for (DAAL_INT j = 0; j < nResponses; ++j) beta[j * nBetas] = zero;
+        }
+    }
+
     return st;
 }
 
