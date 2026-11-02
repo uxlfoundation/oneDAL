@@ -33,7 +33,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/algorithms/service_kernel_math.h"
-#include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/algorithms/service_error_handling.h"
 
 using namespace daal::internal;
@@ -409,55 +408,6 @@ inline FPType poweredEpsilon(PairwiseDistanceType metric, FPType eps, FPType p)
     }
 }
 
-/// Cosine distance of two rows for the memory-saving search; a zero row is at distance 1 from
-/// every other row, as in scikit-learn.
-template <typename FPType, CpuType cpu>
-FPType cosinePointDist(const FPType * a, const FPType * b, size_t dim)
-{
-    FPType dot = FPType(0);
-    FPType aa  = FPType(0);
-    FPType bb  = FPType(0);
-    PRAGMA_OMP_SIMD_ARGS(reduction(+ : dot, aa, bb))
-    for (size_t i = 0; i < dim; ++i)
-    {
-        dot += a[i] * b[i];
-        aa += a[i] * a[i];
-        bb += b[i] * b[i];
-    }
-    const FPType norm = MathInst<FPType, cpu>::sSqrt(aa) * MathInst<FPType, cpu>::sSqrt(bb);
-    return (norm > FPType(0)) ? FPType(1) - dot / norm : FPType(1);
-}
-
-/// `CosineDistances` with scikit-learn's value for zero rows: distance 1 from every other row.
-template <typename FPType, CpuType cpu>
-class ZeroRowCosineDistances : public CosineDistances<FPType, cpu>
-{
-    using super = CosineDistances<FPType, cpu>;
-
-public:
-    ZeroRowCosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b) {}
-
-    services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
-                                  FPType * const res) override
-    {
-        services::Status s = super::computeBatch(a, b, aOffset, aSize, bOffset, bSize, res);
-        // `init` stores the row norms, so a zero norm marks a zero row.
-        const FPType * const aNorms = this->normBufferA.get() + aOffset;
-        const FPType * const bNorms = (&this->_a == &this->_b) ? this->normBufferA.get() + bOffset : this->normBufferB.get() + bOffset;
-        for (size_t i = 0; i < aSize; i++)
-        {
-            if (aNorms[i] != FPType(0)) continue;
-            for (size_t j = 0; j < bSize; j++) res[i * bSize + j] = FPType(1);
-        }
-        for (size_t j = 0; j < bSize; j++)
-        {
-            if (bNorms[j] != FPType(0)) continue;
-            for (size_t i = 0; i < aSize; i++) res[i * bSize + j] = FPType(1);
-        }
-        return s;
-    }
-};
-
 template <Method, typename FPType, CpuType cpu>
 class NeighborhoodEngine
 {
@@ -502,61 +452,39 @@ public:
 
     services::Status queryFull(Neighborhood<FPType, cpu> * neighs, bool doReset = false)
     {
-        switch (_metric)
-        {
-        case PairwiseDistanceType::euclidean:
-        {
-            EuclideanDistances<FPType, cpu> metric(*_inTable, *_outTable);
-            return queryFullImpl(metric, neighs, doReset);
-        }
-        case PairwiseDistanceType::manhattan:
-        {
-            MinkowskiDistances<FPType, cpu> metric(*_inTable, *_outTable, true, 1.0);
-            return queryFullImpl(metric, neighs, doReset);
-        }
-        case PairwiseDistanceType::minkowski:
-        {
-            MinkowskiDistances<FPType, cpu> metric(*_inTable, *_outTable, true, (double)_p);
-            return queryFullImpl(metric, neighs, doReset);
-        }
-        case PairwiseDistanceType::chebyshev:
-        {
-            ChebyshevDistances<FPType, cpu> metric(*_inTable, *_outTable);
-            return queryFullImpl(metric, neighs, doReset);
-        }
-        case PairwiseDistanceType::cosine:
-        {
-            ZeroRowCosineDistances<FPType, cpu> metric(*_inTable, *_outTable);
-            return queryFullImpl(metric, neighs, doReset);
-        }
-        }
-
-        return services::Status(services::ErrorMethodNotSupported);
+        services::SharedPtr<PairwiseDistances<FPType, cpu> > metric(createPairwiseDistances<FPType, cpu>(*_inTable, *_outTable, _metric, (double)_p));
+        DAAL_CHECK_MALLOC(metric.get());
+        return queryFullImpl(*metric, neighs, doReset);
     }
 
     services::Status query(size_t * indices, size_t n, Neighborhood<FPType, cpu> * neighs, bool doReset = false)
     {
         // Each distance is in the same form as the matching `queryFull` engine, so both paths share `poweredEpsilon`.
-        const hdbscan::internal::MinkowskiDist<FPType> minkowski(_p);
         switch (_metric)
         {
         case PairwiseDistanceType::euclidean: return queryImpl(distancePow2<FPType, cpu>, indices, n, neighs, doReset);
         case PairwiseDistanceType::manhattan:
-            return queryImpl(hdbscan::internal::ManhattanDist<FPType>::template pointDist<cpu>, indices, n, neighs, doReset);
         case PairwiseDistanceType::minkowski:
-            return queryImpl([&](const FPType * a, const FPType * b, size_t dim) { return minkowski.template poweredPointDist<cpu>(a, b, dim); },
-                             indices, n, neighs, doReset);
+        {
+            const double p = (_metric == PairwiseDistanceType::manhattan) ? 1.0 : (double)_p;
+            const MinkowskiDistances<FPType, cpu> metric(*_inTable, *_outTable, true, p);
+            return queryImpl([&](const FPType * a, const FPType * b, size_t dim) { return metric.computeDistance(a, b, dim); }, indices, n, neighs,
+                             doReset);
+        }
         case PairwiseDistanceType::chebyshev:
-            return queryImpl(hdbscan::internal::ChebyshevDist<FPType>::template pointDist<cpu>, indices, n, neighs, doReset);
-        case PairwiseDistanceType::cosine: return queryImpl(cosinePointDist<FPType, cpu>, indices, n, neighs, doReset);
+        {
+            const ChebyshevDistances<FPType, cpu> metric(*_inTable, *_outTable);
+            return queryImpl([&](const FPType * a, const FPType * b, size_t dim) { return metric.computeDistance(a, b, dim); }, indices, n, neighs,
+                             doReset);
+        }
+        case PairwiseDistanceType::cosine: return queryImpl(ZeroRowCosineDistances<FPType, cpu>::computeDistance, indices, n, neighs, doReset);
         }
 
         return services::Status(services::ErrorMethodNotSupported);
     }
 
 private:
-    template <typename Metric>
-    services::Status queryFullImpl(Metric & metric, Neighborhood<FPType, cpu> * neighs, bool doReset)
+    services::Status queryFullImpl(PairwiseDistances<FPType, cpu> & metric, Neighborhood<FPType, cpu> * neighs, bool doReset)
     {
         SafeStatus safeStat;
 
@@ -637,7 +565,9 @@ private:
                 if (sameTable)
                 {
                     // A row is always in its own neighborhood.
-                    for (size_t k = (i1 > j1 ? i1 : j1); k < (i2 < j2 ? i2 : j2); k++) local[(k - i1) * jSize + (k - j1)] = FPType(0);
+                    const size_t kStart = services::internal::max<cpu, size_t>(i1, j1);
+                    const size_t kEnd   = services::internal::min<cpu, size_t>(i2, j2);
+                    for (size_t k = kStart; k < kEnd; k++) local[(k - i1) * jSize + (k - j1)] = FPType(0);
                 }
 
                 for (size_t i = 0; i < iSize; i++)
