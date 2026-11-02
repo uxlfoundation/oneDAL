@@ -18,6 +18,8 @@ name: "Windows CI"
 
 on:
   pull_request:
+    # ready_for_review starts the jobs a draft pull request skipped.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - 'feature/**'
@@ -74,7 +76,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Draft pull requests skip both jobs; they run once the pull request is
+  # marked ready for review.
   build-and-test:
+    if: '!github.event.pull_request.draft'
     strategy:
       fail-fast: false
       matrix:
@@ -322,6 +327,7 @@ jobs:
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
   # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
   bazel-msvc:
+    if: '!github.event.pull_request.draft'
     name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 120
