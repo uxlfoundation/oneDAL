@@ -39,6 +39,13 @@ cc_library(
 )
 
 filegroup(
+    name = "libfabric_runtime",
+    srcs = [
+        "libfabric/lib/libfabric.so.1",
+    ],
+)
+
+filegroup(
     name = "fi",
     srcs = glob([
         "libfabric/lib/prov/*.so",

@@ -1,0 +1,64 @@
+# ===============================================================================
+# Copyright Contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ===============================================================================
+
+# Prebuilt oneAPI libraries the Bazel build downloads when the matching root
+# variable (MKLROOT, TBBROOT, DPL_ROOT, MPIROOT, CCL_ROOT) is not set. Read by `pypi_packages` in
+# dev/bazel/repos.bzl; Renovate bumps the versions and rewrites the hashes.
+# Each package lists the hashes of all its wheels (Linux and Windows).
+mkl-static==2026.1.0 \
+    --hash=sha256:165953a3acd35b455112102f0e8cf4f38b83fd3ef6536cca103918e557b80189 \
+    --hash=sha256:32e4c5bd3ae98372dd75cc196ea46f0f5ca0fe1217220bc91001eb12f33a3e88
+mkl-include==2026.1.0 \
+    --hash=sha256:d933db23875da7d145a8897fa0cab1014228af3c387972f25b65472b49b23c94 \
+    --hash=sha256:e64b260e67284b8a696343d58c339ad9d990cc985077dab1269d1c6d2a2e2b1b
+mkl==2026.1.0 \
+    --hash=sha256:4d5a26449818a8aebd4b2aaf6b291831e691f9cf74b152df49b99cf48bbd5360 \
+    --hash=sha256:8194a8270d70622eff00eec84c793efc382b14848b98c3ace6bacdda42170a80
+mkl-devel==2026.1.0 \
+    --hash=sha256:0d79bce8bcf8fea2ad3537ed5eee8c24ed8937466add8ef9f9d706e13542d3fb \
+    --hash=sha256:ead22e4683f121732ef9602de695496106ed01f452f1bea72bc8df71cc79a43c
+onemkl-sycl-include==2026.1.0 \
+    --hash=sha256:6bb837af44da21205bb1a32e9e1330a99049edf7face32ffec848a376453cb9f \
+    --hash=sha256:e2ed8aec7531613c908086d542539548397482afc765528dbdbe913752566298
+onemkl-sycl-blas==2026.1.0 \
+    --hash=sha256:229dd19462b4a588c156ea73bce29feaf0e96434d797a9bae38a89694fc46493 \
+    --hash=sha256:c4478971431ac022a1b8268655bdb8cc49c877c93e8700e68e18c8271be42993
+onemkl-sycl-lapack==2026.1.0 \
+    --hash=sha256:97ff3626f99463e50734a85034ed2ca765601b5c5d3b0560695da7aec0b4f629 \
+    --hash=sha256:e25599ff5a23439d52021ed2f29bf0450a5bfd77495084694032d0bd8c4188ba
+onemkl-sycl-sparse==2026.1.0 \
+    --hash=sha256:50e6fe2cd901090d473fc572001cfa5c0d000719036745e3a4c95ea74b32f9cc \
+    --hash=sha256:b8ded2ac3a693089fa42e600b22ccd8a84c67017d2e32faf5a17272b564a1eed
+onemkl-sycl-rng==2026.1.0 \
+    --hash=sha256:6d24ee79da2d7fe38b99dfdf3c36e39f2dc796be0ab5c477a3e6d1c244ed5ccd \
+    --hash=sha256:fb5f168c5032777fa65022272d77e2c67ada06c4d89459a2d08cd0b2ad56c041
+tbb==2023.1.0 \
+    --hash=sha256:27df1315202defc67a73800c667ba4fbd03cf8924f73949373d4a34d1443fca2 \
+    --hash=sha256:64ad35241c736a595498f5343abec8eaaa203e9fe0dbdbf4b86d37c5a3ab1d9c
+tbb-devel==2023.1.0 \
+    --hash=sha256:35715f7795d20dccedd5cb7ea5a0449fa34fc214add4690f14844e9dfdd2a00d \
+    --hash=sha256:627e3a3f5c7ff8a1bd85bc6159cfe98a295b4fd5dea399493aa50aeb2c08748b
+onedpl-devel==2022.13.0 \
+    --hash=sha256:da07e1e9efbea6fe7a9dbdea0f0f5f346c2a7a3d1a3378be8c163235a9d19ee5 \
+    --hash=sha256:f522629a4543bc08f20b7ef24f04419e5c83e3ebf7f6a490aa10c70c0b14f0f8
+impi-rt==2021.16.1 \
+    --hash=sha256:0f70499bc42eab6923c0ae8fa6dd409c047d93626d686ac21d04e295b120bb95 \
+    --hash=sha256:475ec5708d926125f39f2a7ceea4a5b6653779c1beae0db20ac7013245f888be
+impi-devel==2021.16.1 \
+    --hash=sha256:a57eb599a19c2b680228011df5e5d31732cd344b4c6a26719798cb518389db1f \
+    --hash=sha256:d1081a1647a4de521e2680983629d627704364a07f16c60aaec0bb85535e25bd
+oneccl==2021.16.2 \
+    --hash=sha256:83fa5c0ac8e7c06569480fd27eb5f26a3bb383902277e2d22c93212b6cf26e9e

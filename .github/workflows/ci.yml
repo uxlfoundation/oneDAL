@@ -57,9 +57,11 @@ on:
 permissions:
   contents: read
 
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   LinuxMakeDPCPP:
@@ -297,3 +299,142 @@ jobs:
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+
+  LinuxBazelNoCompiler:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-26.04
+    # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
+    container: ubuntu:26.04
+    name: LinuxBazelNoCompiler
+    timeout-minutes: 180
+    steps:
+      - name: Install Bazelisk prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates wget
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Bazel
+        run: |
+          .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: Bazel tests
+        run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/pca:tests
+      - name: Bazel example
+        run: bazel test --cpu=avx2 //examples/oneapi/cpp:pca
+
+  # A machine with only Bazelisk and a distribution compiler, no oneAPI. Each leg
+  # runs the tests and the example of one algorithm; the clang legs remove the gcc
+  # drivers, so the toolchain has to find clang by itself.
+  LinuxBazelNoOneAPI:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: gcc
+            runner: ubuntu-24.04
+            algo: decision_forest
+          - leg: clang
+            runner: ubuntu-24.04
+            algo: kmeans
+          - leg: clang-libcxx
+            runner: ubuntu-24.04
+            algo: linear_regression
+            flags: --cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++
+          # The oldest supported gcc (Ubuntu 22.04 default).
+          - leg: gcc11
+            runner: ubuntu-22.04
+            algo: covariance
+    runs-on: ${{ matrix.runner }}
+    name: LinuxBazelNoOneAPI(${{ matrix.leg }})
+    timeout-minutes: 180
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Remove gcc
+        if: startsWith(matrix.leg, 'clang')
+        run: |
+          # Only the drivers: clang uses the libstdc++ from the gcc install, so it stays.
+          mapfile -t drivers < <(dpkg-query -W -f '${Package}\n' | grep -E '^(gcc|g\+\+)(-[0-9]+)?$')
+          sudo apt-get remove -y "${drivers[@]}"
+          if command -v gcc || command -v g++; then
+            echo "a gcc driver is still in PATH" >&2
+            exit 1
+          fi
+          clang --version
+      - name: Install libc++
+        if: matrix.leg == 'clang-libcxx'
+        run: |
+          clang_major=$(clang -dumpversion | cut -d. -f1)
+          sudo apt-get install -y "libc++-${clang_major}-dev" "libc++abi-${clang_major}-dev"
+      - name: Install Bazel
+        run: |
+          .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: Bazel tests
+        run: bazel test --cpu=avx2 ${{ matrix.flags }} //cpp/oneapi/dal/algo/${{ matrix.algo }}:tests
+      - name: Bazel example
+        run: bazel test --cpu=avx2 ${{ matrix.flags }} //examples/oneapi/cpp:${{ matrix.algo }}
+      - name: Check the compiler
+        run: |
+          # The C runtime objects carry a GCC tag in every build, so look for clang.
+          readelf -p .comment "bazel-bin/cpp/oneapi/dal/algo/${{ matrix.algo }}/test_batch_host" | tee comment.txt
+          if grep -q "clang version" comment.txt; then built_by=clang; else built_by=gcc; fi
+          expected=$([[ "${{ matrix.leg }}" == clang* ]] && echo clang || echo gcc)
+          if [ "${built_by}" != "${expected}" ]; then
+            echo "Expected a ${expected} build, got ${built_by}" >&2
+            exit 1
+          fi
+      # The gcc leg also covers the release, the DAAL and MPI tests, and the
+      # DPC++ checks; the other legs stay at one algorithm each.
+      - name: Bazel release
+        if: matrix.leg == 'gcc'
+        run: |
+          bazel build --cpu=avx2 //:release
+          lib_dir=bazel-bin/release/daal/latest/lib/intel64
+          ls "${lib_dir}"
+          if ls "${lib_dir}" | grep -q _dpc; then
+            echo "The release has DPC++ libraries although icpx is not in PATH" >&2
+            exit 1
+          fi
+          if readelf -p .comment "${lib_dir}/libonedal_core.so" | grep -q "clang version"; then
+            echo "Expected a gcc build of the release" >&2
+            exit 1
+          fi
+      # No --config: the DPC++ tests are skipped rather than failing to build.
+      # test_mpi_communicator_host runs two ranks with the downloaded Intel MPI.
+      - name: Bazel DAAL and MPI tests
+        if: matrix.leg == 'gcc'
+        run: |
+          bazel test --cpu=avx2 \
+            //cpp/oneapi/dal:test_mpi_communicator_host \
+            //cpp/daal:tests \
+            //examples/daal/cpp:kmeans \
+            --test_output=errors
+          bazel test --cpu=avx2 --config=host //cpp/oneapi/dal/algo/kmeans:tests
+      - name: DPC++ targets fail clearly without icpx
+        if: matrix.leg == 'gcc'
+        run: |
+          expect_failure() {
+            local log="$1" pattern="$2"
+            shift 2
+            if bazel "$@" > "${log}" 2>&1; then
+              echo "'bazel $*' succeeded without icpx" >&2
+              exit 1
+            fi
+            if ! grep -q "${pattern}" "${log}"; then
+              tail -n 30 "${log}"
+              echo "'bazel $*' did not report '${pattern}'" >&2
+              exit 1
+            fi
+            echo "'bazel $*' failed as expected: $(grep -m1 "${pattern}" "${log}")"
+          }
+          expect_failure dpc_target.log dpc_needs_icpx_in_PATH \
+            build --cpu=avx2 //cpp/oneapi/dal/algo/kmeans:test_batch_dpc
+          expect_failure config_dpc.log "icpx is not found" \
+            test --cpu=avx2 --config=dpc //cpp/oneapi/dal/algo/kmeans:tests

@@ -14,21 +14,36 @@
 # limitations under the License.
 #===============================================================================
 
+load("@onedal//dev/bazel/deps:gcc.bzl", "download_gcc")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.bzl", "configure_cc_toolchain_lnx", "find_tool")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "configure_cc_toolchain_win")
+
+def _needs_downloaded_compiler(repo_ctx, os_id, host_arch_id):
+    if os_id != "lnx" or host_arch_id != "intel64" or "CC" in repo_ctx.os.environ:
+        return False
+    if repo_ctx.os.environ.get("ONEDAL_DOWNLOAD_CC") == "1":
+        return True
+    return not any([repo_ctx.which(cc) for cc in ["icx", "gcc", "clang"]])
 
 def _detect_requirements(repo_ctx):
     os_id = detect_os(repo_ctx)
     compiler_id = detect_compiler(repo_ctx, os_id)
     host_arch_id = detect_host_arch(repo_ctx, os_id)
     target_arch_id = detect_target_arch(repo_ctx, host_arch_id)
+    downloaded_tools = None
+    if _needs_downloaded_compiler(repo_ctx, os_id, host_arch_id):
+        compiler_id = "gcc"
+        downloaded_tools = download_gcc(repo_ctx, "gcc")
     dpc_compiler_id = "icpx"
     dpcc_path, dpcpp_found = find_tool(repo_ctx, dpc_compiler_id, mandatory = False)
     dpc_compiler_version = _detect_compiler_version(repo_ctx, dpcc_path) if dpcpp_found else "local"
     return struct(
         os_id = os_id,
         compiler_id = compiler_id,
+
+        # Paths of the downloaded compiler and binutils, or None to look them up.
+        downloaded_tools = downloaded_tools,
 
         libc_version = "local",
         libc_abi_version = "local",
@@ -70,6 +85,8 @@ onedal_cc_toolchain = repository_rule(
         "CC",
         "CXX",
         "PATH",
+        # =1 downloads the GNU toolchain even when a compiler is in PATH.
+        "ONEDAL_DOWNLOAD_CC",
         "INCLUDE",
         "LIB",
         # Opt-in switch for the LLVM-driver Windows toolchains:
@@ -77,6 +94,11 @@ onedal_cc_toolchain = repository_rule(
         # anything else falls back to the rules_cc MSVC cl auto-config.
         # Targeting Windows ARM64 always uses clang-cl.
         "ONEDAL_WIN_COMPILER",
+        # The Visual Studio rules_cc configures for cl: the one vcvarsall.bat
+        # set up (VCINSTALLDIR), unless BAZEL_VC or BAZEL_VS names another.
+        "BAZEL_VC",
+        "BAZEL_VS",
+        "VCINSTALLDIR",
         # Windows host-arch detection (see detect_host_arch in common.bzl); the
         # toolchain repo must re-evaluate when these change.
         "PROCESSOR_ARCHITECTURE",
