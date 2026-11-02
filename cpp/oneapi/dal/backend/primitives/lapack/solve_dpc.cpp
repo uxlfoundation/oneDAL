@@ -114,9 +114,7 @@ sycl::event solve_spectral_decomposition(
         }
         /// Eigenvalue errors are bounded by p(n) * eps * largest_ev, where p(n) grows
         /// moderately with n: https://netlib.org/lapack/lug_old/node85.html
-        /// The absolute lower bound matches the CPU solver in service_kernel_math.h
-        const Float lambda_err = cutoff_factor * eps * largest_ev;
-        const Float component_threshold = lambda_err < Float(1e-12) ? Float(1e-12) : lambda_err;
+        const Float component_threshold = cutoff_factor * eps * largest_ev;
         for (num_discarded = 0; num_discarded < dim_A - 1; num_discarded++) {
             if (eigenvalues_cpu_ptr[num_discarded] > component_threshold)
                 break;
