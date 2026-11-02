@@ -313,6 +313,31 @@ public:
         }
     }
 
+    /// Wide X where every row is repeated twice and y differs between the repeats, so X * t(X)
+    /// has eigenvalues that are zero up to rounding noise growing with the row count
+    void run_and_check_linear_wide_duplicate_rows(std::int64_t row_count, std::int64_t seed = 777) {
+        const std::int64_t f_count = 2 * row_count;
+
+        std::mt19937 gen(seed);
+        std::uniform_real_distribution<float_t> dist(-1, 1);
+        std::vector<float_t> x(row_count * f_count), y(row_count);
+        for (std::int64_t s = 0; s < row_count; s += 2) {
+            for (std::int64_t f = 0; f < f_count; ++f) {
+                x[s * f_count + f] = dist(gen);
+            }
+            std::copy_n(&x[s * f_count], f_count, &x[(s + 1) * f_count]);
+        }
+        std::generate(y.begin(), y.end(), [&]() {
+            return dist(gen);
+        });
+
+        const auto x_tbl = homogen_table::wrap(x.data(), row_count, f_count);
+        const auto y_tbl = homogen_table::wrap(y.data(), row_count, 1);
+
+        const auto train_res = this->train(this->get_descriptor(), x_tbl, y_tbl);
+        this->check_ridge_optimality(x_tbl, y_tbl, train_res, 0.0);
+    }
+
     std::tuple<table, table, table, table> prepare_inputs(std::int64_t seed = 888,
                                                           double tol = 1e-2) {
         using namespace ::oneapi::dal::detail;
@@ -387,7 +412,7 @@ public:
 
     /* Note: difference between this test and the above, is that the linear system to solve
     here is not positive-definite, thus it has an infinite number of possible solutions. The
-    solution here is the one with minimum norm on GPU; and obtained through dual coefficients on CPU. */
+    solution here is obtained through dual coefficients. */
     void run_and_check_linear_indefinite(double tol = 1e-3) {
         const auto dtype =
             std::is_same<float_t, double>::value ? data_type::float64 : data_type::float32;
@@ -413,22 +438,12 @@ public:
         const auto coefs = train_res.get_coefficients();
 
         if (desc.get_result_options().test(result_options::intercept)) {
-            const float_t expected_beta_primal[] = { 0.27785494,
-                                                     0.53011669,
-                                                     0.34352259,
-                                                     0.40506216,
-                                                     -1.26026447 };
-            const float_t expected_beta_dual[] = { 0.22642944,
-                                                   0.65675701,
-                                                   -0.40964003,
-                                                   0.29191640,
-                                                   -0.85383405 };
-            const float_t* expected_beta =
-                this->get_policy().is_gpu() ? expected_beta_primal : expected_beta_dual;
-            const float_t expected_intercept_primal[1] = { 1.24485441 };
-            const float_t expected_intercept_dual[1] = { 1.85851968 };
-            const float_t* expected_intercept =
-                this->get_policy().is_gpu() ? expected_intercept_primal : expected_intercept_dual;
+            const float_t expected_beta[] = { 0.22642944,
+                                              0.65675701,
+                                              -0.40964003,
+                                              0.29191640,
+                                              -0.85383405 };
+            const float_t expected_intercept[1] = { 1.85851968 };
             const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
                                                .set_data_type(dtype)
                                                .set_layout(data_layout::row_major)
@@ -500,21 +515,12 @@ public:
         const auto coefs = train_res.get_coefficients();
 
         if (desc.get_result_options().test(result_options::intercept)) {
-            const float_t expected_beta_primal[] = {
-                -0.18692112, -0.20034801, -0.09590892, -0.13672683, 0.56229012,
-                -0.97006008, 1.39413595,  0.49238012,  1.11041239,  -0.79213452,
-            };
-            const float_t expected_beta_dual[] = {
+            const float_t expected_beta[] = {
                 -0.16669371, -0.25015995, 0.20033555,  -0.09222276, 0.40242722,
                 -1.00991131, 1.49227351,  -0.09126926, 1.02273218,  -0.47717881,
             };
-            const float_t* expected_beta =
-                this->get_policy().is_gpu() ? expected_beta_primal : expected_beta_dual;
 
-            const float_t expected_intercept_primal[] = { -0.48964358, 0.96467681 };
-            const float_t expected_intercept_dual[] = { -0.73101900, 1.44022530 };
-            const float_t* expected_intercept =
-                this->get_policy().is_gpu() ? expected_intercept_primal : expected_intercept_dual;
+            const float_t expected_intercept[] = { -0.73101900, 1.44022530 };
             const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
                                                .set_data_type(dtype)
                                                .set_layout(data_layout::row_major)
@@ -580,22 +586,12 @@ public:
         const auto coefs = train_res.get_coefficients();
 
         if (desc.get_result_options().test(result_options::intercept)) {
-            const float_t expected_beta_primal[] = { 0.33189732,
-                                                     0.34638406,
-                                                     0.3225527,
-                                                     0.27698867,
-                                                     -1.08721019 };
-            const float_t expected_beta_dual[] = { 0.28549183,
-                                                   0.46066211,
-                                                   -0.35708829,
-                                                   0.17488788,
-                                                   -0.72045438 };
-            const float_t* expected_beta =
-                this->get_policy().is_gpu() ? expected_beta_primal : expected_beta_dual;
-            const float_t expected_intercept_primal[1] = { 1.1233352056 };
-            const float_t expected_intercept_dual[1] = { 1.677096199 };
-            const float_t* expected_intercept =
-                this->get_policy().is_gpu() ? expected_intercept_primal : expected_intercept_dual;
+            const float_t expected_beta[] = { 0.28549183,
+                                              0.46066211,
+                                              -0.35708829,
+                                              0.17488788,
+                                              -0.72045438 };
+            const float_t expected_intercept[1] = { 1.677096199 };
             const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
                                                .set_data_type(dtype)
                                                .set_layout(data_layout::row_major)

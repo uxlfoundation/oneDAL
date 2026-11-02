@@ -88,7 +88,8 @@ sycl::event solve_spectral_decomposition(
         b, /// t(X)*y, RHS, solution is outputted here, dim=[dim_A, nrhs] in colmajor order
     sycl::event& event_b,
     const std::int64_t dim_A,
-    const std::int64_t nrhs) {
+    const std::int64_t nrhs,
+    const Float cutoff_factor) {
     constexpr auto alloc = sycl::usm::alloc::device;
 
     /// Decompose: A = Q * diag(l) * t(Q)
@@ -111,7 +112,11 @@ sycl::event solve_spectral_decomposition(
         if (largest_ev <= eps) {
             throw internal_error{ dal::detail::error_messages::too_small_singular_values() };
         }
-        const Float component_threshold = eps * largest_ev;
+        /// Eigenvalue errors are bounded by p(n) * eps * largest_ev, where p(n) grows
+        /// moderately with n: https://netlib.org/lapack/lug_old/node85.html
+        /// The absolute lower bound matches the CPU solver in service_kernel_math.h
+        const Float lambda_err = cutoff_factor * eps * largest_ev;
+        const Float component_threshold = lambda_err < Float(1e-12) ? Float(1e-12) : lambda_err;
         for (num_discarded = 0; num_discarded < dim_A - 1; num_discarded++) {
             if (eigenvalues_cpu_ptr[num_discarded] > component_threshold)
                 break;
@@ -216,6 +221,7 @@ sycl::event solve_with_fallback(
     const ndview<Float, 2, ylayout>& xty,
     ndview<Float, 2, ndorder::c>& nxtx,
     ndview<Float, 2, ndorder::c>& nxty, /// solution will be written here
+    const Float cutoff_factor,
     const event_vector& dependencies) {
     const std::int64_t dim_xtx = xtx.get_dimension(0);
     const std::int64_t nrhs = nxty.get_dimension(0);
@@ -230,7 +236,8 @@ sycl::event solve_with_fallback(
                                                      nxty,
                                                      xty_event_new,
                                                      dim_xtx,
-                                                     nrhs);
+                                                     nrhs,
+                                                     cutoff_factor);
 }
 
 template <mkl::uplo uplo, bool beta, typename Float, ndorder xlayout, ndorder ylayout>
@@ -239,6 +246,7 @@ sycl::event solve_system(sycl::queue& queue,
                          const ndview<Float, 2, ylayout>& xty,
                          ndview<Float, 2, ndorder::c>& final_xtx,
                          ndview<Float, 2, ndorder::c>& final_xty,
+                         Float cutoff_factor,
                          const event_vector& dependencies) {
     constexpr auto alloc = sycl::usm::alloc::device;
 
@@ -268,11 +276,13 @@ sycl::event solve_system(sycl::queue& queue,
                 potrs_solution<uplo>(queue, nxtx, nxty, dummy, { potrf_event, xty_event });
         }
         else {
-            solution_event = solve_with_fallback<uplo>(queue, xtx, xty, nxtx, nxty, dependencies);
+            solution_event =
+                solve_with_fallback<uplo>(queue, xtx, xty, nxtx, nxty, cutoff_factor, dependencies);
         }
     }
     catch (mkl::lapack::computation_error& ex) {
-        solution_event = solve_with_fallback<uplo>(queue, xtx, xty, nxtx, nxty, dependencies);
+        solution_event =
+            solve_with_fallback<uplo>(queue, xtx, xty, nxtx, nxty, cutoff_factor, dependencies);
     }
 
     return beta_copy_transform<beta>(queue, nxty, final_xty, { solution_event });
@@ -284,6 +294,7 @@ sycl::event solve_system(sycl::queue& queue,
                                             const ndview<F, 2, YL>&, \
                                             ndview<F, 2>&,           \
                                             ndview<F, 2>&,           \
+                                            F,                       \
                                             const event_vector&);
 
 #define INSTANTIATE_YL(U, B, F, XL)      \
