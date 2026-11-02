@@ -26,6 +26,7 @@
 #define __DF_FOREST_TRAINER_I__
 
 #include <limits>
+#include <new>
 
 #include "algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/algorithms/dtrees/engine/node_rng.h"
@@ -35,6 +36,7 @@
 #include "src/algorithms/dtrees/engine/tree_builder.h"
 #include "src/algorithms/dtrees/forest/df_forest_trainer.h"
 #include "src/algorithms/engines/engine_types_internal.h"
+#include "src/algorithms/service_threading.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_rng.h"
@@ -54,6 +56,7 @@ namespace trainer
 {
 namespace eng = daal::algorithms::dtrees::engine::internal;
 using services::internal::TArray;
+using daal::internal::WriteOnlyRows;
 using engines::internal::ParallelizationTechnique;
 
 // Rows per block of the passes over the table rows: bootstrap draws and OOB evaluation.
@@ -65,6 +68,10 @@ constexpr size_t maxClasses = size_t(1) << 16;
 // Exclusive bound of the two 31-bit draws that make a tree's seed.
 constexpr int seedDrawRange = 0x7fffffff;
 
+// Node draws a thread takes from the node stream at a time, under its lock (ForestStreams::fillNodeDraws).
+constexpr size_t nodeDrawBatch = 256;
+
+template <CpuType cpu>
 inline bool isPhilox(const engines::EnginePtr & e)
 {
     using engines::philox4x32x10::Batch;
@@ -75,20 +82,25 @@ inline bool isPhilox(const engines::EnginePtr & e)
 /**
  *  \brief Engine streams of a fit (design 4.13)
  *
- *  One stream per tree, then, for engines other than philox4x32x10, one per thread for node draws. Tree
- *  streams hold treeBudget draws each (two for the seed, the bootstrap, the MDA permutations) and thread
- *  streams threadBudget, upper bounds that keep the regions disjoint.
+ *  One stream per tree, of treeBudget draws (two for the seed, the bootstrap, the MDA permutations), then, for
+ *  node draws not addressed by counter, one node stream that every thread reads in batches (fillNodeDraws). The
+ *  node stream has no budget: it reads on past the tree streams for as long as the fit draws.
+ *
+ *  With skip-ahead and incremental, the tree streams are cut from one cursor, advanced by treeBudget in turn,
+ *  rather than each skipped from the base: the same states, but backends that skip linearly (the ref RNG's
+ *  std::discard) pay the tree region once instead of the sum of every stream's offset. The cursor is then the
+ *  node stream.
  */
 template <CpuType cpu>
 class ForestStreams
 {
 public:
-    services::Status init(const engines::EnginePtr & base, size_t nTrees, size_t treeBudget, size_t nThreads, size_t threadBudget)
+    services::Status init(const engines::EnginePtr & base, size_t nTrees, size_t treeBudget, bool nodeStream, bool incremental)
     {
-        _base     = base;
-        _nTrees   = nTrees;
-        _nThreads = nThreads;
-        auto impl = dynamic_cast<engines::internal::BatchBaseImpl *>(base.get());
+        _base       = base;
+        _nTrees     = nTrees;
+        _nodeStream = nodeStream;
+        auto impl   = dynamic_cast<engines::internal::BatchBaseImpl *>(base.get());
         DAAL_CHECK(impl, services::ErrorEngineNotSupported);
         const ParallelizationTechnique order[] = { engines::internal::family, engines::internal::skipahead, engines::internal::leapfrog };
         bool supported                         = false;
@@ -102,22 +114,34 @@ public:
         DAAL_CHECK(supported, services::ErrorEngineNotSupported);
 
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nTrees, treeBudget);
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nThreads, threadBudget);
-        const size_t treeRegion = nTrees * treeBudget;
-        DAAL_OVERFLOW_CHECK_BY_ADDING(size_t, treeRegion, nThreads * threadBudget);
-        _total     = treeRegion + nThreads * threadBudget;
-        _maxBudget = treeBudget > threadBudget ? treeBudget : threadBudget;
+        _treeRegion = nTrees * treeBudget;
+        _treeBudget = treeBudget;
 
-        const size_t n = nTrees + nThreads;
-        engines::internal::Params<cpu> params(n);
-        DAAL_CHECK_MALLOC(params.nSkip.get());
-        for (size_t i = 0; i < nTrees; ++i) params.nSkip[i] = i * treeBudget;
-        for (size_t j = 0; j < nThreads; ++j) params.nSkip[nTrees + j] = treeRegion + j * threadBudget;
+        const size_t n = nTrees + (nodeStream ? 1 : 0);
         DAAL_CHECK_MALLOC(_engines.reset(n) && _states.reset(n));
         services::Status s;
-        _collection.reset(new engines::internal::EnginesCollection<cpu>(base, _technique, params, _engines, &s));
-        DAAL_CHECK_MALLOC(_collection.get());
-        DAAL_CHECK_STATUS_VAR(s);
+        if (incremental && _technique == engines::internal::skipahead)
+        {
+            _cursor = base->clone();
+            DAAL_CHECK_MALLOC(_cursor.get());
+            for (size_t i = 0; i < nTrees; ++i)
+            {
+                _engines[i] = _cursor->clone();
+                DAAL_CHECK_MALLOC(_engines[i].get());
+                s = _cursor->skipAhead(treeBudget);
+                DAAL_CHECK_STATUS_VAR(s);
+            }
+            if (nodeStream) _engines[nTrees] = _cursor;
+        }
+        else
+        {
+            engines::internal::Params<cpu> params(n);
+            DAAL_CHECK_MALLOC(params.nSkip.get());
+            for (size_t i = 0; i < n; ++i) params.nSkip[i] = i * treeBudget;
+            _collection.reset(new engines::internal::EnginesCollection<cpu>(base, _technique, params, _engines, &s));
+            DAAL_CHECK_MALLOC(_collection.get());
+            DAAL_CHECK_STATUS_VAR(s);
+        }
         for (size_t i = 0; i < n; ++i)
         {
             auto streamImpl = dynamic_cast<engines::internal::BatchBaseImpl *>(_engines[i].get());
@@ -128,20 +152,36 @@ public:
     }
 
     void * tree(size_t i) const { return _states[i]; }
-    void * thread(size_t j) const { return _states[_nTrees + j]; }
-    size_t nThreads() const { return _nThreads; }
 
-    /// The engine after the fit: past every stream region, so a later fit on it reads none of this fit's draws.
+    /// The next n uniform doubles in [0, 1) of the node stream, from any thread.
+    services::Status fillNodeDraws(size_t n, double * out)
+    {
+        DAAL_ASSERT(_nodeStream);
+        AutoLock lock(_nodeMutex);
+        daal::internal::RNGsInst<double, cpu> rng;
+        DAAL_CHECK(!rng.uniform(n, out, _states[_nTrees], 0.0, 1.0), services::ErrorIncorrectErrorcodeFromGenerator);
+        _nodeDrawn += n;
+        return services::Status();
+    }
+
+    /// The engine after the fit: past every stream's draws, so a later fit on it reads none of this fit's.
     engines::EnginePtr updated()
     {
+        const size_t n = _nTrees + (_nodeStream ? 1 : 0);
         if (_technique == engines::internal::family)
         {
-            TArray<size_t, cpu> unused(_nTrees + _nThreads);
+            TArray<size_t, cpu> unused(n);
             return _collection->getUpdatedEngine(_base, _engines, unused);
         }
-        // Leapfrog streams interleave, so the regions end at the stream count times the largest budget.
+        // The node stream reads on past the tree region; without it, the cursor stands at the region's end.
+        if (_nodeStream && _technique == engines::internal::skipahead) return _engines[_nTrees]->clone();
+        if (_cursor) return _cursor->clone();
+        // Leapfrog streams interleave, so they end at the stream count times the longest stream's use, at most two
+        // engine elements per node double.
+        const size_t nodeUse = 2 * _nodeDrawn;
+        const size_t longest = nodeUse > _treeBudget ? nodeUse : _treeBudget;
+        const size_t skip    = _technique == engines::internal::skipahead ? _treeRegion : n * longest;
         engines::EnginePtr e = _base->clone();
-        const size_t skip    = _technique == engines::internal::skipahead ? _total : (_nTrees + _nThreads) * _maxBudget;
         if (!e || !e->skipAhead(skip)) return engines::EnginePtr();
         return e;
     }
@@ -150,9 +190,12 @@ private:
     engines::EnginePtr _base;
     ParallelizationTechnique _technique = engines::internal::family;
     size_t _nTrees                      = 0;
-    size_t _nThreads                    = 0;
-    size_t _total                       = 0;
-    size_t _maxBudget                   = 0;
+    size_t _treeBudget                  = 0;
+    size_t _treeRegion                  = 0;
+    bool _nodeStream                    = false;
+    size_t _nodeDrawn                   = 0; // doubles read from the node stream
+    Mutex _nodeMutex;
+    engines::EnginePtr _cursor; // the incremental setup's cursor
     TArray<engines::EnginePtr, cpu> _engines;
     TArray<void *, cpu> _states;
     services::SharedPtr<engines::internal::EnginesCollection<cpu> > _collection;
@@ -178,9 +221,11 @@ public:
     };
 
     explicit ForestInputs(const Setup & setup)
-        : _s(setup), _words((setup.nRows + 63) / 64), _threadStream([this]() -> void * { return nextThreadStream(); })
+        : _s(setup), _words((setup.nRows + 63) / 64), _nodeDraws([]() -> NodeDrawBatch * { return new (std::nothrow) NodeDrawBatch(); })
+    {}
+    ~ForestInputs()
     {
-        _nextThread.set(0);
+        _nodeDraws.reduce([](NodeDrawBatch * b) { delete b; });
     }
 
     services::Status prepareTree(size_t iTree, int numaNode, eng::ResponseSet<Record, cpu> & records, uint64_t & treeSeed) override
@@ -239,23 +284,35 @@ public:
         return services::Status();
     }
 
-    void * nodeStream() override { return _threadStream.local(); }
+    /// The next node draw from the calling thread's batch, refilled from the node stream.
+    services::Status nodeUniform(double & u) override
+    {
+        NodeDrawBatch * b = _nodeDraws.local();
+        DAAL_CHECK_MALLOC(b);
+        if (b->used == nodeDrawBatch)
+        {
+            const services::Status s = _s.streams->fillNodeDraws(nodeDrawBatch, b->values);
+            DAAL_CHECK_STATUS_VAR(s);
+            b->used = 0;
+        }
+        u = b->values[b->used++];
+        return services::Status();
+    }
 
 private:
-    void * nextThreadStream()
+    struct NodeDrawBatch
     {
-        const size_t j = _nextThread.inc() - 1;
-        return j < _s.streams->nThreads() ? _s.streams->thread(j) : nullptr;
-    }
+        double values[nodeDrawBatch];
+        size_t used = nodeDrawBatch;
+    };
 
     Setup _s;
     size_t _words;
-    services::Atomic<size_t> _nextThread;
-    daal::tls<void *> _threadStream;
+    daal::tls<NodeDrawBatch *> _nodeDraws;
 };
 
 /// The leaf of a tree table that row x reaches, routing as the prediction kernels do; value(f) reads feature f.
-template <typename Value>
+template <CpuType cpu, typename Value>
 size_t leafOf(const dtrees::internal::DecisionTreeNode * nodes, const bool * categorical, const Value & value)
 {
     size_t r = 0;
@@ -324,7 +381,7 @@ public:
                 const size_t end = (b + 1) * blockRows < n ? (b + 1) * blockRows : n;
                 for (size_t i = b * blockRows; i < end; ++i)
                 {
-                    const size_t leaf = leafOf(nodes, _categorical, rowValue(rows[i]));
+                    const size_t leaf = leafOf<cpu>(nodes, _categorical, rowValue(rows[i]));
                     if (_nClasses)
                     {
                         _votes[size_t(rows[i]) * _nClasses + nodes[leaf].leftIndexOrClass] += 1;
@@ -352,7 +409,7 @@ public:
                 {
                     const size_t row  = rows[i];
                     const size_t from = rows[perm[i]];
-                    const size_t leaf = leafOf(nodes, _categorical, [&](size_t f) { return double(_x[(f == permuted ? from : row) * _p + f]); });
+                    const size_t leaf = leafOf<cpu>(nodes, _categorical, [&](size_t f) { return double(_x[(f == permuted ? from : row) * _p + f]); });
                     sum += error(nodes[leaf], row);
                 }
                 partial[b] = sum;
@@ -531,17 +588,18 @@ services::Status trainForest(const data_management::NumericTable & x, const data
 {
     namespace eng = daal::algorithms::dtrees::engine::internal;
     using trainer::TArray;
+    using trainer::WriteOnlyRows;
     const size_t nRows  = x.getNumberOfRows();
     const size_t p      = x.getNumberOfColumns();
     const size_t nTrees = par.nTrees;
     DAAL_CHECK(nRows && p && nTrees, services::ErrorIncorrectParameter);
-    DAAL_CHECK_STATUS_VAR(eng::checkRowCount(nRows));
+    DAAL_CHECK_STATUS_VAR(eng::checkRowCount<cpu>(nRows));
     DAAL_CHECK(nClasses <= trainer::maxClasses, services::ErrorIncorrectNumberOfClasses);
     DAAL_CHECK(par.engine, services::ErrorEngineNotSupported);
     DAAL_CHECK_MALLOC(model.resize(nTrees));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, p);
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows * p, sizeof(algorithmFPType));
-    const eng::NumaPlacement placement = numaPlacement(nRows * p * sizeof(algorithmFPType), !par.memorySavingMode);
+    const eng::NumaPlacement placement = numaPlacement<cpu>(nRows * p * sizeof(algorithmFPType), !par.memorySavingMode);
 
     // X row-major per NUMA node, responses and normalized weights, feature types.
     eng::NumaReplicated<algorithmFPType, cpu> xr;
@@ -573,9 +631,10 @@ services::Status trainForest(const data_management::NumericTable & x, const data
         DAAL_CHECK_STATUS_VAR(s);
     }
 
-    // Node draws by counter where the engine is philox4x32x10 and service_rng can address it; otherwise per-thread streams.
+    // Node draws follow what the engine's skips cost: philox addressed by counter needs skips past 2^64, which the
+    // probe tries. A backend that cannot take them (the reference RNG's discard) gets the skip-light path, streams.
     eng::CounterRng<cpu> probe;
-    const bool counter      = trainer::isPhilox(par.engine) && probe.init(1).ok();
+    const bool counter      = trainer::isPhilox<cpu>(par.engine) && probe.init(1).ok();
     const bool mda          = par.varImportance == MDA_Raw || par.varImportance == MDA_Scaled;
     const bool mdi          = par.varImportance == MDI;
     const uint64_t oobFlags = computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorAccuracy | computeOutOfBagErrorR2
@@ -587,24 +646,17 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     if (!par.bootstrap && nSamples > nRows) nSamples = nRows;
     const size_t k = par.featuresPerNode ? par.featuresPerNode : trainer::defaultFeaturesPerNode<cpu>(p, nClasses > 0);
 
-    // Stream budgets, in engine elements, counting two per uniform double: a tree's seed, bootstrap and MDA draws;
-    // a thread's p + k draws per node for up to 2n nodes per tree. The spare thread stream serves calls from outside
-    // the arenas.
+    // A tree stream's budget, in engine elements, counting two per uniform double: its seed, bootstrap and MDA draws.
+    // Node draws not addressed by counter read the node stream, which needs no budget.
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, 2 * p, nRows);
     const size_t mdaDraws = mda ? 2 * p * nRows : 0;
     size_t treeBudget     = 2 + (par.bootstrap ? nSamples : 0);
     DAAL_OVERFLOW_CHECK_BY_ADDING(size_t, treeBudget, mdaDraws);
     treeBudget += mdaDraws;
-    const size_t nThreads = counter ? 0 : size_t(threader_get_max_threads_number()) + 1;
-    size_t threadBudget   = 0;
-    if (!counter)
-    {
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nTrees, 2 * nRows);
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nTrees * 2 * nRows, 2 * (p + k));
-        threadBudget = nTrees * 2 * nRows * 2 * (p + k);
-    }
     trainer::ForestStreams<cpu> streams;
-    s = streams.init(base, nTrees, treeBudget, nThreads, threadBudget);
+    // Philox fits keep the per-stream skips from the base; the others cut their streams from a cursor and read
+    // their node draws from the node stream.
+    s = streams.init(base, nTrees, treeBudget, !counter, !counter);
     DAAL_CHECK_STATUS_VAR(s);
 
     // Thresholds as legacy: weights are the normalized user weights over all rows, or 1 per row.
@@ -693,7 +745,8 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     // OOB error and MDA, in tree order.
     if (predictions || mda)
     {
-        trainer::OutOfBag<algorithmFPType, cpu> oob(xr.data(0), src, categorical.get(), nRows, p, nClasses);
+        const eng::NumaReplicated<algorithmFPType, cpu> & xc = xr;
+        trainer::OutOfBag<algorithmFPType, cpu> oob(xc.data(0), src, categorical.get(), nRows, p, nClasses);
         DAAL_CHECK_STATUS_VAR(oob.allocate(predictions, mda && res.varImportance));
         for (size_t t = 0; t < nTrees; ++t)
         {

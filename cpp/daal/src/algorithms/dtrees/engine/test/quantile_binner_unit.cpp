@@ -349,11 +349,11 @@ TEST("the binning sample and the bins do not depend on the thread count, for eve
 TEST("binning groups hold at most one feature per thread and fit the scratch budget", "[unit]")
 {
     // MNIST: 60k sample rows of doubles (20 bytes a value) on 224 threads; the budget alone would take 894.
-    REQUIRE(binGroupFeatures(60000, 20, 224) == 224);
+    REQUIRE(binGroupFeatures<baseCpu>(60000, 20, 224) == 224);
     // 4M sample rows: the budget holds 13 features.
-    REQUIRE(binGroupFeatures(size_t(1) << 22, 20, 224) == binSampleScratchBytes / ((size_t(1) << 22) * 20));
-    REQUIRE(binGroupFeatures(1000, 20, 1) == 1);
-    REQUIRE(binGroupFeatures(size_t(1) << 30, 20, 8) == 1); // a feature above the budget is its own group
+    REQUIRE(binGroupFeatures<baseCpu>(size_t(1) << 22, 20, 224) == binSampleScratchBytes / ((size_t(1) << 22) * 20));
+    REQUIRE(binGroupFeatures<baseCpu>(1000, 20, 1) == 1);
+    REQUIRE(binGroupFeatures<baseCpu>(size_t(1) << 30, 20, 8) == 1); // a feature above the budget is its own group
 }
 
 TEST("a wide table bins the same whatever the feature groups", "[unit]")
@@ -541,6 +541,44 @@ TEST("a full-column rebin in passes bins as one pass over the column does", "[un
     REQUIRE(passes.bins.nBins(1) == 3);
     requireEqual(onePass.bins, passes.bins);
     requireConsistent(passes.bins, data);
+}
+
+TEST("a full-column rebin in passes takes quantile borders of the whole column", "[unit]")
+{
+    SKIP_IF(!canSample());
+    constexpr size_t nRows = 40000, sampleRows = 4000;
+    constexpr uint64_t seed = 11;
+    // NaN in every sampled row; outside the sample, repeated values with more distinct values than maxBins, so
+    // the rebin takes quantile borders, which depend on the counts the passes merge.
+    std::vector<double> data(nRows, nan);
+    std::vector<double> column;
+    const std::vector<size_t> outside = rowsOutsideSample(seed, nRows, sampleRows);
+    for (size_t i = 0; i < outside.size(); ++i)
+    {
+        const double v   = double((i * 7919) % 300) * (i % 3 ? 1 : 2);
+        data[outside[i]] = v;
+        column.push_back(v);
+    }
+    std::sort(column.begin(), column.end());
+    NumericTablePtr x = makeTable(data, 1);
+    BinningParams params;
+    params.sampleRows      = sampleRows;
+    params.maxBins         = 32;
+    params.columnChunkRows = tableBlockRows; // 10 passes
+    Built<baseCpu> b;
+    build(*x, params, seed, b);
+    REQUIRE(b.status.ok());
+    REQUIRE(!b.bins.exactBins(0));
+    // The column's own borders: one data bin fewer for the missing bin.
+    services::internal::TArray<double, baseCpu> borders;
+    size_t nBins = 0;
+    bool exact   = true;
+    REQUIRE(
+        QuantileBinner<double, baseCpu>::computeBorders(column.data(), column.size(), params.maxBins - 1, nRows, params, true, borders, nBins, exact)
+            .ok());
+    REQUIRE(b.bins.nBins(0) == nBins);
+    for (size_t j = 0; j < nBins; ++j) REQUIRE(b.bins.borders(0)[j] == borders[j]);
+    requireConsistent(b.bins, data);
 }
 
 TEST("sampled borders are within the DKW rank bound of the full column", "[unit]")

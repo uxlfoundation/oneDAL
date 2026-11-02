@@ -50,10 +50,11 @@ using daal::internal::CpuType;
 constexpr size_t numaMinTableBytes = size_t(32) << 20;
 
 /// One node for tables of X below numaMinTableBytes, without querying the topology; else every node of the host.
+template <CpuType cpu>
 inline dtrees::engine::internal::NumaPlacement numaPlacement(size_t tableBytes, bool replicate)
 {
     using dtrees::engine::internal::NumaPlacement;
-    return tableBytes < numaMinTableBytes ? NumaPlacement() : NumaPlacement::host(replicate);
+    return tableBytes < numaMinTableBytes ? NumaPlacement() : NumaPlacement::host<cpu>(replicate);
 }
 
 /// Result tables of a fit, allocated by the caller; null when not requested.

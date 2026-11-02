@@ -32,6 +32,7 @@
 #include "src/algorithms/dtrees/forest/classification/df_classification_model_impl.h"
 #include "src/algorithms/dtrees/forest/classification/df_classification_train_kernel.h"
 #include "src/algorithms/dtrees/forest/df_forest_trainer.h"
+#include "src/algorithms/dtrees/forest/df_forest_trainer.i"
 #include "src/algorithms/dtrees/forest/regression/df_regression_model_impl.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
 
@@ -263,8 +264,17 @@ void requireSameTable(const NumericTablePtr & a, const NumericTablePtr & b)
     }
 }
 
+/// Whether the RNG backend addresses philox4x32x10 by counter (MKL and OpenRNG; not the reference backend).
+/// Without it a philox fit draws node features from per-thread streams and is not reproducible.
+bool counterDrawsSupported()
+{
+    dtrees::engine::internal::CounterRng<DAAL_BASE_CPU> probe;
+    return probe.init(1).ok();
+}
+
 TEST("philox forests, OOB results and MDA are identical across thread counts and memory saving modes", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     const Dataset c = makeData(4000, 8, 3, 1);
     const Dataset r = makeData(4000, 8, 0, 2);
     for (bool memSave : { false, true })
@@ -560,6 +570,41 @@ TEST("float regression keeps small responses beside large ones", "[unit]")
     }
 }
 
+/// The next 8 integers drawn from a stream state.
+std::vector<int> nextDraws(void * state)
+{
+    std::vector<int> out(8);
+    daal::internal::RNGsInst<int, DAAL_BASE_CPU> rng;
+    REQUIRE(rng.uniform(out.size(), out.data(), state, 0, 1 << 30) == 0);
+    return out;
+}
+
+void * stateOf(const engines::EnginePtr & e)
+{
+    auto * impl = dynamic_cast<engines::internal::BatchBaseImpl *>(e.get());
+    REQUIRE(impl);
+    return impl->getState();
+}
+
+TEST("streams cut from a cursor equal streams skipped from the base", "[unit]")
+{
+    const engines::EnginePtr bases[] = { engines::mt19937::Batch<>::create(5), engines::mcg59::Batch<>::create(5),
+                                         engines::mrg32k3a::Batch<>::create(5), engines::mt2203::Batch<>::create(5) };
+    for (const auto & base : bases)
+    {
+        training::internal::trainer::ForestStreams<DAAL_BASE_CPU> skipped, cut;
+        REQUIRE(skipped.init(base, 4, 1000, true, false).ok());
+        REQUIRE(cut.init(base, 4, 1000, true, true).ok());
+        for (size_t i = 0; i < 4; ++i) REQUIRE(nextDraws(skipped.tree(i)) == nextDraws(cut.tree(i)));
+        // The node stream starts after the tree region and reads on; the engine after the fit continues it.
+        std::vector<double> a(300), b(300);
+        REQUIRE(skipped.fillNodeDraws(a.size(), a.data()).ok());
+        REQUIRE(cut.fillNodeDraws(b.size(), b.data()).ok());
+        REQUIRE(a == b);
+        REQUIRE(nextDraws(stateOf(skipped.updated())) == nextDraws(stateOf(cut.updated())));
+    }
+}
+
 TEST("trees whose in-bag rows all have zero weight are single leaves", "[unit]")
 {
     const Dataset c = makeData(100, 4, 3, 20);
@@ -610,6 +655,7 @@ bool sameModels(const dtrees::internal::ModelImpl & a, const dtrees::internal::M
 
 TEST("a constant user weight changes neither the trees nor the minimum impurity decrease", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Weights are normalized to a maximum of 1 and the minimum decrease scales by the normalized total weight,
     // so weights of 7 fit as no weights. Scaling it by the raw weights (#2077) would act as a 7 times larger
     // minimum, which the last checks show changes the forests.
@@ -738,13 +784,13 @@ TEST("tables below numaMinTableBytes use one NUMA node and do not query the topo
 {
     // Querying the topology (threader_numa_count) loads hwloc, the cost the threshold avoids, so the small-table
     // placement must not come from it.
-    const auto small = training::internal::numaPlacement(training::internal::numaMinTableBytes - 1, true);
+    const auto small = training::internal::numaPlacement<cpu>(training::internal::numaMinTableBytes - 1, true);
     REQUIRE(small.nodes == 1);
     REQUIRE(!small.replicate);
-    const auto large = training::internal::numaPlacement(training::internal::numaMinTableBytes, true);
+    const auto large = training::internal::numaPlacement<cpu>(training::internal::numaMinTableBytes, true);
     REQUIRE(large.nodes == size_t(threader_numa_count()));
     REQUIRE(large.replicate);
-    REQUIRE(!training::internal::numaPlacement(training::internal::numaMinTableBytes, false).replicate);
+    REQUIRE(!training::internal::numaPlacement<cpu>(training::internal::numaMinTableBytes, false).replicate);
 }
 
 } // namespace daal::algorithms::decision_forest::test

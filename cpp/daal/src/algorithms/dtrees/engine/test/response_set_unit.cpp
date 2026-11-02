@@ -34,8 +34,8 @@ NumericTablePtr column(std::vector<double> & v)
 
 TEST("row counts above 2^31 - 1 are rejected", "[unit]")
 {
-    REQUIRE(checkRowCount(maxTrainingRows).ok());
-    REQUIRE(!checkRowCount(maxTrainingRows + 1).ok());
+    REQUIRE(checkRowCount<cpu>(maxTrainingRows).ok());
+    REQUIRE(!checkRowCount<cpu>(maxTrainingRows + 1).ok());
 }
 
 TEST("unweighted classification records keep in-bag rows in order with their counts", "[unit]")

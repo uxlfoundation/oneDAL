@@ -624,7 +624,7 @@ inline void threader_func_void(const void * a)
 
 /// Threads of the arena of NUMA node `node`: `nThreads`, capped at the nodes' total concurrency, split in
 /// proportion to `concurrency` so that the arenas add up to it. Every node gets at least one thread when
-/// there are as many threads as nodes; with fewer, nodes get 0 or 1.
+/// there are as many threads as nodes; with fewer, some nodes get none, and no node more than its concurrency.
 ///
 /// @param[in] concurrency Default concurrency of each of the `nNodes` nodes, each at least 1.
 inline size_t numa_arena_share(const int * concurrency, size_t nNodes, size_t node, size_t nThreads)

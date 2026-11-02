@@ -57,6 +57,7 @@ constexpr size_t binSampleScratchBytes = size_t(1) << 30;
 /// nThreads of them, and at most what binSampleScratchBytes holds. Larger groups gain no parallelism and only
 /// touch more scratch, whose pages every fit faults in anew (a quarter of an MNIST fit with all 784 features in
 /// one group).
+template <CpuType cpu>
 inline size_t binGroupFeatures(size_t sampleRows, size_t bytesPerValue, size_t nThreads)
 {
     const size_t perFeature = sampleRows * bytesPerValue;

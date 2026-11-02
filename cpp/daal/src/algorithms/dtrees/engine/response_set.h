@@ -52,6 +52,7 @@ constexpr size_t maxTrainingRows = (size_t(1) << 31) - 1;
 constexpr size_t maxCompactClasses = (size_t(1) << 16) - 1;
 
 /// Rejects tables whose row indices do not fit the engine's u32 indices and the model's int counts.
+template <CpuType cpu>
 inline services::Status checkRowCount(size_t nRows)
 {
     return nRows > maxTrainingRows ? services::Status(services::ErrorIncorrectNumberOfObservations) : services::Status();
@@ -115,21 +116,22 @@ static_assert(sizeof(RegCountRecord<float>) == 12 && sizeof(RegCountRecord<doubl
 static_assert(sizeof(RegWeightRecord<float>) == 12 && sizeof(RegWeightRecord<double>) == 24, "");
 
 /// Count or weight of a record, the statistic histograms and costs sum.
+template <CpuType cpu>
 inline double recordWeight(const ClsCountRecord & r)
 {
     return r.count;
 }
-template <typename algorithmFPType>
+template <CpuType cpu, typename algorithmFPType>
 inline double recordWeight(const ClsWeightRecord<algorithmFPType> & r)
 {
     return r.w;
 }
-template <typename algorithmFPType>
+template <CpuType cpu, typename algorithmFPType>
 inline double recordWeight(const RegCountRecord<algorithmFPType> & r)
 {
     return r.count;
 }
-template <typename algorithmFPType>
+template <CpuType cpu, typename algorithmFPType>
 inline double recordWeight(const RegWeightRecord<algorithmFPType> & r)
 {
     return r.w;
@@ -305,7 +307,7 @@ public:
     services::Status fill(const uint16_t * counts, const ResponseSource<algorithmFPType, cpu> & source, int numaNode, double & totalWeight)
     {
         const size_t nRows = source.nRows();
-        DAAL_CHECK_STATUS_VAR(checkRowCount(nRows));
+        DAAL_CHECK_STATUS_VAR(checkRowCount<cpu>(nRows));
         Record * dst = _buffers[0].get();
         size_t n     = 0;
         double total = 0;
@@ -315,7 +317,7 @@ public:
             if (!count) continue;
             if (n == _capacity) return services::Status(services::ErrorIncorrectNumberOfObservations);
             if (!makeRecord(dst[n], uint32_t(r), count, source, numaNode)) continue;
-            total += recordWeight(dst[n]);
+            total += recordWeight<cpu>(dst[n]);
             ++n;
         }
         _size       = n;

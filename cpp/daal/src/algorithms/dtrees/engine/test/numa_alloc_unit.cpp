@@ -33,7 +33,7 @@ TEST("forEachBlock visits every block of every copy once", "[unit]")
     for (bool replicate : { false, true })
     {
         NumaReplicated<int, cpu> a;
-        REQUIRE(a.allocate(1000, NumaPlacement::host(replicate)).ok());
+        REQUIRE(a.allocate(1000, NumaPlacement::host<cpu>(replicate)).ok());
         REQUIRE(a.copies() == ((replicate && threader_numa_count() > 1) ? size_t(threader_numa_count()) : 1));
         constexpr size_t nBlocks = 37;
         for (size_t c = 0; c < a.copies(); ++c)
@@ -65,7 +65,7 @@ TEST("copyTableRows copies the table row-major into every copy", "[unit]")
     for (bool replicate : { false, true })
     {
         NumaReplicated<float, cpu> copy;
-        REQUIRE((copyTableRows<float, cpu>(*x, NumaPlacement::host(replicate), copy)).ok());
+        REQUIRE((copyTableRows<float, cpu>(*x, NumaPlacement::host<cpu>(replicate), copy)).ok());
         for (size_t c = 0; c < copy.copies(); ++c)
         {
             const float * d = copy.data(int(c));
@@ -74,10 +74,40 @@ TEST("copyTableRows copies the table row-major into every copy", "[unit]")
     }
 }
 
+TEST("copyTableRows borrows a homogen table of the training type unless it replicates", "[unit]")
+{
+    constexpr size_t nRows = 1000, nCols = 3;
+    std::vector<float> data(nRows * nCols);
+    for (size_t i = 0; i < data.size(); ++i) data[i] = float(i) * 0.5f;
+    NumericTablePtr x = HomogenNumericTable<float>::create(data.data(), nCols, nRows);
+
+    // One node, or several without replication: one copy, the table itself.
+    for (const NumaPlacement & placement : { NumaPlacement(), NumaPlacement { 2, false } })
+    {
+        NumaReplicated<float, cpu> one;
+        REQUIRE((copyTableRows<float, cpu>(*x, placement, one)).ok());
+        REQUIRE(one.borrowed());
+        const NumaReplicated<float, cpu> & view = one;
+        REQUIRE(view.data(0) == data.data());
+    }
+
+    // Another type, or a copy per node, is copied.
+    NumaReplicated<double, cpu> otherType;
+    REQUIRE((copyTableRows<double, cpu>(*x, NumaPlacement(), otherType)).ok());
+    REQUIRE(!otherType.borrowed());
+    for (size_t i = 0; i < data.size(); ++i) REQUIRE(otherType.data(0)[i] == double(data[i]));
+    NumaReplicated<float, cpu> perNode;
+    REQUIRE((copyTableRows<float, cpu>(*x, NumaPlacement { 2, true }, perNode)).ok());
+    REQUIRE(!perNode.borrowed());
+    REQUIRE(perNode.copies() == 2);
+    for (size_t c = 0; c < perNode.copies(); ++c)
+        for (size_t i = 0; i < data.size(); ++i) REQUIRE(perNode.data(int(c))[i] == data[i]);
+}
+
 TEST("replicate copies copy 0 into the other copies", "[unit]")
 {
     NumaReplicated<uint8_t, cpu> a;
-    REQUIRE(a.allocate(5000, NumaPlacement::host(true)).ok());
+    REQUIRE(a.allocate(5000, NumaPlacement::host<cpu>(true)).ok());
     uint8_t * src = a.data(0);
     for (size_t i = 0; i < a.size(); ++i) src[i] = uint8_t(i * 7);
     REQUIRE(a.replicate(1024).ok());

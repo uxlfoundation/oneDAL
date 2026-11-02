@@ -14,7 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// Unit tests for the multi-word skip-ahead and in-place state copy of the RNG backends.
+/// Unit tests for the multi-word skip-ahead, the in-place state copy and the draw accounting of the RNG backends.
 
 #include <cstdint>
 #include <vector>
@@ -131,6 +131,52 @@ TEST("copyState continues the source stream without allocating a new one", "[uni
         REQUIRE(rng.uniform(fromB.size(), fromB.data(), b.getState(), 0, 1 << 30) == 0);
         REQUIRE(fromA == fromB);
     }
+}
+
+/// The next k integers in [0, 1 << 30) of s.
+std::vector<int> nextInts(Stream & s, size_t k)
+{
+    std::vector<int> out(k);
+    daal::internal::RNGsInst<int, cpu> rng;
+    REQUIRE(rng.uniform(k, out.data(), s.getState(), 0, 1 << 30) == 0);
+    return out;
+}
+
+TEST("a copy of a used stream continues it", "[unit]")
+{
+    // Doubles, Gaussians and Bernoulli draws can take more than one engine value each; the copy must follow.
+    for (const int brng : { __DAAL_BRNG_MT19937, __DAAL_BRNG_MCG59, __DAAL_BRNG_PHILOX4X32X10 })
+    {
+        CAPTURE(brng);
+        Stream a(5, brng);
+        std::vector<double> d(1000);
+        std::vector<int> b(1000);
+        daal::internal::RNGsInst<double, cpu> real;
+        daal::internal::RNGsInst<int, cpu> integer;
+        REQUIRE(real.uniform(d.size(), d.data(), a.getState(), 0.0, 1.0) == 0);
+        REQUIRE(real.gaussian(d.size(), d.data(), a.getState(), 0.0, 1.0) == 0);
+        REQUIRE(integer.bernoulli(b.size(), b.data(), a.getState(), 0.3) == 0);
+        Stream copy(a);
+        REQUIRE(nextInts(copy, 16) == nextInts(a, 16));
+    }
+}
+
+TEST("integer draws take one engine value each", "[unit]")
+{
+    // The forest's stream budgets count one value per integer (df_forest_trainer.i).
+    for (const int brng : { __DAAL_BRNG_MT19937, __DAAL_BRNG_MCG59, __DAAL_BRNG_PHILOX4X32X10 })
+        for (const int range : { 11000000, 1 << 30, 7 })
+        {
+            CAPTURE(brng, range);
+            Stream a(9, brng);
+            std::vector<int> draws(100000);
+            daal::internal::RNGsInst<int, cpu> rng;
+            REQUIRE(rng.uniform(draws.size(), draws.data(), a.getState(), 0, range) == 0);
+            for (int v : draws) REQUIRE((v >= 0 && v < range));
+            Stream skipped(9, brng);
+            REQUIRE(skipped.skipAhead(draws.size()) == 0);
+            REQUIRE(nextInts(skipped, 16) == nextInts(a, 16));
+        }
 }
 
 } // namespace daal::test

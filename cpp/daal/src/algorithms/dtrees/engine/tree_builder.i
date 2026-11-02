@@ -116,6 +116,7 @@ struct NodeScratch
 
 /// sklearn's threshold between two adjacent distinct values: their midpoint, or the lower value when
 /// the midpoint rounds to the upper one.
+template <CpuType cpu>
 inline double midpoint(double a, double b)
 {
     const double t = a / 2 + b / 2;
@@ -123,9 +124,10 @@ inline double midpoint(double a, double b)
 }
 
 /// A random threshold t, lo <= t < hi, uniform over the finite part of [lo, hi), for values in [lo, hi) with lo < hi
-/// and finite extremes flo and fhi (none if !anyFinite). t is finite, so -inf goes left, +inf right, and both sides
-/// are nonempty; u is a uniform draw in [0, 1).
-template <typename algorithmFPType>
+/// and finite extremes flo and fhi (none if !anyFinite). -inf goes left and +inf right, so both sides are nonempty;
+/// t is finite unless flo is the type's lowest value and lo = -inf, where t = -inf still separates them. u is a
+/// uniform draw in [0, 1).
+template <CpuType cpu, typename algorithmFPType>
 inline double randomThreshold(double lo, double hi, bool anyFinite, double flo, double fhi, double u)
 {
     if (!anyFinite) return 0; // lo = -inf, hi = +inf
@@ -141,7 +143,7 @@ inline double randomThreshold(double lo, double hi, bool anyFinite, double flo, 
 /// The largest algorithmFPType value at or below threshold t. Float prediction compares x > float(t), so a t
 /// rounded up onto a training value would send that value right; no float lies between the result and t, so
 /// it routes every float as t does.
-template <typename algorithmFPType>
+template <CpuType cpu, typename algorithmFPType>
 inline double representableThreshold(double t)
 {
     if constexpr (std::is_same<algorithmFPType, float>::value)
@@ -152,14 +154,17 @@ inline double representableThreshold(double t)
     return t;
 }
 
+template <CpuType cpu>
 inline size_t bitWords(size_t n)
 {
     return (n + 63) / 64;
 }
+template <CpuType cpu>
 inline bool testBit(const uint64_t * bits, size_t i)
 {
     return (bits[i >> 6] >> (i & 63)) & 1;
 }
+template <CpuType cpu>
 inline void setBit(uint64_t * bits, size_t i)
 {
     bits[i >> 6] |= uint64_t(1) << (i & 63);
@@ -253,8 +258,8 @@ public:
         uint64_t key       = 0;
         double improvement = 0;
         double weight      = 0; // of the node's records, set by evaluate
-        double sum         = 0; // regression: their weighted response sum, set by evaluate
-        double center      = 0; // regression: the node's mean as its parent estimates it (MseCost::setCenter)
+        double sum         = 0; // regression: their weighted sum of responses less center, set by evaluate
+        double center      = 0; // regression: the node's mean as its parent estimates it, rounded (MseCost)
         Candidate split;
         NodeCarry<Record, cpu> * carry = nullptr; // owned; nullptr: the root lists and no histograms
     };
@@ -273,7 +278,7 @@ public:
           _params(params),
           _inputs(inputs),
           _k(params.featuresPerNode && params.featuresPerNode < data.nFeatures ? params.featuresPerNode : data.nFeatures),
-          _words(bitWords(data.nFeatures)),
+          _words(bitWords<cpu>(data.nFeatures)),
           _scratch([]() -> Scratch * { return new Scratch(); }),
           _prefetchRows(defaultPrefetchDistance<cpu>()),
           _l2Bytes(services::internal::getL2CacheSize())
@@ -293,8 +298,8 @@ public:
         for (size_t f = 0; f < _data.nFeatures; ++f)
         {
             if (_data.bins->nBins(f) > 1) continue;
-            setBit(_rootBits.get(), f);
-            if (!_data.bins->nBins(f) || _data.bins->exactBins(f)) setBit(_rootBits.get() + _words, f);
+            setBit<cpu>(_rootBits.get(), f);
+            if (!_data.bins->nBins(f) || _data.bins->exactBins(f)) setBit<cpu>(_rootBits.get() + _words, f);
         }
         return services::Status();
     }
@@ -324,7 +329,7 @@ public:
         root     = WorkItem();
         root.n   = uint32_t(n);
         root.key = treeSeed;
-        if constexpr (!isClassification) root.center = _data.responses->responseMean();
+        if constexpr (!isClassification) root.center = std::nearbyint(_data.responses->responseMean());
         if (useHist(n))
         {
             root.carry = newCarry(ctx, nullptr);
@@ -337,7 +342,7 @@ public:
     {
         splittable           = false;
         const bool histNode  = useHist(item.n);
-        const size_t nChunks = histNode ? hist::chunkCount(item.n, _params.chunkRows, _params.maxChunks) : 1;
+        const size_t nChunks = histNode ? hist::chunkCount<cpu>(item.n, _params.chunkRows, _params.maxChunks) : 1;
         Scratch own;
         Scratch * scratch = item.n < parallelSortRecords && nChunks == 1 ? _scratch.local() : &own;
         DAAL_CHECK_MALLOC(scratch && scratch->ensureBase(_params.nClasses, _data.nFeatures));
@@ -350,7 +355,7 @@ public:
         cost.startParent();
         for (size_t i = 0; i < item.n; ++i)
         {
-            nSamples += recordCount(records[i]); // 1 per record in the weighted layouts, which keep no count
+            nSamples += recordCount<cpu>(records[i]); // 1 per record in the weighted layouts, which keep no count
             addParent(cost, records[i]);
         }
         cost.finishParent();
@@ -386,9 +391,7 @@ public:
         }
         else
         {
-            void * stream = _inputs.nodeStream();
-            DAAL_CHECK(stream, services::ErrorNullPtr);
-            StreamNodeDraws<cpu> draws(stream);
+            StreamNodeDraws<cpu, TreeInputs<Record, cpu> > draws(_inputs);
             best = searchNode(ctx, item.carry, records, item.n, histNode, nChunks, *scratch, cost, draws, draws, draws, s);
             s |= draws.status();
         }
@@ -422,10 +425,10 @@ public:
         right.key   = childNodeKey<cpu>(item.key, 1);
         if constexpr (!isClassification)
         {
-            // Each child's mean from the split's sums, the center of its impurity pass.
+            // Each child's mean from the split's sums, which are centered on the node's center.
             const double wRight = item.weight - split.wLeft;
-            left.center         = split.wLeft > 0 ? split.sLeft / split.wLeft : item.center;
-            right.center        = wRight > 0 ? (item.sum - split.sLeft) / wRight : item.center;
+            left.center         = std::nearbyint(item.center + (split.wLeft > 0 ? split.sLeft / split.wLeft : 0));
+            right.center        = std::nearbyint(item.center + (wRight > 0 ? (item.sum - split.sLeft) / wRight : 0));
         }
 
         // Children that may split in the histogram phase get the node's constant lists, and with fusion their
@@ -448,7 +451,7 @@ public:
             }
             if (!fuse) continue;
             s = drawChildLanes(ctx, child);
-            if (s && child.carry->nLanes) targets[c] = { child.carry->lanes.get(), child.carry->nLanes, &child.carry->planes };
+            if (s && child.carry->nLanes) targets[c] = { child.carry->lanes.get(), child.carry->nLanes, &child.carry->planes, child.center };
         }
         ctx.carries.destroy(item.carry);
         item.carry = nullptr;
@@ -456,7 +459,7 @@ public:
 
         const Record * in    = ctx.records.buffer(item.depth) + item.start;
         Record * out         = ctx.records.buffer(item.depth + 1) + item.start;
-        const size_t nChunks = hist::chunkCount(item.n, _params.chunkRows, _params.maxChunks);
+        const size_t nChunks = hist::chunkCount<cpu>(item.n, _params.chunkRows, _params.maxChunks);
         if (!split.byBin)
             s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(ctx.numaNode), _data.nFeatures, split });
         else if (_data.bins->binBytes() == 1)
@@ -467,7 +470,7 @@ public:
 
         TreeNode & node       = ctx.nodes[item.node];
         node.feature          = int32_t(split.feature);
-        node.threshold        = representableThreshold<algorithmFPType>(split.threshold);
+        node.threshold        = representableThreshold<cpu, algorithmFPType>(split.threshold);
         node.categorical      = split.categorical;
         node.weightedDecrease = item.improvement;
         node.left             = pair;
@@ -569,7 +572,7 @@ private:
         DAAL_CHECK_MALLOC(lefts.get());
         daal::threader_for(nChunks, 1, [&](size_t c) {
             size_t begin, end, count = 0;
-            hist::chunkRange(n, nChunks, c, begin, end);
+            hist::chunkRange<cpu>(n, nChunks, c, begin, end);
             prefetchedLoop<cpu>(
                 end - begin, distance, [&](size_t i) { DAAL_PREFETCH_READ_T0(route.address(in[begin + i].row)); },
                 [&](size_t i) { count += route.left(in[begin + i].row); });
@@ -580,7 +583,7 @@ private:
         if (lefts[nChunks] != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
         daal::threader_for(nChunks, 1, [&](size_t c) {
             size_t begin, end;
-            hist::chunkRange(n, nChunks, c, begin, end);
+            hist::chunkRange<cpu>(n, nChunks, c, begin, end);
             scatter(begin, end, lefts[c], nLeft + begin - lefts[c]);
         });
         return services::Status();
@@ -627,8 +630,8 @@ private:
     void markConstant(NodeCarry<Record, cpu> * c, uint32_t f, bool byValue) const
     {
         if (!c || !_params.carryConstants) return;
-        setBit(c->bits.get(), f);
-        if (byValue || (_data.bins && _data.bins->exactBins(f))) setBit(c->bits.get() + _words, f);
+        setBit<cpu>(c->bits.get(), f);
+        if (byValue || (_data.bins && _data.bins->exactBins(f))) setBit<cpu>(c->bits.get() + _words, f);
     }
 
     /// The next up to want draws of the permutation that are not in the constant list.
@@ -639,7 +642,7 @@ private:
         while (n < want && !permutation.exhausted())
         {
             const uint32_t f = permutation.next(draws);
-            if (!testBit(constant, f)) lanes[n++] = f;
+            if (!testBit<cpu>(constant, f)) lanes[n++] = f;
         }
         return n;
     }
@@ -675,9 +678,9 @@ private:
     static void setResponse(Scratch & s, size_t i, const Record & r)
     {
         if constexpr (isClassification)
-            s.label[i] = recordClass(r);
+            s.label[i] = recordClass<cpu>(r);
         else
-            s.y[i] = recordResponse(r);
+            s.y[i] = recordResponse<cpu>(r);
     }
 
     Cost makeCost(Scratch & s) const
@@ -686,6 +689,13 @@ private:
             return Cost(_params.nClasses, s.classWeights.get());
         else
             return Cost();
+    }
+    static double nodeCenter(const Cost & cost)
+    {
+        if constexpr (isClassification)
+            return 0;
+        else
+            return cost.center();
     }
     static double leftSum(const Cost & cost)
     {
@@ -697,9 +707,9 @@ private:
     static void addParent(Cost & cost, const Record & r)
     {
         if constexpr (isClassification)
-            cost.addParent(recordClass(r), recordWeight(r));
+            cost.addParent(recordClass<cpu>(r), recordWeight<cpu>(r));
         else
-            cost.addParent(recordResponse(r), recordWeight(r));
+            cost.addParent(recordResponse<cpu>(r), recordWeight<cpu>(r));
     }
     void addLeft(Cost & cost, const Scratch & s, size_t i) const
     {
@@ -721,7 +731,7 @@ private:
         else
         {
             for (size_t i = 1; i < n; ++i)
-                if (recordResponse(r[i]) != recordResponse(r[0])) return false;
+                if (recordResponse<cpu>(r[i]) != recordResponse<cpu>(r[0])) return false;
             return true;
         }
     }
@@ -756,7 +766,7 @@ private:
         }
         for (size_t i = 0; i < n; ++i)
         {
-            scratch.w[i] = recordWeight(records[i]);
+            scratch.w[i] = recordWeight<cpu>(records[i]);
             setResponse(scratch, i, records[i]);
         }
         return exactSearch(ctx, carry, records, n, scratch, cost, histNode ? restart : features, splits, status);
@@ -775,7 +785,7 @@ private:
         while (visited < _k && !permutation.exhausted())
         {
             const uint32_t f = permutation.next(features);
-            if (testBit(known, f)) continue;
+            if (testBit<cpu>(known, f)) continue;
             bool constant     = false;
             const Candidate c = splitOnFeature(ctx, records, n, scratch, cost, splits, f, constant, status);
             if (!status) return best;
@@ -825,7 +835,8 @@ private:
             }
             else
             {
-                status = hist::build(records, n, *_data.bins, ctx.numaNode, lanes, nLanes, _params.nClasses, nChunks, prefetchDistance(n), own);
+                status = hist::build(records, n, *_data.bins, ctx.numaNode, lanes, nLanes, _params.nClasses, nChunks, prefetchDistance(n),
+                                     nodeCenter(cost), own);
                 if (!status) return best;
             }
             for (size_t j = 0; j < nLanes; ++j)
@@ -937,7 +948,7 @@ private:
             const double flo     = std::isfinite(lo) ? lo : border[first + 1];
             const double fhi     = std::isfinite(hi) ? hi : border[last - 1];
             const bool anyFinite = std::isfinite(flo) && std::isfinite(fhi);
-            const double t       = exact::randomThreshold<algorithmFPType>(lo, hi, anyFinite, flo, fhi, draws.unit());
+            const double t       = exact::randomThreshold<cpu, algorithmFPType>(lo, hi, anyFinite, flo, fhi, draws.unit());
             size_t a = first, z = last; // border[a] <= t < border[z]
             while (z - a > 1)
             {
@@ -1005,7 +1016,7 @@ private:
                 constant = true;
                 return best;
             }
-            const double t = exact::randomThreshold<algorithmFPType>(lo, hi, anyFinite, flo, fhi, draws.unit());
+            const double t = exact::randomThreshold<cpu, algorithmFPType>(lo, hi, anyFinite, flo, fhi, draws.unit());
             cost.resetLeft();
             size_t nLeft = 0;
             for (size_t i = 0; i < n; ++i)
@@ -1090,7 +1101,7 @@ private:
             const double proxy = cost.proxy();
             if (best.valid && !(proxy > best.proxy)) continue;
             best.valid     = true;
-            best.threshold = exact::midpoint(double(values[i]), double(values[i + 1]));
+            best.threshold = exact::midpoint<cpu>(double(values[i]), double(values[i + 1]));
             best.nLeft     = uint32_t(nLeft);
             best.wLeft     = cost.leftWeight();
             best.sLeft     = leftSum(cost);
@@ -1206,8 +1217,8 @@ private:
             double total = 0;
             for (size_t i = 0; i < n; ++i)
             {
-                cw[recordClass(r[i])] += recordWeight(r[i]);
-                total += recordWeight(r[i]);
+                cw[recordClass<cpu>(r[i])] += recordWeight<cpu>(r[i]);
+                total += recordWeight<cpu>(r[i]);
             }
             size_t best = 0;
             for (size_t c = 1; c < nClasses; ++c) best = cw[c] > cw[best] ? c : best;
@@ -1227,8 +1238,8 @@ private:
             double w = 0, s = 0;
             for (size_t i = 0; i < n; ++i)
             {
-                w += recordWeight(r[i]);
-                s += recordWeight(r[i]) * recordResponse(r[i]);
+                w += recordWeight<cpu>(r[i]);
+                s += recordWeight<cpu>(r[i]) * recordResponse<cpu>(r[i]);
             }
             return w > 0 ? s / w : _data.responses->responseMean();
         }
@@ -1251,7 +1262,7 @@ template <typename algorithmFPType, typename Record, CpuType cpu>
 services::Status trainTrees(const TreeData<algorithmFPType, cpu> & data, const TreeParams & params, size_t nTrees, TreeInputs<Record, cpu> & inputs)
 {
     DAAL_CHECK(data.x && data.responses && data.nFeatures && data.nRows, services::ErrorNullInput);
-    DAAL_CHECK_STATUS_VAR(checkRowCount(data.nRows));
+    DAAL_CHECK_STATUS_VAR(checkRowCount<cpu>(data.nRows));
     TreeBuilder<algorithmFPType, Record, cpu> builder(data, params, inputs);
     DAAL_CHECK_STATUS_VAR(builder.init());
 

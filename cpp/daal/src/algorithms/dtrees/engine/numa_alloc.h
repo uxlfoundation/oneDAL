@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "data_management/data/homogen_numeric_table.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_memory.h"
@@ -101,7 +102,11 @@ struct NumaPlacement
     bool replicate = false; // a copy per node when nodes > 1
 
     /// Every NUMA node of the host, which queries the topology (hwloc through TBB), replicated if requested.
-    static NumaPlacement host(bool replicate) { return { size_t(threader_numa_count()), replicate }; }
+    template <CpuType cpu>
+    static NumaPlacement host(bool replicate)
+    {
+        return { size_t(threader_numa_count()), replicate };
+    }
 };
 
 /**
@@ -118,9 +123,10 @@ public:
     /// Allocates one copy per node of the placement if it replicates over more than one node, else one copy.
     services::Status allocate(size_t n, const NumaPlacement & placement)
     {
-        _nNodes  = placement.nodes ? placement.nodes : 1;
-        _nCopies = (placement.replicate && _nNodes > 1) ? _nNodes : 1;
-        _size    = n;
+        _borrowed = nullptr;
+        _nNodes   = placement.nodes ? placement.nodes : 1;
+        _nCopies  = (placement.replicate && _nNodes > 1) ? _nNodes : 1;
+        _size     = n;
         _copies.reset(_nCopies);
         DAAL_CHECK_MALLOC(_copies.get());
         for (size_t i = 0; i < _nCopies; ++i)
@@ -130,12 +136,27 @@ public:
         return services::Status();
     }
 
+    /// One read-only copy that is the caller's n elements at p, which must outlive this object's use.
+    void borrow(const T * p, size_t n)
+    {
+        _copies.reset(0);
+        _borrowed = p;
+        _size     = n;
+        _nCopies  = 1;
+        _nNodes   = 1;
+    }
+
     size_t size() const { return _size; }
     size_t copies() const { return _nCopies; }
+    bool borrowed() const { return _borrowed != nullptr; }
 
-    /// The copy local to NUMA node numaNode; with one copy, that copy.
-    T * data(int numaNode) { return _copies[copyIndex(numaNode)].get(); }
-    const T * data(int numaNode) const { return _copies[copyIndex(numaNode)].get(); }
+    /// The copy local to NUMA node numaNode; with one copy, that copy. A borrowed copy is read through the const overload only.
+    T * data(int numaNode)
+    {
+        DAAL_ASSERT(!_borrowed);
+        return _borrowed ? nullptr : _copies[copyIndex(numaNode)].get();
+    }
+    const T * data(int numaNode) const { return _borrowed ? _borrowed : _copies[copyIndex(numaNode)].get(); }
 
     /**
      *  \brief Runs func(iBlock) for every block in [0, nBlocks) so that copy iCopy is first touched on its node
@@ -193,9 +214,10 @@ private:
     size_t copyIndex(int numaNode) const { return (numaNode >= 0 && size_t(numaNode) < _nCopies) ? size_t(numaNode) : 0; }
 
     services::internal::TArray<LargeArray<T, cpu>, cpu> _copies;
-    size_t _size    = 0;
-    size_t _nCopies = 0;
-    size_t _nNodes  = 1;
+    const T * _borrowed = nullptr;
+    size_t _size        = 0;
+    size_t _nCopies     = 0;
+    size_t _nNodes      = 1;
 };
 
 /// Rows read per block when a table is copied or scanned.
@@ -204,7 +226,9 @@ constexpr size_t tableBlockRows = 4096;
 /**
  *  \brief Row-major copy of x in algorithmFPType, one per NUMA node (design 4.9)
  *
- *  Each copy is read from x through ReadRows blocks inside its own node's arena.
+ *  Each copy is read from x through ReadRows blocks inside its own node's arena. Where the placement keeps one
+ *  copy (one node, or no replication), a homogen table of algorithmFPType, already row-major, is borrowed
+ *  instead of copied; its pages stay where the caller placed them.
  */
 template <typename algorithmFPType, CpuType cpu>
 services::Status copyTableRows(const data_management::NumericTable & x, const NumaPlacement & placement, NumaReplicated<algorithmFPType, cpu> & out)
@@ -212,6 +236,15 @@ services::Status copyTableRows(const data_management::NumericTable & x, const Nu
     const size_t nRows = x.getNumberOfRows();
     const size_t nCols = x.getNumberOfColumns();
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nCols);
+    if (placement.nodes <= 1 || !placement.replicate)
+    {
+        const auto * h = dynamic_cast<const data_management::HomogenNumericTable<algorithmFPType> *>(&x);
+        if (h && h->getArray())
+        {
+            out.borrow(h->getArray(), nRows * nCols);
+            return services::Status();
+        }
+    }
     services::Status s = out.allocate(nRows * nCols, placement);
     DAAL_CHECK_STATUS_VAR(s);
     const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;

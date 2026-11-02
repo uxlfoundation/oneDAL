@@ -82,8 +82,8 @@ TEST("weighted histograms sum weights in double", "[unit]")
         }
         hist::Planes<RegWeightRecord<double>, cpu> hr;
         hist::Planes<ClsWeightRecord<double>, cpu> hc;
-        REQUIRE((hist::build(reg.data(), nRows, bins, 0, &lane, 1, 0, nChunks, 0, hr)).ok());
-        REQUIRE((hist::build(cls.data(), nRows, bins, 0, &lane, 1, 1, nChunks, 0, hc)).ok());
+        REQUIRE((hist::build(reg.data(), nRows, bins, 0, &lane, 1, 0, nChunks, 0, 0, hr)).ok());
+        REQUIRE((hist::build(cls.data(), nRows, bins, 0, &lane, 1, 1, nChunks, 0, 0, hc)).ok());
         for (size_t b = 0; b < 2; ++b)
         {
             REQUIRE(std::abs(double(hr.stat[hr.at(b, 0)]) - e[b]) <= tol * e[b]);
@@ -104,14 +104,14 @@ TEST("partial planes of a chunked node stay within partialPlaneBytes", "[unit]")
     using hist::chunksWithinBudget;
     using hist::partialPlaneBytes;
     // 1000 classes, 256 bins and 50 lanes, weighted: about 131 MB of planes per chunk.
-    const size_t manyClasses = hist::planeBytes<ClsWeightRecord<double> >(256, 50, 1000);
-    const size_t capped      = chunksWithinBudget(64, manyClasses);
+    const size_t manyClasses = hist::planeBytes<cpu, ClsWeightRecord<double> >(256, 50, 1000);
+    const size_t capped      = chunksWithinBudget<cpu>(64, manyClasses);
     REQUIRE((capped >= 1 && capped < 64));
     REQUIRE((capped - 1) * manyClasses <= partialPlaneBytes);
     // Small planes keep every chunk; no planes impose no cap.
-    REQUIRE(chunksWithinBudget(64, hist::planeBytes<ClsCountRecord>(256, 8, 2)) == 64);
-    REQUIRE(chunksWithinBudget(64, 0) == 64);
-    REQUIRE(chunksWithinBudget(1, manyClasses) == 1);
+    REQUIRE(chunksWithinBudget<cpu>(64, hist::planeBytes<cpu, ClsCountRecord>(256, 8, 2)) == 64);
+    REQUIRE(chunksWithinBudget<cpu>(64, 0) == 64);
+    REQUIRE(chunksWithinBudget<cpu>(1, manyClasses) == 1);
 }
 
 } // namespace daal::algorithms::dtrees::engine::internal::test

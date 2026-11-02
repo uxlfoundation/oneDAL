@@ -65,7 +65,7 @@ struct TreeParams
     double minWeightedDecrease = 0; // a split's weighted impurity decrease must reach this
     double impurityThreshold   = 0; // nodes with impurity below this are leaves
     bool randomSplitter        = false;
-    bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeStream
+    bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeUniform
     size_t treesInFlight       = 0;
     size_t numaNodes           = 0; // see ExecutorParams; the data's NumaPlacement::nodes
     // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
@@ -112,8 +112,9 @@ public:
     virtual services::Status prepareTree(size_t iTree, int numaNode, ResponseSet<Record, cpu> & records, uint64_t & treeSeed) = 0;
     /// Takes the finished tree.
     virtual services::Status emitTree(size_t iTree, EmittedTree & tree) = 0;
-    /// The calling thread's stream of the user's engine, for TreeParams::counterDraws == false.
-    virtual void * nodeStream() { return nullptr; }
+    /// For TreeParams::counterDraws == false: the next uniform double in [0, 1) of the user's engine for node draws.
+    /// Called from any thread.
+    virtual services::Status nodeUniform(double & u) { return services::Status(services::ErrorMethodNotSupported); }
 };
 
 /**

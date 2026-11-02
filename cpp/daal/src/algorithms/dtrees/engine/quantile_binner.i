@@ -87,7 +87,7 @@ inline size_t countBelow(const double * sorted, size_t n, double x)
 }
 
 /// Number of sample values not above v: the upper end of v's run in s.
-template <typename algorithmFPType>
+template <CpuType cpu, typename algorithmFPType>
 inline size_t countNotAbove(const algorithmFPType * s, size_t k, double v)
 {
     size_t lo = 0;
@@ -188,7 +188,7 @@ void QuantileBinner<algorithmFPType, cpu>::searchBins(const double * inner, size
 namespace binner
 {
 /// Sorted non-NaN values as an array s[0, k).
-template <typename algorithmFPType>
+template <typename algorithmFPType, CpuType cpu>
 struct SortedValues
 {
     const algorithmFPType * s;
@@ -196,7 +196,7 @@ struct SortedValues
 
     size_t size() const { return k; }
     double at(size_t i) const { return double(s[i]); }
-    size_t notAbove(double v) const { return countNotAbove(s, k, v); }
+    size_t notAbove(double v) const { return countNotAbove<cpu>(s, k, v); }
     template <typename F>
     size_t forEachDistinct(const F & f) const
     {
@@ -212,6 +212,7 @@ struct SortedValues
 };
 
 /// Sorted non-NaN values as runs of equal values: values[r] ascending, ends[r] the number of values in runs 0..r.
+template <CpuType cpu>
 struct SortedRuns
 {
     const double * values;
@@ -322,7 +323,8 @@ services::Status QuantileBinner<algorithmFPType, cpu>::computeBorders(const algo
                                                                       const BinningParams & params, bool allowExact, TArray<double, cpu> & borders,
                                                                       size_t & nBins, bool & exact)
 {
-    return binner::bordersOf<binner::SortedValues<algorithmFPType>, cpu>({ s, k }, maxDataBins, nRows, params, allowExact, borders, nBins, exact);
+    return binner::bordersOf<binner::SortedValues<algorithmFPType, cpu>, cpu>({ s, k }, maxDataBins, nRows, params, allowExact, borders, nBins,
+                                                                              exact);
 }
 
 template <typename algorithmFPType, CpuType cpu>
@@ -331,7 +333,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::computeBordersFromRuns(co
                                                                               bool allowExact, TArray<double, cpu> & borders, size_t & nBins,
                                                                               bool & exact)
 {
-    return binner::bordersOf<binner::SortedRuns, cpu>({ values, ends, nRuns }, maxDataBins, nRows, params, allowExact, borders, nBins, exact);
+    return binner::bordersOf<binner::SortedRuns<cpu>, cpu>({ values, ends, nRuns }, maxDataBins, nRows, params, allowExact, borders, nBins, exact);
 }
 
 namespace binner
@@ -549,7 +551,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     const size_t nRows = x.getNumberOfRows();
     const size_t p     = x.getNumberOfColumns();
     if (!nRows || !p) return services::Status(services::ErrorIncorrectNumberOfObservations);
-    DAAL_CHECK_STATUS_VAR(checkRowCount(nRows));
+    DAAL_CHECK_STATUS_VAR(checkRowCount<cpu>(nRows));
     if (x.getDataLayout() & NumericTableIface::csrArray) return services::Status(services::ErrorMethodNotSupported);
     if (!params.maxBins || params.maxBins > maxU16Bins) return services::Status();
 
@@ -690,7 +692,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
         return computeBordersFromRuns(runValues[cur].get(), runEnds[cur].get(), nRuns, maxData, nRows, params, true, borders[f], nBins[f], exact[f]);
     };
 
-    const size_t groupSize = binGroupFeatures(sample.k, bytesPerValue, nThreads);
+    const size_t groupSize = binGroupFeatures<cpu>(sample.k, bytesPerValue, nThreads);
     for (size_t f = 0; f < p; ++f) hasMissing[f] = false;
     for (size_t f0 = 0; f0 < p; f0 += groupSize)
     {

@@ -246,37 +246,34 @@ private:
 };
 
 /**
- *  \brief Draws of one node from a stream of the user's engine owned by the calling thread
+ *  \brief Node draws of engines other than philox4x32x10, from uniform doubles of the user's engine
  *
- *  For engines other than philox4x32x10 (design 4.13): draws are taken in execution order, so they
- *  depend on which thread builds the node and on what it drew before.
+ *  Source::nodeUniform(double &) gives the next double in [0, 1); integers below a range are derived from it,
+ *  floor(u * range), with 53 bits of resolution.
  */
-template <CpuType cpu>
+template <CpuType cpu, typename Source>
 class StreamNodeDraws
 {
 public:
-    explicit StreamNodeDraws(void * streamState) : _state(streamState) {}
+    explicit StreamNodeDraws(Source & source) : _source(source) {}
 
     uint32_t below(uint32_t range)
     {
-        int v = 0;
-        daal::internal::RNGsInst<int, cpu> rng;
-        if (rng.uniform(1, &v, _state, 0, int(range))) _status |= services::Status(services::ErrorIncorrectErrorcodeFromGenerator);
-        return uint32_t(v);
+        const uint32_t v = uint32_t(unit() * double(range));
+        return v < range ? v : range - 1;
     }
 
     double unit()
     {
         double v = 0;
-        daal::internal::RNGsInst<double, cpu> rng;
-        if (rng.uniform(1, &v, _state, 0.0, 1.0)) _status |= services::Status(services::ErrorIncorrectErrorcodeFromGenerator);
+        _status |= _source.nodeUniform(v);
         return v < 1.0 ? v : 0.0;
     }
 
     const services::Status & status() const { return _status; }
 
 private:
-    void * _state;
+    Source & _source;
     services::Status _status;
 };
 

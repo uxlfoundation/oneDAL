@@ -18,11 +18,9 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <random>
-#include <thread>
 #include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
@@ -106,17 +104,14 @@ public:
         return services::Status();
     }
 
-    void * nodeStream() override
+    /// One mt19937 stream for every node draw, under the lock, as the forest's node stream.
+    services::Status nodeUniform(double & u) override
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        const auto id = std::this_thread::get_id();
-        auto it       = _streams.find(id);
-        if (it == _streams.end())
-            it = _streams
-                     .emplace(id, std::unique_ptr<daal::internal::BaseRNGsInst<cpu> >(
-                                      new daal::internal::BaseRNGsInst<cpu>(unsigned(_seed + _streams.size()), __DAAL_BRNG_MT19937)))
-                     .first;
-        return it->second->getState();
+        if (!_nodeStream) _nodeStream.reset(new daal::internal::BaseRNGsInst<cpu>(unsigned(_seed), __DAAL_BRNG_MT19937));
+        daal::internal::RNGsInst<double, cpu> rng;
+        if (rng.uniform(1, &u, _nodeStream->getState(), 0.0, 1.0)) return services::Status(services::ErrorIncorrectErrorcodeFromGenerator);
+        return services::Status();
     }
 
     std::vector<EmittedTree> trees;
@@ -126,14 +121,22 @@ private:
     const std::vector<std::vector<uint16_t> > & _counts;
     uint64_t _seed;
     std::mutex _mutex;
-    std::map<std::thread::id, std::unique_ptr<daal::internal::BaseRNGsInst<cpu> > > _streams;
+    std::unique_ptr<daal::internal::BaseRNGsInst<cpu> > _nodeStream;
 };
 
-/// Trains nTrees trees and returns their tables; with binning, a hist fit over the binned data.
+/// Whether the RNG backend addresses philox4x32x10 by counter (MKL and OpenRNG; not the reference backend).
+bool counterDrawsSupported()
+{
+    CounterRng<baseCpu> probe;
+    return probe.init(1).ok();
+}
+
+/// Trains nTrees trees and returns their tables; with binning, a hist fit over the binned data. Tests that train
+/// with counter draws (the TreeParams default) skip themselves where counterDrawsSupported() is false.
 template <typename Record, CpuType cpu>
 std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, size_t nTrees, const std::vector<std::vector<uint16_t> > & counts,
                                uint64_t seed = 777, const BinningParams * binning = nullptr,
-                               const NumaPlacement & placement = NumaPlacement::host(false))
+                               const NumaPlacement & placement = NumaPlacement::host<baseCpu>(false))
 {
     std::vector<double> xCopy = d.x;
     NumericTablePtr xt        = HomogenNumericTable<double>::create(xCopy.data(), d.p, d.nRows);
@@ -416,6 +419,7 @@ void requireOptimal(const Dataset & d, const EmittedTree & t, size_t r, const st
 
 TEST("with every feature at every node, every split is optimal and every leaf unsplittable", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     for (size_t nClasses : { 0, 2, 3 })
     {
         const Dataset d = nClasses ? classificationData(300, 5, nClasses, 11) : regressionData(300, 5, 12);
@@ -432,6 +436,7 @@ TEST("with every feature at every node, every split is optimal and every leaf un
 
 TEST("with user weights every split is still optimal for the weighted cost", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Weighted left sums once took the weight of the wrong row (#2092); unit weights cannot show that.
     for (size_t nClasses : { 0, 2, 3 })
     {
@@ -449,6 +454,7 @@ TEST("with user weights every split is still optimal for the weighted cost", "[u
 
 TEST("every in-bag row reaches a leaf that matches its rows, with bootstrap and weights", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees = 6;
     for (bool weighted : { false, true })
     {
@@ -479,6 +485,7 @@ TEST("every in-bag row reaches a leaf that matches its rows, with bootstrap and 
 // rounds sums differently. Each CpuType is checked against its own single-thread trees.
 TEST("trees do not depend on threads or trees in flight", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees = 8;
     const Dataset c         = classificationData(3000, 9, 3, 31);
     const Dataset r         = regressionData(3000, 9, 32, true);
@@ -525,6 +532,7 @@ TEST("trees do not depend on threads or trees in flight", "[unit]")
 
 TEST("maxDepth, minLeafRecords and maxLeafNodes bound the trees", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     const Dataset d   = classificationData(1500, 6, 3, 41);
     const auto counts = bootstrapCounts(4, 1500, 42);
     TreeParams params;
@@ -565,6 +573,7 @@ constexpr double chiSquare2Dof999 = 13.82;
 
 TEST("the drawn feature is uniform over the features", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // One feature per node and depth 1: the root splits on its first drawn feature.
     const Dataset d = classificationData(400, 8, 2, 51);
     TreeParams params;
@@ -581,6 +590,7 @@ TEST("the drawn feature is uniform over the features", "[unit]")
 
 TEST("random thresholds are uniform over the node's range", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     Dataset d;
     d.nRows    = 1000;
     d.p        = 1;
@@ -608,6 +618,7 @@ TEST("random thresholds are uniform over the node's range", "[unit]")
 
 TEST("random thresholds on features with infinite values are finite and route as prediction does", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     const double inf = std::numeric_limits<double>::infinity();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     // Each case lists the feature's distinct values; rows cycle through them.
@@ -646,6 +657,7 @@ TEST("random thresholds on features with infinite values are finite and route as
 
 TEST("the random categorical split takes each category present with equal chance (defect 7)", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     Dataset d;
     d.nRows              = 900;
     d.p                  = 1;
@@ -673,6 +685,7 @@ TEST("the random categorical split takes each category present with equal chance
 
 TEST("the best categorical split equals brute force when one category dominates (defect 6)", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Category 0 holds 90% of the rows with mixed labels; small categories 1..5 are pure. The best
     // one-vs-rest split is found by trying each category against the Gini proxy.
     Dataset d;
@@ -716,6 +729,7 @@ TEST("the best categorical split equals brute force when one category dominates 
 
 TEST("nodes above parallelSortRecords sort in parallel, NaN included, independent of the thread count", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // 300k rows put the top levels above the 2^17-record threshold of the parallel sort.
     Dataset d = regressionData(300000, 4, 81);
     for (size_t i = 0; i < d.nRows; i += 97) d.x[i * d.p + (i % d.p)] = std::numeric_limits<double>::quiet_NaN();
@@ -737,6 +751,7 @@ TEST("nodes above parallelSortRecords sort in parallel, NaN included, independen
 
 TEST("a feature that is all NaN on a node above parallelSortRecords does not fail the fit", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     Dataset d = regressionData(300000, 3, 83);
     for (size_t i = 0; i < d.nRows; ++i) d.x[i * d.p + 1] = std::numeric_limits<double>::quiet_NaN();
     TreeParams params;
@@ -751,6 +766,7 @@ TEST("a feature that is all NaN on a node above parallelSortRecords does not fai
 
 TEST("a node whose impurity equals impurityThreshold is split", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Two balanced classes: the root's Gini impurity is exactly 0.5.
     Dataset d;
     d.nRows    = 100;
@@ -765,12 +781,14 @@ TEST("a node whose impurity equals impurityThreshold is split", "[unit]")
     params.nClasses          = 2;
     params.impurityThreshold = 0.5;
     const std::vector<std::vector<uint16_t> > noBootstrap;
-    REQUIRE(rowsOf(train<ClsCountRecord, baseCpu>(d, params, 1, noBootstrap)[0])[0].featureIndex == 0);
-    params.impurityThreshold = std::nextafter(0.5, 1.);
-    REQUIRE(rowsOf(train<ClsCountRecord, baseCpu>(d, params, 1, noBootstrap)[0])[0].featureIndex == -1);
+    const auto atThreshold = train<ClsCountRecord, baseCpu>(d, params, 1, noBootstrap);
+    REQUIRE(rowsOf(atThreshold[0])[0].featureIndex == 0);
+    params.impurityThreshold  = std::nextafter(0.5, 1.);
+    const auto aboveThreshold = train<ClsCountRecord, baseCpu>(d, params, 1, noBootstrap);
+    REQUIRE(rowsOf(aboveThreshold[0])[0].featureIndex == -1);
 }
 
-TEST("other engines draw from the calling thread's stream", "[unit]")
+TEST("other engines draw nodes from the inputs' stream", "[unit]")
 {
     const Dataset d   = classificationData(1500, 6, 3, 71);
     const auto counts = bootstrapCounts(4, 1500, 72);
@@ -856,6 +874,7 @@ BinningParams exactBinning()
 
 TEST("hist with one bin per value equals the exact phase on the same draws", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees     = 6;
     const Dataset c             = lowCardinalityData(4000, 3, 91);
     const Dataset r             = lowCardinalityData(4000, 0, 92);
@@ -897,6 +916,7 @@ TEST("hist with one bin per value equals the exact phase on the same draws", "[u
 
 TEST("chunked histograms and partitions do not depend on chunking or the thread count", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees = 3;
     Dataset c               = classificationData(40000, 6, 3, 101);
     Dataset r               = regressionData(40000, 6, 102, true);
@@ -936,6 +956,7 @@ TEST("chunked histograms and partitions do not depend on chunking or the thread 
 
 TEST("a histogram node with every drawn feature constant by bins takes the exact phase", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Two bins on one continuous feature: below the root, each child holds one bin, yet its values differ.
     Dataset d;
     d.nRows = 4000;
@@ -965,6 +986,7 @@ TEST("a histogram node with every drawn feature constant by bins takes the exact
 
 TEST("the random splitter on bins takes each border uniformly and never leaves a side empty (defect 1)", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Values 0..8, one bin each: the draw is uniform in [0, 8) and the split goes after bin floor(t).
     Dataset d;
     d.nRows    = 900;
@@ -1014,6 +1036,7 @@ Dataset withConstantFeatures(Dataset d)
 
 TEST("fused partitions and constant lists do not change the trees", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees = 4;
     Dataset c               = withConstantFeatures(classificationData(20000, 5, 3, 121));
     const Dataset low       = withConstantFeatures(lowCardinalityData(20000, 0, 122));
@@ -1072,22 +1095,24 @@ TEST("fused partitions and constant lists do not change the trees", "[unit]")
 
 TEST("a fit on one NUMA node builds the trees of a fit on every node", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees = 4;
     const Dataset c         = classificationData(6000, 6, 3, 141);
     const Dataset r         = regressionData(6000, 6, 142);
     const auto counts       = bootstrapCounts(nTrees, 6000, 143);
     BinningParams one;
     BinningParams all;
-    all.placement = NumaPlacement::host(true);
+    all.placement = NumaPlacement::host<baseCpu>(true);
     TreeParams params;
     params.featuresPerNode = 3;
     for (bool hist : { false, true })
     {
         params.numaNodes = 0;
         params.nClasses  = 3;
-        const auto hostC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host(true));
+        const auto hostC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host<baseCpu>(true));
         params.nClasses  = 0;
-        const auto hostR = train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host(true));
+        const auto hostR =
+            train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host<baseCpu>(true));
         params.numaNodes = 1;
         params.nClasses  = 3;
         const auto oneC  = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &one : nullptr, NumaPlacement());
@@ -1135,8 +1160,39 @@ TEST("MSE impurity from the center a parent estimates matches the variance", "[u
     }
 }
 
+TEST("regression splits responses whose offset puts their sums past 2^53", "[unit]")
+{
+    SKIP_IF(!counterDrawsSupported());
+    // y = 1e14 + step(x) + noise: sums of the raw responses reach 4e17 and round to 64, more than the step.
+    const size_t n = 4000;
+    Dataset d;
+    d.nRows = n;
+    d.p     = 1;
+    std::mt19937_64 gen(87);
+    std::uniform_real_distribution<double> unit(0, 1);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const double x = unit(gen);
+        d.x.push_back(x);
+        d.y.push_back(1e14 + (x < 0.5 ? 0 : 1) + 0.01 * unit(gen));
+    }
+    TreeParams params;
+    params.maxDepth = 1;
+    const std::vector<std::vector<uint16_t> > noBootstrap;
+    BinningParams binning;
+    for (bool hist : { false, true })
+    {
+        CAPTURE(hist);
+        const auto trees              = train<RegCountRecord<double>, baseCpu>(d, params, 1, noBootstrap, 777, hist ? &binning : nullptr);
+        const DecisionTreeNode * rows = rowsOf(trees[0]);
+        REQUIRE(rows[0].featureIndex == 0);
+        REQUIRE(std::abs(rows[0].featureValueOrResponse - 0.5) < 0.02);
+    }
+}
+
 TEST("a subtree far from the global mean splits as it does near zero", "[unit]")
 {
+    SKIP_IF(!counterDrawsSupported());
     // Half the rows at 0, half at 5e8 + x: the high child's responses sit 5e8 from zero against a spread of 1.
     // It must split on x as the same rows do at 0.
     const size_t n = 2000;
@@ -1164,6 +1220,12 @@ TEST("a subtree far from the global mean splits as it does near zero", "[unit]")
     const size_t high = rows[0].leftIndexOrClass + 1;
     REQUIRE(rows[high].featureIndex == 1);
     REQUIRE(std::abs(rows[high].featureValueOrResponse - 0.5) < 0.01);
+    // Its impurity is the variance of its 0/1 offsets, p (1 - p), which raw sums of about 2.5e17 would lose.
+    double p = 0;
+    for (size_t i = 1; i < n; i += 2) p += d.y[i] > 5e8;
+    p /= double(n / 2);
+    CAPTURE(t.impurity->getArray()[high], p * (1 - p));
+    REQUIRE(std::abs(t.impurity->getArray()[high] - p * (1 - p)) < 1e-9);
     requireConsistent(d, t, {});
 }
 

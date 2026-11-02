@@ -93,6 +93,7 @@ struct Planes
     size_t nBins    = 0;
     size_t stride   = 0; // lanes, padded
     size_t nClasses = 0;
+    double center   = 0; // regression: subtracted from each response before it is summed (MseCost)
     LargeArray<uint32_t, cpu> records;
     LargeArray<Stat, cpu> stat; // classification: [class][bin][lane]; regression: weight [bin][lane]
     LargeArray<double, cpu> sumY;
@@ -143,8 +144,8 @@ inline void addRow(const Record & r, const BinT * b, const uint32_t * features, 
     const size_t stride = h.stride;
     if constexpr (Layout<Record>::classification)
     {
-        const size_t offset = size_t(recordClass(r)) * h.nBins * stride;
-        const auto weight   = static_cast<typename Planes<Record, cpu>::Stat>(recordWeight(r));
+        const size_t offset = size_t(recordClass<cpu>(r)) * h.nBins * stride;
+        const auto weight   = static_cast<typename Planes<Record, cpu>::Stat>(recordWeight<cpu>(r));
         for (size_t j = 0; j < nLanes; ++j)
         {
             const size_t idx = size_t(b[features[j]]) * stride + j;
@@ -155,8 +156,8 @@ inline void addRow(const Record & r, const BinT * b, const uint32_t * features, 
     else
     {
         double * sumY   = h.sumY.get();
-        const double w  = recordWeight(r);
-        const double wy = w * recordResponse(r);
+        const double w  = recordWeight<cpu>(r);
+        const double wy = w * (recordResponse<cpu>(r) - h.center);
         const auto ws   = static_cast<typename Planes<Record, cpu>::Stat>(w);
         for (size_t j = 0; j < nLanes; ++j)
         {
@@ -197,7 +198,7 @@ size_t planeBins(const BinMatrix<cpu> & bins, const uint32_t * features, size_t 
 }
 
 /// Adds the planes of chunks 1 .. nChunks - 1 into chunk 0's by a fixed pairwise tree over chunk index.
-template <typename PlanesOf>
+template <CpuType cpu, typename PlanesOf>
 void reducePairwise(size_t nChunks, const PlanesOf & planesOf)
 {
     for (size_t width = 1; width < nChunks; width *= 2)
@@ -212,6 +213,7 @@ void reducePairwise(size_t nChunks, const PlanesOf & planesOf)
 }
 
 /// Chunks of a node of n records: ceil(n / chunkRows), at most maxChunks. Boundaries depend on n only.
+template <CpuType cpu>
 inline size_t chunkCount(size_t n, size_t chunkRows, size_t maxChunks)
 {
     const size_t c = chunkRows ? (n + chunkRows - 1) / chunkRows : 1;
@@ -223,7 +225,7 @@ inline size_t chunkCount(size_t n, size_t chunkRows, size_t maxChunks)
 constexpr size_t partialPlaneBytes = size_t(1) << 28;
 
 /// Bytes of one set of planes of nLanes features with nBins bins.
-template <typename Record>
+template <CpuType cpu, typename Record>
 inline size_t planeBytes(size_t nBins, size_t nLanes, size_t nClasses)
 {
     const size_t n = nBins * ((nLanes + laneAlign - 1) / laneAlign * laneAlign);
@@ -233,6 +235,7 @@ inline size_t planeBytes(size_t nBins, size_t nLanes, size_t nClasses)
 
 /// nChunks, capped so that the partial planes of chunks 1.. take at most partialPlaneBytes. The cap depends on
 /// the plane shape only, so results still do not depend on the thread count.
+template <CpuType cpu>
 inline size_t chunksWithinBudget(size_t nChunks, size_t bytesPerChunk)
 {
     if (!bytesPerChunk) return nChunks;
@@ -240,6 +243,7 @@ inline size_t chunksWithinBudget(size_t nChunks, size_t bytesPerChunk)
     return nChunks < fit ? nChunks : fit;
 }
 
+template <CpuType cpu>
 inline void chunkRange(size_t n, size_t nChunks, size_t c, size_t & begin, size_t & end)
 {
     const size_t size = (n + nChunks - 1) / nChunks;
@@ -248,6 +252,7 @@ inline void chunkRange(size_t n, size_t nChunks, size_t c, size_t & begin, size_
 }
 
 /// Ascending list of the cache lines of a bin row that hold the features.
+template <CpuType cpu>
 inline size_t rowLines(const uint32_t * features, size_t nLanes, size_t binBytes, uint32_t * lines)
 {
     size_t n = 0;
@@ -272,12 +277,12 @@ inline size_t rowLines(const uint32_t * features, size_t nLanes, size_t binBytes
  */
 template <typename Record, CpuType cpu>
 services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins, int numaNode, const uint32_t * features, size_t nLanes,
-                       size_t nClasses, size_t nChunks, size_t distance, Planes<Record, cpu> & out)
+                       size_t nClasses, size_t nChunks, size_t distance, double center, Planes<Record, cpu> & out)
 {
     const size_t nBins = planeBins(bins, features, nLanes);
     TArray<uint32_t, cpu> lines(nLanes);
     DAAL_CHECK_MALLOC(lines.get());
-    const size_t nLines = rowLines(features, nLanes, bins.binBytes(), lines.get());
+    const size_t nLines = rowLines<cpu>(features, nLanes, bins.binBytes(), lines.get());
 
     auto pass = [&](size_t begin, size_t end, Planes<Record, cpu> & h) {
         if (bins.binBytes() == 1)
@@ -287,7 +292,8 @@ services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins
     };
 
     DAAL_CHECK_MALLOC(out.init(nBins, nLanes, nClasses));
-    nChunks = chunksWithinBudget(nChunks, planeBytes<Record>(nBins, nLanes, nClasses));
+    out.center = center;
+    nChunks    = chunksWithinBudget<cpu>(nChunks, planeBytes<cpu, Record>(nBins, nLanes, nClasses));
     if (nChunks <= 1)
     {
         pass(0, n, out);
@@ -299,12 +305,13 @@ services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins
     daal::threader_for(nChunks, 1, [&](size_t c) {
         Planes<Record, cpu> & h = c ? partial[c] : out;
         DAAL_CHECK_THR(c == 0 || h.init(nBins, nLanes, nClasses), services::ErrorMemoryAllocationFailed);
+        h.center = center;
         size_t begin, end;
-        chunkRange(n, nChunks, c, begin, end);
+        chunkRange<cpu>(n, nChunks, c, begin, end);
         pass(begin, end, h);
     });
     DAAL_CHECK_SAFE_STATUS();
-    reducePairwise(nChunks, [&](size_t c) -> Planes<Record, cpu> & { return c ? partial[c] : out; });
+    reducePairwise<cpu>(nChunks, [&](size_t c) -> Planes<Record, cpu> & { return c ? partial[c] : out; });
     return services::Status();
 }
 
@@ -315,6 +322,7 @@ struct Target
     const uint32_t * features    = nullptr;
     size_t nLanes                = 0;
     Planes<Record, cpu> * planes = nullptr;
+    double center                = 0; // the child's center (Planes::center)
 };
 
 /**
@@ -339,7 +347,7 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
     nFeatures   = 1;
     for (const auto & t : targets)
         for (size_t j = 0; j < t.nLanes; ++j) features[nFeatures++] = t.features[j];
-    const size_t nLines = rowLines(features.get(), nFeatures, bins.binBytes(), lines.get());
+    const size_t nLines = rowLines<cpu>(features.get(), nFeatures, bins.binBytes(), lines.get());
 
     size_t nBins[2] = { 0, 0 };
     size_t bytes    = 0;
@@ -348,9 +356,10 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
         if (!targets[s].planes) continue;
         nBins[s] = planeBins(bins, targets[s].features, targets[s].nLanes);
         DAAL_CHECK_MALLOC(targets[s].planes->init(nBins[s], targets[s].nLanes, nClasses));
-        bytes += planeBytes<Record>(nBins[s], targets[s].nLanes, nClasses);
+        targets[s].planes->center = targets[s].center;
+        bytes += planeBytes<cpu, Record>(nBins[s], targets[s].nLanes, nClasses);
     }
-    nChunks       = chunksWithinBudget(nChunks, bytes);
+    nChunks       = chunksWithinBudget<cpu>(nChunks, bytes);
     auto prefetch = [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(numaNode, in[i].row), lines.get(), nLines); };
 
     if (nChunks <= 1)
@@ -375,10 +384,13 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
     SafeStatus safeStat;
     daal::threader_for(nChunks, 1, [&](size_t c) {
         for (size_t s = 0; s < 2; ++s)
+        {
             DAAL_CHECK_THR(!c || !targets[s].planes || planesOf(s, c).init(nBins[s], targets[s].nLanes, nClasses),
                            services::ErrorMemoryAllocationFailed);
+            if (targets[s].planes) planesOf(s, c).center = targets[s].center;
+        }
         size_t begin, end, count = 0;
-        chunkRange(n, nChunks, c, begin, end);
+        chunkRange<cpu>(n, nChunks, c, begin, end);
         prefetchedLoop<cpu>(
             end - begin, distance, [&](size_t i) { prefetch(begin + i); },
             [&](size_t i) {
@@ -396,10 +408,10 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
     for (size_t c = 0; c < nChunks; ++c) lefts[c + 1] += lefts[c];
     if (lefts[nChunks] != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
     for (size_t s = 0; s < 2; ++s)
-        if (targets[s].planes) reducePairwise(nChunks, [&](size_t c) -> Planes<Record, cpu> & { return planesOf(s, c); });
+        if (targets[s].planes) reducePairwise<cpu>(nChunks, [&](size_t c) -> Planes<Record, cpu> & { return planesOf(s, c); });
     daal::threader_for(nChunks, 1, [&](size_t c) {
         size_t begin, end;
-        chunkRange(n, nChunks, c, begin, end);
+        chunkRange<cpu>(n, nChunks, c, begin, end);
         size_t iLeft = lefts[c], iRight = nLeft + begin - lefts[c];
         for (size_t i = begin; i < end; ++i) out[side[i] ? iRight++ : iLeft++] = in[i];
     });
