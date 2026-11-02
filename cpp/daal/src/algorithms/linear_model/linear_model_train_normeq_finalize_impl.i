@@ -286,12 +286,7 @@ public:
             return;
         }
         if (!_isValid) return;
-        const size_t size                = static_cast<size_t>(_nRows) * _nRows * sizeof(algorithmFPType);
-        const algorithmFPType * otherXXt = other->_xxt;
-        if (!daal::services::internal::daal_memcpy_s(_xxt, size, otherXXt, size))
-        {
-            _isValid = false;
-        }
+        daal::internal::MathInst<algorithmFPType, cpu>::vAdd(static_cast<size_t>(_nRows) * _nRows, _xxt, other->_xxt, _xxt);
     }
 
 private:
@@ -530,7 +525,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     {
         if (interceptFlag)
         {
-            BlasInst<algorithmFPType, cpu>::xomatcopy("R", "N", &nRows, &incOne, &one, yMean, &incOne, beta, &nBetas);
+            BlasInst<algorithmFPType, cpu>::xomatcopy("R", "N", &nResponses, &incOne, &one, yMean, &incOne, beta, &nBetas);
         }
         else
         {

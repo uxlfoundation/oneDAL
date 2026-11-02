@@ -71,7 +71,7 @@ TEMPLATE_LIST_TEST_M(lr_batch_test,
     this->generate(777);
 
     this->run_and_check_linear_indefinite_duplicate_rows();
-    this->run_and_check_linear_wide_duplicate_rows(256);
+    this->run_and_check_linear_wide_duplicate_rows(260);
 }
 
 TEMPLATE_LIST_TEST_M(lr_batch_test, "RR common flow", "[rr][batch]", lr_types) {
