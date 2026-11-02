@@ -14,10 +14,12 @@
 # limitations under the License.
 #===============================================================================
 
+# `-fwrapv` and `-fno-delete-null-pointer-checks` are per compiler in
+# get_default_flags(), as in Make: gcc has both, icpx only `-fwrapv`, icx and
+# clang neither. With `-fwrapv` icx stops vectorizing some loops (for example
+# the argmax in vertex_partitioning_default_kernel.hpp).
 lnx_cc_common_flags = [
-    "-fwrapv",
     "-fstack-protector-strong",
-    "-fno-delete-null-pointer-checks",
     "-Werror",
     "-Wno-empty-body",
     "-Wformat",
@@ -170,6 +172,8 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             ]
         if compiler_id == "icpx":
             flags = flags + [
+                # COMPILER.lnx.dpcpp in dev/make/compiler_definitions/dpcpp.mk.
+                "-fwrapv",
                 # `-Zl.dpcpp` in dev/make/compiler_definitions/dpcpp.mk:70.
                 "-no-intel-lib",
                 "-fsycl",
@@ -197,10 +201,12 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 "-Wno-pass-failed",
             ]
         if compiler_id == "gcc":
-            # Matches COMPILER.all.gnu in dev/make/compiler_definitions/gnu.32e.mk,
-            # which pairs it with `-fwrapv`. Clang treats it as implied by
-            # `-fwrapv` above and reports it unused, which `-Werror` makes fatal.
-            flags = flags + ["-fno-strict-overflow"]
+            # Matches COMPILER.all.gnu in dev/make/compiler_definitions/gnu.32e.mk.
+            flags = flags + [
+                "-fwrapv",
+                "-fno-strict-overflow",
+                "-fno-delete-null-pointer-checks",
+            ]
         if arch_id in ["arm", "riscv64"]:
             # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),
             # unlike x86's runtime-dispatched sse2/avx2/avx512 objects, so
