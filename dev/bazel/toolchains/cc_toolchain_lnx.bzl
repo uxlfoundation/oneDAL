@@ -180,13 +180,18 @@ def _add_new_offload_driver_link(repo_ctx, dpcc):
     # library targets pass --offload-compress (cpp/oneapi/dal/BUILD,
     # dpc_linkopts). A compile-only check is not enough: on icpx 2025.3
     # clang-linker-wrapper then hands -compress to the host ld and the link fails.
-    probe_so = repo_ctx.path("offload_new_driver_probe.so")
+    # The library goes to a fresh temporary directory, as in Make, so the
+    # probe neither writes into the repository nor reuses a stale file.
+    tmp = repo_ctx.execute(["mktemp", "-d"])
+    if tmp.return_code != 0:
+        return []
+    tmp_dir = tmp.stdout.strip()
     result = repo_ctx.execute([
         dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
         "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
-        "-o", str(probe_so),
-    ])
-    repo_ctx.delete(probe_so)
+        "-o", tmp_dir + "/probe.so",
+    ], environment = {"TMPDIR": tmp_dir})
+    repo_ctx.execute(["rm", "-rf", "--", tmp_dir])
     if result.return_code != 0:
         return []
     flags = ["--offload-new-driver"]
