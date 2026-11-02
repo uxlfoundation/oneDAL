@@ -219,7 +219,6 @@ def _cc_module_impl(ctx):
         cpus = ctx.attr._cpus[CpuInfo].enabled,
         cpu_defines = ctx.attr.cpu_defines,
         fpt_defines = ctx.attr.fpt_defines,
-        drop_mkl_ilp64 = ctx.attr.drop_mkl_ilp64,
         srcs = ctx.files.srcs,
         public_hdrs = ctx.files.hdrs,
         private_hdrs = ctx.files.private_hdrs,
