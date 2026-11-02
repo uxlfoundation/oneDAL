@@ -37,19 +37,7 @@ load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
 )
 
 def _impl(ctx):
-    cc_tool = tool(
-        path = ctx.attr.cc_path,
-        with_features = [
-            with_feature_set(not_features = ["dpc++"])
-        ]
-    )
-
-    dpcc_tool = tool(
-        path = ctx.attr.dpcc_path,
-        with_features = [
-            with_feature_set(features = ["dpc++"]),
-        ],
-    )
+    compiler_tools = common.compiler_tools(ctx.attr.cc_path, ctx.attr.dpcc_path)
 
     assemble_action = action_config(
         action_name = ACTION_NAMES.assemble,
@@ -61,7 +49,7 @@ def _impl(ctx):
             "compiler_output_flags",
             "sysroot",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     preprocess_assemble_action = action_config(
@@ -74,7 +62,7 @@ def _impl(ctx):
             "compiler_output_flags",
             "sysroot",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     c_compile_action = action_config(
@@ -87,7 +75,7 @@ def _impl(ctx):
             "compiler_output_flags",
             "sysroot",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     cpp_compile_action = action_config(
@@ -100,7 +88,7 @@ def _impl(ctx):
             "compiler_output_flags",
             "sysroot",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     cpp_header_parsing_action = action_config(
@@ -113,7 +101,7 @@ def _impl(ctx):
             "compiler_output_flags",
             "sysroot",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     cpp_link_executable_action = action_config(
@@ -131,7 +119,7 @@ def _impl(ctx):
             "sysroot",
             "default_dynamic_libraries",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     cpp_link_nodeps_dynamic_library_action = action_config(
@@ -147,7 +135,7 @@ def _impl(ctx):
             "strip_debug_symbols",
             "sysroot",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     cpp_link_dynamic_library_action = action_config(
@@ -165,7 +153,7 @@ def _impl(ctx):
             "sysroot",
             "default_dynamic_libraries",
         ],
-        tools = [ cc_tool, dpcc_tool ],
+        tools = compiler_tools,
     )
 
     cpp_link_static_library_action = common.cpp_link_static_library_action(ctx.attr.ar_path)
@@ -913,6 +901,7 @@ def _impl(ctx):
     features = []
     features.append(no_legacy_features_feature)
     features.append(dpc_feature)
+    features.append(common.has_dpc_compiler_feature(ctx.attr.dpcc_path))
     features.append(cxx11_feature)
     features.append(cxx14_feature)
     features.append(cxx17_feature)

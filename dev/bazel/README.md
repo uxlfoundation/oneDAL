@@ -167,7 +167,8 @@ false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
 target by name fails with an `incompatible` error that names
 `dpc_needs_icpx_in_PATH`. `--release_dpc=true` builds them regardless, and their
-compile actions fail with `icpx is not found!` if the compiler is missing.
+analysis fails with `needs the DPC++ compiler, but icpx was not found in PATH`
+if the compiler is missing.
 `--config=dpc` (and `dpc-public`, `dpc-private`) sets `--release_dpc=true`, so
 without icpx it fails that way instead of skipping every test.
 
@@ -456,21 +457,15 @@ bazelisk.exe build //:release_all
 info and assertions. `//:release_all` pins the runtime internally, so passing
 `--config=mdd` alongside it has no effect.
 
-Two constraints worth knowing before reaching for the debug runtime:
-
-- It is implemented for the Intel oneAPI **icx** toolchain only. The `cl`
-  fallback (`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler
-  choice](#compiler-choice)) delegates to rules_cc's MSVC auto-config, which
-  does not define the `msvc_runtime_debug` feature, so `--config=mdd` there
-  fails during analysis with an explanatory message rather than silently
-  building against the wrong CRT.
-- Always select it through `--config=mdd`. It sets two things that have to
-  agree — the `msvc_runtime_debug` toolchain feature, which selects `-MDd`,
-  and the `@config//:msvc_runtime` build setting, which dependency `select()`s
-  read. Passing either half alone (`--features=msvc_runtime_debug` or
-  `--msvc_runtime=debug`) is rejected during analysis, because it would
-  compile against one CRT while naming libraries and picking dependencies for
-  the other.
+`--config=mdd` is `--msvc_runtime=debug`: the toolchain config enables its
+`msvc_runtime_debug` feature (`-MDd`) from that one setting, which also names
+the libraries and drives the dependency `select()`s. The debug runtime is
+implemented for the icx and clang-cl toolchains only. The `cl` fallback
+(`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler choice](#compiler-choice))
+delegates to rules_cc's MSVC auto-config, which has no such feature, so
+`--config=mdd` there fails during analysis with an explanatory message rather
+than silently building against the wrong CRT. Do not set the feature through
+`--features`; that is rejected the same way.
 
 `//:release_all` takes the libraries under `lib/<arch>` and `redist/<arch>`
 (`<arch>` as above) from both builds; everything else — headers, datasets, examples, env scripts,
@@ -519,8 +514,10 @@ file. Each script contains detailed usage and maintenance comments.
 
 When package contents change, update the Bazel packaging rules or the common
 comparator rather than hiding differences in a platform wrapper. The same goes
-for the build itself: prefer a Bazel action to a helper script. The scripts that
-remain are listed in `dev/bazel/TODO.md` together with what each of them is
+for the build itself: prefer a Bazel action to a helper script. Windows import
+libraries are declared outputs of the DLL link (`/IMPLIB:`), CRLF staging is an
+`expand_template` and a missing `icpx` is reported during analysis; the one
+script that remains is listed in `dev/bazel/TODO.md` together with what it is
 waiting on.
 
 ### Run oneAPI examples

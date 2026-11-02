@@ -48,6 +48,7 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
+load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
     "common",
     "all_compile_actions",
@@ -58,22 +59,8 @@ load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
 )
 
 def _impl(ctx):
-    cc_tool = tool(
-        path = ctx.attr.cc_path,
-        with_features = [with_feature_set(not_features = ["dpc++"])],
-    )
-    dpcc_tool = tool(
-        path = ctx.attr.dpcc_path,
-        with_features = [with_feature_set(features = ["dpc++"])],
-    )
-    cc_link_tool = tool(
-        path = ctx.attr.cc_link_path,
-        with_features = [with_feature_set(not_features = ["dpc++"])],
-    )
-    dpcc_link_tool = tool(
-        path = ctx.attr.dpcc_link_path,
-        with_features = [with_feature_set(features = ["dpc++"])],
-    )
+    compiler_tools = common.compiler_tools(ctx.attr.cc_path, ctx.attr.dpcc_path)
+    linker_tools = common.compiler_tools(ctx.attr.cc_link_path, ctx.attr.dpcc_link_path)
 
     # --- action configs -----------------------------------------------------
 
@@ -88,27 +75,27 @@ def _impl(ctx):
     assemble_action = action_config(
         action_name = ACTION_NAMES.assemble,
         implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
+        tools = compiler_tools,
     )
     preprocess_assemble_action = action_config(
         action_name = ACTION_NAMES.preprocess_assemble,
         implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
+        tools = compiler_tools,
     )
     c_compile_action = action_config(
         action_name = ACTION_NAMES.c_compile,
         implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
+        tools = compiler_tools,
     )
     cpp_compile_action = action_config(
         action_name = ACTION_NAMES.cpp_compile,
         implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
+        tools = compiler_tools,
     )
     cpp_header_parsing_action = action_config(
         action_name = ACTION_NAMES.cpp_header_parsing,
         implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
+        tools = compiler_tools,
     )
 
     common_link_implies = [
@@ -123,17 +110,17 @@ def _impl(ctx):
     cpp_link_executable_action = action_config(
         action_name = ACTION_NAMES.cpp_link_executable,
         implies = common_link_implies + ["default_dynamic_libraries"],
-        tools = [cc_link_tool, dpcc_link_tool],
+        tools = linker_tools,
     )
     cpp_link_nodeps_dynamic_library_action = action_config(
         action_name = ACTION_NAMES.cpp_link_nodeps_dynamic_library,
         implies = common_link_implies + ["shared_flag"],
-        tools = [cc_link_tool, dpcc_link_tool],
+        tools = linker_tools,
     )
     cpp_link_dynamic_library_action = action_config(
         action_name = ACTION_NAMES.cpp_link_dynamic_library,
         implies = common_link_implies + ["shared_flag", "default_dynamic_libraries"],
-        tools = [cc_link_tool, dpcc_link_tool],
+        tools = linker_tools,
     )
     cpp_link_static_library_action = common.cpp_link_static_library_action(ctx.attr.ar_path)
 
@@ -164,9 +151,14 @@ def _impl(ctx):
     # feature (Make `REQDBG`) on purpose: the CRT flavour is an ABI choice
     # that also renames the produced libraries (`onedal_cored.lib`) and
     # switches the linked `msvcrt`/`tbb` variants, whereas `dbg` only adds
-    # debug info and assertions. Enable via `--config=mdd`, which also flips
-    # the `@config//:msvc_runtime` build setting that `select()`s read.
-    msvc_runtime_debug_feature = feature(name = "msvc_runtime_debug")
+    # debug info and assertions. It follows the `@config//:msvc_runtime` build
+    # setting (`--msvc_runtime=debug`, or `--config=mdd`), the same setting
+    # the library names and the dependency `select()`s read, so the two
+    # cannot disagree.
+    msvc_runtime_debug_feature = feature(
+        name = "msvc_runtime_debug",
+        enabled = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug",
+    )
 
     # NOTE on CRT libraries: the Makefile spells the CRT import libraries out
     # explicitly (`msvcrtd.lib msvcprtd.lib /nodefaultlib:libucrtd.lib
@@ -267,6 +259,32 @@ def _impl(ctx):
     supports_dynamic_linker_feature = common.supports_dynamic_linker_feature()
     do_not_link_dynamic_dependencies_feature = common.do_not_link_dynamic_dependencies_feature()
     no_legacy_features_feature = feature(name = "no_legacy_features", enabled = True)
+
+    # The import library of a DLL is a declared output of its link action, as
+    # in rules_cc's MSVC toolchain: with these two features `cc_common.link`
+    # declares `<name>.if.lib` and sets `interface_library_output_path`.
+    # `has_configured_linker_path` keeps the linker of the action config;
+    # without it Bazel would run its `link_dynamic_library.sh` wrapper.
+    targets_windows_feature = feature(name = "targets_windows", enabled = True)
+    supports_interface_shared_libraries_feature = feature(
+        name = "supports_interface_shared_libraries",
+        enabled = True,
+    )
+    has_configured_linker_path_feature = feature(
+        name = "has_configured_linker_path",
+        enabled = True,
+    )
+    interface_library_output_flags_feature = feature(
+        name = "interface_library_output_flags",
+        enabled = True,
+        flag_sets = [flag_set(
+            actions = all_link_actions + lto_index_actions,
+            flag_groups = [flag_group(
+                flags = ["/IMPLIB:%{interface_library_output_path}"],
+                expand_if_available = "interface_library_output_path",
+            )],
+        )],
+    )
 
     # Inject Windows shell env vars into every compile and link action so
     # icx (via `INCLUDE`) and lld-link (via `LIB`) find MSVC, Windows SDK,
@@ -707,6 +725,7 @@ def _impl(ctx):
         no_legacy_features_feature,
         msvc_env_feature,
         dpc_feature,
+        common.has_dpc_compiler_feature(ctx.attr.dpcc_path),
         cxx11_feature,
         cxx14_feature,
         cxx17_feature,
@@ -716,6 +735,9 @@ def _impl(ctx):
         msvc_runtime_debug_feature,
         runtime_library_feature,
         supports_dynamic_linker_feature,
+        targets_windows_feature,
+        supports_interface_shared_libraries_feature,
+        has_configured_linker_path_feature,
         do_not_link_dynamic_dependencies_feature,
         default_compile_flags_feature,
     ]
@@ -762,6 +784,9 @@ def _impl(ctx):
         shared_flag_feature,
         output_execpath_flags_feature,
         dpc_linker_mode_feature,
+        # `/IMPLIB:` is a linker option, so it sits after `/link` on a DPC++
+        # link and overrides the `-implib:` the icx driver derives from `-o`.
+        interface_library_output_flags_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
         user_link_flags_feature,
@@ -842,6 +867,10 @@ cc_toolchain_config = rule(
         env_include = attr.string(default = ""),
         env_lib = attr.string(default = ""),
         env_path = attr.string(default = ""),
+        _msvc_runtime = attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
+        ),
     ),
     provides = [CcToolchainConfigInfo],
 )
