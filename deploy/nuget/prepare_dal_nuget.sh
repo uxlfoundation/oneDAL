@@ -52,7 +52,9 @@ create_package() {
     dal_version=${major_version}.${minor_version}.${patch_version}
 
     # platform specific
-    platform=$(bash $(dirname "$0")/../../dev/make/identify_os.sh)
+    # PLAT overrides the host, as in the makefile (for example PLAT=winarm on
+    # an x64 Windows host that cross-builds for ARM64).
+    platform=${PLAT:-$(bash $(dirname "$0")/../../dev/make/identify_os.sh)}
     if [ ${platform} = "lnx32e" ]; then
         platform=linux
         tbb_platform=linux
@@ -61,13 +63,19 @@ create_package() {
         static_lib_path=lib/intel64
         lib_prefix=libonedal
     elif [ ${platform} = "lnxarm" ]; then
-        platform=linux
+        platform=linux-arm64
         tbb_platform=linux
         rls_prefix=${rls_dir}/daal/latest
         dynamic_lib_path=lib/arm
         static_lib_path=lib/arm
         lib_prefix=libonedal
-
+    elif [ ${platform} = "lnxriscv64" ]; then
+        platform=linux-riscv64
+        tbb_platform=linux
+        rls_prefix=${rls_dir}/daal/latest
+        dynamic_lib_path=lib/riscv64
+        static_lib_path=lib/riscv64
+        lib_prefix=libonedal
     elif [ ${platform} = "mac32e" ]; then
         platform=osx-x64
         tbb_platform=osx
@@ -81,6 +89,13 @@ create_package() {
         rls_prefix=${rls_dir}/daal/latest
         dynamic_lib_path=redist/intel64
         static_lib_path=lib/intel64
+        lib_prefix=onedal
+    elif [ ${platform} = "winarm" ]; then
+        platform=win-arm64
+        tbb_platform=win
+        rls_prefix=${rls_dir}/daal/latest
+        dynamic_lib_path=redist/arm
+        static_lib_path=lib/arm
         lib_prefix=onedal
     else
         echo "Unknown platform ${platform}"

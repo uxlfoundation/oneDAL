@@ -166,9 +166,14 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         **kwargs
     )
     # `dpc_linkopts` go to the DPC library only. Make puts its DPC-only link
-    # options on LOPT of those targets (e.g. makefile:821, 851).
+    # options on LOPT of those targets (e.g. makefile:821, 851). On Windows
+    # dpc.link.dynamic.win (dev/make/common.mk) keeps only the @link.txt,
+    # `.lib`, `-IMPLIB:` and `.def` arguments, so LOPT never reaches the link.
     dpc_kwargs = dict(kwargs)
-    dpc_kwargs["linkopts"] = kwargs.get("linkopts", []) + dpc_linkopts
+    dpc_kwargs["linkopts"] = kwargs.get("linkopts", []) + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": dpc_linkopts,
+    })
     # The DPC DLLs name themselves onedal_dpc in their resource (makefile:875).
     dpc_kwargs["rc_defines"] = kwargs.get("rc_defines", []) + ["ONEDAL_DLL_RC_DATA_PARALLEL"]
     cc_dynamic_lib(
