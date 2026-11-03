@@ -477,7 +477,7 @@ public:
     {
         FPType dot, norm;
         dotAndNorm(x, y, n, dot, norm);
-        return FPType(1) - dot / norm;
+        return (norm > FPType(0)) ? FPType(1) - dot / norm : FPType(1);
     }
 
     // output:  Row-major matrix of size { aSize x bSize }
@@ -523,7 +523,7 @@ protected:
             yy += y[i] * y[i];
         }
         dot  = xy;
-        norm = MathInst<FPType, cpu>::sSqrt(xx) * MathInst<FPType, cpu>::sSqrt(yy);
+        norm = MathInst<FPType, cpu>::sSqrt(xx * yy);
     }
 };
 
@@ -537,13 +537,6 @@ public:
     ZeroRowCosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b) {}
 
     ~ZeroRowCosineDistances() override {}
-
-    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
-    {
-        FPType dot, norm;
-        super::dotAndNorm(x, y, n, dot, norm);
-        return (norm > FPType(0)) ? FPType(1) - dot / norm : FPType(1);
-    }
 
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
