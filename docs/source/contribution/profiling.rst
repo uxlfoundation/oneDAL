@@ -186,6 +186,19 @@ allocate internally is not recorded; on CPU, oneMKL's BLAS buffers are often mos
 memory. For process totals use a heap profiler such as ``valgrind --tool=massif`` or heaptrack, or
 a Level Zero tracer on GPU.
 
+Examples
+--------
+
+:ref:`cpp_cov_dense_batch_profiler.cpp` and :ref:`cpp_pca_dense_batch_profiler.cpp` run covariance
+and PCA under the profiler. Their command-line options select the input file, what to compute (the
+covariance result options, the PCA method and component count) and how many times to call the
+algorithm, so the merged rows and their counts can be seen on a workload of your choosing::
+
+    ONEDAL_VERBOSE=3 ./cov_dense_batch_profiler --result all --repeat 10
+    ONEDAL_VERBOSE=3 ./pca_dense_batch_profiler --method svd --components 3 --repeat 10
+
+The report follows the program's own output when the process exits.
+
 Reports on request
 ------------------
 
