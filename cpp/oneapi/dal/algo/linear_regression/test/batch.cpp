@@ -74,6 +74,22 @@ TEMPLATE_LIST_TEST_M(lr_batch_test,
     this->run_and_check_linear_wide_duplicate_rows(260);
 }
 
+/// The case of no regularization (LinReg or Ridge alpha==0), and intercept is used
+/// Cholesky of the singular centered X * X^t may lose accuracy visibly, test runs only in single precision
+using lr_float_types = COMBINE_TYPES((float),
+                                     (linear_regression::method::norm_eq),
+                                     (linear_regression::task::regression));
+
+TEMPLATE_LIST_TEST_M(lr_batch_test,
+                     "LR wide matrix with large mean and intercept",
+                     "[lr][batch-wide-offset]",
+                     lr_float_types) {
+    this->intercept_ = 1;
+    const std::int64_t seed = GENERATE(473, 777);
+
+    this->run_and_check_linear_wide_interpolation(50, 100.0, seed);
+}
+
 TEMPLATE_LIST_TEST_M(lr_batch_test, "RR common flow", "[rr][batch]", lr_types) {
     SKIP_IF(this->not_float64_friendly());
 

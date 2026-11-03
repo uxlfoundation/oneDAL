@@ -43,7 +43,7 @@ template <typename algorithmFPType, CpuType cpu>
 Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny,
                                                             algorithmFPType * b, bool inteceptFlag, bool isDualSystem) const
 {
-    return FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem);
+    return FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem, isDualSystem && inteceptFlag);
 }
 
 template <typename algorithmFPType, CpuType cpu>

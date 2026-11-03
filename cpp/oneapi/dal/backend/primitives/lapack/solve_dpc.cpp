@@ -245,6 +245,7 @@ sycl::event solve_system(sycl::queue& queue,
                          ndview<Float, 2, ndorder::c>& final_xtx,
                          ndview<Float, 2, ndorder::c>& final_xty,
                          Float cutoff_factor,
+                         bool skip_cholesky,
                          const event_vector& dependencies) {
     constexpr auto alloc = sycl::usm::alloc::device;
 
@@ -253,6 +254,18 @@ sycl::event solve_system(sycl::queue& queue,
     const std::int64_t dim_xtx = xtx.get_dimension(0);
 
     sycl::event solution_event;
+
+    if (skip_cholesky) {
+        solution_event = solve_spectral_decomposition<uplo, Float>(queue,
+                                                                   nxtx,
+                                                                   xtx_event,
+                                                                   nxty,
+                                                                   xty_event,
+                                                                   dim_xtx,
+                                                                   nxty.get_dimension(0),
+                                                                   cutoff_factor);
+        return beta_copy_transform<beta>(queue, nxty, final_xty, { solution_event });
+    }
 
     opt_array<Float> dummy{};
     /// Note: this is wrapped in a try-catch block in order to catch a potential exception
@@ -293,6 +306,7 @@ sycl::event solve_system(sycl::queue& queue,
                                             ndview<F, 2>&,           \
                                             ndview<F, 2>&,           \
                                             F,                       \
+                                            bool,                    \
                                             const event_vector&);
 
 #define INSTANTIATE_YL(U, B, F, XL)      \

@@ -187,13 +187,16 @@ static train_result<Task> call_dual_kernel(const context_gpu& ctx,
         pr::ndarray<Float, 2>::empty(queue, { response_count, sample_count + 1 }, alloc);
     auto dual = dual_ext.get_col_slice(1l, sample_count + 1);
     pr::ndview<Float, 2> unused_xxt;
-    // The rounding noise in the eigenvalues of Xc * Xc^t grows with its size
+    // The rounding noise in the eigenvalues of Xc * Xc^t grows with its size.
+    // Unpenalized centered Xc * Xc^t is singular, so Cholesky is skipped.
+    const bool skip_cholesky = compute_intercept && alpha == 0.0;
     auto solve_event = pr::solve_system<uplo, false>(queue,
                                                      xxt,
                                                      yc.t(),
                                                      unused_xxt,
                                                      dual_ext,
                                                      Float(sample_count),
+                                                     skip_cholesky,
                                                      { xxt_event, center_y_event });
 
     auto coefs_event = pr::gemm(queue, dual, xc, coefs, { solve_event });

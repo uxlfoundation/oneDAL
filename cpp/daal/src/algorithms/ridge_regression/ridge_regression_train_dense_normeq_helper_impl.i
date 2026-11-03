@@ -46,18 +46,22 @@ Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const al
     ReadRows<algorithmFPType, cpu> ridgeBlock(const_cast<NumericTable &>(_ridge), 0, nRidge);
     const algorithmFPType * ridge = ridgeBlock.get();
 
-    const DAAL_INT pToFix = (interceptFlag ? p - 1 : p);
+    const DAAL_INT pToFix = (interceptFlag && !isDualSystem ? p - 1 : p);
 
     Status st;
     int result = 0;
     if (nRidge * _ridge.getNumberOfColumns() == 1)
     {
-        for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+        if (*ridge != 0.0)
         {
-            aCopy[idx] += *ridge;
+            for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+            {
+                aCopy[idx] += *ridge;
+            }
         }
 
-        st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem);
+        st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem,
+                                                                isDualSystem && interceptFlag && *ridge == 0.0);
         DAAL_CHECK_STATUS_VAR(st);
     }
     else
@@ -69,14 +73,18 @@ Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const al
         for (DAAL_INT j = 0; j < ny; j++, bPtr += p)
         {
             result |= daal::services::internal::daal_memcpy_s(aCopy, aSizeInBytes, a, aSizeInBytes);
-            for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+            if (ridge[j] != 0.0)
             {
-                aCopy[idx] += ridge[j];
+                for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+                {
+                    aCopy[idx] += ridge[j];
+                }
             }
 
             DAAL_INT one(1);
 
-            st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, one, bPtr, getInternalErrorCode(), isDualSystem);
+            st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, one, bPtr, getInternalErrorCode(), isDualSystem,
+                                                                    isDualSystem && interceptFlag && ridge[j] == 0.0);
             DAAL_CHECK_STATUS_VAR(st);
         }
     }

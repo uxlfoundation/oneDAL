@@ -338,6 +338,31 @@ public:
         this->check_ridge_optimality(x_tbl, y_tbl, train_res, 0.0);
     }
 
+    /// Wide X with a large mean, intercept and no ridge: the fit interpolates y, while the
+    /// centered X * X^t is singular and Cholesky may still factor it
+    void run_and_check_linear_wide_interpolation(std::int64_t row_count,
+                                                 double offset,
+                                                 std::int64_t seed,
+                                                 double tol = 1e-3) {
+        const std::int64_t f_count = 2 * row_count;
+
+        const auto x_dataframe = GENERATE_DATAFRAME(
+            te::dataframe_builder{ row_count, f_count }.fill_uniform(offset - 1.0,
+                                                                     offset + 1.0,
+                                                                     seed));
+        const auto y_dataframe = GENERATE_DATAFRAME(
+            te::dataframe_builder{ row_count, std::int64_t(1) }.fill_uniform(-1.0, 1.0, seed + 1));
+        const auto x_tbl = x_dataframe.get_table(this->get_homogen_table_id());
+        const auto y_tbl = y_dataframe.get_table(this->get_homogen_table_id());
+
+        const auto desc = this->get_descriptor();
+        const auto train_res = this->train(desc, x_tbl, y_tbl);
+        const auto infer_res = this->infer(desc, x_tbl, train_res.get_model());
+
+        CAPTURE(row_count, offset, seed);
+        check_if_close(infer_res.get_responses(), y_tbl, tol);
+    }
+
     std::tuple<table, table, table, table> prepare_inputs(std::int64_t seed = 888,
                                                           double tol = 1e-2) {
         using namespace ::oneapi::dal::detail;

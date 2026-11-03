@@ -888,7 +888,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     if (info) return false;
 
     /* Errors in symmetric eigenproblems are bounded by the following formula:
-    | lambda_i - lambda_i^true | ≤ p(n) * eps * | max_j { lambda_j } |,
+    | lambda_i - lambda_i^true | <= p(n) * eps * | max_j { lambda_j } |,
     where p(n) is a moderately growing polynomial depending on the matrix size n;
     eps is the machine precision.
 
@@ -976,7 +976,8 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
 
 /* cutoffFactor scales the relative threshold below which eigenvalues are discarded in the spectral decomposition fallback */
 template <typename FPType, CpuType cpu>
-bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1))
+bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1),
+                                   bool skipCholesky = false)
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveSymmetricEquationsSystem, n, nX);
     /* Copy data for fallback from Cholesky to spectral decomposition */
@@ -1001,6 +1002,7 @@ bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, 
 
     /* Try to solve with Cholesky factorization */
     bool choleskyStatus = false;
+    if (!skipCholesky)
     {
         DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.cholesky);
         choleskyStatus = solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential);

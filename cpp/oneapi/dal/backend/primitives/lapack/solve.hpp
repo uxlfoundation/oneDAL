@@ -83,6 +83,7 @@ sycl::event solve_system(sycl::queue& queue,
                          ndview<Float, 2>& final_xtx,
                          ndview<Float, 2>& final_xty,
                          Float cutoff_factor = Float(1),
+                         bool skip_cholesky = false,
                          const event_vector& deps = {});
 
 template <mkl::uplo uplo, typename Float, ndorder xlayout, ndorder ylayout>
@@ -94,9 +95,9 @@ inline auto solve_system(sycl::queue& queue,
                          ndview<Float, 2>& nxty,
                          const event_vector& deps = {}) {
     if (beta)
-        return solve_system<uplo, true>(queue, xtx, xty, nxtx, nxty, Float(1), deps);
+        return solve_system<uplo, true>(queue, xtx, xty, nxtx, nxty, Float(1), false, deps);
     else
-        return solve_system<uplo, false>(queue, xtx, xty, nxtx, nxty, Float(1), deps);
+        return solve_system<uplo, false>(queue, xtx, xty, nxtx, nxty, Float(1), false, deps);
 }
 
 #endif

@@ -167,11 +167,11 @@ Status FinalizeKernel<algorithmFPType, cpu>::copyDataToTable(const algorithmFPTy
 
 template <typename algorithmFPType, CpuType cpu>
 Status FinalizeKernel<algorithmFPType, cpu>::solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b,
-                                                         const ErrorID & internalError, bool isDualSystem)
+                                                         const ErrorID & internalError, bool isDualSystem, bool skipCholesky)
 {
     /* The rounding noise in the eigenvalues of the centered X * X^t is about p * eps * lambda_max */
     const algorithmFPType cutoffFactor = isDualSystem ? static_cast<algorithmFPType>(p) : algorithmFPType(1);
-    if (daal::algorithms::internal::solveSymmetricEquationsSystem<algorithmFPType, cpu>(a, b, p, ny, false, cutoffFactor))
+    if (daal::algorithms::internal::solveSymmetricEquationsSystem<algorithmFPType, cpu>(a, b, p, ny, false, cutoffFactor, skipCholesky))
     {
         return Status();
     }
@@ -477,7 +477,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
             DAAL_CHECK(!daal::services::internal::daal_memcpy_s(xxtCopy, xxtSizeInBytes, xxt, xxtSizeInBytes),
                        services::ErrorMemoryCopyFailedInternal);
         }
-        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, false, true));
+        DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nRows, xxt, xxtCopy, nResponses, dualCoef, interceptFlag, true));
     }
 
     /* Each beta row is [intercept, coefficients] */
@@ -529,6 +529,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
         }
         else
         {
+            PRAGMA_OMP_SIMD
             for (DAAL_INT j = 0; j < nResponses; ++j) beta[j * nBetas] = zero;
         }
     }
