@@ -18,6 +18,8 @@ name: CI
 
 on:
   pull_request:
+    # ready_for_review starts the jobs a draft pull request skipped.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
     # Skip PR builds for changes that cannot affect the library build or tests.
@@ -64,8 +66,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Draft pull requests skip the jobs that take hours; they run once the
+  # pull request is marked ready for review.
   LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
@@ -210,7 +214,7 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
