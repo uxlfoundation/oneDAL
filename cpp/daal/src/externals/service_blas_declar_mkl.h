@@ -38,11 +38,6 @@ extern "C"
                                const MKL_INT *);
     extern void mkl_domatcopy_(const char *, const char *, const MKL_INT *, const MKL_INT *, const double *, const double *, const MKL_INT *,
                                double *, const MKL_INT *);
-
-    extern void mkl_somatadd_(const char *, const char *, const char *, const MKL_INT *, const MKL_INT *, const float *, const float *,
-                              const MKL_INT *, const float *, const float *, const MKL_INT *, float *, const MKL_INT *);
-    extern void mkl_domatadd_(const char *, const char *, const char *, const MKL_INT *, const MKL_INT *, const double *, const double *,
-                              const MKL_INT *, const double *, const double *, const MKL_INT *, double *, const MKL_INT *);
 }
 
 } // namespace mkl

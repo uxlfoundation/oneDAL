@@ -62,15 +62,6 @@ struct MklBlas<double, cpu>
         __DAAL_MKLFN_CALL_BLAS(mkl_domatcopy_, (ordering, trans, (MKL_INT *)rows, (MKL_INT *)cols, alpha, a, (MKL_INT *)lda, b, (MKL_INT *)ldb));
     }
 
-    static int xomatadd(const char * ordering, const char * transa, const char * transb, const DAAL_INT * m, const DAAL_INT * n, const double * alpha,
-                        const double * a, const DAAL_INT * lda, const double * beta, const double * b, const DAAL_INT * ldb, double * c,
-                        const DAAL_INT * ldc)
-    {
-        __DAAL_MKLFN_CALL_BLAS(mkl_domatadd_, (ordering, transa, transb, (MKL_INT *)m, (MKL_INT *)n, alpha, a, (MKL_INT *)lda, beta, b,
-                                               (MKL_INT *)ldb, c, (MKL_INT *)ldc));
-        return 0;
-    }
-
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
                       const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
     {
@@ -192,15 +183,6 @@ struct MklBlas<float, cpu>
                           const float * a, const DAAL_INT * lda, float * b, const DAAL_INT * ldb)
     {
         __DAAL_MKLFN_CALL_BLAS(mkl_somatcopy_, (ordering, trans, (MKL_INT *)rows, (MKL_INT *)cols, alpha, a, (MKL_INT *)lda, b, (MKL_INT *)ldb));
-    }
-
-    static int xomatadd(const char * ordering, const char * transa, const char * transb, const DAAL_INT * m, const DAAL_INT * n, const float * alpha,
-                        const float * a, const DAAL_INT * lda, const float * beta, const float * b, const DAAL_INT * ldb, float * c,
-                        const DAAL_INT * ldc)
-    {
-        __DAAL_MKLFN_CALL_BLAS(mkl_somatadd_, (ordering, transa, transb, (MKL_INT *)m, (MKL_INT *)n, alpha, a, (MKL_INT *)lda, beta, b,
-                                               (MKL_INT *)ldb, c, (MKL_INT *)ldc));
-        return 0;
     }
 
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,

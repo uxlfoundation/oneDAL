@@ -56,42 +56,6 @@ struct OpenBlas<double, cpu>
         domatcopy_(ordering, trans, rows, cols, alpha, a, lda, b, ldb);
     }
 
-    static int xomatadd(const char * ordering, const char * transa, const char * transb, const DAAL_INT * m, const DAAL_INT * n, const double * alpha,
-                        const double * a, const DAAL_INT * lda, const double * beta, const double * b, const DAAL_INT * ldb, double * c,
-                        const DAAL_INT * ldc)
-    {
-        /* geadd computes only C = alpha * A + beta * C, so op(B) is copied into C first and op(A) must be non-transposed */
-        const bool isTransA = (*transa != 'N' && *transa != 'n');
-        const bool isTransB = (*transb != 'N' && *transb != 'n');
-        if (isTransA && !isTransB)
-        {
-            return xomatadd(ordering, transb, transa, m, n, beta, b, ldb, alpha, a, lda, c, ldc);
-        }
-
-        const bool isRowMajor = (*ordering == 'R' || *ordering == 'r');
-        const double one      = 1.0;
-        const double * aN     = a;
-        const DAAL_INT * ldaN = lda;
-        const double * alphaN = alpha;
-
-        /* Both matrices are transposed: alpha * A^t is formed in a buffer */
-        daal::services::internal::TArray<double, cpu> aTArray;
-        const DAAL_INT ldaT = isRowMajor ? *n : *m;
-        if (isTransA)
-        {
-            double * aT = aTArray.reset(static_cast<size_t>(*m) * static_cast<size_t>(*n));
-            if (!aT) return 1;
-            domatcopy_(ordering, transa, n, m, alpha, a, lda, aT, &ldaT);
-            aN     = aT;
-            ldaN   = &ldaT;
-            alphaN = &one;
-        }
-
-        domatcopy_(ordering, transb, isTransB ? n : m, isTransB ? m : n, beta, b, ldb, c, ldc);
-        dgeadd_(isRowMajor ? n : m, isRowMajor ? m : n, alphaN, aN, ldaN, &one, c, ldc);
-        return 0;
-    }
-
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
                       const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
     {
@@ -192,43 +156,6 @@ struct OpenBlas<float, cpu>
                           const float * a, const DAAL_INT * lda, float * b, const DAAL_INT * ldb)
     {
         somatcopy_(ordering, trans, rows, cols, alpha, a, lda, b, ldb);
-    }
-
-    static int xomatadd(const char * ordering, const char * transa, const char * transb, const DAAL_INT * m, const DAAL_INT * n, const float * alpha,
-                        const float * a, const DAAL_INT * lda, const float * beta, const float * b, const DAAL_INT * ldb, float * c,
-                        const DAAL_INT * ldc)
-    {
-        /* geadd computes only C = alpha * A + beta * C, so op(B) is copied into C first */
-        const bool isTransA = (*transa != 'N' && *transa != 'n');
-        const bool isTransB = (*transb != 'N' && *transb != 'n');
-        if (isTransA && !isTransB)
-        {
-            /* Swap A and B to make sure A is not transposed */
-            return xomatadd(ordering, transb, transa, m, n, beta, b, ldb, alpha, a, lda, c, ldc);
-        }
-
-        const bool isRowMajor = (*ordering == 'R' || *ordering == 'r');
-        const float one       = 1.0f;
-        const float * aN      = a;
-        const DAAL_INT * ldaN = lda;
-        const float * alphaN  = alpha;
-
-        /* Both matrices are transposed: alpha * A^t is formed in a buffer */
-        daal::services::internal::TArray<float, cpu> aTArray;
-        const DAAL_INT ldaT = isRowMajor ? *n : *m;
-        if (isTransA)
-        {
-            float * aT = aTArray.reset(static_cast<size_t>(*m) * static_cast<size_t>(*n));
-            if (!aT) return 1;
-            somatcopy_(ordering, transa, n, m, alpha, a, lda, aT, &ldaT);
-            aN     = aT;
-            ldaN   = &ldaT;
-            alphaN = &one;
-        }
-
-        somatcopy_(ordering, transb, isTransB ? n : m, isTransB ? m : n, beta, b, ldb, c, ldc);
-        sgeadd_(isRowMajor ? n : m, isRowMajor ? m : n, alphaN, aN, ldaN, &one, c, ldc);
-        return 0;
     }
 
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
