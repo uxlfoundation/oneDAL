@@ -24,7 +24,6 @@
 
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
-#include "oneapi/dal/backend/primitives/distance/distance.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
 #include "oneapi/dal/test/engine/metrics/clustering.hpp"
@@ -52,39 +51,59 @@ public:
             .set_mem_save_mode(true)
             .set_result_options(result_options::responses);
     }
-    /// Distances between all pairs of rows of `x`, in double, from the host reference metrics of
-    /// the distance primitives.
+    /// Distance between the rows `a` and `b` of `column_count` values, computed in double from the
+    /// definition of `metric`.
+    static double reference_distance(const double *a,
+                                     const double *b,
+                                     std::int64_t column_count,
+                                     distance_metric metric,
+                                     double degree) {
+        double acc = 0;
+        switch (metric) {
+            case distance_metric::euclidean:
+            case distance_metric::manhattan:
+            case distance_metric::minkowski: {
+                const double p = metric == distance_metric::euclidean   ? 2.0
+                                 : metric == distance_metric::manhattan ? 1.0
+                                                                        : degree;
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    acc += std::pow(std::abs(a[k] - b[k]), p);
+                }
+                return std::pow(acc, 1.0 / p);
+            }
+            case distance_metric::chebyshev:
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    acc = std::max(acc, std::abs(a[k] - b[k]));
+                }
+                return acc;
+            case distance_metric::cosine: {
+                double n1 = 0, n2 = 0;
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    acc += a[k] * b[k];
+                    n1 += a[k] * a[k];
+                    n2 += b[k] * b[k];
+                }
+                return 1.0 - acc / std::sqrt(n1) / std::sqrt(n2);
+            }
+        }
+        return acc;
+    }
+
+    /// Distances between all pairs of rows of `x`, in double.
     static std::vector<double> reference_distances(const std::vector<float_t> &x,
                                                    std::int64_t column_count,
                                                    distance_metric metric,
                                                    double degree) {
-        namespace pr = dal::backend::primitives;
         const std::vector<double> data(x.begin(), x.end());
         const std::int64_t row_count = data.size() / column_count;
         std::vector<double> dist(row_count * row_count);
         for (std::int64_t i = 0; i < row_count; i++) {
             for (std::int64_t j = 0; j < row_count; j++) {
-                const double *a = data.data() + i * column_count;
-                const double *b = data.data() + j * column_count;
-                const double *a_end = a + column_count;
-                double &d = dist[i * row_count + j];
-                switch (metric) {
-                    case distance_metric::euclidean:
-                        d = pr::lp_metric<double>(2.0)(a, a_end, b);
-                        break;
-                    case distance_metric::manhattan:
-                        d = pr::lp_metric<double>(1.0)(a, a_end, b);
-                        break;
-                    case distance_metric::minkowski:
-                        d = pr::lp_metric<double>(degree)(a, a_end, b);
-                        break;
-                    case distance_metric::chebyshev:
-                        d = pr::chebyshev_metric<double>()(a, a_end, b);
-                        break;
-                    case distance_metric::cosine:
-                        d = pr::cosine_metric<double>()(a, a_end, b);
-                        break;
-                }
+                dist[i * row_count + j] = reference_distance(data.data() + i * column_count,
+                                                             data.data() + j * column_count,
+                                                             column_count,
+                                                             metric,
+                                                             degree);
             }
         }
         return dist;
