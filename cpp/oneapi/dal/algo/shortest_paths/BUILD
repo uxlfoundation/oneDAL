@@ -22,6 +22,4 @@ dal_test_suite(
     dal_deps = [
         ":shortest_paths",
     ],
-    # Dies before producing any output on Windows (#3530).
-    not_on_windows = ["test/badargs.cpp"],
 )

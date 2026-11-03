@@ -32,7 +32,7 @@ dev/bazel/
 - **[dev/bazel/deps/BUILD](deps/BUILD)** - Dependency management
 
 ### Module Configuration
-`MODULE.bazel` declares a handful of `bazel_dep`s (`platforms`, `bazel_skylib`, `rules_cc`, `rules_shell`, `fmt`). Everything else is a repository rule: catch2 is an `http_archive` with `build_file = "//dev/bazel/deps:catch2.BUILD"`, and MKL, TBB, OpenBLAS, MPI, CCL, DPL and OpenCL come from the `dev/bazel/deps/*.bzl` rules. Read `MODULE.bazel` for current versions rather than copying them from here.
+`MODULE.bazel` declares a handful of `bazel_dep`s (`platforms`, `bazel_skylib`, `rules_cc`, `rules_shell`, `fmt`). Everything else is a repository rule: catch2 is an `http_archive` with `build_file = "//dev/bazel/deps:catch2.BUILD"`, and MKL, TBB, OpenBLAS, MPI, CCL, DPL and OpenCL come from the `dev/bazel/deps/*.bzl` rules. Read those files for current versions rather than copying them from here.
 
 ## 🔧 Build Rules and Patterns
 
@@ -86,11 +86,11 @@ bazel build //:release
 
 Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets, which are skipped when `icpx` is not in `PATH` (`--release_dpc` defaults to whether it is). `dev/bazel/README.md` lists every config.
 
-For the default CPU build on x86-64 Linux, Bazel downloads MKL, TBB and the other dependencies with fallback archives at the versions pinned in `MODULE.bazel` and `dev/bazel/deps/*.bzl`, so the host only needs Bazelisk, gcc or clang, `unzip` and `unzstd`. The `*ROOT` variables in the README point a dependency at a local install instead; OpenBLAS (`ref` backend), OpenRNG and `@onedal_release` have no fallback and always need one. A release or packaging job that must ship DPC++ passes `--release_dpc=true` (or `--config=release-dpc`), since the default follows whether `icpx` is in `PATH`.
+For the default CPU build on x86-64 Linux, Bazel downloads MKL, TBB and the other dependencies with fallback archives at the versions pinned in `dev/bazel/deps/requirements_lock.txt` (PyPI wheels), `dev/bazel/deps/gcc.bzl` (conda) and `dev/bazel/deps/*.bzl`, so the host only needs Bazelisk, gcc or clang, `unzip` and `unzstd`. The `*ROOT` variables in the README point a dependency at a local install instead; OpenBLAS (`ref` backend), OpenRNG and `@onedal_release` have no fallback and always need one. A release or packaging job that must ship DPC++ passes `--release_dpc=true` (or `--config=release-dpc`), since the default follows whether `icpx` is in `PATH`.
 
 ## 🔧 Dependency Management
 
-External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_core`, `@tbb//:tbb`, `@openblas//:openblas`, `@mpi//:mpi`. `dev/bazel/deps/BUILD` declares no targets; the `*.tpl.BUILD` files next to it are the BUILD templates for those repositories.
+External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_core`, `@tbb//:tbb`, `@openblas//:openblas`, `@mpi//:mpi`. `dev/bazel/deps/BUILD` declares no targets, only exports the lock; the `*.tpl.BUILD` files next to it are the BUILD templates for those repositories.
 
 ## 🎯 Development Guidelines
 

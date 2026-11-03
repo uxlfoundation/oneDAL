@@ -22,6 +22,4 @@ dal_test_suite(
     dal_deps = [
         ":graph",
     ],
-    # Passes, then crashes at exit on Windows (#3530).
-    not_on_windows = ["test/service_functions.cpp"],
 )
