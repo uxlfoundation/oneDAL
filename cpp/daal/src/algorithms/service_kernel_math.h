@@ -523,7 +523,7 @@ protected:
             yy += y[i] * y[i];
         }
         dot  = xy;
-        norm = MathInst<FPType, cpu>::sSqrt(xx * yy);
+        norm = MathInst<FPType, cpu>::sSqrt(xx) * MathInst<FPType, cpu>::sSqrt(yy);
     }
 };
 
