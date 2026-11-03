@@ -91,7 +91,7 @@ jobs:
     name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
     # Selects the Visual Studio 18 build tools in .ci/scripts/build.bat and
-    # test.bat; the x86_64 Make job below takes the toolkit's default instead.
+    # test.bat; `make-msvc` below leaves it unset.
     env:
       VS_VER: 2026_build_tools
     steps:
@@ -379,14 +379,16 @@ jobs:
           bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
-  # x86_64 Make build with the Intel compiler: `daal` and `onedal_dpc` from
-  # the oneAPI Base Toolkit, then the CMake examples and the nuget package,
-  # as .github/workflows/ci.yml does on Linux (`LinuxMakeDPCPP`).
-  make-icx:
+  # x86_64 Make build with the Microsoft compiler, the GitHub Actions twin of
+  # Azure's `WindowsMakeVC` (.ci/pipeline/ci.yml): `daal` and `onedal_c` with
+  # `vc` against the toolkit's MKL and TBB, then the CMake examples and the
+  # nuget package. `VS_VER` stays unset, so .ci/scripts/build.bat and test.bat
+  # take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
+  make-msvc:
     if: '!github.event.pull_request.draft'
-    name: WindowsMakeDPCPP(avx2)-GitHub hosted
+    name: WindowsMakeVC_MKL(AVX2)-GitHub hosted
     runs-on: windows-2025
-    timeout-minutes: 240
+    timeout-minutes: 180
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -409,7 +411,7 @@ jobs:
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
-          pip install cpufeature
+          python -m pip install cpufeature
           if errorlevel 1 exit /b 1
           pacman -S -y --noconfirm zip tree
 
@@ -424,13 +426,13 @@ jobs:
         shell: cmd
         run: |
           call .\oneapi\setvars.bat
-          call .ci\scripts\build.bat daal icx avx2
+          call .ci\scripts\build.bat daal vc avx2
 
-      - name: Make onedal_dpc
+      - name: Make onedal_c
         shell: cmd
         run: |
           call .\oneapi\setvars.bat
-          call .ci\scripts\build.bat onedal_dpc icx avx2
+          call .ci\scripts\build.bat onedal_c vc avx2
 
       # See `Disable Windows Error Reporting dialogs` in `build-and-test`.
       - name: Disable Windows Error Reporting dialogs
@@ -442,25 +444,26 @@ jobs:
           Set-ItemProperty -Path $wer -Name DontShowUI -Value 1 -Type DWord
           Set-ItemProperty -Path $wer -Name Disabled -Value 1 -Type DWord
 
+      # `msvs` selects the `__release_win_vc` tree in test.bat.
       - name: Test daal
         timeout-minutes: 30
         shell: cmd
         run: |
           call .\oneapi\setvars.bat
-          call .ci\scripts\test.bat daal\cpp "" icx cmake
+          call .ci\scripts\test.bat daal\cpp "" msvs cmake
 
       - name: Test oneapi
         timeout-minutes: 30
         shell: cmd
         run: |
           call .\oneapi\setvars.bat
-          call .ci\scripts\test.bat oneapi\cpp "" icx cmake
+          call .ci\scripts\test.bat oneapi\cpp "" msvs cmake
 
       - name: Build nuget package
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
-          bash deploy/nuget/prepare_dal_nuget.sh --release-dir __release_win --build-nupkg yes
+          bash deploy/nuget/prepare_dal_nuget.sh --release-dir __release_win_vc --build-nupkg yes
           if errorlevel 1 exit /b 1
           tree -h -I include __nuget/inteldal*/
           ls -lh __nuget/inteldal*.nupkg

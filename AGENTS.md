@@ -59,7 +59,7 @@ See `INSTALL.md` for other platforms and build variants.
 | clang-format, editorconfig-checker | Azure DevOps | `.ci/pipeline/ci.yml` (`FormatterChecks`) |
 | Make (GNU/MKL, LLVM/OpenBLAS rv64, VC), Bazel, Linux release compare, sklearnex | Azure DevOps | `.ci/pipeline/ci.yml` |
 | Make + DPC++ (icx), ABI check, Make GNU/MKL conda | GitHub Actions | `.github/workflows/ci.yml` |
-| Windows (Make icx x86_64, Bazel MSVC, arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
+| Windows (Make VC and Bazel MSVC x86_64, arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
 | aarch64 | GitHub Actions | `.github/workflows/ci-aarch64.yml` |
 | License headers | GitHub Actions | `.github/workflows/skywalking-eyes.yml` |
 | Bazel Linux/Windows | GitHub Actions (nightly) | `.github/workflows/nightly-test.yml` |
