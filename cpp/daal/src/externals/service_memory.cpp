@@ -28,7 +28,7 @@
 void * daal::services::daal_malloc(size_t size, size_t alignment)
 {
     void * ptr = daal::internal::ServiceInst::serv_malloc(size, alignment);
-    if (daal::internal::is_memory_tracking_enabled())
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled()))
     {
         daal::internal::profiler_record_alloc(ptr, size, daal::internal::profiler_memory_kind::host);
     }
@@ -52,7 +52,7 @@ void * daal::services::daal_calloc(size_t size, size_t alignment)
 
 void daal::services::daal_free(void * ptr)
 {
-    if (daal::internal::is_memory_tracking_enabled())
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled()))
     {
         daal::internal::profiler_record_free(ptr);
     }

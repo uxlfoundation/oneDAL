@@ -94,7 +94,7 @@ inline void* malloc(const sycl::queue& queue, std::size_t size, const sycl::usm:
             throw dal::invalid_argument{ detail::error_messages::unknown_usm_pointer_type() };
         }
     }
-    if (daal::internal::is_memory_tracking_enabled()) {
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled())) {
         daal::internal::profiler_record_alloc(ptr,
                                               size,
                                               alloc == sycl::usm::alloc::host
@@ -118,7 +118,7 @@ inline void* malloc_host(const sycl::queue& queue, std::size_t size) {
 
 inline void free(const sycl::queue& queue, void* pointer) {
     ONEDAL_ASSERT(pointer == nullptr || is_known_usm(queue, pointer));
-    if (daal::internal::is_memory_tracking_enabled()) {
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled())) {
         daal::internal::profiler_record_free(pointer);
     }
     sycl::free(pointer, queue);

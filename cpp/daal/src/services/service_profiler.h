@@ -23,6 +23,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <cstddef>
@@ -51,6 +52,12 @@
 // Some Windows builds compile DAAL without /EHsc, where a try block does not compile.
 #if defined(__cpp_exceptions) || defined(_CPPUNWIND)
     #define DAAL_PROFILER_EXCEPTIONS_ENABLED
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+    #define DAAL_PROFILER_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+    #define DAAL_PROFILER_UNLIKELY(x) (x)
 #endif
 
 #define DAAL_PROFILER_CONCAT2(x, y) x##y
@@ -89,7 +96,7 @@
 
 #define DAAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                                                                          \
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-        if (daal::internal::is_profiler_enabled())                                                                                            \
+        if (DAAL_PROFILER_UNLIKELY(daal::internal::is_profiler_enabled()))                                                                    \
         {                                                                                                                                     \
             if (daal::internal::is_logger_enabled())                                                                                          \
             {                                                                                                                                 \
@@ -102,7 +109,7 @@
 
 #define DAAL_PROFILER_TASK(...)                                                                                                               \
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-        if (daal::internal::is_profiler_enabled())                                                                                            \
+        if (DAAL_PROFILER_UNLIKELY(daal::internal::is_profiler_enabled()))                                                                    \
         {                                                                                                                                     \
             if (daal::internal::is_logger_enabled())                                                                                          \
             {                                                                                                                                 \
@@ -115,7 +122,7 @@
 
 #define DAAL_PROFILER_THREADING_TASK(task_name)                                                                                               \
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-        if (daal::internal::is_profiler_enabled())                                                                                            \
+        if (DAAL_PROFILER_UNLIKELY(daal::internal::is_profiler_enabled()))                                                                    \
         {                                                                                                                                     \
             return daal::internal::profiler::start_threading_task(#task_name);                                                                \
         }                                                                                                                                     \
@@ -124,7 +131,7 @@
 
 #define DAAL_PROFILER_SERVICE_TASK(...)                                                                                                       \
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-        if (daal::internal::is_service_debug_enabled())                                                                                       \
+        if (DAAL_PROFILER_UNLIKELY(daal::internal::is_service_debug_enabled()))                                                               \
         {                                                                                                                                     \
             if (daal::internal::is_logger_enabled())                                                                                          \
             {                                                                                                                                 \
@@ -149,22 +156,33 @@ struct profiler_region_hooks;
 namespace internal
 {
 
-// Every shared object that includes this header reads the mode on its own; they all get the same answer.
+/// Parses ONEDAL_VERBOSE; out of the fast path of daal_verbose_mode().
+inline static int profiler_read_verbose_mode()
+{
+    const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
+    int result               = PROFILER_MODE_OFF;
+    if (verbose_str)
+    {
+        char * endptr = nullptr;
+        errno         = 0;
+        long parsed   = std::strtol(verbose_str, &endptr, 10);
+        if (errno == 0 && endptr != verbose_str && *endptr == '\0' && parsed >= 0 && parsed <= 5) result = static_cast<int>(parsed);
+    }
+    return result;
+}
+
+// Every translation unit reads the mode once, on its first profiled call, into a constant-initialized
+// atomic, so a task that is off costs one relaxed load and a compare. They all get the same answer.
 inline static int daal_verbose_mode()
 {
-    static const int cached = [] {
-        const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
-        int result               = PROFILER_MODE_OFF;
-        if (verbose_str)
-        {
-            char * endptr = nullptr;
-            errno         = 0;
-            long parsed   = std::strtol(verbose_str, &endptr, 10);
-            if (errno == 0 && endptr != verbose_str && *endptr == '\0' && parsed >= 0 && parsed <= 5) result = static_cast<int>(parsed);
-        }
-        return result;
-    }();
-    return cached;
+    static std::atomic<int> cached { -1 };
+    int mode = cached.load(std::memory_order_relaxed);
+    if (DAAL_PROFILER_UNLIKELY(mode < 0))
+    {
+        mode = profiler_read_verbose_mode();
+        cached.store(mode, std::memory_order_relaxed);
+    }
+    return mode;
 }
 
 inline void profiler_write_named_args(std::ostream & /*out*/, const char * /*names*/) {}
@@ -190,44 +208,30 @@ inline std::string profiler_named_args(const char * names, Args &&... values)
 
 inline static bool is_service_debug_enabled()
 {
-    static const bool service_debug_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_DEBUG;
-    }();
-    return service_debug_value;
+    return daal_verbose_mode() == PROFILER_MODE_DEBUG;
 }
 
 inline static bool is_logger_enabled()
 {
-    static const bool logger_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
-    }();
-    return logger_value;
+    const int value = daal_verbose_mode();
+    return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
 }
 
 inline static bool is_tracer_enabled()
 {
-    static const bool verbose_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
-    }();
-    return verbose_value;
+    const int value = daal_verbose_mode();
+    return value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
 }
 
 inline static bool is_profiler_enabled()
 {
-    static const bool profiler_value = [] { return daal_verbose_mode() != PROFILER_MODE_OFF; }();
-    return profiler_value;
+    return daal_verbose_mode() != PROFILER_MODE_OFF;
 }
 
 inline static bool is_analyzer_enabled()
 {
-    static const bool profiler_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
-    }();
-    return profiler_value;
+    const int value = daal_verbose_mode();
+    return value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
 }
 
 /// Whether allocations are recorded: whenever the analyzer report is on.
