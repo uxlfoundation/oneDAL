@@ -144,6 +144,7 @@ def _static(owner, name, actions, cc_toolchain,
             libraries = depset([static_lib_to_link] +
                                unpacked_linking_context.dynamic_libraries_to_link),
             user_link_flags = depset(unpacked_linking_context.user_link_flags),
+            additional_inputs = depset(unpacked_linking_context.additional_inputs),
         )
         return cc_common.create_linking_context(
             linker_inputs = depset([ linker_input ]),
@@ -176,6 +177,7 @@ def _static(owner, name, actions, cc_toolchain,
             libraries = depset([static_lib_to_link] +
                                unpacked_linking_context.dynamic_libraries_to_link),
             user_link_flags = depset(unpacked_linking_context.user_link_flags),
+            additional_inputs = depset(unpacked_linking_context.additional_inputs),
         )
         return cc_common.create_linking_context(
             linker_inputs = depset([ linker_input ]),
@@ -233,6 +235,7 @@ def _static(owner, name, actions, cc_toolchain,
         libraries = depset([static_lib_to_link] +
                            unpacked_linking_context.dynamic_libraries_to_link),
         user_link_flags = depset(unpacked_linking_context.user_link_flags),
+        additional_inputs = depset(unpacked_linking_context.additional_inputs),
     )
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([ linker_input ]),
@@ -250,7 +253,9 @@ def _link(owner, name, actions, cc_toolchain,
     all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
     libraries_to_link = unpacked_linking_context.libraries_to_link
     object_archive_link_flags = []
-    additional_link_inputs = list(additional_inputs)
+    # Files that dependencies name only through `user_link_flags` must be
+    # staged for this link as well.
+    additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
     if is_windows and all_object_list and not is_executable:
         object_archive = _merge_static_libs(
             filename = name + "_objects.lib",
@@ -418,6 +423,7 @@ def _dynamic(owner, name, actions, cc_toolchain,
         libraries = depset([dynamic_lib_to_link] +
                            unpacked_linking_context.dynamic_libraries_to_link),
         user_link_flags = depset(unpacked_linking_context.user_link_flags),
+        additional_inputs = depset(unpacked_linking_context.additional_inputs),
     )
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([ linker_input ]),

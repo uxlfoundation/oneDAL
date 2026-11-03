@@ -19,6 +19,7 @@
 # https://docs.microsoft.com/azure/devops/pipelines/apps/c-cpp/gcc
 
 trigger:
+  batch: true
   branches:
     include:
     - main
@@ -66,6 +67,9 @@ resources:
       ref: main
       endpoint: intel-daal-connection
 
+# In a pull request the other jobs start only after FormatterChecks and
+# LinuxBazel pass, so a change that does not build or is not formatted
+# does not hold the Windows and RISC-V agents. Pushes to main are not gated.
 jobs:
 - job: 'FormatterChecks'
   pool:
@@ -85,6 +89,8 @@ jobs:
       displayName: 'pre-commit checks'
 
 - job: 'LinuxMakeGNU_MKL'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_gnu'
@@ -155,6 +161,8 @@ jobs:
     continueOnError: true
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_clang'
@@ -574,6 +582,8 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: 'LinuxBazelGNU_OpenBLAS_rv64'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     OPENBLAS_VERSION : 'v0.3.34'
@@ -638,6 +648,8 @@ jobs:
     displayName: 'Verify RISC-V ELF output'
 
 - job: 'LinuxBazelCoverage'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   pool:
     vmImage: '$(VM_IMAGE)'
@@ -687,6 +699,8 @@ jobs:
     displayName: 'Compare Make and Bazel release trees'
 
 - job: 'WindowsBazel'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_bazel_icx'
@@ -944,6 +958,8 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_vc'
@@ -1008,6 +1024,8 @@ jobs:
 
 
 - job: 'WindowsMakeIntel'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win'

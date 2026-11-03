@@ -273,9 +273,21 @@ config_setting(
     },
 )
 
+# Builds the DPC++ targets and puts the DPC++ libraries into //:release.
+# Defaults to whether icpx is in PATH.
 config_bool_flag(
     name = "release_dpc",
-    build_setting_default = True,
+    build_setting_default = %{dpc_compiler_found},
+)
+
+# No platform has this constraint. DPC++ targets require it under
+# --release_dpc=false, so they are skipped, and a direct request for one
+# names the missing compiler.
+constraint_setting(name = "dpc_compiler")
+
+constraint_value(
+    name = "dpc_needs_icpx_in_PATH",
+    constraint_setting = ":dpc_compiler",
 )
 
 config_bool_flag(
