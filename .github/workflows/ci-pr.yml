@@ -23,8 +23,9 @@ name: PR CI
 
 on:
   pull_request:
-    # ready_for_review starts the jobs a draft skipped; labeled and unlabeled
-    # rerun the gate, since the label check is part of it.
+    # ready_for_review starts the jobs a draft skipped. labeled and unlabeled
+    # rerun the label check; the build reruns only if this commit has no
+    # passing or running build yet.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
     branches:
       - main
@@ -59,17 +60,50 @@ on:
 permissions:
   contents: read
 
+# Label events have their own group, so changing a label never cancels a
+# running build.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number }}
+  group: ${{ github.workflow }}-${{ github.event.number }}-${{ contains(fromJSON('["labeled", "unlabeled"]'), github.event.action) && 'labels' || 'build' }}
   cancel-in-progress: true
 
 jobs:
   labels:
     name: Labels
+    if: github.event.pull_request.state == 'open'
     uses: ./.github/workflows/label-enforcement.yml
+
+  # On a label event the build is skipped when another PR CI run of this
+  # commit has passed or is still running.
+  build_needed:
+    name: Build needed
+    if: github.event.pull_request.state == 'open'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      needed: ${{ steps.check.outputs.needed }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ github.event.action }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          needed=true
+          if [ "$ACTION" = labeled ] || [ "$ACTION" = unlabeled ]; then
+            others=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${HEAD_SHA}&event=pull_request&per_page=100" \
+              --jq "[.workflow_runs[] | select(.name == \"$WORKFLOW\" and .id != $RUN_ID and (.status != \"completed\" or .conclusion == \"success\"))] | length")
+            [ "$others" = 0 ] || needed=false
+          fi
+          echo "needed=$needed" >> "$GITHUB_OUTPUT"
 
   gate:
     name: Gate
+    needs: build_needed
+    if: needs.build_needed.outputs.needed == 'true'
     uses: ./.github/workflows/ci.yml
     with:
       part: gate
