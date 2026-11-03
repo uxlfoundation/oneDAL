@@ -42,6 +42,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace daal
 {
@@ -123,7 +124,8 @@ struct block_shard
     std::unordered_map<const void *, block> blocks;
 };
 
-constexpr std::size_t block_shards = 64;
+constexpr int shard_bits           = 6;
+constexpr std::size_t block_shards = std::size_t(1) << shard_bits;
 
 struct global_state
 {
@@ -138,8 +140,10 @@ struct global_state
 
 block_shard & shard_for(global_state & global, const void * ptr)
 {
-    const std::size_t h = std::hash<const void *>()(ptr) >> 6;
-    return global.shards[h % block_shards];
+    // Allocators hand out the same page offsets from every per-thread arena, so the low address bits
+    // alone would send every thread to one shard; the multiply spreads the whole address.
+    const std::uint64_t h = (reinterpret_cast<std::uintptr_t>(ptr) >> 4) * 0x9E3779B97F4A7C15ull;
+    return global.shards[h >> (64 - shard_bits)];
 }
 
 void atomic_max(std::atomic<std::int64_t> & target, std::int64_t value)
@@ -279,7 +283,18 @@ void close_task(thread_state & ts, const frame & f, std::uint64_t end)
         {
             const std::int64_t peak = global.region_peak[k].load(std::memory_order_relaxed) - f.live_at_start[k];
             if (peak > 0) n->peak_bytes[k] = std::max(n->peak_bytes[k], static_cast<std::uint64_t>(peak));
-            atomic_max(global.region_peak[k], f.outer_peak[k]);
+            if (!ts.stack.empty())
+            {
+                atomic_max(global.region_peak[k], f.outer_peak[k]);
+            }
+            else
+            {
+                // No enclosing window to restore: the next task starts from live memory. Written
+                // only when the task allocated, so tasks that run at the same time on other
+                // threads do not contend on this line.
+                const std::int64_t live = global.live[k].load(std::memory_order_relaxed);
+                if (global.region_peak[k].load(std::memory_order_relaxed) != live) global.region_peak[k].store(live, std::memory_order_relaxed);
+            }
         }
     }
     // A top-level task is traced on every run, a nested path the first time it runs, everything at level 5.
@@ -312,7 +327,12 @@ int begin_task(thread_state & ts, const char * name, bool threading, bool on_que
         for (int k = 0; k < memory_kinds; ++k)
         {
             f.live_at_start[k] = global.live[k].load(std::memory_order_relaxed);
-            f.outer_peak[k]    = global.region_peak[k].exchange(f.live_at_start[k], std::memory_order_relaxed);
+            // Reset the window of the enclosing task. Nothing allocated since it started is the
+            // common case, where the window already equals live memory and no write is needed, so
+            // threads that run tasks at the same time do not contend on this line.
+            f.outer_peak[k] = global.region_peak[k].load(std::memory_order_relaxed);
+            if (f.outer_peak[k] != f.live_at_start[k])
+                f.outer_peak[k] = global.region_peak[k].exchange(f.live_at_start[k], std::memory_order_relaxed);
         }
     }
     f.start = now_ns();
@@ -571,6 +591,9 @@ DAAL_EXPORT void print_header()
 DAAL_EXPORT bool profiler_claim_log_site(const char * site)
 {
     if (is_service_debug_enabled()) return true;
+    // A site this thread has seen before takes no lock; the key is the literal's address.
+    thread_local std::unordered_set<const char *> seen_here;
+    if (!seen_here.insert(site).second) return false;
     static std::vector<std::string> logged;
     std::lock_guard<std::mutex> lock(log_mutex());
     if (std::find(logged.begin(), logged.end(), site) != logged.end()) return false;

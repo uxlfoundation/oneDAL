@@ -163,7 +163,7 @@ T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
     {
         return nullptr;
     }
-    if (daal::internal::is_memory_tracking_enabled())
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled()))
     {
         daal::internal::profiler_record_alloc(ptr, size * sizeof(T), daal::internal::profiler_memory_kind::host);
     }
@@ -221,7 +221,7 @@ template <typename T, CpuType cpu>
 T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
     T * ptr = (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
-    if (daal::internal::is_memory_tracking_enabled())
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled()))
     {
         daal::internal::profiler_record_alloc(ptr, size * sizeof(T), daal::internal::profiler_memory_kind::host);
     }
@@ -237,7 +237,7 @@ T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
 template <typename T, CpuType cpu>
 void service_scalable_free(T * ptr)
 {
-    if (daal::internal::is_memory_tracking_enabled())
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled()))
     {
         daal::internal::profiler_record_free(ptr);
     }
