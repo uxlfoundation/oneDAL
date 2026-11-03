@@ -189,11 +189,19 @@ struct train_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
                                                                arr_closest_distances,
                                                                { centroid_squares_event });
 
+        auto exact_distances_event =
+            kernels_fp<Float>::compute_exact_distances(queue,
+                                                       arr_data,
+                                                       arr_centroids,
+                                                       arr_responses,
+                                                       arr_closest_distances,
+                                                       { assign_event });
+
         auto objective_event = kernels_fp<Float>::compute_objective_function( //
             queue,
             arr_closest_distances,
             arr_objective_function,
-            { assign_event });
+            { exact_distances_event });
 
         Float final_objective_function =
             arr_objective_function.to_host(queue, { objective_event }).get_data()[0];

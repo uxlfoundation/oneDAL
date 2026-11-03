@@ -88,10 +88,17 @@ struct infer_kernel_gpu<Float, method::lloyd_dense, task::clustering> {
         if (desc.get_result_options().test(result_options::compute_exact_objective_function)) {
             auto arr_objective_function =
                 pr::ndarray<Float, 1>::empty(queue, 1, sycl::usm::alloc::device);
+            auto exact_distances_event =
+                kernels_fp<Float>::compute_exact_distances(queue,
+                                                           arr_data,
+                                                           arr_centroids,
+                                                           arr_responses,
+                                                           arr_closest_distances,
+                                                           { assign_event });
             kernels_fp<Float>::compute_objective_function(queue,
                                                           arr_closest_distances,
                                                           arr_objective_function,
-                                                          { assign_event })
+                                                          { exact_distances_event })
                 .wait_and_throw();
 
             result.set_objective_function_value(

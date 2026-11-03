@@ -263,6 +263,47 @@ public:
         this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
     }
 
+    void check_exact_objective_on_close_points() {
+        // Two pairs of points 2e-4 apart around -1 and +1. In float the expanded
+        // distance |x|^2 - 2 x.c + |c|^2 rounds the squared distances to zero, while
+        // the differences themselves are exact. The objective function has to be
+        // the sum of the squared differences for the final centroids and responses.
+        const std::int64_t row_count = 4;
+        const std::int64_t cluster_count = 2;
+        float_t data[] = { -1.0001, -0.9999, 0.9999, 1.0001 };
+        const auto x = make_data_table(data, row_count, 1);
+
+        float_t initial_centroids[] = { -1, 1 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, 10, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        const auto responses =
+            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+
+        double expected = 0;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const double diff = double(data[i]) - double(centroids[responses[i]]);
+            expected += diff * diff;
+        }
+        REQUIRE(expected > 0);
+
+        const double objective = train_result.get_objective_function_value();
+        CAPTURE(objective, expected);
+        REQUIRE(check_value_with_ref_tol(objective, expected, 1e-3));
+
+        INFO("run inference");
+        const auto infer_desc =
+            get_descriptor(cluster_count, 10, 0.0)
+                .set_result_options(kmeans::result_options::compute_exact_objective_function);
+        const auto infer_result = this->infer(infer_desc, train_result.get_model(), x);
+        CAPTURE(infer_result.get_objective_function_value());
+        REQUIRE(
+            check_value_with_ref_tol(infer_result.get_objective_function_value(), expected, 1e-3));
+    }
+
     void check_empty_clusters_distinct_inits() {
         // Distinct initial centroids, unlike the repeated -10 of
         // check_empty_clusters, but still all to the left of the data: every point

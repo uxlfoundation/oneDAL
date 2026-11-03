@@ -87,6 +87,9 @@ struct compute_obj_function {};
 template <typename T>
 struct complete_distances {};
 
+template <typename T>
+struct exact_distances {};
+
 template <typename Float>
 std::int64_t kernels_fp<Float>::get_block_size_in_rows(sycl::queue& queue,
                                                        std::int64_t column_count,
@@ -397,6 +400,51 @@ sycl::event kernels_fp<Float>::compute_objective_function(
                          binary,
                          unary,
                          { fill_event });
+}
+
+template <typename Float>
+sycl::event kernels_fp<Float>::compute_exact_distances(sycl::queue& queue,
+                                                       const pr::ndview<Float, 2>& data,
+                                                       const pr::ndview<Float, 2>& centroids,
+                                                       const pr::ndview<std::int32_t, 2>& responses,
+                                                       pr::ndview<Float, 2>& distances,
+                                                       const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(compute_exact_distances, queue);
+    const std::int64_t row_count = data.get_dimension(0);
+    const std::int64_t column_count = data.get_dimension(1);
+    ONEDAL_ASSERT(centroids.get_dimension(1) == column_count);
+    ONEDAL_ASSERT(responses.get_dimension(0) == row_count);
+    ONEDAL_ASSERT(responses.get_dimension(1) == 1);
+    ONEDAL_ASSERT(distances.get_dimension(0) == row_count);
+    ONEDAL_ASSERT(distances.get_dimension(1) == 1);
+
+    const Float* data_ptr = data.get_data();
+    const Float* centroids_ptr = centroids.get_data();
+    const std::int32_t* responses_ptr = responses.get_data();
+    Float* distances_ptr = distances.get_mutable_data();
+    const std::int64_t sg_size = bk::device_max_sg_size(queue);
+
+    // One sub-group per row; its work-items stride over the columns.
+    return queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.parallel_for<exact_distances<Float>>(
+            bk::make_multiple_nd_range_2d({ row_count, sg_size }, { 1, sg_size }),
+            [=](sycl::nd_item<2> item) {
+                const std::int64_t row = item.get_global_id(0);
+                const std::int64_t local_id = item.get_local_id(1);
+                const Float* const x = data_ptr + row * column_count;
+                const Float* const c = centroids_ptr + responses_ptr[row] * column_count;
+                Float sum = Float(0);
+                for (std::int64_t col = local_id; col < column_count; col += sg_size) {
+                    const Float diff = x[col] - c[col];
+                    sum += diff * diff;
+                }
+                sum = sycl::reduce_over_group(item.get_group(), sum, sycl::plus<Float>());
+                if (local_id == 0) {
+                    distances_ptr[row] = sum;
+                }
+            });
+    });
 }
 
 template <typename Float>
