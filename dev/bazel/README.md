@@ -139,8 +139,9 @@ Bazel picks the compiler on Linux as follows:
    a name such as `gcc`, `clang`, `icx` or a versioned `clang-19`, which is
    looked up in `PATH`, or a full path. If it is not found, the build fails
    with `Cannot find <CC>; try to correct your $PATH`. Bazel tells gcc, clang
-   and icx apart by the `CC` name, so a name that contains none of them is
-   rejected.
+   and icx apart by the `CC` name. A name that says none of them, such as
+   conda-forge's `x86_64-conda-linux-gnu-cc`, is identified from the macros the
+   compiler predefines, and is rejected only if it is none of the three.
 2. Otherwise, with `--repo_env=ONEDAL_DOWNLOAD_CC=1` on an x86-64 host, Bazel
    downloads the conda-forge gcc pinned in `dev/bazel/deps/gcc.bzl`.
 3. Otherwise it uses the first of `icx`, `gcc` and `clang` found in `PATH`.
