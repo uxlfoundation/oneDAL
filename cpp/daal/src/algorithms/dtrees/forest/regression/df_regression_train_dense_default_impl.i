@@ -1364,7 +1364,7 @@ struct OOBRowMask
     size_t bytesPerTree  = 0; // ceil(nRows / 8)
 
     void set(size_t iTree, size_t iRow) { bits[iTree * bytesPerTree + iRow / 8] |= static_cast<unsigned char>(1u << (iRow % 8)); }
-    bool test(size_t iTree, size_t iRow) const { return bits[iTree * bytesPerTree + iRow / 8] & (1u << (iRow % 8)); }
+    bool isOOB(size_t iTree, size_t iRow) const { return bits[iTree * bytesPerTree + iRow / 8] & (1u << (iRow % 8)); }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1435,7 +1435,7 @@ public:
                 const auto & tree = *md.at(iTree);
                 for (size_t i = iStart; i < iEnd; ++i)
                 {
-                    if (!_oobMask.test(iTree, i)) continue;
+                    if (!_oobMask.isOOB(iTree, i)) continue;
                     const dtrees::internal::DecisionTreeNode * pNode =
                         dtrees::prediction::internal::findNode<algorithmFPType, typename ModelType::TreeType, cpu>(tree, featTypes,
                                                                                                                    xBD.get() + (i - iStart) * nCols);
