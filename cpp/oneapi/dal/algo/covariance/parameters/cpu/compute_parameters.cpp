@@ -44,7 +44,20 @@ namespace oneapi::dal::covariance::parameters {
 
 using dal::backend::context_cpu;
 
+inline std::int64_t ceil_div(std::int64_t a, std::int64_t b) {
+    return (a + b - 1) / b;
+}
+
 /// Proposes the number of rows in the data block used in variance-covariance matrix computations on CPU.
+///
+/// The heuristic for choosing the block size is as follows:
+/// B_cache     = max(1, floor(alpha * C /  p * sizeof(Float)))
+/// m           = max(k, ceil(n / (threads * B_cache))),
+/// block_size  = ceil(n / (m * threads))
+/// block_size  = min(block, n)
+///
+/// Chosen coefficients for the block size computation:
+/// C = L2, alpha = 2^-1.5 (AVX-512) / 1/4 (AVX2), k = 2
 ///
 /// @tparam Float   The type of elements that is used in computations in covariance algorithm.
 ///                 The :literal:`Float` type should be at least :expr:`float` or :expr:`double`.
@@ -75,16 +88,21 @@ std::int64_t propose_block_size(const context_cpu& ctx,
         return block_size;
     }
 
-    const std::int64_t l2_size = sys_params.get_l2_cache_size();
-    const std::int64_t thread_count = sys_params.get_max_number_of_threads();
+    const std::int64_t threads = std::max<std::int64_t>(1, get_max_number_of_threads());
 
-    /// Half of the L2 cache is reserved for a block of the data
-    const double h1 = 0.5 * l2_size / (column_count * sizeof(Float));
-    /// At least one block per thread
-    const double h2 = double(row_count) / thread_count;
+    // Bytes one block of rows may occupy: alpha * C.
+    static const std::int64_t budget_avx512 = static_cast<std::int64_t>(0.353553 * double(sys_params.get_l2_cache_size()));
+    static const std::int64_t budget_avx2 = sys_params.get_l2_cache_size() / 4;
+    const bool avx512 = ctx.get_enabled_cpu_extensions() >= dal::detail::cpu_extension::avx512;
+    const std::int64_t budget = avx512 ? budget_avx512 : budget_avx2;
 
-    const auto block_size = static_cast<std::int64_t>(std::clamp(std::min(h1, h2), 64.0, 8192.0));
-    return dal::backend::down_pow2(block_size);
+    std::int64_t row_bytes = column_count * std::int64_t(sizeof(Float));
+    std::int64_t b_cache = std::max<std::int64_t>(1, budget / row_bytes);
+
+    // Whole number of blocks per thread, so the static partition gives every thread the same count.
+    const std::int64_t m = std::max<std::int64_t>(2, ceil_div(row_count, threads * b_cache));
+    std::int64_t block = ceil_div(row_count, m * threads);
+    return std::min(block, row_count);
 }
 
 std::int64_t propose_max_cols_batched(const context_cpu& ctx, const std::int64_t row_count) {
