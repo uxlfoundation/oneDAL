@@ -17,11 +17,12 @@
 name: "Windows CI"
 
 on:
+  # Pull requests to main run this workflow through ci-pr.yml.
+  workflow_call:
   pull_request:
     # ready_for_review starts the jobs a draft pull request skipped.
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
-      - main
       - 'feature/**'
     # Skip PR builds for changes that cannot affect the library build or tests.
     # Pushes to main are not filtered.
@@ -68,11 +69,12 @@ env:
   NINJA_VERSION: 1.13.2
   VS_VER: 2026_build_tools
 
+# A literal name: in a called workflow `github.workflow` is the caller's.
 # A PR push cancels the older run of that PR. A push to main waits behind the
 # running one, and a newer push replaces the waiting one, so the latest commit runs.
 # Matters on the scarce ARM64 runners, where this workflow is the only consumer.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: Windows CI-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -17,39 +17,13 @@
 name: CI
 
 on:
-  pull_request:
-    # ready_for_review starts the jobs a draft pull request skipped.
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches:
-      - main
-    # Skip PR builds for changes that cannot affect the library build or tests.
-    # Pushes to main are not filtered.
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - 'dev/agent_evals/**'
-      - 'conda-recipe/**'
-      - 'third-party-programs.txt'
-      - '.ci/pipeline/docs.yml'
-      - '.github/CODEOWNERS'
-      - '.github/renovate.json'
-      - '.github/.licenserc.yaml'
-      - '.github/.mergify.yml'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/instructions/**'
-      - '.github/workflows/check-intel-urls.yml'
-      - '.github/workflows/ci-conda-recipe.yml'
-      - '.github/workflows/coverity.yml'
-      - '.github/workflows/docker-validation-nightly.yml'
-      - '.github/workflows/docs-release.yml'
-      - '.github/workflows/label-enforcement.yml'
-      - '.github/workflows/nightly-build.yml'
-      - '.github/workflows/nightly-test.yml'
-      - '.github/workflows/openssf-scorecard.yml'
-      - '.github/workflows/pr-checklist.yml'
-      - '.github/workflows/renovate-validation.yml'
-      - '.github/workflows/skywalking-eyes.yml'
-      - '.github/workflows/slack-pr-notification.yml'
+  # Pull requests run this workflow through ci-pr.yml, in two parts.
+  workflow_call:
+    inputs:
+      part:
+        description: "'gate' runs only LinuxBazelNoCompiler, 'tests' every other job"
+        type: string
+        required: true
   push:
     branches:
       - main
@@ -59,17 +33,18 @@ on:
 permissions:
   contents: read
 
+# A literal name: in a called workflow `github.workflow` is the caller's.
 # A PR push cancels the older run of that PR. A push to main waits behind the
 # running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: CI-${{ github.event.pull_request.number || github.ref }}${{ inputs.part }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Draft pull requests skip the jobs that take hours; they run once the
   # pull request is marked ready for review.
   LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate' && !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
@@ -167,6 +142,7 @@ jobs:
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
+      inputs.part != 'gate' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-26.04
     env:
@@ -214,7 +190,7 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate' && !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
@@ -304,8 +280,9 @@ jobs:
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
+  # The pull request gate (see ci-pr.yml): the one job of the 'gate' part.
   LinuxBazelNoCompiler:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'tests'
     runs-on: ubuntu-26.04
     # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
     container: ubuntu:26.04
@@ -333,7 +310,7 @@ jobs:
   # runs the tests and the example of one algorithm; the clang legs remove the gcc
   # drivers, so the toolchain has to find clang by itself.
   LinuxBazelNoOneAPI:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL' && inputs.part != 'gate'
     strategy:
       fail-fast: false
       matrix:
