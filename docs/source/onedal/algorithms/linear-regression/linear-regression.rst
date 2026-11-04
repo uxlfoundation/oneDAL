@@ -136,4 +136,4 @@ The algorithm supports online mode.
 Distributed mode
 ----------------
 
-The algorithm supports distributed execution in SPMD mode (only on GPU).
+The algorithm supports distributed execution in SPMD mode.
