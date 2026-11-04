@@ -55,6 +55,8 @@ on:
     branches:
       - main
       - 'feature/**'
+  # TEMP(runner shortage): run by hand on a branch while the jobs are skipped on pull requests.
+  workflow_dispatch:
   
 permissions:
   contents: read

@@ -51,6 +51,8 @@ on:
   push:
     branches:
       - main
+  # TEMP(runner shortage): run by hand on a branch while some jobs are skipped on pull requests.
+  workflow_dispatch:
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
@@ -393,8 +395,15 @@ jobs:
   # the overall required check name.
   status:
     needs: [build-and-test, openrng-build-and-test, bazel-build-and-test]
+    # TEMP(runner shortage): openrng-build-and-test is skipped on pull requests, which
+    # would skip this job too. Run unless cancelled, and fail unless every needed job
+    # passed or was skipped.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: "CI AArch64"
     steps:
-      - name: Print success
-        run: echo Success
+      - name: Check needed jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'
