@@ -78,14 +78,14 @@ public:
         return services::Status();
     }
 
-    /// Sets the borders of all features at once; offsets[f] .. offsets[f + 1] index borders of feature f.
-    services::Status setBorders(const size_t * offsets, const double * borders)
+    /// Sets offsets[f] .. offsets[f + 1] as the border range of feature f; borders receives storage to fill.
+    services::Status allocateBorders(const size_t * offsets, double *& borders)
     {
         const size_t total = offsets[_nFeatures];
         if (total) DAAL_CHECK_MALLOC(_borders.reset(total));
-        for (size_t f = 0; f <= _nFeatures; ++f) _borderOffset[f] = offsets[f];
-        if (total) services::internal::tmemcpy<double, cpu>(_borders.get(), borders, total);
+        services::internal::tmemcpy<size_t, cpu>(_borderOffset.get(), offsets, _nFeatures + 1);
         for (size_t f = 0; f < _nFeatures; ++f) _nBins[f] = offsets[f + 1] - offsets[f];
+        borders = _borders.get();
         return services::Status();
     }
 

@@ -864,17 +864,16 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     DAAL_CHECK_MALLOC(offsets.get());
     offsets[0] = 0;
     for (size_t f = 0; f < p; ++f) offsets[f + 1] = offsets[f] + nBins[f];
-    TArray<double, cpu> allBorders(offsets[p] ? offsets[p] : 1);
-    DAAL_CHECK_MALLOC(allBorders.get());
+    double * allBorders = nullptr;
+    s                   = out.allocateBorders(offsets.get(), allBorders);
+    DAAL_CHECK_STATUS_VAR(s);
     for (size_t f = 0; f < p; ++f)
     {
         const bool anyValue = nBins[f] > 0;
         if (anyValue) borders[f][nBins[f] - 1] = featMax[f];
-        for (size_t b = 0; b < nBins[f]; ++b) allBorders[offsets[f] + b] = borders[f][b];
+        services::internal::tmemcpy<double, cpu>(allBorders + offsets[f], borders[f].get(), nBins[f]);
         out.setFeature(f, hasMissing[f], exact[f], anyValue ? featMin[f] : 0, anyValue ? featMax[f] : 0);
     }
-    s = out.setBorders(offsets.get(), allBorders.get());
-    DAAL_CHECK_STATUS_VAR(s);
     s = out.storage().replicate(tableBlockRows * out.rowStride());
     DAAL_CHECK_STATUS_VAR(s);
     binned = true;
