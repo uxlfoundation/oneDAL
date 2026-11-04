@@ -404,6 +404,8 @@ protected:
     NumericTable * _prob;
     dtrees::internal::FeatureTypes _featHelper;
     TArray<const TreeType *, cpu> _aTree;
+    bool _treeParallel     = false;
+    bool _hasMissingValues = false;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -569,6 +571,7 @@ template <typename algorithmFPType, CpuType cpu>
 bool PredictMulticlassTask<algorithmFPType, cpu>::checkForMissing(const algorithmFPType * x, size_t iFirstTree, size_t nTrees, size_t nRows,
                                                                   size_t nColumns)
 {
+    if (_treeParallel) return _hasMissingValues;
     size_t nLvlTotal = 0;
     for (size_t iTree = iFirstTree; iTree < iFirstTree + nTrees; ++iTree)
     {
@@ -799,6 +802,8 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::predictByAllTrees(
     {
         ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, nRows);
         DAAL_CHECK_BLOCK_STATUS(xBD);
+        _treeParallel     = true;
+        _hasMissingValues = gbt::prediction::internal::hasMissingValues(xBD.get(), nRows * nCols);
         TArray<algorithmFPType, cpu> valPtr(nRows * nClasses);
         algorithmFPType * val = valPtr.get();
         DAAL_CHECK_MALLOC(val);
