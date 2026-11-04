@@ -142,12 +142,13 @@ cc_library(
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
     ],
+    # Empty when MKLROOT has no SYCL domains; the DPC++ targets then fail to link.
     srcs = glob([
         "lib/libmkl_sycl_blas.so*",
         "lib/libmkl_sycl_lapack.so*",
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
-    ]),
+    ], allow_empty = True),
     deps = [
         ":mkl_classic_dynamic",
         "@openmp//:openmp_binary",
