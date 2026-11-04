@@ -119,6 +119,8 @@ if "%build_system%"=="cmake" (
     echo cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
     cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
     set solution_name=%examples:\=_%
+    rem The Visual Studio 2026 generator writes .slnx, older ones .sln.
+    if exist "Build\!solution_name!_examples.slnx" (set "sln=slnx") else (set "sln=sln")
     msbuild.exe "Build\!solution_name!_examples.!sln!" /p:Configuration=Release || set errorcode=1
 
     for /f "delims=." %%F in ('dir /B !results_dir!\*.exe 2^> nul') do (
