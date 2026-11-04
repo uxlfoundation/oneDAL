@@ -759,11 +759,12 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predictByTrees(algorithmFPType
                                                                  const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
     constexpr size_t blockSize = DimType::treeVectorBlockSize;
-    algorithmFPType v[blockSize];
-    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees; iTree < iLastTree; iTree += blockSize)
+    algorithmFPType v[2 * blockSize];
+    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees, nInBlock = 0; iTree < iLastTree; iTree += nInBlock)
     {
-        const size_t nInBlock = services::internal::min<cpu, size_t>(blockSize, iLastTree - iTree);
-        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, blockSize>(
+        // the last block of trees takes the remaining ones
+        nInBlock = iLastTree - iTree < 2 * blockSize ? iLastTree - iTree : blockSize;
+        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, 2 * blockSize>(
             this->_aTree.get() + iTree, nInBlock, this->_featHelper, x, v, dispatcher);
         for (size_t k = 0; k < nInBlock; ++k) val[(iTree + k) % nClasses] += v[k];
     }

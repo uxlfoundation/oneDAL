@@ -427,7 +427,8 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::predictContributio
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(const gbt::internal::ModelImpl & model, NumericTable * result,
-                                                                          double predictionBias, bool predShapContributions, bool predShapInteractions)
+                                                                          double predictionBias, bool predShapContributions,
+                                                                          bool predShapInteractions)
 {
     // assert we're not requesting both contributions and interactions
     DAAL_ASSERT(!(predShapContributions && predShapInteractions));
@@ -444,20 +445,19 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(const 
     SafeStatus safeStat;
     services::Status s;
 
-    const size_t nTreeBlocks =
-        predShapContributions || predShapInteractions ? 0 : DimType::getNumberOfTreeParallelBlocks(nTreesTotal, nRowsData);
+    const size_t nTreeBlocks = predShapContributions || predShapInteractions ? 0 : DimType::getNumberOfTreeParallelBlocks(nTreesTotal, nRowsData);
     if (nTreeBlocks)
     {
         ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, nRowsData);
         DAAL_CHECK_BLOCK_STATUS(xBD);
         _treeParallel     = true;
         _hasMissingValues = gbt::prediction::internal::hasMissingValues(xBD.get(), nRowsData * dataNColumns);
-        return gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu>(
-            model, _aTree.get(), nTreesTotal, nTreeBlocks, nRowsData, algorithmFPType(predictionBias), resMatrix.get(),
-            [&](size_t iFirstTree, size_t nTrees, algorithmFPType * res) {
-                const DimType dim(*_data, nTrees, _aTree.get() + iFirstTree);
-                predict(iFirstTree, nTrees, nRowsData, xBD.get(), res, dim);
-            });
+        return gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu>(model, _aTree.get(), nTreesTotal, nTreeBlocks, nRowsData,
+                                                                                    algorithmFPType(predictionBias), resMatrix.get(),
+                                                                                    [&](size_t iFirstTree, size_t nTrees, algorithmFPType * res) {
+                                                                                        const DimType dim(*_data, nTrees, _aTree.get() + iFirstTree);
+                                                                                        predict(iFirstTree, nTrees, nRowsData, xBD.get(), res, dim);
+                                                                                    });
     }
 
     for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = model.at(i);
@@ -543,11 +543,12 @@ algorithmFPType PredictRegressionTask<algorithmFPType, cpu>::predictByTrees(size
 {
     constexpr size_t blockSize = DimType::treeVectorBlockSize;
     algorithmFPType val        = 0;
-    algorithmFPType v[blockSize];
-    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees; iTree < iLastTree; iTree += blockSize)
+    algorithmFPType v[2 * blockSize];
+    for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees, nInBlock = 0; iTree < iLastTree; iTree += nInBlock)
     {
-        const size_t nInBlock = services::internal::min<cpu, size_t>(blockSize, iLastTree - iTree);
-        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, blockSize>(
+        // the last block of trees takes the remaining ones
+        nInBlock = iLastTree - iTree < 2 * blockSize ? iLastTree - iTree : blockSize;
+        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, 2 * blockSize>(
             _aTree.get() + iTree, nInBlock, _featHelper, x, v, dispatcher);
         for (size_t k = 0; k < nInBlock; ++k) val += v[k];
     }
