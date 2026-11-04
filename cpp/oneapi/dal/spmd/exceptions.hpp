@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <exception>
+
 #include "oneapi/dal/common.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
