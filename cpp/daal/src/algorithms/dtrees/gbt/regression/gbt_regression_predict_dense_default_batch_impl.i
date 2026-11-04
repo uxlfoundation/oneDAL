@@ -83,6 +83,7 @@ protected:
 
     inline bool checkForMissing(const algorithmFPType * x, size_t iFirstTree, size_t nTrees, size_t nRows, size_t nColumns) const
     {
+        if (_treeParallel) return _hasMissingValues;
         size_t nLvlTotal = 0ul;
         for (size_t iTree = iFirstTree; iTree < iFirstTree + nTrees; ++iTree)
         {
@@ -264,6 +265,8 @@ protected:
     TArray<const TreeType *, cpu> _aTree;
     const NumericTable * _data;
     NumericTable * _res;
+    bool _treeParallel     = false;
+    bool _hasMissingValues = false;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -447,6 +450,8 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(const 
     {
         ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(_data), 0, nRowsData);
         DAAL_CHECK_BLOCK_STATUS(xBD);
+        _treeParallel     = true;
+        _hasMissingValues = gbt::prediction::internal::hasMissingValues(xBD.get(), nRowsData * dataNColumns);
         return gbt::prediction::internal::predictByTreeBlocks<algorithmFPType, cpu>(
             model, _aTree.get(), nTreesTotal, nTreeBlocks, nRowsData, algorithmFPType(predictionBias), resMatrix.get(),
             [&](size_t iFirstTree, size_t nTrees, algorithmFPType * res) {

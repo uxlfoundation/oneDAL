@@ -278,6 +278,15 @@ inline void predictForTreesVector(const DecisionTreeType * const * trees, size_t
     for (size_t k = 0; k < nTrees; ++k) v[k] = values[k][i[k]];
 }
 
+template <typename algorithmFPType>
+inline bool hasMissingValues(const algorithmFPType * x, size_t n)
+{
+    bool hasMissing = false;
+    PRAGMA_OMP_SIMD_ARGS(reduction(| : hasMissing))
+    for (size_t i = 0; i < n; ++i) hasMissing |= checkFinitenessByComparison(x[i]);
+    return hasMissing;
+}
+
 // Tree-parallel prediction: each of nBlocks blocks collects its trees of the model into trees[iFirstTree, iFirstTree + nTrees),
 // predictBlock(iFirstTree, nTrees, out) accumulates them into zeroed out, blocks are reduced into res
 template <typename algorithmFPType, CpuType cpu, typename F>
