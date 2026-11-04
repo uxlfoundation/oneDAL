@@ -27,24 +27,24 @@
 #define __DAAL_VSLFN_CALL_NR(f_name, f_args, errcode) __DAAL_VSLFN_CALL_NO_V(f_name, f_args, errcode)
 /*
  Calls the MKL RNG functions in a loop while handling large n
- Each iteration handles a chunk of size less than 2^28 to avoid exceeding MKL's limits
+ Each iteration handles a chunk of size less than 2^31-1 to avoid exceeding MKL's limits
  n  - 64-bit, the total number of random numbers to generate
  nn - 32-bit, the number of random numbers to generate in the current iteration
  rr - pointer to the array where the generated random numbers will be stored
  */
-#define __DAAL_VSLFN_CALL_NR_WHILE(f_name, f_args, errcode)           \
-    {                                                                 \
-        size_t nn_left = n;                                           \
-        while (nn_left > 0)                                           \
-        {                                                             \
-            nn = (nn_left > 0xFFFFFFFL) ? 0xFFFFFFF : (int)(nn_left); \
-                                                                      \
-            __DAAL_VSLFN_CALL_V(f_name, f_args, errcode);             \
-            if (errcode < 0) return errcode;                          \
-                                                                      \
-            rr += nn;                                                 \
-            nn_left -= nn;                                            \
-        }                                                             \
+#define __DAAL_VSLFN_CALL_NR_WHILE(f_name, f_args, errcode)             \
+    {                                                                   \
+        size_t nn_left = n;                                             \
+        while (nn_left > 0)                                             \
+        {                                                               \
+            nn = (nn_left > 0x7FFFFFFFL) ? 0x7FFFFFFF : (int)(nn_left); \
+                                                                        \
+            __DAAL_VSLFN_CALL_V(f_name, f_args, errcode);               \
+            if (errcode < 0) return errcode;                            \
+                                                                        \
+            rr += nn;                                                   \
+            nn_left -= nn;                                              \
+        }                                                               \
     }
 
 #define __DAAL_VSLFN_CALL_V(f_name, f_args, retcode) \
