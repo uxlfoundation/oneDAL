@@ -139,7 +139,6 @@ protected:
     void set_indices_impl(const table&);
     void set_distances_impl(const table&);
     void set_result_options_impl(const result_option_id&);
-    const table& get_responses_impl() const;
 
 private:
     dal::detail::pimpl<detail::infer_result_impl<Task>> impl_;
