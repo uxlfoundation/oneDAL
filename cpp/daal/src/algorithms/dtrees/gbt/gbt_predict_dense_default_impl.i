@@ -293,18 +293,22 @@ template <typename algorithmFPType, CpuType cpu, typename F>
 services::Status predictByTreeBlocks(const gbt::internal::ModelImpl & model, const gbt::internal::GbtDecisionTree ** trees, size_t nTrees,
                                      size_t nBlocks, size_t nVals, algorithmFPType bias, algorithmFPType * res, const F & predictBlock)
 {
-    daal::services::internal::TArrayCalloc<algorithmFPType, cpu> partial(nBlocks * nVals);
-    DAAL_CHECK_MALLOC(partial.get());
-    const auto blockBody = [&](size_t iBlock, size_t) {
+    const auto predictTreeBlock = [&](size_t iBlock, algorithmFPType * out) {
         const size_t iFirstTree = iBlock * nTrees / nBlocks;
         const size_t iLastTree  = (iBlock + 1) * nTrees / nBlocks;
         for (size_t iTree = iFirstTree; iTree < iLastTree; ++iTree) trees[iTree] = model.at(iTree);
-        predictBlock(iFirstTree, iLastTree - iFirstTree, partial.get() + iBlock * nVals);
+        predictBlock(iFirstTree, iLastTree - iFirstTree, out);
     };
-    if (nBlocks > 1)
-        daal::static_threader_for(nBlocks, blockBody);
-    else
-        blockBody(0, 0);
+    if (nBlocks == 1)
+    {
+        services::internal::service_memset_seq<algorithmFPType, cpu>(res, algorithmFPType(0), nVals);
+        predictTreeBlock(0, res);
+        for (size_t i = 0; i < nVals; ++i) res[i] += bias;
+        return services::Status();
+    }
+    daal::services::internal::TArrayCalloc<algorithmFPType, cpu> partial(nBlocks * nVals);
+    DAAL_CHECK_MALLOC(partial.get());
+    daal::static_threader_for(nBlocks, [&](size_t iBlock, size_t) { predictTreeBlock(iBlock, partial.get() + iBlock * nVals); });
     for (size_t i = 0; i < nVals; ++i)
     {
         algorithmFPType sum = bias;
@@ -335,6 +339,8 @@ struct TileDimensions
     static constexpr size_t optimalBlockSizeFactor = 5;
     // number of trees traversed simultaneously for a single row
     static constexpr size_t treeVectorBlockSize = 32;
+    // maximal number of trees traversed simultaneously, the last block of trees takes the remaining ones
+    static constexpr size_t maxTreeVectorBlockSize = 2 * treeVectorBlockSize;
     // minimal number of trees per thread in tree-parallel prediction
     static constexpr size_t minTreesInBlock = treeVectorBlockSize;
     // maximal number of tree traversals (nTrees * nRows) that are not worth threading

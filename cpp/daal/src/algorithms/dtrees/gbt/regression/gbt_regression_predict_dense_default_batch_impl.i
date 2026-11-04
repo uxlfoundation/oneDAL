@@ -441,7 +441,6 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(const 
 
     WriteOnlyRows<algorithmFPType, cpu> resMatrix(result, 0, resultNRows); // select all rows for writing
     DAAL_CHECK_BLOCK_STATUS(resMatrix);
-    services::internal::service_memset<algorithmFPType, cpu>(resMatrix.get(), 0, resultNRows * resultNColumns); // set nRows * nCols to 0
     SafeStatus safeStat;
     services::Status s;
 
@@ -460,6 +459,7 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(const 
                                                                                     });
     }
 
+    services::internal::service_memset<algorithmFPType, cpu>(resMatrix.get(), 0, resultNRows * resultNColumns); // set nRows * nCols to 0
     for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = model.at(i);
     DimType dim(*_data, nTreesTotal, _aTree.get());
 
@@ -541,14 +541,14 @@ template <bool hasUnorderedFeatures, bool hasAnyMissing>
 algorithmFPType PredictRegressionTask<algorithmFPType, cpu>::predictByTrees(size_t iFirstTree, size_t nTrees, const algorithmFPType * x,
                                                                             const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
-    constexpr size_t blockSize = DimType::treeVectorBlockSize;
-    algorithmFPType val        = 0;
-    algorithmFPType v[2 * blockSize];
+    constexpr size_t blockSize    = DimType::treeVectorBlockSize;
+    constexpr size_t maxBlockSize = DimType::maxTreeVectorBlockSize;
+    algorithmFPType val           = 0;
+    algorithmFPType v[maxBlockSize];
     for (size_t iTree = iFirstTree, iLastTree = iFirstTree + nTrees, nInBlock = 0; iTree < iLastTree; iTree += nInBlock)
     {
-        // the last block of trees takes the remaining ones
-        nInBlock = iLastTree - iTree < 2 * blockSize ? iLastTree - iTree : blockSize;
-        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, 2 * blockSize>(
+        nInBlock = iLastTree - iTree < maxBlockSize ? iLastTree - iTree : blockSize;
+        gbt::prediction::internal::predictForTreesVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, maxBlockSize>(
             _aTree.get() + iTree, nInBlock, _featHelper, x, v, dispatcher);
         for (size_t k = 0; k < nInBlock; ++k) val += v[k];
     }
