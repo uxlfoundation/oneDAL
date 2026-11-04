@@ -348,6 +348,11 @@ jobs:
             runner: ubuntu-24.04
             algo: linear_regression
             flags: --cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++
+          # libc++ unpacked into a directory of its own, as a sanitized libc++
+          # would be installed, and passed through BAZEL_CXXOPTS/BAZEL_LINKOPTS.
+          - leg: clang-libcxx-prefix
+            runner: ubuntu-24.04
+            algo: pca
           # The oldest supported gcc (Ubuntu 22.04 default).
           - leg: gcc11
             runner: ubuntu-22.04
@@ -376,6 +381,22 @@ jobs:
         run: |
           clang_major=$(clang -dumpversion | cut -d. -f1)
           sudo apt-get install -y "libc++-${clang_major}-dev" "libc++abi-${clang_major}-dev"
+      - name: Unpack libc++ into a prefix
+        if: matrix.leg == 'clang-libcxx-prefix'
+        run: |
+          clang_major=$(clang -dumpversion | cut -d. -f1)
+          cd "${RUNNER_TEMP}"
+          sudo apt-get update -qq
+          apt-get download "libc++-${clang_major}-dev" "libc++1-${clang_major}" \
+              "libc++abi-${clang_major}-dev" "libc++abi1-${clang_major}" \
+              "libunwind-${clang_major}" "libunwind-${clang_major}-dev"
+          for deb in ./*.deb; do dpkg -x "${deb}" libcxx; done
+          prefix="${RUNNER_TEMP}/libcxx/usr/lib/llvm-${clang_major}"
+          {
+            echo "BAZEL_CXXOPTS=-nostdinc++:-isystem${prefix}/include/c++/v1"
+            echo "BAZEL_LINKOPTS=-stdlib=libc++:-L${prefix}/lib:-Wl,-rpath,${prefix}/lib"
+            echo "LIBCXX_PREFIX=${prefix}"
+          } >> "$GITHUB_ENV"
       - name: Install Bazel
         run: |
           .ci/env/bazelisk.sh
@@ -393,6 +414,13 @@ jobs:
           if [ "${built_by}" != "${expected}" ]; then
             echo "Expected a ${expected} build, got ${built_by}" >&2
             exit 1
+          fi
+          if [ -n "${LIBCXX_PREFIX:-}" ]; then
+            ldd "bazel-bin/cpp/oneapi/dal/algo/${{ matrix.algo }}/test_batch_host" | tee ldd.txt
+            if ! grep -q "libc++.so.1 => ${LIBCXX_PREFIX}/lib/" ldd.txt; then
+              echo "Expected libc++ from ${LIBCXX_PREFIX}" >&2
+              exit 1
+            fi
           fi
       # The gcc leg also covers the release, the DAAL and MPI tests, and the
       # DPC++ checks; the other legs stay at one algorithm each.
@@ -443,68 +471,109 @@ jobs:
           expect_failure config_dpc.log "icpx is not found" \
             test --cpu=avx2 --config=dpc //cpp/oneapi/dal/algo/kmeans:tests
 
-  # Builds and runs the Bazel examples with the compilers, MKL, TBB and oneDPL
-  # from conda-forge instead of the apt oneAPI packages used by LinuxBazel.
-  LinuxBazel_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL'
+  # Builds oneDAL with Bazel and the compilers, MKL, TBB and oneDPL from
+  # conda-forge, whose headers and runtimes live under $CONDA_PREFIX instead of
+  # the system paths. The icx leg runs the examples; the gcc and clang legs build
+  # the release and run the tests and the example of one algorithm.
+  LinuxBazelConda:
+    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The INSTALL.md package list without make, cmake and MPI: Bazel does
+          # not use them and downloads MPI itself when MPIROOT is unset.
+          - leg: icx
+            packages: dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt mkl-dpcpp mkl-devel-dpcpp
+          - leg: gcc
+            packages: gxx_linux-64
+            algo: covariance
+            comment: conda-forge gcc
+          - leg: clang-libcxx
+            packages: clangxx_linux-64 libcxx-devel
+            algo: kmeans
+            comment: conda-forge/clangdev
     runs-on: ubuntu-26.04
+    name: LinuxBazelConda(${{ matrix.leg }})
     timeout-minutes: 300
     env:
       CONDA_ENV: onedal_env
       CONDA_SH: /usr/share/miniconda/etc/profile.d/conda.sh
-
+      LEG: ${{ matrix.leg }}
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
-      # The INSTALL.md conda package list without make, cmake and MPI:
-      # Bazel does not use them and downloads MPI itself when MPIROOT is unset.
       - name: Create conda environment
         run: |
           source "${CONDA_SH}"
-          conda create -y -n "${CONDA_ENV}"
-          conda activate "${CONDA_ENV}"
-          conda install -y -c conda-forge \
-              dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
-              tbb tbb-devel \
-              onedpl-devel \
-              mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp
-      - name: Install Bazel
-        run: |
-          source .ci/env/bazelisk.sh
-          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
-      - name: System Info
-        run: |
-          source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          .ci/scripts/describe_system.sh
-      - name: bazel-configure
-        run: |
+          conda create -y -n "${CONDA_ENV}" -c conda-forge \
+              tbb tbb-devel onedpl-devel mkl mkl-devel mkl-static ${{ matrix.packages }}
+          # Sourced by every later step: the environment and the INSTALL.md roots.
+          cat > "${RUNNER_TEMP}/conda_env.sh" <<'ENV'
           source "${CONDA_SH}"
           conda activate "${CONDA_ENV}"
           export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          if [ "${LEG}" = clang-libcxx ]; then
+            export BAZEL_CXXOPTS=-stdlib=libc++
+            export BAZEL_LINKOPTS="-stdlib=libc++:-L${CONDA_PREFIX}/lib:-Wl,-rpath,${CONDA_PREFIX}/lib"
+          fi
+          ENV
+      - name: Install Bazel
+        run: |
+          .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: System Info
+        run: |
+          source "${RUNNER_TEMP}/conda_env.sh"
+          .ci/scripts/describe_system.sh
+      - name: bazel-configure
+        run: |
+          source "${RUNNER_TEMP}/conda_env.sh"
           # Minimal CPU instruction set on the runners is AVX2
           echo "build --cpu=avx2" > ~/.bazelrc
           bazel build @config//:dump
           cat bazel-bin/external/+declare_onedal_config+config/config.json
       - name: daal-cpp-examples-thread-dev
+        if: matrix.leg == 'icx'
         run: |
-          source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          source "${RUNNER_TEMP}/conda_env.sh"
           bazel test //examples/daal/cpp:all --test_link_mode=dev --test_thread_mode=par
       - name: cpp-examples-thread-dev
+        if: matrix.leg == 'icx'
         run: |
-          source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          source "${RUNNER_TEMP}/conda_env.sh"
           bazel test //examples/oneapi/cpp:all --test_link_mode=dev --test_thread_mode=par
       # Build only: the runner has no SYCL device. Conda puts the SYCL headers
       # and libur_loader's dependencies in the same prefix as MKL and TBB.
       - name: dpc-example-build
+        if: matrix.leg == 'icx'
         run: |
-          source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          export MKLROOT="${CONDA_PREFIX}" TBBROOT="${CONDA_PREFIX}" DPL_ROOT="${CONDA_PREFIX}"
+          source "${RUNNER_TEMP}/conda_env.sh"
           bazel build //examples/oneapi/dpc:basic_statistics_dense_batch_dpc --test_link_mode=dev
+      - name: Bazel tests
+        if: matrix.leg != 'icx'
+        run: |
+          source "${RUNNER_TEMP}/conda_env.sh"
+          bazel test --config=host //cpp/oneapi/dal/algo/${{ matrix.algo }}:tests //examples/oneapi/cpp:${{ matrix.algo }}
+      - name: Bazel release
+        if: matrix.leg != 'icx'
+        run: |
+          source "${RUNNER_TEMP}/conda_env.sh"
+          bazel build //:release
+      - name: Check the toolchain
+        if: matrix.leg != 'icx'
+        run: |
+          lib=bazel-bin/release/daal/latest/lib/intel64/libonedal_core.so
+          readelf -p .comment "${lib}" | tee comment.txt
+          if ! grep -q "${{ matrix.comment }}" comment.txt; then
+            echo "Expected a build by ${{ matrix.comment }}" >&2
+            exit 1
+          fi
+          if [ "${LEG}" = clang-libcxx ] && ! readelf -d "${lib}" | grep -q "NEEDED.*libc++.so.1"; then
+            echo "Expected ${lib} to link libc++" >&2
+            exit 1
+          fi
