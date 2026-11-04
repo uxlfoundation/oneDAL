@@ -16,15 +16,23 @@
 
 #pragma once
 
+#include <numeric>
+#include <tuple>
+#include <vector>
+
 #include "oneapi/dal/algo/hdbscan/common.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/gpu/block_tree.hpp"
+#include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/exceptions.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
 #include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
+#include "oneapi/dal/backend/primitives/search/copy_search_callback.hpp"
+#include "oneapi/dal/backend/primitives/search/search.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
-#include "oneapi/dal/backend/primitives/sort/sort.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
@@ -33,81 +41,176 @@ namespace oneapi::dal::hdbscan::backend {
 namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
-/// Working pointers and scalar constants shared by the GPU cluster-extraction kernels.
+/// The brute-force path may use at most `1 / mrd_global_mem_divisor` of device global memory.
 ///
-/// Groups every device pointer (MST inputs, dendrogram/condensed-tree scratch,
-/// per-cluster bookkeeping, walk-up stacks) and the per-call scalar parameters
-/// so the four extract_clusters phases pass a single value instead of 30+
-/// individual arguments.
+/// An oversubscribed `malloc_device` succeeds and then faults on first access instead of raising.
+constexpr std::int64_t mrd_global_mem_divisor = 2;
+
+/// Byte total the sizing helpers return on overflow; larger than any device limit.
+constexpr std::int64_t mrd_bytes_saturated = dal::detail::limits<std::int64_t>::max();
+
+/// Multiply two non-negative byte counts without signed overflow.
 ///
-/// @tparam Float Floating-point type used for MST weights and lambdas
+/// @param[in] lhs First factor
+/// @param[in] rhs Second factor
+///
+/// @return `lhs * rhs`, or `mrd_bytes_saturated` when that product would not fit
+inline std::int64_t mrd_mul_bytes(std::int64_t lhs, std::int64_t rhs) {
+    ONEDAL_ASSERT(lhs >= 0);
+    ONEDAL_ASSERT(rhs >= 0);
+    if (lhs == 0 || rhs == 0) {
+        return 0;
+    }
+    return (lhs > mrd_bytes_saturated / rhs) ? mrd_bytes_saturated : lhs * rhs;
+}
+
+/// Add two non-negative byte counts without signed overflow.
+///
+/// @param[in] lhs First summand
+/// @param[in] rhs Second summand
+///
+/// @return `lhs + rhs`, or `mrd_bytes_saturated` when that sum would not fit
+inline std::int64_t mrd_add_bytes(std::int64_t lhs, std::int64_t rhs) {
+    ONEDAL_ASSERT(lhs >= 0);
+    ONEDAL_ASSERT(rhs >= 0);
+    return (lhs > mrd_bytes_saturated - rhs) ? mrd_bytes_saturated : lhs + rhs;
+}
+
+/// Decide whether the brute-force path's device buffers fit within the given limits.
+///
+/// The peak is the matrix plus the larger of the k-selection buffers and the MST edge arrays,
+/// which are never live at the same time.
+///
+/// @param[in] row_count             Number of input rows `n`
+/// @param[in] column_count          Number of input columns `d`
+/// @param[in] element_size          Size in bytes of one distance-matrix element
+/// @param[in] max_alloc_bytes       Device limit on a single allocation
+/// @param[in] global_mem_bytes      Device global memory size
+/// @param[in] min_samples           `k` of the core-distance k-selection
+/// @param[in] kselect_scratch_bytes Device scratch of `kselect_by_rows`, from
+///                                  `pr::kselect_by_rows_scratch_size`
+///
+/// @return `true` if the `n x n` matrix fits one allocation and the peak footprint fits the
+///         global-memory budget
+inline bool mrd_matrix_fits_on_device(std::int64_t row_count,
+                                      std::int64_t column_count,
+                                      std::int64_t element_size,
+                                      std::int64_t max_alloc_bytes,
+                                      std::int64_t global_mem_bytes,
+                                      std::int64_t min_samples,
+                                      std::int64_t kselect_scratch_bytes) {
+    const std::int64_t row_bytes = mrd_mul_bytes(element_size, row_count);
+    const std::int64_t matrix_bytes = mrd_mul_bytes(row_bytes, row_count);
+    if (matrix_bytes > max_alloc_bytes) {
+        return false;
+    }
+
+    // The input table and the core distances.
+    const std::int64_t resident_bytes = mrd_mul_bytes(row_bytes, mrd_add_bytes(column_count, 1));
+
+    // The `n x min_samples` k-selection output and its scratch.
+    const std::int64_t selection_bytes =
+        mrd_add_bytes(mrd_mul_bytes(row_bytes, min_samples), kselect_scratch_bytes);
+
+    // The three MST edge arrays.
+    const std::int64_t mst_bytes =
+        mrd_mul_bytes(2 * static_cast<std::int64_t>(sizeof(std::int32_t)) + element_size,
+                      row_count);
+
+    const std::int64_t peak_bytes = mrd_add_bytes(mrd_add_bytes(matrix_bytes, resident_bytes),
+                                                  std::max(selection_bytes, mst_bytes));
+    return peak_bytes <= global_mem_bytes / mrd_global_mem_divisor;
+}
+
+/// Whether the `n x n` MRD matrix and the buffers around it fit on the device of `queue`.
+///
+/// @tparam Float Floating-point type of the distance matrix
+///
+/// @param[in] queue        The SYCL queue whose device has to hold the matrix
+/// @param[in] row_count    Number of input rows `n`
+/// @param[in] column_count Number of input columns `d`
+/// @param[in] min_samples  `k` of the core-distance k-selection
 template <typename Float>
-struct cluster_work_ptrs {
-    const std::int32_t* mst_from_ptr;
-    const std::int32_t* mst_to_ptr;
-    const Float* mst_weights_ptr;
-    std::int32_t* resp_ptr;
+inline bool mrd_matrix_fits_device(sycl::queue& queue,
+                                   std::int64_t row_count,
+                                   std::int64_t column_count,
+                                   std::int64_t min_samples) {
+    constexpr std::int64_t element_size = static_cast<std::int64_t>(sizeof(Float));
+    const std::int64_t max_alloc_bytes = bk::device_max_mem_alloc_size(queue);
+    const std::int64_t global_mem_bytes = bk::device_global_mem_size(queue);
 
-    std::int32_t* uf_parent_ptr;
-    std::int32_t* comp_size_ptr;
-    std::int32_t* comp_to_node_ptr;
+    // Size the matrix alone first: the scratch query needs an `n x n` shape to be representable.
+    if (!mrd_matrix_fits_on_device(row_count,
+                                   column_count,
+                                   element_size,
+                                   max_alloc_bytes,
+                                   global_mem_bytes,
+                                   min_samples,
+                                   0)) {
+        return false;
+    }
+    const std::int64_t kselect_scratch_bytes =
+        pr::kselect_by_rows_scratch_size<Float>(queue, { row_count, row_count }, min_samples);
+    return mrd_matrix_fits_on_device(row_count,
+                                     column_count,
+                                     element_size,
+                                     max_alloc_bytes,
+                                     global_mem_bytes,
+                                     min_samples,
+                                     kselect_scratch_bytes);
+}
 
-    std::int32_t* ns_ptr;
-    std::int32_t* lc_ptr;
-    std::int32_t* rc_ptr;
-    Float* nw_ptr;
-    std::int32_t* dtc_ptr;
-
-    std::int32_t* cond_p_ptr;
-    std::int32_t* cond_c_ptr;
-    Float* cond_l_ptr;
-    std::int32_t* cond_s_ptr;
-    std::int32_t* cond_cnt_ptr;
-
-    Float* stab_ptr;
-    Float* lb_ptr;
-    std::int32_t* ilc_ptr;
-    std::int32_t* is_ptr;
-    std::int32_t* clab_ptr;
-    std::int32_t* csz_ptr;
-    std::int32_t* cprt_ptr;
-    std::int32_t* cc0_ptr;
-    std::int32_t* cc1_ptr;
-
-    std::int32_t* pff_ptr;
-    std::int32_t* dp_ptr;
-
-    std::int32_t* stk_ptr;
-    std::int32_t* stk_cid_ptr;
-    std::int32_t* leaf_stk_ptr;
-
-    std::int32_t* nc_ptr;
-
-    std::int64_t row_count;
-    std::int64_t edge_count;
-    std::int64_t min_cluster_size;
-    std::int64_t total_nodes;
-    std::int32_t cluster_selection; // 0 = EOM, 1 = leaf
-    bool allow_single_cluster;
-    // Stored as `Float` (not `double`) so the SYCL kernels that capture this
-    // struct by value don't pull in `aspect::fp64` when `Float = float`.
-    Float cluster_selection_epsilon;
-    std::int64_t max_cluster_size;
-};
-
-/// Compute the full pairwise distance matrix on the GPU using the requested metric.
+/// Match scikit-learn on zero-norm rows of a square cosine distance matrix.
 ///
-/// Routes to the matching primitive in `dal::backend::primitives::distance`.
-/// For `euclidean`, returns the squared L2 matrix (sqrt is applied later inside
-/// `compute_core_distances`/`compute_mrd_matrix` to amortize the sweep). For
-/// other metrics the matrix already holds final distances.
+/// The cosine primitive divides by the row norms, so a zero row yields NaN. scikit-learn
+/// normalizes it to the zero vector instead, which puts it at distance 1 from every other row.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in]     queue The SYCL queue
+/// @param[in]     data  Input data of size `n x d`
+/// @param[in,out] dist  Cosine distance matrix of size `n x n`
+/// @param[in]     deps  Events that must complete before submission
+///
+/// @return Event signaling completion; already complete on return
+template <typename Float>
+inline sycl::event fix_zero_norm_cosine(sycl::queue& queue,
+                                        const pr::ndview<Float, 2>& data,
+                                        pr::ndview<Float, 2>& dist,
+                                        const bk::event_vector& deps) {
+    const std::int64_t n = data.get_dimension(0);
+    pr::ndarray<Float, 1> norms;
+    sycl::event norms_event;
+    std::tie(norms, norms_event) = pr::compute_squared_l2_norms(queue, data, deps);
+    const Float* const norms_ptr = norms.get_data();
+    Float* const dist_ptr = dist.get_mutable_data();
+    const std::int64_t stride = dist.get_leading_stride();
+
+    auto event = bk::parallel_for_2d_by_row_blocks(
+        queue,
+        n,
+        n,
+        [=](std::int64_t i, std::int64_t j) {
+            if (norms_ptr[i] == Float(0) || norms_ptr[j] == Float(0)) {
+                dist_ptr[i * stride + j] = (i == j) ? Float(0) : Float(1);
+            }
+        },
+        { norms_event });
+    // `norms` is freed on return and `sycl::free` does not wait.
+    event.wait_and_throw();
+    return event;
+}
+
+/// Compute the full pairwise distance matrix; squared L2 for `euclidean`, final distances otherwise.
+///
+/// The rows are computed in blocks small enough for an int32 kernel range.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue  The SYCL queue
-/// @param[in]  data   Input matrix of size `n × d`
-/// @param[out] dist   Output matrix of size `n × n` (row-major)
-/// @param[in]  metric Distance metric tag (`distance_metric`)
+/// @param[in]  data   Input matrix of size `n x d`
+/// @param[out] dist   Output matrix of size `n x n` (row-major)
+/// @param[in]  metric Distance metric tag
 /// @param[in]  degree Minkowski degree (used only when `metric == minkowski`)
 /// @param[in]  deps   Events that must complete before submission
 ///
@@ -127,51 +230,46 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
     ONEDAL_ASSERT(dist.get_dimension(0) == n);
     ONEDAL_ASSERT(dist.get_dimension(1) == n);
 
+    // Cosine needs the norms, so it keeps the primitive; the Lp metrics subtract coordinates.
+    const auto by_row_blocks = [&](auto&& dist_op) {
+        const bk::uniform_blocking blocking(n, bk::max_range_2d_rows(n));
+        bk::event_vector block_events;
+        for (std::int64_t b = 0; b < blocking.get_block_count(); b++) {
+            const std::int64_t first = blocking.get_block_start_index(b);
+            const std::int64_t last = blocking.get_block_end_index(b);
+            auto dist_block = dist.get_row_slice(first, last);
+            block_events.push_back(
+                dist_op(data.get_row_slice(first, last), data, dist_block, deps));
+        }
+        return block_events;
+    };
+
     switch (metric) {
-        case distance_metric::cosine: {
-            pr::cosine_distance<Float> dist_op(queue);
-            return dist_op(data, data, dist, deps);
-        }
-        case distance_metric::manhattan: {
-            pr::distance<Float, pr::lp_metric<Float>> dist_op(queue,
-                                                              pr::lp_metric<Float>(Float(1)));
-            return dist_op(data, data, dist, deps);
-        }
-        case distance_metric::minkowski: {
-            pr::distance<Float, pr::lp_metric<Float>> dist_op(
-                queue,
-                pr::lp_metric<Float>(static_cast<Float>(degree)));
-            return dist_op(data, data, dist, deps);
-        }
-        case distance_metric::chebyshev: {
-            pr::chebyshev_distance<Float> dist_op(queue);
-            return dist_op(data, data, dist, deps);
-        }
-        default: { // euclidean — compute squared L2 (sqrt applied later)
-            pr::squared_l2_distance<Float> dist_op(queue);
-            return dist_op(data, data, dist, deps);
-        }
+        case distance_metric::cosine:
+            return fix_zero_norm_cosine<Float>(queue,
+                                               data,
+                                               dist,
+                                               by_row_blocks(pr::cosine_distance<Float>(queue)));
+        default:
+            return dispatch_lp_ops<Float>(metric, degree, [&](const auto& ops) {
+                return compute_lp_distance_matrix<Float>(queue, data, ops, dist, deps);
+            });
     }
 }
 
-/// Compute per-point core distances as the k-th smallest entry per row.
-///
-/// Runs `pr::kselect_by_rows` on the precomputed distance matrix to extract
-/// the k smallest values per row, then takes element `k - 1` (the k-th
-/// smallest) into `core_distances`. For `euclidean`, the input matrix holds
-/// squared L2 values so a `sqrt(max(·, 0))` is applied during the extraction.
+/// Compute per-point core distances as the `min_samples`-th smallest entry of each row.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue          The SYCL queue
-/// @param[in]  dist           Pairwise distance matrix of size `n × n`
+/// @param[in]  dist           Pairwise distance matrix of size `n x n`
 /// @param[out] core_distances Per-point core distances, length `n`
 /// @param[in]  min_samples    `k` used for the k-NN core-distance definition
 /// @param[in]  row_count      Number of rows `n`
 /// @param[in]  metric         Distance metric tag (controls the sqrt finalize)
 /// @param[in]  deps           Events that must complete before submission
 ///
-/// @return Event signaling completion
+/// @return Event signaling completion; already complete on return
 template <typename Float>
 inline sycl::event compute_core_distances(sycl::queue& queue,
                                           const pr::ndview<Float, 2>& dist,
@@ -191,56 +289,124 @@ inline sycl::event compute_core_distances(sycl::queue& queue,
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    // Canonical HDBSCAN core distance (Campello 2013): the distance to the
-    // `min_samples`-th nearest neighbor counting the query point itself as
-    // neighbor #1. `kselect_by_rows` operates on a row that contains the
-    // zero self-distance on the diagonal, so a k-smallest selection of size
-    // `min_samples` returns {self + (min_samples - 1) non-self}, and the
-    // largest entry (`[k - 1]`) is the `min_samples`-th-including-self answer.
+    // The point itself counts as its first neighbor, as in scikit-learn.
     const std::int64_t k = min_samples;
 
-    auto [ksel_vals, ksel_vals_event] =
-        pr::ndarray<Float, 2>::zeros(queue, { n, k }, sycl::usm::alloc::device);
+    // Not zero-filled: `kselect_by_rows` writes all `k` entries of every row.
+    auto ksel_vals = pr::ndarray<Float, 2>::empty(queue, { n, k }, sycl::usm::alloc::device);
 
     pr::kselect_by_rows<Float> ksel(queue, { n, n }, k);
-    bk::event_vector ksel_deps = deps;
-    ksel_deps.push_back(ksel_vals_event);
-    auto ksel_event = ksel(queue, dist, k, ksel_vals, ksel_deps);
+    auto ksel_event = ksel(queue, dist, k, ksel_vals, deps);
 
     const Float* ksel_ptr = ksel_vals.get_data();
     Float* core_ptr = core_distances.get_mutable_data();
-    const std::int64_t kk = k;
     const bool needs_sqrt = (metric == distance_metric::euclidean);
 
     auto extract_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ ksel_event });
         h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
             const std::int64_t i = idx[0];
-            const Float val = ksel_ptr[i * kk + (kk - 1)];
+            const Float val = ksel_ptr[i * k + (k - 1)];
             core_ptr[i] = needs_sqrt ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
         });
     });
 
+    // `ksel_vals` is freed on return and `sycl::free` does not wait for its readers.
+    extract_event.wait_and_throw();
     return extract_event;
 }
 
-/// Convert a distance matrix into a Mutual Reachability Distance matrix in place.
+/// Compute per-point core distances with `pr::search_engine`, without the `n x n` matrix.
 ///
-/// Each entry becomes `MRD(i, j) = max(core_i, core_j, dist(i, j) / alpha)`.
-/// Per the canonical HDBSCAN robust single-linkage definition, alpha scales
-/// only the pairwise dist term inside the `max`, not the core distances. For
-/// `euclidean`, the input matrix holds squared L2 values so a `sqrt(max(·, 0))`
-/// is applied per entry before the alpha scale and the `max`. For other
-/// metrics the values are already final distances.
+/// @tparam Float Floating-point type
+///
+/// @param[in]  queue          The SYCL queue
+/// @param[in]  data           Input data of size `n x d`, device USM
+/// @param[out] core_distances Per-point core distances, length `n`
+/// @param[in]  min_samples    `k` used for the k-NN core-distance definition
+/// @param[in]  block_size     Query rows per search block, in `[1, n]`
+/// @param[in]  metric         Distance metric tag; cosine is not supported
+/// @param[in]  degree         Minkowski degree
+/// @param[in]  deps           Events that must complete before submission
+///
+/// @return Event signaling completion; already complete on return
+template <typename Float>
+inline sycl::event compute_core_distances_blocked(sycl::queue& queue,
+                                                  const pr::ndview<Float, 2>& data,
+                                                  pr::ndview<Float, 1>& core_distances,
+                                                  std::int64_t min_samples,
+                                                  std::int64_t block_size,
+                                                  distance_metric metric,
+                                                  double degree,
+                                                  const bk::event_vector& deps = {}) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances_blocked, queue);
+
+    const std::int64_t n = data.get_dimension(0);
+    const std::int64_t k = min_samples;
+    ONEDAL_ASSERT(n > 0);
+    ONEDAL_ASSERT(block_size >= 1 && block_size <= n);
+    ONEDAL_ASSERT(k >= 1 && k <= n);
+    ONEDAL_ASSERT(metric != distance_metric::cosine);
+
+    auto knn_distances = pr::ndarray<Float, 2>::empty(queue, { n, k }, sycl::usm::alloc::device);
+    pr::copy_callback<Float, false, true> callback(queue, block_size, {}, knn_distances);
+    const std::int64_t train_block = pr::propose_train_block<Float>(queue, data.get_dimension(1));
+
+    sycl::event search_event;
+    const bool is_euclidean = (metric == distance_metric::euclidean);
+    if (is_euclidean) {
+        const pr::search_engine<Float, pr::squared_l2_distance<Float>> search(queue,
+                                                                              data,
+                                                                              train_block);
+        search_event = search(data, callback, block_size, k, deps);
+    }
+    else if (metric == distance_metric::chebyshev) {
+        const pr::chebyshev_distance<Float> dist(queue);
+        const pr::search_engine<Float, pr::chebyshev_distance<Float>> search(queue,
+                                                                             data,
+                                                                             train_block,
+                                                                             dist);
+        search_event = search(data, callback, block_size, k, deps);
+    }
+    else {
+        const Float p =
+            metric == distance_metric::manhattan ? Float(1) : static_cast<Float>(degree);
+        const pr::lp_distance<Float> dist(queue, pr::lp_metric<Float>(p));
+        const pr::search_engine<Float, pr::lp_distance<Float>> search(queue,
+                                                                      data,
+                                                                      train_block,
+                                                                      dist);
+        search_event = search(data, callback, block_size, k, deps);
+    }
+
+    const Float* const knn_ptr = knn_distances.get_data();
+    Float* const core_ptr = core_distances.get_mutable_data();
+    auto extract_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(search_event);
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const Float val = knn_ptr[i * k + (k - 1)];
+            core_ptr[i] = is_euclidean ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
+        });
+    });
+
+    // `knn_distances` is freed on return and `sycl::free` does not wait for its readers.
+    extract_event.wait_and_throw();
+    return extract_event;
+}
+
+/// Convert a distance matrix in place into `MRD(i, j) = max(core_i, core_j, dist(i, j)) / alpha`.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]     queue          The SYCL queue
 /// @param[in]     core_distances Per-point core distances, length `n` (unscaled)
-/// @param[in,out] mrd_matrix     Distance matrix `n × n`, overwritten with MRD values
+/// @param[in,out] mrd_matrix     Distance matrix `n x n` (squared L2 for euclidean), overwritten
+///                               with MRD values
 /// @param[in]     metric         Distance metric tag (controls the sqrt finalize)
-/// @param[in]     alpha          Robust single-linkage scaling factor; applied
-///                               only to dist(i,j) inside MRD
+/// @param[in]     alpha          Robust single-linkage scaling factor of `dist(i, j)`
+/// @param[in]     alpha_scales_core Divide the core distances by alpha too, as scikit-learn's
+///                                  brute-force path does
 /// @param[in]     deps           Events that must complete before submission
 ///
 /// @return Event signaling completion
@@ -250,6 +416,7 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
                                       pr::ndview<Float, 2>& mrd_matrix,
                                       distance_metric metric,
                                       double alpha,
+                                      bool alpha_scales_core,
                                       const bk::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_mrd_matrix, queue);
 
@@ -263,35 +430,29 @@ inline sycl::event compute_mrd_matrix(sycl::queue& queue,
     Float* mrd_ptr = mrd_matrix.get_mutable_data();
     const bool needs_sqrt = (metric == distance_metric::euclidean);
     const Float inv_alpha = static_cast<Float>(1.0 / alpha);
+    const Float core_scale = alpha_scales_core ? inv_alpha : Float(1);
 
-    auto mrd_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(sycl::range<2>(n, n), [=](sycl::id<2> idx) {
-            const std::int64_t i = idx[0];
-            const std::int64_t j = idx[1];
-            // For euclidean: mrd_matrix has squared L2, need sqrt first
-            // For other metrics: mrd_matrix has actual distances
+    return bk::parallel_for_2d_by_row_blocks(
+        queue,
+        n,
+        n,
+        [=](std::int64_t i, std::int64_t j) {
+            // Euclidean entries hold squared L2; the other metrics hold final distances.
             const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
                                        : mrd_ptr[i * n + j];
-            const Float cd_i = core_ptr[i];
-            const Float cd_j = core_ptr[j];
+            const Float cd_i = core_ptr[i] * core_scale;
+            const Float cd_j = core_ptr[j] * core_scale;
             mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d * inv_alpha);
-        });
-    });
-
-    return mrd_event;
+        },
+        deps);
 }
 
-/// Find the nearest different-component neighbor per point by scanning a precomputed MRD matrix.
-///
-/// One work-item per row: iterates over the row, keeps the smallest entry
-/// whose column belongs to a different component than the row's own. Writes
-/// the best MRD and the best column index per point.
+/// Find each point's nearest neighbor in another component from a precomputed MRD matrix.
 ///
 /// @tparam Float Floating-point type
 ///
 /// @param[in]  queue           The SYCL queue
-/// @param[in]  mrd_ptr         Precomputed MRD matrix of size `n × n`
+/// @param[in]  mrd_ptr         Precomputed MRD matrix of size `n x n`
 /// @param[in]  comp_ptr        Per-point component id, length `n`
 /// @param[out] pt_best_mrd_ptr Per-point best MRD, length `n`
 /// @param[out] pt_best_idx_ptr Per-point best different-component column index, length `n`
@@ -307,1277 +468,435 @@ inline sycl::event boruvka_find_nearest_mrd(sycl::queue& queue,
                                             std::int32_t* pt_best_idx_ptr,
                                             std::int64_t n,
                                             const bk::event_vector& deps) {
+    // One work-group per row, so the row is read coalesced.
+    constexpr std::int64_t wg = 256;
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
-        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
+        h.parallel_for(bk::make_multiple_nd_range_1d(n * wg, wg), [=](sycl::nd_item<1> it) {
+            constexpr std::int32_t none = std::numeric_limits<std::int32_t>::max();
+            const auto group = it.get_group();
+            const std::int64_t i = it.get_group(0);
             const std::int32_t my_comp = comp_ptr[i];
             const Float* row = mrd_ptr + i * n;
             Float best_m = std::numeric_limits<Float>::max();
-            std::int32_t best_j = -1;
-            for (std::int64_t j = 0; j < n; j++) {
+            std::int32_t best_j = none;
+            for (std::int64_t j = it.get_local_id(0); j < n; j += wg) {
                 if (comp_ptr[j] != my_comp && row[j] < best_m) {
                     best_m = row[j];
                     best_j = static_cast<std::int32_t>(j);
                 }
             }
-            pt_best_mrd_ptr[i] = best_m;
-            pt_best_idx_ptr[i] = best_j;
+            // The smallest MRD, then the lowest column among the lanes that reach it.
+            const Float row_best = sycl::reduce_over_group(group, best_m, sycl::minimum<Float>());
+            const std::int32_t row_best_j =
+                sycl::reduce_over_group(group,
+                                        (best_m == row_best) ? best_j : none,
+                                        sycl::minimum<std::int32_t>());
+            if (it.get_local_id(0) == 0) {
+                pt_best_mrd_ptr[i] = row_best;
+                pt_best_idx_ptr[i] = (row_best_j == none) ? -1 : row_best_j;
+            }
         });
     });
 }
 
-/// Find the nearest different-component neighbor per point with on-the-fly distance computation.
+/// The sequential part of the Boruvka rounds, run on host: the per-component reduction, the
+/// union-find merge and the relabeling.
 ///
-/// Same as `boruvka_find_nearest_mrd` but does not require an `n × n` MRD
-/// matrix in memory: each work-item computes the distance to every other
-/// point on the fly using the requested metric. Used by the kd-tree and
-/// ball-tree GPU backends to avoid the `O(n²)` storage of a precomputed
-/// matrix.
+/// Each component takes its smallest MRD, ties going to its lowest row, and the components are
+/// merged in id order, so every search that yields the same per-point bests gives the same MST.
 ///
-/// `MRD(i, j) = max(core_i, core_j, dist(i, j) * inv_alpha)` per the
-/// canonical HDBSCAN robust single-linkage definition; alpha scales only the
-/// pairwise dist term, not the core distances.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in]  queue           The SYCL queue
-/// @param[in]  data_ptr        Row-major input buffer, size `n × col_count`
-/// @param[in]  col_count       Number of features
-/// @param[in]  core_ptr        Per-point core distances, length `n` (unscaled)
-/// @param[in]  comp_ptr        Per-point component id, length `n`
-/// @param[out] pt_best_mrd_ptr Per-point best MRD, length `n`
-/// @param[out] pt_best_idx_ptr Per-point best different-component point index, length `n`
-/// @param[in]  n               Number of points
-/// @param[in]  metric_id       0=euclidean, 1=manhattan, 2=minkowski, 3=chebyshev
-/// @param[in]  degree          Minkowski degree (used only when `metric_id == 2`)
-/// @param[in]  inv_alpha       `1.0 / alpha`, applied only to dist(i,j) inside MRD
-/// @param[in]  deps            Events that must complete before submission
-///
-/// @return Event signaling completion
+/// @tparam Float Floating-point type of the MRD
 template <typename Float>
-inline sycl::event boruvka_find_nearest_otf(sycl::queue& queue,
-                                            const Float* data_ptr,
-                                            std::int64_t col_count,
-                                            const Float* core_ptr,
-                                            const std::int32_t* comp_ptr,
-                                            Float* pt_best_mrd_ptr,
-                                            std::int32_t* pt_best_idx_ptr,
-                                            std::int64_t n,
-                                            std::int32_t metric_id,
-                                            Float degree,
-                                            Float inv_alpha,
-                                            const bk::event_vector& deps) {
-    const std::int64_t d = col_count;
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
-            const std::int32_t my_comp = comp_ptr[i];
-            const Float my_core = core_ptr[i];
-            const Float* xi = data_ptr + i * d;
-            Float best_m = std::numeric_limits<Float>::max();
-            std::int32_t best_j = -1;
-            for (std::int64_t j = 0; j < n; j++) {
-                if (comp_ptr[j] == my_comp)
-                    continue;
-                const Float* xj = data_ptr + j * d;
-                Float dist = Float(0);
-                if (metric_id == 1) { // manhattan
-                    for (std::int64_t dd = 0; dd < d; dd++) {
-                        Float diff = xi[dd] - xj[dd];
-                        dist += sycl::fabs(diff);
-                    }
-                }
-                else if (metric_id == 2) { // minkowski
-                    Float sum = Float(0);
-                    for (std::int64_t dd = 0; dd < d; dd++) {
-                        Float diff = sycl::fabs(xi[dd] - xj[dd]);
-                        sum += sycl::pow(diff, degree);
-                    }
-                    dist = sycl::pow(sum, Float(1) / degree);
-                }
-                else if (metric_id == 3) { // chebyshev
-                    for (std::int64_t dd = 0; dd < d; dd++) {
-                        Float diff = sycl::fabs(xi[dd] - xj[dd]);
-                        if (diff > dist)
-                            dist = diff;
-                    }
-                }
-                else { // euclidean
-                    Float sum = Float(0);
-                    for (std::int64_t dd = 0; dd < d; dd++) {
-                        Float diff = xi[dd] - xj[dd];
-                        sum += diff * diff;
-                    }
-                    dist = sycl::sqrt(sycl::fmax(sum, Float(0)));
-                }
-                Float mrd = sycl::fmax(sycl::fmax(my_core, core_ptr[j]), dist * inv_alpha);
-                if (mrd < best_m) {
-                    best_m = mrd;
-                    best_j = static_cast<std::int32_t>(j);
-                }
-            }
-            pt_best_mrd_ptr[i] = best_m;
-            pt_best_idx_ptr[i] = best_j;
-        });
-    });
-}
+class boruvka_merger {
+public:
+    using mst_t = std::tuple<array<std::int32_t>, array<std::int32_t>, array<Float>>;
 
-/// Reduce per-point bests to per-component bests, then merge via union-find.
-///
-/// Runs as a single SYCL task because the union-find step has serial data
-/// dependencies, but every array involved is `O(n)` (not the `O(n²)` distance
-/// matrix), so single-task is acceptable. Appends accepted edges to
-/// `mst_from_ptr` / `mst_to_ptr` / `mst_weight_ptr` and decrements
-/// `num_comp_ptr` accordingly.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in]     queue              The SYCL queue
-/// @param[in,out] comp_ptr           Per-point component id, length `n` (re-read after compress)
-/// @param[in,out] uf_parent_ptr      Union-find parent array, length `n`
-/// @param[in,out] uf_rank_ptr        Union-find rank array, length `n`
-/// @param[in]     pt_best_mrd_ptr    Per-point best MRD from the find phase
-/// @param[in]     pt_best_idx_ptr    Per-point best different-component index from the find phase
-/// @param[out]    comp_best_mrd_ptr  Scratch: per-component best MRD, length `n`
-/// @param[out]    comp_best_from_ptr Scratch: per-component best `from` index, length `n`
-/// @param[out]    comp_best_to_ptr   Scratch: per-component best `to` index, length `n`
-/// @param[out]    mst_from_ptr       Output MST `from` endpoints
-/// @param[out]    mst_to_ptr         Output MST `to` endpoints
-/// @param[out]    mst_weight_ptr     Output MST weights
-/// @param[in,out] edges_added_ptr    Single-element counter of MST edges added so far
-/// @param[in,out] num_comp_ptr       Single-element counter of remaining components
-/// @param[in]     n                  Number of points
-/// @param[in]     deps               Events that must complete before submission
-///
-/// @return Event signaling completion
-template <typename Float>
-inline sycl::event boruvka_merge_components(sycl::queue& queue,
-                                            std::int32_t* comp_ptr,
-                                            std::int32_t* uf_parent_ptr,
-                                            std::int32_t* uf_rank_ptr,
-                                            const Float* pt_best_mrd_ptr,
-                                            const std::int32_t* pt_best_idx_ptr,
-                                            Float* comp_best_mrd_ptr,
-                                            std::int32_t* comp_best_from_ptr,
-                                            std::int32_t* comp_best_to_ptr,
-                                            std::int32_t* mst_from_ptr,
-                                            std::int32_t* mst_to_ptr,
-                                            Float* mst_weight_ptr,
-                                            std::int32_t* edges_added_ptr,
-                                            std::int32_t* num_comp_ptr,
-                                            std::int64_t n,
-                                            const bk::event_vector& deps) {
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.single_task([=]() {
-            const Float inf = std::numeric_limits<Float>::max();
-
-            // Reset per-component best
-            for (std::int64_t c = 0; c < n; c++) {
-                comp_best_mrd_ptr[c] = inf;
-                comp_best_from_ptr[c] = -1;
-                comp_best_to_ptr[c] = -1;
-            }
-
-            // Reduce per-point bests to per-component bests
-            for (std::int64_t i = 0; i < n; i++) {
-                if (pt_best_idx_ptr[i] < 0)
-                    continue;
-                const std::int32_t c = comp_ptr[i];
-                if (pt_best_mrd_ptr[i] < comp_best_mrd_ptr[c]) {
-                    comp_best_mrd_ptr[c] = pt_best_mrd_ptr[i];
-                    comp_best_from_ptr[c] = static_cast<std::int32_t>(i);
-                    comp_best_to_ptr[c] = pt_best_idx_ptr[i];
-                }
-            }
-
-            auto uf_find = [&](std::int32_t x) -> std::int32_t {
-                while (uf_parent_ptr[x] != x) {
-                    uf_parent_ptr[x] = uf_parent_ptr[uf_parent_ptr[x]];
-                    x = uf_parent_ptr[x];
-                }
-                return x;
-            };
-            auto uf_union = [&](std::int32_t rx, std::int32_t ry) {
-                if (uf_rank_ptr[rx] < uf_rank_ptr[ry])
-                    uf_parent_ptr[rx] = ry;
-                else if (uf_rank_ptr[rx] > uf_rank_ptr[ry])
-                    uf_parent_ptr[ry] = rx;
-                else {
-                    uf_parent_ptr[ry] = rx;
-                    uf_rank_ptr[rx]++;
-                }
-            };
-
-            std::int32_t ea = edges_added_ptr[0];
-            std::int32_t added = 0;
-            for (std::int64_t c = 0; c < n; c++) {
-                if (comp_best_from_ptr[c] < 0)
-                    continue;
-                const std::int32_t u = comp_best_from_ptr[c];
-                const std::int32_t v = comp_best_to_ptr[c];
-                const std::int32_t ru = uf_find(u), rv = uf_find(v);
-                if (ru == rv)
-                    continue;
-                mst_from_ptr[ea] = u;
-                mst_to_ptr[ea] = v;
-                mst_weight_ptr[ea] = comp_best_mrd_ptr[c];
-                ea++;
-                added++;
-                uf_union(ru, rv);
-            }
-            edges_added_ptr[0] = ea;
-            num_comp_ptr[0] -= added;
-        });
-    });
-}
-
-/// Path-compress component ids in parallel after a Boruvka merge round.
-///
-/// One work-item per point: walks `uf_parent` to the root and writes the root
-/// into `comp_ptr`. Equivalent to `comp[i] = find(i)` per point but fully
-/// parallel because the walk only reads `uf_parent` (no concurrent writes).
-///
-/// @param[in]  queue         The SYCL queue
-/// @param[out] comp_ptr      Per-point component id, length `n` (overwritten)
-/// @param[in]  uf_parent_ptr Union-find parent array, length `n`
-/// @param[in]  n             Number of points
-/// @param[in]  deps          Events that must complete before submission
-///
-/// @return Event signaling completion
-inline sycl::event boruvka_compress_components(sycl::queue& queue,
-                                               std::int32_t* comp_ptr,
-                                               const std::int32_t* uf_parent_ptr,
-                                               std::int64_t n,
-                                               const bk::event_vector& deps) {
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
-            std::int32_t x = static_cast<std::int32_t>(idx[0]);
-            while (uf_parent_ptr[x] != x)
-                x = uf_parent_ptr[x];
-            comp_ptr[idx[0]] = x;
-        });
-    });
-}
-
-/// Build the MST under MRD on the GPU using the precomputed MRD matrix.
-///
-/// Allocates per-point Boruvka working arrays (component ids, union-find,
-/// per-point and per-component bests, MST counters) on the device, then loops
-/// at most `max_rounds` Boruvka iterations: parallel find -> single-task
-/// merge -> parallel path compression. Stops as soon as the device-side
-/// component counter drops to 1.
-///
-/// Used by the brute-force GPU backend; the kd-tree and ball-tree backends
-/// use `build_mst_otf` to avoid the `O(n²)` MRD storage.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in]  queue       The SYCL queue
-/// @param[in]  mrd_matrix  Precomputed MRD matrix of size `n × n`
-/// @param[out] mst_from    Output MST `from` endpoints, length `n - 1`
-/// @param[out] mst_to      Output MST `to` endpoints, length `n - 1`
-/// @param[out] mst_weights Output MST weights, length `n - 1`
-/// @param[in]  row_count   Number of points `n`
-/// @param[in]  deps        Events that must complete before submission
-///
-/// @return Event signaling completion of the final Boruvka round
-template <typename Float>
-inline sycl::event build_mst(sycl::queue& queue,
-                             const pr::ndview<Float, 2>& mrd_matrix,
-                             pr::ndview<std::int32_t, 1>& mst_from,
-                             pr::ndview<std::int32_t, 1>& mst_to,
-                             pr::ndview<Float, 1>& mst_weights,
-                             std::int64_t row_count,
-                             const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(hdbscan.build_mst, queue);
-
-    const std::int64_t n = row_count;
-
-    ONEDAL_ASSERT(n > 1);
-    ONEDAL_ASSERT(mrd_matrix.get_dimension(0) == n);
-    ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
-
-    // Allocate working arrays on device
-    auto [comp, comp_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [uf_parent, uf_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [uf_rank, ur_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [pt_best_mrd, pbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [pt_best_idx, pbi_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_mrd, cbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_from, cbf_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_to, cbt_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [edges_added_arr, ea_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
-    auto [num_comp_arr, nc_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
-
-    std::int32_t* comp_ptr = comp.get_mutable_data();
-    std::int32_t* uf_parent_ptr = uf_parent.get_mutable_data();
-    std::int32_t* uf_rank_ptr = uf_rank.get_mutable_data();
-    std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
-
-    bk::event_vector init_deps = deps;
-    init_deps.insert(
-        init_deps.end(),
-        { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev, nc_ev });
-
-    // Initialize comp[i] = i, uf_parent[i] = i, num_comp = n
-    auto init_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(init_deps);
-        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
-            const std::int32_t i = static_cast<std::int32_t>(idx[0]);
-            comp_ptr[i] = i;
-            uf_parent_ptr[i] = i;
-            if (i == 0)
-                num_comp_ptr[0] = static_cast<std::int32_t>(n);
-        });
-    });
-
-    const Float* mrd_ptr = mrd_matrix.get_data();
-    const std::int32_t max_rounds = 64;
-    sycl::event last_event = init_event;
-    init_event.wait_and_throw();
-
-    for (std::int32_t round = 0; round < max_rounds; round++) {
-        // Step A: parallel find nearest different-component neighbor
-        auto find_event = boruvka_find_nearest_mrd<Float>(queue,
-                                                          mrd_ptr,
-                                                          comp_ptr,
-                                                          pt_best_mrd.get_mutable_data(),
-                                                          pt_best_idx.get_mutable_data(),
-                                                          n,
-                                                          { last_event });
-        find_event.wait_and_throw();
-
-        // Step B: reduce + merge (single_task — O(N) work)
-        auto merge_event = boruvka_merge_components<Float>(queue,
-                                                           comp_ptr,
-                                                           uf_parent_ptr,
-                                                           uf_rank_ptr,
-                                                           pt_best_mrd.get_data(),
-                                                           pt_best_idx.get_data(),
-                                                           comp_best_mrd.get_mutable_data(),
-                                                           comp_best_from.get_mutable_data(),
-                                                           comp_best_to.get_mutable_data(),
-                                                           mst_from.get_mutable_data(),
-                                                           mst_to.get_mutable_data(),
-                                                           mst_weights.get_mutable_data(),
-                                                           edges_added_arr.get_mutable_data(),
-                                                           num_comp_arr.get_mutable_data(),
-                                                           n,
-                                                           { find_event });
-        merge_event.wait_and_throw();
-
-        // Step C: parallel path compression
-        auto compress_event =
-            boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
-        compress_event.wait_and_throw();
-
-        // Check termination
-        auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
-        const std::int32_t nc = num_comp_host.get_data()[0];
-        if (nc <= 1) {
-            last_event = compress_event;
-            break;
-        }
-
-        last_event = compress_event;
+    /// @param[in] row_count Number of points, at least 2
+    explicit boruvka_merger(std::int64_t row_count)
+            : n_(row_count),
+              comp_(row_count),
+              parent_(row_count),
+              rank_(row_count, 0),
+              best_mrd_(row_count),
+              best_from_(row_count),
+              component_count_(row_count) {
+        ONEDAL_ASSERT(row_count > 1);
+        std::iota(comp_.begin(), comp_.end(), 0);
+        std::iota(parent_.begin(), parent_.end(), 0);
+        from_ = array<std::int32_t>::empty(row_count - 1);
+        to_ = array<std::int32_t>::empty(row_count - 1);
+        weights_ = array<Float>::empty(row_count - 1);
     }
 
-    return last_event;
-}
-
-/// Build the MST under MRD on the GPU with on-the-fly distance computation.
-///
-/// Same Boruvka loop as `build_mst`, but the find phase uses
-/// `boruvka_find_nearest_otf` so no `n × n` MRD matrix is required. Used by
-/// the kd-tree and ball-tree GPU backends where the matrix would be the
-/// dominant memory cost.
-///
-/// @tparam Float Floating-point type
-///
-/// @param[in]  queue          The SYCL queue
-/// @param[in]  data           Row-major input buffer of size `n × col_count`
-/// @param[in]  core_distances Per-point core distances, length `n`
-/// @param[out] mst_from       Output MST `from` endpoints, length `n - 1`
-/// @param[out] mst_to         Output MST `to` endpoints, length `n - 1`
-/// @param[out] mst_weights    Output MST weights, length `n - 1`
-/// @param[in]  row_count      Number of points `n`
-/// @param[in]  col_count      Number of features `d`
-/// @param[in]  metric         Distance metric tag
-/// @param[in]  degree         Minkowski degree (used only when `metric == minkowski`)
-/// @param[in]  alpha          Robust single-linkage scaling factor; applied
-///                            only to dist(i,j) inside MRD (default 1.0)
-/// @param[in]  deps           Events that must complete before submission
-///
-/// @return Event signaling completion of the final Boruvka round
-template <typename Float>
-inline sycl::event build_mst_otf(sycl::queue& queue,
-                                 const pr::ndview<Float, 2>& data,
-                                 const pr::ndview<Float, 1>& core_distances,
-                                 pr::ndview<std::int32_t, 1>& mst_from,
-                                 pr::ndview<std::int32_t, 1>& mst_to,
-                                 pr::ndview<Float, 1>& mst_weights,
-                                 std::int64_t row_count,
-                                 std::int64_t col_count,
-                                 distance_metric metric,
-                                 double degree,
-                                 double alpha,
-                                 const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(hdbscan.build_mst_otf, queue);
-
-    const std::int64_t n = row_count;
-
-    ONEDAL_ASSERT(n > 1);
-
-    std::int32_t metric_id = 0; // euclidean
-    if (metric == distance_metric::manhattan)
-        metric_id = 1;
-    else if (metric == distance_metric::minkowski)
-        metric_id = 2;
-    else if (metric == distance_metric::chebyshev)
-        metric_id = 3;
-
-    // Allocate working arrays on device
-    auto [comp, comp_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [uf_parent, uf_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [uf_rank, ur_ev] = pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [pt_best_mrd, pbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [pt_best_idx, pbi_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_mrd, cbm_ev] = pr::ndarray<Float, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_from, cbf_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [comp_best_to, cbt_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, n, sycl::usm::alloc::device);
-    auto [edges_added_arr, ea_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
-    auto [num_comp_arr, nc_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
-
-    std::int32_t* comp_ptr = comp.get_mutable_data();
-    std::int32_t* uf_parent_ptr = uf_parent.get_mutable_data();
-    std::int32_t* uf_rank_ptr = uf_rank.get_mutable_data();
-    std::int32_t* num_comp_ptr = num_comp_arr.get_mutable_data();
-
-    bk::event_vector init_deps = deps;
-    init_deps.insert(
-        init_deps.end(),
-        { comp_ev, uf_ev, ur_ev, pbm_ev, pbi_ev, cbm_ev, cbf_ev, cbt_ev, ea_ev, nc_ev });
-
-    auto init_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(init_deps);
-        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
-            const std::int32_t i = static_cast<std::int32_t>(idx[0]);
-            comp_ptr[i] = i;
-            uf_parent_ptr[i] = i;
-            if (i == 0)
-                num_comp_ptr[0] = static_cast<std::int32_t>(n);
-        });
-    });
-
-    const Float* data_ptr = data.get_data();
-    const Float* core_ptr = core_distances.get_data();
-    const Float deg_f = static_cast<Float>(degree);
-    const Float inv_alpha = static_cast<Float>(1.0 / alpha);
-    const std::int32_t max_rounds = 64;
-    sycl::event last_event = init_event;
-    init_event.wait_and_throw();
-
-    for (std::int32_t round = 0; round < max_rounds; round++) {
-        auto find_event = boruvka_find_nearest_otf<Float>(queue,
-                                                          data_ptr,
-                                                          col_count,
-                                                          core_ptr,
-                                                          comp_ptr,
-                                                          pt_best_mrd.get_mutable_data(),
-                                                          pt_best_idx.get_mutable_data(),
-                                                          n,
-                                                          metric_id,
-                                                          deg_f,
-                                                          inv_alpha,
-                                                          { last_event });
-        find_event.wait_and_throw();
-
-        auto merge_event = boruvka_merge_components<Float>(queue,
-                                                           comp_ptr,
-                                                           uf_parent_ptr,
-                                                           uf_rank_ptr,
-                                                           pt_best_mrd.get_data(),
-                                                           pt_best_idx.get_data(),
-                                                           comp_best_mrd.get_mutable_data(),
-                                                           comp_best_from.get_mutable_data(),
-                                                           comp_best_to.get_mutable_data(),
-                                                           mst_from.get_mutable_data(),
-                                                           mst_to.get_mutable_data(),
-                                                           mst_weights.get_mutable_data(),
-                                                           edges_added_arr.get_mutable_data(),
-                                                           num_comp_arr.get_mutable_data(),
-                                                           n,
-                                                           { find_event });
-        merge_event.wait_and_throw();
-
-        auto compress_event =
-            boruvka_compress_components(queue, comp_ptr, uf_parent_ptr, n, { merge_event });
-        compress_event.wait_and_throw();
-
-        auto num_comp_host = num_comp_arr.to_host(queue, { compress_event });
-        const std::int32_t nc = num_comp_host.get_data()[0];
-        if (nc <= 1) {
-            last_event = compress_event;
-            break;
-        }
-
-        last_event = compress_event;
+    /// Component of each point, a point id; refreshed by `merge`.
+    const std::vector<std::int32_t>& components() const {
+        return comp_;
     }
 
-    return last_event;
-}
+    std::int64_t component_count() const {
+        return component_count_;
+    }
 
-/// Sort MST edges in ascending order of weight, keeping endpoints aligned.
-///
-/// Builds an iota index permutation, runs `pr::radix_sort_indices_inplace` on
-/// `mst_weights` against the index permutation, then gathers `mst_from` /
-/// `mst_to` according to the resulting permutation and copies the gathered
-/// arrays back in place.
-///
-/// @tparam Float Floating-point type used for edge weights
-///
-/// @param[in]     queue       The SYCL queue
-/// @param[in,out] mst_from    Source endpoints, length `edge_count` (sorted in place)
-/// @param[in,out] mst_to      Target endpoints, length `edge_count` (sorted in place)
-/// @param[in,out] mst_weights Edge weights (sort key), length `edge_count` (sorted in place)
-/// @param[in]     edge_count  Number of MST edges
-/// @param[in]     deps        Events that must complete before submission
-///
-/// @return Event signaling completion of the final copy-back
-template <typename Float>
-inline sycl::event sort_mst_by_weight(sycl::queue& queue,
-                                      pr::ndview<std::int32_t, 1>& mst_from,
-                                      pr::ndview<std::int32_t, 1>& mst_to,
-                                      pr::ndview<Float, 1>& mst_weights,
-                                      std::int64_t edge_count,
-                                      const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(hdbscan.sort_mst_by_weight, queue);
-
-    ONEDAL_ASSERT(edge_count > 0);
-
-    // Create index array [0, 1, 2, ..., edge_count-1]
-    using Index = std::uint32_t;
-    auto [indices, indices_event] =
-        pr::ndarray<Index, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    indices_event.wait_and_throw();
-
-    Index* ind_ptr = indices.get_mutable_data();
-    sycl::event ind_alloc_event = indices_event;
-    auto iota_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.depends_on({ ind_alloc_event });
-        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
-            ind_ptr[idx[0]] = static_cast<Index>(idx[0]);
-        });
-    });
-    iota_event.wait_and_throw();
-
-    // Sort weights with corresponding indices using radix sort
-    pr::radix_sort_indices_inplace<Float, Index> sorter(queue);
-    auto sort_event = sorter(mst_weights, indices, { iota_event });
-    sort_event.wait_and_throw();
-
-    // Permute mst_from and mst_to according to sorted indices
-    auto [sorted_from, sf_event] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    auto [sorted_to, st_event] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
-    sf_event.wait_and_throw();
-    st_event.wait_and_throw();
-
-    const std::int32_t* from_ptr = mst_from.get_data();
-    const std::int32_t* to_ptr = mst_to.get_data();
-    std::int32_t* sf_ptr = sorted_from.get_mutable_data();
-    std::int32_t* st_ptr = sorted_to.get_mutable_data();
-    const Index* sorted_ind_ptr = indices.get_data();
-
-    sycl::event sf_alloc_event = sf_event;
-    sycl::event st_alloc_event = st_event;
-    auto permute_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ sort_event, sf_alloc_event, st_alloc_event });
-        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
-            const Index orig = sorted_ind_ptr[i];
-            sf_ptr[i] = from_ptr[orig];
-            st_ptr[i] = to_ptr[orig];
-        });
-    });
-    permute_event.wait_and_throw();
-
-    // Copy permuted results back into mst_from and mst_to
-    std::int32_t* mst_from_ptr = mst_from.get_mutable_data();
-    std::int32_t* mst_to_ptr = mst_to.get_mutable_data();
-
-    auto copy_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ permute_event });
-        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
-            mst_from_ptr[i] = sf_ptr[i];
-            mst_to_ptr[i] = st_ptr[i];
-        });
-    });
-    copy_event.wait_and_throw();
-
-    return copy_event;
-}
-
-/// Cluster extraction kernel 1: build the single-linkage dendrogram.
-///
-/// Walks sorted MST edges via union-find. Writes directly into the node
-/// arrays accessed through `w`: ids `[0, row_count)` are leaves with size 1;
-/// ids `[row_count, total_nodes)` are internal nodes (one per accepted edge),
-/// with `lc_ptr` / `rc_ptr` set to the merged components' representative node
-/// ids and `nw_ptr` set to the merging edge weight.
-///
-/// Single SYCL task because union-find is inherently serial; runs on `O(n)`
-/// data so the GPU is used as a coprocessor for the surrounding allocations
-/// and chained kernels rather than for parallelism here.
-///
-/// @tparam Float Floating-point type used for edge weights
-///
-/// @param[in]     queue The SYCL queue
-/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
-/// @param[in]     deps  Events that must complete before submission
-///
-/// @return Event signaling completion
-template <typename Float>
-inline sycl::event build_dendrogram_kernels(sycl::queue& queue,
-                                            const cluster_work_ptrs<Float>& w,
-                                            const bk::event_vector& deps) {
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.single_task([=]() {
-            for (std::int64_t i = 0; i < w.row_count; i++) {
-                w.uf_parent_ptr[i] = static_cast<std::int32_t>(i);
-                w.comp_size_ptr[i] = 1;
-                w.comp_to_node_ptr[i] = static_cast<std::int32_t>(i);
-                w.ns_ptr[i] = 1;
+    /// Append each component's best edge and merge its endpoints.
+    ///
+    /// @param[in] pt_best_mrd Best MRD of each point
+    /// @param[in] pt_best_idx Best other-component point of each point, -1 if none
+    ///
+    /// @return Number of edges added
+    std::int64_t merge(const Float* pt_best_mrd, const std::int32_t* pt_best_idx) {
+        std::fill(best_mrd_.begin(), best_mrd_.end(), std::numeric_limits<Float>::max());
+        std::fill(best_from_.begin(), best_from_.end(), -1);
+        for (std::int64_t i = 0; i < n_; i++) {
+            const std::int32_t c = comp_[i];
+            if (pt_best_idx[i] >= 0 && pt_best_mrd[i] < best_mrd_[c]) {
+                best_mrd_[c] = pt_best_mrd[i];
+                best_from_[c] = static_cast<std::int32_t>(i);
             }
+        }
 
-            auto uf_find = [&](std::int32_t x) -> std::int32_t {
-                while (w.uf_parent_ptr[x] != x) {
-                    w.uf_parent_ptr[x] = w.uf_parent_ptr[w.uf_parent_ptr[x]];
-                    x = w.uf_parent_ptr[x];
-                }
-                return x;
-            };
-
-            for (std::int64_t e = 0; e < w.edge_count; e++) {
-                const std::int32_t ru = uf_find(w.mst_from_ptr[e]);
-                const std::int32_t rv = uf_find(w.mst_to_ptr[e]);
-                if (ru == rv)
-                    continue;
-
-                const std::int32_t nid = static_cast<std::int32_t>(w.row_count + e);
-                const std::int32_t new_size = w.comp_size_ptr[ru] + w.comp_size_ptr[rv];
-
-                w.lc_ptr[nid] = w.comp_to_node_ptr[ru];
-                w.rc_ptr[nid] = w.comp_to_node_ptr[rv];
-                w.nw_ptr[nid] = w.mst_weights_ptr[e];
-                w.ns_ptr[nid] = new_size;
-
-                if (w.comp_size_ptr[ru] < w.comp_size_ptr[rv]) {
-                    w.uf_parent_ptr[ru] = rv;
-                    w.comp_size_ptr[rv] = new_size;
-                    w.comp_to_node_ptr[rv] = nid;
-                }
-                else {
-                    w.uf_parent_ptr[rv] = ru;
-                    w.comp_size_ptr[ru] = new_size;
-                    w.comp_to_node_ptr[ru] = nid;
-                }
+        std::int32_t* from = from_.get_mutable_data();
+        std::int32_t* to = to_.get_mutable_data();
+        Float* weights = weights_.get_mutable_data();
+        std::int64_t added = 0;
+        for (std::int64_t c = 0; c < n_; c++) {
+            const std::int32_t u = best_from_[c];
+            if (u < 0) {
+                continue;
             }
-        });
-    });
-}
-
-/// Cluster extraction kernel 2: build the condensed tree from the dendrogram.
-///
-/// Walks the dendrogram top-down: for each internal node, sides whose subtree
-/// size is at least `min_cluster_size` keep their cluster id; sides smaller
-/// than `min_cluster_size` are emitted as fallen-leaf condensed edges. New
-/// cluster ids are allocated only when both sides survive (a real split).
-/// Writes the condensed-edge arrays (`cond_p_ptr` / `cond_c_ptr` /
-/// `cond_l_ptr` / `cond_s_ptr`) and the next-cluster-id counter (`nc_ptr`).
-///
-/// Single SYCL task because the walk is serial and operates on `O(n)` data.
-///
-/// @tparam Float Floating-point type used for edge weights / lambdas
-///
-/// @param[in]     queue The SYCL queue
-/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
-/// @param[in]     deps  Events that must complete before submission
-///
-/// @return Event signaling completion
-template <typename Float>
-inline sycl::event build_condensed_tree_kernel(sycl::queue& queue,
-                                               const cluster_work_ptrs<Float>& w,
-                                               const bk::event_vector& deps) {
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.single_task([=]() {
-            std::int32_t root = -1;
-            for (std::int64_t e = w.edge_count - 1; e >= 0; e--) {
-                const std::int64_t nid = w.row_count + e;
-                if (w.ns_ptr[nid] > 0) {
-                    root = static_cast<std::int32_t>(nid);
-                    break;
-                }
+            const std::int32_t v = pt_best_idx[u];
+            const std::int32_t ru = find(u);
+            const std::int32_t rv = find(v);
+            if (ru == rv) {
+                continue;
             }
-
-            if (root < 0) {
-                for (std::int64_t i = 0; i < w.row_count; i++)
-                    w.resp_ptr[i] = -1;
-                w.nc_ptr[0] = 0;
-                return;
+            from[edge_count_] = u;
+            to[edge_count_] = v;
+            weights[edge_count_] = best_mrd_[c];
+            edge_count_++;
+            added++;
+            if (rank_[ru] < rank_[rv]) {
+                parent_[ru] = rv;
             }
-
-            std::int32_t next_cid = static_cast<std::int32_t>(w.row_count);
-            w.dtc_ptr[root] = next_cid++;
-
-            w.cond_cnt_ptr[0] = 0;
-
-            auto add_condensed_edge =
-                [&](std::int32_t parent, std::int32_t child, Float lambda, std::int32_t child_sz) {
-                    const std::int32_t idx = w.cond_cnt_ptr[0]++;
-                    w.cond_p_ptr[idx] = parent;
-                    w.cond_c_ptr[idx] = child;
-                    w.cond_l_ptr[idx] = lambda;
-                    w.cond_s_ptr[idx] = child_sz;
-                };
-
-            auto collect_and_add_leaves =
-                [&](std::int32_t subtree_root, std::int32_t parent_cid, Float lambda) {
-                    std::int32_t sp = 0;
-                    w.leaf_stk_ptr[sp++] = subtree_root;
-                    while (sp > 0) {
-                        const std::int32_t nd = w.leaf_stk_ptr[--sp];
-                        if (nd < w.row_count) {
-                            add_condensed_edge(parent_cid, nd, lambda, 1);
-                        }
-                        else {
-                            if (w.lc_ptr[nd] >= 0)
-                                w.leaf_stk_ptr[sp++] = w.lc_ptr[nd];
-                            if (w.rc_ptr[nd] >= 0)
-                                w.leaf_stk_ptr[sp++] = w.rc_ptr[nd];
-                        }
-                    }
-                };
-
-            std::int32_t ct_sp = 0;
-            w.stk_ptr[ct_sp] = root;
-            w.stk_cid_ptr[ct_sp] = w.dtc_ptr[root];
-            ct_sp++;
-
-            while (ct_sp > 0) {
-                ct_sp--;
-                const std::int32_t nid = w.stk_ptr[ct_sp];
-                const std::int32_t parent_cid = w.stk_cid_ptr[ct_sp];
-
-                if (nid < w.row_count)
-                    continue;
-
-                const std::int32_t lc_node = w.lc_ptr[nid];
-                const std::int32_t rc_node = w.rc_ptr[nid];
-                if (lc_node < 0 || rc_node < 0)
-                    continue;
-
-                const std::int32_t ls = w.ns_ptr[lc_node];
-                const std::int32_t rs = w.ns_ptr[rc_node];
-                const Float wt = w.nw_ptr[nid];
-                const Float lambda = (wt > Float(0)) ? Float(1) / wt : Float(1e30);
-
-                const bool l_big = ls >= w.min_cluster_size;
-                const bool r_big = rs >= w.min_cluster_size;
-
-                if (l_big && r_big) {
-                    const std::int32_t lcid = next_cid++;
-                    const std::int32_t rcid = next_cid++;
-                    w.dtc_ptr[lc_node] = lcid;
-                    w.dtc_ptr[rc_node] = rcid;
-                    add_condensed_edge(parent_cid, lcid, lambda, ls);
-                    add_condensed_edge(parent_cid, rcid, lambda, rs);
-                    w.stk_ptr[ct_sp] = lc_node;
-                    w.stk_cid_ptr[ct_sp] = lcid;
-                    ct_sp++;
-                    w.stk_ptr[ct_sp] = rc_node;
-                    w.stk_cid_ptr[ct_sp] = rcid;
-                    ct_sp++;
-                }
-                else if (l_big) {
-                    w.dtc_ptr[lc_node] = parent_cid;
-                    collect_and_add_leaves(rc_node, parent_cid, lambda);
-                    w.stk_ptr[ct_sp] = lc_node;
-                    w.stk_cid_ptr[ct_sp] = parent_cid;
-                    ct_sp++;
-                }
-                else if (r_big) {
-                    w.dtc_ptr[rc_node] = parent_cid;
-                    collect_and_add_leaves(lc_node, parent_cid, lambda);
-                    w.stk_ptr[ct_sp] = rc_node;
-                    w.stk_cid_ptr[ct_sp] = parent_cid;
-                    ct_sp++;
-                }
-                else {
-                    collect_and_add_leaves(lc_node, parent_cid, lambda);
-                    collect_and_add_leaves(rc_node, parent_cid, lambda);
-                }
-            }
-
-            w.nc_ptr[0] = next_cid;
-        });
-    });
-}
-
-/// Cluster extraction kernel 3: EOM stability selection and label assignment prep.
-///
-/// Initializes per-cluster bookkeeping (lambda birth, leaf flag, child
-/// pointers, sizes), accumulates stability per cluster, runs Excess-of-Mass
-/// (or leaf) selection, optionally enforces `allow_single_cluster=false`,
-/// applies `cluster_selection_epsilon`, then assigns dense label ids to
-/// selected clusters and records `point_fell_from` and `cluster_parent` for
-/// the labeling kernel.
-///
-/// Single SYCL task because the EOM bottom-up sweep and the cluster-epsilon
-/// fixed-point have serial dependencies; data sizes remain `O(nClusters)`.
-///
-/// @tparam Float Floating-point type used for cluster lambdas / stabilities
-///
-/// @param[in]     queue The SYCL queue
-/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
-/// @param[in]     deps  Events that must complete before submission
-///
-/// @return Event signaling completion
-template <typename Float>
-inline sycl::event eom_select_clusters_kernel(sycl::queue& queue,
-                                              const cluster_work_ptrs<Float>& w,
-                                              const bk::event_vector& deps) {
-    return queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.single_task([=]() {
-            const std::int32_t n_clusters = w.nc_ptr[0];
-            if (n_clusters == 0)
-                return;
-
-            const std::int32_t root_cid = static_cast<std::int32_t>(w.row_count);
-            const std::int32_t cond_count = w.cond_cnt_ptr[0];
-
-            for (std::int32_t c = root_cid; c < n_clusters; c++) {
-                w.ilc_ptr[c] = 1;
-                w.is_ptr[c] = 1;
-            }
-            // Root participates in EOM only when single-cluster outcomes are
-            // allowed; otherwise it must never be picked, so deselect up front
-            // and skip it in the EOM bottom-up sweep below.
-            if (!w.allow_single_cluster)
-                w.is_ptr[root_cid] = 0;
-            w.csz_ptr[root_cid] = static_cast<std::int32_t>(w.row_count);
-
-            for (std::int32_t i = 0; i < cond_count; i++) {
-                if (w.cond_c_ptr[i] >= w.row_count) {
-                    w.lb_ptr[w.cond_c_ptr[i]] = w.cond_l_ptr[i];
-                    w.ilc_ptr[w.cond_p_ptr[i]] = 0;
-                    if (w.cc0_ptr[w.cond_p_ptr[i]] < 0)
-                        w.cc0_ptr[w.cond_p_ptr[i]] = w.cond_c_ptr[i];
-                    else
-                        w.cc1_ptr[w.cond_p_ptr[i]] = w.cond_c_ptr[i];
-                    w.csz_ptr[w.cond_c_ptr[i]] = w.cond_s_ptr[i];
-                }
-            }
-
-            for (std::int32_t i = 0; i < cond_count; i++) {
-                const Float birth = w.lb_ptr[w.cond_p_ptr[i]];
-                const Float contrib =
-                    (w.cond_l_ptr[i] - birth) * static_cast<Float>(w.cond_s_ptr[i]);
-                if (contrib > Float(0))
-                    w.stab_ptr[w.cond_p_ptr[i]] += contrib;
-            }
-
-            for (std::int32_t c = root_cid; c < n_clusters; c++) {
-                if (w.csz_ptr[c] < w.min_cluster_size)
-                    w.is_ptr[c] = 0;
-            }
-
-            const std::int32_t mcs_max = (w.max_cluster_size > 0)
-                                             ? static_cast<std::int32_t>(w.max_cluster_size)
-                                             : std::numeric_limits<std::int32_t>::max();
-
-            if (w.cluster_selection == 1) {
-                for (std::int32_t c = root_cid; c < n_clusters; c++) {
-                    w.is_ptr[c] = (w.ilc_ptr[c] && w.csz_ptr[c] >= w.min_cluster_size) ? 1 : 0;
-                }
+            else if (rank_[ru] > rank_[rv]) {
+                parent_[rv] = ru;
             }
             else {
-                const std::int32_t tree_top = w.allow_single_cluster ? root_cid : (root_cid + 1);
-                for (std::int32_t c = n_clusters - 1; c >= tree_top; c--) {
-                    if (w.ilc_ptr[c])
-                        continue;
-
-                    Float child_sum = Float(0);
-                    if (w.cc0_ptr[c] >= 0)
-                        child_sum += w.stab_ptr[w.cc0_ptr[c]];
-                    if (w.cc1_ptr[c] >= 0)
-                        child_sum += w.stab_ptr[w.cc1_ptr[c]];
-
-                    const bool oversized = (w.csz_ptr[c] > mcs_max);
-
-                    if (oversized || child_sum > w.stab_ptr[c]) {
-                        w.is_ptr[c] = 0;
-                        w.stab_ptr[c] = child_sum;
-                    }
-                    else {
-                        std::int32_t dsp = 0;
-                        if (w.cc0_ptr[c] >= 0)
-                            w.stk_ptr[dsp++] = w.cc0_ptr[c];
-                        if (w.cc1_ptr[c] >= 0)
-                            w.stk_ptr[dsp++] = w.cc1_ptr[c];
-                        while (dsp > 0) {
-                            const std::int32_t d = w.stk_ptr[--dsp];
-                            w.is_ptr[d] = 0;
-                            if (w.cc0_ptr[d] >= 0)
-                                w.stk_ptr[dsp++] = w.cc0_ptr[d];
-                            if (w.cc1_ptr[d] >= 0)
-                                w.stk_ptr[dsp++] = w.cc1_ptr[d];
-                        }
-                    }
-                }
+                parent_[rv] = ru;
+                rank_[ru]++;
             }
+        }
+        for (std::int64_t i = 0; i < n_; i++) {
+            comp_[i] = find(static_cast<std::int32_t>(i));
+        }
+        component_count_ -= added;
+        return added;
+    }
 
-            for (std::int32_t i = 0; i < cond_count; i++) {
-                if (w.cond_c_ptr[i] >= w.row_count)
-                    w.cprt_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
-            }
+    /// The MST edges in the order they were added.
+    ///
+    /// @throws domain_error if non-finite input left the graph disconnected
+    mst_t release() const {
+        if (component_count_ > 1) {
+            throw domain_error(dal::detail::error_messages::hdbscan_input_data_is_not_finite());
+        }
+        return { from_, to_, weights_ };
+    }
 
-            if (w.cluster_selection_epsilon > Float(0)) {
-                const Float eps = w.cluster_selection_epsilon;
-                bool changed = true;
-                while (changed) {
-                    changed = false;
-                    for (std::int32_t c = root_cid + 1; c < n_clusters; c++) {
-                        if (!w.is_ptr[c])
-                            continue;
-                        const Float birth_dist =
-                            (w.lb_ptr[c] > Float(0)) ? Float(1) / w.lb_ptr[c] : Float(0);
-                        if (birth_dist < eps) {
-                            const std::int32_t parent = w.cprt_ptr[c];
-                            if (parent < root_cid || parent >= n_clusters)
-                                continue;
-                            // Refuse to promote into the root when the caller
-                            // forbids a single-cluster outcome.
-                            if (parent == root_cid && !w.allow_single_cluster)
-                                continue;
-                            w.is_ptr[c] = 0;
-                            w.is_ptr[parent] = 1;
-                            changed = true;
-                        }
-                    }
-                }
-            }
+private:
+    std::int32_t find(std::int32_t x) {
+        while (parent_[x] != x) {
+            parent_[x] = parent_[parent_[x]];
+            x = parent_[x];
+        }
+        return x;
+    }
 
-            std::int32_t label_counter = 0;
-            for (std::int32_t c = root_cid; c < n_clusters; c++) {
-                if (w.is_ptr[c])
-                    w.clab_ptr[c] = label_counter++;
-            }
+    std::int64_t n_;
+    std::vector<std::int32_t> comp_;
+    std::vector<std::int32_t> parent_;
+    std::vector<std::int32_t> rank_;
+    std::vector<Float> best_mrd_;
+    std::vector<std::int32_t> best_from_;
+    std::int64_t component_count_;
+    std::int64_t edge_count_ = 0;
+    array<std::int32_t> from_;
+    array<std::int32_t> to_;
+    array<Float> weights_;
+};
 
-            for (std::int32_t i = 0; i < cond_count; i++) {
-                if (w.cond_c_ptr[i] < w.row_count)
-                    w.pff_ptr[w.cond_c_ptr[i]] = w.cond_p_ptr[i];
-            }
-        });
-    });
+/// Run Boruvka rounds until one component is left or a round adds no edge.
+///
+/// @tparam Float Floating-point type
+/// @tparam Find  Callable `(const std::int32_t* comp, Float* pt_best_mrd,
+///               std::int32_t* pt_best_idx, sycl::event dep) -> sycl::event` running one round's
+///               device search; the pointers are device USM of length `n`
+///
+/// @param[in] queue     The SYCL queue
+/// @param[in] row_count Number of points, at least 2
+/// @param[in] find      The device search
+///
+/// @return The MST edges on host
+///
+/// @throws domain_error if non-finite input leaves the graph disconnected
+template <typename Float, typename Find>
+inline typename boruvka_merger<Float>::mst_t run_boruvka(sycl::queue& queue,
+                                                         std::int64_t row_count,
+                                                         Find&& find) {
+    const std::int64_t n = row_count;
+    const auto alloc = sycl::usm::alloc::device;
+    auto comp = pr::ndarray<std::int32_t, 1>::empty(queue, n, alloc);
+    auto pt_best_mrd = pr::ndarray<Float, 1>::empty(queue, n, alloc);
+    auto pt_best_idx = pr::ndarray<std::int32_t, 1>::empty(queue, n, alloc);
+    std::vector<Float> pt_best_mrd_host(n);
+    std::vector<std::int32_t> pt_best_idx_host(n);
+
+    boruvka_merger<Float> merger(n);
+    while (merger.component_count() > 1) {
+        auto upload_event = queue.memcpy(comp.get_mutable_data(),
+                                         merger.components().data(),
+                                         n * sizeof(std::int32_t));
+        auto find_event = find(comp.get_data(),
+                               pt_best_mrd.get_mutable_data(),
+                               pt_best_idx.get_mutable_data(),
+                               upload_event);
+        auto mrd_event = queue.memcpy(pt_best_mrd_host.data(),
+                                      pt_best_mrd.get_data(),
+                                      n * sizeof(Float),
+                                      find_event);
+        auto idx_event = queue.memcpy(pt_best_idx_host.data(),
+                                      pt_best_idx.get_data(),
+                                      n * sizeof(std::int32_t),
+                                      find_event);
+        sycl::event::wait_and_throw({ mrd_event, idx_event });
+        if (merger.merge(pt_best_mrd_host.data(), pt_best_idx_host.data()) == 0) {
+            break;
+        }
+    }
+    return merger.release();
 }
 
-/// Cluster extraction kernels 4 + 5: build `dendro_parent`, then label each point.
-///
-/// Phase 4 (parallel_for over internal nodes): reverse `lc_ptr` / `rc_ptr`
-/// into `dp_ptr` (parent pointer per node).
-///
-/// Phase 5 (parallel_for over points): for each point, either follow
-/// `point_fell_from` to its drop cluster and walk up the cluster tree until
-/// hitting a selected ancestor, or — for points never ejected — walk up the
-/// dendrogram via `dp_ptr` until a node with a known cluster id is found and
-/// then walk up the cluster tree.
+/// Build the MST under MRD with Boruvka's algorithm from a precomputed MRD matrix.
 ///
 /// @tparam Float Floating-point type
 ///
-/// @param[in]     queue The SYCL queue
-/// @param[in,out] w     Working pointers and constants (see `cluster_work_ptrs`)
-/// @param[in]     deps  Events that must complete before submission
+/// @param[in] queue      The SYCL queue
+/// @param[in] mrd_matrix Precomputed MRD matrix of size `n x n`, `n >= 2`
+/// @param[in] deps       Events that must complete before the first round
 ///
-/// @return Event signaling completion of phase 5
+/// @return The MST edges on host
+///
+/// @throws domain_error if non-finite input leaves the graph disconnected
 template <typename Float>
-inline sycl::event assign_label_kernels(sycl::queue& queue,
-                                        const cluster_work_ptrs<Float>& w,
-                                        const bk::event_vector& deps) {
-    // Kernel 4 (parallel_for): Build dendro_parent from internal nodes.
-    // Each work-item processes one internal node independently.
-    auto k4_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-        h.parallel_for(sycl::range<1>(w.edge_count), [=](sycl::id<1> idx) {
-            const std::int64_t nid = w.row_count + idx[0];
-            const std::int32_t lc = w.lc_ptr[nid];
-            const std::int32_t rc = w.rc_ptr[nid];
-            if (lc >= 0)
-                w.dp_ptr[lc] = static_cast<std::int32_t>(nid);
-            if (rc >= 0)
-                w.dp_ptr[rc] = static_cast<std::int32_t>(nid);
-        });
-    });
+inline typename boruvka_merger<Float>::mst_t build_mst(sycl::queue& queue,
+                                                       const pr::ndview<Float, 2>& mrd_matrix,
+                                                       const bk::event_vector& deps = {}) {
+    ONEDAL_PROFILER_TASK(hdbscan.build_mst, queue);
 
-    // Kernel 5 (parallel_for): Label each point independently
-    // Each work-item walks up cluster tree or dendrogram tree for one point
-    auto k5_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ k4_event });
-        h.parallel_for(sycl::range<1>(w.row_count), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
-            const std::int32_t n_clusters = w.nc_ptr[0];
+    const std::int64_t n = mrd_matrix.get_dimension(0);
+    ONEDAL_ASSERT(n > 1);
+    ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
 
-            // If n_clusters == 0, kernel 3 already set resp_ptr[i] = -1
-            if (n_clusters == 0)
-                return;
-
-            const std::int32_t root_cid = static_cast<std::int32_t>(w.row_count);
-            w.resp_ptr[i] = -1;
-
-            // Case 1: Point fell out of a cluster — walk up to deepest selected ancestor.
-            const std::int32_t fell = w.pff_ptr[i];
-            if (fell >= 0) {
-                std::int32_t c = fell;
-                while (c >= root_cid && c < n_clusters) {
-                    if (w.is_ptr[c]) {
-                        w.resp_ptr[i] = w.clab_ptr[c];
-                        return;
-                    }
-                    c = w.cprt_ptr[c];
-                }
-                return;
-            }
-
-            // Case 2: Point was never ejected — walk up dendrogram tree
-            std::int32_t nid = static_cast<std::int32_t>(i);
-            while (nid >= 0 && nid < static_cast<std::int32_t>(w.total_nodes)) {
-                const std::int32_t cid = w.dtc_ptr[nid];
-                if (cid >= root_cid) {
-                    std::int32_t c = cid;
-                    while (c >= root_cid && c < n_clusters) {
-                        if (w.is_ptr[c]) {
-                            w.resp_ptr[i] = w.clab_ptr[c];
-                            return;
-                        }
-                        c = w.cprt_ptr[c];
-                    }
-                    return;
-                }
-                nid = w.dp_ptr[nid];
-            }
-        });
-    });
-
-    return k5_event;
+    sycl::event::wait_and_throw(deps);
+    return run_boruvka<Float>(queue,
+                              n,
+                              [&](const std::int32_t* comp,
+                                  Float* pt_best_mrd,
+                                  std::int32_t* pt_best_idx,
+                                  sycl::event dep) {
+                                  return boruvka_find_nearest_mrd<Float>(queue,
+                                                                         mrd_matrix.get_data(),
+                                                                         comp,
+                                                                         pt_best_mrd,
+                                                                         pt_best_idx,
+                                                                         n,
+                                                                         { dep });
+                              });
 }
 
-/// Extract HDBSCAN cluster labels from a sorted MST on the GPU.
+/// Core distance of every tree position, by the tree k-NN up to `block_tree_max_k` neighbors and
+/// by `compute_core_distances_blocked` above it.
 ///
-/// Orchestrator: allocates every device-side working buffer, fills a
-/// `cluster_work_ptrs<Float>`, and chains the four extraction kernels:
-/// `build_dendrogram_kernels` -> `build_condensed_tree_kernel` ->
-/// `eom_select_clusters_kernel` -> `assign_label_kernels`. Final responses
-/// are written to the caller-supplied `responses` view.
+/// @tparam Float Floating-point type
 ///
-/// @tparam Float Floating-point type used for MST weights
+/// @param[in] queue       The SYCL queue
+/// @param[in] data        Input `n x d`, in input order
+/// @param[in] tree        Tree over `data`
+/// @param[in] min_samples `k` of the core distance, at most `n`
+/// @param[in] metric      Any metric but cosine
+/// @param[in] degree      Minkowski degree
+/// @param[in] block_size_hint `distance_block_size` of the fallback search, 0 for auto
 ///
-/// @param[in]  queue                     The SYCL queue
-/// @param[in]  mst_from                  MST source endpoints, length `row_count - 1` (sorted by weight)
-/// @param[in]  mst_to                    MST target endpoints, length `row_count - 1`
-/// @param[in]  mst_weights               MST weights, length `row_count - 1` (ascending)
-/// @param[out] responses                 Per-point cluster label, length `row_count` (-1 = noise)
-/// @param[in]  row_count                 Number of points
-/// @param[in]  min_cluster_size          Minimum cluster size (mcs)
-/// @param[in]  deps                      Events that must complete before submission
-/// @param[in]  cluster_selection         0 = EOM (default), 1 = leaf
-/// @param[in]  allow_single_cluster      If false, reject root-only outcomes
-/// @param[in]  cluster_selection_epsilon Distance epsilon for cluster_selection_epsilon (0 disables)
-/// @param[in]  max_cluster_size          Maximum cluster size cap (0 disables)
-///
-/// @return Event signaling completion of the labeling phase
+/// @return Core distances in tree order; complete on return
 template <typename Float>
-inline sycl::event extract_clusters(sycl::queue& queue,
-                                    const pr::ndview<std::int32_t, 1>& mst_from,
-                                    const pr::ndview<std::int32_t, 1>& mst_to,
-                                    const pr::ndview<Float, 1>& mst_weights,
-                                    pr::ndview<std::int32_t, 1>& responses,
-                                    std::int64_t row_count,
-                                    std::int64_t min_cluster_size,
-                                    const bk::event_vector& deps = {},
-                                    std::int32_t cluster_selection = 0,
-                                    bool allow_single_cluster = false,
-                                    Float cluster_selection_epsilon = Float(0),
-                                    std::int64_t max_cluster_size = 0) {
-    ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
+inline pr::ndarray<Float, 1> compute_block_tree_core_distances(sycl::queue& queue,
+                                                               const pr::ndview<Float, 2>& data,
+                                                               const block_tree<Float>& tree,
+                                                               std::int64_t min_samples,
+                                                               distance_metric metric,
+                                                               double degree,
+                                                               std::int64_t block_size_hint) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances, queue);
 
-    ONEDAL_ASSERT(row_count > 0);
-    ONEDAL_ASSERT(min_cluster_size >= 2);
+    const std::int64_t n = tree.row_count;
+    auto core = pr::ndarray<Float, 1>::empty(queue, n, sycl::usm::alloc::device);
+    Float* core_ptr = core.get_mutable_data();
 
-    const std::int64_t edge_count = row_count - 1;
-    const std::int64_t total_nodes = 2 * row_count - 1;
-    // Worst-case condensed-tree edges: up to 2*(nClusters-1) cluster->cluster
-    // edges (each non-root cluster is created by a real split) plus up to
-    // `row_count` fallen-leaf edges (every original point falls at most once).
-    // With nClusters ≤ row_count, the bound is `3*row_count - 2`.
-    const std::int64_t max_condensed = 3 * row_count;
-    const std::int64_t max_clusters = total_nodes;
+    if (min_samples <= block_tree_max_k) {
+        auto event = dispatch_lp_ops<Float>(metric, degree, [&](const auto& ops) {
+            if (min_samples <= 16) {
+                return block_tree_core_distances<Float, 16>(queue,
+                                                            tree,
+                                                            ops,
+                                                            min_samples,
+                                                            core_ptr);
+            }
+            if (min_samples <= 32) {
+                return block_tree_core_distances<Float, 32>(queue,
+                                                            tree,
+                                                            ops,
+                                                            min_samples,
+                                                            core_ptr);
+            }
+            if (min_samples <= 64) {
+                return block_tree_core_distances<Float, 64>(queue,
+                                                            tree,
+                                                            ops,
+                                                            min_samples,
+                                                            core_ptr);
+            }
+            if (min_samples <= 128) {
+                return block_tree_core_distances<Float, 128>(queue,
+                                                             tree,
+                                                             ops,
+                                                             min_samples,
+                                                             core_ptr);
+            }
+            return block_tree_core_distances<Float, block_tree_max_k>(queue,
+                                                                      tree,
+                                                                      ops,
+                                                                      min_samples,
+                                                                      core_ptr);
+        });
+        event.wait_and_throw();
+        return core;
+    }
 
-    // Allocate working memory on device
-    auto [uf_parent, uf_parent_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
-    auto [comp_size, comp_size_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
-    auto [comp_to_node, comp_to_node_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
-    queue.wait_and_throw();
+    // `distance_block_size` if set, else about 256 MB of `block x n` distances.
+    std::int64_t block_size = (block_size_hint > 0)
+                                  ? block_size_hint
+                                  : (256 * 1024 * 1024) / (n * std::int64_t(sizeof(Float)));
+    block_size = std::max<std::int64_t>(1, std::min(block_size, n));
+    auto core_input = pr::ndarray<Float, 1>::empty(queue, n, sycl::usm::alloc::device);
+    auto core_event = compute_core_distances_blocked<Float>(queue,
+                                                            data,
+                                                            core_input,
+                                                            min_samples,
+                                                            block_size,
+                                                            metric,
+                                                            degree);
+    const Float* core_input_ptr = core_input.get_data();
+    const std::int32_t* original = tree.original.get_data();
+    queue
+        .submit([&](sycl::handler& h) {
+            h.depends_on(core_event);
+            h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+                core_ptr[idx[0]] = core_input_ptr[original[idx[0]]];
+            });
+        })
+        .wait_and_throw();
+    return core;
+}
 
-    auto [node_size, ns_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
-    auto [left_child, lc_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
-    auto [right_child, rc_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
-    auto [node_weight, nw_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
-    auto [dendro_to_cluster, dtc_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
-    queue.wait_and_throw();
+/// Build the MST under MRD with Boruvka's algorithm over a `block_tree`.
+///
+/// The device search gives the per-point bests of a full scan, ties included, so the MST is the
+/// one `build_mst` would give on the matrix.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] queue     The SYCL queue
+/// @param[in] tree      Tree over the input, at least 2 rows
+/// @param[in] core      Core distance of each tree position, as it enters MRD
+/// @param[in] metric    Any metric but cosine
+/// @param[in] degree    Minkowski degree
+/// @param[in] inv_alpha Scale of `dist(i, j)` inside MRD
+///
+/// @return The MST edges on host, endpoints as input rows
+///
+/// @throws domain_error if non-finite input leaves the graph disconnected
+template <typename Float>
+inline typename boruvka_merger<Float>::mst_t build_mst_block_tree(sycl::queue& queue,
+                                                                  const block_tree<Float>& tree,
+                                                                  const pr::ndview<Float, 1>& core,
+                                                                  distance_metric metric,
+                                                                  double degree,
+                                                                  Float inv_alpha) {
+    ONEDAL_PROFILER_TASK(hdbscan.build_mst, queue);
 
-    auto [cond_parent, cp_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
-    auto [cond_child, cc_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
-    auto [cond_lambda, cl_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
-    auto [cond_size, cs_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
-    auto [cond_count_arr, cca_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
-    queue.wait_and_throw();
+    const std::int64_t n = tree.row_count;
+    const auto alloc = sycl::usm::alloc::device;
+    auto tree_comp = pr::ndarray<std::int32_t, 1>::empty(queue, n, alloc);
+    auto comp_best_mrd = pr::ndarray<Float, 1>::empty(queue, n, alloc);
+    auto node_min_core = pr::ndarray<Float, 1>::empty(queue, tree.node_count(), alloc);
+    auto node_comp = pr::ndarray<std::int32_t, 1>::empty(queue, tree.node_count(), alloc);
+    std::int32_t* tree_comp_ptr = tree_comp.get_mutable_data();
+    Float* comp_best_mrd_ptr = comp_best_mrd.get_mutable_data();
+    const std::int32_t* original = tree.original.get_data();
 
-    auto [stability, stab_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
-    auto [lambda_birth, lb_ev] =
-        pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
-    auto [is_leaf_cluster, ilc_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
-    auto [is_selected, is_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
-    auto [cluster_label, clab_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
-    auto [cluster_size_arr, csz_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
-    auto [cluster_parent, cprt_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
-    auto [child_clusters_0, cc0_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
-    auto [child_clusters_1, cc1_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
-    queue.wait_and_throw();
+    auto min_core_event = reduce_to_nodes(queue,
+                                          tree,
+                                          core.get_data(),
+                                          node_min_core.get_mutable_data(),
+                                          [](Float a, Float b) {
+                                              return sycl::fmin(a, b);
+                                          },
+                                          {});
 
-    auto [point_fell_from, pff_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
-    auto [dendro_parent, dp_ev] =
-        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
-
-    auto [stack_arr, stk_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
-    auto [stack_cid, stk_cid_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
-    auto [leaf_stack_arr, leaf_stk_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
-
-    auto [n_clusters_arr, nca_ev] =
-        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
-    queue.wait_and_throw();
-
-    // Collect all allocation events into a single dependency vector
-    bk::event_vector all_events = deps;
-    all_events.insert(
-        all_events.end(),
-        { uf_parent_ev, comp_size_ev, comp_to_node_ev, ns_ev,   lc_ev,      rc_ev,       nw_ev,
-          dtc_ev,       cp_ev,        cc_ev,           cl_ev,   cs_ev,      cca_ev,      stab_ev,
-          lb_ev,        ilc_ev,       is_ev,           clab_ev, csz_ev,     cprt_ev,     cc0_ev,
-          cc1_ev,       pff_ev,       dp_ev,           stk_ev,  stk_cid_ev, leaf_stk_ev, nca_ev });
-
-    // Fill working data pointers
-    cluster_work_ptrs<Float> w;
-    w.mst_from_ptr = mst_from.get_data();
-    w.mst_to_ptr = mst_to.get_data();
-    w.mst_weights_ptr = mst_weights.get_data();
-    w.resp_ptr = responses.get_mutable_data();
-    w.uf_parent_ptr = uf_parent.get_mutable_data();
-    w.comp_size_ptr = comp_size.get_mutable_data();
-    w.comp_to_node_ptr = comp_to_node.get_mutable_data();
-    w.ns_ptr = node_size.get_mutable_data();
-    w.lc_ptr = left_child.get_mutable_data();
-    w.rc_ptr = right_child.get_mutable_data();
-    w.nw_ptr = node_weight.get_mutable_data();
-    w.dtc_ptr = dendro_to_cluster.get_mutable_data();
-    w.cond_p_ptr = cond_parent.get_mutable_data();
-    w.cond_c_ptr = cond_child.get_mutable_data();
-    w.cond_l_ptr = cond_lambda.get_mutable_data();
-    w.cond_s_ptr = cond_size.get_mutable_data();
-    w.cond_cnt_ptr = cond_count_arr.get_mutable_data();
-    w.stab_ptr = stability.get_mutable_data();
-    w.lb_ptr = lambda_birth.get_mutable_data();
-    w.ilc_ptr = is_leaf_cluster.get_mutable_data();
-    w.is_ptr = is_selected.get_mutable_data();
-    w.clab_ptr = cluster_label.get_mutable_data();
-    w.csz_ptr = cluster_size_arr.get_mutable_data();
-    w.cprt_ptr = cluster_parent.get_mutable_data();
-    w.cc0_ptr = child_clusters_0.get_mutable_data();
-    w.cc1_ptr = child_clusters_1.get_mutable_data();
-    w.pff_ptr = point_fell_from.get_mutable_data();
-    w.dp_ptr = dendro_parent.get_mutable_data();
-    w.stk_ptr = stack_arr.get_mutable_data();
-    w.stk_cid_ptr = stack_cid.get_mutable_data();
-    w.leaf_stk_ptr = leaf_stack_arr.get_mutable_data();
-    w.nc_ptr = n_clusters_arr.get_mutable_data();
-    w.row_count = row_count;
-    w.edge_count = edge_count;
-    w.min_cluster_size = min_cluster_size;
-    w.total_nodes = total_nodes;
-    w.cluster_selection = cluster_selection;
-    w.allow_single_cluster = allow_single_cluster;
-    w.cluster_selection_epsilon = cluster_selection_epsilon;
-    w.max_cluster_size = max_cluster_size;
-
-    // Submit kernels via helpers
-    auto k2_event = build_dendrogram_kernels<Float>(queue, w, all_events);
-    k2_event.wait_and_throw();
-
-    auto k3a_event = build_condensed_tree_kernel<Float>(queue, w, { k2_event });
-    k3a_event.wait_and_throw();
-
-    auto k3b_event = eom_select_clusters_kernel<Float>(queue, w, { k3a_event });
-    k3b_event.wait_and_throw();
-
-    auto k4_event = assign_label_kernels<Float>(queue, w, { k3b_event });
-    k4_event.wait_and_throw();
-    return k4_event;
+    auto mst = run_boruvka<Float>(
+        queue,
+        n,
+        [&](const std::int32_t* comp,
+            Float* pt_best_mrd,
+            std::int32_t* pt_best_idx,
+            sycl::event dep) {
+            auto tree_comp_event = queue.submit([&](sycl::handler& h) {
+                h.depends_on(dep);
+                h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+                    tree_comp_ptr[idx[0]] = comp[original[idx[0]]];
+                    comp_best_mrd_ptr[idx[0]] = std::numeric_limits<Float>::max();
+                });
+            });
+            auto node_comp_event = reduce_to_nodes(queue,
+                                                   tree,
+                                                   tree_comp.get_data(),
+                                                   node_comp.get_mutable_data(),
+                                                   [](std::int32_t a, std::int32_t b) {
+                                                       return (a == b) ? a : -1;
+                                                   },
+                                                   { tree_comp_event });
+            return dispatch_lp_ops<Float>(metric, degree, [&](const auto& ops) {
+                auto search = [&](bool seed_only, const bk::event_vector& search_deps) {
+                    return block_tree_boruvka_find<Float>(queue,
+                                                          tree,
+                                                          ops,
+                                                          core.get_data(),
+                                                          tree_comp.get_data(),
+                                                          node_min_core.get_data(),
+                                                          node_comp.get_data(),
+                                                          inv_alpha,
+                                                          comp_best_mrd_ptr,
+                                                          pt_best_mrd,
+                                                          pt_best_idx,
+                                                          seed_only,
+                                                          search_deps);
+                };
+                auto seed_event = search(true, { node_comp_event, min_core_event });
+                return search(false, { seed_event });
+            });
+        });
+    // The scratch above is freed on return; every round already waited for its search.
+    return mst;
 }
 
 #endif

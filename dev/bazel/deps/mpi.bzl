@@ -16,21 +16,12 @@
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
-_VERSION = "2021.16.1"
-
 mpi_repo = repos.prebuilt_libs_repo_rule(
     root_env_var = "MPIROOT",
-    archives = [
-        repos.archive(
-            url = "https://files.pythonhosted.org/packages/e5/44/6867aebd60d8b8bcf8f7e3b1fa781debd4fc3df16bfb1525e732570ea214/impi_rt-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
-            sha256 = "0f70499bc42eab6923c0ae8fa6dd409c047d93626d686ac21d04e295b120bb95",
-            strip_prefix = "impi_rt-{}.data/data".format(_VERSION),
-        ),
-        repos.archive(
-            url = "https://files.pythonhosted.org/packages/41/75/46b81412f336dde770a56960c7b10af6860efa4dd3aa9796d5eb2645644a/impi_devel-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
-            sha256 = "d1081a1647a4de521e2680983629d627704364a07f16c60aaec0bb85535e25bd",
-            strip_prefix = "impi_devel-{}.data/data".format(_VERSION),
-        ),
+    # Pinned in requirements_lock.txt.
+    pypi_packages = [
+        "impi-rt",
+        "impi-devel",
     ],
     bins = [
         "bin",
@@ -82,13 +73,14 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
 def _get_fi_providers_dir(fi_files):
     if len(fi_files) == 0:
         fail("No fabrin interface files provided for MPI")
-    fi_dir = fi_files[0].dirname
+    # Runfiles paths: external repositories are siblings of the main one there.
+    fi_dir = fi_files[0].short_path.rpartition("/")[0]
     for fi in fi_files:
-        if fi.dirname != fi_dir:
+        if fi.short_path.rpartition("/")[0] != fi_dir:
             fail("All fabric interface files must reside in the same directory")
     return fi_dir
 
-def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
+def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir, libfabric):
     exec_wrapper = ctx.actions.declare_file(ctx.label.name)
     content = (
         "#!/bin/bash\n" +
@@ -99,8 +91,15 @@ def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir):
         "   script_path=\"${BASH_SOURCE[0]}\"\n" +
         "   cd ${script_path}${runfiles_suffix}\n" +
         "fi\n" +
-        "export FI_PROVIDER_PATH=\"{}\"\n".format(fi_dir) +
-        "{} -n {} {} \"$@\"\n".format(mpiexec.path,
+        "export FI_PROVIDER_PATH=\"$(pwd)/{}\"\n".format(fi_dir) +
+        # The ranks run on one node. Without this, Intel MPI may pick a NIC
+        # provider (seen: verbs/psm3 on CI VMs) that cannot open an endpoint.
+        "export I_MPI_FABRICS=\"${I_MPI_FABRICS:-shm}\"\n" +
+        # libmpi dlopens libfabric.so.1 and has no RUNPATH of its own.
+        "export LD_LIBRARY_PATH=\"$(pwd)/{}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}\"\n".format(
+            libfabric.short_path.rpartition("/")[0]) +
+        # Catch2 seeds each rank on its own; the ranks must generate the same data.
+        "{} -n {} {} --rng-seed \"${{RANDOM}}\" \"$@\"\n".format(mpiexec.short_path,
                                       ctx.attr.mpi_ranks,
                                       executable.short_path)
     )
@@ -112,11 +111,11 @@ def _mpi_test_impl(ctx):
     mpiexec = ctx.files.mpiexec[0]
     fi_files = ctx.files.fi
     fi_dir = _get_fi_providers_dir(fi_files)
-    exec_wrapper = _generate_mpiexec_wrapper(ctx, mpiexec, exec, fi_dir)
+    exec_wrapper = _generate_mpiexec_wrapper(ctx, mpiexec, exec, fi_dir, ctx.file.libfabric)
     return DefaultInfo(
         files = depset([ exec_wrapper ]),
         runfiles = ctx.runfiles(
-            files = fi_files + [ exec ],
+            files = fi_files + [ exec, ctx.file.libfabric ],
             transitive_files = ctx.attr.mpiexec.default_runfiles.files,
         ),
         executable = exec_wrapper,
@@ -125,14 +124,17 @@ def _mpi_test_impl(ctx):
 mpi_test = rule(
     implementation = _mpi_test_impl,
     attrs = {
+        # The test binary itself: built for the target like any other test,
+        # so it shares the build with the rest of the test suite.
         "src": attr.label(mandatory=True,
                           executable=True,
-                          cfg="exec"),
+                          cfg="target"),
         "mpi_ranks": attr.int(mandatory=True),
         "mpiexec": attr.label(mandatory=True,
                               executable=True,
                               cfg="exec"),
         "fi": attr.label(mandatory=True),
+        "libfabric": attr.label(mandatory=True, allow_single_file=True),
     },
     test = True,
 )

@@ -121,6 +121,9 @@ public:
                                           FPType * const res) = 0;
 
     virtual services::Status finalize(const size_t n, FPType * a) = 0;
+
+    /// Distance of two rows in the same form as `computeBatch` writes it. Does not need `init`.
+    virtual FPType computeDistance(const FPType * x, const FPType * y, size_t n) const = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -311,15 +314,18 @@ public:
         return services::Status();
     }
 
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
+    {
+        const FPType d = distancePow2<FPType, cpu>(x, y, n);
+        return _squared ? d : MathInst<FPType, cpu>::sSqrt(d);
+    }
+
     services::Status finalize(const size_t n, FPType * a) override
     {
         const size_t blockSize = 512;
         const size_t nBlocks   = n / blockSize + !!(n % blockSize);
 
-        SafeStatus safeStat;
-
-        for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock)
-        {
+        auto finalizeBlock = [=](size_t iBlock) {
             const size_t begin = iBlock * blockSize;
             const size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, n);
             const size_t count = end - begin;
@@ -329,7 +335,29 @@ public:
                 a[i] = services::internal::max<cpu, FPType>(FPType(0), a[i]);
             }
             MathInst<FPType, cpu>::vSqrt(count, a + begin, a + begin);
+        };
+
+        // One task per 32k entries. Inside a parallel region `threader_for_optional` runs serially,
+        // so a caller's thread-local buffers stay valid.
+        const size_t blocksPerTask = 64;
+        const size_t nTasks        = nBlocks / blocksPerTask + !!(nBlocks % blocksPerTask);
+        if (nTasks < 2)
+        {
+            for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock)
+            {
+                finalizeBlock(iBlock);
+            }
+            return services::Status();
         }
+
+        daal::threader_for_optional(static_cast<int64_t>(nTasks), 1, [&](int64_t iTask) {
+            const size_t firstBlock = static_cast<size_t>(iTask) * blocksPerTask;
+            const size_t lastBlock  = services::internal::min<cpu, size_t>(firstBlock + blocksPerTask, nBlocks);
+            for (size_t iBlock = firstBlock; iBlock < lastBlock; ++iBlock)
+            {
+                finalizeBlock(iBlock);
+            }
+        });
         return services::Status();
     }
 
@@ -445,6 +473,13 @@ public:
 
     services::Status finalize(const size_t n, FPType * a) override { return services::Status(); }
 
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
+    {
+        FPType dot, norm;
+        dotAndNorm(x, y, n, dot, norm);
+        return (norm > FPType(0)) ? FPType(1) - dot / norm : FPType(1);
+    }
+
     // output:  Row-major matrix of size { aSize x bSize }
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
@@ -471,6 +506,56 @@ public:
             }
         }
         return services::Status();
+    }
+
+protected:
+    /// `dot` is x.y and `norm` is |x||y|.
+    static void dotAndNorm(const FPType * x, const FPType * y, const size_t n, FPType & dot, FPType & norm)
+    {
+        FPType xy = FPType(0);
+        FPType xx = FPType(0);
+        FPType yy = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : xy, xx, yy))
+        for (size_t i = 0; i < n; ++i)
+        {
+            xy += x[i] * y[i];
+            xx += x[i] * x[i];
+            yy += y[i] * y[i];
+        }
+        dot  = xy;
+        norm = MathInst<FPType, cpu>::sSqrt(xx) * MathInst<FPType, cpu>::sSqrt(yy);
+    }
+};
+
+/// `CosineDistances` with scikit-learn's value for zero rows: distance 1 from every other row.
+template <typename FPType, CpuType cpu>
+class ZeroRowCosineDistances : public CosineDistances<FPType, cpu>
+{
+    using super = CosineDistances<FPType, cpu>;
+
+public:
+    ZeroRowCosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b) {}
+
+    ~ZeroRowCosineDistances() override {}
+
+    services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
+                                  FPType * const res) override
+    {
+        services::Status s = super::computeBatch(a, b, aOffset, aSize, bOffset, bSize, res);
+        // `init` stores the row norms. A norm is exactly zero only for a row without a direction,
+        // and any other row has a well-defined cosine, so there is no tolerance.
+        const FPType * const aNorms = this->normBufferA.get() + aOffset;
+        const FPType * const bNorms = (&this->_a == &this->_b) ? this->normBufferA.get() + bOffset : this->normBufferB.get() + bOffset;
+        for (size_t i = 0; i < aSize; i++)
+        {
+            if (aNorms[i] == FPType(0)) services::internal::service_memset_seq<FPType, cpu>(res + i * bSize, FPType(1), bSize);
+        }
+        for (size_t j = 0; j < bSize; j++)
+        {
+            if (bNorms[j] != FPType(0)) continue;
+            for (size_t i = 0; i < aSize; i++) res[i * bSize + j] = FPType(1);
+        }
+        return s;
     }
 };
 
@@ -510,9 +595,9 @@ public:
         return services::Status();
     }
 
-protected:
-    inline FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const;
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override;
 
+protected:
     services::Status computeBatchImpl(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                       FPType * const res)
     {
@@ -532,7 +617,7 @@ protected:
         {
             for (size_t iy = 0; iy < nY; ++iy)
             {
-                res[ix * nY + iy] = computeDistance(x + ix * nDims, y + iy * nDims, nDims);
+                res[ix * nY + iy] = MinkowskiDistances<FPType, cpu>::computeDistance(x + ix * nDims, y + iy * nDims, nDims);
             }
         }
 
@@ -601,8 +686,7 @@ public:
 
     services::Status finalize(const size_t n, FPType * a) override { return services::Status(); }
 
-protected:
-    FPType computeDistance(const FPType * x, const FPType * y, const size_t n)
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
     {
         daal::internal::MathInst<FPType, cpu> math;
 
@@ -619,6 +703,7 @@ protected:
         return d;
     }
 
+protected:
     services::Status computeBatchImpl(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                       FPType * const res)
     {
@@ -638,7 +723,7 @@ protected:
         {
             for (size_t iy = 0; iy < nY; ++iy)
             {
-                res[ix * nY + iy] = computeDistance(x + ix * nDims, y + iy * nDims, nDims);
+                res[ix * nY + iy] = ChebyshevDistances<FPType, cpu>::computeDistance(x + ix * nDims, y + iy * nDims, nDims);
             }
         }
 
@@ -657,18 +742,18 @@ inline float MinkowskiDistances<float, avx512>::computeDistance(const float * x,
 {
     daal::internal::MathInst<float, avx512> math;
 
-    const size_t vecSize   = 16;
-    float d                = 0.0;
-    const size_t nBlocks   = n / vecSize;
-    const __m512 * ptr512x = (__m512 *)x;
-    const __m512 * ptr512y = (__m512 *)y;
+    const size_t vecSize = 16;
+    float d              = 0.0;
+    const size_t nBlocks = n / vecSize;
 
     if (_p == 1.0)
     {
         size_t i = 0;
         for (; i < nBlocks; ++i)
         {
-            d += _mm512_reduce_add_ps(_mm512_abs_ps(_mm512_sub_ps(ptr512x[i], ptr512y[i])));
+            const __m512 xi = _mm512_loadu_ps(x + i * vecSize);
+            const __m512 yi = _mm512_loadu_ps(y + i * vecSize);
+            d += _mm512_reduce_add_ps(_mm512_abs_ps(_mm512_sub_ps(xi, yi)));
         }
 
         for (i *= vecSize; i < n; ++i)
@@ -684,7 +769,9 @@ inline float MinkowskiDistances<float, avx512>::computeDistance(const float * x,
         size_t i    = 0;
         for (; i < nBlocks; ++i)
         {
-            _mm512_storeu_ps(tmp, _mm512_abs_ps(_mm512_sub_ps(ptr512x[i], ptr512y[i])));
+            const __m512 xi = _mm512_loadu_ps(x + i * vecSize);
+            const __m512 yi = _mm512_loadu_ps(y + i * vecSize);
+            _mm512_storeu_ps(tmp, _mm512_abs_ps(_mm512_sub_ps(xi, yi)));
             math.vPowx(vecSize, tmp, _p, tmp);
             d += _mm512_reduce_add_ps(_mm512_loadu_ps(tmp));
         }
@@ -707,18 +794,18 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
 {
     daal::internal::MathInst<double, avx512> math;
 
-    const size_t vecSize    = 8;
-    double d                = 0.0;
-    const size_t nBlocks    = n / vecSize;
-    const __m512d * ptr512x = (__m512d *)x;
-    const __m512d * ptr512y = (__m512d *)y;
+    const size_t vecSize = 8;
+    double d             = 0.0;
+    const size_t nBlocks = n / vecSize;
 
     if (_p == 1.0)
     {
         size_t i = 0;
         for (; i < nBlocks; ++i)
         {
-            d += _mm512_reduce_add_pd(_mm512_abs_pd(_mm512_sub_pd(ptr512x[i], ptr512y[i])));
+            const __m512d xi = _mm512_loadu_pd(x + i * vecSize);
+            const __m512d yi = _mm512_loadu_pd(y + i * vecSize);
+            d += _mm512_reduce_add_pd(_mm512_abs_pd(_mm512_sub_pd(xi, yi)));
         }
 
         for (i *= vecSize; i < n; ++i)
@@ -734,7 +821,9 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
         size_t i     = 0;
         for (; i < nBlocks; ++i)
         {
-            _mm512_storeu_pd(tmp, _mm512_abs_pd(_mm512_sub_pd(ptr512x[i], ptr512y[i])));
+            const __m512d xi = _mm512_loadu_pd(x + i * vecSize);
+            const __m512d yi = _mm512_loadu_pd(y + i * vecSize);
+            _mm512_storeu_pd(tmp, _mm512_abs_pd(_mm512_sub_pd(xi, yi)));
             math.vPowx(vecSize, tmp, _p, tmp);
             d += _mm512_reduce_add_pd(_mm512_loadu_pd(tmp));
         }
@@ -753,6 +842,32 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
 }
 
 #endif
+
+/// Create the pairwise distances of `type` between the rows of `a` and the rows of `b`.
+///
+/// Before `finalize` the Euclidean distances are squared and the Minkowski ones are raised to `p`;
+/// `finalize` takes the roots. Manhattan is Minkowski of degree 1. Cosine puts a zero row at
+/// distance 1 from every other row, as scikit-learn does.
+///
+/// @param[in] a               Rows the distances are taken from
+/// @param[in] b               Rows the distances are taken to
+/// @param[in] type            Distance metric
+/// @param[in] minkowskiDegree Exponent `p` of the Minkowski distance; ignored by the other metrics
+/// @return The distances, not yet initialized; `nullptr` if the allocation failed
+template <typename FPType, CpuType cpu>
+PairwiseDistances<FPType, cpu> * createPairwiseDistances(const NumericTable & a, const NumericTable & b, PairwiseDistanceType type,
+                                                         double minkowskiDegree)
+{
+    switch (type)
+    {
+    case PairwiseDistanceType::cosine: return new ZeroRowCosineDistances<FPType, cpu>(a, b);
+    case PairwiseDistanceType::manhattan: return new MinkowskiDistances<FPType, cpu>(a, b, true, 1.0);
+    case PairwiseDistanceType::minkowski: return new MinkowskiDistances<FPType, cpu>(a, b, true, minkowskiDegree);
+    case PairwiseDistanceType::chebyshev: return new ChebyshevDistances<FPType, cpu>(a, b);
+    case PairwiseDistanceType::euclidean:
+    default: return new EuclideanDistances<FPType, cpu>(a, b, true);
+    }
+}
 
 template <typename FPType, CpuType cpu>
 bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)

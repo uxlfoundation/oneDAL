@@ -69,12 +69,16 @@ md5sum.cmd.mac = md5 -q
 # Enable compiler-provided defences as recommended by Intel Security Development Lifecycle document (SW.01)
 secure.opts.win = $(if $(COMPILER_is_vc),-GS,)
 secure.opts.lnx = -Wformat -Wformat-security -fstack-protector-strong
-secure.opts.mac = -Wformat -Wformat-security -O2 -D_FORTIFY_SOURCE=2 -fstack-protector
+secure.opts.mac = -Wformat -Wformat-security -fstack-protector
 
 
 secure.opts.link.win = -DYNAMICBASE -NXCOMPAT
 secure.opts.link.lnx = -z relro -z now -z noexecstack
 secure.opts.link.mac =
+
+# Alternate linker selection, shared by every compiler definition. The LINKER value
+# itself is validated per compiler, since the accepted set differs.
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 RC.COMPILE = $(if $(COMPILER_is_clang),llvm-rc,rc.exe) $(RCOPT) -fo$@ $<
 
@@ -155,9 +159,6 @@ info.building.%:; $(info ========= Building $(subst ., ,$*) =========)
 
 # symbols dump
 nm = $(if $(OS_is_win),dumpbin -symbols $@ | grep ' External ' | grep -v ' __ImageBase$$' | grep -v '(.string.)' ,nm $@ )
-
-# sed's -b option for binary files on win
-sed.-b = $(if $(OS_is_win),-b)
 
 # sed's -i option for inplace file changes
 sed.-i = $(sed.-i.$(_OS))

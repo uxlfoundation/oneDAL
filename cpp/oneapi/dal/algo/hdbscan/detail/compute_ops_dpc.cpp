@@ -29,7 +29,7 @@ struct compute_ops_dispatcher<Policy, Float, Method, Task> {
                                     const compute_input<Task>& input) const {
         using kernel_dispatcher_t = dal::backend::kernel_dispatcher<
             KERNEL_SINGLE_NODE_CPU(backend::compute_kernel_cpu<Float, Method, Task>),
-            KERNEL_UNIVERSAL_SPMD_GPU(backend::compute_kernel_gpu<Float, Method, Task>)>;
+            KERNEL_SINGLE_NODE_GPU(backend::compute_kernel_gpu<Float, Method, Task>)>;
         return kernel_dispatcher_t{}(policy, params, input);
     }
 };

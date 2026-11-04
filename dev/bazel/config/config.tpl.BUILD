@@ -45,6 +45,23 @@ config_setting(
     },
 )
 
+# Windows + ref backend. A Windows DLL has to resolve every symbol at link
+# time, so `onedal_core.<major>.dll` needs the math backend linked in directly
+# instead of relying on the loader to bind BLAS/LAPACK calls to
+# `onedal_thread.<major>.dll` the way ELF does. Matches the top-level makefile
+# rule for `$(WORKDIR.lib)/$(core_y)`, which lists
+# `daaldep.math_backend.shared_link_deps` (dev/make/deps.ref.mk) as a
+# dependency of the core shared library on every OS.
+config_setting(
+    name = "backend_ref_windows",
+    flag_values = {
+        ":backend_config": "ref",
+    },
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+)
+
 config_setting(
     name = "backend_config_mkl_linux",
     flag_values = {
@@ -156,6 +173,21 @@ platform(
     ],
 )
 
+# Windows on ARM64 target platform, matching Make's `PLAT=winarm`. The
+# toolchain generated for it from cc_toolchain_win_llvm.tpl.BUILD is clang-cl
+# based
+# (icx has no AArch64 target), so pass this together with clang-cl on PATH.
+# On an ARM64 Windows host it is also the auto-detected default; naming it
+# explicitly is what makes an x86_64-host cross-compile
+# (`CC=clang-cl --target=aarch64-pc-windows-msvc`) resolve.
+platform(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
+    ],
+)
+
 # Toolchain-free target platform used by cross-platform analysis smoke tests.
 platform(
     name = "windows_analysis_platform",
@@ -241,9 +273,21 @@ config_setting(
     },
 )
 
+# Builds the DPC++ targets and puts the DPC++ libraries into //:release.
+# Defaults to whether icpx is in PATH.
 config_bool_flag(
     name = "release_dpc",
-    build_setting_default = True,
+    build_setting_default = %{dpc_compiler_found},
+)
+
+# No platform has this constraint. DPC++ targets require it under
+# --release_dpc=false, so they are skipped, and a direct request for one
+# names the missing compiler.
+constraint_setting(name = "dpc_compiler")
+
+constraint_value(
+    name = "dpc_needs_icpx_in_PATH",
+    constraint_setting = ":dpc_compiler",
 )
 
 config_bool_flag(
@@ -278,6 +322,13 @@ unsupported_config(
     message = "--stdalloc=true is supported only when targeting Linux",
 )
 
+# Instrument oneDAL sources with the Intel coverage options used by Make.
+# The implementation intentionally rejects unsupported OS/compiler pairs.
+config_bool_flag(
+    name = "code_coverage",
+    build_setting_default = False,
+)
+
 config_setting(
     name = "assert_enabled",
     flag_values  = {
@@ -300,6 +351,7 @@ dump_config_info(
         ":build_parameters_lib",
         ":test_link_mode",
         ":test_thread_mode",
+        ":code_coverage",
         ":msvc_runtime",
     ],
 )

@@ -64,6 +64,19 @@ dal_test_suite(
 )
 
 dal_test_suite(
+    name = "common_dpc_tests",
+    srcs = [
+        "test/parallel_for_2d_by_row_blocks_dpc.cpp",
+    ],
+    compile_as = ["dpc++"],
+    dal_deps = [
+        ":common",
+    ],
+    framework = "catch2",
+    private = True,
+)
+
+dal_test_suite(
     name = "common_tests",
     srcs = glob(
         [
@@ -99,6 +112,7 @@ dal_collect_test_suites(
     ],
     root = "@onedal//cpp/oneapi/dal/backend/primitives",
     tests = [
+        ":common_dpc_tests",
         ":common_tests",
         ":dpc_compiler_tests",
     ],

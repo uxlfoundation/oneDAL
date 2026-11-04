@@ -18,7 +18,7 @@ These come from recurring maintainer review comments. Directory-specific rules a
 - ASCII only in source, comments and docs. Keep each file's existing line endings.
 - Scripts with a `#!/bin/sh` shebang use POSIX `sh` only. `.bat` files follow `cmd.exe` quoting; don't mix PowerShell and CMD syntax.
 - New Bash scripts start with `set -euo pipefail`. Use `mkdir -p`, and don't silence failures with a bare `|| true`.
-- Keep to the interface you are in: DAAL uses `services::Status` and `SharedPtr`, oneAPI uses exceptions and standard smart pointers. Never mix them in one file (see `cpp/AGENTS.md`).
+- Keep to the interface you are in: DAAL uses `services::Status` and `SharedPtr`, oneAPI uses exceptions and standard smart pointers. Never mix them in one file, except in oneAPI bridge code that calls into DAAL (see `cpp/AGENTS.md`).
 - Flag any public API or ABI change; it needs a deprecation path (see `cpp/AGENTS.md`).
 
 ## Reviewing
@@ -42,7 +42,7 @@ bazel test --config=host //cpp/oneapi/dal:tests               # oneAPI interface
 bazel test --config=dpc --device=gpu //cpp/oneapi/dal:tests   # DPC++ on GPU
 ```
 
-Without `--config`, Bazel builds and runs all tests, including DPC++ ones that need the Intel DPC++ compiler. See `dev/bazel/README.md`.
+Without `--config`, Bazel builds and runs all tests, including DPC++ ones that need the Intel DPC++ compiler; without `icpx` in `PATH` they are skipped. See `dev/bazel/README.md`.
 
 ### Full build (Make)
 

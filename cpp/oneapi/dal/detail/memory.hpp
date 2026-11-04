@@ -158,7 +158,8 @@ struct alloc_connector : public byte_alloc_iface {
     using byte_allocator_t = typename std::allocator_traits<Alloc>::template rebind_alloc<byte_t>;
     alloc_connector(Alloc alloc) : alloc_(alloc) {}
     byte_t* allocate(std::int64_t count) override {
-        auto ptr = allocator_traits_t::allocate(alloc_, count);
+        // Zero-size requests are allocated as one element, see preview::detail::allocate.
+        auto ptr = allocator_traits_t::allocate(alloc_, count > 0 ? count : 1);
         if (ptr == nullptr) {
             throw host_bad_alloc();
         }
@@ -167,7 +168,7 @@ struct alloc_connector : public byte_alloc_iface {
 
     void deallocate(byte_t* ptr, std::int64_t count) override {
         if (ptr != nullptr) {
-            allocator_traits_t::deallocate(alloc_, ptr, count);
+            allocator_traits_t::deallocate(alloc_, ptr, count > 0 ? count : 1);
         }
     };
 

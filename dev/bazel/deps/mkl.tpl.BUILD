@@ -22,14 +22,30 @@ cc_library(
         "lib/libmkl_core.a",
         "lib/libmkl_tbb_thread.a",
     ],
+    # The archives are also declared as linker inputs: the `linkopts` below name
+    # them, and a consumer's link action must stage them. oneDAL's custom
+    # cc_dynamic_lib/cc_static_lib rules forward `user_link_flags` to dependents
+    # but rebuild the library list, so only `additional_inputs` reach a
+    # downstream link (see dev/bazel/cc/common.bzl `_unpack_linking_contexts`).
+    additional_linker_inputs = [
+        "lib/libmkl_core.a",
+        "lib/libmkl_intel_ilp64.a",
+        "lib/libmkl_tbb_thread.a",
+    ],
     linkopts = [
         # The source libraries have circular symbol dependencies. To successfully build this cc_library,
         # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
+        # `$(location)` keeps the archives execroot-relative. A `%{repo_root}`
+        # absolute path would embed the output base in every link action that
+        # takes MKL, so the link would miss the disk/remote cache across output bases.
         "-Wl,--start-group",
-        "%{repo_root}/lib/libmkl_core.a",
-        "%{repo_root}/lib/libmkl_intel_ilp64.a",
-        "%{repo_root}/lib/libmkl_tbb_thread.a",
+        "$(location lib/libmkl_core.a)",
+        "$(location lib/libmkl_intel_ilp64.a)",
+        "$(location lib/libmkl_tbb_thread.a)",
         "-Wl,--end-group",
+        # The TBB threading layer needs libstdc++. Named by file because clang
+        # rewrites -lstdc++ to -lc++ under -stdlib=libc++.
+        "-l:libstdc++.so.6",
         "-lpthread",
         "-lm",
         "-ldl",
@@ -76,18 +92,18 @@ cc_library(
         "lib/libmkl_intel_lp64.so*",
         "lib/libmkl_gnu_thread.so*",
     ]) + glob([
-        # CPU dispatch kernels. `libmkl_core.so.2` holds only the classic-MKL
+        # CPU dispatch kernels. `libmkl_core.so.3` holds only the classic-MKL
         # dispatcher; the computational kernels live in per-ISA shared objects
         # that it `dlopen`s on the first classic-MKL call. It resolves them
         # against *its own* directory (`dladdr` on itself, plus its
         # `RPATH=$ORIGIN/.`), not against the consumer's RUNPATH, so they have
-        # to be listed here, in the same `cc_library` as `libmkl_core.so.2`:
+        # to be listed here, in the same `cc_library` as `libmkl_core.so.3`:
         # that is what makes Bazel symlink them into the same
         # `_solib_intel64/..._Ulib` directory and stage them in test runfiles.
         # A separate target would not work: it gets its own `_solib` directory,
         # which the dispatcher never looks in. `data` would not work either --
         # that reaches runfiles only, not the `_solib` directory the consumer
-        # resolves `libmkl_core.so.2` from.
+        # resolves `libmkl_core.so.3` from.
         #
         # They are deliberately not wanted as DT_NEEDED entries: mapping several
         # ISA variants at once is the kernel conflict MODULE.bazel warns about.
@@ -97,16 +113,16 @@ cc_library(
         # Two consequences worth knowing: building with
         # `--linkopt=-Wl,--no-as-needed` does map every family at once, and if a
         # future MKL release exports a symbol a consumer references from a kernel
-        # rather than from `libmkl_core.so.2`, that kernel becomes DT_NEEDED
+        # rather than from `libmkl_core.so.3`, that kernel becomes DT_NEEDED
         # silently. Both show up as DT_NEEDED differences against the Make build
         # in the release comparison (`dev/release_tests`).
         #
         # Without them every target that reaches classic MKL at run time dies
         # with
-        #   INTEL oneMKL ERROR: .../libmkl_avx512.so.2: cannot open shared
+        #   INTEL oneMKL ERROR: .../libmkl_avx512.so.3: cannot open shared
         #     object file: No such file or directory.
-        #   Intel oneMKL FATAL ERROR: Cannot load libmkl_avx512.so.2 or
-        #     libmkl_def.so.2.
+        #   Intel oneMKL FATAL ERROR: Cannot load libmkl_avx512.so.3 or
+        #     libmkl_def.so.3.
         #
         # `allow_empty` because `repos.bzl` symlinks these from `optional_libs`:
         # which ISA families an MKL package ships changes between releases, and a

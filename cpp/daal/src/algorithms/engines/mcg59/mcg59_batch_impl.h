@@ -92,7 +92,13 @@ public:
         {
         case engines::internal::family: return false;
         case engines::internal::skipahead: return true;
-        case engines::internal::leapfrog: return true;
+        case engines::internal::leapfrog:
+#if defined(DAAL_REF) && !defined(OPENRNG_BACKEND)
+            // The ref RNG backend does not implement leapfrog, so every stream would be the same.
+            return false;
+#else
+            return true;
+#endif
         }
         return false;
     }

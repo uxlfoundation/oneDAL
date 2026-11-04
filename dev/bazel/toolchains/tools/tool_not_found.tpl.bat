@@ -15,4 +15,6 @@ rem See the License for the specific language governing permissions and
 rem limitations under the License.
 rem ============================================================================
 
-echo "%{tool_name} is not found"
+rem Stands in for a missing tool, so fail loudly instead of leaving outputs unwritten.
+echo %{tool_name} is not found! Make sure it is available in PATH. 1>&2
+exit /b 1

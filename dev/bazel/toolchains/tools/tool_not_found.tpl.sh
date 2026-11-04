@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-echo
-echo "%{tool_name} is not found!"
-echo "Make sure %{tool_name} is available in \$PATH"
-echo
+# Stands in for a missing tool, so fail loudly instead of leaving outputs unwritten.
+echo "%{tool_name} is not found!" >&2
+echo "Make sure %{tool_name} is available in \$PATH" >&2
+exit 1

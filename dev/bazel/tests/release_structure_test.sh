@@ -26,7 +26,20 @@
 set -euo pipefail
 
 RELEASE_DIR="${1:-bazel-bin/release/daal/latest}"
-LIB_DIR="${RELEASE_DIR}/lib/intel64"
+# lib/<ARCH_DIR_ONEDAL>: intel64, arm (AArch64), riscv64 or ARM64 (Windows ARM64).
+# Exactly one may be present: with two, the checks below could pass on the
+# wrong architecture's libraries.
+arch_dirs=()
+for arch_dir in intel64 arm riscv64 ARM64; do
+    if [ -d "${RELEASE_DIR}/lib/${arch_dir}" ]; then
+        arch_dirs+=("${arch_dir}")
+    fi
+done
+if [ "${#arch_dirs[@]}" -ne 1 ]; then
+    echo "FAIL: expected exactly one lib/<arch> directory under ${RELEASE_DIR}, found: ${arch_dirs[*]:-none}" >&2
+    exit 1
+fi
+LIB_DIR="${RELEASE_DIR}/lib/${arch_dirs[0]}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PASS=0
 FAIL=0

@@ -41,15 +41,17 @@ def detect_os(repo_ctx):
         return "win"
 
 def detect_default_compiler(repo_ctx, os_id):
-    default = "icx"
-    is_icx_available = repo_ctx.which(default) != None
-    if not is_icx_available:
-        default = {
-            "lnx": "gcc",
-            "mac": "clang",
-            "win": "cl",
-        }[os_id]
-    return default
+    candidates = {
+        "lnx": ["icx", "gcc", "clang"],
+        "mac": ["icx", "clang"],
+        "win": ["icx", "cl"],
+    }[os_id]
+    for compiler in candidates:
+        if repo_ctx.which(compiler) != None:
+            return compiler
+
+    # None found: return the usual default so the toolchain reports it missing.
+    return candidates[1]
 
 def detect_compiler(repo_ctx, os_id):
     if not "CC" in repo_ctx.os.environ:
@@ -66,12 +68,31 @@ def detect_compiler(repo_ctx, os_id):
         return "icx"
     elif "icpx" in compiler_path:
         return "icpx"
+    if os_id == "lnx":
+        fail("CC={} is not a supported compiler; set CC to gcc, clang or icx ".format(compiler_path) +
+             "(a versioned name such as gcc-14 or clang-19, or a full path, also works), " +
+             "or unset it to pick the first of icx, gcc and clang found in PATH.")
+    return None
+
+def is_dpc_compiler_found(repo_ctx, os_id):
+    """Returns whether the DPC++ targets can be built.
+
+    On Linux they need icpx in PATH, the DPC++ compiler the toolchain looks up.
+    The Windows toolchain picks its DPC++ compiler on its own, so DPC++ targets
+    stay enabled there.
+    """
+    if os_id != "lnx":
+        return True
+    return repo_ctx.which("icpx") != None
 
 # oneDAL's arch IDs, matching ARCH_DIR_ONEDAL in dev/make/function_definitions/*.mk.
 # Keyed by the machine name a cross-compiler triple starts with
 # (e.g. `aarch64-linux-gnu-gcc`).
 _ARCH_ID_BY_TRIPLE_PREFIX = {
     "aarch64": "arm",
+    # Not a GNU triple machine name, but clang accepts `arm64-pc-windows-msvc`
+    # and that is the spelling a Windows user is most likely to write.
+    "arm64": "arm",
     "riscv64": "riscv64",
     "x86_64": "intel64",
     "amd64": "intel64",
@@ -86,6 +107,14 @@ _ARCH_ID_BY_UNAME["arm64"] = "arm"
 
 def _arch_id_from_uname(value):
     return _ARCH_ID_BY_UNAME.get(value)
+
+# Same arch IDs keyed by Windows' `PROCESSOR_ARCHITECTURE` /
+# `PROCESSOR_ARCHITEW6432` values, which is how Make detects the Windows host
+# arch too (see .ci/scripts/build.bat and .ci/env/openblas.bat).
+_ARCH_ID_BY_PROCESSOR_ARCHITECTURE = {
+    "AMD64": "intel64",
+    "ARM64": "arm",
+}
 
 def _triple_prefix_to_triple(basename):
     """Recovers the triple prefix from a cross-compiler binary name by dropping
@@ -114,6 +143,26 @@ def _detect_cross_compiler(repo_ctx):
                 return _triple_prefix_to_triple(basename), arch_id
     return None, None
 
+def _detect_target_flag_arch(repo_ctx):
+    """Returns the arch ID named by an explicit `--target=<triple>` in `CC`/`CXX`,
+    or `None`.
+
+    clang/clang-cl select the target through this flag instead of a triple-
+    prefixed binary name, which is how Make cross-compiles on Windows
+    (`COMPILER.win.clang.target = --target=aarch64-pc-windows-msvc` in
+    dev/make/compiler_definitions/clang.ref.arm.mk). Unlike a triple prefix it
+    says nothing about the *tool* names, so it is deliberately kept out of
+    `_detect_cross_compiler` / `get_cross_tool_prefix`.
+    """
+    for env_var in ["CC", "CXX"]:
+        for arg in repo_ctx.os.environ.get(env_var, "").split(" "):
+            if arg.startswith("--target="):
+                machine = arg[len("--target="):].split("-")[0]
+                arch_id = _ARCH_ID_BY_TRIPLE_PREFIX.get(machine)
+                if arch_id:
+                    return arch_id
+    return None
+
 def get_cross_tool_prefix(repo_ctx):
     """Returns the cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`)
     if `CC`/`CXX` point at a cross-compiler, otherwise `""`.
@@ -133,11 +182,26 @@ ARCH_ID_TO_PLATFORM_CPU = {
 
 def detect_host_arch(repo_ctx, os_id):
     """Detects the oneDAL arch ID (intel64/arm/riscv64) of the exec host,
-    matching dev/make/identify_os.sh's `uname -m` based detection.
+    matching dev/make/identify_os.sh's `uname -m` based detection on Linux and
+    `.ci/scripts/build.bat`'s `PROCESSOR_ARCHITECTURE` check on Windows.
     """
+    if os_id == "win":
+        # `PROCESSOR_ARCHITECTURE` reports the architecture of the *current
+        # process*. `PROCESSOR_ARCHITEW6432` carries the machine arch, but only
+        # for a 32-bit process on a 64-bit Windows, so it is read first and is
+        # not a general answer: a 64-bit x86_64 process emulated on an ARM64
+        # host reports AMD64 with nothing to correct it, and this detection then
+        # yields `intel64`. State the target explicitly in that case with a
+        # `--target=` triple in `CC`/`CXX`, which `detect_target_arch` honours
+        # over this. `--platforms` does not help: repository rules never see it.
+        for env_var in ["PROCESSOR_ARCHITEW6432", "PROCESSOR_ARCHITECTURE"]:
+            value = repo_ctx.os.environ.get(env_var, "").strip().upper()
+            arch_id = _ARCH_ID_BY_PROCESSOR_ARCHITECTURE.get(value)
+            if arch_id:
+                return arch_id
+        return "intel64"
     if os_id != "lnx":
-        # Only Linux ships non-x86 oneDAL support today (see identify_os.sh);
-        # other OSes always target intel64.
+        # macOS ships x86-only oneDAL support (see identify_os.sh).
         return "intel64"
     result = repo_ctx.execute(["uname", "-m"])
     arch_id = _arch_id_from_uname(result.stdout.strip()) if result.return_code == 0 else None
@@ -147,11 +211,12 @@ def detect_target_arch(repo_ctx, host_arch_id):
     """Detects the oneDAL target arch ID (intel64/arm/riscv64) for the configured compiler.
 
     A `CC`/`CXX` pointing at a cross-compiler triple (e.g. `aarch64-linux-gnu-gcc`)
-    determines the target arch; otherwise the target is assumed to match the
-    exec host (a native, non-cross build).
+    or carrying an explicit `--target=<triple>` (clang/clang-cl) determines the
+    target arch; otherwise the target is assumed to match the exec host (a
+    native, non-cross build).
     """
     _, arch_id = _detect_cross_compiler(repo_ctx)
-    return arch_id or host_arch_id
+    return arch_id or _detect_target_flag_arch(repo_ctx) or host_arch_id
 
 def get_starlark_dict(dictionary):
     entries = [ "\"{}\":\"{}\"".format(k, v) for k, v in dictionary.items() ]
@@ -165,10 +230,17 @@ def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
     """Compute the list of default C++ include directories."""
     result = repo_ctx.execute([cc, "-E", lang_flag, "-", "-v"] + additional_flags)
     index0 = result.stderr.rfind(_INC_DIR_MARKER_BEGIN)
-    index1 = result.stderr.find("\n", index0)
     index2 = result.stderr.rfind(_INC_DIR_MARKER_END)
+    if index0 == -1 or index2 == -1:
+        # The probe failed (e.g. `tool_not_found.sh` standing in for a missing
+        # DPC++ compiler). Parsing its output anyway yields an empty entry,
+        # which `_prepare_include_path` turns into this repository's absolute
+        # path; that lands in `builtin_include_directory_paths`, an input of
+        # every compile action, and ties every action key to the output base.
+        return []
+    index1 = result.stderr.find("\n", index0)
     inc_dirs = result.stderr[index1:index2].strip()
-    return [ _prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") ]
+    return [ _prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") if p.strip() ]
 
 def get_tmp_dpcpp_inc_directories(repo_ctx, tools):
     return ["/tmp"] if tools.dpc_compiler_version >= "20210803" else []
@@ -251,10 +323,34 @@ def _get_unfiltered_default_compiler_options(reqs, is_dpcc, category):
     compiler_id = reqs.dpc_compiler_id if is_dpcc else reqs.compiler_id
     return get_default_flags(reqs.target_arch_id, reqs.os_id, compiler_id, category)
 
+# Options that must never be dropped by the support probe. It compiles a test
+# file with one option at a time, so `-march=armv8-a+sve` is probed against the
+# compiler's *default* target -- x86_64 when cross-compiling from an x86_64 host
+# -- where it warns and would be filtered out. Silently dropping either of these
+# yields a wrong-arch or SVE-less build instead of an error; Make passes both
+# unconditionally (COMPILER.win.clang / COMPILER.all.gnu).
+_UNFILTERED_OPTION_PREFIXES = [
+    "--target=",
+    "-march=",
+    # Not emitted today, but it is the other way to name an aarch64 target
+    # (`-mcpu=` sets the architecture there, not only the tuning), so the probe
+    # must not be the thing that decides whether it survives.
+    "-mcpu=",
+]
+
+def _is_unfiltered_option(option):
+    for prefix in _UNFILTERED_OPTION_PREFIXES:
+        if option.startswith(prefix):
+            return True
+    return False
+
 def _filter_out_unsupported_compiler_options(repo_ctx, cc, options):
     filtered_options = []
     for option in options:
-        filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
+        if _is_unfiltered_option(option):
+            filtered_options.append(option)
+        else:
+            filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
     return filtered_options
 
 
@@ -264,16 +360,10 @@ def _prepare_include_path(repo_ctx, path):
       repo_ctx: repository_ctx object.
       path: an include path to be sanitized.
     Returns:
-      Sanitized include path that can be written to the crosstoot. Resulting path
-      is absolute if it is outside the repository and relative otherwise.
+      Absolute include path. The compiler is always run by its absolute path, so
+      it reports absolute paths even for a compiler downloaded into this repository.
     """
     path = path.strip()
     if path.endswith(_MAC_FRAMEWORK_SUFFIX):
         path = path[:-_MAC_FRAMEWORK_SUFFIX_LEN].strip()
-
-    # We're on UNIX, so the path delimiter is '/'.
-    repo_root = str(repo_ctx.path(".")) + "/"
-    path = str(repo_ctx.path(path))
-    if path.startswith(repo_root):
-        return path[len(repo_root):]
-    return path
+    return str(repo_ctx.path(path))

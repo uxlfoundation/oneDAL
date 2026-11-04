@@ -25,10 +25,7 @@ CMPLRDIRSUFF.gnu = _gnu
 
 CORE.SERV.COMPILER.gnu = generic
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
-
-
-LINKERS_SUPPORTED := bfd gold lld
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Og Oz
 
 ifneq ($(LINKER),)
     ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
@@ -41,13 +38,13 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
+# -U first: a different level from CXXFLAGS would otherwise be a -Werror redefinition.
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.gnu = -$(OPTFLAG)
 else
-    -optlevel.gnu = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    -optlevel.gnu = -$(OPTFLAG) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 endif
 
-linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.all.gnu = ${CXX} $(linker.ld.flag)
 
 -Zl.gnu =

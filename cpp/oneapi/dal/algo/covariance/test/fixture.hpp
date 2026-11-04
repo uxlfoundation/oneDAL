@@ -17,6 +17,8 @@
 #pragma once
 
 #include "oneapi/dal/algo/covariance/compute.hpp"
+#include <vector>
+
 #include "oneapi/dal/algo/covariance/compute_types.hpp"
 #include "oneapi/dal/algo/covariance/partial_compute.hpp"
 #include "oneapi/dal/algo/covariance/finalize_compute.hpp"
@@ -55,6 +57,14 @@ public:
     void check_compute_result(const descriptor_t& desc,
                               const table& data,
                               const covariance::compute_result<>& result) {
+        // The reference covariance is the expensive part of every check (a
+        // p x p x n loop), and both the covariance and the correlation checks
+        // need it: compute it once per result.
+        const auto& options = result.get_result_options();
+        la::matrix<double> reference_cov;
+        if (options.test(result_options::cov_matrix) || options.test(result_options::cor_matrix)) {
+            reference_cov = compute_reference_cov(desc, data);
+        }
         if (result.get_result_options().test(result_options::cov_matrix)) {
             const auto cov_matrix = result.get_cov_matrix();
             INFO("check if cov matrix table shape is expected");
@@ -63,7 +73,7 @@ public:
             INFO("check if there is no NaN in cov matrix table");
             REQUIRE(te::has_no_nans(cov_matrix));
             INFO("check if cov matrix values are expected");
-            check_cov_matrix_values(desc, data, cov_matrix);
+            check_cov_matrix_values(reference_cov, cov_matrix);
         }
         if (result.get_result_options().test(result_options::cor_matrix)) {
             const auto cor_matrix = result.get_cor_matrix();
@@ -73,7 +83,7 @@ public:
             INFO("check if there is no NaN in cor matrix table");
             REQUIRE(te::has_no_nans(cor_matrix));
             INFO("check if cor matrix values are expected");
-            check_cor_matrix_values(desc, data, cor_matrix);
+            check_cor_matrix_values(reference_cov, cor_matrix);
         }
         if (result.get_result_options().test(result_options::means)) {
             const auto means = result.get_means();
@@ -112,11 +122,7 @@ public:
         return reference_means;
     }
 
-    void check_cov_matrix_values(const descriptor_t& desc,
-                                 const table& data,
-                                 const table& cov_matrix) {
-        const auto reference_cov = compute_reference_cov(desc, data);
-        const auto data_matrix = la::matrix<double>::wrap(cov_matrix);
+    void check_cov_matrix_values(const la::matrix<double>& reference_cov, const table& cov_matrix) {
         const double tol = te::get_tolerance<Float>(1e-2, 1e-9);
         const double diff = te::abs_error(reference_cov, cov_matrix);
         CHECK(diff < tol);
@@ -127,38 +133,51 @@ public:
         const auto row_count_data = data_matrix.get_row_count();
         const auto column_count_data = data_matrix.get_column_count();
         auto reference_means = compute_reference_means(data, desc.get_assume_centered());
-        auto reference_cov =
-            la::matrix<double>::full({ column_count_data, column_count_data }, 0.0);
         auto multiplier = 1 / static_cast<double>(row_count_data - 1);
         if (desc.get_bias()) {
             multiplier = 1 / static_cast<double>(row_count_data);
         }
-        for (std::int64_t i = 0; i < column_count_data; i++) {
-            for (std::int64_t j = 0; j < column_count_data; j++) {
-                double elem = 0;
-                for (std::int64_t k = 0; k < row_count_data; k++) {
-                    elem += (data_matrix.get(k, i) - reference_means.get(0, i)) *
-                            (data_matrix.get(k, j) - reference_means.get(0, j));
+        // Rows are centered once into a contiguous buffer and accumulated as
+        // rank-1 updates over the upper triangle. Each element is still the
+        // sum over rows k = 0..n-1 in order, so the values match the
+        // element-by-element formulation exactly; the covariance is symmetric,
+        // so the lower triangle is mirrored rather than recomputed.
+        const std::int64_t p = column_count_data;
+        std::vector<double> centered(row_count_data * p);
+        for (std::int64_t k = 0; k < row_count_data; k++) {
+            for (std::int64_t i = 0; i < p; i++) {
+                centered[k * p + i] = data_matrix.get(k, i) - reference_means.get(0, i);
+            }
+        }
+        std::vector<double> sums(p * p, 0.0);
+        for (std::int64_t k = 0; k < row_count_data; k++) {
+            const double* row = centered.data() + k * p;
+            for (std::int64_t i = 0; i < p; i++) {
+                const double x_i = row[i];
+                double* sums_i = sums.data() + i * p;
+                for (std::int64_t j = i; j < p; j++) {
+                    sums_i[j] += x_i * row[j];
                 }
-                reference_cov.set(i, j) = elem * multiplier;
+            }
+        }
+        auto reference_cov = la::matrix<double>::full({ p, p }, 0.0);
+        for (std::int64_t i = 0; i < p; i++) {
+            for (std::int64_t j = i; j < p; j++) {
+                reference_cov.set(i, j) = sums[i * p + j] * multiplier;
+                reference_cov.set(j, i) = reference_cov.get(i, j);
             }
         }
         return reference_cov;
     }
-    void check_cor_matrix_values(const descriptor_t& desc,
-                                 const table& data,
-                                 const table& cor_matrix) {
-        const auto reference_cor = compute_reference_cor(desc, data);
+    void check_cor_matrix_values(const la::matrix<double>& reference_cov, const table& cor_matrix) {
+        const auto reference_cor = compute_reference_cor(reference_cov);
         const double tol = te::get_tolerance<Float>(1e-2, 1e-9);
         const double diff = te::abs_error(reference_cor, cor_matrix);
         CHECK(diff < tol);
     }
 
-    la::matrix<double> compute_reference_cor(const descriptor_t& desc, const table& data) {
-        const auto data_matrix = la::matrix<double>::wrap(data);
-        const auto column_count_data = data_matrix.get_column_count();
-        auto reference_means = compute_reference_means(data, desc.get_assume_centered());
-        auto reference_cov = compute_reference_cov(desc, data);
+    la::matrix<double> compute_reference_cor(const la::matrix<double>& reference_cov) {
+        const auto column_count_data = reference_cov.get_column_count();
         auto reference_cor =
             la::matrix<double>::full({ column_count_data, column_count_data }, 0.0);
         for (std::int64_t i = 0; i < column_count_data; i++) {

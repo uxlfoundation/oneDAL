@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace oneapi::dal {
 
 namespace v1 {
@@ -37,4 +39,12 @@ enum class engine_type {
 } // namespace v1
 
 using v1::engine_type;
+
+namespace detail {
+
+/// The engine and seed used when an algorithm or primitive is not given another one
+constexpr engine_type default_engine_type = engine_type::philox4x32x10;
+constexpr std::int64_t default_seed = 777;
+
+} // namespace detail
 } // namespace oneapi::dal

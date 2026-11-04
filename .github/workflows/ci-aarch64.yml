@@ -58,11 +58,11 @@ env:
   OPENBLAS_VERSION: v0.3.34
   OPENRNG_VERSION: 'v24.04'
 
-# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
-# Does not apply to the main branch.
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -86,7 +86,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
+        uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -163,7 +163,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
+        uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -361,6 +361,21 @@ jobs:
             --test_thread_mode=par \
             --test_output=errors \
             -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
+
+      # The arch dir of the release metadata follows ARCH_DIR_ONEDAL (`lib/arm`
+      # here, as in Make's lnxarm release). The full `//:release` tree cannot
+      # be built on AArch64 yet: the public oneapi headers pull the DPC++
+      # targets, and with them MKL, into the analysis even with
+      # `--release_dpc=false`.
+      - name: bazel build release metadata
+        run: |
+          set -euo pipefail
+          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            //:release_pkgconfig_dynamic_threading_host //:release_cmake_config
+          grep -qx 'libdir=${exec_prefix}/lib/arm' \
+            bazel-bin/lib/pkgconfig/dal-dynamic-threading-host.pc
+          grep -q 'lib/arm' bazel-bin/lib/cmake/oneDAL/oneDALConfig.cmake
 
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when

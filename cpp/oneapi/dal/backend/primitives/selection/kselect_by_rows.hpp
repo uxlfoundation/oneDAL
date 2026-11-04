@@ -107,6 +107,20 @@ private:
     detail::unique<kselect_by_rows_base<Float>> base_;
 };
 
+/// Device memory `kselect_by_rows<Float>` allocates at construction.
+///
+/// @tparam Float Floating-point type of the values being selected
+///
+/// @param[in] queue The queue the selector would be constructed on
+/// @param[in] shape Shape of the matrix the selector would be given
+/// @param[in] k     Number of smallest values selected per row
+///
+/// @return Device bytes the constructor allocates, saturated at the largest `std::int64_t`
+template <typename Float>
+std::int64_t kselect_by_rows_scratch_size(const sycl::queue& queue,
+                                          const ndshape<2>& shape,
+                                          std::int64_t k);
+
 #endif
 
 } // namespace oneapi::dal::backend::primitives

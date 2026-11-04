@@ -149,6 +149,7 @@ typedef void (*_daal_run_task_group_t)(void * taskGroupPtr, daal::task * t);
 typedef void (*_daal_wait_task_group_t)(void * taskGroupPtr);
 
 typedef bool (*_daal_is_in_parallel_t)();
+typedef void (*_daal_threader_isolate_t)(const void *, daal::functype_isolate);
 typedef void (*_daal_tbb_task_scheduler_free_t)(void *& globalControl);
 typedef void (*_daal_tbb_task_scheduler_handle_free_t)(void *& schedulerHandle);
 typedef size_t (*_setNumberOfThreads_t)(const size_t, void **);
@@ -495,6 +496,13 @@ DAAL_EXPORT bool _daal_is_in_parallel()
     load_daal_thr_dll();
     static _daal_is_in_parallel_t _daal_is_in_parallel_ptr = (_daal_is_in_parallel_t)load_daal_thr_func("_daal_is_in_parallel");
     return _daal_is_in_parallel_ptr();
+}
+
+DAAL_EXPORT void _daal_threader_isolate(const void * a, daal::functype_isolate func)
+{
+    load_daal_thr_dll();
+    static _daal_threader_isolate_t _daal_threader_isolate_ptr = (_daal_threader_isolate_t)load_daal_thr_func("_daal_threader_isolate");
+    _daal_threader_isolate_ptr(a, func);
 }
 
 DAAL_EXPORT void _daal_tbb_task_scheduler_free(void *& init)

@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <array>
+#include <vector>
 
 #include "oneapi/dal/algo/hdbscan/compute.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -49,6 +50,10 @@ private:
 using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
 using hdbscan_kd_types = COMBINE_TYPES((float, double), (hdbscan::method::kd_tree));
 using hdbscan_bt_types = COMBINE_TYPES((float, double), (hdbscan::method::ball_tree));
+using hdbscan_float_types = COMBINE_TYPES((float),
+                                          (hdbscan::method::brute_force,
+                                           hdbscan::method::kd_tree,
+                                           hdbscan::method::ball_tree));
 
 // =========================================================================
 // brute_force badarg tests
@@ -363,6 +368,22 @@ HDBSCAN_BT_BADARG_TEST("ball_tree: accepts leaf_size equal to 1") {
 
 HDBSCAN_BT_BADARG_TEST("ball_tree: throws if leaf_size is zero") {
     REQUIRE_THROWS_AS(this->get_descriptor().set_leaf_size(0), domain_error);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_badarg_test,
+                     "throws if float32 single_linkage_tree node ids would be inexact",
+                     "[hdbscan][badarg]",
+                     hdbscan_float_types) {
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // Node ids reach 2n - 2, and float32 holds integers exactly only up to 2^24.
+    const std::int64_t row_count = (std::int64_t(1) << 23) + 1;
+    const std::vector<Float> data(row_count, Float(0));
+    const auto x = homogen_table::wrap(data.data(), row_count, 1);
+    const auto desc = hdbscan::descriptor<Float, Method>(5, 5).set_result_options(
+        result_options::responses | result_options::single_linkage_tree);
+    REQUIRE_THROWS_AS(this->compute(desc, x), domain_error);
 }
 
 } // namespace oneapi::dal::hdbscan::test

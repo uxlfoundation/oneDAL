@@ -16,6 +16,18 @@
 
 #include "oneapi/dal/exceptions.hpp"
 
+// --gc-sections drops the reference to std::ios_base_library_init() that GCC 13+
+// <iostream> emits to require GLIBCXX_3.4.32. A pointer in a retained section
+// keeps that import with every linker; lld ignores -Wl,-u for a shared symbol.
+#if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 13 && !defined(__SYCL_DEVICE_ONLY__) && \
+    defined(__has_attribute)
+#if __has_attribute(retain)
+extern void onedal_ios_base_library_init() __asm__("_ZSt21ios_base_library_initv");
+__attribute__((used, retain)) static void (*const onedal_keep_ios_base_library_init)() =
+    &onedal_ios_base_library_init;
+#endif
+#endif
+
 namespace oneapi::dal {
 
 const char* invalid_argument::what() const noexcept {

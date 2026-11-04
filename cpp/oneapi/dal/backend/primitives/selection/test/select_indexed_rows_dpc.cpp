@@ -107,8 +107,10 @@ public:
         const auto gt = gtr<iord, oord>();
         for (std::int64_t r = 0; r < k_; ++r) {
             for (std::int64_t c = 0; c < n_; ++c) {
-                CAPTURE(r, c, m_, n_, k_);
-                REQUIRE(rs.at(r, c) == gt.at(r, c));
+                if (rs.at(r, c) != gt.at(r, c)) {
+                    CAPTURE(r, c, m_, n_, k_);
+                    REQUIRE(rs.at(r, c) == gt.at(r, c));
+                }
             }
         }
     }

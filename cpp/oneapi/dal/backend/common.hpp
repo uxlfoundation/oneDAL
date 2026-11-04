@@ -520,6 +520,84 @@ inline sycl::range<2> make_range_2d(std::int64_t size1, std::int64_t size2) {
              dal::detail::integral_cast<std::size_t>(size2) };
 }
 
+/// Largest first dimension of a `range<2>(rows, size2)` whose size stays within int32, which
+/// `-fsycl-id-queries-fit-in-int` requires.
+///
+/// @param[in] size2 Extent of the second range dimension; must be positive
+///
+/// @return Row block size, at least 1
+inline std::int64_t max_range_2d_rows(std::int64_t size2) {
+    ONEDAL_ASSERT(size2 > 0);
+    constexpr std::int64_t max_items = std::numeric_limits<std::int32_t>::max();
+    return std::max<std::int64_t>(1, max_items / size2);
+}
+
+/// Run `kernel(row, col)` over a `row_count x col_count` grid in row blocks of at most
+/// `max_block_rows` rows.
+///
+/// @param[in] q              The SYCL queue
+/// @param[in] row_count      Number of grid rows
+/// @param[in] col_count      Number of grid columns; must be positive
+/// @param[in] kernel         Device callable `(std::int64_t row, std::int64_t col) -> void`
+/// @param[in] deps           Events the blocks depend on
+/// @param[in] max_block_rows Rows per launch, in `[1, max_range_2d_rows(col_count)]`
+///
+/// @return Event that completes after every block
+template <typename Kernel>
+inline sycl::event parallel_for_2d_by_row_blocks(sycl::queue& q,
+                                                 std::int64_t row_count,
+                                                 std::int64_t col_count,
+                                                 const Kernel& kernel,
+                                                 const event_vector& deps,
+                                                 std::int64_t max_block_rows) {
+    ONEDAL_ASSERT(max_block_rows > 0);
+    ONEDAL_ASSERT(max_block_rows <= max_range_2d_rows(col_count));
+    const uniform_blocking blocking(row_count, max_block_rows);
+    event_vector block_events;
+    for (std::int64_t b = 0; b < blocking.get_block_count(); b++) {
+        const std::int64_t row_start = blocking.get_block_start_index(b);
+        const std::int64_t rows = blocking.get_block_length(b);
+        block_events.push_back(q.submit([&](sycl::handler& h) {
+            h.depends_on(deps);
+            h.parallel_for(make_range_2d(rows, col_count), [=](sycl::id<2> idx) {
+                kernel(row_start + static_cast<std::int64_t>(idx[0]),
+                       static_cast<std::int64_t>(idx[1]));
+            });
+        }));
+    }
+    if (block_events.size() == 1u) {
+        return block_events.front();
+    }
+    return q.submit([&](sycl::handler& h) {
+        h.depends_on(block_events.empty() ? deps : block_events);
+        h.single_task([]() {});
+    });
+}
+
+/// Run `kernel(row, col)` over a `row_count x col_count` grid in row blocks of at most
+/// `max_range_2d_rows(col_count)` rows, so grids of more than 2^31 items can be launched.
+///
+/// @param[in] q         The SYCL queue
+/// @param[in] row_count Number of grid rows
+/// @param[in] col_count Number of grid columns; must be positive
+/// @param[in] kernel    Device callable `(std::int64_t row, std::int64_t col) -> void`
+/// @param[in] deps      Events the blocks depend on
+///
+/// @return Event that completes after every block
+template <typename Kernel>
+inline sycl::event parallel_for_2d_by_row_blocks(sycl::queue& q,
+                                                 std::int64_t row_count,
+                                                 std::int64_t col_count,
+                                                 const Kernel& kernel,
+                                                 const event_vector& deps = {}) {
+    return parallel_for_2d_by_row_blocks(q,
+                                         row_count,
+                                         col_count,
+                                         kernel,
+                                         deps,
+                                         max_range_2d_rows(col_count));
+}
+
 /// Creates `nd_range`, where global size is multiple of local size
 inline sycl::nd_range<1> make_multiple_nd_range_1d(std::int64_t global_size,
                                                    std::int64_t local_size) {

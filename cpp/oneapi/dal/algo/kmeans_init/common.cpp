@@ -16,6 +16,7 @@
 
 #include "oneapi/dal/algo/kmeans_init/common.hpp"
 #include "oneapi/dal/exceptions.hpp"
+#include "oneapi/dal/rng.hpp"
 
 namespace oneapi::dal::kmeans_init::detail {
 namespace v1 {
@@ -25,7 +26,7 @@ class descriptor_impl : public base {
 public:
     std::int64_t local_trials_count = -1;
     std::int64_t cluster_count = 2;
-    std::int64_t seed = 777;
+    std::int64_t seed = dal::detail::default_seed;
 };
 
 template <typename Task>

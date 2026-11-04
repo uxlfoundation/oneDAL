@@ -24,9 +24,7 @@ CMPLRDIRSUFF.icx =
 
 CORE.SERV.COMPILER.icx = generic
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
-
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Oz Og
 
 ifeq ($(OS_is_win),true)
     ifneq ($(LINKER),)
@@ -50,12 +48,11 @@ endif
 ifeq ($(OS_is_win),true)
     -optlevel.icx = -$(OPTFLAG)
 else
-    ifeq ($(OPTFLAG),Ofast)
-        -optlevel.icx = -O3 -ffast-math -D_FORTIFY_SOURCE=2
-    else ifeq ($(OPTFLAG),O0)
+    # -U first: a different level from CXXFLAGS would otherwise be a -Werror redefinition.
+    ifeq ($(OPTFLAG),O0)
         -optlevel.icx = -$(OPTFLAG)
     else
-        -optlevel.icx = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+        -optlevel.icx = -$(OPTFLAG) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
     endif
 endif
 
@@ -77,7 +74,6 @@ COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX \
                      -Wno-deprecated-declarations -Wno-empty-body ${CXXFLAGS} $(-stdalloc.icx)
 
-linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
 link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)

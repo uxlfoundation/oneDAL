@@ -20,133 +20,100 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/algo/hdbscan/compute_types.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/gpu/cluster_utils.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/cpu/cluster_utils.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
+namespace bk = oneapi::dal::backend;
 namespace pr = oneapi::dal::backend::primitives;
 
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 
-/// Build a oneAPI compute result from device-side responses (no centers).
+/// Copy a host array to a new device array.
 ///
-/// Wraps `responses` into a homogen_table when `result_options::responses` is
-/// requested; always sets `cluster_count` and forwards `result_options`.
+/// @tparam T Element type
+///
+/// @param[in] queue The SYCL queue
+/// @param[in] host  Host array
+///
+/// @return Device array with the same contents
+template <typename T>
+inline array<T> to_device_array(sycl::queue& queue, const array<T>& host) {
+    return pr::ndarray<T, 1>::wrap(host).to_device(queue).flatten(queue);
+}
+
+/// Extract the flat clusters from an MST and pack them, with the outputs `desc` asks for, into a
+/// oneAPI compute result.
+///
+/// The extraction walks the dendrogram and the condensed tree in order, which one CPU core does
+/// far faster than one work-item, so it runs on host with the code of the CPU kernels. The
+/// responses, probabilities and single linkage tree are returned on device.
 ///
 /// @tparam Float Floating-point type
 ///
-/// @param[in] queue         The SYCL queue
-/// @param[in] desc          Algorithm descriptor (carries `result_options`)
-/// @param[in] responses     Per-point cluster labels on device, length `n`
-/// @param[in] cluster_count Number of distinct clusters
+/// @param[in] queue       The SYCL queue
+/// @param[in] desc        Algorithm descriptor
+/// @param[in] data        Input table, `n x d`, used for the centers
+/// @param[in] mst_from    Source endpoint of each MST edge on host, length `n - 1`, any order
+/// @param[in] mst_to      Target endpoint of each MST edge on host, length `n - 1`
+/// @param[in] mst_weights Edge weights on host, length `n - 1`
 ///
 /// @return oneAPI `compute_result`
 template <typename Float>
-inline result_t make_results(sycl::queue& queue,
-                             const descriptor_t& desc,
-                             const pr::ndarray<std::int32_t, 1>& responses,
-                             std::int64_t cluster_count) {
-    const std::int64_t row_count = responses.get_dimension(0);
-    ONEDAL_ASSERT(row_count > 0);
+inline result_t make_results_from_mst(sycl::queue& queue,
+                                      const descriptor_t& desc,
+                                      const table& data,
+                                      const array<std::int32_t>& mst_from,
+                                      const array<std::int32_t>& mst_to,
+                                      const array<Float>& mst_weights) {
+    ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 
-    auto results =
-        result_t().set_cluster_count(cluster_count).set_result_options(desc.get_result_options());
+    const std::int64_t row_count = data.get_row_count();
+    const auto& options = desc.get_result_options();
+    const bool need_centers = centers_requested(desc);
+    const bool need_probabilities = options.test(result_options::probabilities) || need_centers;
+    const bool need_single_linkage_tree = options.test(result_options::single_linkage_tree);
 
-    if (desc.get_result_options().test(result_options::responses)) {
-        results.set_responses(dal::homogen_table::wrap(responses.flatten(queue), row_count, 1));
-    }
-
-    return results;
-}
-
-/// Build a oneAPI compute result from device-side responses, including centers.
-///
-/// Forwards to the no-data overload to set responses and cluster count, then
-/// optionally computes centroid and/or medoid tables on the device (via
-/// `compute_centroids_gpu` / `compute_medoids_gpu`) when
-/// `desc.get_store_centers()` requests them. Results are pulled to host arrays
-/// only at the final `homogen_table::wrap` step -- the accumulate, scan, and
-/// normalize kernels all stay on device.
-///
-/// @tparam Float Floating-point type used for centers
-///
-/// @param[in] queue         The SYCL queue
-/// @param[in] desc          Algorithm descriptor
-/// @param[in] responses     Per-point cluster labels on device, length `n`
-/// @param[in] cluster_count Number of distinct clusters
-/// @param[in] data          Original input table (read for centers)
-///
-/// @return oneAPI `compute_result` with optional cluster/medoid centers
-template <typename Float>
-inline result_t make_results(sycl::queue& queue,
-                             const descriptor_t& desc,
-                             const pr::ndarray<std::int32_t, 1>& responses,
-                             std::int64_t cluster_count,
-                             const table& data) {
-    auto results = make_results<Float>(queue, desc, responses, cluster_count);
-
-    const auto store_centers = desc.get_store_centers();
-    if (cluster_count > 0 && store_centers != store_centers_method::none &&
-        desc.get_result_options().test(result_options::responses)) {
-        const std::int64_t row_count = data.get_row_count();
-        const std::int64_t col_count = data.get_column_count();
-        const bool need_centroids = (store_centers == store_centers_method::centroid ||
-                                     store_centers == store_centers_method::both);
-        const bool need_medoids = (store_centers == store_centers_method::medoid ||
-                                   store_centers == store_centers_method::both);
-
-        // Bring data onto device once; responses are already there.
-        auto data_nd = pr::table2ndarray<Float>(queue, data, sycl::usm::alloc::device);
-        queue.wait_and_throw();
-
-        const Float* data_ptr = data_nd.get_data();
-        const std::int32_t* resp_ptr = responses.get_data();
-
-        // Centroids are needed either as an output or as an input to medoid
-        // selection. Compute them on device in both cases.
-        auto centroids_dev = pr::ndarray<Float, 1>::empty(queue,
-                                                          cluster_count * col_count,
-                                                          sycl::usm::alloc::device);
-        auto centroid_event = compute_centroids_gpu<Float>(queue,
-                                                           data_ptr,
-                                                           resp_ptr,
+    const auto clusters = extract_clusters_from_mst<Float>(dal::backend::context_cpu{},
+                                                           desc,
+                                                           mst_from,
+                                                           mst_to,
+                                                           mst_weights,
                                                            row_count,
-                                                           col_count,
-                                                           cluster_count,
-                                                           centroids_dev.get_mutable_data());
+                                                           need_probabilities,
+                                                           need_single_linkage_tree);
 
-        if (need_centroids) {
-            centroid_event.wait_and_throw();
-            auto centroids_host = centroids_dev.to_host(queue);
-            results.set_cluster_centers(
-                dal::homogen_table::wrap(centroids_host.flatten(), cluster_count, col_count));
-        }
+    auto results = result_t().set_cluster_count(clusters.cluster_count).set_result_options(options);
 
-        if (need_medoids) {
-            auto medoids_dev = pr::ndarray<Float, 1>::empty(queue,
-                                                            cluster_count * col_count,
-                                                            sycl::usm::alloc::device);
-            auto medoid_event = compute_medoids_gpu<Float>(queue,
-                                                           data_ptr,
-                                                           resp_ptr,
-                                                           row_count,
-                                                           col_count,
-                                                           cluster_count,
-                                                           centroids_dev.get_data(),
-                                                           medoids_dev.get_mutable_data(),
-                                                           { centroid_event });
-            medoid_event.wait_and_throw();
-            auto medoids_host = medoids_dev.to_host(queue);
-            results.set_medoid_centers(
-                dal::homogen_table::wrap(medoids_host.flatten(), cluster_count, col_count));
-        }
-        else {
-            centroid_event.wait_and_throw();
-        }
+    if (options.test(result_options::responses)) {
+        results.set_responses(
+            homogen_table::wrap(to_device_array(queue, clusters.responses), row_count, 1));
     }
-
+    if (options.test(result_options::probabilities)) {
+        results.set_probabilities(
+            homogen_table::wrap(to_device_array(queue, clusters.probabilities), row_count, 1));
+    }
+    // Left empty for a single observation, which has no merge to report.
+    if (clusters.single_linkage_tree.get_count() > 0) {
+        results.set_single_linkage_tree(
+            homogen_table::wrap(to_device_array(queue, clusters.single_linkage_tree),
+                                row_count - 1,
+                                4));
+    }
+    if (need_centers && clusters.cluster_count > 0) {
+        const auto data_host = row_accessor<const Float>(data).pull({ 0, -1 });
+        set_cluster_centers(dal::backend::context_cpu{},
+                            desc,
+                            homogen_table::wrap(data_host, row_count, data.get_column_count()),
+                            clusters.responses,
+                            clusters.probabilities,
+                            clusters.cluster_count,
+                            results);
+    }
     return results;
 }
 

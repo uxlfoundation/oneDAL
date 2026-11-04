@@ -33,7 +33,9 @@ RUN wget --quiet \
 ENV PATH=$CONDA_DIR/bin:$PATH
 
 # Installing environment for bazel
-RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64 && \
+# Same digest as .ci/env/bazelisk.sh pins for this version
+RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.30.0/bazelisk-linux-amd64 && \
+    echo "a248ae2b2b62b5baebb748f6fba7203bff1a27e5d01b55399a8406744cb539e8  bazelisk-linux-amd64" | sha256sum --check && \
     chmod 755 bazelisk-linux-amd64 && \
     mv bazelisk-linux-amd64 /usr/bin/bazel
 
