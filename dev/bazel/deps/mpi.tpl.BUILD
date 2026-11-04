@@ -45,11 +45,12 @@ filegroup(
     ],
 )
 
+# Empty on Windows. On Linux the repository rule fails when no provider exists.
 filegroup(
     name = "fi",
     srcs = glob([
         "libfabric/lib/prov/*.so",
-    ]),
+    ], allow_empty = True),
 )
 
 cc_library(
