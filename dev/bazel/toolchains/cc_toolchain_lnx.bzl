@@ -147,6 +147,14 @@ def _get_bin_search_flag(repo_ctx, cc_path):
         bin_search_flag = []
     return bin_search_flag
 
+def _get_selected_gcc_installation(repo_ctx, cc):
+    """The GCC installation `cc` picks without --gcc-toolchain, or None."""
+    marker = "Selected GCC installation: "
+    for line in repo_ctx.execute([cc, "-v", "-E", "-x", "c++", "/dev/null"]).stderr.splitlines():
+        if line.startswith(marker):
+            return str(repo_ctx.path(line[len(marker):].strip()).realpath)
+    return None
+
 def _get_gcc_toolchain_path(repo_ctx, cc):
     # A gcc in PATH for another target (the host gcc next to a conda-forge clang) would pair
     # the compiler with a libstdc++ that does not match its sysroot, so prefer <triple>-gcc next to cc.
@@ -156,6 +164,12 @@ def _get_gcc_toolchain_path(repo_ctx, cc):
         sibling_gcc = repo_ctx.path(cc).dirname.get_child(triple + "-gcc")
         if triple and sibling_gcc.exists:
             gcc = sibling_gcc
+        elif gcc:
+            # Without such a gcc, keep the compiler's own GCC installation when it lies outside
+            # the PATH gcc's prefix: conda-forge clang finds the conda GCC runtime by itself.
+            selected = _get_selected_gcc_installation(repo_ctx, cc)
+            if selected and not selected.startswith(str(gcc.dirname.dirname.realpath) + "/"):
+                return None
     return str(gcc.dirname.dirname.realpath) if gcc else None
 
 def _add_gcc_toolchain_if_needed(repo_ctx, cc):
