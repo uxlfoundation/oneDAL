@@ -335,13 +335,17 @@ struct TileDimensions
     static constexpr size_t optimalBlockSizeFactor = 5;
     // number of trees traversed simultaneously for a single row
     static constexpr size_t treeVectorBlockSize = 32;
-    // minimal number of trees per thread in tree-parallel prediction, smaller blocks don't amortize threading overhead
-    static constexpr size_t minTreesInBlock = 128;
+    // minimal number of trees per thread in tree-parallel prediction
+    static constexpr size_t minTreesInBlock = treeVectorBlockSize;
+    // maximal number of tree traversals (nTrees * nRows) that are not worth threading
+    static constexpr size_t maxTreeTraversalsInSingleThread = 256;
 
     // Number of blocks in tree-parallel prediction of nRows, 0 if row-parallel prediction is preferable.
-    // Each thread visits only its slice of trees, so tree blocks are faster even with 2x fewer blocks than minimal row blocks
+    // Small work is done by tree-parallel prediction in a single block, i.e. without threading.
+    // Otherwise each thread visits only its slice of trees, so tree blocks are faster even with 2x fewer blocks than minimal row blocks
     static size_t getNumberOfTreeParallelBlocks(size_t nTrees, size_t nRows)
     {
+        if (nTrees * nRows <= maxTreeTraversalsInSingleThread) return 1;
         const size_t nThreads = daal::threader_get_threads_number();
         size_t nBlocks        = nTrees / minTreesInBlock;
         if (nBlocks > nThreads) nBlocks = nThreads;
