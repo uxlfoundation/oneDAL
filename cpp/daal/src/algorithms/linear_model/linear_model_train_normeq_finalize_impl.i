@@ -505,7 +505,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
             DAAL_CHECK_MALLOC(dualSum);
             DAAL_ASSERT(onesArray.get())
             const algorithmFPType zero = 0;
-            BlasInst<algorithmFPType, cpu>::xgemv("T", &nRows, &nResponses, &one, dualCoef, &nRows, onesArray.get(), &incOne, &zero, dualSumArray,
+            BlasInst<algorithmFPType, cpu>::xgemv("T", &nRows, &nResponses, &one, dualCoef, &nRows, onesArray.get(), &incOne, &zero, dualSum,
                                                   &incOne);
 
             BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nResponses, &incOne, &negOne, xMean, &nFeatures, dualSum, &incOne, &one,
