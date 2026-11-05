@@ -580,9 +580,7 @@ public:
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
     {
-        computeBatchImpl(a, b, aOffset, aSize, bOffset, bSize, res);
-
-        return services::Status();
+        return computeBatchImpl(a, b, aOffset, aSize, bOffset, bSize, res);
     }
 
     services::Status finalize(const size_t n, FPType * a) override
@@ -607,17 +605,45 @@ protected:
         const size_t nX    = aSize;
         const size_t nY    = bSize;
 
-        const FPType * x = a;
-        DAAL_CHECK_MALLOC(x);
+        if (_p == 1.0 || nDims == 0)
+        {
+            for (size_t ix = 0; ix < nX; ++ix)
+            {
+                for (size_t iy = 0; iy < nY; ++iy)
+                {
+                    res[ix * nY + iy] = MinkowskiDistances<FPType, cpu>::computeDistance(a + ix * nDims, b + iy * nDims, nDims);
+                }
+            }
+            return services::Status();
+        }
 
-        const FPType * y = b;
-        DAAL_CHECK_MALLOC(y);
+        // One vPowx call per chunk of pairs: a call per coordinate costs far more than the power itself.
+        const size_t chunkSize     = 1024;
+        const size_t pairsPerChunk = services::internal::max<cpu, size_t>(1, chunkSize / nDims);
+        TArray<FPType, cpu> diffs(pairsPerChunk * nDims);
+        DAAL_CHECK_MALLOC(diffs.get());
+        FPType * const buf  = diffs.get();
+        const FPType p      = static_cast<FPType>(_p);
+        const FPType rootOf = static_cast<FPType>(1.0 / _p);
 
         for (size_t ix = 0; ix < nX; ++ix)
         {
-            for (size_t iy = 0; iy < nY; ++iy)
+            const FPType * const x = a + ix * nDims;
+            for (size_t iy0 = 0; iy0 < nY; iy0 += pairsPerChunk)
             {
-                res[ix * nY + iy] = MinkowskiDistances<FPType, cpu>::computeDistance(x + ix * nDims, y + iy * nDims, nDims);
+                const size_t nPairs = services::internal::min<cpu, size_t>(pairsPerChunk, nY - iy0);
+                for (size_t k = 0; k < nPairs; ++k)
+                {
+                    const FPType * const y = b + (iy0 + k) * nDims;
+                    for (size_t i = 0; i < nDims; ++i) buf[k * nDims + i] = math.sFabs(x[i] - y[i]);
+                }
+                math.vPowx(nPairs * nDims, buf, p, buf);
+                for (size_t k = 0; k < nPairs; ++k)
+                {
+                    FPType d = 0;
+                    for (size_t i = 0; i < nDims; ++i) d += buf[k * nDims + i];
+                    res[ix * nY + iy0 + k] = _powered ? d : math.sPowx(d, rootOf);
+                }
             }
         }
 
