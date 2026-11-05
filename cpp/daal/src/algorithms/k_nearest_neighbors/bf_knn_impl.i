@@ -343,7 +343,7 @@ protected:
         {
             minDistance = array[i] < minDistance ? array[i] : minDistance;
         }
-        if (!(minDistance < cmp)) return 0;
+        if (minDistance >= cmp) return 0;
 
         size_t count = 0;
 
