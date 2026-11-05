@@ -62,11 +62,12 @@ std::int64_t propose_block_size(const context_cpu& ctx, const std::int64_t row_c
 /// @tparam Float   The type of elements that is used in computations in covariance algorithm.
 ///                 The :literal:`Float` type should be at least :expr:`float` or :expr:`double`.
 ///
-/// @param[in] ctx       Context that stores the information about the available CPU extensions
-///                      and available data communication mechanisms, parallel or distributed.
-/// @param[in] sys_params System parameters that provide the sizes of the CPU caches
-///                        and the maximal number of threads.
-/// @param[in] row_count Number of rows in the input dataset.
+/// @param[in] ctx          Context that stores the information about the available CPU extensions
+///                         and available data communication mechanisms, parallel or distributed.
+/// @param[in] sys_params   System parameters that provide the sizes of the CPU caches
+///                         and the maximal number of threads.
+/// @param[in] row_count    Number of rows in the input dataset.
+/// @param[in] column_count Number of columns in the input dataset.
 ///
 /// @return Number of rows in the data block used in variance-covariance matrix computations on CPU.
 template <typename Float>
