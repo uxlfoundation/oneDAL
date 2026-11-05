@@ -134,7 +134,8 @@ function install_miniforge {
 }
 
 function install_abigail {
-    sudo apt-get install -y abigail-tools
+    # abi_check.sh also needs nm, objcopy and readelf from binutils.
+    sudo apt-get install -y abigail-tools binutils
 }
 
 if [ "${component}" == "dpcpp" ]; then
