@@ -221,6 +221,9 @@ inline sycl::event memcpy(sycl::queue& queue,
     ONEDAL_ASSERT(dest != nullptr);
     // This function might be used to copy data between usm and non-usm memory,
     // so we don't check if the pointers are usm or not
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_transfer_tracking_enabled())) {
+        detail::profiler_record_copy(queue, dest, src, size);
+    }
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.memcpy(dest, src, size);

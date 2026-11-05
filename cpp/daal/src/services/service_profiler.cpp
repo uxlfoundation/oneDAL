@@ -26,7 +26,8 @@
 //
 //  Allocations made through oneDAL's allocators are charged to the task open on the allocating
 //  thread. Live memory is counted process-wide, so the peak of a sequential task also includes
-//  what other threads of the process allocate at the same time.
+//  what other threads of the process allocate at the same time. Copies between host and device are
+//  charged the same way, without a process-wide counter.
 //--
 */
 
@@ -50,7 +51,10 @@ namespace internal
 {
 namespace
 {
-constexpr int memory_kinds = 2;
+constexpr int memory_kinds   = 2;
+constexpr int transfer_kinds = 3;
+
+const char * const transfer_names[transfer_kinds] = { "host to device", "device to host", "device to device" };
 
 inline std::uint64_t now_ns()
 {
@@ -72,9 +76,11 @@ struct node
     bool on_queue          = false; // timed on a SYCL queue
     bool traced            = false; // the tracer has written this path once
     // Written by any thread running a chunk under this task, hence atomic.
-    std::atomic<std::uint64_t> alloc_bytes[memory_kinds] = {};
-    std::atomic<std::uint64_t> alloc_count[memory_kinds] = {};
-    std::uint64_t peak_bytes[memory_kinds]               = {};
+    std::atomic<std::uint64_t> alloc_bytes[memory_kinds]      = {};
+    std::atomic<std::uint64_t> alloc_count[memory_kinds]      = {};
+    std::uint64_t peak_bytes[memory_kinds]                    = {};
+    std::atomic<std::uint64_t> transfer_bytes[transfer_kinds] = {};
+    std::atomic<std::uint64_t> transfer_count[transfer_kinds] = {};
 };
 
 /// An open task or, with task == nullptr, a chunk of a parallel region whose tasks go under anchor.
@@ -108,6 +114,9 @@ struct thread_state
     std::vector<frame> stack;
     std::unordered_map<node_key, node *, node_key_hash> index;
     std::vector<std::unique_ptr<node> > nodes;
+    // Every copy made on this thread, in a task or not. Written by this thread only.
+    std::atomic<std::uint64_t> transfer_bytes[transfer_kinds] = {};
+    std::atomic<std::uint64_t> transfer_count[transfer_kinds] = {};
 };
 
 /// A recorded block that is not freed yet.
@@ -421,10 +430,12 @@ struct merged
     bool parallel         = false;
     bool on_queue         = false;
     // Of the task alone until finish() adds the children in, except the peak.
-    std::uint64_t alloc_bytes[memory_kinds] = {};
-    std::uint64_t alloc_count[memory_kinds] = {};
-    std::uint64_t peak_bytes[memory_kinds]  = {};
-    std::uint64_t held_bytes[memory_kinds]  = {};
+    std::uint64_t alloc_bytes[memory_kinds]      = {};
+    std::uint64_t alloc_count[memory_kinds]      = {};
+    std::uint64_t peak_bytes[memory_kinds]       = {};
+    std::uint64_t held_bytes[memory_kinds]       = {};
+    std::uint64_t transfer_bytes[transfer_kinds] = {};
+    std::uint64_t transfer_count[transfer_kinds] = {};
 };
 
 struct node_ptr_hash
@@ -487,6 +498,11 @@ void finish(merged & m, bool parent_parallel, std::uint64_t limit)
             m.alloc_count[k] += child->alloc_count[k];
             m.held_bytes[k] += child->held_bytes[k];
         }
+        for (int k = 0; k < transfer_kinds; ++k)
+        {
+            m.transfer_bytes[k] += child->transfer_bytes[k];
+            m.transfer_count[k] += child->transfer_count[k];
+        }
     }
     m.self_ns = m.time_ns > child_time ? m.time_ns - child_time : 0;
 }
@@ -513,6 +529,11 @@ std::unique_ptr<merged> build_tree()
                 m->alloc_bytes[k] += n->alloc_bytes[k].load(std::memory_order_relaxed);
                 m->alloc_count[k] += n->alloc_count[k].load(std::memory_order_relaxed);
                 m->peak_bytes[k] = std::max(m->peak_bytes[k], n->peak_bytes[k]);
+            }
+            for (int k = 0; k < transfer_kinds; ++k)
+            {
+                m->transfer_bytes[k] += n->transfer_bytes[k].load(std::memory_order_relaxed);
+                m->transfer_count[k] += n->transfer_count[k].load(std::memory_order_relaxed);
             }
         }
     }
@@ -554,6 +575,11 @@ void flatten(const merged & m, std::int64_t parent, std::int64_t depth, std::vec
             row.alloc_count[k] = child->alloc_count[k];
             row.peak_bytes[k]  = child->peak_bytes[k];
             row.held_bytes[k]  = child->held_bytes[k];
+        }
+        for (int k = 0; k < transfer_kinds; ++k)
+        {
+            row.transfer_bytes[k] = child->transfer_bytes[k];
+            row.transfer_count[k] = child->transfer_count[k];
         }
         flatten(*child, index, depth + 1, rows);
     }
@@ -655,6 +681,39 @@ DAAL_EXPORT void profiler_record_free(const void * ptr)
     global.live[freed.kind].fetch_sub(static_cast<std::int64_t>(freed.size), std::memory_order_relaxed);
 }
 
+DAAL_EXPORT void profiler_record_transfer(std::size_t size, profiler_transfer_kind kind)
+{
+    const int k       = static_cast<int>(kind);
+    thread_state & ts = this_thread();
+    node * owner      = charge_target(ts);
+    // Only this thread writes these, so no read-modify-write is needed.
+    ts.transfer_bytes[k].store(ts.transfer_bytes[k].load(std::memory_order_relaxed) + size, std::memory_order_relaxed);
+    ts.transfer_count[k].store(ts.transfer_count[k].load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+    if (owner)
+    {
+        owner->transfer_bytes[k].fetch_add(size, std::memory_order_relaxed);
+        owner->transfer_count[k].fetch_add(1, std::memory_order_relaxed);
+    }
+    if (is_tracer_enabled())
+    {
+        std::vector<const char *> path;
+        for (const node * at = owner; at; at = at->parent) path.push_back(at->name);
+        std::string text = "copy ";
+        text += transfer_names[k];
+        text += ' ';
+        text += std::to_string(size);
+        text += " bytes ";
+        if (path.empty()) text += "outside any task";
+        for (std::size_t i = path.size(); i-- > 0;)
+        {
+            text += i + 1 == path.size() ? "in " : " > ";
+            text += path[i];
+        }
+        text += '\n';
+        profiler_log(text.data(), text.size());
+    }
+}
+
 DAAL_EXPORT const profiler_region_hooks & profiler_threading_hooks()
 {
     return region_hooks;
@@ -697,6 +756,12 @@ DAAL_EXPORT void profiler_print_report(std::ostream & out)
             if (!row.parallel) out << " peak " << format_bytes(row.peak_bytes[k]);
             if (row.held_bytes[k]) out << " held " << format_bytes(row.held_bytes[k]);
         }
+        for (int k = 0; k < transfer_kinds; ++k)
+        {
+            if (!row.transfer_count[k]) continue;
+            out << ", " << transfer_names[k] << ' ' << format_bytes(row.transfer_bytes[k]) << " in " << row.transfer_count[k]
+                << (row.transfer_count[k] == 1 ? " copy" : " copies");
+        }
         out << '\n';
     }
     out << "|--(end)" << '\n';
@@ -706,6 +771,30 @@ DAAL_EXPORT void profiler_print_report(std::ostream & out)
         global_state & global = state();
         out << "DAAL KERNEL_PROFILER: memory peak host " << format_bytes(global.process_peak[0].load(std::memory_order_relaxed)) << ", device "
             << format_bytes(global.process_peak[1].load(std::memory_order_relaxed)) << '\n';
+    }
+    if (is_transfer_tracking_enabled())
+    {
+        std::uint64_t bytes[transfer_kinds] = {};
+        std::uint64_t count[transfer_kinds] = {};
+        {
+            global_state & global = state();
+            std::lock_guard<std::mutex> lock(global.threads_mutex);
+            for (const thread_state * ts : global.threads)
+            {
+                for (int k = 0; k < transfer_kinds; ++k)
+                {
+                    bytes[k] += ts->transfer_bytes[k].load(std::memory_order_relaxed);
+                    count[k] += ts->transfer_count[k].load(std::memory_order_relaxed);
+                }
+            }
+        }
+        out << "DAAL KERNEL_PROFILER: copies";
+        for (int k = 0; k < transfer_kinds; ++k)
+        {
+            out << (k ? ", " : " ") << transfer_names[k] << ' ' << format_bytes(bytes[k]) << " in " << count[k]
+                << (count[k] == 1 ? " copy" : " copies");
+        }
+        out << '\n';
     }
 }
 
@@ -718,6 +807,11 @@ DAAL_EXPORT void profiler_reset()
         ts->stack.clear();
         ts->index.clear();
         ts->nodes.clear();
+        for (int k = 0; k < transfer_kinds; ++k)
+        {
+            ts->transfer_bytes[k].store(0, std::memory_order_relaxed);
+            ts->transfer_count[k].store(0, std::memory_order_relaxed);
+        }
     }
     // Blocks still allocated stay counted as live, but no longer charged to a task.
     for (block_shard & shard : global.shards)
