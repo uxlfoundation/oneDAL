@@ -35,10 +35,6 @@ namespace oneapi::dal::covariance::parameters {
 
 using dal::backend::context_cpu;
 
-inline std::int64_t ceil_div(std::int64_t a, std::int64_t b) {
-    return (a + b - 1) / b;
-}
-
 /// Given the input dataset with :literal:`n` rows and :literal:`p` columns,
 ///the function proposes an appropriate block size for CPU computations.
 ///

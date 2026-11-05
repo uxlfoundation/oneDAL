@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "oneapi/dal/common.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
 #include "oneapi/dal/detail/parameters/system_parameters.hpp"
 
