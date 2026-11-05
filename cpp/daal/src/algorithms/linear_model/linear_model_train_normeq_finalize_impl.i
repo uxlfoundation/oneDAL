@@ -377,7 +377,7 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     {
         DAAL_PROFILER_TASK(computeDual.computeMeans);
         /* TODO: this could be turned into a loop without GEMM. Should be faster for single-response */
-        onesArray.resize(nRows);
+        onesArray.reset(nRows);
         algorithmFPType * ones = onesArray.get();
         DAAL_CHECK_MALLOC(xMean);
         DAAL_CHECK_MALLOC(yMean);
