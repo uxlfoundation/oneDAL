@@ -42,6 +42,7 @@
         "onedpl-devel",
         "impi-rt",
         "impi-devel",
+        "modified-libfabric",
         "oneccl"
       ],
       "groupName": "oneAPI"
