@@ -18,6 +18,7 @@
 
 #include "oneapi/dal/common.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
+#include "oneapi/dal/detail/cpu.hpp"
 #include "oneapi/dal/detail/parameters/system_parameters.hpp"
 
 #if defined(TARGET_X86_64)
