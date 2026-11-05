@@ -246,6 +246,11 @@ public:
                                                                                                _useSequentialGemm, nullptr);
     }
 
+    /**
+     * Note: at the time of writing, GEMM was faster than SYRK for this operation,
+     * but if those performance gaps are addressed in the future, it should be switched
+     * to SYRK instead.
+     */
     void update(size_t begin, size_t end) override
     {
         DAAL_PROFILER_THREADING_TASK(computeDual.computeXXt.update);
@@ -366,11 +371,13 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
     const algorithmFPType one(1);
     const algorithmFPType negOne(-1);
     const DAAL_INT incOne(1);
+
+    TArray<algorithmFPType, cpu> onesArray;
     if (interceptFlag)
     {
         DAAL_PROFILER_TASK(computeDual.computeMeans);
-        TArray<algorithmFPType, cpu> onesArray(nRows);
-        algorithmFPType * ones = onesArray.get();
+        /* TODO: this could be turned into a loop without GEMM. Should be faster for single-response */
+        onesArray.resize(nRows) algorithmFPType * ones = onesArray.get();
         DAAL_CHECK_MALLOC(xMean);
         DAAL_CHECK_MALLOC(yMean);
         DAAL_CHECK_MALLOC(ycBuf);
@@ -411,7 +418,8 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
 
     {
         DAAL_PROFILER_TASK(computeDual.computeXXt);
-        /* GEMM is used as it is faster than SYRK when nRows << nFeatures */
+        /* GEMM is used as it was faster than SYRK when nRows << nFeatures at the time of writing.
+           If this changes in the future, this should be switched to SYRK. */
         if (!interceptFlag)
         {
             BlasInst<algorithmFPType, cpu>::xgemm("T", "N", &nRows, &nRows, &nFeatures, &one, x, &nFeatures, x, &nFeatures, &zero, xxt, &nRows);
@@ -494,14 +502,11 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
             TArray<algorithmFPType, cpu> dualSumArray(nResponses);
             algorithmFPType * dualSum = dualSumArray.get();
             DAAL_CHECK_MALLOC(dualSum);
-            for (DAAL_INT j = 0; j < nResponses; ++j)
-            {
-                const algorithmFPType * dualCoefRow = dualCoef + j * nRows;
-                algorithmFPType sum                 = zero;
-                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-                for (DAAL_INT i = 0; i < nRows; ++i) sum += dualCoefRow[i];
-                dualSum[j] = sum;
-            }
+            DAAL_ASSERT(onesArray.get())
+            const algorithmFPType zero = 0;
+            BlasInst<algorithmFPType, cpu>::xgemv("T", &nRows, &nResponses, &one, dualCoef, &nRows, onesArray.get(), &incOne, &zero, dualSumArray,
+                                                  &incOne);
+
             BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nFeatures, &nResponses, &incOne, &negOne, xMean, &nFeatures, dualSum, &incOne, &one,
                                                   beta + 1, &nBetas);
         }
