@@ -424,7 +424,7 @@ sycl::event kernels_fp<Float>::compute_exact_distances(sycl::queue& queue,
     Float* distances_ptr = distances.get_mutable_data();
     const std::int64_t sg_size = bk::device_max_sg_size(queue);
 
-    // One sub-group per row; its work-items stride over the columns.
+    // One work-group of sub-group width per row; its work-items stride over the columns.
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for<exact_distances<Float>>(
