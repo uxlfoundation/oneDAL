@@ -64,7 +64,7 @@ struct ExecutorParams
  *  - WorkItem, a copyable node description, and TreeContext, default-constructible per-runner state.
  *  - Status initContext(TreeContext &, int numaNode): called once per runner, inside the arena of NUMA
  *    node numaNode, in [0, ExecutorParams::numaNodes). Per-tree buffers allocated here are reused by every
- *    tree the runner builds and stay on that node; numaNode also selects the node's data replicas.
+ *    tree the runner builds and stay on that node.
  *  - Status beginTree(TreeContext &, size_t iTree, WorkItem & root)
  *  - Status evaluate(TreeContext &, WorkItem &, bool & splittable): finds the item's split. In
  *    best-first trees it also sets the improvement the heap orders by.

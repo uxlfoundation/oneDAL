@@ -45,13 +45,31 @@ using daal::internal::CpuType;
 // Cache line size of the supported x86-64, Arm and RISC-V server CPUs; the bin matrix row layout assumes it.
 constexpr size_t cacheLineBytes = 64;
 
-/// Rows between the row being prefetched and the row being processed. Every CpuType starts from the
-/// 10 rows of ComputeGHSumByRows (gbt_train_hist_kernel.i) until the prefetch benchmark sets it.
+/// Cache lines a pass keeps in flight ahead of the row it processes. Every CpuType starts from the 10 rows of one
+/// line of ComputeGHSumByRows (gbt_train_hist_kernel.i) until the prefetch benchmark sets it.
 template <CpuType cpu>
-constexpr size_t defaultPrefetchDistance()
+constexpr size_t defaultPrefetchLines()
 {
     return 10;
 }
+
+/// How far ahead a pass over rows prefetches (design 4.5), in lines rather than rows, so wide rows do not put more
+/// lines in flight than the fill buffers hold.
+template <CpuType cpu>
+struct PrefetchBudget
+{
+    size_t lines   = defaultPrefetchLines<cpu>(); // 0: no prefetch
+    size_t l2Bytes = 0;                           // a pass whose lines fit half of L2 after the parent's pass does not prefetch
+
+    /// Rows of lead for n rows of linesPerRow prefetched lines each: 0 if their lines fit half of L2, else about
+    /// lines / linesPerRow, at least 1.
+    size_t rows(size_t n, size_t linesPerRow) const
+    {
+        const size_t perRow = linesPerRow ? linesPerRow : 1;
+        if (!lines || n * perRow * cacheLineBytes * 2 < l2Bytes) return 0;
+        return lines / perRow ? lines / perRow : 1;
+    }
+};
 
 /**
  *  \brief Runs body(i) for i in [0, n) in order and prefetch(i) distance rows before body(i)

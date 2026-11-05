@@ -780,17 +780,48 @@ TEST("node sample counts are bootstrap draws without weights and distinct rows w
         }
 }
 
-TEST("tables below numaMinTableBytes use one NUMA node and do not query the topology", "[unit]")
+/// Estimated seconds of a default fit (bootstrap, full depth, minimum leaf 1) of nTrees trees on nThreads threads.
+double defaultFitSeconds(size_t nRows, size_t p, bool classification, size_t nTrees, size_t nThreads)
 {
-    // Querying the topology (threader_numa_count) loads hwloc, the cost the threshold avoids, so the small-table
-    // placement must not come from it.
-    const auto small = training::internal::numaPlacement<cpu>(training::internal::numaMinTableBytes - 1, true);
+    const size_t k  = training::internal::trainer::defaultFeaturesPerNode<cpu>(p, classification);
+    const auto work = training::internal::fitWork<cpu>(nTrees, nRows, nRows, true, k, 1, 0, 0);
+    return training::internal::estimatedFitSeconds<cpu>(work, nThreads);
+}
+
+TEST("the NUMA gate turns on at the row counts of design 4.9 and follows trees, threads and depth", "[unit]")
+{
+    using training::internal::numaMinFitSeconds;
+    // 224 threads, 100 trees: about 365k rows at 28 features, 74k at 784 and 33k at 5000 (classification).
+    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 224) < numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(800000, 28, true, 100, 224) > numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(60000, 784, true, 100, 224) < numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(200000, 784, true, 100, 224) > numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(6000, 5000, true, 100, 224) < numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(100000, 5000, true, 100, 224) > numaMinFitSeconds);
+    // Regression draws p / 3 features, so it turns on sooner: about 80k rows at 90 features.
+    REQUIRE(defaultFitSeconds(40000, 90, false, 100, 224) < numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(200000, 90, false, 100, 224) > numaMinFitSeconds);
+    // Fewer threads lower the threshold, fewer trees raise it.
+    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 32) > numaMinFitSeconds);
+    REQUIRE(defaultFitSeconds(800000, 28, true, 10, 224) < numaMinFitSeconds);
+    // Depth and leaf limits cap the levels.
+    const auto deep    = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 0, 0);
+    const auto shallow = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 4, 0);
+    const auto leaves  = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 0, 64);
+    REQUIRE(deep.levels == 19);
+    REQUIRE(shallow.levels == 4);
+    REQUIRE(leaves.levels == 6);
+    REQUIRE(training::internal::fitWork<cpu>(100, 1000, 1000, false, 5, 1, 0, 0).rows == 1000);
+}
+
+TEST("fits below the NUMA gate use one node and do not query the topology", "[unit]")
+{
+    // Querying the topology (threader_numa_count) loads hwloc, the cost the gate avoids, so the one-node placement
+    // must not come from it.
+    const auto small = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(10, 1000, 1000, true, 5, 1, 0, 0), 224);
     REQUIRE(small.nodes == 1);
-    REQUIRE(!small.replicate);
-    const auto large = training::internal::numaPlacement<cpu>(training::internal::numaMinTableBytes, true);
+    const auto large = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(100, 10000000, 10000000, true, 5, 1, 0, 0), 224);
     REQUIRE(large.nodes == size_t(threader_numa_count()));
-    REQUIRE(large.replicate);
-    REQUIRE(!training::internal::numaPlacement<cpu>(training::internal::numaMinTableBytes, false).replicate);
 }
 
 } // namespace daal::algorithms::decision_forest::test

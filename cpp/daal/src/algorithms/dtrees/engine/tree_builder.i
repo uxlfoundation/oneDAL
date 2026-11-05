@@ -270,7 +270,6 @@ public:
         NodePool<cpu> nodes;
         CounterRng<cpu> rng;
         CarryList<Record, cpu> carries;
-        int numaNode = 0;
     };
 
     TreeBuilder(const TreeData<algorithmFPType, cpu> & data, const TreeParams & params, TreeInputs<Record, cpu> & inputs)
@@ -280,8 +279,7 @@ public:
           _k(params.featuresPerNode && params.featuresPerNode < data.nFeatures ? params.featuresPerNode : data.nFeatures),
           _words(bitWords<cpu>(data.nFeatures)),
           _scratch([]() -> Scratch * { return new Scratch(); }),
-          _prefetchRows(defaultPrefetchDistance<cpu>()),
-          _l2Bytes(services::internal::getL2CacheSize())
+          _prefetch { defaultPrefetchLines<cpu>(), services::internal::getL2CacheSize() }
     {}
 
     ~TreeBuilder()
@@ -304,9 +302,9 @@ public:
         return services::Status();
     }
 
-    services::Status initContext(TreeContext & ctx, int numaNode)
+    // Runs inside the arena of the runner's NUMA node, so the context's buffers are first touched there.
+    services::Status initContext(TreeContext & ctx, int /* numaNode */)
     {
-        ctx.numaNode = numaNode;
         ctx.rng.useStreams(&_streams);
         return ctx.records.allocate(_data.nRows);
     }
@@ -314,7 +312,7 @@ public:
     services::Status beginTree(TreeContext & ctx, size_t iTree, WorkItem & root)
     {
         uint64_t treeSeed  = 0;
-        services::Status s = _inputs.prepareTree(iTree, ctx.numaNode, ctx.records, treeSeed);
+        services::Status s = _inputs.prepareTree(iTree, ctx.records, treeSeed);
         DAAL_CHECK_STATUS_VAR(s);
         if (_params.counterDraws)
         {
@@ -461,11 +459,11 @@ public:
         Record * out         = ctx.records.buffer(item.depth + 1) + item.start;
         const size_t nChunks = hist::chunkCount<cpu>(item.n, _params.chunkRows, _params.maxChunks);
         if (!split.byBin)
-            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(ctx.numaNode), _data.nFeatures, split });
+            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(), _data.nFeatures, split });
         else if (_data.bins->binBytes() == 1)
-            s = partitionByBin<uint8_t>(ctx, in, out, item.n, nChunks, split, targets);
+            s = partitionByBin<uint8_t>(in, out, item.n, nChunks, split, targets);
         else
-            s = partitionByBin<uint16_t>(ctx, in, out, item.n, nChunks, split, targets);
+            s = partitionByBin<uint16_t>(in, out, item.n, nChunks, split, targets);
         DAAL_CHECK_STATUS_VAR(s);
 
         TreeNode & node       = ctx.nodes[item.node];
@@ -524,24 +522,18 @@ private:
     template <typename BinT>
     struct BinRoute
     {
-        BinRoute(const BinMatrix<cpu> & bins, int numaNode, const Candidate & split)
-            : bins(bins),
-              numaNode(numaNode),
-              feature(split.feature),
-              splitBin(split.splitBin),
-              missing(bins.missingBin(split.feature)),
-              categorical(split.categorical)
+        BinRoute(const BinMatrix<cpu> & bins, const Candidate & split)
+            : bins(bins), feature(split.feature), splitBin(split.splitBin), missing(bins.missingBin(split.feature)), categorical(split.categorical)
         {}
 
         const BinMatrix<cpu> & bins;
-        int numaNode;
         size_t feature;
         size_t splitBin;
         size_t missing;
         bool categorical;
 
-        const void * address(uint32_t row) const { return bins.template row<BinT>(numaNode, row) + feature; }
-        bool left(uint32_t row) const { return leftBin(bins.template row<BinT>(numaNode, row)[feature]); }
+        const void * address(uint32_t row) const { return bins.template row<BinT>(row) + feature; }
+        bool left(uint32_t row) const { return leftBin(bins.template row<BinT>(row)[feature]); }
         bool leftBin(size_t b) const { return categorical ? b == splitBin : b <= splitBin || b == missing; }
     };
 
@@ -550,7 +542,7 @@ private:
     template <typename Route>
     services::Status partition(const Record * in, Record * out, size_t n, size_t nLeft, size_t nChunks, const Route & route) const
     {
-        const size_t distance = prefetchDistance(n);
+        const size_t distance = _prefetch.rows(n, 1);
         auto scatter          = [&](size_t begin, size_t end, size_t iLeft, size_t iRight) {
             prefetchedLoop<cpu>(
                 end - begin, distance, [&](size_t i) { DAAL_PREFETCH_READ_T0(route.address(in[begin + i].row)); },
@@ -661,19 +653,16 @@ private:
     }
 
     template <typename BinT>
-    services::Status partitionByBin(TreeContext & ctx, const Record * in, Record * out, size_t n, size_t nChunks, const Candidate & split,
+    services::Status partitionByBin(const Record * in, Record * out, size_t n, size_t nChunks, const Candidate & split,
                                     const hist::Target<Record, cpu> (&targets)[2]) const
     {
-        const BinRoute<BinT> route(*_data.bins, ctx.numaNode, split);
+        const BinRoute<BinT> route(*_data.bins, split);
         if (!targets[0].planes && !targets[1].planes) return partition(in, out, n, split.nLeft, nChunks, route);
         const size_t f = split.feature;
         return hist::fusedPartition<Record, BinT>(
-            in, out, n, split.nLeft, *_data.bins, ctx.numaNode, split.feature, [&](const BinT * b) { return route.leftBin(b[f]); }, targets,
-            _params.nClasses, nChunks, prefetchDistance(n));
+            in, out, n, split.nLeft, *_data.bins, split.feature, [&](const BinT * b) { return route.leftBin(b[f]); }, targets, _params.nClasses,
+            nChunks, _prefetch);
     }
-
-    // No software prefetch for nodes whose rows already fit half of L2 after the parent's pass (design 4.5).
-    size_t prefetchDistance(size_t n) const { return n * cacheLineBytes * 2 < _l2Bytes ? 0 : _prefetchRows; }
 
     static void setResponse(Scratch & s, size_t i, const Record & r)
     {
@@ -835,8 +824,7 @@ private:
             }
             else
             {
-                status = hist::build(records, n, *_data.bins, ctx.numaNode, lanes, nLanes, _params.nClasses, nChunks, prefetchDistance(n),
-                                     nodeCenter(cost), own);
+                status = hist::build(records, n, *_data.bins, lanes, nLanes, _params.nClasses, nChunks, _prefetch, nodeCenter(cost), own);
                 if (!status) return best;
             }
             for (size_t j = 0; j < nLanes; ++j)
@@ -982,11 +970,11 @@ private:
                              bool & constant, services::Status & status) const
     {
         const bool categorical    = isCategorical(f);
-        const algorithmFPType * x = _data.x->data(ctx.numaNode);
+        const algorithmFPType * x = _data.x->data();
         const size_t p            = _data.nFeatures;
         algorithmFPType * values  = scratch.x.get();
         prefetchedLoop<cpu>(
-            n, prefetchDistance(n), [&](size_t i) { DAAL_PREFETCH_READ_T0(x + size_t(records[i].row) * p + f); },
+            n, _prefetch.rows(n, 1), [&](size_t i) { DAAL_PREFETCH_READ_T0(x + size_t(records[i].row) * p + f); },
             [&](size_t i) { values[i] = x[size_t(records[i].row) * p + f]; });
 
         Candidate best;
@@ -1254,8 +1242,7 @@ private:
     LargeArray<uint64_t, cpu> _rootBits;
     CounterStreams<cpu> _streams;
     mutable daal::tls<Scratch *> _scratch;
-    const size_t _prefetchRows;
-    const size_t _l2Bytes;
+    const PrefetchBudget<cpu> _prefetch;
 };
 
 template <typename algorithmFPType, typename Record, CpuType cpu>

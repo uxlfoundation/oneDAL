@@ -59,7 +59,9 @@ using services::internal::TArray;
 using daal::internal::WriteOnlyRows;
 using engines::internal::ParallelizationTechnique;
 
-// Rows per block of the passes over the table rows: bootstrap draws and OOB evaluation.
+// Rows per block of the passes over the table rows: bootstrap draws and OOB evaluation. Fixed rather than
+// passBlockRows, as MDA adds per-block sums in block order; so a tree with fewer OOB rows evaluates them serially,
+// and finer blocks need small fixed summing units to keep MDA independent of the thread count.
 constexpr size_t blockRows = eng::tableBlockRows;
 
 // Classes a ClsCountRecord addresses (u16 class).
@@ -228,7 +230,7 @@ public:
         _nodeDraws.reduce([](NodeDrawBatch * b) { delete b; });
     }
 
-    services::Status prepareTree(size_t iTree, int numaNode, eng::ResponseSet<Record, cpu> & records, uint64_t & treeSeed) override
+    services::Status prepareTree(size_t iTree, eng::ResponseSet<Record, cpu> & records, uint64_t & treeSeed) override
     {
         void * state = _s.streams->tree(iTree);
         daal::internal::RNGsInst<int, cpu> rng;
@@ -268,7 +270,7 @@ public:
                 if (!c[r]) bits[r >> 6] |= uint64_t(1) << (r & 63);
         }
         double total         = 0;
-        services::Status s   = records.fill(c, *_s.src, numaNode, total);
+        services::Status s   = records.fill(c, *_s.src, total);
         _s.treeWeight[iTree] = total;
         return s;
     }
@@ -464,7 +466,7 @@ public:
         double sumError = 0, yMean = 0, sumSquares = 0;
         if (!_nClasses)
         {
-            const algorithmFPType * y = _src.responses(0);
+            const algorithmFPType * y = _src.responses();
             for (size_t i = 0; i < n; ++i) yMean += double(y[i]);
             yMean /= double(n);
         }
@@ -488,7 +490,7 @@ public:
                     if (perObs.get()) perObs.get()[i] = -1; // in no tree's OOB set
                     continue;
                 }
-                const bool wrong = best != _src.classes(0)[i];
+                const bool wrong = best != _src.classes()[i];
                 ++nPredicted;
                 sumError += wrong;
                 if (perObs.get()) perObs.get()[i] = algorithmFPType(wrong);
@@ -501,7 +503,7 @@ public:
                     if (prediction.get()) prediction.get()[i] = 0;
                     continue;
                 }
-                const double y    = double(_src.responses(0)[i]);
+                const double y    = double(_src.responses()[i]);
                 const double mean = _sums[i] / double(_counts[i]);
                 const double e    = (mean - y) * (mean - y);
                 ++nPredicted;
@@ -541,8 +543,8 @@ public:
 private:
     double error(const dtrees::internal::DecisionTreeNode & leaf, size_t row) const
     {
-        if (_nClasses) return double(leaf.leftIndexOrClass != _src.classes(0)[row]);
-        const double d = leaf.featureValueOrResponse - double(_src.responses(0)[row]);
+        if (_nClasses) return double(leaf.leftIndexOrClass != _src.classes()[row]);
+        const double d = leaf.featureValueOrResponse - double(_src.responses()[row]);
         return d * d;
     }
 
@@ -599,17 +601,24 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     DAAL_CHECK_MALLOC(model.resize(nTrees));
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, p);
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows * p, sizeof(algorithmFPType));
-    const eng::NumaPlacement placement = numaPlacement<cpu>(nRows * p * sizeof(algorithmFPType), !par.memorySavingMode);
+    // Bootstrap draws may exceed the rows (fraction above 1); without bootstrap a tree takes at most every row.
+    size_t nSamples = size_t(par.observationsPerTreeFraction * double(nRows));
+    DAAL_CHECK(nSamples >= 1, services::ErrorIncorrectParameter);
+    if (!par.bootstrap && nSamples > nRows) nSamples = nRows;
+    const size_t k           = par.featuresPerNode ? par.featuresPerNode : trainer::defaultFeaturesPerNode<cpu>(p, nClasses > 0);
+    const size_t minLeafRows = par.minObservationsInLeafNode > 1 ? par.minObservationsInLeafNode : 1;
+    const FitWork work       = fitWork<cpu>(nTrees, nRows, nSamples, par.bootstrap, k < p ? k : p, minLeafRows, par.maxTreeDepth, par.maxLeafNodes);
+    const eng::NumaPlacement placement = numaPlacement<cpu>(work, threader_get_threads_number());
 
-    // X row-major per NUMA node, responses and normalized weights, feature types.
-    eng::NumaReplicated<algorithmFPType, cpu> xr;
+    // X row-major, responses and normalized weights, feature types.
+    eng::NumaArray<algorithmFPType, cpu> xr;
     services::Status s = eng::copyTableRows<algorithmFPType, cpu>(x, placement, xr);
     DAAL_CHECK_STATUS_VAR(s);
     eng::ResponseSource<algorithmFPType, cpu> src;
     s = src.build(y, w, nClasses > 0, placement);
     DAAL_CHECK_STATUS_VAR(s);
     if (nClasses)
-        for (size_t i = 0; i < nRows; ++i) DAAL_CHECK(src.classes(0)[i] < nClasses, services::ErrorIncorrectClassLabels);
+        for (size_t i = 0; i < nRows; ++i) DAAL_CHECK(src.classes()[i] < nClasses, services::ErrorIncorrectClassLabels);
     TArray<bool, cpu> categorical(p);
     DAAL_CHECK_MALLOC(categorical.get());
     for (size_t f = 0; f < p; ++f) categorical[f] = x.getFeatureType(f) == data_management::features::DAAL_CATEGORICAL;
@@ -640,11 +649,6 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     const uint64_t oobFlags = computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorAccuracy | computeOutOfBagErrorR2
                               | computeOutOfBagErrorDecisionFunction | computeOutOfBagErrorPrediction;
     const bool predictions = (par.resultsToCompute & oobFlags) != 0;
-    // Bootstrap draws may exceed the rows (fraction above 1); without bootstrap a tree takes at most every row.
-    size_t nSamples = size_t(par.observationsPerTreeFraction * double(nRows));
-    DAAL_CHECK(nSamples >= 1, services::ErrorIncorrectParameter);
-    if (!par.bootstrap && nSamples > nRows) nSamples = nRows;
-    const size_t k = par.featuresPerNode ? par.featuresPerNode : trainer::defaultFeaturesPerNode<cpu>(p, nClasses > 0);
 
     // A tree stream's budget, in engine elements, counting two per uniform double: its seed, bootstrap and MDA draws.
     // Node draws not addressed by counter read the node stream, which needs no budget.
@@ -664,7 +668,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     if (src.weighted())
     {
         totalWeight = 0;
-        for (size_t i = 0; i < nRows; ++i) totalWeight += double(src.weights(0)[i]);
+        for (size_t i = 0; i < nRows; ++i) totalWeight += double(src.weights()[i]);
     }
     const double eps = services::internal::EpsilonVal<double>::get();
     eng::TreeParams tp;
@@ -672,7 +676,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     tp.featuresPerNode     = k;
     tp.maxDepth            = par.maxTreeDepth;
     tp.maxLeafNodes        = par.maxLeafNodes;
-    tp.minLeafRecords      = par.minObservationsInLeafNode > 1 ? par.minObservationsInLeafNode : 1;
+    tp.minLeafRecords      = minLeafRows;
     tp.minSplitRecords     = par.minObservationsInSplitNode > 2 ? par.minObservationsInSplitNode : 2;
     tp.minSplitRecords     = tp.minSplitRecords > 2 * tp.minLeafRecords ? tp.minSplitRecords : 2 * tp.minLeafRecords;
     tp.sizesInDraws        = true; // legacy's count; distinct rows (sklearn) is a follow-up (design 8)
@@ -745,8 +749,8 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     // OOB error and MDA, in tree order.
     if (predictions || mda)
     {
-        const eng::NumaReplicated<algorithmFPType, cpu> & xc = xr;
-        trainer::OutOfBag<algorithmFPType, cpu> oob(xc.data(0), src, categorical.get(), nRows, p, nClasses);
+        const eng::NumaArray<algorithmFPType, cpu> & xc = xr;
+        trainer::OutOfBag<algorithmFPType, cpu> oob(xc.data(), src, categorical.get(), nRows, p, nClasses);
         DAAL_CHECK_STATUS_VAR(oob.allocate(predictions, mda && res.varImportance));
         for (size_t t = 0; t < nTrees; ++t)
         {

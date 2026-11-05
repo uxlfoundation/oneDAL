@@ -19,6 +19,7 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # Versions and hashes of every package below are pinned in
 # requirements_lock.txt, which Renovate keeps current; keep the oneMKL packages
 # there on one version.
+
 mkl_repo = repos.prebuilt_libs_repo_rule(
     root_env_var = "MKLROOT",
     pypi_packages = [

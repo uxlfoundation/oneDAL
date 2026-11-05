@@ -55,6 +55,22 @@ TEST("prefetchedLoop processes every row once, in order, each prefetched once be
     }
 }
 
+TEST("PrefetchBudget keeps the lines in flight, not the rows, and skips passes that fit half of L2", "[unit]")
+{
+    constexpr size_t l2 = size_t(2) << 20;
+    const PrefetchBudget<cpu> budget { 10, l2 };
+    // One line per row (Higgs bins): 10 rows ahead, as the row-count rule gave.
+    REQUIRE(budget.rows(1000000, 1) == 10);
+    // About 70 lines per row (gisette, k = sqrt(5000) drawn features): one row ahead, about 70 lines in flight.
+    REQUIRE(budget.rows(1000000, 70) == 1);
+    REQUIRE(budget.rows(1000000, 3) == 3);
+    // 10000 rows of one line fit half of L2; of 70 lines each they do not.
+    REQUIRE(budget.rows(10000, 1) == 0);
+    REQUIRE(budget.rows(10000, 70) == 1);
+    REQUIRE(budget.rows(1000000, 0) == 10);
+    REQUIRE((PrefetchBudget<cpu> { 0, l2 }).rows(1000000, 1) == 0);
+}
+
 TEST("prefetchRowLines accepts any line of a row", "[unit]")
 {
     constexpr size_t nLines                                      = 4;

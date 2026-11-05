@@ -90,11 +90,11 @@ public:
         : trees(nTrees), _src(src), _counts(counts), _seed(seed)
     {}
 
-    services::Status prepareTree(size_t iTree, int numaNode, ResponseSet<Record, cpu> & records, uint64_t & treeSeed) override
+    services::Status prepareTree(size_t iTree, ResponseSet<Record, cpu> & records, uint64_t & treeSeed) override
     {
         double total = 0;
         treeSeed     = mix64<cpu>(_seed + iTree);
-        return records.fill(_counts.empty() ? nullptr : _counts[iTree].data(), _src, numaNode, total);
+        return records.fill(_counts.empty() ? nullptr : _counts[iTree].data(), _src, total);
     }
 
     services::Status emitTree(size_t iTree, EmittedTree & tree) override
@@ -136,7 +136,7 @@ bool counterDrawsSupported()
 template <typename Record, CpuType cpu>
 std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, size_t nTrees, const std::vector<std::vector<uint16_t> > & counts,
                                uint64_t seed = 777, const BinningParams * binning = nullptr,
-                               const NumaPlacement & placement = NumaPlacement::host<baseCpu>(false))
+                               const NumaPlacement & placement = NumaPlacement::host<baseCpu>())
 {
     std::vector<double> xCopy = d.x;
     NumericTablePtr xt        = HomogenNumericTable<double>::create(xCopy.data(), d.p, d.nRows);
@@ -147,7 +147,7 @@ std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, siz
     std::vector<double> wCopy = d.w;
     NumericTablePtr wt        = d.w.empty() ? NumericTablePtr() : NumericTablePtr(HomogenNumericTable<double>::create(wCopy.data(), 1, d.nRows));
 
-    NumaReplicated<double, cpu> x;
+    NumaArray<double, cpu> x;
     REQUIRE((copyTableRows<double, cpu>(*xt, placement, x)).ok());
     ResponseSource<double, cpu> src;
     REQUIRE(src.build(*yt, wt.get(), d.nClasses > 0, placement).ok());
@@ -1102,17 +1102,17 @@ TEST("a fit on one NUMA node builds the trees of a fit on every node", "[unit]")
     const auto counts       = bootstrapCounts(nTrees, 6000, 143);
     BinningParams one;
     BinningParams all;
-    all.placement = NumaPlacement::host<baseCpu>(true);
+    all.placement = NumaPlacement::host<baseCpu>();
     TreeParams params;
     params.featuresPerNode = 3;
     for (bool hist : { false, true })
     {
         params.numaNodes = 0;
         params.nClasses  = 3;
-        const auto hostC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host<baseCpu>(true));
+        const auto hostC = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host<baseCpu>());
         params.nClasses  = 0;
         const auto hostR =
-            train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host<baseCpu>(true));
+            train<RegCountRecord<double>, baseCpu>(r, params, nTrees, counts, 777, hist ? &all : nullptr, NumaPlacement::host<baseCpu>());
         params.numaNodes = 1;
         params.nClasses  = 3;
         const auto oneC  = train<ClsCountRecord, baseCpu>(c, params, nTrees, counts, 777, hist ? &one : nullptr, NumaPlacement());

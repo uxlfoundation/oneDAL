@@ -49,7 +49,7 @@ TEST("unweighted classification records keep in-bag rows in order with their cou
     ResponseSet<ClsCountRecord, cpu> set;
     REQUIRE(set.allocate(y.size()).ok());
     double total = 0;
-    REQUIRE(set.fill(counts.data(), src, 0, total).ok());
+    REQUIRE(set.fill(counts.data(), src, total).ok());
     REQUIRE(set.size() == 3);
     REQUIRE(total == 6);
     const ClsCountRecord * r = set.buffer(0);
@@ -60,7 +60,7 @@ TEST("unweighted classification records keep in-bag rows in order with their cou
     REQUIRE(set.buffer(1) != set.buffer(0));
 
     // Without bootstrap every row is in the bag once.
-    REQUIRE(set.fill(nullptr, src, 0, total).ok());
+    REQUIRE(set.fill(nullptr, src, total).ok());
     REQUIRE(set.size() == y.size());
     REQUIRE(total == double(y.size()));
 }
@@ -77,7 +77,7 @@ TEST("weights are normalized to a maximum of 1, scaled by the count, and zero we
     ResponseSet<RegWeightRecord<double>, cpu> set;
     REQUIRE(set.allocate(y.size()).ok());
     double total = 0;
-    REQUIRE(set.fill(counts.data(), src, 0, total).ok());
+    REQUIRE(set.fill(counts.data(), src, total).ok());
     REQUIRE(set.size() == 2);
     const auto * r = set.buffer(0);
     REQUIRE((r[0].row == 0 && r[0].y == 1.5 && r[0].w == 0.5));
@@ -114,7 +114,7 @@ TEST("filling more records than allocated fails", "[unit]")
     ResponseSet<ClsCountRecord, cpu> set;
     REQUIRE(set.allocate(2).ok());
     double total = 0;
-    REQUIRE(!set.fill(nullptr, src, 0, total).ok());
+    REQUIRE(!set.fill(nullptr, src, total).ok());
 }
 
 } // namespace daal::algorithms::dtrees::engine::internal::test

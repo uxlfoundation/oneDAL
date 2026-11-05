@@ -144,7 +144,7 @@ public:
                                                   than the threshold then the node is not split anymore.*/
     VariableImportanceMode varImportance;  /*!< Variable importance computation mode */
     DAAL_UINT64 resultsToCompute;          /*!< 64 bit integer flag that indicates the results to compute */
-    bool memorySavingMode;                 /*!< If true, one copy of the training data and its bins; if false, one copy per NUMA node */
+    bool memorySavingMode;                 /*!< No effect. Earlier releases selected sort-based splits, now the defaultDense method */
     bool bootstrap;                        /*!< If true then training set for a tree is a bootstrap of the whole training set */
     size_t minObservationsInSplitNode;     /*!< Minimal number of observations in a split node. Default 2 */
     double minWeightFractionInLeafNode;    /*!< The minimum weighted fraction of the sum total of weights (of all the input observations)

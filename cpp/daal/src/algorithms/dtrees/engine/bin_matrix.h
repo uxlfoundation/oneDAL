@@ -102,7 +102,6 @@ public:
     size_t nFeatures() const { return _nFeatures; }
     size_t binBytes() const { return _binBytes; }
     size_t rowStride() const { return _stride; }
-    size_t copies() const { return _rows.copies(); }
 
     size_t nBins(size_t f) const { return _nBins[f]; }
     size_t missingBin(size_t f) const { return _nBins[f]; }
@@ -116,14 +115,14 @@ public:
     const double * borders(size_t f) const { return _borders.get() + _borderOffset[f]; }
 
     template <typename BinT>
-    const BinT * row(int numaNode, size_t iRow) const
+    const BinT * row(size_t iRow) const
     {
-        return reinterpret_cast<const BinT *>(_rows.data(numaNode) + iRow * _stride);
+        return reinterpret_cast<const BinT *>(_rows.data() + iRow * _stride);
     }
 
     // Writers used while the matrix is built.
-    uint8_t * rowBytes(size_t iCopy, size_t iRow) { return _rows.data(static_cast<int>(iCopy)) + iRow * _stride; }
-    NumaReplicated<uint8_t, cpu> & storage() { return _rows; }
+    uint8_t * rowBytes(size_t iRow) { return _rows.data() + iRow * _stride; }
+    NumaArray<uint8_t, cpu> & storage() { return _rows; }
     void setFeature(size_t f, bool hasMissing, bool exactBins, double min, double max)
     {
         _hasMissing[f] = hasMissing;
@@ -137,7 +136,7 @@ private:
     size_t _nFeatures = 0;
     size_t _binBytes  = 0;
     size_t _stride    = 0;
-    NumaReplicated<uint8_t, cpu> _rows;
+    NumaArray<uint8_t, cpu> _rows;
     services::internal::TArray<size_t, cpu> _nBins;
     services::internal::TArray<size_t, cpu> _borderOffset;
     services::internal::TArray<double, cpu> _borders;

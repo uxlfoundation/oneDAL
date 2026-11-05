@@ -338,21 +338,24 @@ services::Status QuantileBinner<algorithmFPType, cpu>::computeBordersFromRuns(co
 
 namespace binner
 {
-/// Rows of the binning sample, grouped by table block: block b holds sample positions [offset[b], offset[b + 1]).
+/// Rows of the binning sample, grouped by table block of blockRows rows: block b holds sample positions
+/// [offset[b], offset[b + 1]).
 template <CpuType cpu>
 struct SampleRows
 {
-    bool all     = true; // every row from first on is in the sample
-    size_t first = 0;
-    size_t k     = 0;
+    bool all         = true; // every row from first on is in the sample
+    size_t first     = 0;
+    size_t k         = 0;
+    size_t blockRows = tableBlockRows;
     TArray<size_t, cpu> offset;
     TArray<uint32_t, cpu> rows;
 
-    services::Status selectAll(size_t nRows)
+    services::Status selectAll(size_t nRows, size_t rowsPerBlock)
     {
-        const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
+        blockRows            = rowsPerBlock;
+        const size_t nBlocks = (nRows + blockRows - 1) / blockRows;
         DAAL_CHECK_MALLOC(offset.reset(nBlocks + 1));
-        for (size_t b = 0; b <= nBlocks; ++b) offset[b] = b * tableBlockRows < nRows ? b * tableBlockRows : nRows;
+        for (size_t b = 0; b <= nBlocks; ++b) offset[b] = b * blockRows < nRows ? b * blockRows : nRows;
         all   = true;
         first = 0;
         k     = nRows;
@@ -362,6 +365,7 @@ struct SampleRows
     /// Rows [begin, end) of nRows; begin is a multiple of tableBlockRows.
     services::Status selectRange(size_t nRows, size_t begin, size_t end)
     {
+        blockRows            = tableBlockRows;
         const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
         DAAL_CHECK_MALLOC(offset.reset(nBlocks + 1));
         for (size_t b = 0; b <= nBlocks; ++b)
@@ -375,13 +379,14 @@ struct SampleRows
         return services::Status();
     }
 
-    /// Every row when nRows <= sampleRows; otherwise a Bernoulli sample: row r is in it if the stream's r-th
-    /// uniform draw is below sampleRows / nRows. The draws are read serially, in row order, so the sample
-    /// depends on the stream alone, for every engine and thread count.
-    services::Status select(size_t nRows, size_t sampleRows, void * stream)
+    /// Every row, in blocks of allBlockRows, when nRows <= sampleRows; otherwise a Bernoulli sample: row r is in
+    /// it if the stream's r-th uniform draw is below sampleRows / nRows. The draws are read serially, in row order,
+    /// so the sample depends on the stream alone, for every engine and thread count.
+    services::Status select(size_t nRows, size_t sampleRows, void * stream, size_t allBlockRows)
     {
-        if (nRows <= sampleRows) return selectAll(nRows);
+        if (nRows <= sampleRows) return selectAll(nRows, allBlockRows);
         DAAL_CHECK(stream, services::ErrorNullPtr);
+        blockRows            = tableBlockRows;
         const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
         const size_t nWords  = (nRows + 63) / 64;
         TArray<uint64_t, cpu> selected(nWords);
@@ -423,17 +428,18 @@ struct SampleRows
 template <typename algorithmFPType, CpuType cpu>
 services::Status gatherSample(const data_management::NumericTable & x, const SampleRows<cpu> & sample, size_t f0, size_t nf, algorithmFPType * dst)
 {
-    const size_t nRows   = x.getNumberOfRows();
-    const size_t p       = x.getNumberOfColumns();
-    const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
-    const size_t k       = sample.k;
+    const size_t nRows     = x.getNumberOfRows();
+    const size_t p         = x.getNumberOfColumns();
+    const size_t blockRows = sample.blockRows;
+    const size_t nBlocks   = (nRows + blockRows - 1) / blockRows;
+    const size_t k         = sample.k;
     SafeStatus safeStat;
     daal::threader_for(nBlocks, 1, [&](size_t b) {
         const size_t i0 = sample.offset[b];
         const size_t i1 = sample.offset[b + 1];
         if (i0 == i1) return;
-        const size_t begin = b * tableBlockRows;
-        const size_t n     = begin + tableBlockRows < nRows ? tableBlockRows : nRows - begin;
+        const size_t begin = b * blockRows;
+        const size_t n     = begin + blockRows < nRows ? blockRows : nRows - begin;
         daal::internal::ReadRows<algorithmFPType, cpu> rows(const_cast<data_management::NumericTable *>(&x), begin, n);
         DAAL_CHECK_BLOCK_STATUS_THR(rows);
         const algorithmFPType * block = rows.get();
@@ -563,10 +569,12 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     DAAL_CHECK_MALLOC(categorical.get() && nBins.get() && exact.get() && hasMissing.get() && borders.get());
     for (size_t f = 0; f < p; ++f) categorical[f] = x.getFeatureType(f) == data_management::features::DAAL_CATEGORICAL;
 
-    binner::SampleRows<cpu> sample;
-    services::Status s = sample.select(nRows, params.sampleRows, sampleStream);
-    DAAL_CHECK_STATUS_VAR(s);
     const size_t nThreads = threader_get_threads_number();
+    binner::SampleRows<cpu> sample;
+    const size_t valueBytes = sizeof(algorithmFPType);
+    services::Status s =
+        sample.select(nRows, params.sampleRows, sampleStream, passBlockRows<cpu>(nRows, nThreads, 1, p * valueBytes, valueBytes, false));
+    DAAL_CHECK_STATUS_VAR(s);
 
     // One scratch set for all feature groups; pages of the merge buffer are only touched when used.
     binner::SampleScratch<algorithmFPType, cpu> sampleScratch;
@@ -725,7 +733,8 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     DAAL_CHECK_MALLOC(featMin.get() && featMax.get() && nanSeen.get() && missed.get());
 
     // Assigns the listed features of every row and records, per feature, NaN, values outside an
-    // exact bin set and the value range.
+    // exact bin set and the value range. Every feature of a homogen table of algorithmFPType, which ReadRows
+    // returns without a copy, is assigned in tiles of one cache line of a bin row.
     auto assign = [&](const size_t * features, size_t nf) -> services::Status {
         daal::tls<binner::PassStats<cpu> *> tlsStats([&]() -> binner::PassStats<cpu> * {
             binner::PassStats<cpu> * st = new binner::PassStats<cpu>();
@@ -736,17 +745,23 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
             }
             return st;
         });
-        const size_t nBlocks   = (nRows + tableBlockRows - 1) / tableBlockRows;
-        services::Status local = out.storage().forEachBlock(0, nBlocks, [&](size_t b) -> services::Status {
+        const bool tiled      = nf == p && dynamic_cast<const data_management::HomogenNumericTable<algorithmFPType> *>(&x);
+        const size_t tileFeat = tiled && cacheLineBytes / binBytes < nf ? cacheLineBytes / binBytes : nf;
+        const size_t nTiles   = tileFeat ? (nf + tileFeat - 1) / tileFeat : 1;
+        const size_t blockRows =
+            passBlockRows<cpu>(nRows, nThreads, nTiles, tileFeat * sizeof(algorithmFPType), out.rowStride(), out.storage().spansNodes());
+        const size_t nBlocks   = (nRows + blockRows - 1) / blockRows;
+        services::Status local = out.storage().forEachTile(nBlocks, nTiles, [&](size_t b, size_t t) -> services::Status {
             binner::PassStats<cpu> * st = tlsStats.local();
             DAAL_CHECK_MALLOC(st);
-            const size_t begin = b * tableBlockRows;
-            const size_t n     = begin + tableBlockRows < nRows ? tableBlockRows : nRows - begin;
+            const size_t begin = b * blockRows;
+            const size_t n     = begin + blockRows < nRows ? blockRows : nRows - begin;
             daal::internal::ReadRows<algorithmFPType, cpu> rows(const_cast<data_management::NumericTable *>(&x), begin, n);
             DAAL_CHECK_BLOCK_STATUS(rows);
             const algorithmFPType * block = rows.get();
             uint32_t * bins               = st->bins.get();
-            for (size_t jf = 0; jf < nf; ++jf)
+            const size_t jfEnd            = (t + 1) * tileFeat < nf ? (t + 1) * tileFeat : nf;
+            for (size_t jf = t * tileFeat; jf < jfEnd; ++jf)
             {
                 const size_t f      = features[jf];
                 const size_t nb     = nBins[f];
@@ -769,9 +784,9 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
                     st->max[f] = d > st->max[f] ? d : st->max[f];
                 }
                 if (binBytes == 1)
-                    for (size_t i = 0; i < n; ++i) out.rowBytes(0, begin + i)[f] = uint8_t(bins[i]);
+                    for (size_t i = 0; i < n; ++i) out.rowBytes(begin + i)[f] = uint8_t(bins[i]);
                 else
-                    for (size_t i = 0; i < n; ++i) reinterpret_cast<uint16_t *>(out.rowBytes(0, begin + i))[f] = uint16_t(bins[i]);
+                    for (size_t i = 0; i < n; ++i) reinterpret_cast<uint16_t *>(out.rowBytes(begin + i))[f] = uint16_t(bins[i]);
             }
             return services::Status();
         });
@@ -874,8 +889,6 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
         services::internal::tmemcpy<double, cpu>(allBorders + offsets[f], borders[f].get(), nBins[f]);
         out.setFeature(f, hasMissing[f], exact[f], anyValue ? featMin[f] : 0, anyValue ? featMax[f] : 0);
     }
-    s = out.storage().replicate(tableBlockRows * out.rowStride());
-    DAAL_CHECK_STATUS_VAR(s);
     binned = true;
     return services::Status();
 }

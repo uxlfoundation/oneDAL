@@ -76,7 +76,7 @@ struct BinningParams
     size_t maxBins           = 256;
     size_t minBinSize        = 5;
     BinningStrategy strategy = decision_forest::training::quantiles;
-    NumaPlacement placement; // NUMA nodes of the bins, a copy per node if it replicates
+    NumaPlacement placement; // NUMA nodes the bins are spread over
     size_t sampleRows = binSampleRows;
     // Rows per pass when a feature is rebinned from its full column; 0: as many as binSampleScratchBytes holds.
     size_t columnChunkRows = 0;

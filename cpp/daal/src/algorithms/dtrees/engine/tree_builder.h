@@ -71,7 +71,8 @@ struct TreeParams
     // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
     size_t denseThreshold = 2;
     size_t maxBins        = 256;
-    // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks (design 4.6).
+    // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks (design 4.6); the forest's
+    // defaults and their measurements are in EngineHyperparameters (df_hyperparameter_impl.h).
     size_t chunkRows = size_t(1) << 14;
     size_t maxChunks = 64;
     // Partition passes build the children's histograms (needs counterDraws), and nodes pass their constant
@@ -84,7 +85,7 @@ struct TreeParams
 template <typename algorithmFPType, CpuType cpu>
 struct TreeData
 {
-    const NumaReplicated<algorithmFPType, cpu> * x         = nullptr; // row-major, nRows x nFeatures, per NUMA node
+    const NumaArray<algorithmFPType, cpu> * x              = nullptr; // row-major, nRows x nFeatures
     const ResponseSource<algorithmFPType, cpu> * responses = nullptr;
     const bool * categorical                               = nullptr; // per feature; nullptr: all ordered
     const BinMatrix<cpu> * bins                            = nullptr; // hist: the binned table; nullptr for defaultDense
@@ -109,7 +110,7 @@ class TreeInputs
 public:
     virtual ~TreeInputs() {}
     /// Fills the tree's records (buffer 0 of records) and sets its seed, the root's node key.
-    virtual services::Status prepareTree(size_t iTree, int numaNode, ResponseSet<Record, cpu> & records, uint64_t & treeSeed) = 0;
+    virtual services::Status prepareTree(size_t iTree, ResponseSet<Record, cpu> & records, uint64_t & treeSeed) = 0;
     /// Takes the finished tree.
     virtual services::Status emitTree(size_t iTree, EmittedTree & tree) = 0;
     /// For TreeParams::counterDraws == false: the next uniform double in [0, 1) of the user's engine for node draws.

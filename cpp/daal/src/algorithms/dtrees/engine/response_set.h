@@ -138,7 +138,7 @@ inline double recordWeight(const RegWeightRecord<algorithmFPType> & r)
 }
 
 /**
- *  \brief Responses and normalized user weights of the training rows, one copy per NUMA node
+ *  \brief Responses and normalized user weights of the training rows, spread over the NUMA nodes
  *
  *  Weights are scaled to a maximum of 1 and weights not above 10 machine epsilons are set to 0, as
  *  the legacy normalizeWeights and DataHelper do. If no weight is positive the fit is unweighted.
@@ -170,9 +170,9 @@ public:
 
     size_t nRows() const { return _nRows; }
     bool weighted() const { return _weighted; }
-    const uint32_t * classes(int numaNode) const { return _cls.data(numaNode); }
-    const algorithmFPType * responses(int numaNode) const { return _y.data(numaNode); }
-    const algorithmFPType * weights(int numaNode) const { return _w.data(numaNode); }
+    const uint32_t * classes() const { return _cls.data(); }
+    const algorithmFPType * responses() const { return _y.data(); }
+    const algorithmFPType * weights() const { return _w.data(); }
     double responseMean() const { return _mean; } // weighted if the fit is; 0 for classification
 
 private:
@@ -200,8 +200,8 @@ private:
         const size_t nBlocks = (_nRows + tableBlockRows - 1) / tableBlockRows;
         services::internal::TArray<double, cpu> stats(2 * nBlocks);
         DAAL_CHECK_MALLOC(stats.get());
-        const algorithmFPType * y = _y.data(0);
-        const algorithmFPType * w = _weighted ? _w.data(0) : nullptr;
+        const algorithmFPType * y = _y.data();
+        const algorithmFPType * w = _weighted ? _w.data() : nullptr;
         daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
             const size_t begin = iBlock * tableBlockRows;
             const size_t end   = begin + tableBlockRows < _nRows ? begin + tableBlockRows : _nRows;
@@ -227,27 +227,22 @@ private:
     }
 
     template <typename T, typename Convert>
-    services::Status readColumn(const data_management::NumericTable & t, const NumaPlacement & placement, NumaReplicated<T, cpu> & out,
+    services::Status readColumn(const data_management::NumericTable & t, const NumaPlacement & placement, NumaArray<T, cpu> & out,
                                 const Convert & convert)
     {
         services::Status s = out.allocate(_nRows, placement);
         DAAL_CHECK_STATUS_VAR(s);
         const size_t nBlocks = (_nRows + tableBlockRows - 1) / tableBlockRows;
-        for (size_t iCopy = 0; iCopy < out.copies(); ++iCopy)
-        {
-            T * dst = out.data(static_cast<int>(iCopy));
-            s       = out.forEachBlock(iCopy, nBlocks, [&](size_t iBlock) {
-                const size_t begin = iBlock * tableBlockRows;
-                const size_t n     = begin + tableBlockRows < _nRows ? tableBlockRows : _nRows - begin;
-                daal::internal::ReadRows<algorithmFPType, cpu> rows(const_cast<data_management::NumericTable *>(&t), begin, n);
-                DAAL_CHECK_BLOCK_STATUS(rows);
-                const algorithmFPType * src = rows.get();
-                for (size_t i = 0; i < n; ++i) dst[begin + i] = convert(src[i]);
-                return services::Status();
-            });
-            DAAL_CHECK_STATUS_VAR(s);
-        }
-        return s;
+        T * dst              = out.data();
+        return out.forEachBlock(nBlocks, [&](size_t iBlock) {
+            const size_t begin = iBlock * tableBlockRows;
+            const size_t n     = begin + tableBlockRows < _nRows ? tableBlockRows : _nRows - begin;
+            daal::internal::ReadRows<algorithmFPType, cpu> rows(const_cast<data_management::NumericTable *>(&t), begin, n);
+            DAAL_CHECK_BLOCK_STATUS(rows);
+            const algorithmFPType * src = rows.get();
+            for (size_t i = 0; i < n; ++i) dst[begin + i] = convert(src[i]);
+            return services::Status();
+        });
     }
 
     algorithmFPType maxValue(const data_management::NumericTable & t, services::Status & s) const
@@ -269,9 +264,9 @@ private:
     bool _classification = false;
     bool _weighted       = false;
     double _mean         = 0;
-    NumaReplicated<uint32_t, cpu> _cls;
-    NumaReplicated<algorithmFPType, cpu> _y;
-    NumaReplicated<algorithmFPType, cpu> _w;
+    NumaArray<uint32_t, cpu> _cls;
+    NumaArray<algorithmFPType, cpu> _y;
+    NumaArray<algorithmFPType, cpu> _w;
 };
 
 /**
@@ -304,7 +299,7 @@ public:
      *  totalWeight is the sum of the records' counts or weights.
      */
     template <typename algorithmFPType>
-    services::Status fill(const uint16_t * counts, const ResponseSource<algorithmFPType, cpu> & source, int numaNode, double & totalWeight)
+    services::Status fill(const uint16_t * counts, const ResponseSource<algorithmFPType, cpu> & source, double & totalWeight)
     {
         const size_t nRows = source.nRows();
         DAAL_CHECK_STATUS_VAR(checkRowCount<cpu>(nRows));
@@ -316,7 +311,7 @@ public:
             const uint32_t count = counts ? counts[r] : 1;
             if (!count) continue;
             if (n == _capacity) return services::Status(services::ErrorIncorrectNumberOfObservations);
-            if (!makeRecord(dst[n], uint32_t(r), count, source, numaNode)) continue;
+            if (!makeRecord(dst[n], uint32_t(r), count, source)) continue;
             total += recordWeight<cpu>(dst[n]);
             ++n;
         }
@@ -327,42 +322,39 @@ public:
 
 private:
     template <typename algorithmFPType>
-    static bool makeRecord(ClsCountRecord & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src, int node)
+    static bool makeRecord(ClsCountRecord & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src)
     {
         DAAL_ASSERT(!src.weighted());
-        DAAL_ASSERT(src.classes(node)[row] <= maxCompactClasses);
-        rec = { row, uint16_t(src.classes(node)[row]), uint16_t(count) };
+        DAAL_ASSERT(src.classes()[row] <= maxCompactClasses);
+        rec = { row, uint16_t(src.classes()[row]), uint16_t(count) };
         return true;
     }
 
     template <typename algorithmFPType>
-    static bool makeRecord(ClsWeightRecord<algorithmFPType> & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src,
-                           int node)
+    static bool makeRecord(ClsWeightRecord<algorithmFPType> & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src)
     {
-        const algorithmFPType w = src.weighted() ? algorithmFPType(count) * src.weights(node)[row] : algorithmFPType(count);
-        rec                     = { row, src.classes(node)[row], w };
+        const algorithmFPType w = src.weighted() ? algorithmFPType(count) * src.weights()[row] : algorithmFPType(count);
+        rec                     = { row, src.classes()[row], w };
         return w > 0;
     }
 
     template <typename algorithmFPType>
-    static bool makeRecord(RegCountRecord<algorithmFPType> & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src,
-                           int node)
+    static bool makeRecord(RegCountRecord<algorithmFPType> & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src)
     {
         DAAL_ASSERT(!src.weighted());
         rec.row   = row;
-        rec.y     = src.responses(node)[row];
+        rec.y     = src.responses()[row];
         rec.count = count;
         return true;
     }
 
     template <typename algorithmFPType>
-    static bool makeRecord(RegWeightRecord<algorithmFPType> & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src,
-                           int node)
+    static bool makeRecord(RegWeightRecord<algorithmFPType> & rec, uint32_t row, uint32_t count, const ResponseSource<algorithmFPType, cpu> & src)
     {
         rec     = RegWeightRecord<algorithmFPType> {};
         rec.row = row;
-        rec.y   = src.responses(node)[row];
-        rec.w   = src.weighted() ? algorithmFPType(count) * src.weights(node)[row] : algorithmFPType(count);
+        rec.y   = src.responses()[row];
+        rec.w   = src.weighted() ? algorithmFPType(count) * src.weights()[row] : algorithmFPType(count);
         return rec.w > 0;
     }
 

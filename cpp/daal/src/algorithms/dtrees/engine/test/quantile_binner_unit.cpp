@@ -99,7 +99,7 @@ std::vector<double> streamDraws(uint64_t seed, size_t n, int brng = __DAAL_BRNG_
 template <CpuType cpu>
 size_t binOf(const BinMatrix<cpu> & m, size_t row, size_t f)
 {
-    return m.binBytes() == 1 ? m.template row<uint8_t>(0, row)[f] : m.template row<uint16_t>(0, row)[f];
+    return m.binBytes() == 1 ? m.template row<uint8_t>(row)[f] : m.template row<uint16_t>(row)[f];
 }
 
 /// Every row's bin is the count of the feature's inner borders below its value; NaN is in the missing bin.
@@ -382,6 +382,53 @@ TEST("a wide table bins the same whatever the feature groups", "[unit]")
         services::Environment::getInstance()->setNumberOfThreads(saved);
         REQUIRE(grouped.status.ok());
         requireEqual(all.bins, grouped.bins);
+    }
+}
+
+TEST("a table wider than a tile bins the same for any thread count, through a copying table too", "[unit]")
+{
+    // 150 features: three tiles of 64 u8 bins, or five of 32 u16 bins with maxBins 1000.
+    constexpr size_t copies = 25, p = MixedTable::p * copies, nRows = 3000;
+    MixedTable t(nRows, 4);
+    std::vector<double> wide(nRows * p);
+    std::vector<float> wideFloat(nRows * p);
+    for (size_t r = 0; r < nRows; ++r)
+        for (size_t f = 0; f < p; ++f)
+        {
+            wideFloat[r * p + f] = float(t.data[r * MixedTable::p + f % MixedTable::p]);
+            wide[r * p + f]      = double(wideFloat[r * p + f]);
+        }
+    std::vector<size_t> categorical;
+    for (size_t c = 0; c < copies; ++c) categorical.push_back(c * MixedTable::p + 4);
+    NumericTablePtr x = makeTable(wide, p, categorical);
+    // ReadRows converts a float table for double binning, so it is assigned in row blocks only.
+    NumericTablePtr xFloat = HomogenNumericTable<float>::create(wideFloat.data(), p, nRows);
+    for (size_t f : categorical) (*xFloat->getDictionarySharedPtr())[f].featureType = features::DAAL_CATEGORICAL;
+    for (size_t maxBins : { 256, 1000 })
+    {
+        CAPTURE(maxBins);
+        BinningParams params;
+        params.maxBins = maxBins;
+        Built<baseCpu> all;
+        build(*x, params, 5, all);
+        REQUIRE(all.status.ok());
+        REQUIRE(all.bins.binBytes() == (maxBins > 256 ? 2 : 1));
+        requireConsistent(all.bins, wide);
+        Built<baseCpu> converted;
+        build(*xFloat, params, 5, converted);
+        REQUIRE(converted.status.ok());
+        requireEqual(all.bins, converted.bins);
+        const size_t saved = services::Environment::getInstance()->getNumberOfThreads();
+        for (size_t nThreads : { 1, 4, 16 })
+        {
+            CAPTURE(nThreads);
+            services::Environment::getInstance()->setNumberOfThreads(nThreads);
+            Built<baseCpu> other;
+            build(*x, params, 5, other);
+            services::Environment::getInstance()->setNumberOfThreads(saved);
+            REQUIRE(other.status.ok());
+            requireEqual(all.bins, other.bins);
+        }
     }
 }
 

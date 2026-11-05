@@ -46,6 +46,9 @@ constexpr DAAL_INT64 MAX_SIZE_COEFFICIENT = 0x100000l;
 /// optional. legacyTraining selects the legacy kernels, kept until the new engine is validated against them.
 struct EngineHyperparameters
 {
+    // chunkRows: smaller chunks pay only for wide rows (thousands of features) with fewer trees than threads; for
+    // narrower rows or more trees, a chunk's planes and their reduction cost more than its rows save. Kept independent
+    // of the thread count, as regression sums depend on the chunk count.
     DAAL_INT64 denseThreshold = 2;
     DAAL_INT64 chunkRows      = 1 << 14;
     DAAL_INT64 maxChunks      = 64;

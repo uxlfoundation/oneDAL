@@ -169,17 +169,17 @@ inline void addRow(const Record & r, const BinT * b, const uint32_t * features, 
     }
 }
 
-/// Adds records [begin, end) to the planes, reading each record's bin row once and prefetching distance rows
-/// ahead the lines that hold the lanes' features.
+/// Adds records [begin, end) to the planes, reading each record's bin row once and prefetching, distance rows
+/// ahead, the lines that hold the lanes' features.
 template <typename Record, typename BinT, CpuType cpu>
-void accumulate(const Record * rec, size_t begin, size_t end, const BinMatrix<cpu> & bins, int numaNode, const uint32_t * features, size_t nLanes,
+void accumulate(const Record * rec, size_t begin, size_t end, const BinMatrix<cpu> & bins, const uint32_t * features, size_t nLanes,
                 const uint32_t * lines, size_t nLines, size_t distance, Planes<Record, cpu> & h)
 {
     prefetchedLoop<cpu>(
-        end - begin, distance, [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(numaNode, rec[begin + i].row), lines, nLines); },
+        end - begin, distance, [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(rec[begin + i].row), lines, nLines); },
         [&](size_t i) {
             const Record & r = rec[begin + i];
-            addRow<Record, BinT, cpu>(r, bins.template row<BinT>(numaNode, r.row), features, nLanes, h);
+            addRow<Record, BinT, cpu>(r, bins.template row<BinT>(r.row), features, nLanes, h);
         });
 }
 
@@ -276,19 +276,20 @@ inline size_t rowLines(const uint32_t * features, size_t nLanes, size_t binBytes
  *  fixed pairwise tree over chunk index, so the result does not depend on the thread count.
  */
 template <typename Record, CpuType cpu>
-services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins, int numaNode, const uint32_t * features, size_t nLanes,
-                       size_t nClasses, size_t nChunks, size_t distance, double center, Planes<Record, cpu> & out)
+services::Status build(const Record * rec, size_t n, const BinMatrix<cpu> & bins, const uint32_t * features, size_t nLanes, size_t nClasses,
+                       size_t nChunks, const PrefetchBudget<cpu> & prefetch, double center, Planes<Record, cpu> & out)
 {
     const size_t nBins = planeBins(bins, features, nLanes);
     TArray<uint32_t, cpu> lines(nLanes);
     DAAL_CHECK_MALLOC(lines.get());
-    const size_t nLines = rowLines<cpu>(features, nLanes, bins.binBytes(), lines.get());
+    const size_t nLines   = rowLines<cpu>(features, nLanes, bins.binBytes(), lines.get());
+    const size_t distance = prefetch.rows(n, nLines);
 
     auto pass = [&](size_t begin, size_t end, Planes<Record, cpu> & h) {
         if (bins.binBytes() == 1)
-            accumulate<Record, uint8_t, cpu>(rec, begin, end, bins, numaNode, features, nLanes, lines.get(), nLines, distance, h);
+            accumulate<Record, uint8_t, cpu>(rec, begin, end, bins, features, nLanes, lines.get(), nLines, distance, h);
         else
-            accumulate<Record, uint16_t, cpu>(rec, begin, end, bins, numaNode, features, nLanes, lines.get(), nLines, distance, h);
+            accumulate<Record, uint16_t, cpu>(rec, begin, end, bins, features, nLanes, lines.get(), nLines, distance, h);
     };
 
     DAAL_CHECK_MALLOC(out.init(nBins, nLanes, nClasses));
@@ -334,9 +335,9 @@ struct Target
  *  scatters from the per-chunk offsets. Results do not depend on the thread count.
  */
 template <typename Record, typename BinT, typename Left, CpuType cpu>
-services::Status fusedPartition(const Record * in, Record * out, size_t n, size_t nLeft, const BinMatrix<cpu> & bins, int numaNode,
-                                uint32_t splitFeature, const Left & left, const Target<Record, cpu> (&targets)[2], size_t nClasses, size_t nChunks,
-                                size_t distance)
+services::Status fusedPartition(const Record * in, Record * out, size_t n, size_t nLeft, const BinMatrix<cpu> & bins, uint32_t splitFeature,
+                                const Left & left, const Target<Record, cpu> (&targets)[2], size_t nClasses, size_t nChunks,
+                                const PrefetchBudget<cpu> & budget)
 {
     // Lines to prefetch: the split feature's and the children's features'.
     size_t nFeatures = 1 + targets[0].nLanes + targets[1].nLanes;
@@ -347,7 +348,8 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
     nFeatures   = 1;
     for (const auto & t : targets)
         for (size_t j = 0; j < t.nLanes; ++j) features[nFeatures++] = t.features[j];
-    const size_t nLines = rowLines<cpu>(features.get(), nFeatures, bins.binBytes(), lines.get());
+    const size_t nLines   = rowLines<cpu>(features.get(), nFeatures, bins.binBytes(), lines.get());
+    const size_t distance = budget.rows(n, nLines);
 
     size_t nBins[2] = { 0, 0 };
     size_t bytes    = 0;
@@ -360,14 +362,14 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
         bytes += planeBytes<cpu, Record>(nBins[s], targets[s].nLanes, nClasses);
     }
     nChunks       = chunksWithinBudget<cpu>(nChunks, bytes);
-    auto prefetch = [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(numaNode, in[i].row), lines.get(), nLines); };
+    auto prefetch = [&](size_t i) { prefetchRowLines<cpu>(bins.template row<uint8_t>(in[i].row), lines.get(), nLines); };
 
     if (nChunks <= 1)
     {
         size_t iLeft = 0, iRight = nLeft;
         prefetchedLoop<cpu>(n, distance, prefetch, [&](size_t i) {
             const Record & r            = in[i];
-            const BinT * b              = bins.template row<BinT>(numaNode, r.row);
+            const BinT * b              = bins.template row<BinT>(r.row);
             const size_t s              = left(b) ? 0 : 1;
             out[s ? iRight++ : iLeft++] = r;
             if (targets[s].planes) addRow<Record, BinT, cpu>(r, b, targets[s].features, targets[s].nLanes, *targets[s].planes);
@@ -395,7 +397,7 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
             end - begin, distance, [&](size_t i) { prefetch(begin + i); },
             [&](size_t i) {
                 const Record & r = in[begin + i];
-                const BinT * b   = bins.template row<BinT>(numaNode, r.row);
+                const BinT * b   = bins.template row<BinT>(r.row);
                 const size_t s   = left(b) ? 0 : 1;
                 side[begin + i]  = uint8_t(s);
                 count += 1 - s;

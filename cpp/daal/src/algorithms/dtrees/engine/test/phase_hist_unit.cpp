@@ -82,8 +82,8 @@ TEST("weighted histograms sum weights in double", "[unit]")
         }
         hist::Planes<RegWeightRecord<double>, cpu> hr;
         hist::Planes<ClsWeightRecord<double>, cpu> hc;
-        REQUIRE((hist::build(reg.data(), nRows, bins, 0, &lane, 1, 0, nChunks, 0, 0, hr)).ok());
-        REQUIRE((hist::build(cls.data(), nRows, bins, 0, &lane, 1, 1, nChunks, 0, 0, hc)).ok());
+        REQUIRE((hist::build(reg.data(), nRows, bins, &lane, 1, 0, nChunks, PrefetchBudget<cpu> { 0, 0 }, 0, hr)).ok());
+        REQUIRE((hist::build(cls.data(), nRows, bins, &lane, 1, 1, nChunks, PrefetchBudget<cpu> { 0, 0 }, 0, hc)).ok());
         for (size_t b = 0; b < 2; ++b)
         {
             REQUIRE(std::abs(double(hr.stat[hr.at(b, 0)]) - e[b]) <= tol * e[b]);

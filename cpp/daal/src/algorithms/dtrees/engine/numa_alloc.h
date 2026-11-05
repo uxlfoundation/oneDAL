@@ -17,8 +17,8 @@
 
 /*
 //++
-//  Arrays placed on NUMA nodes by first touch: one copy per node, or one copy
-//  whose blocks are touched by the arenas in turn.
+//  Arrays placed on NUMA nodes by first touch: one copy whose blocks are
+//  touched by the arenas in turn.
 //--
 */
 
@@ -29,6 +29,7 @@
 #include <cstdint>
 
 #include "data_management/data/homogen_numeric_table.h"
+#include "src/algorithms/dtrees/engine/prefetch.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_memory.h"
@@ -95,90 +96,86 @@ private:
     size_t _size = 0;
 };
 
-/// The NUMA nodes a fit spreads its data and work over, and whether each node holds its own copy of the data.
+/// The NUMA nodes a fit spreads its data and work over.
 struct NumaPlacement
 {
-    size_t nodes   = 1;     // 1: one copy, used from the calling thread's arena, without querying the topology
-    bool replicate = false; // a copy per node when nodes > 1
+    size_t nodes = 1; // 1: used from the calling thread's arena, without querying the topology
 
-    /// Every NUMA node of the host, which queries the topology (hwloc through TBB), replicated if requested.
+    /// Every NUMA node of the host, which queries the topology (hwloc through TBB).
     template <CpuType cpu>
-    static NumaPlacement host(bool replicate)
+    static NumaPlacement host()
     {
-        return { size_t(threader_numa_count()), replicate };
+        return { size_t(threader_numa_count()) };
     }
 };
 
 /**
- *  \brief An array of n elements held once per NUMA node, or once in total
+ *  \brief An array of n elements spread over the NUMA nodes of a placement
  *
- *  Pages are placed by the thread that first writes them, so the copies are filled through
- *  forEachBlock: a copy per node is written inside that node's arena, and a single copy on a
- *  multi-node host is written by the arenas in turn, one block each.
+ *  Pages are placed by the thread that first writes them, so the array is filled through forEachBlock: on a
+ *  multi-node placement the arenas write its blocks in turn, one block each. One copy serves every node: a copy per
+ *  node cost more to fill each fit than the local reads saved (design 4.9).
  */
 template <typename T, CpuType cpu>
-class NumaReplicated
+class NumaArray
 {
 public:
-    /// Allocates one copy per node of the placement if it replicates over more than one node, else one copy.
     services::Status allocate(size_t n, const NumaPlacement & placement)
     {
         _borrowed = nullptr;
         _nNodes   = placement.nodes ? placement.nodes : 1;
-        _nCopies  = (placement.replicate && _nNodes > 1) ? _nNodes : 1;
         _size     = n;
-        _copies.reset(_nCopies);
-        DAAL_CHECK_MALLOC(_copies.get());
-        for (size_t i = 0; i < _nCopies; ++i)
-        {
-            if (n) DAAL_CHECK_MALLOC(_copies[i].reset(n));
-        }
+        if (n) DAAL_CHECK_MALLOC(_data.reset(n));
         return services::Status();
     }
 
-    /// One read-only copy that is the caller's n elements at p, which must outlive this object's use.
+    /// The caller's n elements at p, read only, which must outlive this object's use.
     void borrow(const T * p, size_t n)
     {
-        _copies.reset(0);
+        _data.reset(0);
         _borrowed = p;
         _size     = n;
-        _nCopies  = 1;
         _nNodes   = 1;
     }
 
     size_t size() const { return _size; }
-    size_t copies() const { return _nCopies; }
     bool borrowed() const { return _borrowed != nullptr; }
+    /// Written by several nodes' arenas, block by block.
+    bool spansNodes() const { return _nNodes > 1; }
 
-    /// The copy local to NUMA node numaNode; with one copy, that copy. A borrowed copy is read through the const overload only.
-    T * data(int numaNode)
+    /// A borrowed array is read through the const overload only.
+    T * data()
     {
         DAAL_ASSERT(!_borrowed);
-        return _borrowed ? nullptr : _copies[copyIndex(numaNode)].get();
+        return _borrowed ? nullptr : _data.get();
     }
-    const T * data(int numaNode) const { return _borrowed ? _borrowed : _copies[copyIndex(numaNode)].get(); }
+    const T * data() const { return _borrowed ? _borrowed : _data.get(); }
 
     /**
-     *  \brief Runs func(iBlock) for every block in [0, nBlocks) so that copy iCopy is first touched on its node
+     *  \brief Runs func(iBlock) for every block in [0, nBlocks), each block first touched by one node's arena
      *
      *  func returns a services::Status; the first error is returned.
      */
     template <typename Func>
-    services::Status forEachBlock(size_t iCopy, size_t nBlocks, const Func & func) const
+    services::Status forEachBlock(size_t nBlocks, const Func & func) const
+    {
+        return forEachTile(nBlocks, 1, [&](size_t iBlock, size_t) { return func(iBlock); });
+    }
+
+    /// forEachBlock over nTiles tasks func(iBlock, iTile) per block, each run on its block's node.
+    template <typename Func>
+    services::Status forEachTile(size_t nBlocks, size_t nTiles, const Func & func) const
     {
         SafeStatus safeStat;
+        // Tile-major order, so threads that start together first touch different blocks' pages.
         auto runBlocks = [&](size_t first, size_t step) {
             const size_t n = first < nBlocks ? (nBlocks - first + step - 1) / step : 0;
-            daal::threader_for(n, 1, [&](size_t i) {
-                const services::Status s = func(first + i * step);
+            daal::threader_for(n * nTiles, 1, [&](size_t i) {
+                const services::Status s = func(first + (i % n) * step, i / n);
                 DAAL_CHECK_STATUS_THR(s);
             });
         };
-        if (_nCopies > 1)
-        {
-            daal::threader_execute_in_numa(static_cast<int>(iCopy), [&]() { runBlocks(0, 1); });
-        }
-        else if (_nNodes > 1)
+        if (_nNodes > 1)
         {
             const size_t nNodes = _nNodes;
             daal::threader_for(nNodes, 1,
@@ -191,77 +188,81 @@ public:
         return safeStat.detach();
     }
 
-    /// Copies copy 0 into the other copies, each inside its own node's arena.
-    services::Status replicate(size_t blockSize)
-    {
-        const size_t nBlocks = (_size + blockSize - 1) / blockSize;
-        for (size_t iCopy = 1; iCopy < _nCopies; ++iCopy)
-        {
-            const T * src      = _copies[0].get();
-            T * dst            = _copies[iCopy].get();
-            services::Status s = forEachBlock(iCopy, nBlocks, [&](size_t iBlock) {
-                const size_t begin = iBlock * blockSize;
-                const size_t end   = begin + blockSize < _size ? begin + blockSize : _size;
-                services::internal::tmemcpy<T, cpu>(dst + begin, src + begin, end - begin);
-                return services::Status();
-            });
-            DAAL_CHECK_STATUS_VAR(s);
-        }
-        return services::Status();
-    }
-
 private:
-    size_t copyIndex(int numaNode) const { return (numaNode >= 0 && size_t(numaNode) < _nCopies) ? size_t(numaNode) : 0; }
-
-    services::internal::TArray<LargeArray<T, cpu>, cpu> _copies;
+    LargeArray<T, cpu> _data;
     const T * _borrowed = nullptr;
     size_t _size        = 0;
-    size_t _nCopies     = 0;
     size_t _nNodes      = 1;
 };
 
-/// Rows read per block when a table is copied or scanned.
+/// Rows read per block when a table is scanned with fixed blocks, and the most rows of a passBlockRows block.
 constexpr size_t tableBlockRows = 4096;
 
+// Tasks per thread a pass aims for, and the fewest input bytes a task reads. Untuned initial values.
+constexpr size_t passTasksPerThread = 4;
+constexpr size_t minTaskBytes       = size_t(64) << 10;
+
+// Smallest page of the supported hosts.
+constexpr size_t pageBytes = 4096;
+
 /**
- *  \brief Row-major copy of x in algorithmFPType, one per NUMA node (design 4.9)
+ *  \brief Rows per block of a parallel pass over nRows rows, with tasksPerBlock tasks per block
  *
- *  Each copy is read from x through ReadRows blocks inside its own node's arena. Where the placement keeps one
- *  copy (one node, or no replication), a homogen table of algorithmFPType, already row-major, is borrowed
- *  instead of copied; its pages stay where the caller placed them.
+ *  About passTasksPerThread tasks per thread, each reading at least minTaskBytes at taskRowBytes per row, and at
+ *  most tableBlockRows rows. Blocks start on a cache line of the written rows of writeRowBytes, or on a page with
+ *  pageAligned, so a single copy spread over nodes is placed block by block. The result depends on the thread
+ *  count: passes that add floating-point values per block keep fixed blocks instead.
+ */
+template <CpuType cpu>
+inline size_t passBlockRows(size_t nRows, size_t nThreads, size_t tasksPerBlock, size_t taskRowBytes, size_t writeRowBytes, bool pageAligned)
+{
+    const size_t tasks    = (nThreads ? nThreads : 1) * passTasksPerThread;
+    const size_t perBlock = tasksPerBlock ? tasksPerBlock : 1;
+    const size_t nBlocks  = (tasks + perBlock - 1) / perBlock;
+    const size_t minRows  = taskRowBytes ? (minTaskBytes + taskRowBytes - 1) / taskRowBytes : tableBlockRows;
+    size_t rows           = (nRows + nBlocks - 1) / nBlocks;
+    rows                  = rows > minRows ? rows : minRows;
+    rows                  = rows < tableBlockRows ? rows : tableBlockRows;
+    // unit rows of writeRowBytes are whole units of align bytes; a power of two up to tableBlockRows, so it divides it.
+    const size_t align = pageAligned ? pageBytes : cacheLineBytes;
+    size_t low         = writeRowBytes & (~writeRowBytes + 1);
+    low                = low && low < align ? low : align;
+    const size_t unit  = align / low;
+    return (rows + unit - 1) / unit * unit;
+}
+
+/**
+ *  \brief Row-major x in algorithmFPType (design 4.9)
+ *
+ *  A homogen table of algorithmFPType, already row-major, is borrowed; its pages stay where the caller placed them.
+ *  Other tables are copied through ReadRows blocks, spread over the placement's nodes.
  */
 template <typename algorithmFPType, CpuType cpu>
-services::Status copyTableRows(const data_management::NumericTable & x, const NumaPlacement & placement, NumaReplicated<algorithmFPType, cpu> & out)
+services::Status copyTableRows(const data_management::NumericTable & x, const NumaPlacement & placement, NumaArray<algorithmFPType, cpu> & out)
 {
     const size_t nRows = x.getNumberOfRows();
     const size_t nCols = x.getNumberOfColumns();
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nCols);
-    if (placement.nodes <= 1 || !placement.replicate)
+    const auto * h = dynamic_cast<const data_management::HomogenNumericTable<algorithmFPType> *>(&x);
+    if (h && h->getArray())
     {
-        const auto * h = dynamic_cast<const data_management::HomogenNumericTable<algorithmFPType> *>(&x);
-        if (h && h->getArray())
-        {
-            out.borrow(h->getArray(), nRows * nCols);
-            return services::Status();
-        }
+        out.borrow(h->getArray(), nRows * nCols);
+        return services::Status();
     }
     services::Status s = out.allocate(nRows * nCols, placement);
     DAAL_CHECK_STATUS_VAR(s);
-    const size_t nBlocks = (nRows + tableBlockRows - 1) / tableBlockRows;
-    for (size_t iCopy = 0; iCopy < out.copies(); ++iCopy)
-    {
-        algorithmFPType * dst = out.data(static_cast<int>(iCopy));
-        s                     = out.forEachBlock(iCopy, nBlocks, [&](size_t iBlock) {
-            const size_t begin = iBlock * tableBlockRows;
-            const size_t n     = begin + tableBlockRows < nRows ? tableBlockRows : nRows - begin;
-            daal::internal::ReadRows<algorithmFPType, cpu> rows(const_cast<data_management::NumericTable *>(&x), begin, n);
-            DAAL_CHECK_BLOCK_STATUS(rows);
-            services::internal::tmemcpy<algorithmFPType, cpu>(dst + begin * nCols, rows.get(), n * nCols);
-            return services::Status();
-        });
-        DAAL_CHECK_STATUS_VAR(s);
-    }
-    return services::Status();
+    const size_t rowBytes  = nCols * sizeof(algorithmFPType);
+    const size_t blockRows = passBlockRows<cpu>(nRows, threader_get_threads_number(), 1, rowBytes, rowBytes, out.spansNodes());
+    const size_t nBlocks   = (nRows + blockRows - 1) / blockRows;
+    algorithmFPType * dst  = out.data();
+    return out.forEachBlock(nBlocks, [&](size_t iBlock) {
+        const size_t begin = iBlock * blockRows;
+        const size_t n     = begin + blockRows < nRows ? blockRows : nRows - begin;
+        daal::internal::ReadRows<algorithmFPType, cpu> rows(const_cast<data_management::NumericTable *>(&x), begin, n);
+        DAAL_CHECK_BLOCK_STATUS(rows);
+        services::internal::tmemcpy<algorithmFPType, cpu>(dst + begin * nCols, rows.get(), n * nCols);
+        return services::Status();
+    });
 }
 
 } // namespace internal

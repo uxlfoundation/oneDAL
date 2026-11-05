@@ -44,17 +44,54 @@ namespace internal
 {
 using daal::internal::CpuType;
 
-// Tables of X below this size use one NUMA node. They sit in one socket's L3 (105 MB on SPR), so NUMA placement
-// gains them nothing, while querying the topology costs 45-70 ms once per process on a 2-socket host and the NUMA
-// arenas a few ms a fit (design 8, steps 5e and 15). Provisional; 5e measures it.
-constexpr size_t numaMinTableBytes = size_t(32) << 20;
+// Thread-seconds a fit takes per unit of work (trees x in-bag rows x drawn features x levels): 4.2-7.4e-8 on
+// 2 x SPR 8480+ over letter to Higgs 10.5M (design 4.9). Provisional; 5e measures it.
+constexpr double fitSecondsPerWorkUnit = 5.5e-8;
 
-/// One node for tables of X below numaMinTableBytes, without querying the topology; else every node of the host.
+// Fits estimated below this use one NUMA node. The first topology query costs 65-100 ms per process on a 2-socket
+// host, which NUMA placement (10-25% of a fit) repays from about half a second of fit. Set for one fit per process;
+// repeated fits favour a lower gate (design 9). Provisional; 5e measures it.
+constexpr double numaMinFitSeconds = 0.5;
+
+/// What a fit's time scales with.
+struct FitWork
+{
+    size_t nTrees          = 0;
+    size_t rows            = 0; // distinct in-bag rows of a tree
+    size_t featuresPerNode = 0;
+    size_t levels          = 0;
+};
+
+/// The work of a fit from its parameters; featuresPerNode at most the feature count, maxDepth and maxLeafNodes 0 when unbounded.
 template <CpuType cpu>
-inline dtrees::engine::internal::NumaPlacement numaPlacement(size_t tableBytes, bool replicate)
+inline FitWork fitWork(size_t nTrees, size_t nRows, size_t nSamples, bool bootstrap, size_t featuresPerNode, size_t minLeafRows, size_t maxDepth,
+                       size_t maxLeafNodes)
+{
+    // Bootstrap counts are weights, so a tree's rows are its distinct draws, about 1 - 1/e of them.
+    const size_t drawn = nSamples < nRows ? nSamples : nRows;
+    const size_t rows  = bootstrap ? size_t(double(drawn) * 0.632) + 1 : drawn;
+    size_t levels      = 0;
+    for (size_t r = rows / (minLeafRows ? minLeafRows : 1); r > 1; r >>= 1) ++levels;
+    if (maxDepth && maxDepth < levels) levels = maxDepth;
+    size_t leafLevels = 0;
+    for (size_t m = maxLeafNodes; m > 1; m >>= 1) ++leafLevels;
+    if (maxLeafNodes && leafLevels < levels) levels = leafLevels;
+    return { nTrees, rows, featuresPerNode, levels ? levels : 1 };
+}
+
+template <CpuType cpu>
+inline double estimatedFitSeconds(const FitWork & work, size_t nThreads)
+{
+    const double units = double(work.nTrees) * double(work.rows) * double(work.featuresPerNode) * double(work.levels);
+    return fitSecondsPerWorkUnit * units / double(nThreads ? nThreads : 1);
+}
+
+/// One node for fits estimated below numaMinFitSeconds, without querying the topology; else every node of the host.
+template <CpuType cpu>
+inline dtrees::engine::internal::NumaPlacement numaPlacement(const FitWork & work, size_t nThreads)
 {
     using dtrees::engine::internal::NumaPlacement;
-    return tableBytes < numaMinTableBytes ? NumaPlacement() : NumaPlacement::host<cpu>(replicate);
+    return estimatedFitSeconds<cpu>(work, nThreads) < numaMinFitSeconds ? NumaPlacement() : NumaPlacement::host<cpu>();
 }
 
 /// Result tables of a fit, allocated by the caller; null when not requested.

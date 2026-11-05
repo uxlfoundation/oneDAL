@@ -344,12 +344,9 @@ At the training stage, decision forest regression has the following parameters:
        - ``hist`` - :ref:`inexact histogram computation method <df_inexact_hist_method>`
    * - ``memorySavingMode``
      - ``false``
-     - On CPU with more than one NUMA node, ``false`` keeps a copy of the training data and its bins on every
-       NUMA node, so that each tree reads them from local memory; ``true`` keeps one copy. Data well inside one
-       socket's cache is kept once. Where one copy is kept, a dense row-major table in the training precision
-       is read in place rather than copied, so with ``true`` on several NUMA nodes its memory stays where the
-       caller placed it. In earlier releases this parameter selected sort-based splits, which is the
-       ``defaultDense`` method.
+     - Has no effect. The training data and its bins are kept once, and a dense row-major table in the training
+       precision is read in place rather than copied, so its memory stays where the caller placed it. In earlier
+       releases this parameter selected sort-based splits, which is the ``defaultDense`` method.
    * - ``minBinSize``
      - :math:`5`
      - Used only with ``method="hist"``. Minimal number of observations in a bin.
