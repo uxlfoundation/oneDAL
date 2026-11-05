@@ -248,7 +248,7 @@ spmd::request_iface* spmd_communicator_via_host_impl::sendrecv_replace(
             }
             wait_request(
                 sendrecv_replace(buf, count, dtype, destination_rank, source_rank, recv_buf));
-            q.memcpy(buf, recv_buf, size).wait();
+            memcpy(q, buf, recv_buf, size);
         }
         else {
             wait_request(sendrecv_replace(buf, count, dtype, destination_rank, source_rank));

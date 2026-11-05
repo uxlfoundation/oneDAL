@@ -57,10 +57,7 @@ sycl::event dot_product(sycl::queue& queue,
         });
     });
 
-    return queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(reduction_event);
-        cgh.memcpy(res_host, res_gpu, sizeof(Float));
-    });
+    return dal::backend::memcpy(queue, res_host, res_gpu, sizeof(Float), { reduction_event });
 }
 
 template <typename Float>
@@ -84,10 +81,7 @@ sycl::event l1_norm(sycl::queue& queue,
         });
     });
 
-    return queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(reduction_event);
-        cgh.memcpy(res_host, res_gpu, sizeof(Float));
-    });
+    return dal::backend::memcpy(queue, res_host, res_gpu, sizeof(Float), { reduction_event });
 }
 
 template <typename Float>
@@ -111,10 +105,7 @@ sycl::event max_abs(sycl::queue& queue,
         });
     });
 
-    return queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(reduction_event);
-        cgh.memcpy(res_host, res_gpu, sizeof(Float));
-    });
+    return dal::backend::memcpy(queue, res_host, res_gpu, sizeof(Float), { reduction_event });
 }
 
 #define INSTANTIATE(F)                                        \

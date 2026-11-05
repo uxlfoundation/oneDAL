@@ -186,6 +186,30 @@ allocate internally is not recorded; on CPU, oneMKL's BLAS buffers are often mos
 memory. For process totals use a heap profiler such as ``valgrind --tool=massif`` or heaptrack, or
 a Level Zero tracer on GPU.
 
+Transfers
+~~~~~~~~~
+
+With the Tracer or the Analyzer on, copies through oneAPI's USM copy helpers and the ``ndarray``
+copy primitive are recorded by direction: host to device, device to host and device to device.
+The direction comes from the USM types of the two pointers; USM shared memory counts as device,
+and a copy between two host pointers is not recorded. Each copy is charged to the task open on the
+calling thread, as an allocation is.
+
+The Tracer prints every copy as it is submitted, with the call path of its task::
+
+    copy host to device 8000 bytes outside any task
+    copy device to device 8000 bytes in covariance_algo_compute
+    copy device to host 400 bytes outside any task
+
+The Analyzer adds the count and bytes per direction to each row, and ends with the process totals::
+
+    |-- covariance_algo_compute time: 26.63ms 39.60% 1 times on a SYCL queue, ..., device to device 8.20KB in 2 copies
+    ...
+    DAAL KERNEL_PROFILER: copies host to device 7.81KB in 1 copy, device to host 400B in 1 copy, device to device 8.20KB in 2 copies
+
+Copies that oneMKL, oneDPL or an MPI or oneCCL library make on their own, other kernels that copy data
+element by element, and page migration of USM shared memory are not recorded.
+
 Examples
 --------
 

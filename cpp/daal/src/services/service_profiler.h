@@ -247,6 +247,28 @@ enum class profiler_memory_kind : int
     device = 1
 };
 
+/// Whether copies between host and device are recorded: whenever the tracer or the analyzer is on.
+inline static bool is_transfer_tracking_enabled()
+{
+    return daal_verbose_mode() >= PROFILER_MODE_TRACER;
+}
+
+/// Direction of a recorded copy. Host covers USM host memory and memory USM does not know;
+/// device covers USM shared memory, as for allocations.
+enum class profiler_transfer_kind : int
+{
+    host_to_device   = 0,
+    device_to_host   = 1,
+    device_to_device = 2
+};
+
+/// Records a copy, charged like an allocation to the innermost task open on the calling thread.
+/// The tracer prints it at once with the task's call path; the analyzer adds it to the task's row.
+///
+/// @param[in] size  Number of bytes copied
+/// @param[in] kind  Direction of the copy
+DAAL_EXPORT void profiler_record_transfer(std::size_t size, profiler_transfer_kind kind);
+
 /// Records a block oneDAL allocated, charged to the innermost task open on the calling thread or,
 /// in a chunk of a parallel region with no task open, to the task that started the region.
 ///
@@ -305,6 +327,9 @@ struct profiler_report_row
     std::uint64_t alloc_count[2] = {};
     std::uint64_t peak_bytes[2]  = {}; // live memory above the start of the task; sequential tasks only
     std::uint64_t held_bytes[2]  = {}; // allocated by the task and not freed when the report is built
+    // Recorded copies of the task and its children, by profiler_transfer_kind.
+    std::uint64_t transfer_bytes[3] = {};
+    std::uint64_t transfer_count[3] = {};
 };
 
 /// Returns the merged task tree recorded so far, parents before children. Open tasks are skipped.
