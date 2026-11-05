@@ -55,13 +55,15 @@ on:
     branches:
       - main
       - 'feature/**'
+  # TEMP(runner shortage): run by hand on a branch while the jobs are skipped on pull requests.
+  workflow_dispatch:
   
 permissions:
   contents: read
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
-  TBB_VERSION: v2023.1.0
+  TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   LLVM_VERSION: 22.1.8
   CMAKE_VERSION: 4.4.5
@@ -79,7 +81,8 @@ jobs:
   # Draft pull requests skip both jobs; they run once the pull request is
   # marked ready for review.
   build-and-test:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -199,7 +202,8 @@ jobs:
 
   bazel-build:
     name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
-    if: github.repository == 'uxlfoundation/oneDAL'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 180
     steps:
@@ -327,7 +331,8 @@ jobs:
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
   # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
   bazel-msvc:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 120
