@@ -617,32 +617,50 @@ protected:
             return services::Status();
         }
 
-        // One vPowx call per chunk of pairs: a call per coordinate costs far more than the power itself.
-        const size_t chunkSize     = 1024;
-        const size_t pairsPerChunk = services::internal::max<cpu, size_t>(1, chunkSize / nDims);
-        TArray<FPType, cpu> diffs(pairsPerChunk * nDims);
-        DAAL_CHECK_MALLOC(diffs.get());
-        FPType * const buf  = diffs.get();
+        // One vPowx call per chunk of values: a call per coordinate costs far more than the power itself.
+        // The chunk stays small because longer vectors make VML start its own threads inside this parallel region.
+        constexpr size_t chunkSize = 32;
+        FPType buf[chunkSize];
         const FPType p      = static_cast<FPType>(_p);
         const FPType rootOf = static_cast<FPType>(1.0 / _p);
 
         for (size_t ix = 0; ix < nX; ++ix)
         {
             const FPType * const x = a + ix * nDims;
-            for (size_t iy0 = 0; iy0 < nY; iy0 += pairsPerChunk)
+            if (nDims <= chunkSize)
             {
-                const size_t nPairs = services::internal::min<cpu, size_t>(pairsPerChunk, nY - iy0);
-                for (size_t k = 0; k < nPairs; ++k)
+                const size_t pairsPerChunk = chunkSize / nDims;
+                for (size_t iy0 = 0; iy0 < nY; iy0 += pairsPerChunk)
                 {
-                    const FPType * const y = b + (iy0 + k) * nDims;
-                    for (size_t i = 0; i < nDims; ++i) buf[k * nDims + i] = math.sFabs(x[i] - y[i]);
+                    const size_t nPairs = services::internal::min<cpu, size_t>(pairsPerChunk, nY - iy0);
+                    for (size_t k = 0; k < nPairs; ++k)
+                    {
+                        const FPType * const y = b + (iy0 + k) * nDims;
+                        for (size_t i = 0; i < nDims; ++i) buf[k * nDims + i] = math.sFabs(x[i] - y[i]);
+                    }
+                    math.vPowx(nPairs * nDims, buf, p, buf);
+                    for (size_t k = 0; k < nPairs; ++k)
+                    {
+                        FPType d = 0;
+                        for (size_t i = 0; i < nDims; ++i) d += buf[k * nDims + i];
+                        res[ix * nY + iy0 + k] = _powered ? d : math.sPowx(d, rootOf);
+                    }
                 }
-                math.vPowx(nPairs * nDims, buf, p, buf);
-                for (size_t k = 0; k < nPairs; ++k)
+            }
+            else
+            {
+                for (size_t iy = 0; iy < nY; ++iy)
                 {
-                    FPType d = 0;
-                    for (size_t i = 0; i < nDims; ++i) d += buf[k * nDims + i];
-                    res[ix * nY + iy0 + k] = _powered ? d : math.sPowx(d, rootOf);
+                    const FPType * const y = b + iy * nDims;
+                    FPType d               = 0;
+                    for (size_t i0 = 0; i0 < nDims; i0 += chunkSize)
+                    {
+                        const size_t n = services::internal::min<cpu, size_t>(chunkSize, nDims - i0);
+                        for (size_t i = 0; i < n; ++i) buf[i] = math.sFabs(x[i0 + i] - y[i0 + i]);
+                        math.vPowx(n, buf, p, buf);
+                        for (size_t i = 0; i < n; ++i) d += buf[i];
+                    }
+                    res[ix * nY + iy] = _powered ? d : math.sPowx(d, rootOf);
                 }
             }
         }
