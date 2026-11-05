@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
+#include "oneapi/dal/detail/memory.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "src/threading/threading.h"
 
@@ -406,5 +407,119 @@ TEST("profiler ignores a free of a block it never recorded") {
     REQUIRE(rows[0].held_bytes[host_memory] == 64);
     prof::profiler_record_free(&block);
 }
+
+constexpr int host_to_device = static_cast<int>(prof::profiler_transfer_kind::host_to_device);
+constexpr int device_to_host = static_cast<int>(prof::profiler_transfer_kind::device_to_host);
+constexpr int device_to_device = static_cast<int>(prof::profiler_transfer_kind::device_to_device);
+
+TEST("profiler charges recorded copies to the open task by direction") {
+    start_recording();
+    constexpr std::int64_t n = 64;
+    prof::profiler_record_transfer(7, prof::profiler_transfer_kind::host_to_device);
+    {
+        auto outer = prof::profiler::start_task("outer");
+        prof::profiler_record_transfer(1000, prof::profiler_transfer_kind::host_to_device);
+        {
+            auto inner = prof::profiler::start_task("inner");
+            prof::profiler_record_transfer(3000, prof::profiler_transfer_kind::host_to_device);
+            prof::profiler_record_transfer(40, prof::profiler_transfer_kind::device_to_host);
+        }
+        // A chunk with no task open charges the task that started the region.
+        daal::threader_for(n, 1, [&](std::int64_t) {
+            prof::profiler_record_transfer(10, prof::profiler_transfer_kind::device_to_device);
+        });
+    }
+    const rows_t rows = prof::profiler_report();
+    const auto outer = find_row(rows, "outer", -1);
+    const auto inner = find_row(rows, "inner", outer);
+    REQUIRE(rows.size() == 2);
+    REQUIRE(outer >= 0);
+    REQUIRE(inner >= 0);
+    // A row covers its children; the copy made outside any task is on no row.
+    REQUIRE(rows[outer].transfer_bytes[host_to_device] == 4000);
+    REQUIRE(rows[outer].transfer_count[host_to_device] == 2);
+    REQUIRE(rows[outer].transfer_bytes[device_to_host] == 40);
+    REQUIRE(rows[outer].transfer_count[device_to_host] == 1);
+    REQUIRE(rows[outer].transfer_bytes[device_to_device] == 10 * n);
+    REQUIRE(rows[outer].transfer_count[device_to_device] == n);
+    REQUIRE(rows[inner].transfer_bytes[host_to_device] == 3000);
+    REQUIRE(rows[inner].transfer_count[host_to_device] == 1);
+    REQUIRE(rows[inner].transfer_count[device_to_host] == 1);
+    REQUIRE(rows[inner].transfer_count[device_to_device] == 0);
+    std::ostringstream out;
+    prof::profiler_print_report(out);
+    const std::string text = out.str();
+    REQUIRE(text.find(", host to device 3.91KB in 2 copies, device to host 40B in 1 copy, "
+                      "device to device 640B in 64 copies\n") != std::string::npos);
+    REQUIRE(text.find(", host to device 2.93KB in 1 copy, device to host 40B in 1 copy\n") !=
+            std::string::npos);
+}
+
+#ifdef ONEDAL_DATA_PARALLEL
+TEST("profiler takes the direction of a copy from the USM types of its pointers") {
+    start_recording();
+    auto& queue = te::test_queue_provider::get_instance().get_global_queue();
+    constexpr std::int64_t n = 256;
+    constexpr std::size_t bytes = n * sizeof(float);
+    std::vector<float> host(n, 1.0f), host_back(n);
+    float* device = sycl::malloc_device<float>(n, queue);
+    float* shared = sycl::malloc_shared<float>(n, queue);
+    float* usm_host = sycl::malloc_host<float>(n, queue);
+    REQUIRE(device);
+    REQUIRE(shared);
+    REQUIRE(usm_host);
+    {
+        auto task = prof::profiler::start_task("copies");
+        detail::profiler_record_copy(queue, device, host.data(), bytes);
+        detail::profiler_record_copy(queue, device, usm_host, bytes);
+        detail::profiler_record_copy(queue, host_back.data(), device, bytes);
+        detail::profiler_record_copy(queue, shared, device, bytes);
+        detail::profiler_record_copy(queue, device, shared, bytes);
+        // Neither side is device memory.
+        detail::profiler_record_copy(queue, host_back.data(), usm_host, bytes);
+    }
+    sycl::free(device, queue);
+    sycl::free(shared, queue);
+    sycl::free(usm_host, queue);
+    const rows_t rows = prof::profiler_report();
+    REQUIRE(rows.size() == 1);
+    REQUIRE(rows[0].transfer_count[host_to_device] == 2);
+    REQUIRE(rows[0].transfer_bytes[host_to_device] == 2 * bytes);
+    REQUIRE(rows[0].transfer_count[device_to_host] == 1);
+    REQUIRE(rows[0].transfer_bytes[device_to_host] == bytes);
+    REQUIRE(rows[0].transfer_count[device_to_device] == 2);
+    REQUIRE(rows[0].transfer_bytes[device_to_device] == 2 * bytes);
+}
+
+TEST("profiler records the copies of the memcpy helpers only when it is on") {
+    start_recording();
+    auto& queue = te::test_queue_provider::get_instance().get_global_queue();
+    const detail::data_parallel_policy policy{ queue };
+    constexpr std::int64_t n = 256;
+    constexpr std::size_t bytes = n * sizeof(float);
+    std::vector<float> host(n, 2.0f), host_back(n, 0.0f);
+    float* device = sycl::malloc_device<float>(n, queue);
+    float* other = sycl::malloc_device<float>(n, queue);
+    REQUIRE(device);
+    REQUIRE(other);
+    {
+        auto task = prof::profiler::start_task("copies");
+        detail::memcpy_host2usm(policy, device, host.data(), bytes);
+        detail::memcpy(policy, other, device, bytes);
+        detail::memcpy_usm2host(policy, host_back.data(), other, bytes);
+    }
+    sycl::free(device, queue);
+    sycl::free(other, queue);
+    REQUIRE(host_back == host);
+    const rows_t rows = prof::profiler_report();
+    REQUIRE(rows.size() == 1);
+    // ONEDAL_VERBOSE decides, as for the library; with it unset nothing is recorded.
+    const std::uint64_t expected = prof::is_transfer_tracking_enabled() ? 1 : 0;
+    for (int k : { host_to_device, device_to_host, device_to_device }) {
+        REQUIRE(rows[0].transfer_count[k] == expected);
+        REQUIRE(rows[0].transfer_bytes[k] == expected * bytes);
+    }
+}
+#endif
 
 } // namespace oneapi::dal::test
