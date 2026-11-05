@@ -31,31 +31,12 @@ drop = yes
 symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; DAAL THREADING LAYER DESELECTIONS ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect the loop entry points of the threading layer
-;
-; These are exported from libonedal_thread only, with C linkage, and no installed header
-; declares them: nothing outside the libraries that ship alongside libonedal_thread can hold a
-; reference to them, so their signatures and their set of names are not part of the product ABI.
-; The oneDAL-level wrappers in oneapi/dal/detail/threading.hpp -- the _onedal_threader_* family,
-; which an application's own object files *can* reference -- are deliberately not deselected
-; here.
-;
-; A regexp rather than one entry per symbol, so that adding a loop entry point does not also
-; mean editing this file.
-
-[suppress_function]
-symbol_name_regexp = ^_daal_(static_)?threader_for.*
-drop = yes
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL KERNEL PROFILER DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect the kernel profiler: daal::internal::profiler* and the statics of its header-only
 ; predecessor, which the daal::internal regexps above do not match (they expect a namespace
-; between daal and internal), plus its C entry points. ONEDAL_VERBOSE is a diagnostic; the symbols
+; between daal and internal), plus its C entry point. ONEDAL_VERBOSE is a diagnostic; the symbols
 ; are not part of the product ABI.
 
 [suppress_type]
@@ -68,10 +49,6 @@ drop = yes
 
 [suppress_function]
 symbol_name_regexp = _Z+.*N4daal8internal.*profiler.*
-drop = yes
-
-[suppress_function]
-symbol_name_regexp = ^_daal_threader_set_profiler_hooks$
 drop = yes
 
 [suppress_function]

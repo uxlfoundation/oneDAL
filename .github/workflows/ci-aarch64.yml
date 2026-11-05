@@ -51,10 +51,12 @@ on:
   push:
     branches:
       - main
+  # TEMP(runner shortage): run by hand on a branch while some jobs are skipped on pull requests.
+  workflow_dispatch:
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
-  TBB_VERSION: v2023.1.0
+  TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   OPENRNG_VERSION: 'v24.04'
 
@@ -77,6 +79,11 @@ jobs:
           { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang },
           { name: Arm hosted (SVE), label: ah-ubuntu_24_04-c7g_2x-50, cxx: gnu }
         ]
+        # TEMP(runner shortage): on pull requests the GitHub-hosted leg is skipped; the
+        # Arm-hosted (SVE) leg builds the same gnu configuration there.
+        exclude:
+          - os: >-
+              ${{ github.event_name == 'pull_request' && fromJSON('{"name": "GitHub hosted", "label": "ubuntu-24.04-arm", "cxx": "gnu"}') || fromJSON('{"name": "none"}') }}
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
     if: github.repository == 'uxlfoundation/oneDAL'
@@ -157,6 +164,8 @@ jobs:
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)_OpenRNG_${{ matrix.os.name }}
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     runs-on: ${{ matrix.os.label }}
     steps:
 
@@ -234,6 +243,9 @@ jobs:
           { name: GitHub hosted, label: ubuntu-24.04-arm },
         ]
         rng: [ ref, openrng ]
+        # TEMP(runner shortage): only the ref leg on pull requests.
+        exclude:
+          - rng: ${{ github.event_name == 'pull_request' && 'openrng' || 'none' }}
 
     name: LinuxBazel_OpenBLAS(SVE)${{ matrix.rng == 'openrng' && '_OpenRNG' || '' }}-${{ matrix.os.name }}
     if: github.repository == 'uxlfoundation/oneDAL'
@@ -383,8 +395,15 @@ jobs:
   # the overall required check name.
   status:
     needs: [build-and-test, openrng-build-and-test, bazel-build-and-test]
+    # TEMP(runner shortage): openrng-build-and-test is skipped on pull requests, which
+    # would skip this job too. Run unless cancelled, and fail unless every needed job
+    # passed or was skipped.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: "CI AArch64"
     steps:
-      - name: Print success
-        run: echo Success
+      - name: Check needed jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'
