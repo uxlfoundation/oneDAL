@@ -175,6 +175,9 @@ static train_result<Task> call_dual_kernel(const context_gpu& ctx,
 
     const pr::ndshape<2> xxt_shape{ sample_count, sample_count };
     auto xxt = pr::ndarray<Float, 2>::empty(queue, xxt_shape, alloc);
+    // TODO: this was copied over from the CPU version as GEMM there
+    // was faster than SYRK for these data shapes, but it hasn't been
+    // validated whether the same holds for GPU.
     sycl::event xxt_event = pr::gemm(queue, xc, xc.t(), xxt, { center_x_event });
 
     const double alpha = desc.get_alpha();
