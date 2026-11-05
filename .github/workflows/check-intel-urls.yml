@@ -46,7 +46,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Collect main URL
         run: |
-          echo "main_exe=$(grep -oP -m 1  'https?://[^ ]+\.exe' ${{ matrix.FILENAME }})" >> $GITHUB_ENV
+          MAIN_EXE=$(grep -oP -m 1 'https?://[^ "]+\.exe' ${{ matrix.FILENAME }})
+          echo "main_exe=$MAIN_EXE" >> $GITHUB_ENV
+          echo "main_version=$(echo "$MAIN_EXE" | grep -oP '[\d.]+(?=(_offline)?\.exe)')" >> $GITHUB_ENV
       - name: Query online URL
         run: |
           curl -L --retry 3 -o temp.html ${{ matrix.MAIN_URL }}
@@ -64,6 +66,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b ${{ matrix.DEPENDENCY }}/${{ env.query_version }}
           sed -i 's|${{ env.main_exe }}|${{ env.query_exe }}|g' ${{ matrix.FILENAME }}
+          sed -i "s|${{ env.main_version }}//./\\.}|${{ env.query_version }}|g" ${{ matrix.FILENAME }}
           git add ${{ matrix.FILENAME }}
           git commit -m "Update ${{ matrix.DEPENDENCY }} to ${{ env.query_version }}"
           git push origin ${{ matrix.DEPENDENCY }}/${{ env.query_version }}
