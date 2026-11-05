@@ -66,7 +66,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b ${{ matrix.DEPENDENCY }}/${{ env.query_version }}
           sed -i 's|${{ env.main_exe }}|${{ env.query_exe }}|g' ${{ matrix.FILENAME }}
-          sed -i "s|${{ env.main_version }}//./\\.}|${{ env.query_version }}|g" ${{ matrix.FILENAME }}
+          sed -i -E 's|_[0-9][0-9.]*[0-9]\.msi|_${{ env.query_version }}.msi|g' ${{ matrix.FILENAME }}
           git add ${{ matrix.FILENAME }}
           git commit -m "Update ${{ matrix.DEPENDENCY }} to ${{ env.query_version }}"
           git push origin ${{ matrix.DEPENDENCY }}/${{ env.query_version }}
