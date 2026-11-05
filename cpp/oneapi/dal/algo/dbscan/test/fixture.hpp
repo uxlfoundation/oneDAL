@@ -14,8 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <limits>
+#include <algorithm>
 #include <cmath>
+#include <limits>
+#include <numeric>
+#include <vector>
 
 #include "oneapi/dal/algo/dbscan/compute.hpp"
 
@@ -48,6 +51,168 @@ public:
             .set_mem_save_mode(true)
             .set_result_options(result_options::responses);
     }
+    /// Distance between the rows `a` and `b` of `column_count` values, computed in double from the
+    /// definition of `metric`.
+    static double reference_distance(const double *a,
+                                     const double *b,
+                                     std::int64_t column_count,
+                                     distance_metric metric,
+                                     double degree) {
+        double acc = 0;
+        switch (metric) {
+            case distance_metric::euclidean:
+            case distance_metric::manhattan:
+            case distance_metric::minkowski: {
+                const double p = metric == distance_metric::euclidean   ? 2.0
+                                 : metric == distance_metric::manhattan ? 1.0
+                                                                        : degree;
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    acc += std::pow(std::abs(a[k] - b[k]), p);
+                }
+                return std::pow(acc, 1.0 / p);
+            }
+            case distance_metric::chebyshev:
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    acc = std::max(acc, std::abs(a[k] - b[k]));
+                }
+                return acc;
+            case distance_metric::cosine: {
+                double n1 = 0, n2 = 0;
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    acc += a[k] * b[k];
+                    n1 += a[k] * a[k];
+                    n2 += b[k] * b[k];
+                }
+                return 1.0 - acc / std::sqrt(n1) / std::sqrt(n2);
+            }
+        }
+        return acc;
+    }
+
+    /// Distances between all pairs of rows of `x`, in double.
+    static std::vector<double> reference_distances(const std::vector<float_t> &x,
+                                                   std::int64_t column_count,
+                                                   distance_metric metric,
+                                                   double degree) {
+        const std::vector<double> data(x.begin(), x.end());
+        const std::int64_t row_count = data.size() / column_count;
+        std::vector<double> dist(row_count * row_count);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            for (std::int64_t j = 0; j < row_count; j++) {
+                dist[i * row_count + j] = reference_distance(data.data() + i * column_count,
+                                                             data.data() + j * column_count,
+                                                             column_count,
+                                                             metric,
+                                                             degree);
+            }
+        }
+        return dist;
+    }
+
+    /// An `epsilon` in the middle of the widest relative gap between the sorted pairwise
+    /// distances near `quantile`, so rounding cannot move a pair across it.
+    static double pick_epsilon(const std::vector<double> &dist,
+                               std::int64_t row_count,
+                               double quantile) {
+        std::vector<double> sorted;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            for (std::int64_t j = i + 1; j < row_count; j++) {
+                sorted.push_back(dist[i * row_count + j]);
+            }
+        }
+        std::sort(sorted.begin(), sorted.end());
+        const std::size_t center = static_cast<std::size_t>(quantile * sorted.size());
+        const std::size_t first = center / 2;
+        const std::size_t last = std::min(sorted.size() - 1, center + center / 2);
+        std::size_t best = first;
+        for (std::size_t k = first; k < last; k++) {
+            if ((sorted[k + 1] - sorted[k]) / sorted[k + 1] >
+                (sorted[best + 1] - sorted[best]) / sorted[best + 1]) {
+                best = k;
+            }
+        }
+        const double eps = (sorted[best] + sorted[best + 1]) / 2;
+        CAPTURE(quantile, sorted[best], sorted[best + 1]);
+        REQUIRE((sorted[best + 1] - sorted[best]) / eps > 1e-3);
+        return eps;
+    }
+
+    /// Check `result` against the definition of DBSCAN on the distances `dist`: the core flags,
+    /// that core rows within `epsilon` share a cluster and each cluster is one connected set of
+    /// core rows, and that a border row joins the cluster of a core row within `epsilon` while
+    /// every other row is noise.
+    static void check_against_definition(const result_t &result,
+                                         const std::vector<double> &dist,
+                                         const std::vector<float_t> &weights,
+                                         double epsilon,
+                                         std::int64_t min_observations) {
+        const std::int64_t row_count = weights.size();
+        const auto labels = row_accessor<const std::int32_t>(result.get_responses()).pull();
+        const auto core_flags = row_accessor<const std::int32_t>(result.get_core_flags()).pull();
+        const auto near = [&](std::int64_t i, std::int64_t j) {
+            return i == j || dist[i * row_count + j] <= epsilon;
+        };
+
+        std::vector<bool> is_core(row_count);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            double count = 0;
+            for (std::int64_t j = 0; j < row_count; j++) {
+                count += near(i, j) ? weights[j] : 0.0;
+            }
+            is_core[i] = count >= min_observations;
+            CAPTURE(i, count);
+            REQUIRE(core_flags[i] == std::int32_t(is_core[i]));
+        }
+
+        // Components of the graph of core rows within `epsilon` of each other.
+        std::vector<std::int64_t> component(row_count);
+        std::iota(component.begin(), component.end(), 0);
+        const auto find = [&](std::int64_t i) {
+            while (component[i] != i) {
+                i = component[i] = component[component[i]];
+            }
+            return i;
+        };
+        for (std::int64_t i = 0; i < row_count; i++) {
+            for (std::int64_t j = 0; j < row_count; j++) {
+                if (is_core[i] && is_core[j] && near(i, j)) {
+                    component[find(i)] = find(j);
+                }
+            }
+        }
+
+        const std::int64_t cluster_count = result.get_cluster_count();
+        std::vector<std::int64_t> cluster_component(cluster_count, -1);
+        for (std::int64_t i = 0; i < row_count; i++) {
+            CAPTURE(i, labels[i], is_core[i]);
+            REQUIRE(labels[i] >= -1);
+            REQUIRE(labels[i] < cluster_count);
+            if (is_core[i]) {
+                REQUIRE(labels[i] >= 0);
+                auto &c = cluster_component[labels[i]];
+                c = c < 0 ? find(i) : c;
+                REQUIRE(c == find(i));
+                for (std::int64_t j = 0; j < row_count; j++) {
+                    REQUIRE((!is_core[j] || !near(i, j) || labels[j] == labels[i]));
+                }
+                continue;
+            }
+            bool joins_core_cluster = false;
+            bool has_core_neighbor = false;
+            for (std::int64_t j = 0; j < row_count; j++) {
+                if (is_core[j] && near(i, j)) {
+                    has_core_neighbor = true;
+                    joins_core_cluster = joins_core_cluster || labels[j] == labels[i];
+                }
+            }
+            REQUIRE(has_core_neighbor == (labels[i] >= 0));
+            REQUIRE(joins_core_cluster == has_core_neighbor);
+        }
+        for (std::int64_t c = 0; c < cluster_count; c++) {
+            REQUIRE(cluster_component[c] >= 0);
+        }
+    }
+
     void check_if_close(const table &left,
                         const table &right,
                         std::string name = "",
