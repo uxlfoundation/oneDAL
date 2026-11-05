@@ -138,6 +138,14 @@ struct OpenBlas<double, cpu>
         return res;
     }
 
+    static void xcopy(const DAAL_INT * n, const double * x, const DAAL_INT * incx, double * y, const DAAL_INT * incy) { dcopy_(n, x, incx, y, incy); }
+
+    static void xxcopy(const DAAL_INT * n, const double * x, const DAAL_INT * incx, double * y, const DAAL_INT * incy)
+    {
+        openblas_thread_setter ots(1);
+        dcopy_(n, x, incx, y, incy);
+    }
+
     static void xscal(const DAAL_INT * n, const double * a, double * x, const DAAL_INT * incx) { dscal_(n, a, x, incx); }
 
     static double xasum(const DAAL_INT * n, const double * x, const DAAL_INT * incx) { return dasum_(n, x, incx); }
@@ -239,6 +247,14 @@ struct OpenBlas<float, cpu>
         float res = sdot_(n, x, incx, y, incy);
         return res;
     }
+
+    static void xxcopy(const DAAL_INT * n, const float * x, const DAAL_INT * incx, float * y, const DAAL_INT * incy)
+    {
+        openblas_thread_setter ots(1);
+        scopy_(n, x, incx, y, incy);
+    }
+
+    static void xcopy(const DAAL_INT * n, const float * x, const DAAL_INT * incx, float * y, const DAAL_INT * incy) { scopy_(n, x, incx, y, incy); }
 
     static void xscal(const DAAL_INT * n, const float * a, float * x, const DAAL_INT * incx) { sscal_(n, a, x, incx); }
 

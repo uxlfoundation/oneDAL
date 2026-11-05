@@ -190,6 +190,16 @@ struct Blas
 
     static fpType xasum(const SizeType * n, const fpType * x, const SizeType * incx) { return _impl<fpType, cpu>::xasum(n, x, incx); }
 
+    static void xcopy(const SizeType * n, const fpType * x, const SizeType * incx, fpType * y, const SizeType * incy)
+    {
+        _impl<fpType, cpu>::xcopy(n, x, incx, y, incy);
+    }
+
+    static void xxcopy(const SizeType * n, const fpType * x, const SizeType * incx, fpType * y, const SizeType * incy)
+    {
+        _impl<fpType, cpu>::xxcopy(n, x, incx, y, incy);
+    }
+
     static services::Status xgemm_blocked(const char * transa, const char * transb, const SizeType * na, const SizeType * nb, const SizeType * cols,
                                           const fpType * alpha, const NumericTable * ta, const SizeType * lda, const NumericTable * tb,
                                           const SizeType * ldb, const fpType * beta, NumericTable * tc, const SizeType * ldc, int reqBlockSizeA = -1,

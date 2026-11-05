@@ -348,10 +348,8 @@ Status DualKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, co
         DAAL_CHECK_BLOCK_STATUS(betaBlock);
         algorithmFPType * beta = betaBlock.get();
         daal::services::internal::service_memset<algorithmFPType, cpu>(beta, zero, nBetas * nResponses);
-        for (DAAL_INT j = 0; j < nResponses; ++j)
-        {
-            beta[j * nBetas] = y[j];
-        }
+        const DAAL_INT one = 1;
+        BlasInst<algorithmFPType, cpu>::xcopy(&nResponses, y, &one, beta, &nBetas);
         return Status();
     }
 
