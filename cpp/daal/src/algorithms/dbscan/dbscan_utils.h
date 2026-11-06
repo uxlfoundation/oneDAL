@@ -159,7 +159,7 @@ public:
     {
         if (_data)
         {
-            services::daal_free(_data);
+            services::internal::service_scalable_free<T, cpu>(_data);
             _data = nullptr;
         }
     }
@@ -180,6 +180,19 @@ public:
         return services::Status();
     }
 
+    /// Make sure `count` more values fit; write them through ptr() and then call resize().
+    services::Status reserve(size_t count)
+    {
+        while (_size + count > _capacity)
+        {
+            services::Status status = grow();
+            DAAL_CHECK_STATUS_VAR(status);
+        }
+        return services::Status();
+    }
+
+    void resize(size_t size) { _size = size; }
+
     inline T & operator[](size_t index) { return _data[index]; }
 
     size_t size() const { return _size; }
@@ -187,20 +200,22 @@ public:
     T * ptr() { return _data; }
 
 private:
+    // The scalable allocator reuses freed blocks, so a buffer rebuilt for every call does not fault in fresh pages.
     services::Status grow()
     {
-        int result        = 0;
-        _capacity         = (_capacity == 0 ? defaultSize : _capacity * 2);
-        T * const newData = static_cast<T *>(services::internal::service_calloc<T, cpu>(_capacity * sizeof(T)));
+        int result            = 0;
+        const size_t capacity = (_capacity == 0 ? defaultSize : _capacity * 2);
+        T * const newData     = services::internal::service_scalable_malloc<T, cpu>(capacity);
         DAAL_CHECK_MALLOC(newData);
 
         if (_data != nullptr)
         {
             result = services::internal::daal_memcpy_s(newData, _size * sizeof(T), _data, _size * sizeof(T));
-            services::daal_free(_data);
+            services::internal::service_scalable_free<T, cpu>(_data);
         }
 
-        _data = newData;
+        _data     = newData;
+        _capacity = capacity;
         return (!result) ? services::Status() : services::Status(services::ErrorMemoryCopyFailedInternal);
     }
 
@@ -259,28 +274,29 @@ public:
         return 0;
     }
 
-    int allocateNewEntries(size_t size)
-    {
-        size_t requiredSize = _size + size;
-        int result          = 0;
-
-        while (_capacity < requiredSize)
-        {
-            result += grow();
-        }
-
-        return result;
-    }
-
-    // allocateNewEntries() should be called
-    void fastAdd(const size_t & value, FPType w)
-    {
-        _values[_size] = value;
-        _size++;
-        _weight += w;
-    }
-
     void addWeight(FPType w) { _weight += w; }
+
+    /// Make room for `count` more values with a single allocation.
+    /// Up to 1024 values the capacity is exact; above that it is rounded up to a power of two,
+    /// because odd sizes miss the scalable allocator's large-object cache.
+    int reserve(size_t count)
+    {
+        const size_t required = _size + count;
+        if (required <= _capacity)
+        {
+            return 0;
+        }
+        size_t capacity = required;
+        if (capacity > 1024)
+        {
+            capacity = 1024;
+            while (capacity < required) capacity *= 2;
+        }
+        return reallocate(capacity);
+    }
+
+    /// Append a value whose weight was already added with addWeight(); reserve() first.
+    void push(size_t value) { _values[_size++] = value; }
 
     size_t get(size_t id) const { return _values[id]; }
 
@@ -291,15 +307,17 @@ public:
 private:
     int grow()
     {
-        size_t scale = 2;
-        scale        = _capacity < 128 ? 64 : scale;
+        const size_t scale = _capacity < 128 ? 64 : 2;
+        return reallocate(_capacity == 0 ? defaultSize : _capacity * scale);
+    }
 
-        _capacity                = (_capacity == 0 ? defaultSize : _capacity * scale);
-        size_t * const newValues = daal::services::internal::service_scalable_malloc<size_t, cpu>(_capacity);
-
+    /// Returns non-zero if the allocation or the copy fails; the neighborhood is unchanged then.
+    int reallocate(size_t capacity)
+    {
+        size_t * const newValues = daal::services::internal::service_scalable_malloc<size_t, cpu>(capacity);
         if (!newValues)
         {
-            return false;
+            return 1;
         }
 
         int result = 0;
@@ -307,11 +325,11 @@ private:
         {
             result = services::internal::daal_memcpy_s(newValues, _size * sizeof(size_t), _values, _size * sizeof(size_t));
             daal::services::internal::service_scalable_free<size_t, cpu>(_values);
-            _values = nullptr;
         }
-        _values = newValues;
+        _values   = newValues;
+        _capacity = capacity;
 
-        return !!result;
+        return result;
     }
 
     size_t * _values;
@@ -496,6 +514,9 @@ private:
 
         TlsMem<FPType, cpu> tls(inBlockSize * outBlockSize);
         TlsMem<size_t, cpu> tlsIdx(outBlockSize);
+        // Hits of an in-block as (row, index) pairs, so that each neighborhood is allocated once per in-block
+        // instead of once per out-block.
+        daal::tls<Vector<size_t, cpu> *> tlsHits([]() { return new Vector<size_t, cpu>(); });
 
         TArray<FPType, cpu> onesWeightsArray(outBlockSize);
         FPType * onesWeights = onesWeightsArray.get();
@@ -526,6 +547,10 @@ private:
             size_t * idx = tlsIdx.local();
             DAAL_CHECK_MALLOC_THR(idx);
 
+            Vector<size_t, cpu> * const hits = tlsHits.local();
+            DAAL_CHECK_MALLOC_THR(hits);
+            hits->reset();
+
             for (size_t outBlock = 0; outBlock < nOutBlocks; outBlock++)
             {
                 size_t j1    = outBlock * outBlockSize;
@@ -553,18 +578,42 @@ private:
                     for (size_t k = kStart; k < kEnd; k++) local[(k - i1) * jSize + (k - j1)] = FPType(0);
                 }
 
+                services::Status status = hits->reserve(2 * iSize * jSize);
+                DAAL_CHECK_STATUS_THR(status);
+                size_t * pairs = hits->ptr() + hits->size();
                 for (size_t i = 0; i < iSize; i++)
                 {
                     const size_t indexes = getIndex(idx, local + i * jSize, jSize, epsP);
-                    DAAL_CHECK_MALLOC_THR(!neighs[i + i1].allocateNewEntries(indexes));
-
+                    FPType weight        = 0;
                     for (size_t j = 0; j < indexes; j++)
                     {
-                        neighs[i + i1].fastAdd(idx[j] + j1, weights[idx[j]]);
+                        weight += weights[idx[j]];
+                        pairs[0] = i;
+                        pairs[1] = idx[j] + j1;
+                        pairs += 2;
                     }
+                    neighs[i + i1].addWeight(weight);
                 }
+                hits->resize(pairs - hits->ptr());
+            }
+
+            size_t counts[inBlockSize] = { 0 };
+            const size_t * const pairs = hits->ptr();
+            const size_t pairsEnd      = hits->size();
+            for (size_t pos = 0; pos < pairsEnd; pos += 2)
+            {
+                counts[pairs[pos]]++;
+            }
+            for (size_t i = 0; i < iSize; i++)
+            {
+                DAAL_CHECK_MALLOC_THR(!neighs[i + i1].reserve(counts[i]));
+            }
+            for (size_t pos = 0; pos < pairsEnd; pos += 2)
+            {
+                neighs[i1 + pairs[pos]].push(pairs[pos + 1]);
             }
         });
+        tlsHits.reduce([](Vector<size_t, cpu> * hits) { delete hits; });
 
         return safeStat.detach();
     }
