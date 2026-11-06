@@ -104,17 +104,15 @@ Status CommonKernel<algorithmFPType, cpu>::computeQRForBlock(DAAL_INT p, DAAL_IN
 
     if (p > n)
     {
-        /* Complete a definition of a linear system if the number of observations
-         * less than the number of coefficients */
+        /* Fewer observations than coefficients: pad R with zero rows so the
+         * block contributes no spurious equations when merged */
         const algorithmFPType zero(0.0);
-        const algorithmFPType one(1.0);
 
         for (size_t i = 0; i < p - n; ++i)
         {
-            r[i * p + i] = one;
             PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < i; ++j)
+            for (size_t j = 0; j <= i; ++j)
             {
                 r[i * p + j] = zero;
             }
