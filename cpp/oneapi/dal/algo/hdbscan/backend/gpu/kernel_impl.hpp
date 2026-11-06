@@ -653,21 +653,24 @@ inline typename boruvka_merger<Float>::mst_t run_boruvka(sycl::queue& queue,
 
     boruvka_merger<Float> merger(n);
     while (merger.component_count() > 1) {
-        auto upload_event = queue.memcpy(comp.get_mutable_data(),
-                                         merger.components().data(),
-                                         n * sizeof(std::int32_t));
+        auto upload_event = bk::memcpy(queue,
+                                       comp.get_mutable_data(),
+                                       merger.components().data(),
+                                       n * sizeof(std::int32_t));
         auto find_event = find(comp.get_data(),
                                pt_best_mrd.get_mutable_data(),
                                pt_best_idx.get_mutable_data(),
                                upload_event);
-        auto mrd_event = queue.memcpy(pt_best_mrd_host.data(),
-                                      pt_best_mrd.get_data(),
-                                      n * sizeof(Float),
-                                      find_event);
-        auto idx_event = queue.memcpy(pt_best_idx_host.data(),
-                                      pt_best_idx.get_data(),
-                                      n * sizeof(std::int32_t),
-                                      find_event);
+        auto mrd_event = bk::memcpy(queue,
+                                    pt_best_mrd_host.data(),
+                                    pt_best_mrd.get_data(),
+                                    n * sizeof(Float),
+                                    { find_event });
+        auto idx_event = bk::memcpy(queue,
+                                    pt_best_idx_host.data(),
+                                    pt_best_idx.get_data(),
+                                    n * sizeof(std::int32_t),
+                                    { find_event });
         sycl::event::wait_and_throw({ mrd_event, idx_event });
         if (merger.merge(pt_best_mrd_host.data(), pt_best_idx_host.data()) == 0) {
             break;

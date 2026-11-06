@@ -521,4 +521,93 @@ TEST("the conditional loops cover the space and honour inParallel", "[threading]
     }
 }
 
+/// Hooks that count what the threading layer reports to the kernel profiler.
+namespace hooks_log
+{
+const int region_tag = 0;
+std::atomic<int64_t> captures { 0 };
+std::atomic<int64_t> enters { 0 };
+std::atomic<int64_t> leaves { 0 };
+std::atomic<int64_t> foreign_enters { 0 }; // chunks handed a region other than the one started
+
+const void * capture()
+{
+    captures.fetch_add(1);
+    return &region_tag;
+}
+void enter(const void * region)
+{
+    enters.fetch_add(1);
+    if (region != &region_tag) foreign_enters.fetch_add(1);
+}
+void leave()
+{
+    leaves.fetch_add(1);
+}
+
+const daal::profiler_region_hooks hooks = { capture, enter, leave };
+
+/// Counts the iterations it is given, so the reduction has a body for the hooks to report.
+class CountReducer : public daal::Reducer
+{
+public:
+    int64_t total = 0;
+    daal::ReducerUniquePtr create() const override { return daal::ReducerUniquePtr(new CountReducer()); }
+    void update(size_t begin, size_t end) override { total += static_cast<int64_t>(end - begin); }
+    void join(daal::Reducer * other) override { total += static_cast<CountReducer *>(other)->total; }
+};
+
+void reset()
+{
+    captures       = 0;
+    enters         = 0;
+    leaves         = 0;
+    foreign_enters = 0;
+}
+} // namespace hooks_log
+
+TEST("parallel loops report their region and every chunk to the profiler hooks", "[threading][unit]")
+{
+    if (!isParallel()) return;
+    _daal_threader_set_profiler_hooks(&hooks_log::hooks);
+    constexpr int64_t n = 100000;
+
+    auto check = [](const char * loop) {
+        INFO(loop);
+        REQUIRE(hooks_log::captures.load() == 1);
+        REQUIRE(hooks_log::enters.load() > 0);
+        REQUIRE(hooks_log::enters.load() == hooks_log::leaves.load());
+        REQUIRE(hooks_log::foreign_enters.load() == 0);
+        hooks_log::reset();
+    };
+
+    hooks_log::reset();
+    VisitLog plain(n);
+    threader_for(n, 1, [&](int64_t i) { plain.mark(i); });
+    REQUIRE(plain.visitedExactlyOnce());
+    check("threader_for");
+
+    VisitLog blocked(n);
+    threader_for_blocked(n, 16, [&](int64_t first, int64_t last) {
+        for (int64_t i = first; i < last; ++i) blocked.mark(i);
+    });
+    REQUIRE(blocked.visitedExactlyOnce());
+    check("threader_for_blocked");
+
+    VisitLog stat(n);
+    static_threader_for(n, [&](int64_t i, size_t tid) {
+        (void)tid;
+        stat.mark(i);
+    });
+    REQUIRE(stat.visitedExactlyOnce());
+    check("static_threader_for");
+
+    hooks_log::CountReducer reducer;
+    threader_reduce(n, 1000, reducer);
+    REQUIRE(reducer.total == n);
+    check("threader_reduce");
+
+    _daal_threader_set_profiler_hooks(nullptr);
+}
+
 } // namespace daal::test

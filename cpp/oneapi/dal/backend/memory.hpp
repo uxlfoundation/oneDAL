@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/backend/common.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal::backend {
 
@@ -93,6 +94,13 @@ inline void* malloc(const sycl::queue& queue, std::size_t size, const sycl::usm:
             throw dal::invalid_argument{ detail::error_messages::unknown_usm_pointer_type() };
         }
     }
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled())) {
+        daal::internal::profiler_record_alloc(ptr,
+                                              size,
+                                              alloc == sycl::usm::alloc::host
+                                                  ? daal::internal::profiler_memory_kind::host
+                                                  : daal::internal::profiler_memory_kind::device);
+    }
     return ptr;
 }
 
@@ -110,6 +118,9 @@ inline void* malloc_host(const sycl::queue& queue, std::size_t size) {
 
 inline void free(const sycl::queue& queue, void* pointer) {
     ONEDAL_ASSERT(pointer == nullptr || is_known_usm(queue, pointer));
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_memory_tracking_enabled())) {
+        daal::internal::profiler_record_free(pointer);
+    }
     sycl::free(pointer, queue);
 }
 
@@ -210,6 +221,9 @@ inline sycl::event memcpy(sycl::queue& queue,
     ONEDAL_ASSERT(dest != nullptr);
     // This function might be used to copy data between usm and non-usm memory,
     // so we don't check if the pointers are usm or not
+    if (DAAL_PROFILER_UNLIKELY(daal::internal::is_transfer_tracking_enabled())) {
+        detail::profiler_record_copy(queue, dest, src, size);
+    }
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.memcpy(dest, src, size);

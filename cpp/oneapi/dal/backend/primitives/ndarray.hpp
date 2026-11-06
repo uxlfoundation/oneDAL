@@ -645,6 +645,12 @@ inline sycl::event copy(sycl::queue& q,
         const auto dst_stride = dst.get_leading_stride();
         const auto src_stride = src.get_leading_stride();
         const auto cp_range = make_range_2d(dst_shape[0], dst_shape[1]);
+        if (DAAL_PROFILER_UNLIKELY(daal::internal::is_transfer_tracking_enabled())) {
+            dal::detail::profiler_record_copy(q,
+                                              dst_ptr,
+                                              src_ptr,
+                                              sizeof(T1) * dst_shape[0] * dst_shape[1]);
+        }
         res_event = q.submit([&](sycl::handler& h) {
             h.depends_on(deps);
             h.parallel_for(cp_range, [=](sycl::id<2> idx) {
