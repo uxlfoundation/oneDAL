@@ -87,7 +87,9 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         par.resultsToCompute |= daal_dbscan::computeCoreObservations;
     }
 
-    const auto daal_data = interop::convert_to_daal_table<Float>(data);
+    // The neighborhood search reads the data in 128-row tiles; a column-major table would be transposed for each tile.
+    const bool copy_to_row_major = data.get_data_layout() == data_layout::column_major;
+    const auto daal_data = interop::convert_to_daal_table<Float>(data, copy_to_row_major);
     const auto daal_weights = interop::convert_to_daal_table<Float>(weights);
 
     array<int> arr_responses = array<int>::empty(row_count * 1);

@@ -271,7 +271,13 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     const std::int64_t column_count = GENERATE(2, 5, 20);
     const bool weighted = GENERATE(false, true);
     const bool mem_save_mode = GENERATE(false, true);
-    CAPTURE(static_cast<int>(c.metric), c.degree, column_count, weighted, mem_save_mode);
+    const auto layout = GENERATE(data_layout::row_major, data_layout::column_major);
+    CAPTURE(static_cast<int>(c.metric),
+            c.degree,
+            column_count,
+            weighted,
+            mem_save_mode,
+            static_cast<int>(layout));
 
     constexpr std::int64_t row_count = 120;
     constexpr std::int64_t min_observations = 5;
@@ -292,10 +298,20 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
             // The CPU fills the core flags only when the core indices are requested too.
             .set_result_options(result_options::responses | result_options::core_flags |
                                 result_options::core_observation_indices);
+    std::vector<float_t> x_column_major(x.size());
+    for (std::int64_t i = 0; i < row_count; i++) {
+        for (std::int64_t j = 0; j < column_count; j++) {
+            x_column_major[j * row_count + i] = x[i * column_count + j];
+        }
+    }
+    const auto data =
+        layout == data_layout::row_major
+            ? homogen_table::wrap(x.data(), row_count, column_count)
+            : homogen_table::wrap(x_column_major.data(), row_count, column_count, layout);
     const auto result =
         te::compute(this->get_policy(),
                     desc,
-                    homogen_table::wrap(x.data(), row_count, column_count),
+                    data,
                     weighted ? table{ homogen_table::wrap(w.data(), row_count, 1) } : table{});
     this->check_against_definition(result, dist, w, epsilon, min_observations);
 }
