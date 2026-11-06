@@ -257,9 +257,9 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 # constructor of their own instead (`spmd::error_holder`) are emitted by both,
 # and are correctly absent from this set because they have no `using`.
 #
-# The nightly is the only comparison that sees these: it builds the Make release
-# with `vc` (cl), while Azure's `WindowsReleaseCompare` builds it with icx and
-# reports no export differences at all.
+# The nightly comparison (.github/workflows/nightly-test.yml) sees these: it
+# builds the Make release with `vc` (cl) and the Bazel release with icx. An icx
+# Make tree would show no export differences at all.
 #
 # Not part of a consumer's link surface. `ONEDAL_EXPORT` is defined only under
 # `__ONEDAL_ENABLE_EXPORT__` (cpp/oneapi/dal/common.hpp:35), which only oneDAL's

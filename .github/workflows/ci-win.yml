@@ -55,8 +55,6 @@ on:
     branches:
       - main
       - 'feature/**'
-  # TEMP(runner shortage): run by hand on a branch while the jobs are skipped on pull requests.
-  workflow_dispatch:
   
 permissions:
   contents: read
@@ -68,7 +66,6 @@ env:
   LLVM_VERSION: 22.1.8
   CMAKE_VERSION: 4.4.5
   NINJA_VERSION: 1.13.2
-  VS_VER: 2026_build_tools
 
 # A PR push cancels the older run of that PR. A push to main waits behind the
 # running one, and a newer push replaces the waiting one, so the latest commit runs.
@@ -81,8 +78,7 @@ jobs:
   # Draft pull requests skip both jobs; they run once the pull request is
   # marked ready for review.
   build-and-test:
-    # TEMP(runner shortage): not on pull requests.
-    if: github.event_name != 'pull_request'
+    if: '!github.event.pull_request.draft'
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +87,10 @@ jobs:
         ]
     name: Windows-${{ matrix.os.arch }}-${{ matrix.os.cxx }}-${{ matrix.os.isa }}-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
+    # Selects the Visual Studio 18 build tools in .ci/scripts/build.bat and
+    # test.bat; `make-msvc` below leaves it unset.
+    env:
+      VS_VER: 2026_build_tools
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -219,8 +219,7 @@ jobs:
 
   bazel-build:
     name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
-    # TEMP(runner shortage): not on pull requests.
-    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 180
     steps:
@@ -369,8 +368,7 @@ jobs:
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
   # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
   bazel-msvc:
-    # TEMP(runner shortage): not on pull requests.
-    if: github.event_name != 'pull_request'
+    if: '!github.event.pull_request.draft'
     name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 120
@@ -413,3 +411,92 @@ jobs:
           rem Azure Bazel lane (.ci/pipeline/ci.yml, BAZEL_OUTPUT_USER_ROOT).
           bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
+
+  # x86_64 Make build with the Microsoft compiler, the GitHub Actions twin of
+  # Azure's `WindowsMakeVC` (.ci/pipeline/ci.yml): `daal` and `onedal_c` with
+  # `vc` against the toolkit's MKL and TBB, then the CMake examples and the
+  # nuget package. `VS_VER` stays unset, so .ci/scripts/build.bat and test.bat
+  # take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
+  make-msvc:
+    if: '!github.event.pull_request.draft'
+    name: WindowsMakeVC_MKL(AVX2)-GitHub hosted
+    runs-on: windows-2025
+    timeout-minutes: 180
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The toolkit URL and component list are read from .ci/pipeline/ci.yml,
+      # their single source of truth, as nightly-build.yml does.
+      - name: Install oneAPI Base Toolkit
+        shell: cmd
+        run: |
+          set PATH=C:\msys64\usr\bin;%PATH%
+          for /f "delims=" %%i in ('grep -oP -m 1 "(?<=WINDOWS_BASEKIT_URL: ).*" .ci\pipeline\ci.yml') do set "baseurl=%%i"
+          for /f "delims=" %%i in ('grep -oP -m 1 "(?<=WINDOWS_DPCPP_COMPONENTS: ).*" .ci\pipeline\ci.yml') do set "components=%%i"
+          if not defined baseurl exit /b 1
+          if not defined components exit /b 1
+          call .ci\scripts\install_basekit.bat %baseurl:'="% %components:'="% .\oneapi\
+
+      # `cpufeature` is read by describe_system.sh; `zip` packs the nuget
+      # package (deploy/nuget/prepare_dal_nuget.sh) and `tree` lists it.
+      - name: Install cpufeature, zip and tree
+        shell: cmd
+        run: |
+          set PATH=C:\msys64\usr\bin;%PATH%
+          python -m pip install cpufeature
+          if errorlevel 1 exit /b 1
+          pacman -S -y --noconfirm zip tree
+
+      - name: System info
+        shell: cmd
+        run: |
+          set PATH=C:\msys64\usr\bin;%PATH%
+          call .\oneapi\setvars.bat
+          bash .ci/scripts/describe_system.sh
+
+      - name: Make daal
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call .ci\scripts\build.bat daal vc avx2
+
+      - name: Make onedal_c
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call .ci\scripts\build.bat onedal_c vc avx2
+
+      # See `Disable Windows Error Reporting dialogs` in `build-and-test`.
+      - name: Disable Windows Error Reporting dialogs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wer = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+          New-Item -Path $wer -Force | Out-Null
+          Set-ItemProperty -Path $wer -Name DontShowUI -Value 1 -Type DWord
+          Set-ItemProperty -Path $wer -Name Disabled -Value 1 -Type DWord
+
+      # `msvs` selects the `__release_win_vc` tree in test.bat.
+      - name: Test daal
+        timeout-minutes: 30
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call .ci\scripts\test.bat daal\cpp "" msvs cmake
+
+      - name: Test oneapi
+        timeout-minutes: 30
+        shell: cmd
+        run: |
+          call .\oneapi\setvars.bat
+          call .ci\scripts\test.bat oneapi\cpp "" msvs cmake
+
+      - name: Build nuget package
+        shell: cmd
+        run: |
+          set PATH=C:\msys64\usr\bin;%PATH%
+          bash deploy/nuget/prepare_dal_nuget.sh --release-dir __release_win_vc --build-nupkg yes
+          if errorlevel 1 exit /b 1
+          tree -h -I include __nuget/inteldal*/
+          ls -lh __nuget/inteldal*.nupkg
