@@ -296,8 +296,6 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=$(pwd)/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
-      # openBLAS is cached as in the LinuxMake jobs above. The root is exported
-      # on both paths, cache hit or build.
       - name: Restore openBLAS
         id: cache-openblas
         uses: actions/cache/restore@v6
