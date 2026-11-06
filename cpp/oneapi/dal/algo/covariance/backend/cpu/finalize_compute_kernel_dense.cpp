@@ -25,16 +25,9 @@
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/detail/parameters/common.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
-
-#if defined(TARGET_X86_64)
-#define CPU_EXTENSION dal::detail::cpu_extension::avx512
-#elif defined(TARGET_ARM)
-#define CPU_EXTENSION dal::detail::cpu_extension::sve
-#elif defined(TARGET_RISCV64)
-#define CPU_EXTENSION dal::detail::cpu_extension::rv64
-#endif
 
 namespace oneapi::dal::covariance::backend {
 
