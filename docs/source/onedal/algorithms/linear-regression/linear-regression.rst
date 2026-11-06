@@ -50,6 +50,8 @@ Partial Training
 Given a :math:`(x_{11}, \ldots, x_{1p}, y_{11}, \ldots, y_{1r}, \ldots, x_{n1}, \ldots, x_{np}, y_{n1}, \ldots, y_{nr})` block of
 training data. The partial results of the algorithm are computed with the following formulas:
 
+- When the intercept terms :math:`(\beta_{0*})` are not included:
+
 .. list-table::
    :widths: 20 50
    :header-rows: 1
@@ -62,6 +64,26 @@ training data. The partial results of the algorithm are computed with the follow
    * - :math:`\mathbf{X}^T \mathbf{y}`
      - :math:`(\mathbf{X}^T \mathbf{y})_{ij} = \sum_{k=1}^{n}(x_{ki} y_{kj})`, :math:`i = 1, \ldots, p`, :math:`j = 1, \ldots, r`
 
+- When the intercept terms :math:`(\beta_{0*})` are included:
+
+.. list-table::
+   :widths: 20 50
+   :header-rows: 1
+   :align: left
+
+   * - Partial result
+     - Definition
+   * - :math:`\tilde{\mathbf{X}}^T \tilde{\mathbf{X}}`
+     - | :math:`(\tilde{\mathbf{X}}^T \tilde{\mathbf{X}})_{ij} = \sum_{k=1}^{n}(x_{ki} x_{kj})`, :math:`i = 1, \ldots, p`, :math:`j = 1, \ldots, p`
+       | :math:`(\tilde{\mathbf{X}}^T \tilde{\mathbf{X}})_{i,p+1} = \sum_{k=1}^{n} x_{ki}`, :math:`i = 1, \ldots, p`
+       | :math:`(\tilde{\mathbf{X}}^T \tilde{\mathbf{X}})_{p+1,i} = \sum_{k=1}^{n} x_{ki}`, :math:`i = 1, \ldots, p`
+       | :math:`(\tilde{\mathbf{X}}^T \tilde{\mathbf{X}})_{p+1,p+1} = n`
+   * - :math:`\tilde{\mathbf{X}}^T \mathbf{y}`
+     - | :math:`(\tilde{\mathbf{X}}^T \mathbf{y})_{ij} = \sum_{k=1}^{n}(x_{ki} y_{kj})`, :math:`i = 1, \ldots, p`, :math:`j = 1, \ldots, r`
+       | :math:`(\tilde{\mathbf{X}}^T \mathbf{y})_{p+1,j} = \sum_{k=1}^{n} y_{kj}`, :math:`j = 1, \ldots, r`
+
+where :math:`\tilde{\mathbf{X}}` is the :math:`\mathbf{X}` matrix augmented with a column of ones for the intercept.
+
 .. _linreg_f_math:
 
 Finalize Training
@@ -70,7 +92,7 @@ Finalize Training
 Given a partial result with partial products :math:`\mathbf{X}^T \mathbf{X}` and :math:`\mathbf{X}^T \mathbf{y}` and the regularization parameter :math:`\alpha`,
 the resulting regression coefficients :math:`\beta` are computed with the following formula:
 
-:math:`\beta = (\mathbf{X}^T \mathbf{X} + \alpha I)^{-1} \mathbf{X}^T \mathbf{y}`
+:math:`\beta = (\mathbf{X}^T \mathbf{X} + \alpha I)^{+} \mathbf{X}^T \mathbf{y}`
 
 .. _linreg_i_math:
 
@@ -110,9 +132,9 @@ Training method: *Normal Equation*
   :math:`x_{c,ij} = x_{ij} - \frac{1}{n} \sum_{i=1}^{n} x_{ij}`, :math:`i = 1, \ldots, n`, :math:`j = 1, \ldots, p`
   :math:`y_{c,ij} = y_{ij} - \frac{1}{n} \sum_{i=1}^{n} y_{ij}`, :math:`i = 1, \ldots, n`, :math:`j = 1, \ldots, r`.
 
-  The dual coefficients :math:`\beta_{dual}` are then used to compute the primal coefficients :math:`\beta_j` as
+  The dual coefficients :math:`\beta_{dual}` are then used to compute the primal coefficients :math:`\beta` as
 
-  :math:`\beta_j = \mathbf{X}_c^T \beta_{dual}`
+  :math:`\beta = \mathbf{X}_c^T \beta_{dual}`
 
   and the intercept :math:`\beta_{0j}` is computed as
 
