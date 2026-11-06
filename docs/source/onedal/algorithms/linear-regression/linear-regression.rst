@@ -92,7 +92,7 @@ Finalize Training
 Given a partial result with partial products :math:`\mathbf{X}^T \mathbf{X}` and :math:`\mathbf{X}^T \mathbf{y}` and the regularization parameter :math:`\alpha`,
 the resulting regression coefficients :math:`\beta` are computed with the following formula:
 
-:math:`\beta = (\mathbf{X}^T \mathbf{X} + \alpha I)^{+} \mathbf{X}^T \mathbf{y}`
+:math:`\beta = (\mathbf{X}^T \mathbf{X} + \alpha \mathbf{I})^{+} \mathbf{X}^T \mathbf{y}`
 
 .. _linreg_i_math:
 
