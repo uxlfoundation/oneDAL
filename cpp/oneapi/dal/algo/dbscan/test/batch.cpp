@@ -251,13 +251,15 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
             .set_degree(c.degree)
             // The CPU fills the core flags only when the core indices are requested too.
             .set_result_options(result_options::responses | result_options::core_flags |
-                                result_options::core_observation_indices);
+                                result_options::core_observation_indices |
+                                result_options::core_observations);
     const auto result =
         te::compute(this->get_policy(),
                     desc,
                     homogen_table::wrap(x.data(), row_count, column_count),
                     weighted ? table{ homogen_table::wrap(w.data(), row_count, 1) } : table{});
     this->check_against_definition(result, dist, w, epsilon, min_observations);
+    this->check_core_outputs(result, x, column_count);
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
