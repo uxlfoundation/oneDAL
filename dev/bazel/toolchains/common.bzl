@@ -69,9 +69,35 @@ def detect_compiler(repo_ctx, os_id):
     elif "icpx" in compiler_path:
         return "icpx"
     if os_id == "lnx":
+        compiler_id = _detect_compiler_by_macros(repo_ctx, compiler_path)
+        if compiler_id:
+            return compiler_id
         fail("CC={} is not a supported compiler; set CC to gcc, clang or icx ".format(compiler_path) +
              "(a versioned name such as gcc-14 or clang-19, or a full path, also works), " +
              "or unset it to pick the first of icx, gcc and clang found in PATH.")
+    return None
+
+def _detect_compiler_by_macros(repo_ctx, compiler_path):
+    """Identifies a compiler whose name does not say which one it is, such as
+    conda-forge's `x86_64-conda-linux-gnu-cc`, from the macros it predefines.
+
+    Returns `None` when the compiler cannot be run or is none of gcc, clang and icx.
+    """
+    tool = repo_ctx.path(compiler_path) if compiler_path.startswith("/") else repo_ctx.which(compiler_path)
+    if not tool or not tool.exists:
+        return None
+    result = repo_ctx.execute([tool, "-dM", "-E", "-x", "c", "/dev/null"])
+    if result.return_code != 0:
+        return None
+    macros = result.stdout
+
+    # icx also defines __clang__ and __GNUC__, and clang defines __GNUC__.
+    if "__INTEL_LLVM_COMPILER" in macros:
+        return "icx"
+    if "__clang__" in macros:
+        return "clang"
+    if "__GNUC__" in macros:
+        return "gcc"
     return None
 
 def is_dpc_compiler_found(repo_ctx, os_id):

@@ -11,6 +11,9 @@ cc_library(
     includes = [
         "include",
     ],
+    # Makes rules_cc pass `includes` as -isystem, as cc_module's `system_includes`
+    # does for oneDPL; conda's SYCL headers live here and must not fail -Werror.
+    features = ["system_include_paths"],
 )
 
 cc_library(
@@ -139,12 +142,13 @@ cc_library(
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
     ],
+    # Empty when MKLROOT has no SYCL domains; the DPC++ targets then fail to link.
     srcs = glob([
         "lib/libmkl_sycl_blas.so*",
         "lib/libmkl_sycl_lapack.so*",
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
-    ]),
+    ], allow_empty = True),
     deps = [
         ":mkl_classic_dynamic",
         "@openmp//:openmp_binary",

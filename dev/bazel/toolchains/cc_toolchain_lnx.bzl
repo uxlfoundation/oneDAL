@@ -20,6 +20,7 @@ load(
     "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "auto_configure_fail",
     "get_starlark_list",
+    "split_escaped",
     "write_builtin_include_directory_paths",
 )
 load(
@@ -100,37 +101,43 @@ def _find_tools(repo_ctx, reqs):
         dpc_compiler_version = reqs.dpc_compiler_version
     )
 
-def _preapre_builtin_include_directory_paths(repo_ctx, tools):
+def _get_env_opts(repo_ctx, name):
+    """The `:`-separated flags in environment variable `name`, as rules_cc reads them."""
+    return [opt for opt in split_escaped(repo_ctx.os.environ.get(name, ""), ":") if opt]
+
+def _preapre_builtin_include_directory_paths(repo_ctx, tools, cxx_opts):
     required_tmp_includes = get_tmp_dpcpp_inc_directories(repo_ctx, tools) if tools.is_dpc_found else []
 
-    # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++.
+    # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++,
+    # and BAZEL_CXXOPTS can name another C++ library (-nostdinc++ -isystem <prefix>/include/c++/v1).
     cc_flags = _add_gcc_toolchain_if_needed(repo_ctx, tools.cc)
     cc_no_canonical_flags = cc_flags + get_no_canonical_prefixes_opt(repo_ctx, tools.cc)
+    dpcc_flags = _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc)
 
     # As in rules_cc, the libc++ headers are builtin too, so a -stdlib=libc++ build works.
     libcxx_flags = add_compiler_option_if_supported(repo_ctx, tools.cc, "-stdlib=libc++")
     builtin_include_directories = utils.unique(
         get_cxx_inc_directories(repo_ctx, tools.cc, "-xc", cc_flags) +
-        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags) +
+        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags + cxx_opts) +
         get_cxx_inc_directories(repo_ctx, tools.cc, "-xc", cc_no_canonical_flags) +
-        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags) +
+        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags + cxx_opts) +
         (
-            get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags + libcxx_flags) +
-            get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags + libcxx_flags) if libcxx_flags else []
+            get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags + libcxx_flags + cxx_opts) +
+            get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags + libcxx_flags + cxx_opts) if libcxx_flags else []
         ) +
         get_cxx_inc_directories(
             repo_ctx,
             tools.dpcc,
             "-xc++",
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc),
+            dpcc_flags + cxx_opts,
         ) +
         get_cxx_inc_directories(
             repo_ctx,
             tools.dpcc,
             "-xc++",
             get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc) +
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
-            _add_sycl_linkage(repo_ctx, tools.dpcc) if tools.is_dpc_found else [],
+            dpcc_flags +
+            _add_sycl_linkage(repo_ctx, tools.dpcc) + cxx_opts if tools.is_dpc_found else [],
         ) +
         required_tmp_includes,
     )
@@ -147,6 +154,14 @@ def _get_bin_search_flag(repo_ctx, cc_path):
         bin_search_flag = []
     return bin_search_flag
 
+def _get_selected_gcc_installation(repo_ctx, cc):
+    """The GCC installation `cc` picks without --gcc-toolchain, or None."""
+    marker = "Selected GCC installation: "
+    for line in repo_ctx.execute([cc, "-v", "-E", "-x", "c++", "/dev/null"]).stderr.splitlines():
+        if line.startswith(marker):
+            return str(repo_ctx.path(line[len(marker):].strip()).realpath)
+    return None
+
 def _get_gcc_toolchain_path(repo_ctx, cc):
     # A gcc in PATH for another target (the host gcc next to a conda-forge clang) would pair
     # the compiler with a libstdc++ that does not match its sysroot, so prefer <triple>-gcc next to cc.
@@ -156,6 +171,12 @@ def _get_gcc_toolchain_path(repo_ctx, cc):
         sibling_gcc = repo_ctx.path(cc).dirname.get_child(triple + "-gcc")
         if triple and sibling_gcc.exists:
             gcc = sibling_gcc
+        elif gcc:
+            # Without such a gcc, keep the compiler's own GCC installation when it lies outside
+            # the PATH gcc's prefix: conda-forge clang finds the conda GCC runtime by itself.
+            selected = _get_selected_gcc_installation(repo_ctx, cc)
+            if selected and not selected.startswith(str(gcc.dirname.dirname.realpath) + "/"):
+                return None
     return str(gcc.dirname.dirname.realpath) if gcc else None
 
 def _add_gcc_toolchain_if_needed(repo_ctx, cc):
@@ -194,14 +215,15 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # Write empty C++ file to test compiler options
     repo_ctx.file(TEST_CPP_FILE, "int main() { return 0; }")
 
-    # Default compilations/link options
-    cxx_opts = []
-    link_opts = []
+    # As in rules_cc's auto-configured toolchain, BAZEL_CXXOPTS adds flags to every C++ compile
+    # and BAZEL_LINKOPTS to every link, for a compiler or C++ library outside the default paths.
+    cxx_opts = _get_env_opts(repo_ctx, "BAZEL_CXXOPTS")
+    link_opts = _get_env_opts(repo_ctx, "BAZEL_LINKOPTS")
     dynamic_link_libs = ["-lstdc++", "-lm", "-ldl"]
 
     # Paths to tools/compiler includes
     tools = _find_tools(repo_ctx, reqs)
-    builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools)
+    builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools, cxx_opts)
 
     # Addition compile/link flags. Do not inject the host compiler directory
     # with -B for a GNU cross compiler: /usr/bin contains the host `ld`, which
