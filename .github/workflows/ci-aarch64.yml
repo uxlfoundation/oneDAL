@@ -208,7 +208,6 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
-      # See the openBLAS cache note in the LinuxMake job above.
       - name: Restore openBLAS
         id: cache-openblas
         uses: actions/cache/restore@v6
