@@ -54,7 +54,7 @@ inline auto output_core_indices(sycl::queue& queue,
     const auto* const cores_ptr = cores.get_data();
     auto full_deps = deps + bk::event_vector{ err_event, res_event };
     auto event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
+        h.depends_on(full_deps);
         h.single_task([=]() {
             std::int64_t pos = 0;
             for (std::int64_t i = 0; i < block_size; i++) {
@@ -72,7 +72,7 @@ inline auto output_core_indices(sycl::queue& queue,
         });
     });
 
-    ONEDAL_ASSERT(err.to_host(queue, { event }).at(0));
+    ONEDAL_ASSERT(!err.to_host(queue, { event }).at(0));
     return std::make_tuple(res, event);
 }
 
@@ -107,7 +107,7 @@ inline auto make_results(sycl::queue& queue,
         if (core_count == -1) {
             core_count = count_cores(queue, cores);
         }
-        else if (core_count == 0) {
+        if (core_count == 0) {
             if (return_core_indices) {
                 results.set_core_observation_indices(dal::homogen_table{});
             }
