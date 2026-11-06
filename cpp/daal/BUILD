@@ -143,6 +143,7 @@ daal_module(
         exclude = [
             "src/externals/**/*_win_dll.cpp",
             "src/services/library_version_info.cpp",
+            "src/services/test/*.cpp",
         ],
     ),
     deps = [
@@ -412,6 +413,7 @@ dal_collect_test_suites(
         "dtrees/gbt/regression"
     ],
     tests = [
+        "@onedal//cpp/daal/src/services/test:tests",
         "@onedal//cpp/daal/src/threading/test:tests",
     ],
 )
