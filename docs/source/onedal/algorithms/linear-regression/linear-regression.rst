@@ -104,8 +104,8 @@ for each :math:`j = 1, \ldots, r`.
 
 .. _norm_eq:
 
-Training method: *Normal Equation*
-++++++++++++++++++++++++++++++++++
+Training method: *Normal Equations*
++++++++++++++++++++++++++++++++++++
 
 * If the number of observations :math:`n` is greater than or equal to the number of features :math:`p`,
   the least squares solution coefficients are computed:
