@@ -152,13 +152,8 @@ daal_module(
     ],
 )
 
-# `daal_version_gen.h` carries the build date and changes every day. Bazel
-# makes a module's headers, private ones included, declared inputs of every
-# downstream compile action, and those inputs are part of the cache key.
-# Only `library_version_info.cpp` includes the header, so it lives in this
-# leaf module, and `export_hdrs = False` keeps it out of the compile inputs of
-# everything that links the core libraries (oneDAL tests included). The daily
-# change then invalidates one compile action.
+# Leaf module: the version header stays out of the compile inputs of the core
+# libraries, so only a stamped release build relinks them (dev/bazel/stamp.bzl).
 daal_module(
     name = "version_info",
     srcs = ["src/services/library_version_info.cpp"],
