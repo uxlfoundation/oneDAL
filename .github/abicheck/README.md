@@ -33,21 +33,22 @@ libraries (header depth, castxml) with the `2026.0.0` baseline. It blocks the PR
 
 ## Rules
 
-Each rule demotes one WEAK finding kind to `risk`. GLOBAL removals still block.
+Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` internals. Other GLOBAL removals block.
 
 | kind | binding | to | Evidence |
 |---|---|---|---|
 | `func_removed_elf_only` | weak | risk | #3604 `-fvisibility-inlines-hidden` hides WEAK inline and template functions (2026.1.0+). |
 | `func_visibility_changed` | weak | risk | Same: default to hidden on WEAK inline functions. |
 | `var_removed_elf_only` | weak | risk | Same: WEAK template static data members. |
+| any, `_daal_(static_)?threader_for.*` | any | risk | #3471: C entry points with no installed header (as `.github/.abignore`). |
+| `func_`/`var_removed_elf_only`, `thread_pinner_impl_t`, `getCurrentThreadId`, `IMPL` | any | risk | #3987 hid these internals. |
 
-* `symbol_pattern: '.*'` is required (abicheck refuses a weak-binding rule with no selector).
+* `symbol_pattern` is a full match; `'.*'` is required (abicheck refuses a weak-binding rule with no selector).
 * No `expires`: the rules retire when the baseline reaches 2026.1.0, and rotation deletes them.
-  The three rules give exit 0 with 0 breaking on the 5-library header compare.
+  The rules give exit 0 with 0 breaking on the six-library header compare (fork e2e).
 
 ## Known gaps
 
-* **No binary-depth pass.** Symbol-only changes that have no header (`libonedal_thread`) are not checked.
 * **No layout evidence.** No DWARF is shipped; struct size or offset changes are unseen.
 * **SYCL is not parsed.** castxml is not a DPC++ frontend; `ONEDAL_DATA_PARALLEL` declarations are seen only as exports.
 * **First-wins duplicates.** Same-named declarations in `interface1`/`v1` namespaces resolve to the first; 10 warnings remain. A change to a shadowed duplicate is invisible.

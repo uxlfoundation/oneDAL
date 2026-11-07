@@ -32,5 +32,17 @@ reclassify:
     symbol_pattern: '.*'
     to: risk
     reason: WEAK template static data member hidden by #3604.
+  # libonedal_thread internals with no installed header (#3471, #3987).
+  - symbol_pattern: '_daal_(static_)?threader_for.*'
+    to: risk
+    reason: libonedal_thread C entry points, accepted in #3471; same as .github/.abignore.
+  - kind: func_removed_elf_only
+    symbol_pattern: '_Z18getCurrentThreadIdv|_ZN20thread_pinner_impl_t.*'
+    to: risk
+    reason: libonedal_thread internals hidden by #3987.
+  - kind: var_removed_elf_only
+    symbol_pattern: 'IMPL|_ZT[IVS]20thread_pinner_impl_t'
+    to: risk
+    reason: thread_pinner_impl_t typeinfo/vtable and IMPL global hidden by #3987.
 # A rule no finding matches is reported as unused, to be deleted at rotation.
 unused_rules: warn
