@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-# Attaches to a release tag the two abicheck baseline-sets ci.yml's abicheck jobs read.
+# Attaches to a release tag the abicheck baseline-set that ci.yml's abicheck job reads.
 # Rotation and rationale: .github/abicheck/README.md.
 name: Publish Abicheck Baseline
 
@@ -70,30 +70,6 @@ jobs:
             rm -rf __work
           done
 
-      # stage_binary: bundle analysis needs real ELF on the old side.
-      - name: Build the binary-depth baseline-set
-        id: bset-binary
-        uses: abicheck/abicheck/actions/baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
-        with:
-          output-dir: __abi_baseline_binary
-          project-ref: ${{ env.TAG }}
-          profile: linux-x86_64-icx-avx2-nodbg-binary
-          depth: binary
-          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 597e47ae7cf9657f4ea987175bf9463d70dba594
-          validation: strict
-          snapshot-compression: zstd
-          install-deps: false
-          libraries: |
-            [
-              {"name": "libonedal.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal.so", "stage_binary": true},
-              {"name": "libonedal_core.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_core.so", "stage_binary": true},
-              {"name": "libonedal_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so", "stage_binary": true},
-              {"name": "libonedal_parameters.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so", "stage_binary": true},
-              {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "stage_binary": true},
-              {"name": "libonedal_thread.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_thread.so", "stage_binary": true}
-            ]
-
       - name: Build the header-depth baseline-set
         id: bset-headers
         uses: abicheck/abicheck/actions/baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
@@ -115,15 +91,6 @@ jobs:
               {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"}
             ]
 
-      - name: Package the binary-depth baseline-set
-        id: archive-binary
-        uses: abicheck/abicheck/actions/stage-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
-        with:
-          baseline-path: ${{ steps.bset-binary.outputs.baseline-path }}
-          asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
-          profile: linux-x86_64-icx-avx2-nodbg-binary
-          generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-
       - name: Package the header-depth baseline-set
         id: archive-headers
         uses: abicheck/abicheck/actions/stage-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
@@ -139,7 +106,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY"
-          "${{ steps.archive-binary.outputs.archive-path }}"
           "${{ steps.archive-headers.outputs.archive-path }}"
 
       # Copy these into ABICHECK_BASELINE_DIGEST in ci.yml when rotating.
@@ -148,6 +114,5 @@ jobs:
           {
             echo "| asset | sha256 |"
             echo "|---|---|"
-            echo "| \`${{ steps.archive-binary.outputs.archive-path }}\` | \`sha256:${{ steps.archive-binary.outputs.archive-sha256 }}\` |"
             echo "| \`${{ steps.archive-headers.outputs.archive-path }}\` | \`sha256:${{ steps.archive-headers.outputs.archive-sha256 }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"

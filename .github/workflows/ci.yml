@@ -305,8 +305,8 @@ jobs:
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
-  # Blocking abicheck gate: six shipped libraries at binary depth vs the release baseline-set;
-  # the breaking-change label relaxes gating only. Design: .github/abicheck/README.md.
+  # Blocking abicheck gate: six shipped libraries, public headers and exports, header depth.
+  # Design, rules and rotation: .github/abicheck/README.md.
   LinuxAbicheckScan:
     name: Abicheck (multilib)
     needs: LinuxMakeDPCPP
@@ -314,17 +314,18 @@ jobs:
       github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
     env:
       # Tag, profile and generation must match a published asset (resolve-baseline enforces it).
       ABICHECK_BASELINE_TAG: 2026.0.0
-      ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-binary
+      ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
       ABICHECK_BASELINE_GENERATION: "4"
       # sha256 the publish run reported for this asset; rotate it with the tag.
-      ABICHECK_BASELINE_DIGEST: sha256:cc757edf3f872ea9a60207aecfc6d834e0c2b9f163e32a3a09d2faf3c5eeb6ec
+      ABICHECK_BASELINE_DIGEST: sha256:c327b3d85eaa56903d4c30e8548874f76d3e9d445452c5eaecb942dbdc2f5aa8
       ABICHECK_BASELINE_DIR: __abi_baselines
+      ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -333,7 +334,6 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      # resolve-baseline checks the archive against ABICHECK_BASELINE_DIGEST.
       - name: Fetch the baseline-set archive
         id: baselines
         env:
@@ -345,113 +345,36 @@ jobs:
           mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
           gh release download "${ABICHECK_BASELINE_TAG}" --repo "${GITHUB_REPOSITORY}" \
             --pattern "${asset}" --dir "${ABICHECK_BASELINE_DIR}"
-      # kind: bundle returns the staged ELF (binaries-dir): bundle analysis skips snapshots.
-      - name: Resolve the release-contract baseline
+      # Checks the archive digest and generation, then unpacks one snapshot per library.
+      - name: Resolve the release baseline for every library
         id: resolve
         uses: abicheck/abicheck/actions/resolve-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
           channel: release-contract
-          kind: bundle
-          bundle: onedal-release
+          kind: members
           bundle-members: >-
             ["libonedal.so", "libonedal_core.so", "libonedal_dpc.so",
-             "libonedal_parameters.so", "libonedal_parameters_dpc.so",
-             "libonedal_thread.so"]
+             "libonedal_parameters.so", "libonedal_parameters_dpc.so", "libonedal_thread.so"]
           profile: ${{ env.ABICHECK_PROFILE }}
-          required: true
           expected-project-ref: ${{ env.ABICHECK_BASELINE_TAG }}
           expected-baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
           expected-archive-digest: ${{ env.ABICHECK_BASELINE_DIGEST }}
-      # Keep every abicheck pin equal to abicheck-baseline.yml's.
-      - name: Check ABI against the released baseline
+      # The compare reads a directory of snapshots as the old side, one per library.
+      - name: Stage the snapshots as the old side
+        env:
+          SNAPSHOTS: ${{ steps.resolve.outputs.snapshot-paths }}
+        run: |
+          set -euo pipefail
+          mkdir -p __abi_baseline_snapshots
+          jq -r '.[]' <<< "$SNAPSHOTS" | xargs -I{} cp {} __abi_baseline_snapshots/
+      - name: Check the public ABI against the released baseline
         id: abicheck
-        if: steps.resolve.outputs.outcome == 'resolved'
         uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           mode: compare
-          old-library: ${{ steps.resolve.outputs.binaries-dir }}
+          old-library: __abi_baseline_snapshots
           new-library: __release_lnx/daal/latest/lib/intel64
-          depth: binary
-          old-label: ${{ env.ABICHECK_BASELINE_TAG }}
-          new-label: ${{ github.sha }}
-          fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
-          # 0.8 retired fail-on-removed-library; same gate through the config key.
-          set: |
-            gate.fail_on_removed_library=${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
-          policy: .github/abicheck/policy.yaml
-          build-config: .github/abicheck/abicheck.yml
-          dependency-source: none
-          format: markdown
-          output-file: __abi_report/release.md
-          # Added beside the markdown export above.
-          extra-args: -o json=__abi_report/release.json
-          pr-comment: false
-      - name: Publish the comparison to the job summary
-        if: always() && steps.abicheck.outputs.report-path != ''
-        run: cat "${{ steps.abicheck.outputs.report-path }}" >> "$GITHUB_STEP_SUMMARY"
-      - name: Archive the full ABI report
-        if: always() && steps.abicheck.outputs.report-path != ''
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: abicheck-release-report
-          path: __abi_report/
-          if-no-files-found: warn
-
-  # Advisory header-depth (L2) abicheck, one leg per library: a release-shaped
-  # run cannot be held to header depth, and one process for all would need ~20 GiB.
-  LinuxAbicheckL2Scan:
-    name: Abicheck L2 (${{ matrix.library }})
-    needs: LinuxMakeDPCPP
-    if: |
-      github.repository == 'uxlfoundation/oneDAL' &&
-      github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        # No libonedal_thread.so: it has no public header of its own.
-        library:
-          - libonedal_core.so
-          - libonedal.so
-          - libonedal_dpc.so
-          - libonedal_parameters.so
-          - libonedal_parameters_dpc.so
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    env:
-      ABICHECK_BASELINE_TAG: 2026.0.0
-      ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
-      ABICHECK_BASELINE_GENERATION: "4"
-      ABICHECK_BASELINE_DIGEST: sha256:c327b3d85eaa56903d4c30e8548874f76d3e9d445452c5eaecb942dbdc2f5aa8
-      ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
-    steps:
-      - name: Checkout oneDAL
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Download oneDAL build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: __release_lnx
-          path: ./__release_lnx
-      - name: Prepare the report directory
-        run: mkdir -p __abi_report
-      # abi-baseline fetches and resolves this leg's library from the set (required).
-      - name: Check the public header surface against the released baseline
-        id: abicheck
-        uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
-        with:
-          mode: compare
-          abi-baseline: ${{ env.ABICHECK_BASELINE_TAG }}
-          baseline-profile: ${{ env.ABICHECK_PROFILE }}
-          baseline-target: ${{ matrix.library }}
-          baseline-asset-name-template: abicheck-baseline-{profile}-gen{generation}.tar.zst
-          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          expected-archive-digest: ${{ env.ABICHECK_BASELINE_DIGEST }}
-          # Incomplete header evidence fails the leg instead of passing it.
-          require-complete: 'true'
-          new-library: __release_lnx/daal/latest/lib/intel64/${{ matrix.library }}
           depth: headers
           old-label: ${{ env.ABICHECK_BASELINE_TAG }}
           new-label: ${{ github.sha }}
@@ -459,22 +382,23 @@ jobs:
             ${{ env.ABICHECK_INCLUDE_DIR }}/daal.h
             ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
           new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
+          # Incomplete header evidence fails the job instead of passing it.
+          require-complete: 'true'
+          fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
+          set: |
+            gate.fail_on_removed_library=${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           policy: .github/abicheck/policy.yaml
           build-config: .github/abicheck/abicheck.yml
-          # The publisher's pinned CastXML; a different one is a fingerprint mismatch (exit 16).
+          # The publisher's pinned CastXML; the default (conda-forge) is a fingerprint mismatch.
           dependency-source: system
-          format: markdown
-          output-file: __abi_report/${{ matrix.library }}.l2.md
-          extra-args: -o json=__abi_report/${{ matrix.library }}.l2.json
+          output-file: __abi_report/release.md
+          extra-args: -o json=__abi_report/release.json
           pr-comment: false
-      - name: Publish the comparison to the job summary
-        if: always() && steps.abicheck.outputs.report-path != ''
-        run: cat "${{ steps.abicheck.outputs.report-path }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Archive the full ABI report
         if: always() && steps.abicheck.outputs.report-path != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: abicheck-l2-report-${{ matrix.library }}
+          name: abicheck-release-report
           path: __abi_report/
           if-no-files-found: warn
 

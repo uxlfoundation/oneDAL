@@ -14,9 +14,9 @@
 # limitations under the License.
 #===============================================================================
 
-# Build config for both abicheck jobs (ci.yml).
+# Build config for the abicheck gate (ci.yml).
 bundle:
   # MKL SYCL libs come from the oneAPI install, not from this bundle.
   system_providers: [libmkl_sycl_blas, libmkl_sycl_lapack, libmkl_sycl_rng, libmkl_sycl_sparse]
 scope:
-  on_incomplete: block   # default is warn: a partial bundle must not pass
+  on_incomplete: block   # default warn: an incomplete member set must not pass
