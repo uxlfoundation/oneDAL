@@ -18,6 +18,7 @@
 
 #include <numeric>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include "oneapi/dal/algo/hdbscan/common.hpp"
@@ -28,11 +29,14 @@
 
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/blas/gemm.hpp"
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
 #include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
 #include "oneapi/dal/backend/primitives/search/copy_search_callback.hpp"
 #include "oneapi/dal/backend/primitives/search/search.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
+#include "oneapi/dal/backend/primitives/selection/select_indexed_rows.hpp"
+#include "oneapi/dal/backend/primitives/stat/cov.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
@@ -201,6 +205,27 @@ inline sycl::event fix_zero_norm_cosine(sycl::queue& queue,
     return event;
 }
 
+/// Copy of `data` with the column means subtracted, for GEMM-based euclidean distances.
+///
+/// @return The centered copy and the event that completes it
+template <typename Float>
+inline std::tuple<pr::ndarray<Float, 2>, sycl::event>
+make_centered(sycl::queue& queue, const pr::ndview<Float, 2>& data, const bk::event_vector& deps) {
+    const std::int64_t n = data.get_dimension(0);
+    const std::int64_t d = data.get_dimension(1);
+    auto centered = pr::ndarray<Float, 2>::empty(queue, { n, d }, sycl::usm::alloc::device);
+    auto copy_event = queue.copy(data.get_data(), centered.get_mutable_data(), n * d, deps);
+    auto [sums, sums_event] = pr::compute_sums(queue, data, false, deps);
+    auto [means, means_event] = pr::compute_means(queue, sums, n, { sums_event });
+    auto center_event = pr::get_centered(queue, centered, means, { copy_event, means_event });
+    // `sums` and `means` are freed on return.
+    center_event.wait_and_throw();
+    return { centered, center_event };
+}
+
+/// Smallest column count at which the euclidean matrix comes from GEMM instead of coordinate differences.
+constexpr std::int64_t gemm_min_column_count = 32;
+
 /// Compute the full pairwise distance matrix; squared L2 for `euclidean`, final distances otherwise.
 ///
 /// The rows are computed in blocks small enough for an int32 kernel range.
@@ -243,6 +268,27 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
         }
         return block_events;
     };
+
+    // Wide data: GEMM on centered data. Centering keeps the norm expansion from cancelling the
+    // spread of data far from the origin.
+    if (metric == distance_metric::euclidean && data.get_dimension(1) >= gemm_min_column_count) {
+        auto [centered, center_event] = make_centered<Float>(queue, data, deps);
+        const bk::uniform_blocking blocking(n, bk::max_range_2d_rows(n));
+        bk::event_vector block_events;
+        for (std::int64_t b = 0; b < blocking.get_block_count(); b++) {
+            const std::int64_t first = blocking.get_block_start_index(b);
+            const std::int64_t last = blocking.get_block_end_index(b);
+            auto dist_block = dist.get_row_slice(first, last);
+            block_events.push_back(
+                pr::squared_l2_distance<Float>(queue)(centered.get_row_slice(first, last),
+                                                      centered,
+                                                      dist_block,
+                                                      { center_event }));
+        }
+        // `centered` is freed on return.
+        sycl::event::wait_and_throw(block_events);
+        return sycl::event{};
+    }
 
     switch (metric) {
         case distance_metric::cosine:
@@ -656,10 +702,28 @@ inline typename boruvka_merger<Float>::mst_t run_boruvka(sycl::queue& queue,
         auto upload_event = queue.memcpy(comp.get_mutable_data(),
                                          merger.components().data(),
                                          n * sizeof(std::int32_t));
-        auto find_event = find(comp.get_data(),
-                               pt_best_mrd.get_mutable_data(),
-                               pt_best_idx.get_mutable_data(),
-                               upload_event);
+        sycl::event find_event;
+        // A search that can reuse the last round's bests also gets the host components and bests.
+        if constexpr (std::is_invocable_v<Find&,
+                                          const std::int32_t*,
+                                          Float*,
+                                          std::int32_t*,
+                                          sycl::event,
+                                          const std::int32_t*,
+                                          const std::int32_t*>) {
+            find_event = find(comp.get_data(),
+                              pt_best_mrd.get_mutable_data(),
+                              pt_best_idx.get_mutable_data(),
+                              upload_event,
+                              merger.components().data(),
+                              pt_best_idx_host.data());
+        }
+        else {
+            find_event = find(comp.get_data(),
+                              pt_best_mrd.get_mutable_data(),
+                              pt_best_idx.get_mutable_data(),
+                              upload_event);
+        }
         auto mrd_event = queue.memcpy(pt_best_mrd_host.data(),
                                       pt_best_mrd.get_data(),
                                       n * sizeof(Float),
@@ -712,6 +776,238 @@ inline typename boruvka_merger<Float>::mst_t build_mst(sycl::queue& queue,
                                                                          n,
                                                                          { dep });
                               });
+}
+
+/// Find the nearest other-component neighbor under MRD of the rows `ids[0, rows)` from their
+/// GEMM products with all `n` points.
+///
+/// @param[in]  queue           The SYCL queue
+/// @param[in]  prod_ptr        `-2 x.y` of the rows with all points, `rows x n`
+/// @param[in]  ids_ptr         Point index of each row
+/// @param[in]  norms_ptr       Squared norms of all points
+/// @param[in]  core_ptr        Core distances of all points, already scaled as the MRD needs
+/// @param[in]  comp_ptr        Per-point component id, length `n`
+/// @param[in]  inv_alpha       Scale of the distance in the MRD
+/// @param[out] pt_best_mrd_ptr Per-point best MRD, written for the rows only
+/// @param[out] pt_best_idx_ptr Per-point best column, written for the rows only
+/// @param[in]  rows            Number of rows
+/// @param[in]  n               Number of points
+/// @param[in]  deps            Events that must complete before submission
+///
+/// @return Event signaling completion
+template <typename Float>
+inline sycl::event boruvka_find_nearest_tile(sycl::queue& queue,
+                                             const Float* prod_ptr,
+                                             const std::int32_t* ids_ptr,
+                                             const Float* norms_ptr,
+                                             const Float* core_ptr,
+                                             const std::int32_t* comp_ptr,
+                                             Float inv_alpha,
+                                             Float* pt_best_mrd_ptr,
+                                             std::int32_t* pt_best_idx_ptr,
+                                             std::int64_t rows,
+                                             std::int64_t n,
+                                             const bk::event_vector& deps) {
+    // One work-group per row, as in `boruvka_find_nearest_mrd`.
+    constexpr std::int64_t wg = 256;
+    return queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(bk::make_multiple_nd_range_1d(rows * wg, wg), [=](sycl::nd_item<1> it) {
+            constexpr std::int32_t none = std::numeric_limits<std::int32_t>::max();
+            const auto group = it.get_group();
+            const std::int64_t r = it.get_group(0);
+            const std::int64_t i = ids_ptr[r];
+            const std::int32_t my_comp = comp_ptr[i];
+            const Float cd_i = core_ptr[i];
+            const Float norm_i = norms_ptr[i];
+            const Float* row = prod_ptr + r * n;
+            Float best_m = std::numeric_limits<Float>::max();
+            std::int32_t best_j = none;
+            for (std::int64_t j = it.get_local_id(0); j < n; j += wg) {
+                if (comp_ptr[j] != my_comp) {
+                    const Float sq = norm_i + norms_ptr[j] + row[j];
+                    const Float d = sycl::sqrt(sycl::fmax(sq, Float(0))) * inv_alpha;
+                    const Float m = sycl::fmax(sycl::fmax(cd_i, core_ptr[j]), d);
+                    if (m < best_m) {
+                        best_m = m;
+                        best_j = static_cast<std::int32_t>(j);
+                    }
+                }
+            }
+            const Float row_best = sycl::reduce_over_group(group, best_m, sycl::minimum<Float>());
+            const std::int32_t row_best_j =
+                sycl::reduce_over_group(group,
+                                        (best_m == row_best) ? best_j : none,
+                                        sycl::minimum<std::int32_t>());
+            if (it.get_local_id(0) == 0) {
+                pt_best_mrd_ptr[i] = row_best;
+                pt_best_idx_ptr[i] = (row_best_j == none) ? -1 : row_best_j;
+            }
+        });
+    });
+}
+
+/// Euclidean core distances by k-selection over GEMM tiles of `block_rows` rows, without the
+/// `n x n` matrix.
+///
+/// The GEMM runs on `[x, 1]` and `[-2 y, |y|^2]`, so each tile holds `|y|^2 - 2 x.y`: the row order of
+/// the squared distances, which the selection needs, with `|x|^2` added to the selected value only.
+///
+/// @param[in]  queue       The SYCL queue
+/// @param[in]  centered    Centered input, `n x d`
+/// @param[in]  norms       Squared norms of the rows of `centered`
+/// @param[out] core        Core distances, length `n`; complete on return
+/// @param[in]  min_samples `k` of the core distance, at most `n`
+/// @param[in]  block_rows  Rows per GEMM tile
+template <typename Float>
+inline void compute_core_distances_gemm_tiles(sycl::queue& queue,
+                                              const pr::ndview<Float, 2>& centered,
+                                              const pr::ndview<Float, 1>& norms,
+                                              pr::ndview<Float, 1>& core,
+                                              std::int64_t min_samples,
+                                              std::int64_t block_rows) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances_gemm_tiles, queue);
+
+    const std::int64_t n = centered.get_dimension(0);
+    const std::int64_t d = centered.get_dimension(1);
+    const std::int64_t k = min_samples;
+    ONEDAL_ASSERT(k >= 1 && k <= n);
+    block_rows = std::max<std::int64_t>(1, std::min(block_rows, n));
+    const auto alloc = sycl::usm::alloc::device;
+
+    auto lhs = pr::ndarray<Float, 2>::empty(queue, { n, d + 1 }, alloc);
+    auto rhs = pr::ndarray<Float, 2>::empty(queue, { n, d + 1 }, alloc);
+    const Float* src_ptr = centered.get_data();
+    const Float* norms_ptr = norms.get_data();
+    Float* lhs_ptr = lhs.get_mutable_data();
+    Float* rhs_ptr = rhs.get_mutable_data();
+    bk::parallel_for_2d_by_row_blocks(queue, n, d + 1, [=](std::int64_t i, std::int64_t j) {
+        lhs_ptr[i * (d + 1) + j] = (j < d) ? src_ptr[i * d + j] : Float(1);
+        rhs_ptr[i * (d + 1) + j] = (j < d) ? Float(-2) * src_ptr[i * d + j] : norms_ptr[i];
+    }).wait_and_throw();
+
+    auto tile = pr::ndarray<Float, 2>::empty(queue, { block_rows, n }, alloc);
+    auto ksel_vals = pr::ndarray<Float, 2>::empty(queue, { block_rows, k }, alloc);
+    Float* core_ptr = core.get_mutable_data();
+    const Float* vals_ptr = ksel_vals.get_data();
+
+    for (std::int64_t first = 0; first < n; first += block_rows) {
+        const std::int64_t rows = std::min(block_rows, n - first);
+        auto block_tile = tile.get_row_slice(0, rows);
+        auto block_vals = ksel_vals.get_row_slice(0, rows);
+        auto gemm_event = pr::gemm(queue,
+                                   lhs.get_row_slice(first, first + rows),
+                                   rhs.t(),
+                                   block_tile,
+                                   Float(1),
+                                   Float(0));
+        pr::kselect_by_rows<Float> ksel(queue, { rows, n }, k);
+        auto ksel_event = ksel(queue, block_tile, k, block_vals, { gemm_event });
+        // The tile and the selection output are reused, so each block completes first.
+        queue
+            .submit([&](sycl::handler& h) {
+                h.depends_on(ksel_event);
+                h.parallel_for(sycl::range<1>(rows), [=](sycl::id<1> idx) {
+                    const std::int64_t r = idx[0];
+                    const Float sq = vals_ptr[r * k + (k - 1)] + norms_ptr[first + r];
+                    core_ptr[first + r] = sycl::sqrt(sycl::fmax(sq, Float(0)));
+                });
+            })
+            .wait_and_throw();
+    }
+}
+
+/// Build the MST under euclidean MRD with Boruvka's algorithm, without the `n x n` matrix: each
+/// round recomputes, by GEMM on centered data, only the rows whose last best edge now stays inside
+/// their component. The other bests still hold, since a point's candidates only shrink.
+///
+/// @param[in] queue      The SYCL queue
+/// @param[in] centered   Centered input, `n x d`, `n >= 2`
+/// @param[in] norms      Squared norms of the rows of `centered`
+/// @param[in] core       Core distances, already scaled as the MRD needs
+/// @param[in] inv_alpha  Scale of the distance in the MRD
+/// @param[in] block_rows Rows per GEMM tile
+///
+/// @return The MST edges on host
+template <typename Float>
+inline typename boruvka_merger<Float>::mst_t build_mst_gemm_tiles(
+    sycl::queue& queue,
+    const pr::ndview<Float, 2>& centered,
+    const pr::ndview<Float, 1>& norms,
+    const pr::ndview<Float, 1>& core,
+    Float inv_alpha,
+    std::int64_t block_rows) {
+    ONEDAL_PROFILER_TASK(hdbscan.build_mst_gemm_tiles, queue);
+
+    const std::int64_t n = centered.get_dimension(0);
+    const std::int64_t d = centered.get_dimension(1);
+    ONEDAL_ASSERT(n > 1);
+    block_rows = std::max<std::int64_t>(1, std::min(block_rows, n));
+    const auto alloc = sycl::usm::alloc::device;
+
+    auto ids = pr::ndarray<std::int32_t, 1>::empty(queue, n, alloc);
+    auto rows_buffer = pr::ndarray<Float, 2>::empty(queue, { block_rows, d }, alloc);
+    auto tile = pr::ndarray<Float, 2>::empty(queue, { block_rows, n }, alloc);
+
+    std::vector<std::int32_t> ids_host;
+    ids_host.reserve(n);
+    bool first_round = true;
+
+    return run_boruvka<Float>(
+        queue,
+        n,
+        [&](const std::int32_t* comp,
+            Float* pt_best_mrd,
+            std::int32_t* pt_best_idx,
+            sycl::event dep,
+            const std::int32_t* comp_host,
+            const std::int32_t* prev_idx_host) {
+            ids_host.clear();
+            for (std::int64_t i = 0; i < n; i++) {
+                const std::int32_t prev = prev_idx_host[i];
+                if (first_round || prev < 0 || comp_host[prev] == comp_host[i]) {
+                    ids_host.push_back(static_cast<std::int32_t>(i));
+                }
+            }
+            first_round = false;
+            const std::int64_t dirty = static_cast<std::int64_t>(ids_host.size());
+            if (dirty == 0) {
+                return dep;
+            }
+            sycl::event last = queue.memcpy(ids.get_mutable_data(),
+                                            ids_host.data(),
+                                            dirty * sizeof(std::int32_t),
+                                            dep);
+            for (std::int64_t first = 0; first < dirty; first += block_rows) {
+                const std::int64_t rows = std::min(block_rows, dirty - first);
+                const auto block_ids = ids.get_slice(first, first + rows);
+                auto block_rows_view = rows_buffer.get_row_slice(0, rows);
+                auto block_tile = tile.get_row_slice(0, rows);
+                // The tile and the row buffer are reused, so each block waits for the last search.
+                auto gather_event =
+                    pr::select_indexed_rows(queue, block_ids, centered, block_rows_view, { last });
+                auto gemm_event = pr::gemm(queue,
+                                           block_rows_view,
+                                           centered.t(),
+                                           block_tile,
+                                           Float(-2),
+                                           Float(0),
+                                           { gather_event });
+                last = boruvka_find_nearest_tile<Float>(queue,
+                                                        tile.get_data(),
+                                                        ids.get_data() + first,
+                                                        norms.get_data(),
+                                                        core.get_data(),
+                                                        comp,
+                                                        inv_alpha,
+                                                        pt_best_mrd,
+                                                        pt_best_idx,
+                                                        rows,
+                                                        n,
+                                                        { gemm_event });
+            }
+            return last;
+        });
 }
 
 /// Core distance of every tree position, by the tree k-NN up to `block_tree_max_k` neighbors and
@@ -788,8 +1084,15 @@ inline pr::ndarray<Float, 1> compute_block_tree_core_distances(sycl::queue& queu
                                   : (256 * 1024 * 1024) / (n * std::int64_t(sizeof(Float)));
     block_size = std::max<std::int64_t>(1, std::min(block_size, n));
     auto core_input = pr::ndarray<Float, 1>::empty(queue, n, sycl::usm::alloc::device);
+    // The euclidean search goes through GEMM, which needs centered data.
+    pr::ndarray<Float, 2> centered;
+    if (metric == distance_metric::euclidean) {
+        centered = std::get<0>(make_centered<Float>(queue, data, {}));
+    }
+    const pr::ndview<Float, 2> search_data =
+        (metric == distance_metric::euclidean) ? pr::ndview<Float, 2>(centered) : data;
     auto core_event = compute_core_distances_blocked<Float>(queue,
-                                                            data,
+                                                            search_data,
                                                             core_input,
                                                             min_samples,
                                                             block_size,
