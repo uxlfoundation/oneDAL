@@ -40,7 +40,7 @@ build_date = rule(
         "stamp": attr.int(
             values = [-1, 0, 1],
             default = -1,
-            doc = "1 reads the workspace status. BUILD selects 1 for --stamp; -1 is not stamped.",
+            doc = "1 reads the workspace status; -1 is unstamped. dev/bazel/BUILD sets it from --stamp.",
         ),
     },
 )
