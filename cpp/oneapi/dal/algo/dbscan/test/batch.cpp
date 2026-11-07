@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
 #include <array>
 
 #include "oneapi/dal/algo/dbscan/test/fixture.hpp"
@@ -210,6 +211,45 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan with neighborhoods of more than 1024 rows matches the definition",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // Several 128-row blocks on both sides of the distance tiles, and neighborhoods above 1024 rows.
+    constexpr std::int64_t row_count = 3000;
+    constexpr std::int64_t column_count = 2;
+    constexpr std::int64_t min_observations = 5;
+    const auto x = te::make_blobs<float_t>(row_count / 2, 2, column_count, 10.0, 3.0);
+    const std::vector<float_t> w(row_count, 1);
+
+    const auto dist = this->reference_distances(x, column_count, distance_metric::euclidean, 2.0);
+    const double epsilon = this->pick_epsilon(dist, row_count, 0.4);
+    std::int64_t largest_neighborhood = 0;
+    for (std::int64_t i = 0; i < row_count; i++) {
+        std::int64_t count = 0;
+        for (std::int64_t j = 0; j < row_count; j++) {
+            count += dist[i * row_count + j] <= epsilon;
+        }
+        largest_neighborhood = std::max(largest_neighborhood, count);
+    }
+    REQUIRE(largest_neighborhood > 1024);
+
+    const bool mem_save_mode = GENERATE(false, true);
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_mem_save_mode(mem_save_mode)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, column_count));
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
                      "dbscan metrics match the definition on reference distances",
                      "[dbscan][batch]",
                      dbscan_types) {
@@ -231,7 +271,13 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     const std::int64_t column_count = GENERATE(2, 5, 20);
     const bool weighted = GENERATE(false, true);
     const bool mem_save_mode = GENERATE(false, true);
-    CAPTURE(static_cast<int>(c.metric), c.degree, column_count, weighted, mem_save_mode);
+    const auto layout = GENERATE(data_layout::row_major, data_layout::column_major);
+    CAPTURE(static_cast<int>(c.metric),
+            c.degree,
+            column_count,
+            weighted,
+            mem_save_mode,
+            static_cast<int>(layout));
 
     constexpr std::int64_t row_count = 120;
     constexpr std::int64_t min_observations = 5;
@@ -252,10 +298,20 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
             // The CPU fills the core flags only when the core indices are requested too.
             .set_result_options(result_options::responses | result_options::core_flags |
                                 result_options::core_observation_indices);
+    std::vector<float_t> x_column_major(x.size());
+    for (std::int64_t i = 0; i < row_count; i++) {
+        for (std::int64_t j = 0; j < column_count; j++) {
+            x_column_major[j * row_count + i] = x[i * column_count + j];
+        }
+    }
+    const auto data =
+        layout == data_layout::row_major
+            ? homogen_table::wrap(x.data(), row_count, column_count)
+            : homogen_table::wrap(x_column_major.data(), row_count, column_count, layout);
     const auto result =
         te::compute(this->get_policy(),
                     desc,
-                    homogen_table::wrap(x.data(), row_count, column_count),
+                    data,
                     weighted ? table{ homogen_table::wrap(w.data(), row_count, 1) } : table{});
     this->check_against_definition(result, dist, w, epsilon, min_observations);
 }
