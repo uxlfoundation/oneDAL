@@ -209,8 +209,18 @@ needs the wheels in `--repository_cache`.
 
 The GCC toolchain and `@openmp` (libgomp) are conda-forge packages pinned in
 `dev/bazel/deps/gcc.bzl`. Renovate bumps `_GCC_VERSION` there; the build strings
-and hashes then need `python3 dev/bazel/deps/relock_conda.py`, which CI checks
-with `--check`.
+and hashes are re-pinned by `python3 dev/bazel/deps/relock_conda.py`, which the
+`relock-conda` workflow runs on the Renovate branch and CI checks with `--check`.
+GitHub reads workflows from the pushed commit, so a GCC branch cut before this
+workflow landed does not relock until it merges `main`: merge `main` into the
+branch once (a rebase also works), then the next push runs the workflow.
+The workflow pushes its re-pin with the `RELOCK_PUSH_TOKEN` secret when set. Use a
+fine-grained PAT with contents: write, not a GitHub App installation token: those
+expire after one hour, and a non-empty secret replaces `GITHUB_TOKEN`, so an
+expired one fails the push. Without the secret, a GITHUB_TOKEN push starts no
+checks, so close and reopen the PR to start them. Renovate stops rebasing a branch
+the workflow has edited; tick its rebase box in the PR to start over.
+A new GCC major opens a PR only once approved on the Dependency Dashboard.
 
 These variables are watched, so setting, changing or unsetting one re-fetches
 the repository on the next Bazel command rather than on the next server
