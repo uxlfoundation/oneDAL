@@ -1084,8 +1084,15 @@ inline pr::ndarray<Float, 1> compute_block_tree_core_distances(sycl::queue& queu
                                   : (256 * 1024 * 1024) / (n * std::int64_t(sizeof(Float)));
     block_size = std::max<std::int64_t>(1, std::min(block_size, n));
     auto core_input = pr::ndarray<Float, 1>::empty(queue, n, sycl::usm::alloc::device);
+    // The euclidean search goes through GEMM, which needs centered data.
+    pr::ndarray<Float, 2> centered;
+    if (metric == distance_metric::euclidean) {
+        centered = std::get<0>(make_centered<Float>(queue, data, {}));
+    }
+    const pr::ndview<Float, 2> search_data =
+        (metric == distance_metric::euclidean) ? pr::ndview<Float, 2>(centered) : data;
     auto core_event = compute_core_distances_blocked<Float>(queue,
-                                                            data,
+                                                            search_data,
                                                             core_input,
                                                             min_samples,
                                                             block_size,
