@@ -1,0 +1,13 @@
+diff --git a/cpp/oneapi/dal/algo/minkowski_distance/common.cpp b/cpp/oneapi/dal/algo/minkowski_distance/common.cpp
+index 2fc3a24..e56b917 100755
+--- a/cpp/oneapi/dal/algo/minkowski_distance/common.cpp
++++ b/cpp/oneapi/dal/algo/minkowski_distance/common.cpp
+@@ -35,7 +35,7 @@ double descriptor_base<Task>::get_degree() const {
+ 
+ template <typename Task>
+ void descriptor_base<Task>::set_degree_impl(double value) {
+-    if (value <= 0.0) {
++    if (value < 0.0) {
+         throw internal_error{ dal::detail::error_messages::invalid_minkowski_degree() };
+     }
+     impl_->degree = value;

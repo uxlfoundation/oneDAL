@@ -1,0 +1,13 @@
+diff --git a/cpp/oneapi/dal/algo/knn/detail/distance.cpp b/cpp/oneapi/dal/algo/knn/detail/distance.cpp
+index a6b8c4e..53fce3f 100755
+--- a/cpp/oneapi/dal/algo/knn/detail/distance.cpp
++++ b/cpp/oneapi/dal/algo/knn/detail/distance.cpp
+@@ -74,7 +74,7 @@ public:
+ template <typename F, typename M>
+ distance<minkowski_distance_t<F, M>>::distance(const minkowski_distance_t<F, M> &dist)
+         : distance_(dist),
+-          impl_(new daal_interop_minkowski_distance_impl{ dist.get_degree() }) {}
++          impl_(new daal_interop_minkowski_distance_impl{ 2.0 }) {}
+ 
+ template <typename F, typename M>
+ distance_impl *distance<minkowski_distance_t<F, M>>::get_impl() const {

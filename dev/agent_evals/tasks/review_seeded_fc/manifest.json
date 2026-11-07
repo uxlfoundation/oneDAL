@@ -1,0 +1,124 @@
+{
+  "seeds": [
+    {
+      "id": "S1_guard",
+      "class": "guideline",
+      "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
+      "lines": [
+        1,
+        2,
+        29
+      ],
+      "kw": "pragma once|#ifndef|include guard|header guard|\\bguard"
+    },
+    {
+      "id": "S2_nolicense",
+      "class": "guideline",
+      "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
+      "lines": [
+        1
+      ],
+      "kw": "copyright|licen[cs]e|file header|header comment"
+    },
+    {
+      "id": "S3_rawnew",
+      "class": "guideline",
+      "file": "cpp/oneapi/dal/algo/finiteness_checker/backend/cpu/compute_kernel_dense.cpp",
+      "lines": [
+        46,
+        56
+      ],
+      "kw": "new\\s*Float|new\\[\\]|delete\\[\\]|raw (owning )?(pointer|allocation|new)|unique_ptr|owning|leak|RAII|\\bbuffer\\b"
+    },
+    {
+      "id": "S4_daalthrow",
+      "class": "guideline",
+      "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+      "lines": [
+        62
+      ],
+      "kw": "throw|exception|services::Status|Status"
+    },
+    {
+      "id": "S5_span",
+      "class": "guideline",
+      "file": "*",
+      "lines": [],
+      "kw": "std::span|<span>|C\\+\\+20|C\\+\\+17"
+    },
+    {
+      "id": "S6_copyright_only",
+      "class": "maintainer",
+      "file": "cpp/daal/include/data_management/data/internal/finiteness_checker.h",
+      "lines": [
+        3
+      ],
+      "kw": "copyright|year|2026"
+    },
+    {
+      "id": "S7_cout",
+      "class": "generic",
+      "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+      "lines": [
+        29,
+        66
+      ],
+      "kw": "cout|iostream|debug|print|logging|stdout"
+    },
+    {
+      "id": "S8_offbyone",
+      "class": "generic",
+      "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+      "lines": [
+        64
+      ],
+      "kw": "<=\\s*n|off.by.one|out.of.bounds|overrun|past the end|one past|reads? n\\s*\\+\\s*1|buffer overflow"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "D2_vN_reexport",
+      "file": "cpp/oneapi/dal/algo/finiteness_checker/detail/scan_helpers.hpp",
+      "lines": [
+        9,
+        23,
+        25
+      ],
+      "kw": "using v1|namespace v1|re-?export|inline namespace|versioned namespace"
+    },
+    {
+      "id": "D3_tarray",
+      "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+      "lines": [
+        73,
+        74
+      ],
+      "kw": "TArray|DAAL_CHECK_MALLOC|DAAL_BASE_CPU"
+    },
+    {
+      "id": "D4_threader",
+      "file": "cpp/daal/src/data_management/finiteness_checker.cpp",
+      "lines": [
+        76
+      ],
+      "kw": "threader_for"
+    },
+    {
+      "id": "D6_oneapi_throw",
+      "file": "cpp/oneapi/dal/algo/finiteness_checker/backend/cpu/compute_kernel_dense.cpp",
+      "lines": [
+        40,
+        41
+      ],
+      "kw": "invalid_argument|error_messages|rc_leq_zero|should not throw|exceptions? (are|is) not allowed"
+    },
+    {
+      "id": "D7_constexpr_case",
+      "file": "cpp/oneapi/dal/algo/finiteness_checker/backend/cpu/compute_kernel_dense.cpp",
+      "lines": [
+        39
+      ],
+      "kw": "UPPER|upper.?case|BLOCK_SIZE|constant nam|naming convention"
+    }
+  ]
+}

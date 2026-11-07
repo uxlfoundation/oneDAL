@@ -1,0 +1,16 @@
+diff --git a/cpp/daal/src/algorithms/service_kernel_math.h b/cpp/daal/src/algorithms/service_kernel_math.h
+index 23b10ba..440fe29 100644
+--- a/cpp/daal/src/algorithms/service_kernel_math.h
++++ b/cpp/daal/src/algorithms/service_kernel_math.h
+@@ -610,9 +610,9 @@ protected:
+ 
+         for (size_t i = 0; i < n; ++i)
+         {
+-            if (math.sFabs(x[i] - y[i]) > d)
++            if ((x[i] - y[i]) > d)
+             {
+-                d = math.sFabs(x[i] - y[i]);
++                d = (x[i] - y[i]);
+             }
+         }
+ 
