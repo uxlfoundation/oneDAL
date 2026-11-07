@@ -321,7 +321,7 @@ jobs:
       # Tag, profile and generation must match a published asset (resolve-baseline enforces it).
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
-      ABICHECK_BASELINE_GENERATION: "4"
+      ABICHECK_BASELINE_GENERATION: "5"
       # sha256 the publish run reported for this asset; rotate it with the tag.
       ABICHECK_BASELINE_DIGEST: sha256:c327b3d85eaa56903d4c30e8548874f76d3e9d445452c5eaecb942dbdc2f5aa8
       ABICHECK_BASELINE_DIR: __abi_baselines

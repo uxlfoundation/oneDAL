@@ -32,9 +32,9 @@ permissions:
   contents: write   # gh release upload only
 
 env:
-  # Bump with an abicheck upgrade that changes the extractor (gen4: v0.8.0), and move
-  # ci.yml's generation and digests with it; .github/abicheck/README.md.
-  ABICHECK_BASELINE_GENERATION: "4"
+  # Bump when the extractor or the library list changes, and move ci.yml with it
+  # (gen5: v0.8.0 + libonedal_thread); .github/abicheck/README.md.
+  ABICHECK_BASELINE_GENERATION: "5"
   ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
   TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}
 
@@ -88,7 +88,8 @@ jobs:
               {"name": "libonedal_core.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_core.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
               {"name": "libonedal_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
               {"name": "libonedal_parameters.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
-              {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"}
+              {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
+              {"name": "libonedal_thread.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_thread.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"}
             ]
 
       - name: Package the header-depth baseline-set
