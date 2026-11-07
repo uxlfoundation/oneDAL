@@ -1,0 +1,179 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+"""candidates.py <build> -> out-<build>/CANDIDATES.md
+
+Removal candidates per component/sub: tier by what still runs it.
+  T1 drop: no real (A) and no daal4py-public (P) lines -> only examples/own tests or nothing
+  T1i drop API only: as T1, but other algorithms include its headers or run its kernel
+      (backend/primitives) -> only the public compute API goes, the kernel stays
+  T2 deprecate: no A, some P -> only daal4py public API keeps it (needs deprecation cycle)
+  T2s deprecate API: has P and sklearnex runs the same algorithm (here or in its oneAPI
+      counterpart) -> daal4py wrapper and DAAL public API can be deprecated, the kernel stays
+      Split by path_attr.py (out-<build>/paths.json, read when present):
+      T2s deprecate API now: verdict confirmed, every A line has an oneAPI entry sklearnex runs
+      T2m migrate sklearnex first: verdict not-safe or unclear; the note lists the bridges
+          (daal4py -> sklearnex routes) that must move off daal4py before the API can go
+      T2d deprecate daal4py API: not-safe only because of daal4py-only lines (no sk-public loss),
+          no bridge, so sklearnex needs no migration; the daal4py wrapper and DAAL API go, the kernel stays
+      T2s deprecate API (no path check): paths.json absent
+  T3 trim: A exists but >=50% of lines never run by a real consumer (C+B+E) -> dead branches inside
+intent.json (maintainers) marks components grow/keep; those rows get verdict "keep (intent)".
+"""
+import csv, glob, json, os, re, sys
+from collections import defaultdict
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from usage_consts import REAL, SRC_ROOT, U  # noqa: E402
+B = sys.argv[1] if len(sys.argv) > 1 else "cov2"
+SRC = f"{SRC_ROOT}/cpp"
+d = json.load(open(f"{U}/out-{B}/data.json"))
+# Planned use lives next to this script; USAGE_MAP_INTENT points to another file.
+INTENT = os.environ.get("USAGE_MAP_INTENT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "intent.json"))
+intent = {k: v for k, v in json.load(open(INTENT)).items() if not k.startswith("_")}
+# path_attr.py verdicts per T2s row; absent until path_attr.py has run on this build.
+PATHS = f"{U}/out-{B}/paths.json"
+paths = {(p["api"], p["comp"], p["sub"]): p for p in json.load(open(PATHS))["rows"]} if os.path.exists(PATHS) else {}
+
+def t2d(p):
+    """Only daal4py reaches lines of this sub, and no sklearnex route (bridge or public call) needs it."""
+    return not p["bridges"] and p["lost_breakdown"]["sk-public"] == 0 and p["lost_breakdown"]["daal4py-only"] > 0
+
+
+def t2d_note(p):
+    return (f"{p['lost_breakdown']['daal4py-only']} A lines reached only through daal4py; "
+            f"no bridge, no sklearnex route lost; unknown lines {p['unknown_lines']}")
+
+
+def t2m_note(p):
+    br = ", ".join(p["bridges"]) or "none"
+    if p["verdict"] == "unclear":
+        return f"unclear: {p['unknown_lines']} A lines have no static entry evidence; bridges: {br}"
+    return (f"not-safe: {p['lost_lines']} A lines lose their only entry (daal4py-only "
+            f"{p['lost_breakdown']['daal4py-only']}, sk-public {p['lost_breakdown']['sk-public']}); "
+            f"move off daal4py, bridges: {br}")
+
+# Public-API components whose kernel lives in a shared primitive.
+KERNELS = {"logloss_objective": "backend/primitives/objective_function",
+           "objective_function": "backend/primitives/objective_function",
+           "cosine_distance": "backend/primitives/distance", "correlation_distance": "backend/primitives/distance",
+           "minkowski_distance": "backend/primitives/distance", "chebyshev_distance": "backend/primitives/distance",
+           "newton_cg": "backend/primitives/optimizers"}
+# DAAL component -> oneAPI component sklearnex runs for the same estimator.
+COUNTERPART = {"k_nearest_neighbors": "knn", "low_order_moments": "basic_statistics", "moments": "basic_statistics",
+               "cordistance": "correlation_distance", "cosdistance": "cosine_distance"}
+
+# Who includes a component's headers from another component's sources.
+inc = defaultdict(set)
+pat = {"oneapi": re.compile(r'#include\s+"oneapi/dal/algo/([a-z_]+)/'),
+       "daal": re.compile(r'#include\s+"(?:src/)?algorithms/(?:kernel/)?([a-z_]+)/')}
+for api, root in (("oneapi", f"{SRC}/oneapi/dal/algo"), ("daal", f"{SRC}/daal/src/algorithms")):
+    for f in glob.glob(f"{root}/**/*.[ch]*", recursive=True):
+        if "/test" in f or "/example" in f:
+            continue
+        me = os.path.relpath(f, root).split("/")[0]
+        for m in pat[api].finditer(open(f, errors="ignore").read()):
+            if m.group(1) != me:
+                inc[(api, m.group(1))].add(me)
+
+# Real-run lines per kernel dir, sklearnex-run lines per component.
+kern = defaultdict(int)
+skl = defaultdict(int)
+for r in csv.DictReader(open(f"{U}/out-{B}/functions.csv")):
+    g = r["groups"].split("+")
+    for k, p in KERNELS.items():
+        if p in r["file"] and any(x in REAL for x in g):
+            kern[p] += 1
+    if "sklearnex" in g or "sklearnex-gpu" in g:
+        skl[(r["api"], r["component"])] += 1
+        skl[(r["api"], r["component"], r["sub"])] += 1
+
+def internal(api, comp):
+    users = sorted(u for u in inc.get((api, comp), ()) if u in {c["comp"] for c in d["components"]})
+    k = KERNELS.get(comp) if api == "oneapi" else None
+    return users, (k if k and kern[k] else None)
+
+rows = []
+for c in d["components"]:
+    api, comp = c["api"], c["comp"]
+    users, k = internal(api, comp)
+    for s, v in c["subs"].items():
+        L = v["lines"]
+        dead = v["C"] + v["B"] + v["E"]
+        if L < 50:
+            continue
+        # T2s needs sklearnex to run this sub itself: a oneAPI counterpart alone does not show
+        # that sklearnex replaces the DAAL path an estimator uses.
+        has_skl = skl[(api, comp, s)] > 0
+        if v["A"] + v["P"] == 0:
+            t = "T1i drop API only" if users or k else "T1 drop"
+        elif api == "daal" and not comp.startswith("shared:") and v["P"] > 0 and has_skl:
+            t = "T2s deprecate API"
+        elif v["A"] == 0:
+            t = "T2 deprecate"
+        elif dead / L >= .5:
+            t = "T3 trim"
+        else:
+            continue
+        note = []
+        if users: note.append("included by " + ", ".join(users))
+        if k: note.append(f"kernel in {k} is run")
+        cp = COUNTERPART.get(comp, comp)
+        p = paths.get((api, comp, s))
+        if p and (not p.get("A_match") or not p.get("P_match")
+                  or p.get("A_check") != v["A"] or p.get("P_check") != v["P"]):
+            note.append("paths.json ignored: A/P line counts differ from this row; re-run path_attr.py")
+            p = None
+        if t.startswith("T2s") and p and p["verdict"] == "confirmed":
+            t = "T2s deprecate API now"
+            note.append("entry path checked: every A line has an oneapi entry that sklearnex runs")
+        elif t.startswith("T2s") and p and t2d(p):
+            t = "T2d deprecate daal4py API"
+            note.append(t2d_note(p))
+        elif t.startswith("T2s") and p:
+            t = "T2m migrate sklearnex first"
+            note.append(t2m_note(p))
+        elif t.startswith("T2s"):
+            note.append("sklearnex runs this sub; entry path (onedal or daal4py) not checked")
+        elif api == "daal" and v["P"] and skl[("oneapi", cp)]:
+            note.append(f"sklearnex runs oneapi:{cp}")
+        it = intent.get(f"{api}:{comp}")
+        if it and it["intent"] in ("grow", "keep"):
+            note.insert(0, f"keep (intent: {it['intent']}, {it['why']})")
+        elif it and it["intent"] == "deprecate":
+            note.insert(0, f"deprecate (intent: {it['why']})")
+        if t.startswith(("T2s", "T2m", "T2d")):
+            dead = v["P"]          # only the daal4py-API-only lines go; A lines are the kernel sklearnex runs
+        rows.append((t, api, comp, s, L, v["A"], v["P"], dead, c["sec"] * (L / max(c["lines"], 1)), "; ".join(note)))
+ORDER = ["T1 drop", "T1i drop API only", "T2 deprecate", "T2s deprecate API now", "T2d deprecate daal4py API",
+         "T2s deprecate API", "T2m migrate sklearnex first", "T3 trim"]
+rows.sort(key=lambda r: (ORDER.index(r[0]), -r[7]))
+md = ["Tiers: T1 drop; T1i drop public API only (kernel used elsewhere); T2 deprecate (daal4py API only);",
+      "T2s deprecate API now: sklearnex covers the estimator and path_attr.py checked the entry path (kernel stays, removable = P lines);",
+      "T2m migrate sklearnex first: same, but a line is reached only through daal4py (not-safe) or has no entry evidence (unclear);",
+      "T2d deprecate daal4py API: only daal4py reaches it, no sklearnex route needs it (no bridge, no sk-public loss);",
+      "T2s deprecate API (no path check): same, paths.json absent; T3 trim dead branches.",
+      "Rows marked `keep (intent)` are planned for use (intent.json) and are not removal proposals.", "",
+      "| tier | api | component | sub | lines | A | P | removable (C+B+E; P for T2s) | ~build s | note |",
+      "|---|---|---|---|---:|---:|---:|---:|---:|---|"]
+md += [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]:.0f} | {r[9]} |" for r in rows]
+open(f"{U}/out-{B}/CANDIDATES.md", "w").write("\n".join(md) + "\n")
+json.dump([dict(tier=r[0], api=r[1], component=r[2], sub=r[3], lines=r[4], A=r[5], P=r[6], removable=r[7],
+                build_s=round(r[8]), note=r[9]) for r in rows],
+          open(f"{U}/out-{B}/candidates.json", "w"), indent=1)
+for t in ORDER:
+    rs = [r for r in rows if r[0] == t and not r[9].startswith("keep")]
+    print(t, len(rs), "subs,", sum(r[7] for r in rs), "removable lines,", round(sum(r[8] for r in rs)), "build-s")
+    for r in rs[:8]: print("  ", r[1], r[2], r[3], r[4], "dead", r[7], f"{r[8]:.0f}s", r[9])
