@@ -70,17 +70,79 @@ jobs:
         run: |
           docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
 
+      # The cache directory is a host path bind-mounted into the container, so
+      # the actions/cache steps see it directly. The key follows the Dockerfile
+      # because the image defines the toolchain the action keys depend on.
+      - name: Restore the Bazel disk cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/bazel-cache
+          key: bazel-disk-docker-ubuntu-${{ hashFiles('dev/docker/onedal-dev.Dockerfile') }}-${{ github.sha }}
+          restore-keys: bazel-disk-docker-ubuntu-${{ hashFiles('dev/docker/onedal-dev.Dockerfile') }}-
+      # Downloads pinned by these files (MKL, TBB, compilers, ...). The key holds their
+      # hash, so it changes only with them; the disk cache key changes with every commit.
+      - name: Restore the Bazel repository cache
+        id: repo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/bazel-repo
+          key: bazel-repo-docker-ubuntu-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
       - name: Building oneDAL with bazel
         run: |
-          mkdir -p ${{ github.workspace }}/bazel-cache
+          mkdir -p ${{ github.workspace }}/bazel-cache ${{ github.workspace }}/bazel-repo
 
           docker run \
             -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel-disk \
+            -v ${{ github.workspace }}/bazel-repo:/root/.cache/bazel-repo \
             onedal-dev sh -c "
-              # Use external disk cache
-              echo 'build --disk_cache=/root/.cache/bazel-disk' >> ~/.bazelrc
+              # Use external disk cache. GC caps it at 1.5 GB at bazel shutdown.
+              echo 'build --disk_cache=/root/.cache/bazel-disk --experimental_disk_cache_gc_max_size=1536M --experimental_disk_cache_gc_idle_delay=0s' >> ~/.bazelrc
+              echo 'common --repository_cache=/root/.cache/bazel-repo' >> ~/.bazelrc
               # In CI we build for avx2 only (override default "all" ISA release build).
               # For a full release with all ISA variants, omit --cpu or use --cpu=all.
               # The docker validation image does not provide icpx, so keep DPC++ disabled here.
               bazel build :release --cpu=avx2 --release_dpc=false
+              status=\$?
+              # The GC runs at shutdown; the save step needs the trimmed directory.
+              bazel shutdown
+              exit \$status
             "
+          # Bazel runs as root in the container, so the bind-mounted files are root-owned.
+          sudo chown -R "$(id -u):$(id -g)" ${{ github.workspace }}/bazel-cache ${{ github.workspace }}/bazel-repo
+
+      - name: Save the Bazel disk cache
+        # Trusted main runs write: pushes to main and the nightly schedule (ref main). Pull requests only restore.
+        if: ${{ (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/bazel-cache
+          key: bazel-disk-docker-ubuntu-${{ hashFiles('dev/docker/onedal-dev.Dockerfile') }}-${{ github.sha }}
+      - name: Save the Bazel repository cache
+        # Trusted main runs write (pushes to main and the nightly schedule), and only when this hash has no entry yet.
+        if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' && steps.repo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/bazel-repo
+          key: bazel-repo-docker-ubuntu-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
+  # Keeps the newest entry per Dockerfile hash; see `prune-bazel-disk-cache` in ci.yml.
+  prune-bazel-disk-cache:
+    needs: validate
+    if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete older Bazel disk caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eo pipefail
+          for prefix in bazel-disk-docker-ubuntu- bazel-repo-docker-ubuntu-; do
+            gh cache list --key "$prefix" --ref refs/heads/main --limit 1000 --json id,key,createdAt \
+              | jq -r 'group_by(.key | sub("-[0-9a-f]{40,64}$"; "")) | .[] | sort_by(.createdAt) | reverse | .[1:] | .[].id' \
+              | while read -r id; do gh cache delete "$id"; done
+          done
+
