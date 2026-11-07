@@ -686,6 +686,16 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     const size_t nRows = ntData->getNumberOfRows();
     const size_t nCols = ntData->getNumberOfColumns();
 
+    // Norm-expanded euclidean distances (the brute force matrix, the ball radii) lose data far from the origin.
+    TArrayScalable<algorithmFPType, cpu> centeredValues;
+    NumericTablePtr centered;
+    if (pairwiseDistance == algorithms::internal::PairwiseDistanceType::euclidean && nRows > 0 && nCols > 0)
+    {
+        const services::Status centeringStatus = algorithms::internal::copyCentered<algorithmFPType, cpu>(*ntData, centeredValues, centered);
+        DAAL_CHECK_STATUS_VAR(centeringStatus);
+        ntData = centered.get();
+    }
+
     if (nRows < 2 || minClusterSize < 2)
     {
         WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);

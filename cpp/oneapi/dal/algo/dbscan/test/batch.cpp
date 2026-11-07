@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <array>
+#include <random>
 
 #include "oneapi/dal/algo/dbscan/test/fixture.hpp"
 #include "oneapi/dal/test/engine/blobs.hpp"
@@ -207,6 +208,90 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     const auto r = homogen_table::wrap(responses, 7, 1);
 
     this->run_checks(x, table{}, epsilon, min_observations, r);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan euclidean matches the definition on data far from the origin",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // Norm-expanded squared distances lose the spread to cancellation here unless the data are centered.
+    constexpr std::int64_t row_count = 120;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t min_observations = 5;
+    auto x = te::make_blobs<float_t>(40, 3, column_count, 4.0, 3.0);
+    for (auto& v : x) {
+        v += float_t(1.0e4);
+    }
+    const std::vector<float_t> w(row_count, 1);
+    const auto dist = this->reference_distances(x, column_count, distance_metric::euclidean, 2.0);
+    const double epsilon = this->pick_epsilon(dist, row_count, 0.03);
+
+    const bool mem_save_mode = GENERATE(false, true);
+    CAPTURE(mem_save_mode);
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_mem_save_mode(mem_save_mode)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices |
+                                result_options::core_observations);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, column_count));
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
+
+    // The core observations are rows of the input, not of the centered copy.
+    const auto indices =
+        row_accessor<const std::int32_t>(result.get_core_observation_indices()).pull();
+    const auto observations = row_accessor<const float_t>(result.get_core_observations()).pull();
+    for (std::int64_t k = 0; k < indices.get_count(); k++) {
+        for (std::int64_t j = 0; j < column_count; j++) {
+            REQUIRE(observations[k * column_count + j] == x[indices[k] * column_count + j]);
+        }
+    }
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan wide data with neighbors at exactly epsilon match the definition",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // Pairs of points exactly `epsilon` apart, far from the origin and from the other pairs: each point
+    // is a core only through its partner, which GEMM rounding on its own can push past `epsilon`.
+    constexpr std::int64_t pair_count = 150;
+    constexpr std::int64_t row_count = 2 * pair_count;
+    constexpr std::int64_t column_count = 8;
+    constexpr std::int64_t min_observations = 2;
+    constexpr double epsilon = 1.0;
+    std::vector<float_t> x(row_count * column_count);
+    std::mt19937 rng(7);
+    std::uniform_int_distribution<int> cell(0, 9);
+    std::uniform_int_distribution<int> axis(0, column_count - 1);
+    for (std::int64_t p = 0; p < pair_count; p++) {
+        const int k = axis(rng);
+        for (std::int64_t j = 0; j < column_count; j++) {
+            const float_t base = float_t(1000 + 3 * cell(rng));
+            x[(2 * p) * column_count + j] = base;
+            x[(2 * p + 1) * column_count + j] = base + (j == k ? float_t(1) : float_t(0));
+        }
+    }
+    const std::vector<float_t> w(row_count, 1);
+    const auto dist = this->reference_distances(x, column_count, distance_metric::euclidean, 2.0);
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, column_count));
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
