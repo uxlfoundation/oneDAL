@@ -9,6 +9,7 @@ These come from recurring maintainer review comments. Directory-specific rules a
 
 - Comments describe the code as it will be once merged. Don't reference discarded approaches, narrate the change, or mention "this PR".
 - Keep comments short and plain: explain why in one line when one line is enough, and in two sentences rather than a paragraph. Agent-written comments have historically been bloated and hard to read; don't restate the code, hedge, or add emphasis.
+- Comments are at most two lines (`.ci/scripts/check_comment_blocks.py`): state the constraint or the reason, and end with an issue or PR URL when a reader needs the backstory. A run of three or more `//` or `#` lines fails CI once the PR adds or edits a line in it, so shorten an old block when you touch it. Doxygen (`///`, `/** */`) and license headers are exempt.
 - One PR, one logical change. Drive-by fixes, renames and mechanical changes (formatting, generated code, mass renames) go in their own PRs.
 - Search before adding a helper, constant table or validation routine. Extend the existing one and name it in the PR description.
 - Don't add a lock, critical section, guard or redundant check unless you can name the failure it prevents.
@@ -62,6 +63,7 @@ See `INSTALL.md` for other platforms and build variants.
 | Windows (incl. arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
 | aarch64 | GitHub Actions | `.github/workflows/ci-aarch64.yml` |
 | License headers | GitHub Actions | `.github/workflows/skywalking-eyes.yml` |
+| Comment blocks of at most two lines | GitHub Actions | `.github/workflows/comment-blocks.yml` |
 | Bazel Linux/Windows | GitHub Actions (nightly) | `.github/workflows/nightly-test.yml` |
 
 Style is not gated in GitHub Actions: a green Actions run does not mean formatting passes.

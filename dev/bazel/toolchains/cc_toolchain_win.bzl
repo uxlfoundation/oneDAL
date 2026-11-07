@@ -285,7 +285,9 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         p = path.strip().replace("\\", "/")
         if p and p not in builtin_include_directories:
             builtin_include_directories.append(p)
-        if p:
+        # setvars.bat can list include dirs that do not exist (tcm 1.6 in Basekit 2026.2),
+        # and realpath fails on those.
+        if p and repo_ctx.path(p).exists:
             real = str(repo_ctx.path(p).realpath).replace("\\", "/")
             if real and real not in builtin_include_directories:
                 builtin_include_directories.append(real)
