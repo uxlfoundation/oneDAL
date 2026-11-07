@@ -325,7 +325,7 @@ jobs:
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-binary
       ABICHECK_BASELINE_GENERATION: "4"
       # sha256 the publish run reported for this asset; rotate it with the tag.
-      ABICHECK_BASELINE_DIGEST: sha256:d3b5a2095817287551e9e0d0ba3106baaacdc42d3570e73d54da47ed57a24ecf
+      ABICHECK_BASELINE_DIGEST: sha256:cc757edf3f872ea9a60207aecfc6d834e0c2b9f163e32a3a09d2faf3c5eeb6ec
       ABICHECK_BASELINE_DIR: __abi_baselines
     steps:
       - name: Checkout oneDAL
@@ -427,7 +427,7 @@ jobs:
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
       ABICHECK_BASELINE_GENERATION: "4"
-      ABICHECK_BASELINE_DIGEST: sha256:98573c29e2703366cb4f442fbda29dbd5de72243287a4a70e3d2a700fd4ef505
+      ABICHECK_BASELINE_DIGEST: sha256:c327b3d85eaa56903d4c30e8548874f76d3e9d445452c5eaecb942dbdc2f5aa8
       ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
       - name: Checkout oneDAL

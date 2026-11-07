@@ -19,7 +19,7 @@
 
 Two abicheck jobs in `../workflows/ci.yml` compare a PR's Linux build with the
 published baseline for the last release (`2026.0.0`). abicheck is pinned to
-`44d86bc112ebe606d0653fb7e9c9e1bd63f37e23` in both jobs and in the baseline workflow.
+`597e47ae7cf9657f4ea987175bf9463d70dba594` (v0.8.0) in both jobs and in the baseline workflow.
 
 ## How this differs from the libabigail check
 
@@ -84,7 +84,7 @@ The build sources the compiler, MKL and TBB versions pinned in the tag's `.ci/en
 Plain `setvars.sh` picks the newest installed versions, and with those MKL 2026.2 lacks
 `libmkl_intel_ilp64.a`.
 
-Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/oneDAL, 1 h 03 min; the gen3 run 39906849058 took 45 min 52 s in total):
+Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/oneDAL, 1 h 03 min; the gen3 run 39906849058 took 45 min 52 s in total, the gen4 run 42342615114 45 min 18 s):
 
 | Step | Time |
 |---|---|
@@ -99,12 +99,12 @@ Compares against those assets at 44d86bc11 (local, 5 L2 legs concurrently, cold 
 | Blocking compare | 12 s | 270 MiB |
 | L2 leg (each) | 1:17-1:24 | 1.07-1.18 GiB |
 
-Gen3 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3, generator 44d86bc11, schema 63):
+Gen4 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3, generator v0.8.0 597e47ae7):
 
 | Asset | Bytes | sha256 |
 |---|---|---|
-| binary | 27,630,706 | `d3b5a2095817287551e9e0d0ba3106baaacdc42d3570e73d54da47ed57a24ecf` |
-| headers | 10,304,115 | `98573c29e2703366cb4f442fbda29dbd5de72243287a4a70e3d2a700fd4ef505` |
+| binary | 27,658,859 | `cc757edf3f872ea9a60207aecfc6d834e0c2b9f163e32a3a09d2faf3c5eeb6ec` |
+| headers | 10,302,755 | `c327b3d85eaa56903d4c30e8548874f76d3e9d445452c5eaecb942dbdc2f5aa8` |
 
 ## Rules
 
