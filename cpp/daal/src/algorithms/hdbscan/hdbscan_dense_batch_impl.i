@@ -163,7 +163,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     else if (pairwiseDistance == PairwiseDistanceType::minkowski)
     {
         MinkowskiDist<algorithmFPType> mk(minkowskiDegree);
-        fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, mk, distMatrix);
+        fillFullDistMatrix<algorithmFPType, cpu, true>(data, nRows, nCols, mk, distMatrix);
     }
     else
     {
