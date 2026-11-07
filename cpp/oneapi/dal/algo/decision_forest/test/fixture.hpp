@@ -20,8 +20,10 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <list>
+#include <random>
 #include <vector>
 
 #define sizeofa(p) sizeof(p) / sizeof(*p)
@@ -350,6 +352,87 @@ public:
     /// @param[in] second Another engine type.
     void check_engine_type_changes_forest(engine_type first, engine_type second) {
         REQUIRE(train_leaf_sizes(first, 4) != train_leaf_sizes(second, 4));
+    }
+
+    /// Trains a forest twice with the same seed and checks that the trees and the inference
+    /// results are bitwise identical. The response follows a strong pattern, and the features
+    /// repeat it as exact, scaled, mirrored and near duplicates on a coarse grid, so split gains
+    /// and thresholds tie and any order-dependent choice changes the forest.
+    ///
+    /// @param[in] splitter    The splitter mode of the forest.
+    /// @param[in] class_count The number of classes; ignored for regression.
+    void check_same_seed_same_forest(splitter_mode splitter, std::int64_t class_count = 2) {
+        constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
+        constexpr std::int64_t row_count = 64;
+        constexpr std::int64_t column_count = 6;
+
+        auto x_arr = array<Float>::empty(row_count * column_count);
+        auto y_arr = array<Float>::empty(row_count);
+        Float* x_ptr = x_arr.get_mutable_data();
+        Float* y_ptr = y_arr.get_mutable_data();
+        std::mt19937 rng(2024);
+        std::uniform_int_distribution<int> grid(-8, 8);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            const float u = grid(rng) / 8.0f;
+            const float v = grid(rng) / 8.0f;
+            const float row[column_count] = { u, u, 2.0f * u, -u, u + 1e-4f * grid(rng), v };
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                x_ptr[i * column_count + j] = row[j];
+            }
+            // s lies in [-1.5, 1.5]
+            const float s = u + 0.5f * v;
+            const auto cls = std::min<std::int64_t>(
+                static_cast<std::int64_t>((s + 1.5f) / 3.0f * float(class_count)),
+                class_count - 1);
+            y_ptr[i] = is_cls ? static_cast<Float>(cls) : static_cast<Float>(s);
+        }
+        const auto x = dal::homogen_table::wrap(x_arr, row_count, column_count);
+        const auto y = dal::homogen_table::wrap(y_arr, row_count, 1);
+
+        auto desc = this->get_default_descriptor();
+        if constexpr (is_cls) {
+            desc.set_class_count(class_count);
+        }
+        desc.set_tree_count(8);
+        desc.set_features_per_node(4);
+        desc.set_bootstrap(true);
+        desc.set_seed(777);
+        desc.set_splitter_mode(splitter);
+
+        struct tree_collector {
+            std::vector<double>* out;
+            bool operator()(const leaf_node_info<Task>& info) {
+                out->push_back(double(info.get_sample_count()));
+                out->push_back(double(info.get_response()));
+                return true;
+            }
+            bool operator()(const split_node_info<Task>& info) {
+                out->push_back(double(info.get_feature_index()));
+                out->push_back(info.get_feature_value());
+                return true;
+            }
+        };
+        const auto collect = [&](const df::model<Task>& model) {
+            std::vector<double> nodes;
+            for (std::int64_t t = 0; t < model.get_tree_count(); ++t) {
+                model.traverse_depth_first(t, tree_collector{ &nodes });
+            }
+            return nodes;
+        };
+
+        const auto first = this->train(desc, x, y).get_model();
+        const auto second = this->train(desc, x, y).get_model();
+        REQUIRE(collect(first) == collect(second));
+
+        const auto first_resp =
+            dal::row_accessor<const double>(this->infer(desc, first, x).get_responses()).pull();
+        const auto second_resp =
+            dal::row_accessor<const double>(this->infer(desc, second, x).get_responses()).pull();
+        REQUIRE(first_resp.get_count() == row_count);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            CAPTURE(i);
+            REQUIRE(first_resp[i] == second_resp[i]);
+        }
     }
 
     // Trains a single fully-grown tree with and without a min_weight_fraction
