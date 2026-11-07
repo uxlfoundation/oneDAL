@@ -33,7 +33,8 @@ reclassify:
     to: risk
     reason: WEAK template static data member hidden by #3604.
   # libonedal_thread internals with no installed header (#3471, #3987).
-  - symbol_pattern: '_daal_(static_)?threader_for.*'
+  - kind: func_removed_elf_only
+    symbol_pattern: '_daal_(static_)?threader_for.*'
     to: risk
     reason: libonedal_thread C entry points, accepted in #3471; same as .github/.abignore.
   - kind: func_removed_elf_only

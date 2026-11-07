@@ -317,6 +317,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      pull-requests: write   # the delta comment
     env:
       # Tag, profile and generation must match a published asset (resolve-baseline enforces it).
       ABICHECK_BASELINE_TAG: 2026.0.0
@@ -324,7 +325,6 @@ jobs:
       ABICHECK_BASELINE_GENERATION: "1"
       # sha256 the publish run reported for this asset; rotate it with the tag.
       ABICHECK_BASELINE_DIGEST: sha256:2e9e246c1f8b68ad61d1d62f93381ca74fa2fc651519840542cd0d3b35d5a5ef
-      ABICHECK_BASELINE_DIR: __abi_baselines
       ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
       - name: Checkout oneDAL
@@ -342,15 +342,15 @@ jobs:
           set -euo pipefail
           asset="abicheck-baseline-${ABICHECK_PROFILE}-gen${ABICHECK_BASELINE_GENERATION}.tar.zst"
           echo "asset=${asset}" >> "$GITHUB_OUTPUT"
-          mkdir -p "${ABICHECK_BASELINE_DIR}" __abi_report
+          mkdir -p __abi_baselines __abi_report
           gh release download "${ABICHECK_BASELINE_TAG}" --repo "${GITHUB_REPOSITORY}" \
-            --pattern "${asset}" --dir "${ABICHECK_BASELINE_DIR}"
+            --pattern "${asset}" --dir __abi_baselines
       # Checks the archive digest and generation, then unpacks one snapshot per library.
       - name: Resolve the release baseline for every library
         id: resolve
         uses: abicheck/abicheck/actions/resolve-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
-          baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
+          baseline-path: __abi_baselines/${{ steps.baselines.outputs.asset }}
           channel: release-contract
           kind: members
           bundle-members: >-
@@ -385,6 +385,7 @@ jobs:
           # Incomplete header evidence fails the job instead of passing it.
           require-complete: 'true'
           fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
+          fail-on-api-break: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           set: |
             gate.fail_on_removed_library=${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           policy: .github/abicheck/policy.yaml
@@ -394,6 +395,39 @@ jobs:
           output-file: __abi_report/release.md
           extra-args: -o json=__abi_report/release.json
           pr-comment: false
+      # The comment shows only this PR's changes: main's cached build against the PR, never gating.
+      - name: Find main's cached build
+        id: main-key
+        run: .ci/scripts/abi_baseline_key.sh "$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download main's cached build
+        id: main-build
+        uses: actions/cache/restore@v6
+        with:
+          path: ./__release_lnx_main
+          key: ${{ steps.main-key.outputs.key }}
+      - name: Comment this PR's ABI changes against main
+        if: steps.main-build.outputs.cache-hit == 'true'
+        continue-on-error: true
+        uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
+        with:
+          mode: compare
+          old-library: __release_lnx_main/daal/latest/lib/intel64
+          new-library: __release_lnx/daal/latest/lib/intel64
+          depth: headers
+          old-label: main
+          new-label: ${{ github.sha }}
+          old-header: __release_lnx_main/daal/latest/include/daal.h __release_lnx_main/daal/latest/include/oneapi/dal.hpp
+          old-include: __release_lnx_main/daal/latest/include
+          new-header: ${{ env.ABICHECK_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
+          new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
+          fail-on-breaking: 'false'
+          policy: .github/abicheck/policy.yaml
+          build-config: .github/abicheck/abicheck.yml
+          dependency-source: system
+          add-job-summary: 'false'
+          pr-comment-on: changes
       - name: Archive the full ABI report
         if: always() && steps.abicheck.outputs.report-path != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

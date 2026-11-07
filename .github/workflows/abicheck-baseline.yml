@@ -79,8 +79,6 @@ jobs:
           profile: linux-x86_64-icx-avx2-nodbg-headers
           depth: headers
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 597e47ae7cf9657f4ea987175bf9463d70dba594
-          validation: strict
           snapshot-compression: zstd
           libraries: |
             [

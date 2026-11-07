@@ -18,8 +18,11 @@
 # ABI gate
 
 `ci.yml` job `LinuxAbicheckScan` compares the public headers and exports of the six shipped
-libraries (header depth, castxml) with the `2026.0.0` baseline. It blocks the PR; the
-`API/ABI breaking change` label relaxes gating only. abicheck is pinned to v0.8.0
+libraries (header depth, castxml) with the `2026.0.0` baseline. A binary or source break fails
+the job; the `API/ABI breaking change` label lifts that. A second, non-gating compare of `main`'s
+cached build against the PR posts a sticky comment with this PR's own changes (additions, risks,
+breaks), so a symbol added after the baseline is not re-reported on every PR. Fork PRs have a
+read-only token and get no comment. abicheck is pinned to v0.8.0
 (`597e47ae7cf9657f4ea987175bf9463d70dba594`) in both workflows. Config: `abicheck.yml`, `policy.yaml`.
 
 ## Rotate
@@ -40,7 +43,7 @@ Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` i
 | `func_removed_elf_only` | weak | risk | #3604 `-fvisibility-inlines-hidden` hides WEAK inline and template functions (2026.1.0+). |
 | `func_visibility_changed` | weak | risk | Same: default to hidden on WEAK inline functions. |
 | `var_removed_elf_only` | weak | risk | Same: WEAK template static data members. |
-| any, `_daal_(static_)?threader_for.*` | any | risk | #3471: C entry points with no installed header (as `.github/.abignore`). |
+| `func_removed_elf_only`, `_daal_(static_)?threader_for.*` | any | risk | #3471: C entry points with no installed header (as `.github/.abignore`). |
 | `func_`/`var_removed_elf_only`, `thread_pinner_impl_t`, `getCurrentThreadId`, `IMPL` | any | risk | #3987 hid these internals. |
 
 * `symbol_pattern` is a full match; `'.*'` is required (abicheck refuses a weak-binding rule with no selector).
