@@ -647,6 +647,9 @@ ONEAPI.objs_y.dpc := $(ONEAPI.srcs.mangled.dpc:%.cpp=$(ONEAPI.tmpdir_y.dpc)/%.$o
 define .populate_cpus
 $(eval non_cpu_files := $(call notcontaining,_cpu,$2))
 $(eval cpu_files := $(call containing,_cpu,$2))
+# Drop ISA-specific sources (`_skx.cpp` etc.) for CPUs not in USECPUS: the
+# dispatcher never calls them, and Bazel does not build them either.
+$(foreach s,$(filter-out $(USECPUS.files),nrh hsw skx),$(eval non_cpu_files := $(call notcontaining,_$s.,$(non_cpu_files))))
 
 $(eval $(call add_cpu_to_uarch_in_files,non_cpu_files))
 

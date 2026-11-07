@@ -47,9 +47,9 @@ _MSVC_CPU_FLAGS = {
     "avx512": ["/arch:AVX2"],
 }
 
-# MSVC's traditional preprocessor expands __VA_ARGS__ as a single token, which breaks the
-# test engine's COMBINE_TYPES; icx and clang-cl conform without a switch.
-_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor"]
+# MSVC's traditional preprocessor breaks COMBINE_TYPES on __VA_ARGS__; icx and clang-cl do not.
+# The vc build passes -EHsc to every object, as COMPILER.win.vc does (vc.mkl.32e.mk:42).
+_MSVC_COMPILE_FLAGS = ["/Zc:preprocessor", "/EHsc"]
 
 def _get_msvc_compile_kwargs(toolchain, kwargs):
     if toolchain.compiler != "msvc-cl":
@@ -141,7 +141,7 @@ def _filter_out_includes(includes, filter):
     return filtered
 
 def _patch_includes(ctx, compilation_context, includes=[],
-                    system_includes=[], quote_includes=[]):
+                    system_includes=[], quote_includes=[], drop_defines=[]):
     system_includes = _normalize_includes(
         ctx,
         system_includes,
@@ -161,7 +161,8 @@ def _patch_includes(ctx, compilation_context, includes=[],
         includes = depset(includes),
         quote_includes = depset(quote_includes),
         framework_includes = compilation_context.framework_includes,
-        defines = compilation_context.defines,
+        defines = depset([d for d in compilation_context.defines.to_list()
+                          if d not in drop_defines]) if drop_defines else compilation_context.defines,
         local_defines = compilation_context.local_defines,
     )
 
@@ -349,6 +350,9 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         includes = includes,
         system_includes = system_includes,
         quote_includes = quote_includes,
+        # DPC library objects are LP64 (Make's ONEAPI.objs_y.dpc), via the drop_mkl_ilp64 attribute.
+        # A DPC test that links the ILP64 archives keeps MKL_ILP64; see cpp/oneapi/dal/test/engine/mkl.
+        drop_defines = ["MKL_ILP64"] if getattr(ctx.attr, "drop_mkl_ilp64", False) else [],
     )
     dep_compilation_contexts = [ dep_compilation_context ]
 
