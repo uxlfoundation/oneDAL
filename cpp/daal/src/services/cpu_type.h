@@ -41,6 +41,10 @@ enum CpuType
     rv64         = 0,
     firstCpuType = rv64,
     lastCpuType  = rv64
+#elif defined(TARGET_LOONGARCH64)
+    la64         = 0,
+    firstCpuType = la64,
+    lastCpuType  = la64
 #endif
 };
 

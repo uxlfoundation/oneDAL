@@ -29,6 +29,10 @@
 #define TARGET_RISCV64
 #endif
 
+#if defined(__loongarch64)
+#define TARGET_LOONGARCH64
+#endif
+
 #include <cstdint>
 #include <utility>
 

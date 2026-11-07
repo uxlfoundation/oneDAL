@@ -24,6 +24,8 @@
         #define LIBDIR lib/arm
     #elif defined(__riscv) && (__riscv_xlen == 64)
         #define LIBDIR lib/riscv64
+    #elif defined(__loongarch64)
+        #define LIBDIR lib/loongarch64
     #else
         #error Unknown CPU architecture
     #endif

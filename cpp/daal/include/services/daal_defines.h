@@ -41,6 +41,10 @@
     #define TARGET_RISCV64
 #endif
 
+#if defined(__loongarch64)
+    #define TARGET_LOONGARCH64
+#endif
+
 #if !defined(TARGET_X86_64)
     #ifndef DAAL_CPU_TOPO_DISABLED
         #define DAAL_CPU_TOPO_DISABLED
@@ -81,6 +85,8 @@
     #elif defined(TARGET_ARM)
         #define DAAL_INT __int64
     #elif defined(TARGET_RISCV64)
+        #define DAAL_INT __int64
+    #elif defined(TARGET_LOONGARCH64)
         #define DAAL_INT __int64
     #else
         #define DAAL_INT __int32

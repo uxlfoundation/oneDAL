@@ -109,6 +109,8 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define DAAL_BASE_CPU daal::internal::sve
 #elif defined(TARGET_RISCV64)
     #define DAAL_BASE_CPU daal::internal::rv64
+#elif defined(TARGET_LOONGARCH64)
+    #define DAAL_BASE_CPU daal::internal::la64
 #endif
 
 #define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())
