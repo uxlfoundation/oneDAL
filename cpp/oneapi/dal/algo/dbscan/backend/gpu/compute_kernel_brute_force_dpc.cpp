@@ -22,6 +22,7 @@
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/stat/cov.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/backend/communicator.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
@@ -137,8 +138,35 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     const auto metric = make_neighborhood_metric<Float>(desc);
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
     // The kernels measure distances on `dist_nd`; `data_nd` keeps the input for the results.
-    const auto dist_nd =
+    pr::ndarray<Float, 2> dist_nd =
         metric.kind == distance_kind::neg_dot ? normalize_rows<Float>(queue, data_nd) : data_nd;
+    // On one rank and above 4 columns, euclidean and cosine neighborhoods come from GEMM; euclidean
+    // data are centered so that the norm expansion keeps the spread of data far from the origin.
+    const bool use_gemm =
+        rank_count == 1 && column_count > 4 &&
+        (metric.kind == distance_kind::squared_l2 || metric.kind == distance_kind::neg_dot);
+    if (use_gemm && metric.kind == distance_kind::squared_l2) {
+        auto centered = pr::ndarray<Float, 2>::empty(queue,
+                                                     { local_row_count, column_count },
+                                                     sycl::usm::alloc::device);
+        auto copy_event = queue.copy(data_nd.get_data(),
+                                     centered.get_mutable_data(),
+                                     local_row_count * column_count);
+        auto [sums, sums_event] = pr::compute_sums(queue, data_nd, false);
+        auto [means, means_event] = pr::compute_means(queue, sums, local_row_count, { sums_event });
+        pr::get_centered(queue, centered, means, { copy_event, means_event }).wait_and_throw();
+        dist_nd = centered;
+    }
+    pr::ndarray<Float, 1> dist_norms;
+    // About 1 GB of `rows x n` distances per GEMM tile.
+    const std::int64_t gemm_block_rows = std::max<std::int64_t>(
+        1,
+        (std::int64_t(1024) * 1024 * 1024) / (local_row_count * std::int64_t(sizeof(Float))));
+    if (use_gemm) {
+        auto [norms, norms_event] = pr::compute_squared_l2_norms(queue, dist_nd);
+        norms_event.wait_and_throw();
+        dist_norms = norms;
+    }
 
     pr::ndarray<Float, 2> data_nd_replace;
     if (rank_count > 1) {
@@ -205,13 +233,27 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                         total_points_queue_size_event,
                         local_points_queue_size_event });
 
-    auto get_cores_event = kernels_fp<Float>::get_cores(queue,
-                                                        dist_nd,
-                                                        weights_nd,
-                                                        arr_cores,
-                                                        arr_neighbours,
-                                                        metric,
-                                                        min_observations);
+    sycl::event get_cores_event;
+    if (use_gemm) {
+        kernels_fp<Float>::get_cores_gemm(queue,
+                                          dist_nd,
+                                          dist_norms,
+                                          weights_nd,
+                                          arr_cores,
+                                          arr_neighbours,
+                                          metric,
+                                          min_observations,
+                                          gemm_block_rows);
+    }
+    else {
+        get_cores_event = kernels_fp<Float>::get_cores(queue,
+                                                       dist_nd,
+                                                       weights_nd,
+                                                       arr_cores,
+                                                       arr_neighbours,
+                                                       metric,
+                                                       min_observations);
+    }
 
     for (std::int64_t j = 0; j < rank_count - 1; j++) {
         comm.sendrecv_replace(queue,
@@ -351,17 +393,33 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                     .wait();
             }
 
-            kernels_fp<Float>::update_points_queue(queue,
-                                                   dist_nd,
-                                                   arr_cores,
-                                                   current_points_queue,
-                                                   arr_responses,
-                                                   total_points_queue_size_arr,
-                                                   observation_indices,
-                                                   metric,
-                                                   cluster_count - 1,
-                                                   { fill_queue_event })
-                .wait_and_throw();
+            if (use_gemm) {
+                kernels_fp<Float>::update_points_queue_gemm(queue,
+                                                            dist_nd,
+                                                            dist_norms,
+                                                            arr_cores,
+                                                            current_points_queue,
+                                                            arr_responses,
+                                                            total_points_queue_size_arr,
+                                                            observation_indices,
+                                                            metric,
+                                                            cluster_count - 1,
+                                                            gemm_block_rows,
+                                                            { fill_queue_event });
+            }
+            else {
+                kernels_fp<Float>::update_points_queue(queue,
+                                                       dist_nd,
+                                                       arr_cores,
+                                                       current_points_queue,
+                                                       arr_responses,
+                                                       total_points_queue_size_arr,
+                                                       observation_indices,
+                                                       metric,
+                                                       cluster_count - 1,
+                                                       { fill_queue_event })
+                    .wait_and_throw();
+            }
 
             local_points_queue_size =
                 kernels_fp<Float>::get_points_queue_size(queue, total_points_queue_size_arr);

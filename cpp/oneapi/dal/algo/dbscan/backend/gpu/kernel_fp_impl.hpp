@@ -16,10 +16,13 @@
 
 #pragma once
 
+#include <limits>
 #include <type_traits>
 
 #include "oneapi/dal/algo/dbscan/backend/gpu/kernels_fp.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/backend/primitives/blas/gemm.hpp"
+#include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
 
 namespace oneapi::dal::dbscan::backend {
 
@@ -688,6 +691,213 @@ sycl::event kernels_fp<Float>::get_cores_send_recv_replace(sycl::queue& queue,
 /// @param[in]  deps       Events indicating availability of the `data` for reading or writing
 ///
 /// @return The index of the init/next unassigned core point
+/// The GEMM tile entry is `-2 x.y` for squared_l2, with the norms added here, and `-x.y` for
+/// neg_dot, which needs nothing more.
+template <typename Float>
+inline Float gemm_tile_distance(distance_kind kind, Float tile, Float norm_i, Float norm_j) {
+    return kind == distance_kind::squared_l2 ? norm_i + norm_j + tile : tile;
+}
+
+/// Whether rows `a` and `b` are within `threshold`, from the GEMM tile entry, with the pairs whose
+/// GEMM rounding could cross the threshold recomputed from the coordinates.
+template <typename Float>
+inline bool gemm_within(distance_kind kind,
+                        Float tile,
+                        Float norm_a,
+                        Float norm_b,
+                        const Float* a,
+                        const Float* b,
+                        std::int64_t d,
+                        Float threshold) {
+    const Float dist = gemm_tile_distance(kind, tile, norm_a, norm_b);
+    const Float scale = kind == distance_kind::squared_l2 ? norm_a + norm_b : Float(1);
+    const Float slack = Float(4 * (d + 2)) * std::numeric_limits<Float>::epsilon() * scale;
+    if (sycl::fabs(dist - threshold) > slack) {
+        return dist <= threshold;
+    }
+    Float acc = 0;
+    for (std::int64_t k = 0; k < d; k++) {
+        acc = kind == distance_kind::squared_l2 ? acc + (a[k] - b[k]) * (a[k] - b[k])
+                                                : acc - a[k] * b[k];
+    }
+    return acc <= threshold;
+}
+
+template <typename Float>
+void kernels_fp<Float>::get_cores_gemm(sycl::queue& queue,
+                                       const pr::ndview<Float, 2>& data,
+                                       const pr::ndview<Float, 1>& norms,
+                                       const pr::ndview<Float, 2>& weights,
+                                       pr::ndview<std::int32_t, 1>& cores,
+                                       pr::ndview<Float, 1>& neighbours,
+                                       const neighborhood_metric<Float>& metric,
+                                       std::int64_t min_observations,
+                                       std::int64_t block_rows) {
+    ONEDAL_PROFILER_TASK(get_cores_gemm, queue);
+    ONEDAL_ASSERT(metric.kind == distance_kind::squared_l2 ||
+                  metric.kind == distance_kind::neg_dot);
+
+    const std::int64_t n = data.get_dimension(0);
+    block_rows = std::max<std::int64_t>(1, std::min(block_rows, n));
+    const bool use_weights = weights.get_count() > 0;
+    const Float alpha = metric.kind == distance_kind::squared_l2 ? Float(-2) : Float(-1);
+    auto tile = pr::ndarray<Float, 2>::empty(queue, { block_rows, n }, sycl::usm::alloc::device);
+
+    const Float* tile_ptr = tile.get_data();
+    const Float* data_ptr = data.get_data();
+    const std::int64_t d = data.get_dimension(1);
+    const Float* norms_ptr = norms.get_data();
+    const Float* weights_ptr = weights.get_data();
+    std::int32_t* cores_ptr = cores.get_mutable_data();
+    Float* neighbours_ptr = neighbours.get_mutable_data();
+    const distance_kind kind = metric.kind;
+    const Float threshold = metric.threshold;
+    const Float min_obs = static_cast<Float>(min_observations);
+
+    for (std::int64_t first = 0; first < n; first += block_rows) {
+        const std::int64_t rows = std::min(block_rows, n - first);
+        auto block_tile = tile.get_row_slice(0, rows);
+        auto gemm_event = pr::gemm(queue,
+                                   data.get_row_slice(first, first + rows),
+                                   data.t(),
+                                   block_tile,
+                                   alpha,
+                                   Float(0));
+        // One work-group per row; the tile is reused, so each block completes first.
+        constexpr std::int64_t wg = 256;
+        queue
+            .submit([&](sycl::handler& h) {
+                h.depends_on(gemm_event);
+                h.parallel_for(
+                    bk::make_multiple_nd_range_1d(rows * wg, wg),
+                    [=](sycl::nd_item<1> it) {
+                        const std::int64_t r = it.get_group(0);
+                        const std::int64_t i = first + r;
+                        const Float norm_i = norms_ptr[i];
+                        Float count = 0;
+                        for (std::int64_t j = it.get_local_id(0); j < n; j += wg) {
+                            // A row is always in its own neighborhood.
+                            const bool near = j == i || gemm_within(kind,
+                                                                    tile_ptr[r * n + j],
+                                                                    norm_i,
+                                                                    norms_ptr[j],
+                                                                    data_ptr + i * d,
+                                                                    data_ptr + j * d,
+                                                                    d,
+                                                                    threshold);
+                            count += near ? (use_weights ? weights_ptr[j] : Float(1)) : Float(0);
+                        }
+                        const Float total =
+                            sycl::reduce_over_group(it.get_group(), count, sycl::plus<Float>());
+                        if (it.get_local_id(0) == 0) {
+                            neighbours_ptr[i] = total;
+                            cores_ptr[i] = total >= min_obs ? 1 : 0;
+                        }
+                    });
+            })
+            .wait_and_throw();
+    }
+}
+
+template <typename Float>
+void kernels_fp<Float>::update_points_queue_gemm(sycl::queue& queue,
+                                                 const pr::ndview<Float, 2>& data,
+                                                 const pr::ndview<Float, 1>& norms,
+                                                 const pr::ndview<std::int32_t, 1>& cores,
+                                                 const pr::ndview<Float, 2>& current_points_queue,
+                                                 pr::ndview<std::int32_t, 1>& responses,
+                                                 pr::ndview<std::int32_t, 1>& queue_size_arr,
+                                                 pr::ndview<bool, 1>& indices_cores,
+                                                 const neighborhood_metric<Float>& metric,
+                                                 std::int32_t cluster_id,
+                                                 std::int64_t block_rows,
+                                                 const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(update_points_queue_gemm, queue);
+    ONEDAL_ASSERT(metric.kind == distance_kind::squared_l2 ||
+                  metric.kind == distance_kind::neg_dot);
+
+    const std::int64_t n = data.get_dimension(0);
+    const std::int64_t queue_size = current_points_queue.get_dimension(0);
+    std::int32_t* queue_size_arr_ptr = queue_size_arr.get_mutable_data();
+    auto fill_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.single_task([=]() {
+            queue_size_arr_ptr[0] = 0;
+        });
+    });
+    if (queue_size == 0) {
+        fill_event.wait_and_throw();
+        return;
+    }
+    block_rows = std::max<std::int64_t>(1, std::min(block_rows, queue_size));
+
+    auto [queue_norms, queue_norms_event] =
+        pr::compute_squared_l2_norms(queue, current_points_queue, deps);
+    auto tile = pr::ndarray<Float, 2>::empty(queue, { block_rows, n }, sycl::usm::alloc::device);
+    const Float alpha = metric.kind == distance_kind::squared_l2 ? Float(-2) : Float(-1);
+
+    const Float* tile_ptr = tile.get_data();
+    const Float* data_ptr = data.get_data();
+    const Float* queue_ptr = current_points_queue.get_data();
+    const std::int64_t d = data.get_dimension(1);
+    const Float* norms_ptr = norms.get_data();
+    const Float* queue_norms_ptr = queue_norms.get_data();
+    const std::int32_t* cores_ptr = cores.get_data();
+    std::int32_t* responses_ptr = responses.get_mutable_data();
+    bool* indices_cores_ptr = indices_cores.get_mutable_data();
+    const distance_kind kind = metric.kind;
+    const Float threshold = metric.threshold;
+
+    sycl::event last = fill_event;
+    for (std::int64_t first = 0; first < queue_size; first += block_rows) {
+        const std::int64_t rows = std::min(block_rows, queue_size - first);
+        auto block_tile = tile.get_row_slice(0, rows);
+        auto gemm_event = pr::gemm(queue,
+                                   current_points_queue.get_row_slice(first, first + rows),
+                                   data.t(),
+                                   block_tile,
+                                   alpha,
+                                   Float(0),
+                                   { last, queue_norms_event });
+        // One work-item per row of the data, reading the tile column by column.
+        last = queue.submit([&](sycl::handler& h) {
+            h.depends_on(gemm_event);
+            h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> id) {
+                const std::int64_t j = id[0];
+                if (responses_ptr[j] >= 0) {
+                    return;
+                }
+                const Float norm_j = norms_ptr[j];
+                for (std::int64_t q = 0; q < rows; q++) {
+                    if (!gemm_within(kind,
+                                     tile_ptr[q * n + j],
+                                     queue_norms_ptr[first + q],
+                                     norm_j,
+                                     queue_ptr + (first + q) * d,
+                                     data_ptr + j * d,
+                                     d,
+                                     threshold)) {
+                        continue;
+                    }
+                    responses_ptr[j] = cluster_id;
+                    if (cores_ptr[j] != 0) {
+                        sycl::atomic_ref<std::int32_t,
+                                         sycl::memory_order::relaxed,
+                                         sycl::memory_scope::device,
+                                         sycl::access::address_space::global_space>
+                            counter(queue_size_arr_ptr[0]);
+                        counter.fetch_add(1);
+                        indices_cores_ptr[j] = true;
+                    }
+                    return;
+                }
+            });
+        });
+    }
+    // `tile` and `queue_norms` are freed on return.
+    last.wait_and_throw();
+}
+
 template <typename Float>
 std::int32_t kernels_fp<Float>::start_next_cluster(sycl::queue& queue,
                                                    const pr::ndview<std::int32_t, 1>& cores,
