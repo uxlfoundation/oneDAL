@@ -18,6 +18,8 @@
 #include "oneapi/dal/test/engine/blobs.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
+#include "daal/include/services/env_detect.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -1656,6 +1658,56 @@ TEMPLATE_LIST_TEST_M(
     check_same_partition(this->get_labels(result),
                          dal::array<Float>::wrap(expected, row_count),
                          row_count);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: tied merges come out the same for every thread count",
+                     "[hdbscan][batch]",
+                     hdbscan_types) {
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Integer grid points, every third one duplicated, so most MRD values tie exactly.
+    constexpr std::int64_t side = 30;
+    std::vector<Float> data;
+    for (std::int64_t i = 0; i < side; i++) {
+        for (std::int64_t j = 0; j < side; j++) {
+            const std::int64_t copies = ((i * side + j) % 3 == 0) ? 2 : 1;
+            for (std::int64_t c = 0; c < copies; c++) {
+                data.push_back(Float(i + ((i < side / 2) ? 0 : 3)));
+                data.push_back(Float(j));
+            }
+        }
+    }
+    const std::int64_t row_count = static_cast<std::int64_t>(data.size()) / 2;
+    const auto x = homogen_table::wrap(data.data(), row_count, 2);
+    const auto desc =
+        this->get_descriptor(10,
+                             4,
+                             result_options::responses | result_options::single_linkage_tree);
+
+    // One thread sorts the MST edges serially, more threads in parallel.
+    auto* const env = daal::services::Environment::getInstance();
+    const std::size_t default_thread_count = env->getNumberOfThreads();
+    const auto compute_with_threads = [&](std::size_t thread_count) {
+        env->setNumberOfThreads(thread_count);
+        auto result = this->compute(desc, x);
+        env->setNumberOfThreads(default_thread_count);
+        return result;
+    };
+    const auto serial = compute_with_threads(1);
+    const auto parallel = compute_with_threads(4);
+
+    this->check_same_result(serial, parallel);
+    const auto serial_tree = this->get_single_linkage_tree(serial);
+    const auto parallel_tree = this->get_single_linkage_tree(parallel);
+    for (std::int64_t i = 0; i < 4 * (row_count - 1); i++) {
+        if (serial_tree[i] != parallel_tree[i]) {
+            CAPTURE(i / 4, i % 4, serial_tree[i], parallel_tree[i]);
+            FAIL("single linkage trees differ");
+        }
+    }
 }
 
 // =========================================================================
