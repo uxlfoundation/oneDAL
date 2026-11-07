@@ -14,6 +14,9 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <cmath>
+#include <vector>
+
 #include "oneapi/dal/algo/pca/train.hpp"
 #include "oneapi/dal/algo/pca/infer.hpp"
 #include "oneapi/dal/algo/pca/partial_train.hpp"
@@ -104,6 +107,117 @@ public:
     }
     te::table_id get_homogen_table_id() const {
         return te::table_id::homogen<Float>();
+    }
+
+    /// Generates data whose covariance eigenvalues are proportional to `column_count - j`.
+    ///
+    /// @param[in] row_count    The number of rows, at least `2 * column_count + 2`
+    /// @param[in] column_count The number of columns
+    ///
+    /// @return `row_count x column_count` table: orthogonal zero-mean cosine columns
+    ///         rotated by a Householder reflection
+    table get_separated_spectrum_data(std::int64_t row_count, std::int64_t column_count) const {
+        REQUIRE(row_count >= 2 * column_count + 2);
+        constexpr double pi = 3.14159265358979323846;
+        auto data = array<Float>::empty(row_count * column_count);
+        auto* x = data.get_mutable_data();
+
+        std::vector<double> v(column_count);
+        double v_norm2 = 0.0;
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            v[j] = double(j + 1);
+            v_norm2 += v[j] * v[j];
+        }
+
+        std::vector<double> b(column_count);
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            double b_dot_v = 0.0;
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                const double scale = std::sqrt(double(column_count - j));
+                b[j] = scale * std::cos(2.0 * pi * double((j + 1) * i) / double(row_count));
+                b_dot_v += b[j] * v[j];
+            }
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                x[i * column_count + j] = Float(b[j] - 2.0 * b_dot_v * v[j] / v_norm2);
+            }
+        }
+        return homogen_table::wrap(data, row_count, column_count);
+    }
+
+    /// Checks that a result trained with `component_count` components matches the leading part
+    /// of a result trained with all components.
+    ///
+    /// @param[in] truncated       Result trained with `component_count` components
+    /// @param[in] full            Result trained with `column_count` components
+    /// @param[in] component_count The number of components in `truncated`
+    /// @param[in] column_count    The number of columns in the training data
+    void check_truncated_matches_full(const pca::train_result<>& truncated,
+                                      const pca::train_result<>& full,
+                                      std::int64_t component_count,
+                                      std::int64_t column_count) const {
+        CAPTURE(component_count, column_count);
+        const double tol = te::get_tolerance<Float>(1e-3, 1e-9);
+
+        const auto full_eigval = row_accessor<const double>(full.get_eigenvalues()).pull();
+        const auto check_leading = [&](const table& actual, const table& reference) {
+            const auto act = row_accessor<const double>(actual).pull();
+            const auto ref = row_accessor<const double>(reference).pull();
+            REQUIRE(act.get_count() == component_count);
+            for (std::int64_t i = 0; i < component_count; ++i) {
+                CAPTURE(i, act[i], ref[i]);
+                CHECK(std::abs(act[i] - ref[i]) <= tol * std::max(std::abs(ref[i]), 1.0));
+            }
+        };
+
+        INFO("check eigenvalues");
+        check_leading(truncated.get_eigenvalues(), full.get_eigenvalues());
+        INFO("check singular values");
+        check_leading(truncated.get_singular_values(), full.get_singular_values());
+        INFO("check explained variances ratio");
+        check_leading(truncated.get_explained_variances_ratio(),
+                      full.get_explained_variances_ratio());
+
+        INFO("check variances");
+        const auto act_vars = row_accessor<const double>(truncated.get_variances()).pull();
+        const auto ref_vars = row_accessor<const double>(full.get_variances()).pull();
+        REQUIRE(act_vars.get_count() == column_count);
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            CHECK(std::abs(act_vars[j] - ref_vars[j]) <= tol * std::abs(ref_vars[j]));
+        }
+
+        INFO("check eigenvectors up to sign");
+        const auto act_vec = row_accessor<const double>(truncated.get_eigenvectors()).pull();
+        const auto ref_vec = row_accessor<const double>(full.get_eigenvectors()).pull();
+        REQUIRE(act_vec.get_count() == component_count * column_count);
+        for (std::int64_t i = 0; i < component_count; ++i) {
+            const double* a = act_vec.get_data() + i * column_count;
+            const double* r = ref_vec.get_data() + i * column_count;
+            double dot = 0.0;
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                dot += a[j] * r[j];
+            }
+            const double sign = (dot < 0.0) ? -1.0 : 1.0;
+            double diff = 0.0;
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                diff = std::max(diff, std::abs(sign * a[j] - r[j]));
+            }
+            CAPTURE(i, diff);
+            CHECK(diff < tol);
+        }
+
+        if (component_count < column_count) {
+            INFO("check noise variance against the discarded eigenvalues of the full result");
+            double total = 0.0;
+            double discarded = 0.0;
+            for (std::int64_t i = 0; i < column_count; ++i) {
+                total += full_eigval[i];
+                discarded += (i >= component_count) ? full_eigval[i] : 0.0;
+            }
+            const double noise_count = double(column_count - component_count);
+            const double diff = std::abs(truncated.get_noise_variance() - discarded / noise_count);
+            CAPTURE(truncated.get_noise_variance(), discarded / noise_count);
+            CHECK(diff * noise_count <= tol * total);
+        }
     }
 
     // TODO: add more checks, for example, check if eigenvectors are correct, checks for all possible values of normalization/whitening, check for infer gold data.

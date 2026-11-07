@@ -49,6 +49,27 @@ TEMPLATE_LIST_TEST_M(pca_batch_test, "pca common flow", "[pca][integration][batc
 }
 
 TEMPLATE_LIST_TEST_M(pca_batch_test,
+                     "pca with fewer components matches full decomposition",
+                     "[pca][integration][batch]",
+                     pca_types_cov) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t column_count = 200;
+    const auto data = this->get_separated_spectrum_data(4 * column_count, column_count);
+    const auto make_descriptor = [&](std::int64_t component_count) {
+        return this->get_descriptor(component_count, true)
+            .set_normalization_mode(pca::normalization::mean_center);
+    };
+    const auto full = this->train(make_descriptor(0), data);
+
+    const std::int64_t component_count =
+        GENERATE_COPY(1, 2, 10, column_count / 4, column_count / 2, column_count - 1, column_count);
+    const auto truncated = this->train(make_descriptor(component_count), data);
+
+    this->check_truncated_matches_full(truncated, full, component_count, column_count);
+}
+
+TEMPLATE_LIST_TEST_M(pca_batch_test,
                      "pca on gold data",
                      "[pca][integration][batch][gold]",
                      pca_types) {
