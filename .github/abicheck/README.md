@@ -57,7 +57,7 @@ installed release, library by library, with every policy downgrade backed by evi
   so it is covered by the blocking job only.
 
 A partial analysis fails closed. An incomplete bundle is blocked by `on_incomplete`. An
-L2 leg sets `analysis-assurance-complete: 'true'`, so incomplete header evidence fails it.
+L2 leg sets `require-complete: 'true'`, so incomplete header evidence fails it.
 Both jobs pin the archive sha256 (`ABICHECK_BASELINE_DIGEST`, `expected-archive-digest`).
 
 ## Publish and rotate
@@ -67,7 +67,7 @@ Baseline assets are attached to the release they describe:
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-binary-gen<N>.tar.zst`
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-headers-gen<N>.tar.zst`
 
-The publisher writes and the consumers read generation **3**.
+The publisher writes and the consumers read generation **4**.
 
 * **Publish.** The workflow runs on `release: published`, or by hand:
   `gh workflow run abicheck-baseline.yml -f baseline_tag=<tag>`. It also runs on a fork
@@ -92,7 +92,7 @@ Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/o
 | Binary dump | 57 s |
 | Header dump | 10 min 45 s |
 
-Compares against those assets at 44d86bc11 (local, 5 L2 legs concurrently, cold cache as in CI):
+Compares against those assets at 44d86bc11, gen3 (local, 5 L2 legs concurrently, cold cache as in CI):
 
 | Step | Time | Memory |
 |---|---|---|
@@ -148,7 +148,7 @@ Controls run against the final policy (patched ELFs):
 * **Snapshots carry no extractor generation.** abicheck does not notice when a stored set
   comes from an older extractor. gen2 header sets spelled an undeduced `auto&` return
   `AutoType&`; read at 44d86bc11, 8 graph `set_*` setters showed false
-  `func_return_changed` (BREAKING). gen3 fixes it for us. After an abicheck bump that
+  `func_return_changed` (BREAKING). gen3 fixed it at the time. After an abicheck bump that
   changes the extractor, bump the generation and republish.
 * **Bundle findings.** With `system_providers` the bundle check gives 156
   `bundle_intra_dep_signature_unverified` + 37 `bundle_unresolved_intra_dependency`.
