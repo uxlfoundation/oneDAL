@@ -47,7 +47,7 @@ pr:
 
 variables:
   OPENBLAS_VERSION : 'v0.3.34'
-  TBB_VERSION : 'v2023.1.0'
+  TBB_VERSION : 'v2023.2.0'
   VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
@@ -56,7 +56,7 @@ variables:
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/4144bec3-82ce-4672-bd71-5c93a79cd5e7/intel-oneapi-toolkit-2026.1.0.191_offline.exe'
+  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/728c4418-1b40-47a9-ad51-31530fb27c94/intel-oneapi-toolkit-2026.2.0.661_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.cpp-dpcpp-common:intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
@@ -67,6 +67,9 @@ resources:
       ref: main
       endpoint: intel-daal-connection
 
+# In a pull request the other jobs start only after FormatterChecks and
+# LinuxBazel pass, so a change that does not build or is not formatted
+# does not hold the Windows and RISC-V agents. Pushes to main are not gated.
 jobs:
 - job: 'FormatterChecks'
   pool:
@@ -86,6 +89,8 @@ jobs:
       displayName: 'pre-commit checks'
 
 - job: 'LinuxMakeGNU_MKL'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_gnu'
@@ -156,13 +161,15 @@ jobs:
     continueOnError: true
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_clang'
     platform.type : 'lnxriscv64'
     OPENBLAS_VERSION : 'v0.3.34'
     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
-    TBB_VERSION : 'v2023.1.0'
+    TBB_VERSION : 'v2023.2.0'
     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
   pool:
@@ -294,9 +301,12 @@ jobs:
       restoreKeys: |
         "$(BAZEL_VERSION)" | "$(Agent.OS)" | "v2"
       path: $(BAZEL_CACHE_DIR)
+      # Diagnostic, as on WindowsBazel: true = exact key hit, inexact = restore-key fallback.
+      cacheHitVar: BAZEL_CACHE_HIT
     displayName: 'bazel-cache'
 
   - script: |
+      echo "Bazel cache restore result: ${BAZEL_CACHE_HIT:-unset}"
       # Create `.bazelrc` and set cache directory
       # Minimal CPU instruction set in Azure is AVX2
       echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2" > ~/.bazelrc
@@ -362,7 +372,7 @@ jobs:
       # Same disk cache as every other step: `--build_parameters_lib=no` leaves
       # every compile action identical to the default `release` build below, so
       # the two share their cache entries.
-      bazel build :release --release_dpc=false --build_parameters_lib=no
+      bazel build :release --release_dpc=false --build_parameters_lib=no --execution_log_compact_file="$(Build.ArtifactStagingDirectory)/folded-release-exec-log.zst"
       # The CMake and pkg-config consumers resolve oneMKL/TBB through the same
       # oneAPI environment as an installed package user. `setvars.sh` reads
       # optional variables such as `OCL_ICD_FILENAMES` unguarded, so `nounset`
@@ -376,13 +386,35 @@ jobs:
       report_disk after
     displayName: 'Folded parameter-layout packaged consumer smoke'
 
+  # Diagnostic only: the folded build above runs first and shares actions with the
+  # release build below, so its log is needed to account for the full action set.
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/folded-release-exec-log.zst'
+      artifact: 'linux-bazel-folded-exec-log'
+      publishLocation: 'pipeline'
+    displayName: 'Publish Linux folded release execution log'
+
   - script: |
       # No ONEDAL_BUILD_DATE here: every step of this job keeps the placeholder
       # (dev/bazel/utils.bzl). Passing a date in one step and not in the next
       # re-keys :version_info and relinks every test between the steps. The
       # release with today's date is built by nightly-test.yml, one build per job.
-      bazel build :release --release_dpc=false
+      bazel build :release --release_dpc=false --execution_log_compact_file="$(Build.ArtifactStagingDirectory)/release-exec-log.zst"
     displayName: 'release'
+
+  # Diagnostic only, as on WindowsBazel: per-action execution log of the release build.
+  # Remove once the disk-cache hit rate is understood.
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/release-exec-log.zst'
+      artifact: 'linux-bazel-exec-log'
+      publishLocation: 'pipeline'
+    displayName: 'Publish Linux release execution log'
 
   - script: |
       echo "Move Bazel release output to standalone directory"
@@ -579,6 +611,8 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: 'LinuxBazelGNU_OpenBLAS_rv64'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     OPENBLAS_VERSION : 'v0.3.34'
@@ -643,6 +677,8 @@ jobs:
     displayName: 'Verify RISC-V ELF output'
 
 - job: 'LinuxBazelCoverage'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   pool:
     vmImage: '$(VM_IMAGE)'
@@ -692,6 +728,8 @@ jobs:
     displayName: 'Compare Make and Bazel release trees'
 
 - job: 'WindowsBazel'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_bazel_icx'
@@ -724,8 +762,11 @@ jobs:
       restoreKeys: |
         "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
       path: $(BAZEL_CACHE_DIR)
+      # Diagnostic: true = exact key hit, inexact = restore-key fallback, anything else = miss.
+      cacheHitVar: BAZEL_CACHE_HIT
     displayName: 'bazel-cache'
   - script: |
+      echo Bazel cache restore result: "$(BAZEL_CACHE_HIT)"
       if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
@@ -752,8 +793,19 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       REM Placeholder build date for every step of this job; see LinuxBazel 'release'.
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS) --execution_log_compact_file="$(Build.ArtifactStagingDirectory)\release-exec-log.zst"
     displayName: 'release'
+  # Diagnostic only: publish the per-action execution log of the release build so
+  # cache misses can be explained from the action keys (inputs, args, env).
+  # Remove once the Windows disk-cache hit rate is understood.
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    continueOnError: true
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)\release-exec-log.zst'
+      artifact: 'windows-bazel-exec-log'
+      publishLocation: 'pipeline'
+    displayName: 'Publish Windows release execution log'
   - script: |
       rmdir /S /Q "$(release.dir)" 2>NUL
       mkdir "$(release.dir)"
@@ -951,6 +1003,8 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win_vc'
@@ -1015,6 +1069,8 @@ jobs:
 
 
 - job: 'WindowsMakeIntel'
+  ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+    dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_win'

@@ -83,7 +83,10 @@ filegroup(
 
 daal_module(
     name = "includes",
+    # The generated header follows --cpu; the static one (all ISAs, the source
+    # file) is what the per-cpu kernel TUs see, see dev/bazel/cc/compile.bzl.
     hdrs = [ ":kernel_defines",
+             "include/services/internal/daal_kernel_defines.h",
     ],
     includes = [ "." ],
     defines = [
@@ -206,7 +209,6 @@ daal_module(
     stdalloc = False,
     # Make builds these as THR_TBB.objs, outside GCOV_BUILD-scoped CORE.objs_a/y.
     define_gcov_build = False,
-    visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
         "__TBB_LEGACY_MODE",

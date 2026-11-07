@@ -335,6 +335,16 @@ protected:
 
     size_t getIndexesWithLessDistances(int * idx, FPType * array, size_t size, FPType cmp)
     {
+        // Once the heap is full, most rows of a block hold no distance below its maximum.
+        // The minimum vectorizes on every ISA and skips the scalar scan for those rows.
+        FPType minDistance = cmp;
+        PRAGMA_OMP_SIMD_ARGS(reduction(min : minDistance))
+        for (size_t i = 0; i < size; ++i)
+        {
+            minDistance = array[i] < minDistance ? array[i] : minDistance;
+        }
+        if (minDistance >= cmp) return 0;
+
         size_t count = 0;
 
         for (size_t i = 0; i < size; ++i)
