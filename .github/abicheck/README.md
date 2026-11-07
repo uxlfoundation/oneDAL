@@ -47,9 +47,6 @@ Each rule demotes one WEAK finding kind to `risk`. GLOBAL removals still block.
 
 ## Known gaps
 
-* **Blocker, libonedal_thread:** the gen4 header set has no `libonedal_thread` member. The job
-  lists six libraries, so `resolve-baseline` fails until a generation with that member is published
-  (dump change: new generation and digest).
 * **No binary-depth pass.** Symbol-only changes that have no header (`libonedal_thread`) are not checked.
 * **No layout evidence.** No DWARF is shipped; struct size or offset changes are unseen.
 * **SYCL is not parsed.** castxml is not a DPC++ frontend; `ONEDAL_DATA_PARALLEL` declarations are seen only as exports.
