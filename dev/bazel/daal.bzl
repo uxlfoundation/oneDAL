@@ -140,7 +140,7 @@ def _daal_generate_version_impl(ctx):
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
-        "// Product version is specified in dev/bazel/config.bzl file\n" +
+        "// Product version is specified in dev/bazel/version.bzl file\n" +
         "\n" +
         "#define MAJORVERSION {}\n".format(vi.major) +
         "#define MINORVERSION {}\n".format(vi.minor) +

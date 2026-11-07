@@ -42,10 +42,17 @@ test --test_env=LD_LIBRARY_PATH
 # dumpbin/lib look up VCTOOLSINSTALLDIR to add the MSVC HostX64\x64
 # bin dir to PATH; INCLUDE and LIB are needed for icx compile / link
 # actions that go through cmd-style helpers.
-build --action_env=VCTOOLSINSTALLDIR
-build --action_env=INCLUDE
-build --action_env=LIB
-build --action_env=PATH
+#
+# Windows only: every `--action_env` value is part of every action key. Linux
+# actions do not take PATH from the shell, so the action keys do not depend on
+# the shell's PATH (a conda env, `setvars.sh`, another terminal, another CI
+# image) and caches are shared between machines. `build:windows` is applied
+# automatically through --enable_platform_specific_config.
+common --enable_platform_specific_config
+build:windows --action_env=VCTOOLSINSTALLDIR
+build:windows --action_env=INCLUDE
+build:windows --action_env=LIB
+build:windows --action_env=PATH
 
 # On Windows, tests need PATH to find runtime DLLs from external deps.
 # Bazel matches env-var names case-sensitively while Windows itself stores
@@ -93,9 +100,11 @@ test:host \
 
 
 # Configuration: 'dpc'
-# Build & run all DPC++ tests
+# Build & run all DPC++ tests. --release_dpc=true makes a missing icpx a build
+# error instead of skipping every test.
 build:dpc \
-    --build_tag_filters="dpc"
+    --build_tag_filters="dpc" \
+    --release_dpc=true
 
 test:dpc \
     --test_tag_filters="dpc"
@@ -122,7 +131,8 @@ test:host-private \
 # Configuration: 'dpc-public'
 # Build & run all DPC++ tests for public interface
 build:dpc-public \
-    --build_tag_filters="dpc,-private"
+    --build_tag_filters="dpc,-private" \
+    --release_dpc=true
 
 test:dpc-public \
     --test_tag_filters="dpc,-private"
@@ -131,7 +141,8 @@ test:dpc-public \
 # Configuration: 'dpc-private'
 # Build & run all DPC++ tests for internal functionality
 build:dpc-private \
-    --build_tag_filters="dpc,-public"
+    --build_tag_filters="dpc,-public" \
+    --release_dpc=true
 
 test:dpc-private \
     --test_tag_filters="dpc,-public"
@@ -139,10 +150,10 @@ test:dpc-private \
 
 # Configuration: 'release'
 # The //:release target automatically builds all ISA variants when
-# --cpu is unset (auto), and includes DPC++ libs by default.
+# --cpu is unset (auto), and includes DPC++ libs when icpx is in PATH.
 # Use --cpu=<isa> to restrict ISAs for CI speed, or --release_dpc=false
 # to disable DPC++ libs.
-#   bazel build //:release                       # CPU + DPC++, all ISAs
+#   bazel build //:release                       # CPU (+ DPC++ with icpx), all ISAs
 #   bazel build //:release --release_dpc=false   # CPU only, all ISAs
 #   bazel build //:release --cpu=avx2            # CI: avx2 only
 build:release-dpc \
@@ -153,8 +164,16 @@ build:release-dpc \
 # highest ISA (auto-detected). Use this to speed up iterative builds.
 # NOT suitable for release/packaging.
 #   bazel build //cpp/oneapi/dal:tests --config=dev
+#
+# `--cpu` selects the contents of a generated header that every kernel
+# includes, at one output path for every value, so switching between
+# `--config=dev` and the default rebuilt ~1160 actions each way. The platform
+# suffix gives the dev ISA set its own output tree; switching back and forth
+# then rebuilds nothing. Pass a suffix the same way when building another
+# `--cpu` value side by side (e.g. `--cpu=all --platform_suffix=isa-all`).
 build:dev \
-    --cpu=auto
+    --cpu=auto \
+    --platform_suffix=dev
 
 
 # =============================================================================

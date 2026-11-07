@@ -83,7 +83,10 @@ filegroup(
 
 daal_module(
     name = "includes",
+    # The generated header follows --cpu; the static one (all ISAs, the source
+    # file) is what the per-cpu kernel TUs see, see dev/bazel/cc/compile.bzl.
     hdrs = [ ":kernel_defines",
+             "include/services/internal/daal_kernel_defines.h",
     ],
     includes = [ "." ],
     defines = [
@@ -116,9 +119,7 @@ daal_module(
         "src/services/**/*.h",
         "src/externals/**/*.h",
         "src/algorithms/*.h",
-    ]) + [
-        ":version",
-    ],
+    ]),
     deps = [
         ":includes",
     ],
@@ -139,12 +140,32 @@ daal_module(
             "src/externals/**/*.cpp",
             "src/algorithms/*.cpp",
         ],
-        exclude = ["src/externals/**/*_win_dll.cpp"],
+        exclude = [
+            "src/externals/**/*_win_dll.cpp",
+            "src/services/library_version_info.cpp",
+        ],
     ),
     deps = [
         ":service_headers",
         ":threading_headers",
         ":microvmlipp",
+    ],
+)
+
+# `daal_version_gen.h` carries the build date and changes every day. Bazel
+# makes a module's headers, private ones included, declared inputs of every
+# downstream compile action, and those inputs are part of the cache key.
+# Only `library_version_info.cpp` includes the header, so it lives in this
+# leaf module, and `export_hdrs = False` keeps it out of the compile inputs of
+# everything that links the core libraries (oneDAL tests included). The daily
+# change then invalidates one compile action.
+daal_module(
+    name = "version_info",
+    srcs = ["src/services/library_version_info.cpp"],
+    private_hdrs = [":version"],
+    export_hdrs = False,
+    deps = [
+        ":service_headers",
     ],
 )
 
@@ -186,7 +207,6 @@ daal_module(
     stdalloc = False,
     # Make builds these as THR_TBB.objs, outside GCOV_BUILD-scoped CORE.objs_a/y.
     define_gcov_build = False,
-    visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
         "__TBB_LEGACY_MODE",
@@ -281,6 +301,7 @@ daal_static_lib(
     deps = [
         ":core",
         ":all_algorithms",
+        ":version_info",
     ],
 )
 
@@ -303,6 +324,7 @@ daal_dynamic_lib(
     deps = [
         ":core",
         ":all_algorithms",
+        ":version_info",
     ] + select({
         # MSVC requires all DLL symbols to be resolved at link time. On
         # Windows the threading entry points come from

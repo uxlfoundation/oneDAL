@@ -58,7 +58,7 @@ TEST("can_construct_array_from_raw_pointer") {
         ptr[i] = float(i);
     }
 
-    array arr(ptr, size, [](auto ptr) {
+    array arr(ptr, size, [](float* ptr) {
         delete[] ptr;
     });
 
@@ -113,7 +113,7 @@ TEST("can reset array with raw pointer") {
 
     constexpr std::int64_t size = 10;
     auto ptr = new float[size];
-    arr.reset(ptr, size, [](auto ptr) {
+    arr.reset(ptr, size, [](float* ptr) {
         delete[] ptr;
     });
 
@@ -246,7 +246,7 @@ TEST("can get slice of data") {
         ptr[i] = float(i);
     }
 
-    array arr(ptr, size, [](auto ptr) {
+    array arr(ptr, size, [](float* ptr) {
         delete[] ptr;
     });
 

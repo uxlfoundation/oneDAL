@@ -51,18 +51,20 @@ on:
   push:
     branches:
       - main
+  # TEMP(runner shortage): run by hand on a branch while some jobs are skipped on pull requests.
+  workflow_dispatch:
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
-  TBB_VERSION: v2023.1.0
+  TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   OPENRNG_VERSION: 'v24.04'
 
-# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
-# Does not apply to the main branch.
+# A PR push cancels the older run of that PR. A push to main waits behind the
+# running one, and a newer push replaces the waiting one, so the latest commit runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -77,6 +79,11 @@ jobs:
           { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang },
           { name: Arm hosted (SVE), label: ah-ubuntu_24_04-c7g_2x-50, cxx: gnu }
         ]
+        # TEMP(runner shortage): on pull requests the GitHub-hosted leg is skipped; the
+        # Arm-hosted (SVE) leg builds the same gnu configuration there.
+        exclude:
+          - os: >-
+              ${{ github.event_name == 'pull_request' && fromJSON('{"name": "GitHub hosted", "label": "ubuntu-24.04-arm", "cxx": "gnu"}') || fromJSON('{"name": "none"}') }}
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
     if: github.repository == 'uxlfoundation/oneDAL'
@@ -86,7 +93,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
+        uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -113,10 +120,28 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
-      # TODO: Cache openBLAS
+      # openBLAS install is keyed on its version, the build script and the
+      # runner label. Restored on every run; saved only from main (a pull
+      # request job never writes the main cache scope, see nightly-test.yml).
+      - name: Restore openBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
+
       - name: Build openBLAS
         run: |
-          .ci/env/openblas.sh
+          if [ "${{ steps.cache-openblas.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/openblas.sh
+          fi
+
+      - name: Save openBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
 
       - name: Install compiler
         if: matrix.os.cxx == 'clang'
@@ -157,13 +182,15 @@ jobs:
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)_OpenRNG_${{ matrix.os.name }}
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     runs-on: ${{ matrix.os.label }}
     steps:
 
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
+        uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -190,10 +217,25 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
-      # TODO: Cache openBLAS
+      - name: Restore openBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
+
       - name: Build openBLAS
         run: |
-          .ci/env/openblas.sh
+          if [ "${{ steps.cache-openblas.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/openblas.sh
+          fi
+
+      - name: Save openBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
 
       - name: Build openRNG
         run: |
@@ -234,6 +276,9 @@ jobs:
           { name: GitHub hosted, label: ubuntu-24.04-arm },
         ]
         rng: [ ref, openrng ]
+        # TEMP(runner shortage): only the ref leg on pull requests.
+        exclude:
+          - rng: ${{ github.event_name == 'pull_request' && 'openrng' || 'none' }}
 
     name: LinuxBazel_OpenBLAS(SVE)${{ matrix.rng == 'openrng' && '_OpenRNG' || '' }}-${{ matrix.os.name }}
     if: github.repository == 'uxlfoundation/oneDAL'
@@ -262,10 +307,26 @@ jobs:
           .ci/env/tbb.sh
           echo "TBBROOT=$(pwd)/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
+      - name: Restore openBLAS
+        id: cache-openblas
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
+
       - name: Build OpenBLAS
         run: |
-          .ci/env/openblas.sh
+          if [ "${{ steps.cache-openblas.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/openblas.sh
+          fi
           echo "OPENBLASROOT=$(pwd)/__deps/openblas_aarch64" >> "$GITHUB_ENV"
+
+      - name: Save openBLAS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-openblas.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/openblas_aarch64
+          key: openblas-v1-${{ matrix.os.label }}-${{ env.OPENBLAS_VERSION }}-${{ hashFiles('.ci/env/openblas.sh') }}
 
       - name: Build OpenRNG
         if: matrix.rng == 'openrng'
@@ -362,14 +423,36 @@ jobs:
             --test_output=errors \
             -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
 
+      # The arch dir of the release metadata follows ARCH_DIR_ONEDAL (`lib/arm`
+      # here, as in Make's lnxarm release). The full `//:release` tree cannot
+      # be built on AArch64 yet: the public oneapi headers pull the DPC++
+      # targets, and with them MKL, into the analysis even with
+      # `--release_dpc=false`.
+      - name: bazel build release metadata
+        run: |
+          set -euo pipefail
+          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+            --rng_backend=${{ matrix.rng }} \
+            //:release_pkgconfig_dynamic_threading_host //:release_cmake_config
+          grep -qx 'libdir=${exec_prefix}/lib/arm' \
+            bazel-bin/lib/pkgconfig/dal-dynamic-threading-host.pc
+          grep -q 'lib/arm' bazel-bin/lib/cmake/oneDAL/oneDALConfig.cmake
+
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
   # running a matrix CI, and allows changing the CI without needing to change
   # the overall required check name.
   status:
     needs: [build-and-test, openrng-build-and-test, bazel-build-and-test]
+    # TEMP(runner shortage): openrng-build-and-test is skipped on pull requests, which
+    # would skip this job too. Run unless cancelled, and fail unless every needed job
+    # passed or was skipped.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: "CI AArch64"
     steps:
-      - name: Print success
-        run: echo Success
+      - name: Check needed jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'
