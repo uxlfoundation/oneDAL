@@ -215,7 +215,7 @@ TEST("Can get row slice on host - 2") {
     auto arr3 = array<std::int64_t>::wrap(column3.data(), count);
 
     std::vector<std::int16_t> column4(count);
-    std::iota(column4.begin(), column4.end(), 4l);
+    std::iota(column4.begin(), column4.end(), std::int16_t{ 4 });
     auto arr4 = array<std::int16_t>::wrap(column4.data(), count);
 
     auto table = heterogen_table::wrap(chunked_array<std::uint64_t>(arr0),
@@ -241,7 +241,7 @@ TEST("Can get column slice on host") {
     const std::int64_t count = GENERATE(201, 678, 999);
 
     std::vector<float> column0(count);
-    std::iota(column0.begin(), column0.end(), 0);
+    std::iota(column0.begin(), column0.end(), 0.f);
     auto arr0 = array<float>::wrap(column0.data(), count);
 
     std::vector<double> column1(count);
@@ -253,7 +253,7 @@ TEST("Can get column slice on host") {
     auto arr2 = array<std::int64_t>::wrap(column2.data(), count);
 
     std::vector<std::uint16_t> column3(count);
-    std::iota(column3.begin(), column3.end(), 0);
+    std::iota(column3.begin(), column3.end(), std::uint16_t{ 0 });
     auto arr3 = array<std::uint16_t>::wrap(column3.data(), count);
 
     auto table = heterogen_table::wrap(chunked_array<float>(arr0),

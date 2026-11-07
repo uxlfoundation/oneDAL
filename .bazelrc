@@ -100,9 +100,11 @@ test:host \
 
 
 # Configuration: 'dpc'
-# Build & run all DPC++ tests
+# Build & run all DPC++ tests. --release_dpc=true makes a missing icpx a build
+# error instead of skipping every test.
 build:dpc \
-    --build_tag_filters="dpc"
+    --build_tag_filters="dpc" \
+    --release_dpc=true
 
 test:dpc \
     --test_tag_filters="dpc"
@@ -129,7 +131,8 @@ test:host-private \
 # Configuration: 'dpc-public'
 # Build & run all DPC++ tests for public interface
 build:dpc-public \
-    --build_tag_filters="dpc,-private"
+    --build_tag_filters="dpc,-private" \
+    --release_dpc=true
 
 test:dpc-public \
     --test_tag_filters="dpc,-private"
@@ -138,7 +141,8 @@ test:dpc-public \
 # Configuration: 'dpc-private'
 # Build & run all DPC++ tests for internal functionality
 build:dpc-private \
-    --build_tag_filters="dpc,-public"
+    --build_tag_filters="dpc,-public" \
+    --release_dpc=true
 
 test:dpc-private \
     --test_tag_filters="dpc,-public"
@@ -146,10 +150,10 @@ test:dpc-private \
 
 # Configuration: 'release'
 # The //:release target automatically builds all ISA variants when
-# --cpu is unset (auto), and includes DPC++ libs by default.
+# --cpu is unset (auto), and includes DPC++ libs when icpx is in PATH.
 # Use --cpu=<isa> to restrict ISAs for CI speed, or --release_dpc=false
 # to disable DPC++ libs.
-#   bazel build //:release                       # CPU + DPC++, all ISAs
+#   bazel build //:release                       # CPU (+ DPC++ with icpx), all ISAs
 #   bazel build //:release --release_dpc=false   # CPU only, all ISAs
 #   bazel build //:release --cpu=avx2            # CI: avx2 only
 build:release-dpc \
