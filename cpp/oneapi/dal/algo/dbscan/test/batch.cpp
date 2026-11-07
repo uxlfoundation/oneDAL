@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <array>
+#include <random>
 
 #include "oneapi/dal/algo/dbscan/test/fixture.hpp"
 #include "oneapi/dal/test/engine/blobs.hpp"
@@ -207,6 +208,46 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
     const auto r = homogen_table::wrap(responses, 7, 1);
 
     this->run_checks(x, table{}, epsilon, min_observations, r);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan wide data with neighbors at exactly epsilon match the definition",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // Pairs of points exactly `epsilon` apart, far from the origin and from the other pairs: each point
+    // is a core only through its partner, which GEMM rounding on its own can push past `epsilon`.
+    constexpr std::int64_t pair_count = 150;
+    constexpr std::int64_t row_count = 2 * pair_count;
+    constexpr std::int64_t column_count = 8;
+    constexpr std::int64_t min_observations = 2;
+    constexpr double epsilon = 1.0;
+    std::vector<float_t> x(row_count * column_count);
+    std::mt19937 rng(7);
+    std::uniform_int_distribution<int> cell(0, 9);
+    std::uniform_int_distribution<int> axis(0, column_count - 1);
+    for (std::int64_t p = 0; p < pair_count; p++) {
+        const int k = axis(rng);
+        for (std::int64_t j = 0; j < column_count; j++) {
+            const float_t base = float_t(1000 + 3 * cell(rng));
+            x[(2 * p) * column_count + j] = base;
+            x[(2 * p + 1) * column_count + j] = base + (j == k ? float_t(1) : float_t(0));
+        }
+    }
+    const std::vector<float_t> w(row_count, 1);
+    const auto dist = this->reference_distances(x, column_count, distance_metric::euclidean, 2.0);
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, column_count));
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
