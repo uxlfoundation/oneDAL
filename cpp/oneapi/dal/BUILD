@@ -154,29 +154,8 @@ dal_dynamic_lib(
         "@platforms//os:windows": ["dal", "mkl_embed"],
         "//conditions:default": ["dal", "mkl_embed"],
     }) + parameters_lib_disabled(["parameters"]),
-    # `BUILD_PARAMETERS_LIB` defaults to `no` on Windows, so Make folds the DPC
-    # parameter objects straight into onedal_dpc.dll
-    # (`ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)`). Those
-    # contexts are tagged "parameters", so the tag has to be accepted here or
-    # the objects never reach the link and their dllexport'ed
-    # `train_parameters_cpu` members are missing from the DLL's exports.
-    # Linking `static_parameters_dpc` instead does not work: an archive is
-    # searched only for unresolved references, while the export table is built
-    # from the whole-archived object bundle.
-    #
-    # Linux must *not* accept the tag. There `BUILD_PARAMETERS_LIB` is `yes`, so
-    # Make emits the parameters as their own shared object
-    # (`parameters_y := $(plib)onedal_parameters...`, makefile:343) and
-    # libonedal_dpc.so never contains those objects. Adding the tag here would
-    # fold them into onedal_dpc, duplicating the definitions and diverging from
-    # the Make release the comparator checks against.
-    # Linux DPC takes no DAAL core and no static MKL. Make links the DPC
-    # library against `daaldep.math_backend.dpc_link_deps`, which is the
-    # dynamic SYCL MKL set (deps.mkl.mk:91-106). DAAL comes from
-    # libonedal_core.so. The "daal" tag copied DAAL object files into
-    # libonedal_dpc.so, and the "mkl_embed" tag linked the ILP64 static MKL
-    # archives into it. MKL still reaches the DPC link, untagged, through
-    # `@mkl//:mkl_dpc`, so both tags are dropped for Linux.
+    # Windows accepts the "parameters" tag: Make folds those objects into onedal_dpc.dll; a static archive would not export them.
+    # Linux drops it and the daal/mkl_embed tags: Make links dynamic MKL and keeps parameters in their own .so.
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal", "parameters"],
         "//conditions:default": ["dal"],

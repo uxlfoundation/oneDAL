@@ -165,10 +165,8 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         deps = dal_deps + extra_deps + host_deps,
         **kwargs
     )
-    # `dpc_linkopts` go to the DPC library only. Make puts its DPC-only link
-    # options on LOPT of those targets (e.g. makefile:821, 851). On Windows
-    # dpc.link.dynamic.win (dev/make/common.mk) keeps only the @link.txt,
-    # `.lib`, `-IMPLIB:` and `.def` arguments, so LOPT never reaches the link.
+    # dpc_linkopts go to the DPC library only; Make puts such flags on LOPT of those targets.
+    # On Windows Make's dpc.link.dynamic.win drops LOPT, so the flags are Linux-only.
     dpc_kwargs = dict(kwargs)
     dpc_kwargs["linkopts"] = kwargs.get("linkopts", []) + select({
         "@platforms//os:windows": [],
@@ -587,22 +585,14 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
         },
         copts = copts + select({
-            # `-EHsc` mirrors `$(-EHsc)` on the oneAPI objects in makefile:708,
-            # 720 and 733. Make's icx build adds it to those objects only; its
-            # vc build adds it to every object (COMPILER.win.vc,
-            # vc.mkl.32e.mk:42), which dev/bazel/cc/compile.bzl handles. Examples
-            # and tests go through this macro (via dal_test) and keep exception
-            # handling: tests need it for Catch2, which is not shipped. The
-            # shipped examples set /EHsc themselves in
-            # examples/cmake/setup_examples.cmake (WIN32 branch).
+            # -EHsc on the oneAPI objects only, as Make's icx build; the vc build adds it via compile.bzl.
+            # Tests and examples keep exception handling; Catch2 needs it for tests.
             "@platforms//os:windows": ["/utf-8", "-EHsc"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = local_defines + select({
-            # Enable ONEDAL_EXPORT visibility annotations, matching Make's
-            # -D__ONEDAL_ENABLE_EXPORT__ flag for cpp/oneapi/dal .so objects.
-            # Export-free Windows static archives omit it, as Make's `objs_a`
-            # objects do (see `cc_static_lib`).
+            # ONEDAL_EXPORT visibility, as Make's -D__ONEDAL_ENABLE_EXPORT__ for the .so objects.
+            # Export-free Windows static archives omit it, as Make's objs_a do.
             "@config//:static_export_free_enabled": [],
             "//conditions:default": ["__ONEDAL_ENABLE_EXPORT__"],
         }) + ([
@@ -625,9 +615,8 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "//conditions:default": [],
         }),
         deps = _expand_select(deps),
-        # DPC++ library objects match Make's LP64 DPC objects. A DPC test
-        # module can link ILP64 MKL itself (mkl_core in its extra_deps), so it
-        # keeps the MKL_ILP64 define it inherits.
+        # DPC++ library objects are LP64, as Make's are.
+        # A DPC test may link ILP64 MKL itself, so it keeps the MKL_ILP64 it inherits.
         drop_mkl_ilp64 = is_dpc and not kwargs.get("testonly", False),
         **kwargs,
     )

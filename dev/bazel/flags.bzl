@@ -14,10 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-# `-fwrapv` and `-fno-delete-null-pointer-checks` are per compiler in
-# get_default_flags(), as in Make: gcc has both, icpx only `-fwrapv`, icx and
-# clang neither. With `-fwrapv` icx stops vectorizing some loops (for example
-# the argmax in vertex_partitioning_default_kernel.hpp).
+# Per-compiler -fwrapv and -fno-delete-null-pointer-checks, as in Make: gcc both, icpx -fwrapv, icx/clang neither.
+# icx stops vectorizing some loops (e.g. argmax) with -fwrapv, so it does not get it.
 lnx_cc_common_flags = [
     "-fstack-protector-strong",
     "-Werror",
@@ -57,17 +55,8 @@ lnx_cc_flags = {
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    # No `-EHsc` here, on purpose. Make adds it only to the oneAPI objects
-    # (makefile:167, used at makefile:708/720/733) and compiles DAAL core and
-    # threading without it. `dal_module` (dev/bazel/dal.bzl) adds it for the
-    # oneAPI modules. The MSVC `vc` path is different: Make's COMPILER.win.vc
-    # has `-EHsc` on every object, which is handled in dev/bazel/cc/compile.bzl.
-    #
-    # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
-    # Windows too, so the released `.lib` files never reference `__svml_*`.
-    # (`-Zl` itself, the other half of the makefile's variable, is deliberately
-    # not mirrored: it strips the CRT default-library directives that this
-    # toolchain's DLL links still rely on.)
+    # No -EHsc on threading and DAAL core objects, as in Make; dal_module adds it for oneAPI modules.
+    # -Qno-intel-lib (as -Zl.icx / -Zl.dpcpp) keeps __svml_* out of the .lib; -Zl itself would strip CRT directives.
     "-Qno-intel-lib",
     "-Wno-deprecated-declarations",
     "-Wno-ignored-attributes",
@@ -103,16 +92,8 @@ win_clang_common_flags = [
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
-    # No `-EHsc` here, as for icx: Make's COMPILER.win.clang has none, and its
-    # oneAPI objects get it from makefile:167 (`dal_module` adds it).
-    # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
-    # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
-    # config already emits `-MD`/`-MDd` from the `msvc_runtime_debug` feature
-    # (`--config=mdd`), and stating the CRT twice would let the two disagree.
-    #
-    # clang-cl reports every vectorization pragma it cannot honor from `-O1` up,
-    # which `-Werror` above would turn into a build failure. Matches
-    # `warn.opts.clang` in dev/make/compiler_definitions/clang.mk.
+    # No -EHsc here, as for icx: Make's clang has none; dal_module adds it for oneAPI objects.
+    # clang-cl pass-failed warnings at -O1 would fail -Werror; -Wno-pass-failed matches warn.opts.clang.
     "-Wno-pass-failed",
 ]
 

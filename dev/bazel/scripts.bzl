@@ -150,9 +150,8 @@ def _generate_nuspec_impl(ctx):
     vi = ctx.attr._version_info[VersionInfo]
     def _has(attr):
         return ctx.target_platform_has_constraint(attr[platform_common.ConstraintValueInfo])
-    # Same platform names as prepare_dal_nuget.sh: x64 keeps the historical
-    # `linux` / `win-x64` / `osx-x64` ids; ARM64 and RISC-V get their own id
-    # so they never publish under the x64 package name.
+    # Same ids as prepare_dal_nuget.sh: x64 keeps linux, win-x64, osx-x64.
+    # ARM64 and RISC-V get their own ids, so they never publish under an x64 name.
     if _has(ctx.attr._windows_constraint):
         platform = "win-arm64" if _has(ctx.attr._aarch64_constraint) else "win-x64"
         tbb_platform = "win"

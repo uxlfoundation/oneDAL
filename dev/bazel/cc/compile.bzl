@@ -47,11 +47,8 @@ _MSVC_CPU_FLAGS = {
     "avx512": ["/arch:AVX2"],
 }
 
-# MSVC's traditional preprocessor expands __VA_ARGS__ as a single token, which breaks the
-# test engine's COMBINE_TYPES; icx and clang-cl conform without a switch.
-# Make's COMPILER.win.vc (dev/make/compiler_definitions/vc.mkl.32e.mk:42)
-# passes `-EHsc` to every object, DAAL core included, unlike icx. Set it here
-# so the vc build does not depend on what rules_cc adds by default.
+# MSVC's traditional preprocessor breaks COMBINE_TYPES on __VA_ARGS__; icx and clang-cl do not.
+# The vc build passes -EHsc to every object, as COMPILER.win.vc does (vc.mkl.32e.mk:42).
 _MSVC_COMPILE_FLAGS = ["/Zc:preprocessor", "/EHsc"]
 
 def _get_msvc_compile_kwargs(toolchain, kwargs):
@@ -353,12 +350,8 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         includes = includes,
         system_includes = system_includes,
         quote_includes = quote_includes,
-        # @mkl//:mkl_static propagates MKL_ILP64 through the DAAL deps, but
-        # Make compiles DPC library objects with MKL_LP64 only
-        # (ONEAPI.objs_y.dpc). Only the DPC library modules ask for this
-        # (the `drop_mkl_ilp64` rule attribute); a DPC test that links the ILP64 archives itself
-        # keeps MKL_ILP64, or its MKL calls would use 32-bit integers against
-        # 64-bit symbols (see cpp/oneapi/dal/test/engine/mkl).
+        # DPC library objects are LP64 (Make's ONEAPI.objs_y.dpc), via the drop_mkl_ilp64 attribute.
+        # A DPC test that links the ILP64 archives keeps MKL_ILP64; see cpp/oneapi/dal/test/engine/mkl.
         drop_defines = ["MKL_ILP64"] if getattr(ctx.attr, "drop_mkl_ilp64", False) else [],
     )
     dep_compilation_contexts = [ dep_compilation_context ]

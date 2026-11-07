@@ -51,9 +51,7 @@ create_package() {
     patch_version=$(cat ${version_header} | grep __INTEL_DAAL_UPDATE__ | head -n 1 | awk -F ' ' '{ print $3 }')
     dal_version=${major_version}.${minor_version}.${patch_version}
 
-    # platform specific
-    # PLAT overrides the host, as in the makefile (for example PLAT=winarm on
-    # an x64 Windows host that cross-builds for ARM64).
+    # PLAT overrides the host, so an x64 Windows host can cross-build winarm, as in Make.
     platform=${PLAT:-$(bash $(dirname "$0")/../../dev/make/identify_os.sh)}
     if [ ${platform} = "lnx32e" ]; then
         platform=linux

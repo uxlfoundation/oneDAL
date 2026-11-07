@@ -15,12 +15,8 @@
 # limitations under the License.
 #===============================================================================
 
-# Action-level check of the MKL defines of DPC++ compile actions.
-#
-# DPC++ library objects are compiled LP64 (MKL_LP64, as Make's DPC objects are),
-# so they must not carry MKL_ILP64. The DPC MKL test helper links the ILP64
-# static archives (@mkl//:mkl_core), so its compile must keep MKL_ILP64, or
-# its 32-bit MKL_INT calls reach 64-bit GEMM symbols.
+# DPC++ library objects compile LP64 (no MKL_ILP64), as Make's DPC objects do.
+# The DPC MKL test helper links ILP64 archives, so its compile keeps MKL_ILP64.
 set -euo pipefail
 
 bazel_cmd="${BAZEL:-bazel}"

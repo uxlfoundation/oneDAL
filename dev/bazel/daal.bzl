@@ -69,9 +69,8 @@ def daal_module(name, features=[], lib_tag="daal",
             "//conditions:default": [],
         })),
         define_gcov_build = define_gcov_build,
-        # `__DAAL_IMPLEMENTATION` turns DAAL_EXPORT into dllexport on Windows.
-        # Export-free static archives (see `cc_static_lib`) omit it, as Make's
-        # static objects do.
+        # __DAAL_IMPLEMENTATION makes DAAL_EXPORT dllexport on Windows.
+        # Export-free static archives omit it, as Make's static objects do.
         local_defines = local_defines + select({
             "@config//:static_export_free_enabled": [],
             "//conditions:default": ["__DAAL_IMPLEMENTATION"],

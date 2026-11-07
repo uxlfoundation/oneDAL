@@ -382,16 +382,8 @@ def _cc_static_lib_impl(ctx):
 _STATIC_EXPORT_FREE_SETTING = str(Label("@config//:static_export_free"))
 
 def _static_export_free_transition_impl(settings, attr):
-    # On Windows a static archive must hold objects compiled as for a static
-    # build, without the DLL export defines (`__DAAL_IMPLEMENTATION`,
-    # `__ONEDAL_ENABLE_EXPORT__`). Otherwise every object carries
-    # `__declspec(dllexport)` and a `/EXPORT:` directive, which bloats the
-    # archive (e.g. onedal_core.lib). Make's static objects are built without
-    # these defines. The transition is applied only when `static_export_free`
-    # resolves to True,
-    # which the `cc_static_lib` macro sets for Windows targets. Everywhere else
-    # it returns the current value, so Linux configurations and their
-    # actions are unchanged and nothing is compiled twice.
+    # Export-free static archives: no __DAAL_IMPLEMENTATION or ONEDAL export defines, as Make's static objects.
+    # Applied only when static_export_free is True (Windows cc_static_lib); elsewhere unchanged.
     if attr.static_export_free:
         return {_STATIC_EXPORT_FREE_SETTING: True}
     return {_STATIC_EXPORT_FREE_SETTING: settings[_STATIC_EXPORT_FREE_SETTING]}
@@ -546,9 +538,8 @@ def _cc_dynamic_lib_impl(ctx):
         "-Wl,--version-script,{}".format(script.path)
         for script in ctx.files.linker_scripts
     ]
-    # Make links the version resource into every Windows DLL (dll.res,
-    # makefile:586, 870, 874). It is only linked into this DLL, not handed on
-    # to dependents, so it stays out of the returned linking context.
+    # Make links the version resource into every Windows DLL (dll.res, makefile:586, 870, 874).
+    # Only this DLL links it, so it is kept out of the returned linking context.
     res_files = []
     if is_windows and ctx.file.rc_file:
         res_files.append(_compile_windows_resource(

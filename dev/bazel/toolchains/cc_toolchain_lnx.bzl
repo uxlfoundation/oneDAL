@@ -175,13 +175,8 @@ def _add_sycl_linkage(repo_ctx, cc):
         return []
 
 def _add_new_offload_driver_link(repo_ctx, dpcc):
-    # Gate on a shared-link probe with --offload-compress as well, the same
-    # probe Make runs (dev/make/compiler_definitions/dpcpp.mk:84-92). The DPC
-    # library targets pass --offload-compress (cpp/oneapi/dal/BUILD,
-    # dpc_linkopts). A compile-only check is not enough: on icpx 2025.3
-    # clang-linker-wrapper then hands -compress to the host ld and the link fails.
-    # The library goes to a fresh temporary directory, as in Make, so the
-    # probe neither writes into the repository nor reuses a stale file.
+    # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
+    # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
     tmp = repo_ctx.execute(["mktemp", "-d"])
     if tmp.return_code != 0:
         return []
@@ -216,10 +211,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # Default compilations/link options
     cxx_opts = []
     link_opts = []
-    # Same as Make (dev/make/function_definitions/lnx32e.mk, deps.mkl.mk):
-    # plain -lpthread -ldl outside --as-needed. On glibc < 2.34 they become
-    # NEEDED libpthread.so.0/libdl.so.2; on glibc >= 2.34 they resolve to empty
-    # static stubs and add nothing, in both builds.
+    # -lpthread -ldl stay outside --as-needed, as in Make (lnx32e.mk, deps.mkl.mk).
+    # They add NEEDED entries on glibc < 2.34 and resolve to empty stubs after it.
     dynamic_link_libs = [
         "-lstdc++",
         "-lm",
