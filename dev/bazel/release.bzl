@@ -72,43 +72,6 @@ def _collect_default_files(deps):
             files += dep[DefaultInfo].files.to_list()
     return utils.unique_files(files)
 
-def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
-    """Derive a Windows DLL's import library at `lib_dst_path` from `dll_file`.
-
-    Runs `dev/bazel/toolchains/tools/dll_to_implib.bat` which dumps the
-    DLL's exports table and feeds it to `lib /def:` to produce a fresh
-    `.lib`. Mirrors the makefile's `-IMPLIB:<name>_dll.lib` linker flag,
-    which we cannot pass directly through Bazel's cc_common.link()
-    because there is no API to register the side-effect file as an
-    action output. Generating it from the DLL post-link is equivalent.
-    """
-    lib_file = ctx.actions.declare_file(lib_dst_path)
-    # `lib /def:` requires an .exp output, but it is an intermediate rather
-    # than a release artifact. Keep it outside the staged release tree.
-    exp_file = ctx.actions.declare_file(paths.join(
-        "_release_intermediates",
-        lib_file.basename[:-len(".lib")] + ".exp",
-    ))
-    script = ctx.file._dll_to_implib
-    ctx.actions.run(
-        executable = "cmd.exe",
-        inputs = [dll_file, script],
-        outputs = [lib_file, exp_file],
-        arguments = [
-            "/d", "/c",
-            "{} {} {} {}".format(
-                script.path.replace("/", "\\"),
-                dll_file.path.replace("/", "\\"),
-                lib_file.path.replace("/", "\\"),
-                exp_file.path.replace("/", "\\"),
-            ),
-        ],
-        use_default_shell_env = True,
-        mnemonic = "DllToImplib",
-        progress_message = "Generating import lib %s" % lib_file.short_path,
-    )
-    return lib_file
-
 def _copy(ctx, src_file, dst_path):
     # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
@@ -143,27 +106,14 @@ def _copy_crlf(ctx, src_file, dst_path):
     Make normalizes the files it stages through its `.release.x` recipe with
     `sed -n -z -e 's/\\r*\\n/\\r\\n/g;p'` when `OS_is_win`, so text files such as
     `config/config.txt` ship with CRLF even though they are stored with LF in
-    the repository. Plain `copy` leaves them as LF and the released file then
-    differs from the Make one on every line.
+    the repository. The substitutions apply in order, so a CRLF already in the
+    file is not doubled.
     """
     dst_file = ctx.actions.declare_file(dst_path)
-    script = ctx.file._to_crlf
-    ctx.actions.run(
-        executable = "cmd.exe",
-        inputs = [src_file, script],
-        outputs = [dst_file],
-        use_default_shell_env = True,
-        arguments = [
-            "/d",
-            "/c",
-            "{} {} {}".format(
-                script.path.replace("/", "\\"),
-                src_file.path.replace("/", "\\"),
-                dst_file.path.replace("/", "\\"),
-            ),
-        ],
-        mnemonic = "CopyCrlf",
-        progress_message = "Staging %s with CRLF line endings" % dst_file.short_path,
+    ctx.actions.expand_template(
+        template = src_file,
+        output = dst_file,
+        substitutions = {"\r\n": "\n", "\n": "\r\n"},
     )
     return dst_file
 
@@ -285,6 +235,12 @@ def _symlink(ctx, link_name, target_name, prefix):
     )
     return link_file
 
+def _windows_dll_stem(name, version_info):
+    """`onedal_core` for `onedal_core.4`: the ABI version of a DLL and of its
+    import library is not part of the released import library name."""
+    suffix = "." + version_info.binary_major
+    return name[:-len(suffix)] if name.endswith(suffix) else name
+
 def _copy_lib(ctx, prefix, version_info):
     """Copy libraries to release directory with versioning and symlinks for .so files.
 
@@ -294,6 +250,9 @@ def _copy_lib(ctx, prefix, version_info):
       libonedal_core.so                 -> libonedal_core.so.{binary_major}                 (symlink)
 
     Static libraries (.a) and Windows DLLs (.dll) are copied as-is without versioning.
+    A DLL's import library `<name>.<major>.if.lib` is staged as `<name>_dll.lib`,
+    the name Make gives it with `-IMPLIB:` (makefile:535), and for the stems in
+    `_VERSIONED_IMPLIB_STEMS` also as `<name>_dll.<major>.lib`.
 
     macOS .dylib versioning is not yet implemented; .dylib files are currently
     copied as-is like static libraries.
@@ -304,23 +263,6 @@ def _copy_lib(ctx, prefix, version_info):
     redist_prefix = paths.join(prefix, "redist", arch_dir)
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
-
-    # On Windows, when the dynamic library rule already emitted a real
-    # import library, use that via rename; otherwise derive it post-link
-    # from the .dll via dumpbin + lib /def.
-    #
-    # rules_cc may expose `<name>.if.lib`, while our cc_dynamic_lib rule
-    # publishes the same file as `<name>_dll.lib`. Both represent the DLL
-    # import library and must be consumed by the DLL branch below, otherwise
-    # the final loop would try to copy `<name>_dll.lib` into the same release
-    # output that the DLL branch is also generating.
-    import_lib_stems = {}
-    if is_windows:
-        for lib in libs:
-            if lib.basename.endswith(".if.lib"):
-                import_lib_stems[lib.basename[:-len(".if.lib")]] = lib
-            elif lib.basename.endswith("_dll.lib"):
-                import_lib_stems[lib.basename[:-len("_dll.lib")]] = lib
 
     for lib in libs:
         # Determine if this is a shared library that needs versioning.
@@ -347,64 +289,22 @@ def _copy_lib(ctx, prefix, version_info):
 
             # 3. Unversioned symlink: libonedal_core.so -> libonedal_core.so.2
             dst_files.append(_symlink(ctx, lib.basename, major_link_name, lib_prefix))
+        elif is_windows and lib.extension == "dll":
+            # The Make layout keeps the DLLs under redist/<arch>, not lib/<arch>.
+            dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
+        elif is_windows and lib.basename.endswith(".if.lib"):
+            stem = _windows_dll_stem(lib.basename[:-len(".if.lib")], version_info)
+            # The thread import library is not shipped in the Make package.
+            if stem in _THREAD_STEMS:
+                continue
+            dst_files.append(_copy(ctx, lib, paths.join(lib_prefix, "{}_dll.lib".format(stem))))
+            if stem in _VERSIONED_IMPLIB_STEMS:
+                dst_files.append(_copy(ctx, lib, paths.join(
+                    lib_prefix,
+                    "{}_dll.{}.lib".format(stem, version_info.binary_major),
+                )))
         else:
-            # Static libs (.a), DLLs (.dll), import libs (.lib).
-            # Windows release layout: place DAAL runtime DLLs under
-            # redist/<arch> (not lib/<arch>) and derive each DLL's
-            # import library `<name>_dll.lib` via dumpbin+lib /def — the
-            # makefile route (`-IMPLIB:<name>_dll.lib`) is unreachable
-            # through Bazel's cc_common.link() so we generate the import
-            # lib post-link, matching the Make release contents.
-            if is_windows and lib.extension == "dll":
-                dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
-
-                # `onedal_core.4.dll` -> `onedal_core_dll.lib`
-                base_no_ver = lib.basename
-                if version_info:
-                    suffix = ".{}.dll".format(version_info.binary_major)
-                    if base_no_ver.endswith(suffix):
-                        base_no_ver = base_no_ver[:-len(suffix)] + ".dll"
-                stem = base_no_ver[:-len(".dll")]
-                # The thread import library is not shipped in the Make
-                # DAAL package, mirror that here.
-                if stem in _THREAD_STEMS:
-                    continue
-                implib_name = "{}_dll.lib".format(stem)
-                # Prefer the link-emitted .if.lib (rules_cc MSVC auto-
-                # config writes one alongside every DLL). Fall back to
-                # dumpbin + lib /def: when the toolchain did not emit
-                # one (icx custom config currently does not).
-                source_import_lib = import_lib_stems.get(stem)
-                if source_import_lib:
-                    implib = _copy(
-                        ctx, source_import_lib,
-                        paths.join(lib_prefix, implib_name),
-                    )
-                else:
-                    implib = _make_implib_for_dll(
-                        ctx, lib, paths.join(lib_prefix, implib_name),
-                    )
-                dst_files.append(implib)
-                if version_info and stem in _VERSIONED_IMPLIB_STEMS:
-                    versioned_implib_name = "{}_dll.{}.lib".format(
-                        stem,
-                        version_info.binary_major,
-                    )
-                    dst_files.append(_copy(
-                        ctx, implib,
-                        paths.join(lib_prefix, versioned_implib_name),
-                    ))
-                continue
-            # Link-emitted import libraries are consumed via the dll branch
-            # above (renamed to `_dll.lib`); skip them here so we do not
-            # declare the same output twice.
-            if is_windows and (lib.basename.endswith(".if.lib") or lib.basename.endswith("_dll.lib")):
-                continue
-            if is_windows and lib.extension == "exp":
-                continue
-
-            dst_path = paths.join(lib_prefix, lib.basename)
-            dst_files.append(_copy(ctx, lib, dst_path))
+            dst_files.append(_copy(ctx, lib, paths.join(lib_prefix, lib.basename)))
 
     return dst_files
 
@@ -625,18 +525,6 @@ _release = rule(
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
-        "_dll_to_implib": attr.label(
-            default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
-            allow_single_file = True,
-            doc = "Helper that derives a Windows DLL's import library by " +
-                  "running dumpbin+lib /def: post-link.",
-        ),
-        "_to_crlf": attr.label(
-            default = "@onedal//dev/bazel/toolchains/tools:copy_crlf.bat",
-            allow_single_file = True,
-            doc = "Helper that copies a text file converting line endings to " +
-                  "CRLF, matching the makefile's Windows release staging.",
-        ),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
@@ -667,9 +555,7 @@ headers_filter = rule(
     },
 )
 
-_FEATURES_OPTION = "//command_line_option:features"
 _MSVC_RUNTIME_SETTING = str(Label("@config//:msvc_runtime"))
-_MSVC_RUNTIME_DEBUG_FEATURE = "msvc_runtime_debug"
 
 # Subdirectories of the release tree whose contents depend on the MSVC
 # runtime. Everything else (headers, datasets, examples, env scripts) is
@@ -680,42 +566,25 @@ _MSVC_RUNTIME_DEBUG_FEATURE = "msvc_runtime_debug"
 def _runtime_specific_dirs(arch_dir):
     return ["lib/{}/".format(arch_dir), "redist/{}/".format(arch_dir)]
 
-def _force_msvc_runtime(settings, debug):
-    """Pin the MSVC runtime configuration, ignoring any inherited setting.
-
-    Both the `--features` flag (which drives `-MD`/`-MDd` in the toolchain)
-    and the `@config//:msvc_runtime` build setting (which dependencies
-    `select()` on) are rewritten together, so a `--config=mdd` on the command
-    line cannot leave one half of the pair pointing the other way.
-    """
-    features = [
-        f
-        for f in settings[_FEATURES_OPTION]
-        if f != _MSVC_RUNTIME_DEBUG_FEATURE and f != "-" + _MSVC_RUNTIME_DEBUG_FEATURE
-    ]
-    if debug:
-        features = features + [_MSVC_RUNTIME_DEBUG_FEATURE]
-    return {
-        _FEATURES_OPTION: features,
-        _MSVC_RUNTIME_SETTING: "debug" if debug else "release",
-    }
-
+# Pin the MSVC runtime, ignoring any `--msvc_runtime` on the command line. The
+# toolchain, the library names and the dependency `select()`s all read this one
+# setting.
 def _force_msvc_runtime_release_impl(settings, attr):
-    return _force_msvc_runtime(settings, debug = False)
+    return {_MSVC_RUNTIME_SETTING: "release"}
 
 def _force_msvc_runtime_debug_impl(settings, attr):
-    return _force_msvc_runtime(settings, debug = True)
+    return {_MSVC_RUNTIME_SETTING: "debug"}
 
 _force_msvc_runtime_release_transition = transition(
     implementation = _force_msvc_runtime_release_impl,
-    inputs = [_FEATURES_OPTION],
-    outputs = [_FEATURES_OPTION, _MSVC_RUNTIME_SETTING],
+    inputs = [],
+    outputs = [_MSVC_RUNTIME_SETTING],
 )
 
 _force_msvc_runtime_debug_transition = transition(
     implementation = _force_msvc_runtime_debug_impl,
-    inputs = [_FEATURES_OPTION],
-    outputs = [_FEATURES_OPTION, _MSVC_RUNTIME_SETTING],
+    inputs = [],
+    outputs = [_MSVC_RUNTIME_SETTING],
 )
 
 def _relativize_release_file(file, dep):

@@ -31,20 +31,11 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
 
 def _find_tool(repo_ctx, tool_name, mandatory = False):
     tool_path = repo_ctx.which(tool_name)
-    is_found = tool_path != None
-    if not is_found:
+    if tool_path == None:
         if mandatory:
             fail("Cannot find {}; is it on PATH?".format(tool_name))
-        else:
-            # Stub path so repo generation does not fail; the resulting
-            # toolchain is only valid when the compiler is actually present.
-            repo_ctx.template(
-                "tool_not_found_{}.bat".format(tool_name),
-                Label("@onedal//dev/bazel/toolchains/tools:tool_not_found.tpl.bat"),
-                {"%{tool_name}": tool_name},
-            )
-            tool_path = repo_ctx.path("tool_not_found_{}.bat".format(tool_name))
-    return str(tool_path), is_found
+        return "", False
+    return str(tool_path), True
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
     repo_ctx.template(
@@ -90,9 +81,9 @@ def _find_tools_icx(repo_ctx):
     # LNK1170:
     # icx materialised every Bazel-line arg into a single >131071-char
     # line in its own intermediate response file before invoking link.exe.
+    # icx is the DPC++ compiler as well.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
-    dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
-    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, dpcc_path) if dpcpp_found else dpcc_path
+    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, cc_path)
     # Host link tool: lld-link.exe, or MSVC's link.exe; both accept the same
     # flag syntax and multi-line response files.
     cc_link_path = _find_llvm_tool(repo_ctx, cc_path, "lld-link", "link")
@@ -100,14 +91,14 @@ def _find_tools_icx(repo_ctx):
     ar_path = _find_llvm_tool(repo_ctx, cc_path, "llvm-lib", "lib")
     return struct(
         cc = cc_path,
-        dpcc = dpcc_path,
+        dpcc = cc_path,
         # Host link: lld-link.exe directly. DPC++ link still goes through
         # icx so it can pull in SYCL device-code libs (matches the
         # makefile's dpc.link.dynamic.win path in common.mk:138).
         cc_link = cc_link_path,
         dpcc_link = dpcc_link_path,
         ar = ar_path,
-        is_dpc_found = dpcpp_found,
+        is_dpc_found = True,
     )
 
 def _find_tools_clang(repo_ctx):
@@ -116,7 +107,8 @@ def _find_tools_clang(repo_ctx):
     in dev/make/compiler_definitions/clang.ref.arm.mk).
 
     There is no DPC++ half: `icpx` targets x86_64 only, so a clang-cl toolchain
-    (the only option on Windows ARM64) builds the host libraries alone.
+    (the only option on Windows ARM64) builds the host libraries alone and
+    registers no DPC++ driver.
     """
     cc_path, _ = _find_tool(repo_ctx, "clang-cl", mandatory = True)
     # `lld-link` and `llvm-lib` ship with LLVM next to clang-cl and are what
@@ -128,9 +120,9 @@ def _find_tools_clang(repo_ctx):
     ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = True)
     return struct(
         cc = cc_path,
-        dpcc = cc_path,
+        dpcc = "",
         cc_link = cc_link_path,
-        dpcc_link = cc_link_path,
+        dpcc_link = "",
         ar = ar_path,
         is_dpc_found = False,
     )

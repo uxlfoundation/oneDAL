@@ -1,14 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
-# Helper used by dev/bazel/release.bzl to derive a Windows DLL's
-# import library (`<name>_dll.lib`) post-link by harvesting the DLL's
-# exports via dumpbin and feeding them to `lib /def:`. Mirrors the
-# makefile `-IMPLIB:<name>_dll.lib` pattern, which Bazel's
-# cc_common.link() cannot expose as a tracked output for us to forward
-# into the staged release tree.
+# Launcher of the Windows DPC++ link actions, instantiated by
+# dev/bazel/toolchains/cc_toolchain_win.bzl.
 exports_files([
-    "copy_crlf.bat",
-    "dll_to_implib.bat",
     "dpc_link_win.ps1",
     "dpc_link_win.tpl.bat",
 ])

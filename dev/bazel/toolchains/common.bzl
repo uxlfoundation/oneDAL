@@ -232,8 +232,7 @@ def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
     index0 = result.stderr.rfind(_INC_DIR_MARKER_BEGIN)
     index2 = result.stderr.rfind(_INC_DIR_MARKER_END)
     if index0 == -1 or index2 == -1:
-        # The probe failed (e.g. `tool_not_found.sh` standing in for a missing
-        # DPC++ compiler). Parsing its output anyway yields an empty entry,
+        # The probe failed. Parsing its output anyway yields an empty entry,
         # which `_prepare_include_path` turns into this repository's absolute
         # path; that lands in `builtin_include_directory_paths`, an input of
         # every compile action, and ties every action key to the output base.
