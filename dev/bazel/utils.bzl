@@ -90,11 +90,8 @@ def _info(msg):
 # Other functions
 # ===============
 
-# Build date of the library, `YYYYMMDD`. A release sets it with
-# `--repo_env=ONEDAL_BUILD_DATE=YYYYMMDD`; every other build keeps the
-# placeholder that the in-tree headers already carry. A date from the clock
-# would change once a day and re-key every object and test link that depends
-# on the version header (see `:version_info` in cpp/daal/BUILD).
+# Build date, YYYYMMDD: a release sets ONEDAL_BUILD_DATE; other builds keep the placeholder.
+# A clock date would re-key :version_info every day (see cpp/daal/BUILD).
 DEV_BUILD_DATE = "21990101"
 
 def _build_date(repo_ctx):
