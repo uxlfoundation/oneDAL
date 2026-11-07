@@ -14,10 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-// Subgraph isomorphism must give the same answer on every CPU code path. The kernel is
-// run with the dispatch restricted to a given ISA through host_policy, so the AVX2 and
-// SSE2 paths are exercised on any x86 host that supports them (AVX-512 servers included).
-// The avx2 code path only exists when the library is built with it (e.g. --cpu=all).
+// Same answer on every CPU code path: the dispatch is restricted per ISA through host_policy.
+// The avx2 path exists only when built with it (e.g. --cpu=all).
 
 #include <memory>
 #include <utility>

@@ -41,9 +41,7 @@ def g_test_pass_files(rd, ws, t, tr):
     repo = ws
     changed = changed_files(ws, tr["start_sha"])  # before any grader write, see g_test_pass
     agent_touched = [f for f in changed if is_test_file(f)]
-    # Written for the duration of grading only: these are the grader's files, and a regrade that
-    # found them in the tree would report them as the agent's changes (and, for the `.oracle` BUILD
-    # files, as source changes).
+    # Hidden files exist only during grading: a regrade must not see them as the agent's changes.
     with files_restored(repo, t["hidden_files"]):
         for f in t["hidden_files"]:
             src = task_dir(t["id"]) / "hidden" / f

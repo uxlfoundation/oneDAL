@@ -26,10 +26,8 @@ def g_test_pass(rd, ws, t, tr):
     Strict pass (what to report) = pass and regress_pass.
     """
     repo = ws
-    # `_changed_files`: the file list as it was before the caller wrote anything of its own
-    # (graders/fix_hidden.py restores hidden files first and then delegates here, so reading
-    # the tree at this point would report the grader's files as the agent's changes).
-    # Tested for presence, not truthiness: an agent that changed nothing passes [] here.
+    # `_changed_files`, when the caller stored it in t, was read before the grader wrote its files;
+    # otherwise the list is computed here. Presence is tested, not truthiness.
     changed = t["_changed_files"] if "_changed_files" in t else changed_files(ws, tr["start_sha"])
     touched_tests = [f for f in changed if is_test_file(f)]
     src_changed = [f for f in changed if f not in touched_tests]

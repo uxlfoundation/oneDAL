@@ -73,10 +73,8 @@ def g_mutation(rd, ws, t, tr):
     j = last_json(tr["answer"])
     targets = j.get("targets") if isinstance(j, dict) else None
     changed = changed_files(ws, base)
-    # Library sources, whether the agent edited one that existed at base or added a new one: a task
-    # that allows test and BUILD files only must not be passable by putting the behaviour under test
-    # into a new non-test source, so both kinds are taken out of the tree before the targets run and
-    # put back afterwards.
+    # Added or edited library sources are taken out for grading and put back afterwards:
+    # a test-only task must not pass with the behaviour in a new non-test source.
     src_modified = [f for f in changed if not is_test_file(f) and not is_build_file(f)]
     # the agent's work: files under the package that are not library sources, plus test files anywhere
     authored = [f for f in changed if f not in src_modified and (is_test_file(f) or any(

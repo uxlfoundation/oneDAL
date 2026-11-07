@@ -14,14 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-# No-LLM checks for dev/agent_evals with dokimi's reusable repo-eval workflow
-# (https://github.com/intel/dokimi/blob/main/.github/workflows/repo-eval.yml), pinned by commit SHA.
-# Nothing here calls a model or needs a token.
-#  - `dokimi repo validate` (a gate) and `dokimi repo scan` (report only): on every change to the eval directory or
-#    to agent guidance, a few minutes.
-#  - `dokimi repo tasks check` (untouched workspace must fail, reference solution must pass) in the eval image:
-#    weekly and on demand for every task; on a pull request only for the tasks it touches, or for one task per
-#    grader (smoke-tasks) when the entry points, a grader, the manifest or this file change.
+# No-LLM checks: dokimi's reusable repo-eval workflow, pinned by SHA. No model call, no token.
+# Runs on eval-path PRs, weekly (schedule) and on demand (workflow_dispatch).
 name: Agent evals
 
 on:

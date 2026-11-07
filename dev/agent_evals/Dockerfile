@@ -14,23 +14,13 @@
 # limitations under the License.
 #===============================================================================
 
-# Build image for the agent evals (repo-eval.yaml image.dockerfile): the toolchain the graders and the agent's
-# CPU-only builds need, nothing else. No agent CLI (dokimi brings the harness) and no oneAPI compilers
-# (tasks use *_host targets). The build context is the repository at the eval revision as dokimi makes it:
-# `git archive` (no .git, no untracked files) with dev/agent_evals/tasks removed. Nothing here may COPY tasks/; the
-# image holds tooling only (.bazelversion and bin/bazel below), so the agent's container cannot read a task:
-#
-#   mkdir ctx && git archive HEAD | tar -x -C ctx && rm -r ctx/dev/agent_evals/tasks
-#   docker build -f ctx/dev/agent_evals/Dockerfile -t onedal-agent-evals ctx
-#
-# Runs are offline (image.network: none). External Bazel repositories come from the shared repository cache, which
-# is filled once with network access; see "Eval image" in README.md.
+# Eval image: CPU-only, no agent CLI. Tasks are never COPYed: the agent must not read them.
+# Runs are offline: Bazel repos come from the shared cache, filled once online (README, Eval image).
 
 FROM ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
 
-# GCC 13 is what the CPU-only builds of every task were validated with. unzip and zstd unpack the conda-forge
-# MKL/TBB packages (dev/bazel/repos.bzl); without zstd the fetch fails silently and the build fails at analysis.
-# Some task bases link -lOpenCL into *_host tests (ocl-icd-opencl-dev).
+# GCC 13 validated every CPU-only task build; zstd and unzip unpack the conda MKL/TBB packages.
+# Some task bases link -lOpenCL into *_host tests, hence ocl-icd-opencl-dev.
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       build-essential ca-certificates curl git ocl-icd-opencl-dev patch python3 python3-venv tini unzip zip zstd && \
@@ -43,11 +33,8 @@ RUN curl -fsSL -o /usr/local/bin/bazelisk \
     echo "${BAZELISK_SHA256}  /usr/local/bin/bazelisk" | sha256sum -c - && \
     chmod 755 /usr/local/bin/bazelisk
 
-# bazelisk picks the Bazel version from each workspace's .bazelversion, and task bases pin different ones.
-# Download them all now so no run fetches Bazel. The list must hold every task base's version, including the one
-# the eval tree pins today: CI builds the image from the pull request merged into main, whose .bazelversion moves
-# on. Refresh it with:
-#   for b in $(jq -r .base dev/agent_evals/tasks/*/task.json | sort -u); do git show $b:.bazelversion; done | sort -u
+# Holds every task base's Bazel version and the eval tree's own pin: CI builds the image from merged main.
+# Keep it in step when a task base or the pinned .bazelversion changes.
 ARG TASK_BAZEL_VERSIONS="6.2.0 7.0.2 8.4.1 9.0.1 9.1.0 9.1.1 9.2.0"
 ENV BAZELISK_HOME=/opt/bazelisk
 COPY .bazelversion /tmp/.bazelversion
@@ -64,9 +51,8 @@ RUN python3 -m venv /opt/onedal-make-deps && \
     /opt/onedal-make-deps/bin/pip install --no-cache-dir mkl-static==2026.1.0 mkl-include==2026.1.0 tbb-devel==2023.1.0
 ENV ONEDAL_EVAL_MAKE_DEPS=/opt/onedal-make-deps
 
-# `bazel` is the eval wrapper: output base from EVAL_BAZEL_OUTPUT_BASE (per run), repository and disk caches shared
-# across runs (repo-eval.yaml image.caches), MKLROOT always unset. Never set MKLROOT in this image: Bazel would
-# re-fetch @mkl as symlinks into it.
+# `bazel` is the eval wrapper: per-run output base, shared caches, MKLROOT always unset.
+# Never set MKLROOT here: Bazel would re-fetch @mkl as symlinks into it.
 COPY dev/agent_evals/bin/bazel /usr/local/bin/bazel
 RUN chmod 755 /usr/local/bin/bazel
 ENV ONEDAL_EVAL_BAZEL=/usr/local/bin/bazelisk \
