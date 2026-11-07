@@ -143,7 +143,7 @@ inline compute_result<task::clustering> compute_with_matrix(
 }
 
 /// Smallest column count at which the matrix path is used when the matrix fits: the box bounds
-/// prune little there, while the matrix comes from GEMM.
+/// prune little there.
 constexpr std::int64_t matrix_min_column_count = 16;
 
 /// Run HDBSCAN on the GPU through the matrix or the block tree, whichever is faster and fits.

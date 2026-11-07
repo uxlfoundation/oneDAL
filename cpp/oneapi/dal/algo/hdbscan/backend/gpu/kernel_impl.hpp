@@ -33,6 +33,7 @@
 #include "oneapi/dal/backend/primitives/search/copy_search_callback.hpp"
 #include "oneapi/dal/backend/primitives/search/search.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
+#include "oneapi/dal/backend/primitives/stat/cov.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
@@ -201,6 +202,9 @@ inline sycl::event fix_zero_norm_cosine(sycl::queue& queue,
     return event;
 }
 
+/// Smallest column count at which the euclidean matrix comes from GEMM instead of coordinate differences.
+constexpr std::int64_t gemm_min_column_count = 32;
+
 /// Compute the full pairwise distance matrix; squared L2 for `euclidean`, final distances otherwise.
 ///
 /// The rows are computed in blocks small enough for an int32 kernel range.
@@ -243,6 +247,32 @@ inline sycl::event compute_distance_matrix(sycl::queue& queue,
         }
         return block_events;
     };
+
+    // Wide data: GEMM on centered data. Centering keeps the norm expansion from cancelling the
+    // spread of data far from the origin.
+    if (metric == distance_metric::euclidean && data.get_dimension(1) >= gemm_min_column_count) {
+        const std::int64_t d = data.get_dimension(1);
+        auto centered = pr::ndarray<Float, 2>::empty(queue, { n, d }, sycl::usm::alloc::device);
+        auto copy_event = queue.copy(data.get_data(), centered.get_mutable_data(), n * d, deps);
+        auto [sums, sums_event] = pr::compute_sums(queue, data, false, deps);
+        auto [means, means_event] = pr::compute_means(queue, sums, n, { sums_event });
+        auto center_event = pr::get_centered(queue, centered, means, { copy_event, means_event });
+        const bk::uniform_blocking blocking(n, bk::max_range_2d_rows(n));
+        bk::event_vector block_events;
+        for (std::int64_t b = 0; b < blocking.get_block_count(); b++) {
+            const std::int64_t first = blocking.get_block_start_index(b);
+            const std::int64_t last = blocking.get_block_end_index(b);
+            auto dist_block = dist.get_row_slice(first, last);
+            block_events.push_back(
+                pr::squared_l2_distance<Float>(queue)(centered.get_row_slice(first, last),
+                                                      centered,
+                                                      dist_block,
+                                                      { center_event }));
+        }
+        // `centered`, `sums` and `means` are freed on return.
+        sycl::event::wait_and_throw(block_events);
+        return sycl::event{};
+    }
 
     switch (metric) {
         case distance_metric::cosine:

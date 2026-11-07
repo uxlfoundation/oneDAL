@@ -15,6 +15,7 @@ dal_module(
         "@onedal//cpp/oneapi/dal/backend/primitives:search",
         "@onedal//cpp/oneapi/dal/backend/primitives:selection",
         "@onedal//cpp/oneapi/dal/backend/primitives:sort",
+        "@onedal//cpp/oneapi/dal/backend/primitives:stat",
     ],
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/hdbscan:kernel",
