@@ -439,6 +439,22 @@ DF_BATCH_CLS_TEST("df cls probabilities stay valid when constant features are sk
     }
 }
 
+// The GPU random splitter strides a node's rows over the work group, and these nodes need more
+// than one stride.
+DF_BATCH_CLS_TEST("df cls random splitter covers nodes larger than a work group") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    this->check_random_split_covers_all_rows(GENERATE_COPY(2048, 8192));
+}
+
+DF_BATCH_CLS_TEST("df cls random splitter weighs nodes larger than a work group") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    this->check_random_split_weights_cover_all_rows(8192);
+}
+
 DF_BATCH_CLS_TEST("df cls base check with non default params") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
@@ -578,6 +594,40 @@ DF_BATCH_REG_TEST("df reg min weight fraction reduces node count") {
     const splitter_mode splitter_mode_val =
         GENERATE_COPY(splitter_mode::best, splitter_mode::random);
     this->check_min_weight_fraction_reduces_node_count(splitter_mode_val);
+}
+
+// The GPU random splitter strides a node's rows over the work group, and these nodes need more
+// than one stride.
+DF_BATCH_REG_TEST("df reg random splitter covers nodes larger than a work group") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    this->check_random_split_covers_all_rows(GENERATE_COPY(2048, 8192));
+}
+
+DF_BATCH_REG_TEST("df reg random splitter leaf statistics match a sequential pass") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    this->check_random_split_leaf_statistics(GENERATE_COPY(2048, 8191), false);
+}
+
+// Known divergence from CPU, tracked in #3949: the GPU regression statistics are unweighted, so the
+// leaves keep the unweighted mean and variance of their rows. A fix makes this test fail.
+DF_BATCH_REG_TEST(
+    "df reg random splitter leaf statistics are unweighted on GPU (known divergence from CPU)") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(!this->is_gpu());
+
+    this->check_random_split_leaf_statistics(GENERATE_COPY(2048, 8191), true);
+}
+
+DF_BATCH_REG_TEST("df reg random splitter weighs nodes larger than a work group") {
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    this->check_random_split_weights_cover_all_rows(8192);
 }
 
 DF_BATCH_REG_TEST("df reg base check with non default params") {
