@@ -22,6 +22,8 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
     pypi_packages = [
         "impi-rt",
         "impi-devel",
+        # impi-rt no longer bundles libfabric; it depends on this wheel instead.
+        "modified-libfabric",
     ],
     bins = [
         "bin",
@@ -36,16 +38,13 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "lib/release/libmpi.so.12.0.0",
         "libfabric/lib/libfabric.so",
         "libfabric/lib/libfabric.so.1",
-        "libfabric/lib/prov/libefa-fi.so",
-        "libfabric/lib/prov/libmlx-fi.so",
-        "libfabric/lib/prov/libpsm3-fi.so",
-        "libfabric/lib/prov/libpsmx2-fi.so",
-        "libfabric/lib/prov/librxm-fi.so",
-        "libfabric/lib/prov/libshm-fi.so",
-        "libfabric/lib/prov/libtcp-fi.so",
-        "libfabric/lib/prov/libverbs-1.1-fi.so",
-        "libfabric/lib/prov/libverbs-1.12-fi.so",
     ],
+    # The provider set changes between libfabric releases. The Windows wheels
+    # ship none, and nothing on Windows runs mpiexec.
+    required_any_libs = [
+        "libfabric/lib/prov/*-fi.so",
+    ],
+    required_any_libs_description = "libfabric providers, which mpiexec loads through FI_PROVIDER_PATH",
     build_template = "@onedal//dev/bazel/deps:mpi.tpl.BUILD",
     download_mapping = {
         # Required directory layout and layout in the downloaded
@@ -58,15 +57,7 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "lib/release/libmpi.so.12":                     "lib/libmpi.so.12",
         "lib/release/libmpi.so.12.0":                   "lib/libmpi.so.12.0",
         "lib/release/libmpi.so.12.0.0":                 "lib/libmpi.so.12.0.0",
-        "libfabric/lib/prov/libefa-fi.so":              "lib/libefa-fi.so",
-        "libfabric/lib/prov/libmlx-fi.so":              "lib/libmlx-fi.so",
-        "libfabric/lib/prov/libpsm3-fi.so":             "lib/libpsm3-fi.so",
-        "libfabric/lib/prov/libpsmx2-fi.so":            "lib/libpsmx2-fi.so",
-        "libfabric/lib/prov/librxm-fi.so":              "lib/librxm-fi.so",
-        "libfabric/lib/prov/libshm-fi.so":              "lib/libshm-fi.so",
-        "libfabric/lib/prov/libtcp-fi.so":              "lib/libtcp-fi.so",
-        "libfabric/lib/prov/libverbs-1.1-fi.so":        "lib/libverbs-1.1-fi.so",
-        "libfabric/lib/prov/libverbs-1.12-fi.so":       "lib/libverbs-1.12-fi.so",
+        "libfabric/lib/prov":                           "lib/libfabric",
     },
 )
 

@@ -103,6 +103,12 @@ struct Blas
 {
     typedef typename _impl<fpType, cpu>::SizeType SizeType;
 
+    static void xomatcopy(const char * ordering, const char * trans, const SizeType * rows, const SizeType * cols, const fpType * alpha,
+                          const fpType * a, const SizeType * lda, fpType * b, const SizeType * ldb)
+    {
+        _impl<fpType, cpu>::xomatcopy(ordering, trans, rows, cols, alpha, a, lda, b, ldb);
+    }
+
     static void xsyrk(const char * uplo, const char * trans, const SizeType * p, const SizeType * n, const fpType * alpha, const fpType * a,
                       const SizeType * lda, const fpType * beta, fpType * ata, const SizeType * ldata)
     {
@@ -183,6 +189,16 @@ struct Blas
     static void xscal(const SizeType * n, const fpType * a, fpType * x, const SizeType * incx) { _impl<fpType, cpu>::xscal(n, a, x, incx); }
 
     static fpType xasum(const SizeType * n, const fpType * x, const SizeType * incx) { return _impl<fpType, cpu>::xasum(n, x, incx); }
+
+    static void xcopy(const SizeType * n, const fpType * x, const SizeType * incx, fpType * y, const SizeType * incy)
+    {
+        _impl<fpType, cpu>::xcopy(n, x, incx, y, incy);
+    }
+
+    static void xxcopy(const SizeType * n, const fpType * x, const SizeType * incx, fpType * y, const SizeType * incy)
+    {
+        _impl<fpType, cpu>::xxcopy(n, x, incx, y, incy);
+    }
 
     static services::Status xgemm_blocked(const char * transa, const char * transb, const SizeType * na, const SizeType * nb, const SizeType * cols,
                                           const fpType * alpha, const NumericTable * ta, const SizeType * lda, const NumericTable * tb,
