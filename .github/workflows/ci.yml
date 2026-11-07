@@ -323,7 +323,7 @@ jobs:
       # Tag, profile and generation must match a published asset (resolve-baseline enforces it).
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-binary
-      ABICHECK_BASELINE_GENERATION: "3"
+      ABICHECK_BASELINE_GENERATION: "4"
       # sha256 the publish run reported for this asset; rotate it with the tag.
       ABICHECK_BASELINE_DIGEST: sha256:d3b5a2095817287551e9e0d0ba3106baaacdc42d3570e73d54da47ed57a24ecf
       ABICHECK_BASELINE_DIR: __abi_baselines
@@ -350,7 +350,7 @@ jobs:
       # kind: bundle returns the staged ELF (binaries-dir): bundle analysis skips snapshots.
       - name: Resolve the release-contract baseline
         id: resolve
-        uses: abicheck/abicheck/actions/resolve-baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck/actions/resolve-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           baseline-path: ${{ env.ABICHECK_BASELINE_DIR }}/${{ steps.baselines.outputs.asset }}
           channel: release-contract
@@ -369,17 +369,19 @@ jobs:
       - name: Check ABI against the released baseline
         id: abicheck
         if: steps.resolve.outputs.outcome == 'resolved'
-        uses: abicheck/abicheck@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           mode: compare
           old-library: ${{ steps.resolve.outputs.binaries-dir }}
           new-library: __release_lnx/daal/latest/lib/intel64
           depth: binary
-          old-version: ${{ env.ABICHECK_BASELINE_TAG }}
-          new-version: ${{ github.sha }}
+          old-label: ${{ env.ABICHECK_BASELINE_TAG }}
+          new-label: ${{ github.sha }}
           fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
-          fail-on-removed-library: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
-          policy-file: .github/abicheck/policy.yaml
+          # 0.8 retired fail-on-removed-library; same gate through the config key.
+          set: |
+            gate.fail_on_removed_library=${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
+          policy: .github/abicheck/policy.yaml
           build-config: .github/abicheck/abicheck.yml
           dependency-source: none
           format: markdown
@@ -424,7 +426,7 @@ jobs:
     env:
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
-      ABICHECK_BASELINE_GENERATION: "3"
+      ABICHECK_BASELINE_GENERATION: "4"
       ABICHECK_BASELINE_DIGEST: sha256:98573c29e2703366cb4f442fbda29dbd5de72243287a4a70e3d2a700fd4ef505
       ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
@@ -440,7 +442,7 @@ jobs:
       # abi-baseline fetches and resolves this leg's library from the set (required).
       - name: Check the public header surface against the released baseline
         id: abicheck
-        uses: abicheck/abicheck@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           mode: compare
           abi-baseline: ${{ env.ABICHECK_BASELINE_TAG }}
@@ -450,16 +452,16 @@ jobs:
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
           expected-archive-digest: ${{ env.ABICHECK_BASELINE_DIGEST }}
           # Incomplete header evidence fails the leg instead of passing it.
-          analysis-assurance-complete: 'true'
+          require-complete: 'true'
           new-library: __release_lnx/daal/latest/lib/intel64/${{ matrix.library }}
           depth: headers
-          old-version: ${{ env.ABICHECK_BASELINE_TAG }}
-          new-version: ${{ github.sha }}
+          old-label: ${{ env.ABICHECK_BASELINE_TAG }}
+          new-label: ${{ github.sha }}
           new-header: |
             ${{ env.ABICHECK_INCLUDE_DIR }}/daal.h
             ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
           new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
-          policy-file: .github/abicheck/policy.yaml
+          policy: .github/abicheck/policy.yaml
           build-config: .github/abicheck/abicheck.yml
           # The publisher's pinned CastXML; a different one is a fingerprint mismatch (exit 16).
           dependency-source: system

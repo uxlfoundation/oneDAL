@@ -33,10 +33,10 @@ permissions:
   contents: write   # gh release upload only
 
 env:
-  # Bump when an abicheck upgrade invalidates published sets. gen3: 44d86bc11
-  # spells an undeduced auto return "auto" (gen2 header sets say "AutoType").
+  # Bump when an abicheck upgrade invalidates published sets. gen4: abicheck
+  # 0.8.0 (extractor generation 43; gen3 sets came from 44d86bc11, generation 10).
   # ci.yml reads the same generation; move it with the new digests after a publish.
-  ABICHECK_BASELINE_GENERATION: "3"
+  ABICHECK_BASELINE_GENERATION: "4"
   ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
   TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}
 
@@ -76,14 +76,14 @@ jobs:
       # stage_binary: bundle analysis needs real ELF on the old side.
       - name: Build the binary-depth baseline-set
         id: bset-binary
-        uses: abicheck/abicheck/actions/baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck/actions/baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           output-dir: __abi_baseline_binary
           project-ref: ${{ env.TAG }}
           profile: linux-x86_64-icx-avx2-nodbg-binary
           depth: binary
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+          generator-git-sha: 597e47ae7cf9657f4ea987175bf9463d70dba594
           validation: strict
           snapshot-compression: zstd
           install-deps: false
@@ -99,14 +99,14 @@ jobs:
 
       - name: Build the header-depth baseline-set
         id: bset-headers
-        uses: abicheck/abicheck/actions/baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck/actions/baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           output-dir: __abi_baseline_headers
           project-ref: ${{ env.TAG }}
           profile: linux-x86_64-icx-avx2-nodbg-headers
           depth: headers
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
-          generator-git-sha: 44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+          generator-git-sha: 597e47ae7cf9657f4ea987175bf9463d70dba594
           validation: strict
           snapshot-compression: zstd
           libraries: |
@@ -120,7 +120,7 @@ jobs:
 
       - name: Package the binary-depth baseline-set
         id: archive-binary
-        uses: abicheck/abicheck/actions/stage-baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck/actions/stage-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           baseline-path: ${{ steps.bset-binary.outputs.baseline-path }}
           asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
@@ -129,7 +129,7 @@ jobs:
 
       - name: Package the header-depth baseline-set
         id: archive-headers
-        uses: abicheck/abicheck/actions/stage-baseline@44d86bc112ebe606d0653fb7e9c9e1bd63f37e23
+        uses: abicheck/abicheck/actions/stage-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
           baseline-path: ${{ steps.bset-headers.outputs.baseline-path }}
           asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
