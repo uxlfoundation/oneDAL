@@ -14,21 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-# Renovate bumps _GCC_VERSION in dev/bazel/deps/gcc.bzl but cannot compute the
-# conda build strings and hashes that go with it. This job runs relock_conda.py
-# on the Renovate branch and pushes the result as a second commit.
-#
-# Runs on pushes to branches of this repository only (Renovate creates its
-# branches here), never on fork code. After the commit Renovate treats the branch
-# as edited and stops rebasing it; tick its rebase box in the PR to start over,
-# and this job re-pins the new push.
-#
-# A push made with GITHUB_TOKEN starts no other workflow, so no GitHub check
-# runs on the re-pinned commit. Set the RELOCK_PUSH_TOKEN secret to a fine-grained
-# PAT with contents: write on this repository to get them; without it, close and
-# reopen the PR to start the checks. Use a PAT, not a GitHub App installation
-# token: those expire after one hour, and a non-empty secret is used instead of
-# GITHUB_TOKEN, so an expired one fails the push.
+# Re-pins gcc.bzl's conda builds and hashes on Renovate's GCC branches, since
+# Renovate cannot compute them. Push token rules: see dev/bazel/README.md.
 name: relock-conda
 
 on:
