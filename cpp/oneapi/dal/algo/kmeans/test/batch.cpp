@@ -314,6 +314,15 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans objective function is exact on close points",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_exact_objective_on_close_points();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "KMmeans sparse default cases",
                      "[kmeans][batch][external-dataset]",
                      kmeans_types_csr) {
