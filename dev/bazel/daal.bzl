@@ -19,7 +19,7 @@ load("@onedal//dev/bazel:cc.bzl",
     "cc_static_lib",
     "cc_dynamic_lib",
 )
-load("@onedal//dev/bazel:stamp.bzl", "fill_build_date")
+load("@onedal//dev/bazel:stamp.bzl", "BuildDateInfo", "expand_build_date")
 load("@onedal//dev/bazel:utils.bzl",
     "sets",
     "paths",
@@ -153,7 +153,7 @@ def _daal_generate_version_impl(ctx):
     )
     ctx.actions.write(template, content)
     version = ctx.actions.declare_file(ctx.attr.out)
-    fill_build_date(ctx, template, ctx.file._build_date, version)
+    expand_build_date(ctx, template, version, ctx.attr._build_date[BuildDateInfo])
     return [ DefaultInfo(files=depset([ version ])) ]
 
 daal_generate_version = rule(
@@ -166,7 +166,7 @@ daal_generate_version = rule(
         ),
         "_build_date": attr.label(
             default = "@onedal//dev/bazel:build_date",
-            allow_single_file = True,
+            providers = [BuildDateInfo],
         ),
     },
 )

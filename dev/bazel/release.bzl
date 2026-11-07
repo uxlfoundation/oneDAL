@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:stamp.bzl", "fill_build_date")
+load("@onedal//dev/bazel:stamp.bzl", "BuildDateInfo", "expand_build_date")
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
 load("@onedal//dev/bazel/config:config.bzl", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
@@ -174,7 +174,8 @@ def _try_relativize(path, start):
     return path
 
 def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows, build_date):
-    stamped = ctx.actions.declare_file(dst_path + ".tmpl")
+    # The intermediate stays out of the release prefix.
+    expanded = ctx.actions.declare_file(ctx.label.name + ".library_version_info.h.in")
     dst_file = ctx.actions.declare_file(dst_path)
 
     # Make rewrites these seven lines with `sed`, and on Windows every
@@ -187,7 +188,7 @@ def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows, buil
     eol = "\r" if is_windows else ""
     ctx.actions.expand_template(
         template = src_file,
-        output = stamped,
+        output = expanded,
         substitutions = {
             "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE @ONEDAL_BUILD_DATE@{}".format(eol),
             "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}{}".format(version_info.major, eol),
@@ -198,7 +199,7 @@ def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows, buil
             "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}{}".format(version_info.binary_minor, eol),
         },
     )
-    fill_build_date(ctx, stamped, build_date, dst_file)
+    expand_build_date(ctx, expanded, dst_file, build_date)
     return dst_file
 
 def _strip_os_suffix(dst_path, os_suffix):
@@ -565,7 +566,7 @@ def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
     version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
     files = []
-    files += _copy_include(ctx, prefix, version_info, ctx.file._build_date)
+    files += _copy_include(ctx, prefix, version_info, ctx.attr._build_date[BuildDateInfo])
     files += _copy_lib(ctx, prefix, version_info)
     files += _copy_extra_files(ctx, prefix)
     files += _copy_data(ctx, prefix)
@@ -627,7 +628,7 @@ _release = rule(
         ),
         "_build_date": attr.label(
             default = "@onedal//dev/bazel:build_date",
-            allow_single_file = True,
+            providers = [BuildDateInfo],
         ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
