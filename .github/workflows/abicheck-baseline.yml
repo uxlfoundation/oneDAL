@@ -14,8 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-# Rebuilds a release tag and attaches the two abicheck baseline-sets that
-# ci.yml's LinuxAbicheckScan (binary) and LinuxAbicheckL2Scan (headers) read.
+# Attaches to a release tag the two abicheck baseline-sets ci.yml's abicheck jobs read.
 # Rotation and rationale: .github/abicheck/README.md.
 name: Publish Abicheck Baseline
 
@@ -33,9 +32,8 @@ permissions:
   contents: write   # gh release upload only
 
 env:
-  # Bump when an abicheck upgrade invalidates published sets. gen4: abicheck
-  # 0.8.0 (extractor generation 43; gen3 sets came from 44d86bc11, generation 10).
-  # ci.yml reads the same generation; move it with the new digests after a publish.
+  # Bump with an abicheck upgrade that changes the extractor (gen4: v0.8.0), and move
+  # ci.yml's generation and digests with it; .github/abicheck/README.md.
   ABICHECK_BASELINE_GENERATION: "4"
   ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
   TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}
@@ -57,9 +55,8 @@ jobs:
       - name: Install MKL
         run: .ci/env/apt.sh mkl
 
-      # Same targets and ISA as LinuxMakeDPCPP. setvars.sh picks the newest
-      # (runtime-only) compiler/MKL/TBB trees apt.sh drags in, so re-point each at
-      # the version the tag's apt.sh pins (fails: icx not found, no libmkl_*.a).
+      # Same targets and ISA as LinuxMakeDPCPP; re-point compiler/MKL/TBB at the tag's apt.sh
+      # pins, since setvars.sh picks newer runtime-only trees (README "Publish and rotate").
       - name: Build daal + oneapi_c + oneapi_dpc (avx2)
         run: |
           set -eo pipefail

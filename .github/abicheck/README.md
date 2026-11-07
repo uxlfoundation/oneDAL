@@ -67,7 +67,7 @@ Baseline assets are attached to the release they describe:
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-binary-gen<N>.tar.zst`
 * `abicheck-baseline-linux-x86_64-icx-avx2-nodbg-headers-gen<N>.tar.zst`
 
-The publisher writes and the consumers read generation **4**.
+The publisher writes and the consumers read generation **4** (abicheck v0.8.0, extractor generation 43; gen3 came from 44d86bc11, extractor generation 10).
 
 * **Publish.** The workflow runs on `release: published`, or by hand:
   `gh workflow run abicheck-baseline.yml -f baseline_tag=<tag>`. It also runs on a fork
@@ -82,7 +82,7 @@ The publisher writes and the consumers read generation **4**.
 
 The build sources the compiler, MKL and TBB versions pinned in the tag's `.ci/env/apt.sh`.
 Plain `setvars.sh` picks the newest installed versions, and with those MKL 2026.2 lacks
-`libmkl_intel_ilp64.a`.
+`libmkl_intel_ilp64.a` (and icx is not found).
 
 Measured cost of the gen2 publish (`ubuntu-24.04`, run 39380873673 on napetrov/oneDAL, 1 h 03 min; the gen3 run 39906849058 took 45 min 52 s in total, the gen4 run 42342615114 45 min 18 s):
 
@@ -111,7 +111,8 @@ Gen4 assets on the 2026.0.0 release (git_commit c2d1c4e19, icx 2025.3.3, generat
 Every rule demotes findings to `risk` and expires on 2027-04-01. The json's
 `disposition_audit.reclassifications` gives each rule's `id`, `status` and `matched_count`.
 `unused_rules` is `warn`, not `block`: all runs share this file, and every rule except
-`weak-func-hidden` matches nothing on at least one of them.
+`weak-func-hidden` matches nothing on at least one of them. A `binding: weak` rule also needs a
+narrowing selector: abicheck refuses a binding-only rule.
 
 | id | Matches 2026.0.0 → main | Evidence |
 |---|---|---|
@@ -122,6 +123,7 @@ Every rule demotes findings to `risk` and expires on 2027-04-01. The json's
 | `weak-visibility-hidden` | ≤442 L2 | same; default→hidden on WEAK |
 | `csr-setarrays-still-declared` | 1 per L2 leg | abicheck false positive: `CSRNumericTable::setArrays<T>` is still inline in `csr_numeric_table.h`; `func_removed` on core, `inline_function_removed` elsewhere, so no kind |
 | `threader-internal-3471` | 16 bin, 3 L2 | `^_daal_(static_)?threader_for.*`: internal C-linkage entry points of `libonedal_thread`, no installed header; same deselection as `.github/.abignore`. #3471 (fdd4e9528) moved them to int64; accepted. |
+| `thread-pinner-internal-3987-func`, `-var` | 11 + 4 bin | #3987 (500d666a0) built `libonedal_thread` with `-fvisibility=hidden` on Linux: `thread_pinner_impl_t` (ctors, dtors, methods, typeinfo, vtable), `getCurrentThreadId` and `IMPL` left the export table. No installed header declares them. |
 
 All `weak-*` rules retire once the baseline is 2026.1.0 or later.
 

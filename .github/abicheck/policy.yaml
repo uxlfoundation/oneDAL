@@ -1,10 +1,21 @@
-# Reclassify rules for both abicheck jobs (ci.yml). Each rule needs a narrowing
-# selector next to `binding:`; abicheck refuses a binding-only rule.
-# Every weak-* rule matches only WEAK exports, so a STRONG (GLOBAL) loss still gates.
-# They are the 2026.0.0 -> -fvisibility-inlines-hidden (#3604) delta; delete
-# them when the baseline moves to 2026.1.0 or later.
-# unused_rules: warn, not block: both jobs and all five L2 legs share this file,
-# and seven of the eight rules match nothing on at least one of them; warn lists them.
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Reclassify rules for both abicheck jobs (ci.yml); each rule and why it exists:
+# .github/abicheck/README.md "Rules". Delete them when the baseline moves past 2026.0.0.
 base_policy: strict_abi
 unused_rules: warn
 reclassify:
@@ -68,3 +79,17 @@ reclassify:
     to: risk
     expires: 2027-04-01
     reason: 'internal C-linkage entry points of libonedal_thread, no installed header; accepted in #3471, same deselection as .github/.abignore'
+  - id: thread-pinner-internal-3987-func
+    label: thread-pinner-internal-3987
+    kind: func_removed_elf_only
+    symbol_pattern: '^(_Z18getCurrentThreadIdv|_ZN20thread_pinner_impl_t.*)$'
+    to: risk
+    expires: 2027-04-01
+    reason: 'libonedal_thread internals hidden by #3987 (default visibility on Linux); no installed header declares them'
+  - id: thread-pinner-internal-3987-var
+    label: thread-pinner-internal-3987
+    kind: var_removed_elf_only
+    symbol_pattern: '^(IMPL|_ZT[IVS]20thread_pinner_impl_t)$'
+    to: risk
+    expires: 2027-04-01
+    reason: 'libonedal_thread internals hidden by #3987: thread_pinner_impl_t typeinfo/vtable and the IMPL global'

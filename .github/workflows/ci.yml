@@ -305,10 +305,8 @@ jobs:
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
-  # Blocking abicheck gate: the six shipped libraries, binary depth, against the
-  # release baseline-set published by abicheck-baseline.yml. The breaking-change
-  # label relaxes gating only; the report is still produced.
-  # .github/abicheck/README.md has the design and rotation steps.
+  # Blocking abicheck gate: six shipped libraries at binary depth vs the release baseline-set;
+  # the breaking-change label relaxes gating only. Design: .github/abicheck/README.md.
   LinuxAbicheckScan:
     name: Abicheck (multilib)
     needs: LinuxMakeDPCPP
