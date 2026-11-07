@@ -90,25 +90,6 @@ def _info(msg):
 # Other functions
 # ===============
 
-# Build date, YYYYMMDD: a release sets ONEDAL_BUILD_DATE; other builds keep the placeholder.
-# A clock date would re-key :version_info every day (see cpp/daal/BUILD).
-DEV_BUILD_DATE = "21990101"
-
-def _build_date(repo_ctx):
-    value = repo_ctx.os.environ.get("ONEDAL_BUILD_DATE")
-    if value == None:
-        # `--config=release-ship` sets ONEDAL_REQUIRE_BUILD_DATE so that a
-        # shipping build cannot pick up the placeholder by accident.
-        if repo_ctx.os.environ.get("ONEDAL_REQUIRE_BUILD_DATE"):
-            fail("ONEDAL_BUILD_DATE is unset, but ONEDAL_REQUIRE_BUILD_DATE (set by " +
-                 "--config=release-ship, or --repo_env directly) requires it: " +
-                 "pass --repo_env=ONEDAL_BUILD_DATE=YYYYMMDD, or drop the gate " +
-                 "for a dev or PR build (it keeps the {} placeholder).".format(DEV_BUILD_DATE))
-        return DEV_BUILD_DATE
-    if len(value) != 8 or not value.isdigit():
-        fail("ONEDAL_BUILD_DATE must be YYYYMMDD, got '{}'".format(value))
-    return value
-
 utils = struct(
     unique = _unique,
     unique_files = _unique_files,
@@ -120,5 +101,4 @@ utils = struct(
     remove_substring = _remove_substring,
     warn = _warn,
     info = _info,
-    build_date = _build_date,
 )

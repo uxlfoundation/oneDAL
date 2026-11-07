@@ -156,17 +156,13 @@ test:dpc-private \
 #   bazel build //:release                       # CPU (+ DPC++ with icpx), all ISAs
 #   bazel build //:release --release_dpc=false   # CPU only, all ISAs
 #   bazel build //:release --cpu=avx2            # CI: avx2 only
-build:release-dpc \
-    --release_dpc=true
 
-# Configuration: 'release-ship'
-# Shipping release builds. The build date must come from ONEDAL_BUILD_DATE:
-# without it the build fails instead of stamping the 21990101 placeholder.
-# PR CI keeps using release-dpc alone, so its release steps still work unset.
-#   bazel build //:release --config=release-dpc --config=release-ship \
-#       --cpu=avx2 --repo_env=ONEDAL_BUILD_DATE=20261029
-build:release-ship \
-    --repo_env=ONEDAL_REQUIRE_BUILD_DATE=1
+# Release builds stamp the build date (dev/bazel/stamp.bzl).
+# Other configs keep the placeholder, so their outputs stay the same daily.
+build:release-dpc \
+    --release_dpc=true \
+    --stamp \
+    --workspace_status_command="sh dev/bazel/workspace_status.sh"
 
 # Configuration: 'dev'
 # Fast local development build — compiles only for the host machine's

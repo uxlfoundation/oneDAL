@@ -14,6 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
+load("@onedal//dev/bazel:stamp.bzl", "fill_build_date")
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
 load("@onedal//dev/bazel/config:config.bzl", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
@@ -172,7 +173,8 @@ def _try_relativize(path, start):
         return paths.relativize(path, start)
     return path
 
-def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
+def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows, build_date):
+    stamped = ctx.actions.declare_file(dst_path + ".tmpl")
     dst_file = ctx.actions.declare_file(dst_path)
 
     # Make rewrites these seven lines with `sed`, and on Windows every
@@ -185,9 +187,9 @@ def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
     eol = "\r" if is_windows else ""
     ctx.actions.expand_template(
         template = src_file,
-        output = dst_file,
+        output = stamped,
         substitutions = {
-            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}{}".format(version_info.build, eol),
+            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE @ONEDAL_BUILD_DATE@{}".format(eol),
             "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}{}".format(version_info.major, eol),
             "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}{}".format(version_info.minor, eol),
             "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}{}".format(version_info.update, eol),
@@ -196,6 +198,7 @@ def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
             "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}{}".format(version_info.binary_minor, eol),
         },
     )
+    fill_build_date(ctx, stamped, build_date, dst_file)
     return dst_file
 
 def _strip_os_suffix(dst_path, os_suffix):
@@ -211,7 +214,7 @@ def _strip_os_suffix(dst_path, os_suffix):
     stripped = "{}.{}".format(stem[:-len(os_suffix)], extension)
     return paths.join(paths.dirname(dst_path), stripped)
 
-def _copy_include(ctx, prefix, version_info):
+def _copy_include(ctx, prefix, version_info, build_date):
     include_prefix = paths.join(prefix, "include")
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
@@ -259,7 +262,7 @@ def _copy_include(ctx, prefix, version_info):
         header = staged[dst_path]
         if header.short_path == "cpp/daal/include/services/library_version_info.h":
             dst_file = _copy_version_header(ctx, header, dst_path, version_info,
-                                            is_windows)
+                                            is_windows, build_date)
         else:
             dst_file = _copy(ctx, header, dst_path)
         dst_files.append(dst_file)
@@ -562,7 +565,7 @@ def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
     version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
     files = []
-    files += _copy_include(ctx, prefix, version_info)
+    files += _copy_include(ctx, prefix, version_info, ctx.file._build_date)
     files += _copy_lib(ctx, prefix, version_info)
     files += _copy_extra_files(ctx, prefix)
     files += _copy_data(ctx, prefix)
@@ -621,6 +624,10 @@ _release = rule(
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_build_date": attr.label(
+            default = "@onedal//dev/bazel:build_date",
+            allow_single_file = True,
         ),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",

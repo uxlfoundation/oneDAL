@@ -16,6 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
+load("@onedal//dev/bazel:stamp.bzl", "DEV_BUILD_DATE")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
 
 ConfigFlagInfo = provider(
@@ -355,7 +356,7 @@ def _declare_onedal_config_impl(repo_ctx):
             "%{version_major}":         VERSION.major,
             "%{version_minor}":         VERSION.minor,
             "%{version_update}":        VERSION.update,
-            "%{version_build}":         utils.build_date(repo_ctx),
+            "%{version_build}":         DEV_BUILD_DATE,
             "%{version_buildrev}":      "work",
             "%{version_status}":        VERSION.status,
             "%{version_binary_major}":  VERSION.binary_major,
@@ -368,10 +369,6 @@ declare_onedal_config = repository_rule(
     environ = [
         "CC",
         "CXX",
-        # Build date of a release (utils.bzl, `build_date`).
-        "ONEDAL_BUILD_DATE",
-        # Set by --config=release-ship: a missing ONEDAL_BUILD_DATE fails the build.
-        "ONEDAL_REQUIRE_BUILD_DATE",
         # PATH, so that sourcing setvars.sh re-detects the DPC++ compiler.
         "PATH",
         # Windows host-arch detection (see toolchains/common.bzl).

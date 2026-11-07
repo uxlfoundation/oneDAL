@@ -398,8 +398,6 @@ jobs:
     displayName: 'Publish Linux folded release execution log'
 
   - script: |
-      # Keep the placeholder: a date in one step alone relinks every test between steps.
-      # Dated release builds: .github/workflows/nightly-test.yml (dev/bazel/utils.bzl).
       bazel build :release --release_dpc=false --execution_log_compact_file="$(Build.ArtifactStagingDirectory)/release-exec-log.zst"
     displayName: 'release'
 
@@ -790,7 +788,6 @@ jobs:
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      REM Placeholder build date for every step of this job; see LinuxBazel 'release'.
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS) --execution_log_compact_file="$(Build.ArtifactStagingDirectory)\release-exec-log.zst"
     displayName: 'release'
   # Diagnostic only: publish the per-action execution log of the release build so
@@ -935,7 +932,6 @@ jobs:
     displayName: 'bazel-configure'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
-      REM Placeholder build date, as in WindowsBazel 'release'; the real date is set in nightly-test.yml.
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release-all'
   - powershell: |
