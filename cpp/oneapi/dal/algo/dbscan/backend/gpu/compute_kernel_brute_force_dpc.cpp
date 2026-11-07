@@ -264,8 +264,14 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
     std::int64_t cluster_count = 0;
 
-    std::int32_t cluster_index =
-        kernels_fp<Float>::start_next_cluster(queue, arr_cores, arr_responses, { get_cores_event });
+    // Every core row before the smallest unassigned one stays assigned, so each scan resumes there.
+    std::int64_t scan_start = 0;
+    std::int32_t cluster_index = kernels_fp<Float>::start_next_cluster(queue,
+                                                                       arr_cores,
+                                                                       arr_responses,
+                                                                       scan_start,
+                                                                       { get_cores_event });
+    scan_start = cluster_index;
     cluster_index =
         cluster_index < local_row_count ? cluster_index + local_offset : global_row_count;
     {
@@ -368,7 +374,9 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
             }
         }
 
-        cluster_index = kernels_fp<Float>::start_next_cluster(queue, arr_cores, arr_responses);
+        cluster_index =
+            kernels_fp<Float>::start_next_cluster(queue, arr_cores, arr_responses, scan_start);
+        scan_start = cluster_index;
         cluster_index =
             cluster_index < local_row_count ? cluster_index + local_offset : global_row_count;
         {

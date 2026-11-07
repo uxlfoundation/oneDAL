@@ -79,9 +79,11 @@ struct kernels_fp {
                                  std::int64_t min_observations,
                                  const bk::event_vector& deps = {});
 
+    /// Smallest unassigned core row at or after `first`, or the row count if there is none.
     static std::int32_t start_next_cluster(sycl::queue& queue,
                                            const pr::ndview<std::int32_t, 1>& cores,
                                            pr::ndview<std::int32_t, 1>& responses,
+                                           std::int64_t first,
                                            const bk::event_vector& deps = {});
 
     static sycl::event update_points_queue(sycl::queue& queue,

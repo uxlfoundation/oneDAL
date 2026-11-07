@@ -692,6 +692,7 @@ template <typename Float>
 std::int32_t kernels_fp<Float>::start_next_cluster(sycl::queue& queue,
                                                    const pr::ndview<std::int32_t, 1>& cores,
                                                    pr::ndview<std::int32_t, 1>& responses,
+                                                   std::int64_t first,
                                                    const bk::event_vector& deps) {
     using oneapi::dal::backend::operator+;
     ONEDAL_PROFILER_TASK(start_next_cluster, queue);
@@ -721,11 +722,11 @@ std::int32_t kernels_fp<Float>::start_next_cluster(sycl::queue& queue,
                     return;
                 const std::int32_t local_id = sg.get_local_id();
                 const std::int32_t local_size = sg.get_local_range()[0];
+                const std::int32_t scan_count = local_row_count - first;
                 std::int32_t adjusted_block_size =
-                    local_size *
-                    (local_row_count / local_size + bool(local_row_count % local_size));
+                    first + local_size * (scan_count / local_size + bool(scan_count % local_size));
 
-                for (std::int32_t i = local_id; i < adjusted_block_size; i += local_size) {
+                for (std::int32_t i = first + local_id; i < adjusted_block_size; i += local_size) {
                     const bool found =
                         i < local_row_count ? cores_ptr[i] == 1 && responses_ptr[i] < 0 : false;
                     const std::int32_t index =
