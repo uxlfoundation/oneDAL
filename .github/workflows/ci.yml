@@ -398,19 +398,20 @@ jobs:
       # The comment shows only this PR's changes: main's cached build against the PR, never gating.
       - name: Find main's cached build
         id: main-key
+        if: ${{ !cancelled() }}   # a red gate still gets its comment
         continue-on-error: true   # no cache: no comment, the gate still decides
         run: .ci/scripts/abi_baseline_key.sh "$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download main's cached build
         id: main-build
-        if: steps.main-key.outcome == 'success'
+        if: ${{ !cancelled() && steps.main-key.outcome == 'success' }}
         uses: actions/cache/restore@v6
         with:
           path: ./__release_lnx_main
           key: ${{ steps.main-key.outputs.key }}
       - name: Comment this PR's ABI changes against main
-        if: steps.main-build.outputs.cache-hit == 'true'
+        if: ${{ !cancelled() && steps.main-build.outputs.cache-hit == 'true' }}
         continue-on-error: true
         uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
         with:
