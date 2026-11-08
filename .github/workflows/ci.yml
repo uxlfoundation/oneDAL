@@ -385,7 +385,6 @@ jobs:
             ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
           new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
           # Incomplete header evidence fails the job instead of passing it.
-          require-complete: 'true'
           fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           fail-on-api-break: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           set: |

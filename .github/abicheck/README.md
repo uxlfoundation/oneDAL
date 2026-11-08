@@ -33,7 +33,7 @@ the job; the `API/ABI breaking change` label lifts that. abicheck is pinned to v
 
 ## Rules
 
-Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` internals. Other GLOBAL removals block.
+Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` internals; three name header-only `detail` helpers. Other GLOBAL removals block.
 
 | kind | binding | to | Evidence |
 |---|---|---|---|
@@ -42,10 +42,12 @@ Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` i
 | `var_removed_elf_only` | weak | risk | Same: WEAK template static data members. |
 | `func_removed_elf_only`, `_daal_(static_)?threader_for.*` | any | risk | #3471: C entry points with no installed header (`abi_check.sh` skips the library). |
 | `func_`/`var_removed_elf_only`, `thread_pinner_impl_t`, `getCurrentThreadId`, `IMPL` | any | risk | #3987 hid these internals. |
+| `header_only_function_params_changed`, `inline_function_removed`, `func_variadic_added` on named `detail` helpers | any | risk | #3471, #3702, #3950 changed header-only `oneapi::dal::detail` functions; nothing exported changed. |
 
 * `symbol_pattern` is a full match; `'.*'` is required (abicheck refuses a weak-binding rule with no selector).
 * No `expires`: the rules retire when the baseline reaches 2026.1.0, and rotation deletes them.
   The rules give exit 0 with 0 breaking on the six-library header compare (fork e2e).
+* No `require-complete`: the libraries ship no DWARF, so layout evidence is always partial.
 
 ## Known gaps
 

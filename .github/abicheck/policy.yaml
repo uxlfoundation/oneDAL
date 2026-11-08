@@ -45,5 +45,18 @@ reclassify:
     symbol_pattern: 'IMPL|_ZT[IVS]20thread_pinner_impl_t'
     to: risk
     reason: thread_pinner_impl_t typeinfo/vtable and IMPL global hidden by #3987.
+  # Header-only oneapi::dal::detail helpers changed after 2026.0.0 (clang AST sees inline bodies).
+  - kind: header_only_function_params_changed
+    symbol_pattern: 'threader_for|threader_for_simple|threader_func|make_default_metadata(_from_arrays)?'
+    to: risk
+    reason: detail helpers changed in #3471 (int64 indices) and #3702 (alloc kind).
+  - kind: inline_function_removed
+    symbol_pattern: 'threader_(for|func)_(int64|blocked_size)|make_default_metadata_from_arrays_impl|get_responses_impl'
+    to: risk
+    reason: detail helpers removed in #3471, #3702 and #3950.
+  - kind: func_variadic_added
+    symbol_pattern: 'make_default_metadata_from_arrays'
+    to: risk
+    reason: header-only detail template made variadic in #3702; no exported symbol.
 # A rule no finding matches is reported as unused, to be deleted at rotation.
 unused_rules: warn
