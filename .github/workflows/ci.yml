@@ -335,10 +335,12 @@ jobs:
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ cat .bazelversion; echo ubuntu-26.04; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          # In a container job runner.temp is the host path; the container sees $RUNNER_TEMP.
+          echo "dir=$RUNNER_TEMP" >> "$GITHUB_OUTPUT"
       - name: Restore the Bazel disk cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/bazel-disk
+          path: ${{ steps.bazel-disk.outputs.dir }}/bazel-disk
           key: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
           restore-keys: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-
       # Downloads pinned by these files (MKL, TBB, compilers, ...). The key holds their
@@ -347,7 +349,7 @@ jobs:
         id: repo-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/bazel-repo
+          path: ${{ steps.bazel-disk.outputs.dir }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
       - name: Bazel tests
         run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/pca:tests
@@ -360,14 +362,14 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/bazel-disk
+          path: ${{ steps.bazel-disk.outputs.dir }}/bazel-disk
           key: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
       - name: Save the Bazel repository cache
         # Only pushes to main write, and only when this hash has no entry yet.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.repo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/bazel-repo
+          path: ${{ steps.bazel-disk.outputs.dir }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
   # A machine with only Bazelisk and a distribution compiler, no oneAPI. Each leg

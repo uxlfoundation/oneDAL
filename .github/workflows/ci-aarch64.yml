@@ -294,7 +294,7 @@ jobs:
 
       # Bazel disk cache kept in the Actions cache. Only pushes to main save it;
       # pull requests restore main's copy and never write, so a PR cannot plant
-      # entries that a later run reads. The GC flags cap each leg at 2 GB (the
+      # entries that a later run reads. The GC flags cap each leg at 400 MB (the
       # repository shares one 10 GB Actions cache).
       # The key carries a toolchain fingerprint: Bazel does not track the host
       # compiler binary, so a runner image that updates GCC at the same path
