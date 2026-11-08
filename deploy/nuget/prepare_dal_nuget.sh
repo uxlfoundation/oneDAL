@@ -155,8 +155,8 @@ create_package() {
         if [ ${distr_type} = "redist" ] || [ ${distr_type} = "devel" ]; then
             mkdir -p ${dal_root_prefix}/${dynamic_lib_path}
             cp ${rls_prefix}/${dynamic_lib_path}/${lib_prefix}*${dl_postfix} ${dal_root_prefix}/${dynamic_lib_path}
-            # win-x64 special part
-            if [ ${platform} = "win-x64" ]; then
+            # win-x64 and win-arm64 special part
+            if [ ${platform} = "win-x64" ] || [ ${platform} = "win-arm64" ]; then
                 mkdir -p ${dal_root_prefix}/${static_lib_path}
                 cp ${rls_prefix}/${static_lib_path}/*_dll.${major_binary_version}.lib ${dal_root_prefix}/${static_lib_path}
             fi
