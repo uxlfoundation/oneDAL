@@ -120,13 +120,13 @@ create_package() {
 
     if [ "${build_nupkg}" = "yes" ]; then
         # extension of libraries
-        if [ "${platform}" = "linux" ]; then
+        if [ "${platform}" = "linux" ] || [ "${platform}" = "linux-arm64" ] || [ "${platform}" = "linux-riscv64" ]; then
             dl_postfix=.so.${major_binary_version}.${minor_binary_version}
             sl_postfix=.a
         elif [ "${platform}" = "osx-x64" ]; then
             dl_postfix=.${major_binary_version}.${minor_binary_version}.dylib
             sl_postfix=.a
-        elif [ "${platform}" = "win-x64" ]; then
+        elif [ "${platform}" = "win-x64" ] || [ "${platform}" = "win-arm64" ]; then
             dl_postfix=.${major_binary_version}.dll
             sl_postfix=.lib
         fi
