@@ -36,7 +36,7 @@ reclassify:
   - kind: func_removed_elf_only
     symbol_pattern: '_daal_(static_)?threader_for.*'
     to: risk
-    reason: libonedal_thread C entry points, accepted in #3471; same as .github/.abignore.
+    reason: libonedal_thread C entry points, accepted in #3471; abi_check.sh skips libonedal_thread.so.
   - kind: func_removed_elf_only
     symbol_pattern: '_Z18getCurrentThreadIdv|_ZN20thread_pinner_impl_t.*'
     to: risk

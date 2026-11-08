@@ -51,6 +51,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.TAG }}
+          persist-credentials: false
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -104,15 +105,17 @@ jobs:
       - name: Publish baseline-set archives to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: >-
-          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY"
-          "${{ steps.archive-headers.outputs.archive-path }}"
+          ARCHIVE: ${{ steps.archive-headers.outputs.archive-path }}
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$ARCHIVE"
 
       # Copy these into ABICHECK_BASELINE_DIGEST in ci.yml when rotating.
       - name: Report the archive digests
+        env:
+          ARCHIVE: ${{ steps.archive-headers.outputs.archive-path }}
+          SHA: ${{ steps.archive-headers.outputs.archive-sha256 }}
         run: |
           {
             echo "| asset | sha256 |"
             echo "|---|---|"
-            echo "| \`${{ steps.archive-headers.outputs.archive-path }}\` | \`sha256:${{ steps.archive-headers.outputs.archive-sha256 }}\` |"
+            echo "| \`${ARCHIVE}\` | \`sha256:${SHA}\` |"
           } >> "$GITHUB_STEP_SUMMARY"

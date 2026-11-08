@@ -24,7 +24,7 @@ the job; the `API/ABI breaking change` label lifts that. abicheck is pinned to v
 
 ## Rotate
 
-* **Publish:** `gh workflow run abicheck-baseline.yml -f baseline_tag=<tag>` (or on `release: published`).
+* **Publish:** `gh workflow run abicheck-baseline.yml -f baseline_tag=<tag>` (or on `release: published`) uploads the set to that tag's GitHub release.
   Assets are never overwritten; to republish, bump the generation.
 * **New tag:** one PR sets `ABICHECK_BASELINE_TAG` and `ABICHECK_BASELINE_DIGEST` in `ci.yml`
   (digest from the publish summary); delete rules `unused_rules: warn` reports.
@@ -40,7 +40,7 @@ Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` i
 | `func_removed_elf_only` | weak | risk | #3604 `-fvisibility-inlines-hidden` hides WEAK inline and template functions (2026.1.0+). |
 | `func_visibility_changed` | weak | risk | Same: default to hidden on WEAK inline functions. |
 | `var_removed_elf_only` | weak | risk | Same: WEAK template static data members. |
-| `func_removed_elf_only`, `_daal_(static_)?threader_for.*` | any | risk | #3471: C entry points with no installed header (as `.github/.abignore`). |
+| `func_removed_elf_only`, `_daal_(static_)?threader_for.*` | any | risk | #3471: C entry points with no installed header (`abi_check.sh` skips the library). |
 | `func_`/`var_removed_elf_only`, `thread_pinner_impl_t`, `getCurrentThreadId`, `IMPL` | any | risk | #3987 hid these internals. |
 
 * `symbol_pattern` is a full match; `'.*'` is required (abicheck refuses a weak-binding rule with no selector).
