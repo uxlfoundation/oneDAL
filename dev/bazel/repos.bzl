@@ -206,9 +206,9 @@ def _create_required_any_symlinks(repo_ctx, root, entries, what, substitutions=N
     For a set of files that are individually optional but collectively required:
     the MKL CPU dispatch kernels, where which ISA families a release ships
     changes between versions but a layout with the classic libraries and no
-    kernel at all is broken -- `libmkl_core.so.2` is only the dispatcher, so the
-    first classic-MKL call dies with `Cannot load libmkl_avx512.so.2 or
-    libmkl_def.so.2`. Failing in the repository rule names the package; failing
+    kernel at all is broken -- `libmkl_core.so.3` is only the dispatcher, so the
+    first classic-MKL call dies with `Cannot load libmkl_avx512.so.3 or
+    libmkl_def.so.3`. Failing in the repository rule names the package; failing
     at run time names a kernel the user never asked for.
     """
     if not entries:
@@ -246,6 +246,132 @@ def _matches_glob(name, pattern):
         pos = idx + len(part)
     return True
 
+def _normalize_pypi_name(name):
+    return name.lower().replace("_", "-").replace(".", "-")
+
+def _parse_pypi_lock(content):
+    """Parses a hash-pinned requirements file into `{name: struct(version, sha256s)}`.
+
+    Only the subset Renovate's `pip_requirements` manager (through `hashin`)
+    writes is understood: one `name==version` per logical line, followed by
+    `--hash=sha256:...` options, with `\\` line continuations and `#` comments.
+    """
+    packages = {}
+    for line in content.replace("\\\n", " ").split("\n"):
+        line = line.split("#")[0].strip()
+        if not line:
+            continue
+        tokens = [t for t in line.replace("\t", " ").split(" ") if t]
+        if "==" not in tokens[0]:
+            fail("pypi lock: expected `name==version`, got '{}'".format(tokens[0]))
+        name, version = tokens[0].split("==")
+        sha256s = [
+            t[len("--hash=sha256:"):]
+            for t in tokens[1:]
+            if t.startswith("--hash=sha256:")
+        ]
+        if not sha256s:
+            fail("pypi lock: '{}' has no --hash=sha256 entries".format(tokens[0]))
+        packages[_normalize_pypi_name(name)] = struct(version = version, sha256s = sha256s)
+    return packages
+
+# Wheel platform tag that each OS downloads. Only x86_64 wheels are used, which
+# `_check_download_arch` enforces.
+_PYPI_PLATFORM_TAG = {
+    "lnx": "manylinux_2_28_x86_64",
+    "win": "win_amd64",
+}
+
+def _wheel_has_platform(repo_ctx, wheel_path, dist, version, platform_tag):
+    """Tells whether a downloaded wheel declares `platform_tag` in its WHEEL file."""
+    staging = repo_ctx.path(str(wheel_path) + ".d")
+    repo_ctx.extract(archive = wheel_path, output = staging, type = "zip")
+    wheel_file = staging.get_child("{}-{}.dist-info".format(dist, version)).get_child("WHEEL")
+    found = wheel_file.exists and any([
+        line.startswith("Tag:") and line.strip().endswith("-" + platform_tag)
+        for line in repo_ctx.read(wheel_file).split("\n")
+    ])
+    repo_ctx.delete(staging)
+    return found
+
+def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
+    """Downloads the wheel of `name` for `platform_tag`; returns its path and dist name.
+
+    The lock lists the hashes of every file of the release (Linux and Windows
+    wheels alike) without saying which is which, so the wheel is looked up in
+    the release's PyPI metadata. Its hash must be one of the locked ones, and the
+    wheel is then fetched by that hash, so the repository cache serves it and an
+    index that answers with another file is refused.
+
+    Without the metadata -- offline, from a copied `--repository_cache` -- each
+    locked hash is tried in turn, and the wheel that declares `platform_tag` is
+    the one kept.
+    """
+    metadata_path = repo_ctx.path("pypi/{}-{}.json".format(name, pin.version))
+    metadata = repo_ctx.download(
+        url = "https://pypi.org/pypi/{}/{}/json".format(name, pin.version),
+        output = metadata_path,
+        allow_fail = True,
+    )
+    if metadata.success:
+        candidates = [
+            f
+            for f in json.decode(repo_ctx.read(metadata_path))["urls"]
+            if f["filename"].endswith("-{}.whl".format(platform_tag))
+        ]
+        if len(candidates) != 1:
+            fail("pypi package {}=={}: expected one '*-{}.whl' wheel, found {}".format(
+                name, pin.version, platform_tag, [f["filename"] for f in candidates]))
+        wheel = candidates[0]
+        sha256 = wheel["digests"]["sha256"]
+        if sha256 not in pin.sha256s:
+            fail("pypi package {}=={}: the hash of {} ({}) is not in the lock file".format(
+                name, pin.version, wheel["filename"], sha256))
+        wheel_path = repo_ctx.path("pypi/" + wheel["filename"])
+        repo_ctx.download(url = wheel["url"], output = wheel_path, sha256 = sha256)
+        return wheel_path, wheel["filename"].split("-")[0]
+
+    dist = name.replace("-", "_")
+    urls = [
+        "https://files.pythonhosted.org/packages/{tag}/{initial}/{name}/{dist}-{version}-{tag}-none-{platform}.whl".format(
+            tag = python_tag, initial = name[0], name = name, dist = dist,
+            version = pin.version, platform = platform_tag,
+        )
+        for python_tag in ["py2.py3", "py3"]
+    ]
+    for sha256 in pin.sha256s:
+        wheel_path = repo_ctx.path("pypi/{}-{}-{}.whl".format(dist, pin.version, sha256[:12]))
+        if not repo_ctx.download(url = urls, output = wheel_path, sha256 = sha256, allow_fail = True).success:
+            continue
+        if _wheel_has_platform(repo_ctx, wheel_path, dist, pin.version, platform_tag):
+            return wheel_path, dist
+        repo_ctx.delete(wheel_path)
+    fail(("pypi package {}=={}: no locked {} wheel could be fetched; the PyPI " +
+          "metadata was unreachable and no locked hash is in the repository cache").format(
+        name, pin.version, platform_tag))
+
+def _download_pypi(repo_ctx, os_id, package, lock, output):
+    """Downloads and unpacks the wheel of `package` pinned in the lock file.
+
+    `os_id` picks the wheel's platform: "win" only for `win_pypi_packages`. A
+    dependency without them gets its Linux wheels on Windows too, as one
+    without `win_archives` gets its `archives`, so its templates see the layout
+    they were written for.
+    """
+    name = _normalize_pypi_name(package)
+    if name not in lock:
+        fail("pypi package '{}' is not pinned in {}".format(package, repo_ctx.attr._pypi_lock))
+    pin = lock[name]
+    wheel_path, dist = _fetch_pypi_wheel(repo_ctx, name, pin, _PYPI_PLATFORM_TAG[os_id])
+
+    # Wheels of native libraries put their payload under `<dist>-<version>.data/data`,
+    # and the Windows ones one level deeper, in a conda-style `Library` prefix.
+    strip_prefix = "{}-{}.data/data".format(dist, pin.version)
+    if os_id == "win":
+        strip_prefix += "/Library"
+    repo_ctx.extract(archive = wheel_path, output = output, strip_prefix = strip_prefix, type = "zip")
+    repo_ctx.delete(wheel_path)
+
 def _download(repo_ctx, os_id):
     output = repo_ctx.path("archive")
     info_entries = _normalize_download_info(repo_ctx, os_id)
@@ -257,6 +383,12 @@ def _download(repo_ctx, os_id):
             output = output,
             strip_prefix = info.strip_prefix,
         )
+    pypi_packages = _select_by_os(repo_ctx, "pypi_packages", os_id)
+    if pypi_packages:
+        lock = _parse_pypi_lock(repo_ctx.read(repo_ctx.attr._pypi_lock))
+        wheel_os = "win" if os_id == "win" and repo_ctx.attr.win_pypi_packages else "lnx"
+        for package in pypi_packages:
+            _download_pypi(repo_ctx, wheel_os, package, lock, output)
     return str(output)
 
 def _check_download_arch(repo_ctx, os_id):
@@ -299,12 +431,12 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     if root:
         # A local installation is used as it is, so there is no archive layout to map from.
         mapping = {}
-    elif _select_by_os(repo_ctx, "urls", os_id):
+    elif _select_by_os(repo_ctx, "urls", os_id) or _select_by_os(repo_ctx, "pypi_packages", os_id):
         _check_download_arch(repo_ctx, os_id)
         root = _download(repo_ctx, os_id)
         mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
     else:
-        fail("Cannot locate {} dependency: neither ${} is set nor archives are declared".format(
+        fail("Cannot locate {} dependency: neither ${} is set nor archives or PyPI packages are declared".format(
             repo_ctx.name,
             repo_ctx.attr.root_env_var,
         ))
@@ -344,11 +476,11 @@ def _prebuilt_libs_repo_impl(repo_ctx):
 def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
                              required_any_libs=[], required_any_libs_description="",
                              win_required_any_libs=[],
-                             root_env_var="", archives=[],
+                             root_env_var="", archives=[], pypi_packages=[],
                              download_arch="intel64", win_download_arch="",
                              download_mapping={},
                              win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
-                             win_archives=[], win_download_mapping={}):
+                             win_archives=[], win_pypi_packages=[], win_download_mapping={}):
     """Declare a repository rule for a dependency shipped as prebuilt binaries.
 
     Everything that describes one dependency -- the environment variable that
@@ -375,6 +507,11 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         archives: `repos.archive()` entries to download when no local
                   installation is pointed to. A dependency that declares none
                   is therefore only resolvable through `root_env_var`.
+        pypi_packages: Names of PyPI packages to download as well, at the
+                       version and hashes pinned in
+                       `dev/bazel/deps/requirements_lock.txt`. Renovate keeps
+                       that file current, so a dependency listed here needs no
+                       URL or hash in its `.bzl` file.
         download_arch: oneDAL arch ID the `archives` are built for. A download
                        is refused when it does not match the target the
                        toolchain derives, so a Windows ARM64 build cannot
@@ -389,6 +526,9 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         win_bins: Windows override for `bins`.
         win_build_template: Windows override for `build_template`.
         win_archives: Windows override for `archives`.
+        win_pypi_packages: Windows override for `pypi_packages`, fetched as
+                           Windows wheels. Without it Windows gets the Linux
+                           wheels of `pypi_packages`, like `archives`.
         win_download_mapping: Windows override for `download_mapping`.
 
     Returns:
@@ -437,6 +577,9 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "win_urls": attr.string_list(default=win_download_info.urls),
             "win_sha256s": attr.string_list(default=win_download_info.sha256s),
             "win_strip_prefixes": attr.string_list(default=win_download_info.strip_prefixes),
+            "pypi_packages": attr.string_list(default=pypi_packages),
+            "win_pypi_packages": attr.string_list(default=win_pypi_packages),
+            "_pypi_lock": attr.label(default=Label("@onedal//dev/bazel/deps:requirements_lock.txt")),
             "_download_mapping": attr.string_dict(default=download_mapping),
             "_win_download_mapping": attr.string_dict(default=win_download_mapping),
         }

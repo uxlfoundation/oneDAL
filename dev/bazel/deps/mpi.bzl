@@ -16,21 +16,14 @@
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
-_VERSION = "2021.16.1"
-
 mpi_repo = repos.prebuilt_libs_repo_rule(
     root_env_var = "MPIROOT",
-    archives = [
-        repos.archive(
-            url = "https://files.pythonhosted.org/packages/e5/44/6867aebd60d8b8bcf8f7e3b1fa781debd4fc3df16bfb1525e732570ea214/impi_rt-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
-            sha256 = "0f70499bc42eab6923c0ae8fa6dd409c047d93626d686ac21d04e295b120bb95",
-            strip_prefix = "impi_rt-{}.data/data".format(_VERSION),
-        ),
-        repos.archive(
-            url = "https://files.pythonhosted.org/packages/41/75/46b81412f336dde770a56960c7b10af6860efa4dd3aa9796d5eb2645644a/impi_devel-{}-py2.py3-none-manylinux_2_28_x86_64.whl".format(_VERSION),
-            sha256 = "d1081a1647a4de521e2680983629d627704364a07f16c60aaec0bb85535e25bd",
-            strip_prefix = "impi_devel-{}.data/data".format(_VERSION),
-        ),
+    # Pinned in requirements_lock.txt.
+    pypi_packages = [
+        "impi-rt",
+        "impi-devel",
+        # impi-rt no longer bundles libfabric; it depends on this wheel instead.
+        "modified-libfabric",
     ],
     bins = [
         "bin",
@@ -45,16 +38,13 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "lib/release/libmpi.so.12.0.0",
         "libfabric/lib/libfabric.so",
         "libfabric/lib/libfabric.so.1",
-        "libfabric/lib/prov/libefa-fi.so",
-        "libfabric/lib/prov/libmlx-fi.so",
-        "libfabric/lib/prov/libpsm3-fi.so",
-        "libfabric/lib/prov/libpsmx2-fi.so",
-        "libfabric/lib/prov/librxm-fi.so",
-        "libfabric/lib/prov/libshm-fi.so",
-        "libfabric/lib/prov/libtcp-fi.so",
-        "libfabric/lib/prov/libverbs-1.1-fi.so",
-        "libfabric/lib/prov/libverbs-1.12-fi.so",
     ],
+    # The provider set changes between libfabric releases. The Windows wheels
+    # ship none, and nothing on Windows runs mpiexec.
+    required_any_libs = [
+        "libfabric/lib/prov/*-fi.so",
+    ],
+    required_any_libs_description = "libfabric providers, which mpiexec loads through FI_PROVIDER_PATH",
     build_template = "@onedal//dev/bazel/deps:mpi.tpl.BUILD",
     download_mapping = {
         # Required directory layout and layout in the downloaded
@@ -67,15 +57,7 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         "lib/release/libmpi.so.12":                     "lib/libmpi.so.12",
         "lib/release/libmpi.so.12.0":                   "lib/libmpi.so.12.0",
         "lib/release/libmpi.so.12.0.0":                 "lib/libmpi.so.12.0.0",
-        "libfabric/lib/prov/libefa-fi.so":              "lib/libefa-fi.so",
-        "libfabric/lib/prov/libmlx-fi.so":              "lib/libmlx-fi.so",
-        "libfabric/lib/prov/libpsm3-fi.so":             "lib/libpsm3-fi.so",
-        "libfabric/lib/prov/libpsmx2-fi.so":            "lib/libpsmx2-fi.so",
-        "libfabric/lib/prov/librxm-fi.so":              "lib/librxm-fi.so",
-        "libfabric/lib/prov/libshm-fi.so":              "lib/libshm-fi.so",
-        "libfabric/lib/prov/libtcp-fi.so":              "lib/libtcp-fi.so",
-        "libfabric/lib/prov/libverbs-1.1-fi.so":        "lib/libverbs-1.1-fi.so",
-        "libfabric/lib/prov/libverbs-1.12-fi.so":       "lib/libverbs-1.12-fi.so",
+        "libfabric/lib/prov":                           "lib/libfabric",
     },
 )
 
