@@ -35,6 +35,7 @@ env:
   # Bump when the extractor or the library list changes, and move ci.yml with it;
   # .github/abicheck/README.md.
   ABICHECK_BASELINE_GENERATION: "1"
+  ABICHECK_AST_FRONTEND: clang   # clang -ast-dump=json, not castxml; same in both workflows
   ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
   TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}
 

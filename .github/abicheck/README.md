@@ -18,7 +18,7 @@
 # ABI gate
 
 `ci.yml` job `LinuxAbicheckScan` compares the public headers and exports of the six shipped
-libraries (header depth, castxml) with the `2026.0.0` baseline. A binary or source break fails
+libraries (header depth, clang AST) with the `2026.0.0` baseline. A binary or source break fails
 the job; the `API/ABI breaking change` label lifts that. abicheck is pinned to v0.8.0
 (`597e47ae7cf9657f4ea987175bf9463d70dba594`) in both workflows. Config: `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
 
@@ -52,9 +52,3 @@ Three rules demote WEAK finding kinds to `risk`; three name `libonedal_thread` i
 * **No PR delta comment.** The compare is against the release baseline, so a comment would re-report
   everything merged since it; waits for abicheck's main-snapshot delta (abicheck/abicheck#1946).
 
-* **No layout evidence.** No DWARF is shipped; struct size or offset changes are unseen.
-* **SYCL is not parsed.** castxml is not a DPC++ frontend; `ONEDAL_DATA_PARALLEL` declarations are seen only as exports.
-* **First-wins duplicates.** Same-named declarations in `interface1`/`v1` namespaces resolve to the first; 10 warnings remain. A change to a shadowed duplicate is invisible.
-* **Overloaded member templates** (`CSRNumericTable::setArrays<T>`): abicheck can misread a removed instance at header depth. The final policy gives 0 breaking on the compare.
-* **Snapshots carry no extractor generation.** The directory compare checks it per pair only, so the gate relies on the generation and digest pins in `ci.yml`.
-* **Compiler skew:** the baseline is built with the tag's icx; the PR uses `main`'s pin. WEAK instantiation counts move with the compiler.

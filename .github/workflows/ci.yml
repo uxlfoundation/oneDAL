@@ -322,6 +322,7 @@ jobs:
       ABICHECK_BASELINE_TAG: 2026.0.0
       ABICHECK_PROFILE: linux-x86_64-icx-avx2-nodbg-headers
       ABICHECK_BASELINE_GENERATION: "1"
+      ABICHECK_AST_FRONTEND: clang   # clang -ast-dump=json, not castxml; same in both workflows
       # sha256 the publish run reported for this asset; rotate it with the tag.
       ABICHECK_BASELINE_DIGEST: sha256:2e9e246c1f8b68ad61d1d62f93381ca74fa2fc651519840542cd0d3b35d5a5ef
       ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
