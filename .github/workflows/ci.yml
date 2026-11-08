@@ -393,51 +393,6 @@ jobs:
           output-file: __abi_report/release.md
           extra-args: -o json=__abi_report/release.json
           pr-comment: false
-      # This PR's own delta: main's cached build against the PR, never gating.
-      # abicheck-comment.yml posts it, so fork PRs get the comment too.
-      - name: Find main's cached build
-        id: main-key
-        if: ${{ !cancelled() }}   # a red gate still gets its comment
-        continue-on-error: true   # no cache: no comment, the gate still decides
-        run: .ci/scripts/abi_baseline_key.sh "$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')"
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Download main's cached build
-        id: main-build
-        if: ${{ !cancelled() && steps.main-key.outcome == 'success' }}
-        uses: actions/cache/restore@v6
-        with:
-          path: ./__release_lnx_main
-          key: ${{ steps.main-key.outputs.key }}
-      - name: Compare main's build with this PR
-        id: delta
-        if: ${{ !cancelled() && steps.main-build.outputs.cache-hit == 'true' }}
-        continue-on-error: true
-        uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
-        with:
-          mode: compare
-          old-library: __release_lnx_main/daal/latest/lib/intel64
-          new-library: __release_lnx/daal/latest/lib/intel64
-          depth: headers
-          old-label: main
-          new-label: ${{ github.sha }}
-          old-header: __release_lnx_main/daal/latest/include/daal.h __release_lnx_main/daal/latest/include/oneapi/dal.hpp
-          old-include: __release_lnx_main/daal/latest/include
-          new-header: ${{ env.ABICHECK_INCLUDE_DIR }}/daal.h ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
-          fail-on-breaking: 'false'
-          policy: .github/abicheck/policy.yaml
-          dependency-source: system
-          add-job-summary: 'false'
-          format: json
-          output-file: __abi_delta/delta.json
-          pr-comment: false
-      - name: Archive this PR's ABI delta
-        if: ${{ !cancelled() && steps.delta.outputs.report-path != '' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: abicheck-delta-report
-          path: __abi_delta/
       - name: Archive the full ABI report
         if: always() && steps.abicheck.outputs.report-path != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
